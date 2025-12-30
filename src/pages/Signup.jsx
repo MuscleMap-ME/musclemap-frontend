@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { api } from '../utils/api';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -16,36 +17,26 @@ export default function Signup() {
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: form.username, email: form.email, password: form.password })
-      });
-      const data = await res.json();
-      
-      // If user already exists, try to log them in instead
-      if (!res.ok && data.error?.toLowerCase().includes('exist')) {
+      const data = await api.auth.register({ username: form.username, email: form.email, password: form.password });
+      login(data.user, data.token);
+      navigate('/onboarding');
+    } catch (err) {
+      const message = err.message || '';
+      if (message.toLowerCase().includes('exist')) {
         setError('Account already exists. Trying to log you in...');
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: form.email, password: form.password })
-        });
-        const loginData = await loginRes.json();
-        if (!loginRes.ok) {
-          setError('Account exists but password is different. Please log in.');
+        try {
+          const loginData = await api.auth.login(form.email, form.password);
+          login(loginData.user, loginData.token);
+          navigate(loginData.user?.archetype ? '/dashboard' : '/onboarding');
+          return;
+        } catch (loginErr) {
+          setError(loginErr.message || 'Account exists but password is different. Please log in.');
           setLoading(false);
           return;
         }
-        login(loginData.user, loginData.token);
-        navigate(loginData.user.archetype ? '/dashboard' : '/onboarding');
-        return;
       }
-      
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      login(data.user, data.token);
-      navigate('/onboarding');
-    } catch (err) { setError(err.message); }
+      setError(message || 'Registration failed');
+    }
     finally { setLoading(false); }
   };
 

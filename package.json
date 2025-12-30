@@ -6,6 +6,7 @@
     "cleanup": "DRY_RUN=1 sh ./scripts/repo-cleanup.sh",
     "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
     "build": "vite build",
+    "cron:smoke": "node cron-jobs.js --smoke-test",
     "test:frontend": "vitest run",
     "test:e2e": "playwright test",
     "test:api": "pnpm -C apps/api test"
@@ -16,6 +17,7 @@
     "@headlessui/react": "^2.2.9",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@musclemap/shared": "workspace:*",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "bcryptjs": "^2.4.3",

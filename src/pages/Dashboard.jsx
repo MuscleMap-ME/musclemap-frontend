@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import clsx from 'clsx';
+import { api } from '../utils/api';
 
 // Professional icon components (no emojis)
 const Icons = {
@@ -135,13 +136,8 @@ export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('overview');
 
   useEffect(() => {
-    const token = localStorage.getItem('musclemap_token');
-    if (token) {
-      fetch('/api/progress/stats', { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.json()).then(setStats).catch(() => {});
-      fetch('/api/economy/wallet', { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.json()).then(setWallet).catch(() => {});
-    }
+    api.progress.stats().then(setStats).catch(() => {});
+    api.wallet.balance().then(setWallet).catch(() => {});
   }, []);
 
   const arch = getArchetype(user?.archetype);

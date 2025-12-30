@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
-import { extractErrorMessage } from '../utils/errors';
 
 const ARCHETYPES = [
   { id: 'judoka', name: 'Judoka', icon: '🥋', desc: 'Throws, grip, hip power' },
@@ -40,7 +40,7 @@ export default function Onboarding() {
       const user = JSON.parse(localStorage.getItem('musclemap_user') || '{}');
       login({ ...user, archetype: archetype.id }, token);
       navigate('/dashboard');
-    } catch (err) { setError(extractErrorMessage(err)); }
+    } catch (err) { setError(extractErrorMessage(err, 'Failed to create plan')); }
     finally { setLoading(false); }
   };
 

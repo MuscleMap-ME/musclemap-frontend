@@ -1,21 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
 import { fetchWithLogging } from '../utils/logger';
-
-function extractErrorMessage(data, resStatus) {
-  const raw =
-    data?.error?.message ??
-    data?.error?.error ??
-    data?.error ??
-    data?.message ??
-    data?.msg ??
-    `Login failed (${resStatus})`;
-
-  if (typeof raw === 'string') return raw;
-  if (raw && typeof raw === 'object') return raw.message ? String(raw.message) : JSON.stringify(raw);
-  return String(raw);
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,7 +31,7 @@ export default function Login() {
       }
 
       if (!res.ok) {
-        throw new Error(extractErrorMessage(data, res.status));
+        throw new Error(extractErrorMessage(data, `Login failed (${res.status})`));
       }
 
       // API returns { data: { token, user } }
@@ -59,13 +46,7 @@ export default function Login() {
       login(user, token);
       navigate(user.archetype ? '/dashboard' : '/onboarding');
     } catch (err) {
-      const msg =
-        typeof err === 'string'
-          ? err
-          : err?.message
-            ? String(err.message)
-            : 'Login failed';
-      setError(msg);
+      setError(extractErrorMessage(err, 'Login failed'));
     } finally {
       setLoading(false);
     }
