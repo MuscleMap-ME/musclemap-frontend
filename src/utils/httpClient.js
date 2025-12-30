@@ -1,5 +1,5 @@
-import { Value } from '@sinclair/typebox/value';
 import { getToken, clearAuth } from './auth';
+import { parseWithSchema, isValidationSchema } from './schema';
 
 const API_BASE = '/api';
 const cache = new Map();
@@ -27,13 +27,8 @@ const applySchema = (schema, data) => {
     if (result.success) return result.data;
     throw new Error('Response validation failed');
   }
-  try {
-    const casted = Value.Cast(schema, data);
-    if (Value.Check(schema, casted)) return casted;
-  } catch (err) {
-    throw new Error('Response validation failed');
-  }
-  throw new Error('Response validation failed');
+  if (isValidationSchema(schema)) return parseWithSchema(schema, data);
+  return data;
 };
 
 export const clearRequestCache = () => cache.clear();
