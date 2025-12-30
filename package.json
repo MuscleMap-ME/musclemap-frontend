@@ -12,6 +12,7 @@
     "test:api": "pnpm -C apps/api test"
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.27.8",
     "@headlessui/react": "^2.2.9",
     "@mui/icons-material": "^5.15.21",
     "@mui/material": "^5.15.21",

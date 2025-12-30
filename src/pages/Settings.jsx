@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../utils/api';
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -23,17 +24,15 @@ export default function Settings() {
   });
   const [userLevel, setUserLevel] = useState(1);
   const [saving, setSaving] = useState(false);
-  
-  const token = localStorage.getItem('musclemap_token');
-  const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/settings', { headers }).then(r => r.json()),
-      fetch('/api/users/profile', { headers }).then(r => r.json())
+      api.settings.fetch(),
+      api.profile.get()
     ]).then(([s, p]) => {
       if (s.settings) setSettings(prev => ({ ...prev, ...s.settings }));
-      if (p.user?.level) setUserLevel(p.user.level);
+      else setSettings(prev => ({ ...prev, ...s }));
+      if (p.level) setUserLevel(p.level);
     }).catch(() => {});
   }, []);
 
@@ -41,7 +40,7 @@ export default function Settings() {
     setSaving(true);
     setSettings(s => ({ ...s, ...updates }));
     try {
-      await fetch('/api/settings', { method: 'PATCH', headers, body: JSON.stringify(updates) });
+      await api.settings.update(updates);
       if (updates.theme) localStorage.setItem('musclemap_theme', updates.theme);
     } catch(err) {}
     setSaving(false);
