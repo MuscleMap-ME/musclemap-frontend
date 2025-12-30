@@ -1,0 +1,58 @@
+{
+  "name": "musclemap",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "cleanup": "DRY_RUN=1 sh ./scripts/repo-cleanup.sh",
+    "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
+    "build": "vite build",
+    "test:frontend": "vitest run",
+    "test:e2e": "playwright test",
+    "test:api": "pnpm -C apps/api test"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.6.0",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "framer-motion": "^12.23.26",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.303.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.2",
+    "recharts": "^2.15.4",
+    "stripe": "^14.25.0",
+    "three": "^0.160.1",
+    "uuid": "^13.0.0",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^8.2.2",
+    "jsdom": "^27.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^5.4.21",
+    "vitest": "^4.0.16"
+  },
+  "pnpm": {
+    "overrides": {
+      "@fastify/sensible": "^6.0.0",
+      "@fastify/swagger": "^9.0.0",
+      "@fastify/swagger-ui": "^5.0.0"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "MuscleMap",
+  "short_name": "MuscleMap",
+  "description": "Visual fitness tracking with 3D muscle activation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0E27",
+  "theme_color": "#0066FF",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

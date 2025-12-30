@@ -1,0 +1,17 @@
+{
+  "id": "admin-tools",
+  "name": "Admin Tools",
+  "version": "1.0.0",
+  "description": "Administrative endpoints for managing the MuscleMap platform",
+  "author": "MuscleMap",
+  "entry": {
+    "backend": "./backend/index.js"
+  },
+  "capabilities": [
+    "routes",
+    "permissions"
+  ],
+  "requires": {
+    "host": ">=2.0.0"
+  }
+}

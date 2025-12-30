@@ -1,0 +1,148 @@
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { UserProvider, useUser } from './contexts/UserContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import logger from './utils/logger';
+
+// Pages
+import Landing from './pages/Landing';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Dashboard from './pages/Dashboard';
+import Onboarding from './pages/Onboarding';
+import Workout from './pages/Workout';
+import Journey from './pages/Journey';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import Progression from './pages/Progression';
+import Community from './pages/Community';
+import Competitions from './pages/Competitions';
+import Locations from './pages/Locations';
+import HighFives from './pages/HighFives';
+import Credits from './pages/Credits';
+import Messages from './pages/Messages';
+import Wallet from './pages/Wallet';
+import SkinsStore from './pages/SkinsStore';
+import AdminControl from './pages/AdminControl';
+
+// Page view tracker
+function PageTracker() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    logger.pageView(location.pathname, { search: location.search });
+  }, [location]);
+  
+  return null;
+}
+
+// Loading spinner
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
+
+// Protected Route wrapper
+const ProtectedRoute = ({ children, name }) => {
+  const { user, loading } = useUser();
+  
+  useEffect(() => {
+    if (!loading && user) {
+      logger.debug('route_access', { route: name, userId: user.id });
+    }
+  }, [loading, user, name]);
+  
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  
+  return <ErrorBoundary name={name}>{children}</ErrorBoundary>;
+};
+
+// Admin Route wrapper
+const AdminRoute = ({ children, name }) => {
+  const { user, loading } = useUser();
+  
+  useEffect(() => {
+    if (!loading) {
+      logger.info('admin_route_access', { route: name, userId: user?.id, isAdmin: user?.is_admin });
+    }
+  }, [loading, user, name]);
+  
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.is_admin) {
+    logger.warn('admin_access_denied', { userId: user.id, route: name });
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <ErrorBoundary name={name}>{children}</ErrorBoundary>;
+};
+
+function AppRoutes() {
+  return (
+    <>
+      <PageTracker />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<ErrorBoundary name="Landing"><Landing /></ErrorBoundary>} />
+        <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
+        <Route path="/signup" element={<ErrorBoundary name="Signup"><Signup /></ErrorBoundary>} />
+        
+        {/* Protected routes */}
+        <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
+        <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
+        <Route path="/workout" element={<ProtectedRoute name="Workout"><Workout /></ProtectedRoute>} />
+        <Route path="/journey" element={<ProtectedRoute name="Journey"><Journey /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute name="Profile"><Profile /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute name="Settings"><Settings /></ProtectedRoute>} />
+        <Route path="/progression" element={<ProtectedRoute name="Progression"><Progression /></ProtectedRoute>} />
+        <Route path="/community" element={<ProtectedRoute name="Community"><Community /></ProtectedRoute>} />
+        <Route path="/competitions" element={<ProtectedRoute name="Competitions"><Competitions /></ProtectedRoute>} />
+        <Route path="/locations" element={<ProtectedRoute name="Locations"><Locations /></ProtectedRoute>} />
+        <Route path="/highfives" element={<ProtectedRoute name="HighFives"><HighFives /></ProtectedRoute>} />
+        <Route path="/credits" element={<ProtectedRoute name="Credits"><Credits /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute name="Messages"><Messages /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
+        <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
+        
+        {/* Admin routes */}
+        <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
+        
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  useEffect(() => {
+    logger.info('app_initialized', {
+      version: '1.0.0',
+      env: process.env.NODE_ENV
+    });
+
+    // Log performance metrics
+    if (window.performance) {
+      const timing = window.performance.timing;
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loadTime = timing.loadEventEnd - timing.navigationStart;
+          const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
+          logger.performance('page_load', loadTime, { domReady });
+        }, 0);
+      });
+    }
+  }, []);
+
+  return (
+    <ErrorBoundary name="App">
+      <BrowserRouter>
+        <UserProvider>
+          <AppRoutes />
+        </UserProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
+  );
+}

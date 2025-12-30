@@ -1,0 +1,99 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
+import { fetchWithLogging } from '../utils/logger';
+
+function extractErrorMessage(data, resStatus) {
+  const raw =
+    data?.error?.message ??
+    data?.error?.error ??
+    data?.error ??
+    data?.message ??
+    data?.msg ??
+    `Login failed (${resStatus})`;
+
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object') return raw.message ? String(raw.message) : JSON.stringify(raw);
+  return String(raw);
+}
+
+export default function Login() {
+  const navigate = useNavigate();
+  const { login } = useUser();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetchWithLogging('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(extractErrorMessage(data, res.status));
+      }
+
+      // API returns { data: { token, user } }
+      const payload = data?.data ?? data;
+      const token = payload?.token;
+      const user = payload?.user;
+
+      if (!token || !user) {
+        throw new Error('Login response missing token/user (API contract mismatch).');
+      }
+
+      login(user, token);
+      navigate(user.archetype ? '/dashboard' : '/onboarding');
+    } catch (err) {
+      const msg =
+        typeof err === 'string'
+          ? err
+          : err?.message
+            ? String(err.message)
+            : 'Login failed';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link to="/"><h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">MuscleMap</h1></Link>
+          <p className="text-gray-400 mt-2">Welcome back</p>
+        </div>
+        <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-6 space-y-4">
+          {error && <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-300 text-sm">{error}</div>}
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Email</label>
+            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="you@example.com" required />
+          </div>
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Password</label>
+            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="Your password" required />
+          </div>
+          <button type="submit" disabled={loading} className="w-full p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-lg disabled:opacity-50">
+            {loading ? 'Logging in...' : 'Log In'}
+          </button>
+          <p className="text-center text-gray-400 text-sm">Don't have an account? <Link to="/signup" className="text-blue-400 hover:text-blue-300">Sign up</Link></p>
+        </form>
+      </div>
+    </div>
+  );
+}

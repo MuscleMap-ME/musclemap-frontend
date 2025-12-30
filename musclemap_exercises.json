@@ -1,0 +1,2548 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-12-23",
+  "muscles": {
+    "CH-001": {
+      "name": "Pectoralis Major (Sternal)",
+      "group": "Chest",
+      "bias": 2.6,
+      "recovery_hrs": 72
+    },
+    "CH-002": {
+      "name": "Pectoralis Major (Clavicular)",
+      "group": "Chest",
+      "bias": 2.2,
+      "recovery_hrs": 72
+    },
+    "CH-003": {
+      "name": "Pectoralis Major (Costal)",
+      "group": "Chest",
+      "bias": 2.4,
+      "recovery_hrs": 72
+    },
+    "CH-004": {
+      "name": "Pectoralis Minor",
+      "group": "Chest",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "CH-005": {
+      "name": "Serratus Anterior",
+      "group": "Chest",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "BK-001": {
+      "name": "Latissimus Dorsi (Upper)",
+      "group": "Back",
+      "bias": 3.2,
+      "recovery_hrs": 72
+    },
+    "BK-002": {
+      "name": "Latissimus Dorsi (Lower)",
+      "group": "Back",
+      "bias": 3.0,
+      "recovery_hrs": 72
+    },
+    "BK-003": {
+      "name": "Trapezius (Upper)",
+      "group": "Back",
+      "bias": 2.0,
+      "recovery_hrs": 48
+    },
+    "BK-004": {
+      "name": "Trapezius (Middle)",
+      "group": "Back",
+      "bias": 2.2,
+      "recovery_hrs": 48
+    },
+    "BK-005": {
+      "name": "Trapezius (Lower)",
+      "group": "Back",
+      "bias": 1.8,
+      "recovery_hrs": 48
+    },
+    "BK-006": {
+      "name": "Rhomboid Major",
+      "group": "Back",
+      "bias": 1.6,
+      "recovery_hrs": 48
+    },
+    "BK-007": {
+      "name": "Rhomboid Minor",
+      "group": "Back",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "BK-008": {
+      "name": "Erector Spinae (Iliocostalis)",
+      "group": "Back",
+      "bias": 2.8,
+      "recovery_hrs": 72
+    },
+    "BK-009": {
+      "name": "Erector Spinae (Longissimus)",
+      "group": "Back",
+      "bias": 2.8,
+      "recovery_hrs": 72
+    },
+    "BK-010": {
+      "name": "Erector Spinae (Spinalis)",
+      "group": "Back",
+      "bias": 2.4,
+      "recovery_hrs": 72
+    },
+    "BK-011": {
+      "name": "Teres Major",
+      "group": "Back",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "BK-012": {
+      "name": "Teres Minor",
+      "group": "Back",
+      "bias": 0.8,
+      "recovery_hrs": 48
+    },
+    "SH-001": {
+      "name": "Deltoid (Anterior)",
+      "group": "Shoulders",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "SH-002": {
+      "name": "Deltoid (Lateral)",
+      "group": "Shoulders",
+      "bias": 1.6,
+      "recovery_hrs": 48
+    },
+    "SH-003": {
+      "name": "Deltoid (Posterior)",
+      "group": "Shoulders",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "SH-004": {
+      "name": "Supraspinatus",
+      "group": "Shoulders",
+      "bias": 0.6,
+      "recovery_hrs": 72
+    },
+    "SH-005": {
+      "name": "Infraspinatus",
+      "group": "Shoulders",
+      "bias": 0.6,
+      "recovery_hrs": 72
+    },
+    "SH-006": {
+      "name": "Subscapularis",
+      "group": "Shoulders",
+      "bias": 0.8,
+      "recovery_hrs": 72
+    },
+    "AR-001": {
+      "name": "Biceps Brachii (Long Head)",
+      "group": "Arms",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "AR-002": {
+      "name": "Biceps Brachii (Short Head)",
+      "group": "Arms",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "AR-003": {
+      "name": "Brachialis",
+      "group": "Arms",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "AR-004": {
+      "name": "Brachioradialis",
+      "group": "Arms",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "AR-005": {
+      "name": "Triceps (Long Head)",
+      "group": "Arms",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "AR-006": {
+      "name": "Triceps (Lateral Head)",
+      "group": "Arms",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "AR-007": {
+      "name": "Triceps (Medial Head)",
+      "group": "Arms",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "AR-008": {
+      "name": "Wrist Flexors",
+      "group": "Arms",
+      "bias": 0.8,
+      "recovery_hrs": 36
+    },
+    "AR-009": {
+      "name": "Wrist Extensors",
+      "group": "Arms",
+      "bias": 0.8,
+      "recovery_hrs": 36
+    },
+    "AR-010": {
+      "name": "Forearm Pronators",
+      "group": "Arms",
+      "bias": 0.6,
+      "recovery_hrs": 36
+    },
+    "AR-011": {
+      "name": "Forearm Supinators",
+      "group": "Arms",
+      "bias": 0.6,
+      "recovery_hrs": 36
+    },
+    "CO-001": {
+      "name": "Rectus Abdominis (Upper)",
+      "group": "Core",
+      "bias": 1.8,
+      "recovery_hrs": 36
+    },
+    "CO-002": {
+      "name": "Rectus Abdominis (Lower)",
+      "group": "Core",
+      "bias": 1.8,
+      "recovery_hrs": 36
+    },
+    "CO-003": {
+      "name": "External Obliques",
+      "group": "Core",
+      "bias": 1.6,
+      "recovery_hrs": 36
+    },
+    "CO-004": {
+      "name": "Internal Obliques",
+      "group": "Core",
+      "bias": 1.4,
+      "recovery_hrs": 36
+    },
+    "CO-005": {
+      "name": "Transverse Abdominis",
+      "group": "Core",
+      "bias": 1.2,
+      "recovery_hrs": 36
+    },
+    "CO-006": {
+      "name": "Quadratus Lumborum",
+      "group": "Core",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "LG-001": {
+      "name": "Rectus Femoris",
+      "group": "Legs",
+      "bias": 3.8,
+      "recovery_hrs": 72
+    },
+    "LG-002": {
+      "name": "Vastus Lateralis",
+      "group": "Legs",
+      "bias": 3.6,
+      "recovery_hrs": 72
+    },
+    "LG-003": {
+      "name": "Vastus Medialis",
+      "group": "Legs",
+      "bias": 3.4,
+      "recovery_hrs": 72
+    },
+    "LG-004": {
+      "name": "Vastus Intermedius",
+      "group": "Legs",
+      "bias": 3.2,
+      "recovery_hrs": 72
+    },
+    "LG-005": {
+      "name": "Biceps Femoris (Long)",
+      "group": "Legs",
+      "bias": 3.0,
+      "recovery_hrs": 72
+    },
+    "LG-006": {
+      "name": "Biceps Femoris (Short)",
+      "group": "Legs",
+      "bias": 2.4,
+      "recovery_hrs": 72
+    },
+    "LG-007": {
+      "name": "Semitendinosus",
+      "group": "Legs",
+      "bias": 2.6,
+      "recovery_hrs": 72
+    },
+    "LG-008": {
+      "name": "Semimembranosus",
+      "group": "Legs",
+      "bias": 2.6,
+      "recovery_hrs": 72
+    },
+    "LG-009": {
+      "name": "Gluteus Maximus",
+      "group": "Legs",
+      "bias": 4.2,
+      "recovery_hrs": 72
+    },
+    "LG-010": {
+      "name": "Gluteus Medius",
+      "group": "Legs",
+      "bias": 2.0,
+      "recovery_hrs": 48
+    },
+    "LG-011": {
+      "name": "Gluteus Minimus",
+      "group": "Legs",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "LG-012": {
+      "name": "Adductor Magnus",
+      "group": "Legs",
+      "bias": 2.4,
+      "recovery_hrs": 72
+    },
+    "LG-013": {
+      "name": "Adductor Longus",
+      "group": "Legs",
+      "bias": 1.8,
+      "recovery_hrs": 48
+    },
+    "LG-014": {
+      "name": "Adductor Brevis",
+      "group": "Legs",
+      "bias": 1.4,
+      "recovery_hrs": 48
+    },
+    "LG-015": {
+      "name": "Gracilis",
+      "group": "Legs",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "LG-016": {
+      "name": "Pectineus",
+      "group": "Legs",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    },
+    "LG-017": {
+      "name": "Gastrocnemius (Medial)",
+      "group": "Legs",
+      "bias": 2.2,
+      "recovery_hrs": 48
+    },
+    "LG-018": {
+      "name": "Gastrocnemius (Lateral)",
+      "group": "Legs",
+      "bias": 2.0,
+      "recovery_hrs": 48
+    },
+    "LG-019": {
+      "name": "Soleus",
+      "group": "Legs",
+      "bias": 2.4,
+      "recovery_hrs": 48
+    },
+    "LG-020": {
+      "name": "Tibialis Anterior",
+      "group": "Legs",
+      "bias": 1.2,
+      "recovery_hrs": 36
+    },
+    "LG-021": {
+      "name": "Iliopsoas",
+      "group": "Legs",
+      "bias": 1.8,
+      "recovery_hrs": 48
+    },
+    "LG-022": {
+      "name": "Sartorius",
+      "group": "Legs",
+      "bias": 1.2,
+      "recovery_hrs": 48
+    },
+    "LG-023": {
+      "name": "Tensor Fasciae Latae",
+      "group": "Legs",
+      "bias": 1.0,
+      "recovery_hrs": 48
+    }
+  },
+  "exercises": {
+    "bodyweight": [
+      {
+        "id": "BW-PUSH-001",
+        "name": "Push-Up",
+        "category": "Push",
+        "difficulty": 2,
+        "description": "Standard push-up from floor, hands shoulder-width apart",
+        "cues": "Body straight line | Lower until chest near floor | Elbows 45\u00b0",
+        "reps": [
+          8,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-001": 85,
+          "CH-002": 70,
+          "CH-003": 65,
+          "AR-005": 75,
+          "AR-006": 75,
+          "SH-001": 65,
+          "CO-001": 40,
+          "CH-005": 35
+        }
+      },
+      {
+        "id": "BW-PUSH-002",
+        "name": "Diamond Push-Up",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Push-up with hands together forming diamond shape",
+        "cues": "Thumbs and index fingers touch | Elbows close to body",
+        "reps": [
+          6,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-005": 90,
+          "AR-006": 90,
+          "AR-007": 85,
+          "CH-001": 70,
+          "SH-001": 60,
+          "CO-001": 40
+        }
+      },
+      {
+        "id": "BW-PUSH-003",
+        "name": "Pike Push-Up",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Inverted V position push-up targeting shoulders",
+        "cues": "Hips high in downward dog | Lower head between hands | Drive through shoulders",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-001": 90,
+          "SH-002": 70,
+          "AR-005": 75,
+          "AR-006": 70,
+          "BK-003": 50,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "BW-PUSH-004",
+        "name": "Decline Push-Up",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Push-up with feet elevated on bench or box",
+        "cues": "Feet on elevated surface | Body straight | Full range of motion",
+        "reps": [
+          8,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-002": 90,
+          "CH-001": 75,
+          "SH-001": 70,
+          "AR-005": 65,
+          "AR-006": 65,
+          "CO-001": 45
+        }
+      },
+      {
+        "id": "BW-PUSH-005",
+        "name": "Dip (Parallel Bars)",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Vertical press on parallel bars for chest and triceps",
+        "cues": "Lean forward for chest | Stay upright for triceps | Full depth",
+        "reps": [
+          6,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-001": 85,
+          "CH-003": 80,
+          "AR-005": 90,
+          "AR-006": 85,
+          "SH-001": 70,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "BW-PUSH-006",
+        "name": "Bench Dip",
+        "category": "Push",
+        "difficulty": 2,
+        "description": "Dip using bench behind for support",
+        "cues": "Hands on bench edge | Feet extended | Lower to 90\u00b0 arms",
+        "reps": [
+          10,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-005": 85,
+          "AR-006": 80,
+          "AR-007": 75,
+          "SH-001": 60,
+          "CH-001": 50
+        }
+      },
+      {
+        "id": "BW-PUSH-007",
+        "name": "Handstand Push-Up (Wall)",
+        "category": "Push",
+        "difficulty": 5,
+        "description": "Inverted vertical press against wall",
+        "cues": "Kick up to wall | Lower head to floor | Press through shoulders",
+        "reps": [
+          3,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 95,
+          "SH-002": 85,
+          "AR-005": 80,
+          "AR-006": 80,
+          "BK-003": 60,
+          "CO-001": 50,
+          "CO-005": 45
+        }
+      },
+      {
+        "id": "BW-PUSH-008",
+        "name": "Archer Push-Up",
+        "category": "Push",
+        "difficulty": 4,
+        "description": "Wide push-up shifting weight to one arm",
+        "cues": "One arm extends out | Shift weight to working arm | Control descent",
+        "reps": [
+          4,
+          10
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-001": 90,
+          "CH-002": 80,
+          "AR-005": 80,
+          "SH-001": 70,
+          "CO-003": 50,
+          "CO-001": 45
+        }
+      },
+      {
+        "id": "BW-PULL-001",
+        "name": "Pull-Up",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Overhand grip vertical pull",
+        "cues": "Grip wider than shoulders | Pull chin over bar | Lead with chest",
+        "reps": [
+          5,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "BK-001": 95,
+          "BK-002": 85,
+          "AR-001": 75,
+          "AR-002": 70,
+          "AR-003": 70,
+          "BK-006": 60,
+          "SH-003": 50,
+          "BK-011": 55
+        }
+      },
+      {
+        "id": "BW-PULL-002",
+        "name": "Chin-Up",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Underhand grip vertical pull emphasizing biceps",
+        "cues": "Supinated grip shoulder-width | Pull chest to bar | Squeeze at top",
+        "reps": [
+          5,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "AR-001": 90,
+          "AR-002": 90,
+          "AR-003": 85,
+          "BK-001": 85,
+          "BK-002": 80,
+          "BK-011": 50
+        }
+      },
+      {
+        "id": "BW-PULL-003",
+        "name": "Inverted Row",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Horizontal pull from bar at waist height",
+        "cues": "Body straight under bar | Pull chest to bar | Squeeze shoulder blades",
+        "reps": [
+          8,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-004": 80,
+          "BK-006": 75,
+          "SH-003": 65,
+          "AR-001": 60,
+          "AR-002": 60,
+          "AR-004": 55,
+          "CO-001": 30
+        }
+      },
+      {
+        "id": "BW-PULL-004",
+        "name": "Muscle-Up",
+        "category": "Pull",
+        "difficulty": 5,
+        "description": "Explosive pull transitioning to dip above bar",
+        "cues": "Explosive pull | Lean forward at transition | Press to lockout",
+        "reps": [
+          1,
+          5
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "BK-001": 95,
+          "BK-002": 90,
+          "AR-001": 85,
+          "AR-005": 85,
+          "CH-001": 80,
+          "SH-001": 75,
+          "CO-001": 50
+        }
+      },
+      {
+        "id": "BW-PULL-005",
+        "name": "Australian Pull-Up (Feet Elevated)",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Inverted row with feet elevated for increased difficulty",
+        "cues": "Feet on box | Body straight | Pull chest to bar",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-004": 85,
+          "BK-006": 80,
+          "SH-003": 70,
+          "AR-001": 65,
+          "AR-003": 60,
+          "CO-001": 40
+        }
+      },
+      {
+        "id": "BW-PULL-006",
+        "name": "Archer Pull-Up",
+        "category": "Pull",
+        "difficulty": 5,
+        "description": "Wide pull-up shifting weight to one arm",
+        "cues": "Wide grip | Shift to one arm at top | Control descent",
+        "reps": [
+          2,
+          6
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "BK-001": 95,
+          "BK-002": 90,
+          "AR-001": 85,
+          "AR-003": 80,
+          "BK-011": 70,
+          "CO-003": 50
+        }
+      },
+      {
+        "id": "BW-PULL-007",
+        "name": "Scapular Pull-Up",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Shoulder blade engagement from dead hang",
+        "cues": "Start in dead hang | Retract scapulae only | No elbow bend",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-005": 75,
+          "BK-006": 85,
+          "BK-007": 80,
+          "SH-003": 60,
+          "BK-001": 50
+        }
+      },
+      {
+        "id": "BW-SQUAT-001",
+        "name": "Bodyweight Squat",
+        "category": "Squat",
+        "difficulty": 1,
+        "description": "Fundamental squatting pattern",
+        "cues": "Chest up | Knees track toes | Full depth below parallel",
+        "reps": [
+          15,
+          25
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 75,
+          "LG-002": 80,
+          "LG-003": 75,
+          "LG-004": 70,
+          "LG-009": 65,
+          "LG-012": 40,
+          "CO-001": 25
+        }
+      },
+      {
+        "id": "BW-SQUAT-002",
+        "name": "Bulgarian Split Squat",
+        "category": "Squat",
+        "difficulty": 3,
+        "description": "Single-leg squat with rear foot elevated",
+        "cues": "Rear foot on bench | Torso upright | Knee tracks toe",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 90,
+          "LG-002": 85,
+          "LG-003": 85,
+          "LG-009": 80,
+          "LG-010": 60,
+          "LG-021": 50,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "BW-SQUAT-003",
+        "name": "Pistol Squat",
+        "category": "Squat",
+        "difficulty": 5,
+        "description": "Full single-leg squat with other leg extended",
+        "cues": "Balance on one leg | Opposite leg forward | Full depth",
+        "reps": [
+          3,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 95,
+          "LG-002": 95,
+          "LG-003": 90,
+          "LG-009": 85,
+          "LG-010": 70,
+          "LG-021": 60,
+          "CO-001": 50,
+          "CO-003": 45
+        }
+      },
+      {
+        "id": "BW-SQUAT-004",
+        "name": "Jump Squat",
+        "category": "Squat",
+        "difficulty": 2,
+        "description": "Explosive squat with vertical jump",
+        "cues": "Squat to parallel | Explode up | Soft landing",
+        "reps": [
+          8,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 85,
+          "LG-009": 80,
+          "LG-017": 70,
+          "LG-018": 70,
+          "LG-019": 65,
+          "CO-001": 40
+        }
+      },
+      {
+        "id": "BW-SQUAT-005",
+        "name": "Cossack Squat",
+        "category": "Squat",
+        "difficulty": 3,
+        "description": "Lateral squat with one leg extended",
+        "cues": "Shift weight to one side | Other leg straight | Keep heel down",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 80,
+          "LG-012": 75,
+          "LG-013": 70,
+          "LG-009": 70,
+          "LG-015": 60
+        }
+      },
+      {
+        "id": "BW-HINGE-001",
+        "name": "Glute Bridge",
+        "category": "Hinge",
+        "difficulty": 1,
+        "description": "Hip extension from supine position",
+        "cues": "Feet flat on floor | Drive through heels | Squeeze glutes at top",
+        "reps": [
+          12,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 85,
+          "LG-005": 55,
+          "LG-007": 50,
+          "CO-001": 25
+        }
+      },
+      {
+        "id": "BW-HINGE-002",
+        "name": "Single-Leg Glute Bridge",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "Unilateral glute bridge",
+        "cues": "One leg extended | Drive through heel | Level hips",
+        "reps": [
+          8,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 95,
+          "LG-010": 60,
+          "LG-005": 50,
+          "CO-003": 40,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "BW-HINGE-003",
+        "name": "Nordic Curl",
+        "category": "Hinge",
+        "difficulty": 5,
+        "description": "Eccentric hamstring curl from kneeling",
+        "cues": "Anchor feet | Lower slowly | Use hamstrings to brake",
+        "reps": [
+          3,
+          8
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-005": 95,
+          "LG-006": 90,
+          "LG-007": 90,
+          "LG-008": 85,
+          "LG-017": 40
+        }
+      },
+      {
+        "id": "BW-HINGE-004",
+        "name": "Reverse Hyperextension",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "Hip extension with torso supported",
+        "cues": "Torso on bench | Lift legs behind | Squeeze glutes",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-005": 65,
+          "LG-007": 60,
+          "BK-008": 55,
+          "BK-009": 55
+        }
+      },
+      {
+        "id": "BW-LUNGE-001",
+        "name": "Forward Lunge",
+        "category": "Lunge",
+        "difficulty": 2,
+        "description": "Step forward into lunge position",
+        "cues": "Big step forward | Knee over ankle | Push back to start",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 80,
+          "LG-002": 75,
+          "LG-009": 75,
+          "LG-010": 50,
+          "LG-021": 45,
+          "CO-001": 30
+        }
+      },
+      {
+        "id": "BW-LUNGE-002",
+        "name": "Reverse Lunge",
+        "category": "Lunge",
+        "difficulty": 2,
+        "description": "Step backward into lunge position",
+        "cues": "Step back | Lower knee toward floor | Drive through front heel",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 80,
+          "LG-009": 80,
+          "LG-002": 75,
+          "LG-010": 55,
+          "CO-001": 30
+        }
+      },
+      {
+        "id": "BW-LUNGE-003",
+        "name": "Walking Lunge",
+        "category": "Lunge",
+        "difficulty": 2,
+        "description": "Continuous lunges with forward movement",
+        "cues": "Alternating legs | Upright torso | Controlled steps",
+        "reps": [
+          12,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 80,
+          "LG-002": 75,
+          "LG-009": 75,
+          "LG-010": 55,
+          "LG-017": 40,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "BW-CORE-001",
+        "name": "Plank",
+        "category": "Core",
+        "difficulty": 2,
+        "description": "Isometric core hold in push-up position",
+        "cues": "Forearms or hands | Body straight | Brace core",
+        "reps": [
+          30,
+          60
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CO-001": 75,
+          "CO-002": 70,
+          "CO-003": 65,
+          "CO-004": 60,
+          "CO-005": 80,
+          "SH-001": 40,
+          "LG-009": 35
+        }
+      },
+      {
+        "id": "BW-CORE-002",
+        "name": "Hanging Leg Raise",
+        "category": "Core",
+        "difficulty": 4,
+        "description": "Leg raise from bar hang",
+        "cues": "Dead hang | Lift legs to 90\u00b0 or higher | Control descent",
+        "reps": [
+          8,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CO-002": 90,
+          "CO-001": 85,
+          "LG-021": 75,
+          "LG-001": 50,
+          "AR-008": 40
+        }
+      },
+      {
+        "id": "BW-CORE-003",
+        "name": "L-Sit",
+        "category": "Core",
+        "difficulty": 4,
+        "description": "Isometric hold with legs extended parallel to floor",
+        "cues": "Hands on floor or bars | Legs straight out | Shoulders depressed",
+        "reps": [
+          10,
+          30
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "CO-001": 85,
+          "CO-002": 90,
+          "LG-021": 80,
+          "LG-001": 70,
+          "AR-005": 60,
+          "SH-001": 50
+        }
+      }
+    ],
+    "kettlebell": [
+      {
+        "id": "KB-SWING-001",
+        "name": "Kettlebell Swing (Two-Hand)",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "Hip hinge ballistic movement with kettlebell",
+        "cues": "Hip snap | Arms straight | Bell to shoulder height",
+        "reps": [
+          15,
+          25
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-005": 75,
+          "LG-007": 70,
+          "BK-008": 65,
+          "BK-009": 65,
+          "SH-003": 50,
+          "AR-008": 55,
+          "CO-001": 45
+        }
+      },
+      {
+        "id": "KB-SWING-002",
+        "name": "Kettlebell Swing (One-Hand)",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Single-arm kettlebell swing",
+        "cues": "Rotate at top | Anti-rotation through core | Switch hands",
+        "reps": [
+          10,
+          20
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-005": 75,
+          "BK-008": 70,
+          "CO-003": 65,
+          "CO-004": 60,
+          "AR-008": 60,
+          "SH-003": 55
+        }
+      },
+      {
+        "id": "KB-SNATCH-001",
+        "name": "Kettlebell Snatch",
+        "category": "Pull",
+        "difficulty": 4,
+        "description": "Explosive single-arm overhead movement",
+        "cues": "High pull | Punch through at top | Soft catch",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 85,
+          "SH-001": 80,
+          "SH-002": 75,
+          "BK-003": 70,
+          "BK-001": 65,
+          "AR-008": 75,
+          "CO-001": 55
+        }
+      },
+      {
+        "id": "KB-CLEAN-001",
+        "name": "Kettlebell Clean",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Explosive pull to rack position",
+        "cues": "High elbow pull | Rotate bell around wrist | Soft rack",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 80,
+          "BK-001": 70,
+          "AR-001": 65,
+          "SH-001": 60,
+          "AR-008": 70,
+          "CO-001": 50
+        }
+      },
+      {
+        "id": "KB-CLEAN-002",
+        "name": "Kettlebell Clean & Press",
+        "category": "Push",
+        "difficulty": 4,
+        "description": "Clean followed by overhead press",
+        "cues": "Clean to rack | Tight core | Press overhead",
+        "reps": [
+          5,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 75,
+          "SH-001": 85,
+          "SH-002": 75,
+          "AR-005": 70,
+          "BK-001": 60,
+          "CO-001": 55
+        }
+      },
+      {
+        "id": "KB-JERK-001",
+        "name": "Kettlebell Jerk",
+        "category": "Push",
+        "difficulty": 5,
+        "description": "Explosive overhead press with leg drive",
+        "cues": "Dip and drive | Get under bell | Lock out",
+        "reps": [
+          5,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 85,
+          "SH-002": 80,
+          "AR-005": 75,
+          "LG-001": 65,
+          "LG-009": 60,
+          "CO-001": 55
+        }
+      },
+      {
+        "id": "KB-SQUAT-001",
+        "name": "Goblet Squat",
+        "category": "Squat",
+        "difficulty": 2,
+        "description": "Squat holding kettlebell at chest",
+        "cues": "Bell at chest | Elbows between knees | Full depth",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 85,
+          "LG-003": 80,
+          "LG-009": 75,
+          "CO-001": 50,
+          "AR-001": 40
+        }
+      },
+      {
+        "id": "KB-SQUAT-002",
+        "name": "Double Kettlebell Front Squat",
+        "category": "Squat",
+        "difficulty": 4,
+        "description": "Front squat with two kettlebells in rack",
+        "cues": "Double rack position | Elbows up | Deep squat",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 90,
+          "LG-002": 90,
+          "LG-003": 85,
+          "LG-009": 80,
+          "CO-001": 60,
+          "BK-008": 50,
+          "SH-001": 45
+        }
+      },
+      {
+        "id": "KB-PRESS-001",
+        "name": "Kettlebell Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Single-arm overhead press from rack",
+        "cues": "Tight lat | Vertical forearm | Lock out overhead",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 90,
+          "SH-002": 75,
+          "AR-005": 75,
+          "CO-003": 50,
+          "BK-001": 45
+        }
+      },
+      {
+        "id": "KB-PRESS-002",
+        "name": "Kettlebell Push Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Overhead press with leg drive assistance",
+        "cues": "Quick dip | Drive through legs | Press overhead",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 85,
+          "SH-002": 75,
+          "AR-005": 70,
+          "LG-001": 55,
+          "LG-009": 50,
+          "CO-001": 50
+        }
+      },
+      {
+        "id": "KB-ROW-001",
+        "name": "Kettlebell Row",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Single-arm bent over row",
+        "cues": "Hinge at hips | Pull to hip | Squeeze shoulder blade",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-001": 85,
+          "BK-002": 80,
+          "BK-006": 70,
+          "AR-001": 65,
+          "SH-003": 55,
+          "BK-008": 40
+        }
+      },
+      {
+        "id": "KB-ROW-002",
+        "name": "Kettlebell Renegade Row",
+        "category": "Pull",
+        "difficulty": 4,
+        "description": "Row from plank position on two kettlebells",
+        "cues": "Plank on bells | Row one arm | Anti-rotation",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-001": 80,
+          "BK-006": 75,
+          "CO-001": 70,
+          "CO-003": 70,
+          "AR-001": 60,
+          "CH-001": 45
+        }
+      },
+      {
+        "id": "KB-DL-001",
+        "name": "Kettlebell Deadlift",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "Hip hinge with kettlebell between feet",
+        "cues": "Hinge at hips | Neutral spine | Drive through floor",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 85,
+          "LG-005": 80,
+          "LG-007": 75,
+          "BK-008": 70,
+          "BK-009": 70,
+          "AR-008": 50
+        }
+      },
+      {
+        "id": "KB-DL-002",
+        "name": "Kettlebell Single-Leg Deadlift",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Unilateral hip hinge with kettlebell",
+        "cues": "One leg back | Hinge forward | Level hips",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-005": 85,
+          "LG-010": 65,
+          "BK-008": 60,
+          "CO-003": 55,
+          "AR-008": 50
+        }
+      },
+      {
+        "id": "KB-TGU-001",
+        "name": "Turkish Get-Up",
+        "category": "Carry",
+        "difficulty": 4,
+        "description": "Full body movement from floor to standing with overhead weight",
+        "cues": "Eyes on bell | Controlled movement | Reverse to floor",
+        "reps": [
+          3,
+          5
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 80,
+          "SH-002": 75,
+          "SH-004": 60,
+          "CO-001": 75,
+          "CO-003": 70,
+          "LG-009": 65,
+          "LG-001": 60,
+          "AR-005": 55
+        }
+      },
+      {
+        "id": "KB-CARRY-001",
+        "name": "Kettlebell Farmer's Carry",
+        "category": "Carry",
+        "difficulty": 2,
+        "description": "Walking with kettlebells at sides",
+        "cues": "Shoulders back | Tight core | Controlled steps",
+        "reps": [
+          30,
+          60
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-008": 80,
+          "BK-003": 75,
+          "CO-001": 65,
+          "CO-006": 60,
+          "LG-010": 55,
+          "LG-017": 50
+        }
+      },
+      {
+        "id": "KB-LUNGE-001",
+        "name": "Kettlebell Rack Lunge",
+        "category": "Lunge",
+        "difficulty": 3,
+        "description": "Lunge with kettlebell in rack position",
+        "cues": "Bell in rack | Step forward | Drive through front heel",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-009": 80,
+          "LG-002": 75,
+          "LG-010": 55,
+          "CO-001": 50,
+          "SH-001": 40
+        }
+      },
+      {
+        "id": "KB-WINDMILL-001",
+        "name": "Kettlebell Windmill",
+        "category": "Hinge",
+        "difficulty": 4,
+        "description": "Side bend with kettlebell overhead",
+        "cues": "Bell locked out | Hinge to side | Eyes on bell",
+        "reps": [
+          5,
+          8
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CO-003": 85,
+          "CO-004": 80,
+          "LG-005": 65,
+          "SH-001": 60,
+          "SH-004": 55,
+          "CO-006": 50
+        }
+      },
+      {
+        "id": "KB-HALO-001",
+        "name": "Kettlebell Halo",
+        "category": "Rotation",
+        "difficulty": 2,
+        "description": "Circular movement around head",
+        "cues": "Bell bottom-up | Tight circle | Both directions",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-001": 70,
+          "SH-002": 75,
+          "SH-003": 70,
+          "BK-003": 55,
+          "CO-003": 50,
+          "AR-008": 45
+        }
+      },
+      {
+        "id": "KB-THRUSTER-001",
+        "name": "Kettlebell Thruster",
+        "category": "Push",
+        "difficulty": 4,
+        "description": "Squat to overhead press combination",
+        "cues": "Squat deep | Drive up explosively | Press at top",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 80,
+          "LG-009": 75,
+          "SH-001": 80,
+          "SH-002": 70,
+          "AR-005": 65,
+          "CO-001": 55
+        }
+      }
+    ],
+    "freeweight": [
+      {
+        "id": "FW-SQUAT-001",
+        "name": "Barbell Back Squat",
+        "category": "Squat",
+        "difficulty": 3,
+        "description": "Bar on upper back, squat to depth",
+        "cues": "Bar on traps | Big breath | Break at hips and knees",
+        "reps": [
+          5,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 90,
+          "LG-002": 90,
+          "LG-003": 85,
+          "LG-004": 85,
+          "LG-009": 85,
+          "LG-012": 60,
+          "BK-008": 65,
+          "BK-009": 65,
+          "CO-001": 50
+        }
+      },
+      {
+        "id": "FW-SQUAT-002",
+        "name": "Barbell Front Squat",
+        "category": "Squat",
+        "difficulty": 4,
+        "description": "Bar in front rack, upright torso squat",
+        "cues": "Elbows high | Upright torso | Deep depth",
+        "reps": [
+          5,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 95,
+          "LG-002": 90,
+          "LG-003": 90,
+          "LG-004": 85,
+          "LG-009": 75,
+          "CO-001": 60,
+          "BK-003": 50,
+          "SH-001": 45
+        }
+      },
+      {
+        "id": "FW-SQUAT-003",
+        "name": "Overhead Squat",
+        "category": "Squat",
+        "difficulty": 5,
+        "description": "Squat with barbell locked out overhead",
+        "cues": "Wide grip | Arms locked | Upright torso",
+        "reps": [
+          3,
+          6
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 85,
+          "LG-009": 80,
+          "SH-001": 75,
+          "SH-002": 80,
+          "BK-003": 70,
+          "CO-001": 65,
+          "AR-005": 60
+        }
+      },
+      {
+        "id": "FW-SQUAT-004",
+        "name": "Zercher Squat",
+        "category": "Squat",
+        "difficulty": 4,
+        "description": "Bar held in elbow crooks",
+        "cues": "Bar in elbow crease | Upright torso | Full depth",
+        "reps": [
+          5,
+          10
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 90,
+          "LG-002": 85,
+          "LG-009": 80,
+          "AR-001": 70,
+          "CO-001": 65,
+          "BK-003": 55
+        }
+      },
+      {
+        "id": "FW-SQUAT-005",
+        "name": "Barbell Hack Squat",
+        "category": "Squat",
+        "difficulty": 3,
+        "description": "Bar held behind legs, squat pattern",
+        "cues": "Bar behind thighs | Upright torso | Drive through heels",
+        "reps": [
+          6,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 95,
+          "LG-002": 90,
+          "LG-003": 90,
+          "LG-009": 70,
+          "AR-008": 50
+        }
+      },
+      {
+        "id": "FW-DL-001",
+        "name": "Conventional Deadlift",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Hip hinge pulling bar from floor",
+        "cues": "Neutral spine | Lats locked | Hips through at top",
+        "reps": [
+          3,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-005": 85,
+          "LG-007": 80,
+          "LG-008": 80,
+          "BK-008": 85,
+          "BK-009": 85,
+          "BK-001": 70,
+          "AR-008": 75,
+          "BK-003": 60
+        }
+      },
+      {
+        "id": "FW-DL-002",
+        "name": "Romanian Deadlift",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Hip hinge with slight knee bend, bar stays close",
+        "cues": "Soft knees | Hinge back | Feel hamstring stretch",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-005": 95,
+          "LG-007": 90,
+          "LG-008": 90,
+          "LG-009": 80,
+          "BK-008": 75,
+          "BK-009": 75,
+          "AR-008": 60
+        }
+      },
+      {
+        "id": "FW-DL-003",
+        "name": "Sumo Deadlift",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Wide stance deadlift with narrow grip",
+        "cues": "Wide stance | Toes out | Chest up",
+        "reps": [
+          3,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-012": 85,
+          "LG-013": 80,
+          "LG-001": 75,
+          "LG-005": 70,
+          "BK-008": 75,
+          "AR-008": 70
+        }
+      },
+      {
+        "id": "FW-DL-004",
+        "name": "Stiff-Leg Deadlift",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Deadlift with minimal knee bend",
+        "cues": "Legs nearly straight | Hinge at hips | Deep stretch",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-005": 95,
+          "LG-007": 95,
+          "LG-008": 90,
+          "LG-009": 75,
+          "BK-008": 70,
+          "BK-009": 70
+        }
+      },
+      {
+        "id": "FW-DL-005",
+        "name": "Good Morning",
+        "category": "Hinge",
+        "difficulty": 3,
+        "description": "Barbell hip hinge with bar on back",
+        "cues": "Bar on traps | Hinge forward | Neutral spine",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-005": 85,
+          "LG-007": 80,
+          "LG-009": 80,
+          "BK-008": 85,
+          "BK-009": 85,
+          "CO-001": 50
+        }
+      },
+      {
+        "id": "FW-PRESS-001",
+        "name": "Barbell Bench Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Horizontal pressing on bench",
+        "cues": "Arch back | Drive feet | Touch chest",
+        "reps": [
+          5,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "CH-001": 95,
+          "CH-002": 75,
+          "CH-003": 70,
+          "AR-005": 80,
+          "AR-006": 75,
+          "SH-001": 70
+        }
+      },
+      {
+        "id": "FW-PRESS-002",
+        "name": "Incline Barbell Bench Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Pressing on inclined bench (30-45\u00b0)",
+        "cues": "Upper chest emphasis | Control descent | Full lockout",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-002": 95,
+          "CH-001": 75,
+          "SH-001": 80,
+          "AR-005": 75,
+          "AR-006": 70
+        }
+      },
+      {
+        "id": "FW-PRESS-003",
+        "name": "Barbell Overhead Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Strict standing shoulder press",
+        "cues": "Bar at clavicle | Press straight up | Head through at top",
+        "reps": [
+          5,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 95,
+          "SH-002": 85,
+          "AR-005": 75,
+          "AR-006": 70,
+          "CO-001": 50,
+          "BK-003": 55
+        }
+      },
+      {
+        "id": "FW-PRESS-004",
+        "name": "Push Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Overhead press with leg drive",
+        "cues": "Dip and drive | Explosive | Lock out",
+        "reps": [
+          5,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "SH-001": 90,
+          "SH-002": 80,
+          "AR-005": 70,
+          "LG-001": 60,
+          "LG-009": 55,
+          "CO-001": 55
+        }
+      },
+      {
+        "id": "FW-PRESS-005",
+        "name": "Close-Grip Bench Press",
+        "category": "Push",
+        "difficulty": 3,
+        "description": "Bench press with narrow grip for triceps",
+        "cues": "Hands shoulder-width | Elbows tucked | Full lockout",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-005": 95,
+          "AR-006": 90,
+          "AR-007": 85,
+          "CH-001": 70,
+          "SH-001": 60
+        }
+      },
+      {
+        "id": "FW-ROW-001",
+        "name": "Barbell Bent-Over Row",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Horizontal pulling from hinged position",
+        "cues": "Hinge forward | Pull to lower chest | Squeeze scapulae",
+        "reps": [
+          6,
+          10
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "BK-001": 90,
+          "BK-002": 85,
+          "BK-004": 80,
+          "BK-006": 75,
+          "AR-001": 70,
+          "SH-003": 65,
+          "BK-008": 55
+        }
+      },
+      {
+        "id": "FW-ROW-002",
+        "name": "Pendlay Row",
+        "category": "Pull",
+        "difficulty": 3,
+        "description": "Explosive row from dead stop",
+        "cues": "Bar on floor each rep | Explosive pull | Control descent",
+        "reps": [
+          5,
+          8
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "BK-001": 95,
+          "BK-004": 85,
+          "BK-006": 80,
+          "AR-001": 70,
+          "SH-003": 65,
+          "BK-008": 60
+        }
+      },
+      {
+        "id": "FW-ROW-003",
+        "name": "T-Bar Row",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Row using landmine or T-bar apparatus",
+        "cues": "Neutral spine | Pull to chest | Squeeze at top",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-001": 85,
+          "BK-004": 80,
+          "BK-006": 75,
+          "AR-001": 65,
+          "SH-003": 60,
+          "BK-011": 55
+        }
+      },
+      {
+        "id": "FW-ROW-004",
+        "name": "Barbell Shrug",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Trap isolation with barbell",
+        "cues": "Elevate shoulders | Squeeze at top | Control descent",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-003": 95,
+          "BK-004": 70,
+          "AR-008": 50
+        }
+      },
+      {
+        "id": "FW-ROW-005",
+        "name": "Barbell Upright Row",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Vertical pulling to chin",
+        "cues": "Narrow grip | Elbows high | Chin height",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-002": 85,
+          "SH-001": 75,
+          "BK-003": 80,
+          "AR-001": 55
+        }
+      },
+      {
+        "id": "FW-DB-001",
+        "name": "Dumbbell Bench Press",
+        "category": "Push",
+        "difficulty": 2,
+        "description": "Horizontal pressing with dumbbells",
+        "cues": "Lower to stretch | Press together at top | Control descent",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-001": 90,
+          "CH-002": 75,
+          "AR-005": 75,
+          "SH-001": 65
+        }
+      },
+      {
+        "id": "FW-DB-002",
+        "name": "Dumbbell Row",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Single-arm row supported on bench",
+        "cues": "One hand on bench | Pull to hip | Squeeze at top",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "BK-001": 90,
+          "BK-006": 75,
+          "AR-001": 70,
+          "SH-003": 60,
+          "BK-011": 55
+        }
+      },
+      {
+        "id": "FW-DB-003",
+        "name": "Dumbbell Shoulder Press",
+        "category": "Push",
+        "difficulty": 2,
+        "description": "Seated or standing overhead press",
+        "cues": "Neutral or pronated grip | Full lockout | Control descent",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-001": 90,
+          "SH-002": 80,
+          "AR-005": 70,
+          "BK-003": 50
+        }
+      },
+      {
+        "id": "FW-DB-004",
+        "name": "Dumbbell Lateral Raise",
+        "category": "Isolation",
+        "difficulty": 2,
+        "description": "Lateral delt isolation",
+        "cues": "Slight bend in elbows | Raise to shoulder height | Control descent",
+        "reps": [
+          12,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-002": 95,
+          "SH-001": 40,
+          "SH-004": 50,
+          "BK-003": 35
+        }
+      },
+      {
+        "id": "FW-DB-005",
+        "name": "Dumbbell Fly",
+        "category": "Isolation",
+        "difficulty": 2,
+        "description": "Chest isolation with arc motion",
+        "cues": "Slight elbow bend | Wide arc | Squeeze at top",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "CH-001": 90,
+          "CH-002": 80,
+          "CH-003": 75,
+          "SH-001": 45
+        }
+      },
+      {
+        "id": "FW-DB-006",
+        "name": "Dumbbell Curl",
+        "category": "Isolation",
+        "difficulty": 1,
+        "description": "Bicep curl with dumbbells",
+        "cues": "Supinated grip | Full range | No swinging",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-001": 95,
+          "AR-002": 90,
+          "AR-003": 70,
+          "AR-004": 50
+        }
+      },
+      {
+        "id": "FW-DB-007",
+        "name": "Dumbbell Hammer Curl",
+        "category": "Isolation",
+        "difficulty": 1,
+        "description": "Bicep curl with neutral grip",
+        "cues": "Neutral grip throughout | Elbow stable | Full range",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-003": 95,
+          "AR-004": 85,
+          "AR-001": 70,
+          "AR-002": 65
+        }
+      },
+      {
+        "id": "FW-DB-008",
+        "name": "Dumbbell Tricep Extension",
+        "category": "Isolation",
+        "difficulty": 2,
+        "description": "Overhead tricep extension",
+        "cues": "Upper arms fixed | Extend fully | Control descent",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-005": 95,
+          "AR-006": 85,
+          "AR-007": 80
+        }
+      },
+      {
+        "id": "FW-DB-009",
+        "name": "Dumbbell Lunge",
+        "category": "Lunge",
+        "difficulty": 2,
+        "description": "Lunge holding dumbbells at sides",
+        "cues": "Dumbbells at sides | Big step | Drive through front heel",
+        "reps": [
+          10,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-001": 85,
+          "LG-002": 80,
+          "LG-009": 80,
+          "LG-010": 55,
+          "AR-008": 45,
+          "CO-001": 35
+        }
+      },
+      {
+        "id": "FW-DB-010",
+        "name": "Dumbbell Romanian Deadlift",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "RDL with dumbbells",
+        "cues": "Dumbbells close to legs | Hinge at hips | Feel stretch",
+        "reps": [
+          10,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-005": 90,
+          "LG-007": 85,
+          "LG-009": 75,
+          "BK-008": 65,
+          "AR-008": 50
+        }
+      },
+      {
+        "id": "FW-OLY-001",
+        "name": "Power Clean",
+        "category": "Pull",
+        "difficulty": 4,
+        "description": "Explosive pull to front rack",
+        "cues": "First pull slow | Explosive second pull | Fast elbows",
+        "reps": [
+          3,
+          5
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-001": 80,
+          "BK-003": 85,
+          "SH-001": 70,
+          "AR-008": 75,
+          "BK-008": 70,
+          "LG-005": 65
+        }
+      },
+      {
+        "id": "FW-OLY-002",
+        "name": "Hang Clean",
+        "category": "Pull",
+        "difficulty": 4,
+        "description": "Clean from hang position",
+        "cues": "Start at knees | Explosive hip drive | Fast turnover",
+        "reps": [
+          3,
+          5
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 85,
+          "LG-001": 75,
+          "BK-003": 80,
+          "SH-001": 65,
+          "AR-008": 70,
+          "LG-005": 60
+        }
+      },
+      {
+        "id": "FW-OLY-003",
+        "name": "Power Snatch",
+        "category": "Pull",
+        "difficulty": 5,
+        "description": "Explosive pull to overhead in one movement",
+        "cues": "Wide grip | Explosive hip | Punch under bar",
+        "reps": [
+          2,
+          4
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-001": 80,
+          "SH-001": 85,
+          "SH-002": 80,
+          "BK-003": 85,
+          "BK-008": 75,
+          "AR-008": 70,
+          "AR-005": 65
+        }
+      },
+      {
+        "id": "FW-OLY-004",
+        "name": "Clean & Jerk",
+        "category": "Push",
+        "difficulty": 5,
+        "description": "Full clean followed by jerk",
+        "cues": "Clean to rack | Dip and drive | Split or push jerk",
+        "reps": [
+          1,
+          3
+        ],
+        "sets": [
+          3,
+          5
+        ],
+        "activations": {
+          "LG-009": 90,
+          "LG-001": 85,
+          "SH-001": 90,
+          "AR-005": 75,
+          "BK-003": 80,
+          "BK-008": 75,
+          "CO-001": 60
+        }
+      },
+      {
+        "id": "FW-ACC-001",
+        "name": "Barbell Hip Thrust",
+        "category": "Hinge",
+        "difficulty": 2,
+        "description": "Glute isolation with barbell",
+        "cues": "Upper back on bench | Bar on hips | Squeeze at top",
+        "reps": [
+          10,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-009": 95,
+          "LG-005": 60,
+          "CO-001": 40
+        }
+      },
+      {
+        "id": "FW-ACC-002",
+        "name": "Barbell Curl",
+        "category": "Isolation",
+        "difficulty": 1,
+        "description": "Bicep curl with barbell",
+        "cues": "Elbows fixed | Full range | No swinging",
+        "reps": [
+          8,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-001": 95,
+          "AR-002": 95,
+          "AR-003": 70,
+          "AR-004": 50
+        }
+      },
+      {
+        "id": "FW-ACC-003",
+        "name": "Skull Crusher",
+        "category": "Isolation",
+        "difficulty": 2,
+        "description": "Lying tricep extension",
+        "cues": "Upper arms vertical | Lower to forehead | Full extension",
+        "reps": [
+          10,
+          12
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "AR-005": 95,
+          "AR-006": 90,
+          "AR-007": 85
+        }
+      },
+      {
+        "id": "FW-ACC-004",
+        "name": "Face Pull",
+        "category": "Pull",
+        "difficulty": 2,
+        "description": "Cable pull to face for rear delts and external rotators",
+        "cues": "High cable | Pull to face | External rotate at end",
+        "reps": [
+          15,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-003": 90,
+          "SH-005": 75,
+          "BK-006": 70,
+          "BK-004": 55
+        }
+      },
+      {
+        "id": "FW-ACC-005",
+        "name": "Cable Lateral Raise",
+        "category": "Isolation",
+        "difficulty": 2,
+        "description": "Lateral raise with cable for constant tension",
+        "cues": "Cable at side | Raise to shoulder height | Control descent",
+        "reps": [
+          12,
+          15
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "SH-002": 95,
+          "SH-001": 35,
+          "SH-004": 45
+        }
+      },
+      {
+        "id": "FW-ACC-006",
+        "name": "Standing Calf Raise",
+        "category": "Isolation",
+        "difficulty": 1,
+        "description": "Calf isolation with machine or barbell",
+        "cues": "Full stretch at bottom | Rise onto toes | Pause at top",
+        "reps": [
+          12,
+          20
+        ],
+        "sets": [
+          3,
+          4
+        ],
+        "activations": {
+          "LG-017": 95,
+          "LG-018": 90,
+          "LG-019": 70
+        }
+      }
+    ]
+  },
+  "summary": {
+    "total_muscles": 60,
+    "total_exercises": 90,
+    "exercises_by_path": {
+      "bodyweight": 30,
+      "kettlebell": 20,
+      "freeweight": 40
+    }
+  }
+}

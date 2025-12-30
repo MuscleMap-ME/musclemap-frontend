@@ -1,0 +1,16 @@
+{
+  "id": "leaderboard",
+  "name": "Global Leaderboard",
+  "version": "1.0.0",
+  "description": "Global leaderboards for Training Units and streaks",
+  "author": "MuscleMap",
+  "entry": {
+    "backend": "./backend/index.js"
+  },
+  "capabilities": [
+    "routes"
+  ],
+  "requires": {
+    "host": ">=2.0.0"
+  }
+}

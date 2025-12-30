@@ -1,0 +1,705 @@
+{
+  "metadata": {
+    "version": "2.0",
+    "description": "New equipment path exercises for MuscleMap",
+    "paths": ["swimming", "pole", "equestrian", "cycling", "climbing", "rowing"]
+  },
+  
+  "exercises": {
+    "swimming": [
+      {
+        "id": "SW-FREE-001",
+        "name": "Freestyle Sprint",
+        "type": "swimming",
+        "difficulty": "intermediate",
+        "description": "Maximum effort freestyle swimming for 25-50m",
+        "cues": "High elbow catch | Hip rotation | Strong kick | Bilateral breathing",
+        "activations": {
+          "BK-001": 90, "BK-002": 85, "SH-001": 80, "SH-002": 75,
+          "CO-001": 70, "AR-003": 65, "LG-019": 50
+        }
+      },
+      {
+        "id": "SW-FREE-002",
+        "name": "Freestyle Endurance",
+        "type": "swimming",
+        "difficulty": "beginner",
+        "description": "Sustained freestyle swimming for distance",
+        "cues": "Relaxed stroke | Efficient catch | Steady pace | Long body line",
+        "activations": {
+          "BK-001": 80, "BK-002": 75, "SH-001": 70, "SH-002": 65,
+          "CO-001": 60, "AR-003": 55, "LG-019": 45
+        }
+      },
+      {
+        "id": "SW-BACK-001",
+        "name": "Backstroke",
+        "type": "swimming",
+        "difficulty": "intermediate",
+        "description": "Supine swimming stroke emphasizing shoulder rotation",
+        "cues": "Pinky first entry | Hip rotation | Head still | Strong kick",
+        "activations": {
+          "SH-001": 85, "SH-002": 80, "BK-001": 75, "CO-001": 70,
+          "LG-019": 55, "SH-004": 65
+        }
+      },
+      {
+        "id": "SW-BREAST-001",
+        "name": "Breaststroke",
+        "type": "swimming",
+        "difficulty": "beginner",
+        "description": "Symmetrical stroke with whip kick",
+        "cues": "Outsweep then insweep | Heels to butt | Glide phase | Head follows hands",
+        "activations": {
+          "CH-001": 75, "LG-004": 80, "LG-005": 75, "CO-001": 65,
+          "SH-001": 60, "BK-001": 55
+        }
+      },
+      {
+        "id": "SW-FLY-001",
+        "name": "Butterfly",
+        "type": "swimming",
+        "difficulty": "advanced",
+        "description": "Simultaneous arm recovery with dolphin kick",
+        "cues": "Chest press down | Hips up | Two kicks per stroke | Arms wide recovery",
+        "activations": {
+          "BK-001": 95, "SH-001": 90, "CO-001": 85, "CH-001": 80,
+          "LG-008": 75, "CO-002": 70
+        }
+      },
+      {
+        "id": "SW-KICK-001",
+        "name": "Flutter Kick Drill",
+        "type": "swimming",
+        "difficulty": "beginner",
+        "description": "Isolated kicking with board or streamline",
+        "cues": "Kick from hips | Pointed toes | Small fast kicks | Core engaged",
+        "activations": {
+          "LG-008": 85, "LG-004": 80, "CO-001": 65, "LG-019": 75
+        }
+      },
+      {
+        "id": "SW-PULL-001",
+        "name": "Pull Buoy Freestyle",
+        "type": "swimming",
+        "difficulty": "intermediate",
+        "description": "Upper body focused swimming with pull buoy",
+        "cues": "No kicking | High elbow | Strong catch | Hip rotation from core",
+        "activations": {
+          "BK-001": 95, "BK-002": 90, "SH-001": 85, "SH-002": 80,
+          "CO-001": 70, "AR-003": 70
+        }
+      },
+      {
+        "id": "SW-DRILL-001",
+        "name": "Catch-Up Drill",
+        "type": "swimming",
+        "difficulty": "beginner",
+        "description": "One arm waits while other completes full stroke",
+        "cues": "Touch hands before next stroke | Long glide | Focus on catch | Patient timing",
+        "activations": {
+          "BK-001": 75, "SH-001": 70, "CO-001": 65, "BK-002": 70
+        }
+      },
+      {
+        "id": "SW-SPRINT-001",
+        "name": "25m All-Out Sprint",
+        "type": "swimming",
+        "difficulty": "advanced",
+        "description": "Maximum velocity swimming for one length",
+        "cues": "Explosive start | Fast turnover | No breathing or minimal | All-out effort",
+        "activations": {
+          "BK-001": 95, "SH-001": 90, "LG-008": 85, "CO-001": 80,
+          "CH-001": 70, "AR-003": 75
+        }
+      },
+      {
+        "id": "SW-TREADING-001",
+        "name": "Eggbeater Treading",
+        "type": "swimming",
+        "difficulty": "intermediate",
+        "description": "Vertical position water polo style treading",
+        "cues": "Alternating circular kicks | Hands sculling | Core upright | Head above water",
+        "activations": {
+          "LG-004": 85, "LG-005": 80, "CO-001": 75, "SH-001": 50
+        }
+      }
+    ],
+
+    "pole": [
+      {
+        "id": "PL-CLIMB-001",
+        "name": "Basic Pole Climb",
+        "type": "pole",
+        "difficulty": "beginner",
+        "description": "Climbing the pole using arms and legs",
+        "cues": "Grip high | Knees squeeze | Push with legs | Pull with arms",
+        "activations": {
+          "BK-001": 90, "AR-003": 85, "LG-004": 75, "CO-001": 70,
+          "SH-001": 65, "BK-002": 80
+        }
+      },
+      {
+        "id": "PL-SPIN-001",
+        "name": "Fireman Spin",
+        "type": "pole",
+        "difficulty": "beginner",
+        "description": "Basic spin with inside leg hook",
+        "cues": "Strong grip | Inside leg hooks | Outside leg extends | Control descent",
+        "activations": {
+          "AR-003": 80, "BK-001": 70, "CO-001": 75, "LG-004": 60
+        }
+      },
+      {
+        "id": "PL-SPIN-002",
+        "name": "Chair Spin",
+        "type": "pole",
+        "difficulty": "intermediate",
+        "description": "Seated position spin",
+        "cues": "Hook inside knee | Outside leg extends | Lean back | Strong arm grip",
+        "activations": {
+          "AR-003": 85, "CO-001": 80, "BK-001": 75, "LG-004": 65,
+          "SH-001": 60
+        }
+      },
+      {
+        "id": "PL-INVERT-001",
+        "name": "Basic Invert",
+        "type": "pole",
+        "difficulty": "intermediate",
+        "description": "Upside down position on pole",
+        "cues": "Strong grip | Tuck knees | Engage core | Hook legs | Control",
+        "activations": {
+          "CO-001": 95, "BK-001": 90, "AR-003": 85, "SH-001": 80,
+          "LG-004": 70
+        }
+      },
+      {
+        "id": "PL-HOLD-001",
+        "name": "Crucifix Hold",
+        "type": "pole",
+        "difficulty": "advanced",
+        "description": "Arms extended horizontal hold on pole",
+        "cues": "Grip with legs | Arms out | Core tight | Shoulder engagement",
+        "activations": {
+          "SH-001": 95, "SH-002": 90, "CO-001": 85, "LG-004": 80,
+          "BK-001": 75
+        }
+      },
+      {
+        "id": "PL-FLOOR-001",
+        "name": "Floor Work Waves",
+        "type": "pole",
+        "difficulty": "beginner",
+        "description": "Body waves and floor transitions",
+        "cues": "Initiate from chest | Roll through spine | Hip circles | Fluid movement",
+        "activations": {
+          "CO-001": 75, "CO-002": 70, "LG-008": 65, "CH-001": 50
+        }
+      },
+      {
+        "id": "PL-STRENGTH-001",
+        "name": "Pole Sit-Up",
+        "type": "pole",
+        "difficulty": "intermediate",
+        "description": "Hanging from pole, curl body up",
+        "cues": "Grip secure | Tuck knees | Curl up | Control down",
+        "activations": {
+          "CO-001": 95, "CO-002": 90, "AR-003": 80, "BK-001": 75
+        }
+      },
+      {
+        "id": "PL-LEG-001",
+        "name": "Leg Hang",
+        "type": "pole",
+        "difficulty": "advanced",
+        "description": "Hanging upside down from legs only",
+        "cues": "Strong leg grip | Arms release | Core engaged | Pointed toes",
+        "activations": {
+          "LG-004": 95, "LG-005": 90, "CO-001": 85, "LG-008": 70
+        }
+      },
+      {
+        "id": "PL-SHOULDER-001",
+        "name": "Shoulder Mount",
+        "type": "pole",
+        "difficulty": "advanced",
+        "description": "Mount pole from shoulder position",
+        "cues": "Shoulder against pole | Core lifts legs | Hip power | Control inversion",
+        "activations": {
+          "SH-001": 90, "CO-001": 95, "LG-008": 75, "BK-001": 80
+        }
+      },
+      {
+        "id": "PL-SPLIT-001",
+        "name": "Jade Split",
+        "type": "pole",
+        "difficulty": "advanced",
+        "description": "Split position while inverted on pole",
+        "cues": "Secure leg grip | Open to split | Core stability | Flexibility required",
+        "activations": {
+          "LG-004": 85, "LG-005": 80, "CO-001": 90, "LG-008": 70
+        }
+      }
+    ],
+
+    "equestrian": [
+      {
+        "id": "EQ-POST-001",
+        "name": "Posting Trot Drill",
+        "type": "equestrian",
+        "difficulty": "beginner",
+        "description": "Rise and sit with the horses trot rhythm",
+        "cues": "Push from stirrups | Hip forward | Soft landing | Core stable",
+        "activations": {
+          "LG-004": 80, "LG-008": 75, "CO-001": 70, "LG-005": 65
+        }
+      },
+      {
+        "id": "EQ-TWOPOINT-001",
+        "name": "Two-Point Hold",
+        "type": "equestrian",
+        "difficulty": "intermediate",
+        "description": "Hovering above saddle in jumping position",
+        "cues": "Weight in heels | Chest forward | Soft knees | Core engaged",
+        "activations": {
+          "LG-004": 90, "CO-001": 85, "LG-019": 75, "BK-003": 65
+        }
+      },
+      {
+        "id": "EQ-NOHAND-001",
+        "name": "No Hands Balance",
+        "type": "equestrian",
+        "difficulty": "beginner",
+        "description": "Riding without reins to develop independent seat",
+        "cues": "Arms out or on hips | Sit deep | Follow movement | No gripping",
+        "activations": {
+          "CO-001": 85, "LG-004": 70, "BK-003": 65, "CO-002": 60
+        }
+      },
+      {
+        "id": "EQ-SITDEEP-001",
+        "name": "Sitting Trot",
+        "type": "equestrian",
+        "difficulty": "advanced",
+        "description": "Absorb trot movement without posting",
+        "cues": "Heavy seat bones | Absorb with core | Elastic lower back | Quiet hands",
+        "activations": {
+          "CO-001": 90, "CO-002": 85, "LG-004": 70, "BK-003": 75
+        }
+      },
+      {
+        "id": "EQ-LEG-001",
+        "name": "Leg Yield Drill",
+        "type": "equestrian",
+        "difficulty": "intermediate",
+        "description": "Moving horse laterally with inside leg",
+        "cues": "Inside leg at girth | Outside leg behind | Slight flexion | Maintain forward",
+        "activations": {
+          "LG-004": 85, "LG-005": 80, "CO-001": 75, "LG-008": 60
+        }
+      },
+      {
+        "id": "EQ-CORE-001",
+        "name": "Half-Halt Hold",
+        "type": "equestrian",
+        "difficulty": "intermediate",
+        "description": "Core engagement drill for collection cues",
+        "cues": "Brace core | Close fingers | Sit tall | Release forward",
+        "activations": {
+          "CO-001": 90, "BK-003": 75, "AR-003": 50, "SH-001": 45
+        }
+      },
+      {
+        "id": "EQ-CANTER-001",
+        "name": "Canter Seat Drill",
+        "type": "equestrian",
+        "difficulty": "intermediate",
+        "description": "Following the three-beat canter motion",
+        "cues": "Hips follow | Shoulders back | Inside hip leads | Elastic elbows",
+        "activations": {
+          "CO-001": 80, "LG-008": 70, "BK-003": 65, "LG-004": 60
+        }
+      },
+      {
+        "id": "EQ-STRETCH-001",
+        "name": "Hip Opener Stretch",
+        "type": "equestrian",
+        "difficulty": "beginner",
+        "description": "Stretching hip flexors for better position",
+        "cues": "Long hip flexor | Open inner thigh | Tall spine | Breathe deep",
+        "activations": {
+          "LG-008": 60, "LG-004": 55, "CO-001": 50
+        }
+      },
+      {
+        "id": "EQ-JUMP-001",
+        "name": "Jumping Position Hold",
+        "type": "equestrian",
+        "difficulty": "advanced",
+        "description": "Maintaining release position over fences",
+        "cues": "Crest release | Eyes up | Heels down | Fold at hip",
+        "activations": {
+          "LG-004": 90, "CO-001": 85, "BK-003": 70, "LG-019": 80
+        }
+      },
+      {
+        "id": "EQ-REIN-001",
+        "name": "Rein Contact Exercise",
+        "type": "equestrian",
+        "difficulty": "beginner",
+        "description": "Developing soft elastic contact",
+        "cues": "Thumbs on top | Elastic elbow | Straight line to bit | Quiet hands",
+        "activations": {
+          "AR-003": 60, "SH-001": 55, "BK-003": 50, "CO-001": 65
+        }
+      }
+    ],
+
+    "cycling": [
+      {
+        "id": "CY-SPRINT-001",
+        "name": "Seated Sprint Interval",
+        "type": "cycling",
+        "difficulty": "advanced",
+        "description": "Maximum effort seated sprints",
+        "cues": "High cadence | Core stable | Pull on bars | Smooth circles",
+        "activations": {
+          "LG-004": 95, "LG-008": 90, "LG-001": 85, "CO-001": 70
+        }
+      },
+      {
+        "id": "CY-CLIMB-001",
+        "name": "Seated Climb",
+        "type": "cycling",
+        "difficulty": "intermediate",
+        "description": "High resistance climbing while seated",
+        "cues": "Heavy gear | Slow cadence | Push through heels | Steady power",
+        "activations": {
+          "LG-004": 90, "LG-008": 85, "LG-001": 80, "CO-001": 65
+        }
+      },
+      {
+        "id": "CY-CLIMB-002",
+        "name": "Standing Climb",
+        "type": "cycling",
+        "difficulty": "intermediate",
+        "description": "Out of saddle climbing",
+        "cues": "Rock bike side to side | Arms pull | Core engaged | Rhythm",
+        "activations": {
+          "LG-004": 90, "LG-008": 85, "CO-001": 80, "AR-002": 60,
+          "BK-003": 55
+        }
+      },
+      {
+        "id": "CY-CADENCE-001",
+        "name": "High Cadence Spin",
+        "type": "cycling",
+        "difficulty": "beginner",
+        "description": "Light resistance, high RPM spinning",
+        "cues": "Smooth pedal stroke | No bouncing | 100+ RPM | Relaxed upper body",
+        "activations": {
+          "LG-004": 70, "LG-008": 65, "LG-019": 60
+        }
+      },
+      {
+        "id": "CY-POWER-001",
+        "name": "Power Intervals",
+        "type": "cycling",
+        "difficulty": "advanced",
+        "description": "Short max power efforts",
+        "cues": "Explosive start | Max watts | 15-30 seconds | Full recovery",
+        "activations": {
+          "LG-004": 95, "LG-008": 90, "LG-001": 90, "CO-001": 75
+        }
+      },
+      {
+        "id": "CY-ENDURE-001",
+        "name": "Endurance Ride",
+        "type": "cycling",
+        "difficulty": "beginner",
+        "description": "Zone 2 steady state riding",
+        "cues": "Conversational pace | Relaxed grip | Steady cadence | Long duration",
+        "activations": {
+          "LG-004": 65, "LG-008": 60, "CO-001": 50, "LG-019": 55
+        }
+      },
+      {
+        "id": "CY-TEMPO-001",
+        "name": "Tempo Effort",
+        "type": "cycling",
+        "difficulty": "intermediate",
+        "description": "Sustained threshold riding",
+        "cues": "Comfortably hard | 20-60 minutes | Focused effort | Aero position",
+        "activations": {
+          "LG-004": 80, "LG-008": 75, "CO-001": 65, "BK-003": 55
+        }
+      },
+      {
+        "id": "CY-SINGLE-001",
+        "name": "Single Leg Drills",
+        "type": "cycling",
+        "difficulty": "intermediate",
+        "description": "One leg pedaling to improve stroke",
+        "cues": "Unclip one foot | Smooth circles | Pull up and over | Alternate legs",
+        "activations": {
+          "LG-004": 85, "LG-008": 80, "LG-005": 70
+        }
+      },
+      {
+        "id": "CY-AERO-001",
+        "name": "Aero Position Hold",
+        "type": "cycling",
+        "difficulty": "intermediate",
+        "description": "Sustained time trial position",
+        "cues": "Low back flat | Elbows in | Head neutral | Core engaged",
+        "activations": {
+          "CO-001": 80, "BK-003": 75, "SH-001": 60, "LG-004": 70
+        }
+      },
+      {
+        "id": "CY-OVER-001",
+        "name": "Over-Unders",
+        "type": "cycling",
+        "difficulty": "advanced",
+        "description": "Alternating above and below threshold",
+        "cues": "2 min under | 1 min over | Repeat | Recovery between sets",
+        "activations": {
+          "LG-004": 85, "LG-008": 80, "CO-001": 70, "LG-001": 75
+        }
+      }
+    ],
+
+    "climbing": [
+      {
+        "id": "CL-HANG-001",
+        "name": "Dead Hang",
+        "type": "climbing",
+        "difficulty": "beginner",
+        "description": "Passive hang from bar or hangboard",
+        "cues": "Shoulders engaged | Straight arms | Full grip | Breathe",
+        "activations": {
+          "AR-003": 85, "BK-001": 70, "SH-001": 65
+        }
+      },
+      {
+        "id": "CL-HANG-002",
+        "name": "Half Crimp Hang",
+        "type": "climbing",
+        "difficulty": "intermediate",
+        "description": "Hangboard hang in half crimp position",
+        "cues": "90 degree finger bend | No thumb wrap | 10 second holds | Full rest",
+        "activations": {
+          "AR-003": 95, "AR-004": 85, "BK-001": 70
+        }
+      },
+      {
+        "id": "CL-PULL-001",
+        "name": "Lock-Off",
+        "type": "climbing",
+        "difficulty": "advanced",
+        "description": "Hold at various angles during pull-up",
+        "cues": "Pull to position | Hold 5 seconds | Control descent | Alternate angles",
+        "activations": {
+          "BK-001": 95, "AR-002": 90, "SH-001": 80, "CO-001": 70
+        }
+      },
+      {
+        "id": "CL-CAMPUS-001",
+        "name": "Campus Board Ladders",
+        "type": "climbing",
+        "difficulty": "advanced",
+        "description": "Alternating hand movements up campus board",
+        "cues": "Explosive movement | Latch rung | Feet off | Controlled descent",
+        "activations": {
+          "BK-001": 95, "AR-003": 95, "SH-001": 85, "CO-001": 75
+        }
+      },
+      {
+        "id": "CL-CORE-001",
+        "name": "Front Lever Progression",
+        "type": "climbing",
+        "difficulty": "advanced",
+        "description": "Horizontal body hold from bar",
+        "cues": "Tuck to full | Straight body | Core maximum | Shoulder depression",
+        "activations": {
+          "CO-001": 95, "BK-001": 90, "SH-001": 85, "CO-002": 80
+        }
+      },
+      {
+        "id": "CL-ANTAG-001",
+        "name": "Push-Up (Antagonist)",
+        "type": "climbing",
+        "difficulty": "beginner",
+        "description": "Pushing exercise to balance pulling",
+        "cues": "Full range | Elbows 45 degrees | Core tight | Prevent climber hunch",
+        "activations": {
+          "CH-001": 80, "SH-001": 70, "AR-001": 65
+        }
+      },
+      {
+        "id": "CL-FINGER-001",
+        "name": "Finger Rolls",
+        "type": "climbing",
+        "difficulty": "beginner",
+        "description": "Barbell finger extension and curl",
+        "cues": "Roll to fingertips | Curl back | Light weight | High reps",
+        "activations": {
+          "AR-003": 80, "AR-004": 75
+        }
+      },
+      {
+        "id": "CL-SHOULDER-001",
+        "name": "Shoulder Stabilization",
+        "type": "climbing",
+        "difficulty": "intermediate",
+        "description": "Rotator cuff strengthening for climbing",
+        "cues": "External rotation | Internal rotation | Scapular pulls | Light resistance",
+        "activations": {
+          "SH-004": 85, "SH-005": 80, "BK-005": 70
+        }
+      },
+      {
+        "id": "CL-BODY-001",
+        "name": "Body Tension Drill",
+        "type": "climbing",
+        "difficulty": "intermediate",
+        "description": "Core tension for steep climbing",
+        "cues": "Hang on holds | Lift feet to holds | Maintain tension | No swing",
+        "activations": {
+          "CO-001": 90, "BK-001": 80, "LG-008": 70, "AR-003": 85
+        }
+      },
+      {
+        "id": "CL-BOULDER-001",
+        "name": "Bouldering Session",
+        "type": "climbing",
+        "difficulty": "intermediate",
+        "description": "Problem-solving on short climbs",
+        "cues": "Read beta | Attempt problem | Rest fully | Project or circuit",
+        "activations": {
+          "AR-003": 90, "BK-001": 85, "CO-001": 80, "SH-001": 75,
+          "LG-004": 60
+        }
+      }
+    ],
+
+    "rowing": [
+      {
+        "id": "RW-STEADY-001",
+        "name": "Steady State Row",
+        "type": "rowing",
+        "difficulty": "beginner",
+        "description": "Long duration, moderate intensity rowing",
+        "cues": "Rate 18-22 | Full leg drive | Relaxed recovery | Breathe rhythmically",
+        "activations": {
+          "LG-004": 80, "BK-001": 75, "LG-008": 70, "CO-001": 65,
+          "AR-002": 60
+        }
+      },
+      {
+        "id": "RW-INTERVAL-001",
+        "name": "500m Intervals",
+        "type": "rowing",
+        "difficulty": "intermediate",
+        "description": "High intensity 500m pieces with rest",
+        "cues": "Strong start | Settle into rhythm | Negative split | Full recovery",
+        "activations": {
+          "LG-004": 90, "BK-001": 85, "LG-008": 80, "CO-001": 75,
+          "SH-001": 65
+        }
+      },
+      {
+        "id": "RW-POWER-001",
+        "name": "Power Strokes",
+        "type": "rowing",
+        "difficulty": "advanced",
+        "description": "Maximum force low rate strokes",
+        "cues": "Rate 16-18 | Maximum leg drive | Explosive push | Full body",
+        "activations": {
+          "LG-004": 95, "BK-001": 90, "LG-008": 85, "CO-001": 80,
+          "SH-001": 70
+        }
+      },
+      {
+        "id": "RW-2K-001",
+        "name": "2K Test Piece",
+        "type": "rowing",
+        "difficulty": "advanced",
+        "description": "Full effort 2000m time trial",
+        "cues": "High 10 start | Settle rate 30-34 | Negative split | Sprint finish",
+        "activations": {
+          "LG-004": 95, "BK-001": 90, "LG-008": 90, "CO-001": 85,
+          "SH-001": 75, "AR-002": 70
+        }
+      },
+      {
+        "id": "RW-PYRAMID-001",
+        "name": "Rate Pyramid",
+        "type": "rowing",
+        "difficulty": "intermediate",
+        "description": "Ascending and descending stroke rate",
+        "cues": "Start at 20 | Build to 28 | Come back down | Maintain power",
+        "activations": {
+          "LG-004": 85, "BK-001": 80, "LG-008": 75, "CO-001": 70
+        }
+      },
+      {
+        "id": "RW-LEGS-001",
+        "name": "Legs Only Drill",
+        "type": "rowing",
+        "difficulty": "beginner",
+        "description": "Rowing with arms straight, legs only",
+        "cues": "Arms extended | Drive with legs | Body follows | Quick catch",
+        "activations": {
+          "LG-004": 95, "LG-008": 85, "CO-001": 60
+        }
+      },
+      {
+        "id": "RW-ARMS-001",
+        "name": "Arms Only Drill",
+        "type": "rowing",
+        "difficulty": "beginner",
+        "description": "Rowing with legs straight, arms only",
+        "cues": "Legs flat | Pull to chest | Elbows past body | Quick hands away",
+        "activations": {
+          "BK-001": 90, "AR-002": 85, "SH-001": 70
+        }
+      },
+      {
+        "id": "RW-PAUSE-001",
+        "name": "Pause Drills",
+        "type": "rowing",
+        "difficulty": "intermediate",
+        "description": "Pausing at various points in stroke",
+        "cues": "Pause at catch | Pause at finish | Check body position | Smooth restart",
+        "activations": {
+          "LG-004": 80, "BK-001": 75, "CO-001": 80, "LG-008": 70
+        }
+      },
+      {
+        "id": "RW-SPRINT-001",
+        "name": "Sprint Start 10",
+        "type": "rowing",
+        "difficulty": "advanced",
+        "description": "Race start high stroke rate burst",
+        "cues": "Three-quarter slide starts | Build to full | Rate 38-42 | Settle after",
+        "activations": {
+          "LG-004": 95, "BK-001": 90, "LG-008": 90, "CO-001": 80,
+          "SH-001": 75
+        }
+      },
+      {
+        "id": "RW-MINUTE-001",
+        "name": "Minute On/Minute Off",
+        "type": "rowing",
+        "difficulty": "intermediate",
+        "description": "Alternating hard and easy minutes",
+        "cues": "Hard minute max effort | Easy minute recover | Maintain form | Repeat",
+        "activations": {
+          "LG-004": 85, "BK-001": 80, "LG-008": 75, "CO-001": 70
+        }
+      }
+    ]
+  }
+}
