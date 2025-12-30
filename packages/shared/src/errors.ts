@@ -1,12 +1,8 @@
-/**
- * Error utilities
- *
- * Goal: ALWAYS return a human-readable string for UI.
- */
+export const DEFAULT_ERROR_MESSAGE = 'Something went wrong';
 
-export function safeStringify(value, maxLen = 2000) {
+export function safeStringify(value: unknown, maxLen = 2000): string {
   try {
-    const seen = new WeakSet();
+    const seen = new WeakSet<object>();
     const s = JSON.stringify(
       value,
       (_k, v) => {
@@ -31,45 +27,37 @@ export function safeStringify(value, maxLen = 2000) {
   }
 }
 
-function goodString(v) {
+function goodString(v: unknown): string {
   if (typeof v !== 'string') return '';
   const s = v.trim();
   if (!s) return '';
-  // Don’t allow raw "[object Object]" to leak
   if (s === '[object Object]') return '';
   return s;
 }
 
-// try common keys in various error shapes
-function pickFirstString(obj) {
+function pickFirstString(obj: unknown): string {
   if (!obj || typeof obj !== 'object') return '';
 
-  // common fields
+  const record = obj as Record<string, unknown>;
+
   const direct =
-    goodString(obj.message) ||
-    goodString(obj.error) ||
-    goodString(obj.err) ||
-    goodString(obj.detail) ||
-    goodString(obj.title);
+    goodString(record.message) ||
+    goodString(record.error) ||
+    goodString(record.err) ||
+    goodString(record.detail) ||
+    goodString(record.title);
 
   if (direct) return direct;
 
-  // nested shapes: { error: { message } }, { data: { error } }, etc.
-  const nestedCandidates = [
-    obj.error,
-    obj.err,
-    obj.data,
-    obj.response,
-    obj.body,
-  ];
+  const nestedCandidates = [record.error, record.err, record.data, record.response, record.body];
 
-  for (const c of nestedCandidates) {
-    if (typeof c === 'string') {
-      const s = goodString(c);
+  for (const candidate of nestedCandidates) {
+    if (typeof candidate === 'string') {
+      const s = goodString(candidate);
       if (s) return s;
     }
-    if (c && typeof c === 'object') {
-      const s = pickFirstString(c);
+    if (candidate && typeof candidate === 'object') {
+      const s = pickFirstString(candidate);
       if (s) return s;
     }
   }
@@ -77,50 +65,41 @@ function pickFirstString(obj) {
   return '';
 }
 
-const isEmptyPlainObject = (v) =>
+const isEmptyPlainObject = (v: unknown) =>
   !!v &&
   typeof v === 'object' &&
   !Array.isArray(v) &&
   (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null) &&
-  Object.keys(v).length === 0;
+  Object.keys(v as Record<string, unknown>).length === 0;
 
-const isEmptyArray = (v) => Array.isArray(v) && v.length === 0;
+const isEmptyArray = (v: unknown) => Array.isArray(v) && v.length === 0;
 
-/**
- * Convert ANY thrown value / error-ish shape into a UI-safe string.
- */
-export function extractErrorMessage(input, fallback = 'Something went wrong') {
-  const fb = goodString(fallback) || 'Something went wrong';
+export function extractErrorMessage(input: unknown, fallback = DEFAULT_ERROR_MESSAGE): string {
+  const fb = goodString(fallback) || DEFAULT_ERROR_MESSAGE;
 
   if (input == null) return fb;
 
-  // already a clean string?
   const asStr = goodString(input);
   if (asStr) return asStr;
 
-  // Error instance
   if (input instanceof Error) {
-    // Prefer message if useful
     const m = goodString(input.message);
     if (m) return m;
 
-    // Some code does `new Error({ ... })` which becomes "[object Object]"
-    // If message is unusable, try any attached fields
     const fromAttached = pickFirstString(input);
     if (fromAttached) return fromAttached;
 
-    // Last resort: stringify error
     const s = goodString(safeStringify({ name: input.name, message: input.message, stack: input.stack }));
     return s || fb;
   }
 
-  // Objects / arrays
   if (typeof input === 'object') {
-    // Empty shapes are not useful: honor fallback (fixes your failing test)
     if (isEmptyPlainObject(input) || isEmptyArray(input)) return fb;
 
     const fromObj = pickFirstString(input);
     if (fromObj) return fromObj;
+
+    if (fb !== DEFAULT_ERROR_MESSAGE) return fb;
 
     const s = goodString(safeStringify(input));
     if (!s) return fb;
@@ -128,7 +107,6 @@ export function extractErrorMessage(input, fallback = 'Something went wrong') {
     return s;
   }
 
-  // numbers/booleans/symbols/etc.
   try {
     const s = goodString(String(input));
     return s || fb;
