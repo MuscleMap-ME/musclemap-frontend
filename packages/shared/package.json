@@ -1,9 +1,16 @@
 {
   "name": "@musclemap/shared",
   "version": "1.0.0",
+  "type": "module",
   "description": "Shared utilities and constants for MuscleMap apps",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
