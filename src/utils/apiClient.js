@@ -1,5 +1,5 @@
-import { Type } from '@sinclair/typebox';
 import { request } from './httpClient';
+import { Type } from './schema';
 
 const UserSchema = Type.Object({
   id: Type.Union([Type.String(), Type.Number()]),

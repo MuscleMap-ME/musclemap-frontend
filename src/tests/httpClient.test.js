@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Type } from '@sinclair/typebox';
 import { request, clearRequestCache } from '../utils/httpClient';
+import { Type } from '../utils/schema';
 
 const createResponse = (data, ok = true, status = 200) => ({
   ok,

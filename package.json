@@ -12,10 +12,7 @@
     "test:api": "pnpm -C apps/api test"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.27.8",
     "@headlessui/react": "^2.2.9",
-    "@mui/icons-material": "^5.15.21",
-    "@mui/material": "^5.15.21",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "bcryptjs": "^2.4.3",
@@ -28,8 +25,6 @@
     "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.303.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.2",
