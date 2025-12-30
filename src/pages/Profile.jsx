@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { api } from '../utils/api';
 
 const LIMITATIONS = [
   { id: 'back_pain', name: 'Back Pain', icon: '🤴' },
@@ -35,11 +36,10 @@ export default function Profile() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('musclemap_token');
     Promise.all([
-      fetch('/api/profile', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()),
-      fetch('/api/profile/avatars', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => ({ avatars: [] })),
-      fetch('/api/profile/themes', { headers: { Authorization: 'Bearer ' + token } }).then(r => r.json()).catch(() => ({ themes: [] })),
+      api.profile.get(),
+      api.profile.avatars().catch(() => ({ avatars: [] })),
+      api.profile.themes().catch(() => ({ themes: [] })),
     ]).then(([p, a, t]) => {
       setProfile({ ...p, limitations: JSON.parse(p.limitations || '[]'), equipment_inventory: JSON.parse(p.equipment_inventory || '[]') });
       setAvatars(a.avatars || []);
@@ -50,13 +50,9 @@ export default function Profile() {
 
   async function save() {
     setSaving(true);
-    const token = localStorage.getItem('musclemap_token');
     try {
-      await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ ...profile, limitations: JSON.stringify(profile.limitations), equipment_inventory: JSON.stringify(profile.equipment_inventory) })
-      });
+      await api.profile.update({ ...profile, limitations: JSON.stringify(profile.limitations), equipment_inventory: JSON.stringify(profile.equipment_inventory) });
+      const token = localStorage.getItem('musclemap_token');
       login({ ...user, ...profile }, token);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);

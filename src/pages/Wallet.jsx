@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { api } from '../utils/api';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -50,7 +51,6 @@ export default function Wallet() {
   const [sendAmount, setSendAmount] = useState('');
   const [sendRecipient, setSendRecipient] = useState('');
   const [sendMessage, setSendMessage] = useState('');
-  const token = localStorage.getItem('musclemap_token');
 
   useEffect(() => {
     fetchWallet();
@@ -59,10 +59,7 @@ export default function Wallet() {
 
   const fetchWallet = async () => {
     try {
-      const res = await fetch('/api/economy/wallet', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const data = await api.wallet.balance();
       setWallet(data);
     } catch (err) {
       console.error(err);
@@ -73,10 +70,7 @@ export default function Wallet() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('/api/economy/transactions?limit=20', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const data = await api.wallet.transactions(20);
       setTransactions(data.transactions || []);
     } catch (err) {
       console.error(err);
@@ -86,16 +80,11 @@ export default function Wallet() {
   const handleSend = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/economy/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          recipient_username: sendRecipient,
-          amount: parseFloat(sendAmount),
-          message: sendMessage
-        })
+      const data = await api.wallet.transfer({
+        recipient_username: sendRecipient,
+        amount: parseFloat(sendAmount),
+        message: sendMessage
       });
-      const data = await res.json();
       if (data.success) {
         setShowSendModal(false);
         setSendAmount('');

@@ -11,6 +11,7 @@
     "test:api": "pnpm -C apps/api test"
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.27.8",
     "@headlessui/react": "^2.2.9",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",

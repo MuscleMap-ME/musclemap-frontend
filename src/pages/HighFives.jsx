@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../utils/api';
 
 const TYPES = [
   { id: 'high_five', icon: '🖐️', name: 'High Five' },
@@ -20,20 +21,17 @@ export default function HighFives() {
   const [type, setType] = useState('high_five');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  
-  const token = localStorage.getItem('musclemap_token');
-  const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
   useEffect(() => { load(); }, []);
-  
+
   const load = async () => {
     setLoading(true);
     try {
       const [u, r, s, st] = await Promise.all([
-        fetch('/api/highfives/users', { headers }).then(x => x.json()),
-        fetch('/api/highfives/received', { headers }).then(x => x.json()),
-        fetch('/api/highfives/sent', { headers }).then(x => x.json()),
-        fetch('/api/highfives/stats', { headers }).then(x => x.json()),
+        api.highFives.users(),
+        api.highFives.received(),
+        api.highFives.sent(),
+        api.highFives.stats(),
       ]);
       setUsers(u.users || []);
       setReceived(r.encouragements || []);
@@ -47,11 +45,7 @@ export default function HighFives() {
     if (!selected) return alert('Select someone to encourage!');
     setSending(true);
     try {
-      const res = await fetch('/api/highfives/send', { 
-        method: 'POST', 
-        headers, 
-        body: JSON.stringify({ recipient_id: selected.id, type, message }) 
-      }).then(r => r.json());
+      const res = await api.highFives.send({ recipient_id: selected.id, type, message });
       if (res.error) {
         alert(res.error);
       } else {
