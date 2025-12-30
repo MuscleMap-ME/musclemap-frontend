@@ -13,16 +13,33 @@
  */
 
 import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { createLogger, exitFailure, exitSuccess, parseScriptArgs, resolveDbPath } from './scripts/utils/script-utils.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const options = parseScriptArgs(process.argv);
+const logger = createLogger('cron');
+const { dbPath, exists: dbExists } = resolveDbPath({ cliPath: options.dbPath, fromUrl: import.meta.url });
 
-const db = new Database(join(__dirname, 'musclemap.db'));
+let db;
 
-const jobType = process.argv[2] || 'all';
-console.log(`🕐 Running ${jobType} jobs...`);
+if (options.smokeTest) {
+  logger.info('Smoke test mode: skipping job execution.');
+  if (dbExists) {
+    const probe = new Database(dbPath, { readonly: true });
+    probe.prepare('PRAGMA user_version').get();
+    probe.close();
+    logger.success(`Validated database connectivity at ${dbPath}`);
+  } else {
+    logger.warn(`Database not found at ${dbPath}; create it before enabling the cron timer.`);
+  }
+  exitSuccess(logger, 'cron-jobs.js smoke test completed');
+}
+
+if (!dbExists) {
+  exitFailure(logger, new Error(`Database not found at ${dbPath}`));
+}
+
+db = new Database(dbPath);
+logger.info(`Running ${options.jobType} jobs using ${dbPath}${options.dryRun ? ' (dry-run)' : ''}`);
 
 // =============================================================================
 // HOURLY JOBS
@@ -435,33 +452,37 @@ function getWeekStart() {
 // RUN JOBS
 // =============================================================================
 
-try {
-  if (jobType === 'hourly' || jobType === 'all') {
-    console.log('\n⏰ HOURLY JOBS');
-    checkAtRiskStreaks();
-    updateRivalScores();
-  }
-  
-  if (jobType === 'daily' || jobType === 'all') {
-    console.log('\n📅 DAILY JOBS');
-    expireStreaks();
-    expirePendingChallenges();
-    expireDailyChallenges();
-    createWeeklySnapshots();
-    sendDailyChallengeNotifications();
-  }
-  
-  if (jobType === 'weekly' || jobType === 'all') {
-    console.log('\n📆 WEEKLY JOBS');
-    snapshotWeeklyLeaderboard();
-    updateAllTimeLeaderboard();
-  }
-  
-  console.log('\n✅ Jobs complete!');
-} catch (error) {
-  console.error('\n❌ Job failed:', error.message);
-  console.error(error.stack);
-  process.exit(1);
+const jobGroups = {
+  hourly: [checkAtRiskStreaks, updateRivalScores],
+  daily: [expireStreaks, expirePendingChallenges, expireDailyChallenges, createWeeklySnapshots, sendDailyChallengeNotifications],
+  weekly: [snapshotWeeklyLeaderboard, updateAllTimeLeaderboard],
+};
+
+const jobsToRun = options.jobType === 'all'
+  ? [...jobGroups.hourly, ...jobGroups.daily, ...jobGroups.weekly]
+  : jobGroups[options.jobType];
+
+if (!jobsToRun) {
+  exitFailure(logger, new Error(`Unknown job type: ${options.jobType}`));
 }
 
-db.close();
+if (options.dryRun) {
+  logger.info('Dry-run enabled; jobs will not mutate data. Planned execution order:');
+  for (const job of jobsToRun) {
+    logger.info(` - ${job.name}`);
+  }
+  db.close();
+  exitSuccess(logger, 'Dry-run complete');
+}
+
+try {
+  for (const job of jobsToRun) {
+    logger.info(`Running ${job.name}...`);
+    job();
+  }
+  db.close();
+  exitSuccess(logger, 'Jobs complete!');
+} catch (error) {
+  db.close();
+  exitFailure(logger, error);
+}
