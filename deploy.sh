@@ -14,6 +14,6 @@ echo "🚀 Pushing to GitHub..."
 git push origin main
 
 echo "🔄 Deploying to VPS..."
-ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install --ignore-scripts && cd packages/shared && pnpm build && cd ../.. && pnpm build"
+ssh root@musclemap.me "cd /var/www/musclemap.me && git reset --hard && git pull && pnpm install --ignore-scripts && cd packages/shared && pnpm build && cd ../.. && pnpm build"
 
 echo "✅ Deployed! https://musclemap.me"
