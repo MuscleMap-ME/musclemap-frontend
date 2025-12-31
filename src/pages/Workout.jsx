@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ExerciseTip, WorkoutComplete } from '../components/tips';
 
 // Constraint options
 const TIME_OPTIONS = [
@@ -451,6 +452,13 @@ export default function Workout() {
             </div>
           )}
 
+          {/* Contextual Tip */}
+          {currentExercise && (
+            <div className="mb-6">
+              <ExerciseTip exerciseId={currentExercise.exerciseId} delay={1500} />
+            </div>
+          )}
+
           {/* Action Buttons */}
           {currentExercise && (
             <div className="flex gap-3 mb-6">
@@ -651,23 +659,25 @@ export default function Workout() {
     </div>
   );
 
-  // Rewards modal (shared)
+  // Rewards modal (using WorkoutComplete component)
   const renderRewardsModal = () => (
     rewards && (
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-        <div className="bg-gray-800 rounded-3xl p-8 text-center max-w-sm">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold mb-4">Workout Complete!</h2>
-          <div className="space-y-2 text-lg">
-            <div>+{rewards.tuEarned} TU</div>
-            <div>+{rewards.xpEarned} XP</div>
-            {rewards.creditsSpent > 0 && (
-              <div className="text-gray-400">-{rewards.creditsSpent} credits</div>
-            )}
-          </div>
-          <button onClick={() => { setRewards(null); setMode('select'); setPrescription(null); setLogged([]); }} className="bg-purple-600 px-8 py-3 rounded-full font-bold mt-6">Awesome!</button>
-        </div>
-      </div>
+      <WorkoutComplete
+        workout={{
+          duration: selectedTime,
+          exerciseCount: logged.length,
+          totalSets: logged.reduce((sum, e) => sum + (e.sets || 0), 0),
+          totalTU: rewards.tuEarned || 0,
+          exercises: logged,
+          goals: selectedGoals,
+        }}
+        onClose={() => {
+          setRewards(null);
+          setMode('select');
+          setPrescription(null);
+          setLogged([]);
+        }}
+      />
     )
   );
 

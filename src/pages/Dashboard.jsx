@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import clsx from 'clsx';
 import { api } from '../utils/api';
+import { DailyTip, MilestoneProgress } from '../components/tips';
 
 // Professional icon components (no emojis)
 const Icons = {
@@ -257,6 +258,9 @@ export default function Dashboard() {
               </div>
             </motion.div>
 
+            {/* Daily Tip */}
+            <DailyTip />
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <StatCard icon={Icons.Bolt} label="Day Streak" value={stats?.streak || 0} trend={12} />
@@ -293,10 +297,23 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Milestones Section */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Milestones</h2>
+                <Link to="/journey" className="text-sm text-purple-400 hover:text-purple-300">
+                  View all
+                </Link>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <MilestoneProgress limit={4} />
+              </div>
+            </div>
+
             {/* System Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SystemCard 
-                title="Training" 
+              <SystemCard
+                title="Training"
                 icon={Icons.Workout}
                 items={[
                   { to: '/workout', icon: Icons.Play, label: 'Active Workout', description: 'Start or continue training' },
