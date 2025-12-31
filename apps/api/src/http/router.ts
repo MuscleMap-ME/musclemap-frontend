@@ -17,6 +17,7 @@ import { exerciseRouter } from '../modules/exercises';
 import { workoutRouter } from '../modules/workouts';
 import { archetypeRouter } from '../modules/archetypes';
 import { competitionRouter } from '../modules/competitions';
+import { communityRouter } from '../modules/community';
 
 // Plugin system
 import { pluginRegistry } from '../plugins/plugin-loader';
@@ -160,8 +161,9 @@ router.use('/trace', traceRouter);
   // Locations
   router.get('/locations/nearby', (_req, res) => ok(res, []));
 
-  // Community
-  router.get('/community/feed', (_req, res) => ok(res, []));
+  // Community (full module)
+  router.use('/community', communityRouter);
+  // Legacy compatibility endpoint
   router.get('/community/percentile', authenticateToken, (_req, res) => ok(res, { percentile: 50 }));
 
   // i18n

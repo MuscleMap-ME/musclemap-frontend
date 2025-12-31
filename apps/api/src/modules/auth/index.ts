@@ -17,6 +17,60 @@ export interface JwtPayload {
   userId: string;
   email: string;
   roles: string[];
+  role?: 'user' | 'moderator' | 'admin';
+}
+
+// Role hierarchy for permission checks
+const ROLE_HIERARCHY: Record<string, number> = {
+  user: 0,
+  moderator: 1,
+  admin: 2,
+};
+
+/**
+ * Get the effective role for a user from their JWT payload
+ */
+export function getEffectiveRole(payload: JwtPayload): 'user' | 'moderator' | 'admin' {
+  // Check explicit role field first
+  if (payload.role && ROLE_HIERARCHY[payload.role] !== undefined) {
+    return payload.role;
+  }
+  // Fall back to roles array
+  if (payload.roles.includes('admin')) return 'admin';
+  if (payload.roles.includes('moderator')) return 'moderator';
+  return 'user';
+}
+
+/**
+ * Check if user has at least the required role
+ */
+export function hasMinRole(userRole: string, requiredRole: string): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 0;
+  return userLevel >= requiredLevel;
+}
+
+/**
+ * Middleware to require a minimum role level
+ */
+export function requireRole(minRole: 'user' | 'moderator' | 'admin') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      next(new AuthenticationError('Authentication required'));
+      return;
+    }
+
+    const userRole = getEffectiveRole(req.user);
+    if (!hasMinRole(userRole, minRole)) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: `This action requires ${minRole} role or higher`,
+      });
+      return;
+    }
+
+    next();
+  };
 }
 
 declare global {
@@ -142,20 +196,21 @@ export const authService = {
   async login(data: z.infer<typeof loginSchema>) {
     const validated = loginSchema.parse(data);
 
-    const user = db.prepare('SELECT id, email, username, display_name, password_hash, roles FROM users WHERE email = ?').get(validated.email) as any;
+    const user = db.prepare('SELECT id, email, username, display_name, password_hash, roles, role FROM users WHERE email = ?').get(validated.email) as any;
 
     if (!user || !verifyPassword(validated.password, user.password_hash)) {
       throw new AuthenticationError('Invalid email or password');
     }
 
     const roles = JSON.parse(user.roles || '["user"]');
-    const token = generateToken({ userId: user.id, email: user.email, roles });
+    const role = (user.role as 'user' | 'moderator' | 'admin') || 'user';
+    const token = generateToken({ userId: user.id, email: user.email, roles, role });
 
-    log.info('User logged in', { userId: user.id });
+    log.info('User logged in', { userId: user.id, role });
 
     return {
       token,
-      user: { id: user.id, email: user.email, username: user.username, displayName: user.display_name, roles },
+      user: { id: user.id, email: user.email, username: user.username, displayName: user.display_name, roles, role },
     };
   },
 };

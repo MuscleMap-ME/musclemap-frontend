@@ -26,6 +26,9 @@ import { logger } from '../lib/logger';
 import { requestId, apiRateLimiter, errorHandler, notFoundHandler } from './middleware';
 import { createApiRouter } from './router';
 
+// WebSocket for community features
+import { registerWebSocketRoutes } from '../modules/community/websocket';
+
 export async function createServer(): Promise<FastifyInstance> {
   // Use your existing pino logger if it’s compatible; otherwise Fastify can manage its own.
   const app = Fastify({
@@ -98,6 +101,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Optional: tiny Fastify-native ping that bypasses express
   app.get('/__fastify', async () => ({ ok: true, ts: new Date().toISOString() }));
+
+  // Register WebSocket routes for community features
+  await registerWebSocketRoutes(app);
 
   return app;
 }

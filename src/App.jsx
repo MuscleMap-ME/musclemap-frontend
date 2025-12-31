@@ -15,7 +15,7 @@ import Journey from './pages/Journey';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Progression from './pages/Progression';
-import Community from './pages/Community';
+import CommunityDashboard from './pages/CommunityDashboard';
 import Competitions from './pages/Competitions';
 import Locations from './pages/Locations';
 import HighFives from './pages/HighFives';
@@ -97,7 +97,7 @@ function AppRoutes() {
         <Route path="/profile" element={<ProtectedRoute name="Profile"><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute name="Settings"><Settings /></ProtectedRoute>} />
         <Route path="/progression" element={<ProtectedRoute name="Progression"><Progression /></ProtectedRoute>} />
-        <Route path="/community" element={<ProtectedRoute name="Community"><Community /></ProtectedRoute>} />
+        <Route path="/community" element={<ProtectedRoute name="CommunityDashboard"><CommunityDashboard /></ProtectedRoute>} />
         <Route path="/competitions" element={<ProtectedRoute name="Competitions"><Competitions /></ProtectedRoute>} />
         <Route path="/locations" element={<ProtectedRoute name="Locations"><Locations /></ProtectedRoute>} />
         <Route path="/highfives" element={<ProtectedRoute name="HighFives"><HighFives /></ProtectedRoute>} />

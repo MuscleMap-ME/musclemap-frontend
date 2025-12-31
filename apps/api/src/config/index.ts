@@ -24,6 +24,9 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   CORS_ORIGIN: z.string().default('*'),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+  // Redis configuration
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  REDIS_ENABLED: z.coerce.boolean().default(false),
 });
 
 type EnvConfig = z.infer<typeof envSchema>;
@@ -56,6 +59,8 @@ function loadConfig(): EnvConfig {
       RATE_LIMIT_MAX: 100,
       CORS_ORIGIN: '*',
       FRONTEND_URL: 'http://localhost:5173',
+      REDIS_URL: 'redis://localhost:6379',
+      REDIS_ENABLED: false,
     };
   }
   
