@@ -23,7 +23,9 @@ import { messagingRouter } from '../modules/messaging';
 // Plugin system
 import { pluginRegistry } from '../plugins/plugin-loader';
 import { loggers } from '../lib/logger';
-import prescriptionRouter from './prescription-router';
+
+// Prescription module (constraint-based workout generation)
+import { prescriptionRouter } from '../modules/prescription';
 
 export function createApiRouter(): Router {
   const router = Router();
@@ -81,8 +83,11 @@ router.post('/trace/frontend-log', (req, res) => {
   // Core modules
   router.use('/auth', authRouter);
 
+  // Prescription (constraint-based workout generation)
   router.use('/prescription', prescriptionRouter);
-router.use('/trace', traceRouter);
+  router.use('/v1/prescription', prescriptionRouter); // v1 API path
+
+  router.use('/trace', traceRouter);
   // Economy/Credits
   router.use('/economy', economyRouter);
   router.use('/credits', economyRouter); // alias for tests

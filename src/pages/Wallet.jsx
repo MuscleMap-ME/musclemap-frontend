@@ -67,6 +67,7 @@ export default function Wallet() {
   const [sendRecipient, setSendRecipient] = useState('');
   const [sendMessage, setSendMessage] = useState('');
   const [subscribing, setSubscribing] = useState(false);
+  const [buyingCredits, setBuyingCredits] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
@@ -78,6 +79,14 @@ export default function Wallet() {
       setSnackbar({ open: true, message: 'Subscription activated! Enjoy unlimited access.', severity: 'success' });
     } else if (subStatus === 'canceled') {
       setSnackbar({ open: true, message: 'Subscription canceled.', severity: 'info' });
+    }
+
+    // Handle credit purchase redirect
+    const creditStatus = searchParams.get('credits');
+    if (creditStatus === 'success') {
+      setSnackbar({ open: true, message: '100 credits added to your account!', severity: 'success' });
+    } else if (creditStatus === 'canceled') {
+      setSnackbar({ open: true, message: 'Credit purchase canceled.', severity: 'info' });
     }
   }, [searchParams]);
 
@@ -137,6 +146,27 @@ export default function Wallet() {
       }
     } catch (err) {
       setSnackbar({ open: true, message: 'Failed to open billing portal.', severity: 'error' });
+    }
+  };
+
+  const handleBuyCredits = async () => {
+    setBuyingCredits(true);
+    try {
+      const response = await fetch('/api/billing/credits/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await response.json();
+      if (data.data?.url) {
+        window.location.href = data.data.url;
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Failed to start purchase. Please try again.', severity: 'error' });
+    } finally {
+      setBuyingCredits(false);
     }
   };
 
@@ -484,24 +514,73 @@ export default function Wallet() {
 
       {/* Buy Credits Dialog */}
       <Dialog open={showBuyModal} onClose={() => setShowBuyModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Buy Credits</DialogTitle>
+        <DialogTitle>Get More Credits</DialogTitle>
         <DialogContent>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            Or subscribe for $1/month for unlimited access!
-          </Typography>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleSubscribe}
-            disabled={subscribing}
-            sx={{ mb: 2 }}
+          {/* Credit Purchase Option */}
+          <Paper
+            sx={{
+              p: 3,
+              mb: 2,
+              borderRadius: 2,
+              border: '2px solid',
+              borderColor: 'primary.main',
+              textAlign: 'center',
+            }}
           >
-            {subscribing ? <CircularProgress size={24} /> : 'Subscribe - $1/month Unlimited'}
-          </Button>
-          <Divider sx={{ my: 2 }}>or buy credits</Divider>
-          <Typography variant="body2" color="text.secondary" textAlign="center">
-            Credit pack purchases coming soon.
-          </Typography>
+            <Typography variant="h4" fontWeight={700} color="primary">
+              100 Credits
+            </Typography>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+              $1.00
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Each workout prescription costs 1 credit
+            </Typography>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              onClick={handleBuyCredits}
+              disabled={buyingCredits}
+              sx={{ fontWeight: 700 }}
+            >
+              {buyingCredits ? <CircularProgress size={24} /> : 'Buy 100 Credits - $1'}
+            </Button>
+          </Paper>
+
+          <Divider sx={{ my: 2 }}>or</Divider>
+
+          {/* Subscription Option */}
+          <Paper
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+              textAlign: 'center',
+            }}
+          >
+            <AllInclusiveIcon sx={{ fontSize: 40, mb: 1 }} />
+            <Typography variant="h5" fontWeight={700}>
+              Go Unlimited
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, mb: 2 }}>
+              $1/month - No credit limits ever
+            </Typography>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              sx={{
+                bgcolor: 'white',
+                color: '#7c3aed',
+                fontWeight: 700,
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }
+              }}
+            >
+              {subscribing ? <CircularProgress size={24} /> : 'Subscribe - $1/month'}
+            </Button>
+          </Paper>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowBuyModal(false)}>Close</Button>
