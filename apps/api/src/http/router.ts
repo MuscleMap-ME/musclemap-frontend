@@ -30,6 +30,9 @@ import { prescriptionRouter } from '../modules/prescription';
 // Journey module (progress tracking)
 import { journeyRouter } from '../modules/journey';
 
+// Tips module (contextual tips, insights, milestones)
+import { tipsRouter } from '../modules/tips';
+
 export function createApiRouter(): Router {
   const router = Router();
 
@@ -130,6 +133,9 @@ router.post('/trace/frontend-log', (req, res) => {
 
   // Journey (full module with progress tracking)
   router.use('/journey', journeyRouter);
+
+  // Tips (contextual tips, insights, milestones)
+  router.use('/tips', tipsRouter);
 
   // Workouts list (GET /api/workouts)
   router.get('/workouts', authenticateToken, (_req, res) => {

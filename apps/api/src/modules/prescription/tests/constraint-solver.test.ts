@@ -303,11 +303,14 @@ describe('estimateExerciseTime', () => {
 describe('checkBalance', () => {
   it('returns balanced for well-balanced selection', () => {
     const balanced = [
-      mockExercises.find(e => e.id === 'bw-pushup')!, // push
-      mockExercises.find(e => e.id === 'bw-pullup')!, // pull
-      mockExercises.find(e => e.id === 'bw-squat')!, // squat
+      mockExercises.find(e => e.id === 'bw-pushup')!, // push (upper)
+      mockExercises.find(e => e.id === 'bw-pullup')!, // pull (upper)
+      mockExercises.find(e => e.id === 'bw-squat')!, // squat (lower)
+      mockExercises.find(e => e.id === 'fw-squat')!, // squat (lower) - need 2 lower to balance 2 upper
     ];
 
+    // Push/Pull ratio: 1:1 = 1.0 (within 0.8-1.2)
+    // Upper/Lower ratio: 2:2 = 1.0 (within 0.6-1.4)
     const result = checkBalance(balanced);
 
     expect(result.isBalanced).toBe(true);
