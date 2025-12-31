@@ -17,7 +17,7 @@ const log = loggers.economy;
 
 // Initialize Stripe
 const stripe = config.STRIPE_SECRET_KEY
-  ? new Stripe(config.STRIPE_SECRET_KEY, { apiVersion: '2025-01-27.acacia' })
+  ? new Stripe(config.STRIPE_SECRET_KEY)
   : null;
 
 // $1/month subscription price (you'll need to create this in Stripe Dashboard)
