@@ -10,6 +10,8 @@ import { Router, Request, Response } from 'express';
 // Module routers
 import { authRouter, authenticateToken } from '../modules/auth';
 import { economyRouter } from '../modules/economy';
+import { entitlementsRouter } from '../modules/entitlements';
+import { billingRouter } from '../modules/billing';
 import { muscleRouter } from '../modules/muscles';
 import { exerciseRouter } from '../modules/exercises';
 import { workoutRouter } from '../modules/workouts';
@@ -82,6 +84,13 @@ router.use('/trace', traceRouter);
   // Economy/Credits
   router.use('/economy', economyRouter);
   router.use('/credits', economyRouter); // alias for tests
+
+  // Entitlements (trial/subscription status)
+  router.use('/entitlements', entitlementsRouter);
+  router.use('/me/entitlements', entitlementsRouter); // alias for frontend
+
+  // Billing (Stripe subscriptions)
+  router.use('/billing', billingRouter);
 
   router.use('/muscles', muscleRouter);
   router.use('/exercises', exerciseRouter);

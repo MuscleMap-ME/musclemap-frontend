@@ -110,10 +110,22 @@ export const authService = {
     const userId = `user_${crypto.randomBytes(12).toString('hex')}`;
     const passwordHash = hashPassword(validated.password);
 
+    // Set trial period: 90 days from registration
+    const now = new Date();
+    const trialEnds = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
     db.prepare(`
-      INSERT INTO users (id, email, username, display_name, password_hash)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(userId, validated.email, validated.username, validated.displayName || null, passwordHash);
+      INSERT INTO users (id, email, username, display_name, password_hash, trial_started_at, trial_ends_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      userId,
+      validated.email,
+      validated.username,
+      validated.displayName || null,
+      passwordHash,
+      now.toISOString(),
+      trialEnds.toISOString()
+    );
 
     db.prepare('INSERT INTO credit_balances (user_id, balance) VALUES (?, 100)').run(userId);
 

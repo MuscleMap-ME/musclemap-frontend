@@ -10,6 +10,7 @@ import { loggers } from '../../lib/logger';
 import { PRICING_TIERS, PRICING_RATE } from '@musclemap/core';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { entitlementsService } from '../entitlements';
 
 const log = loggers.economy;
 
@@ -39,6 +40,23 @@ export const economyService = {
   },
 
   charge(request: CreditChargeRequest): CreditChargeResult {
+    // Check if user has unlimited access (trial or subscription)
+    const entitlements = entitlementsService.getEntitlements(request.userId);
+
+    if (entitlements.unlimited) {
+      // User has unlimited access - don't charge credits, just log the action
+      log.info('Action performed with unlimited access', {
+        userId: request.userId,
+        action: request.action,
+        reason: entitlements.reason
+      });
+      return {
+        success: true,
+        ledgerEntryId: undefined,
+        newBalance: entitlements.creditBalance ?? undefined
+      };
+    }
+
     return transaction(() => {
       const existing = db.prepare('SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = ?').get(request.idempotencyKey) as any;
 

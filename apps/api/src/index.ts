@@ -7,6 +7,7 @@
 import { createServer, startServer } from './http';
 import { db } from './db/client';
 import { initializeSchema, seedCreditActions } from './db/schema';
+import { migrate as migrateTrialAndSubscriptions } from './db/migrations/001_add_trial_and_subscriptions';
 import { loadAllPlugins, invokePluginHook } from './plugins/plugin-loader';
 import { logger } from './lib/logger';
 
@@ -16,6 +17,7 @@ async function main(): Promise<void> {
   // Initialize database
   initializeSchema();
   seedCreditActions();
+  migrateTrialAndSubscriptions();
   logger.info('✅ Database initialized');
 
   // Load plugins

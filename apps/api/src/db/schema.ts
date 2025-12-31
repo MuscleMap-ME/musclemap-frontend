@@ -22,6 +22,8 @@ export function initializeSchema(): void {
       flags TEXT DEFAULT '{"verified":false,"banned":false,"suspended":false,"emailConfirmed":false}',
       current_archetype_id TEXT,
       current_level INTEGER DEFAULT 1,
+      trial_started_at TEXT,
+      trial_ends_at TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -94,6 +96,22 @@ export function initializeSchema(): void {
       created_at TEXT DEFAULT (datetime('now')),
       completed_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT UNIQUE,
+      status TEXT NOT NULL DEFAULT 'inactive',
+      current_period_start TEXT,
+      current_period_end TEXT,
+      cancel_at_period_end INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
 
     CREATE TABLE IF NOT EXISTS muscles (
       id TEXT PRIMARY KEY,
