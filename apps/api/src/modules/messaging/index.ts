@@ -64,7 +64,11 @@ messagingRouter.get('/conversations', asyncHandler(async (req: Request, res: Res
 messagingRouter.post('/conversations', asyncHandler(async (req: Request, res: Response) => {
   const validated = createConversationSchema.parse(req.body);
 
-  const conversation = messageService.createConversation(req.user!.userId, validated);
+  const conversation = messageService.createConversation(req.user!.userId, {
+    type: validated.type,
+    name: validated.name,
+    participantIds: validated.participantIds,
+  });
 
   res.status(201).json({ data: conversation });
 }));
