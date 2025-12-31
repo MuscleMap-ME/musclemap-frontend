@@ -323,12 +323,13 @@ prescriptionRouter.get(
     const prescription = prescriptionService.getById(req.params.id, req.user!.userId);
 
     if (!prescription) {
-      return res.status(404).json({
+      res.status(404).json({
         error: {
           code: 'NOT_FOUND',
           message: 'Prescription not found',
         },
       });
+      return;
     }
 
     res.json({ data: prescription });
@@ -361,13 +362,14 @@ prescriptionRouter.post(
     );
 
     if (exercises.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         error: {
           code: 'NO_EXERCISES',
           message:
             'No exercises match your constraints. Try relaxing location, equipment, or time requirements.',
         },
       });
+      return;
     }
 
     res.json({
