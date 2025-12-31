@@ -9,6 +9,7 @@ import { db } from './db/client';
 import { initializeSchema, seedCreditActions } from './db/schema';
 import { migrate as migrateTrialAndSubscriptions } from './db/migrations/001_add_trial_and_subscriptions';
 import { migrate as migrateCommunityDashboard } from './db/migrations/002_community_dashboard';
+import { migrate as migrateExerciseEquipmentLocations } from './db/migrations/003_exercise_equipment_locations';
 import { loadAllPlugins, invokePluginHook } from './plugins/plugin-loader';
 import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
@@ -22,6 +23,7 @@ async function main(): Promise<void> {
   seedCreditActions();
   migrateTrialAndSubscriptions();
   migrateCommunityDashboard();
+  migrateExerciseEquipmentLocations();
   logger.info('✅ Database initialized');
 
   // Initialize Redis if enabled

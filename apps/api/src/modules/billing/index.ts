@@ -1,12 +1,14 @@
 /**
  * Billing Module
  *
- * Handles Stripe subscriptions for the $1/month unlimited plan.
+ * Handles:
+ * 1. Stripe subscriptions for the $1/month unlimited plan
+ * 2. One-time credit purchases (100 credits for $1)
  */
 
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
-import { db } from '../../db/client';
+import { db, transaction } from '../../db/client';
 import { authenticateToken } from '../auth';
 import { asyncHandler, ValidationError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
@@ -20,10 +22,13 @@ const stripe = config.STRIPE_SECRET_KEY
   ? new Stripe(config.STRIPE_SECRET_KEY)
   : null;
 
-// $1/month subscription price (you'll need to create this in Stripe Dashboard)
-// Or we create it dynamically
+// Subscription pricing
 const SUBSCRIPTION_PRICE_AMOUNT = 100; // $1.00 in cents
 const SUBSCRIPTION_PRICE_CURRENCY = 'usd';
+
+// Credit purchase pricing - Simple: 100 credits for $1
+const CREDIT_PACK_AMOUNT = 100; // $1.00 in cents
+const CREDIT_PACK_CREDITS = 100;
 
 interface SubscriptionRecord {
   id: string;
@@ -141,12 +146,20 @@ export const billingService = {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // Handle subscription checkout
         if (session.mode === 'subscription' && session.subscription) {
           await this.activateSubscription(
             session.metadata?.userId!,
             session.customer as string,
             session.subscription as string
           );
+        }
+
+        // Handle credit purchase
+        if (session.mode === 'payment' && session.metadata?.type === 'credit_purchase') {
+          const credits = parseInt(session.metadata.credits || '100', 10);
+          this.completeCreditPurchase(session.id, session.metadata.userId!, credits);
         }
         break;
       }
@@ -243,6 +256,110 @@ export const billingService = {
       'SELECT * FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
     ).get(userId) as SubscriptionRecord | null;
   },
+
+  /**
+   * Create a checkout session for credit purchase (100 credits for $1)
+   */
+  async createCreditCheckoutSession(userId: string, email: string): Promise<string> {
+    if (!stripe) throw new ValidationError('Stripe not configured');
+
+    const customerId = await this.getOrCreateCustomer(userId, email);
+
+    // Create a one-time payment session
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: SUBSCRIPTION_PRICE_CURRENCY,
+            product_data: {
+              name: 'MuscleMap Credits',
+              description: '100 credits for workout prescriptions',
+            },
+            unit_amount: CREDIT_PACK_AMOUNT,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${config.FRONTEND_URL}/wallet?credits=success`,
+      cancel_url: `${config.FRONTEND_URL}/wallet?credits=canceled`,
+      metadata: {
+        userId,
+        type: 'credit_purchase',
+        credits: CREDIT_PACK_CREDITS.toString(),
+      },
+    });
+
+    // Record the pending purchase
+    const purchaseId = `purch_${crypto.randomBytes(12).toString('hex')}`;
+    db.prepare(`
+      INSERT INTO purchases (id, user_id, tier_id, credits, amount_cents, status, stripe_session_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      purchaseId,
+      userId,
+      'standard',
+      CREDIT_PACK_CREDITS,
+      CREDIT_PACK_AMOUNT,
+      'pending',
+      session.id
+    );
+
+    log.info('Created credit checkout session', { userId, sessionId: session.id, purchaseId });
+    return session.url!;
+  },
+
+  /**
+   * Complete a credit purchase (called from webhook)
+   */
+  completeCreditPurchase(sessionId: string, userId: string, credits: number): void {
+    transaction(() => {
+      const now = new Date().toISOString();
+
+      // Mark purchase as completed
+      db.prepare(`
+        UPDATE purchases SET status = 'completed', completed_at = ?
+        WHERE stripe_session_id = ? AND user_id = ?
+      `).run(now, sessionId, userId);
+
+      // Get or create credit balance
+      const balance = db.prepare(
+        'SELECT balance, version FROM credit_balances WHERE user_id = ?'
+      ).get(userId) as { balance: number; version: number } | undefined;
+
+      if (!balance) {
+        // Create credit account
+        db.prepare(
+          'INSERT INTO credit_balances (user_id, balance, lifetime_earned) VALUES (?, ?, ?)'
+        ).run(userId, credits, credits);
+      } else {
+        // Add to existing balance
+        const newBalance = balance.balance + credits;
+        db.prepare(
+          'UPDATE credit_balances SET balance = ?, lifetime_earned = lifetime_earned + ?, version = version + 1 WHERE user_id = ? AND version = ?'
+        ).run(newBalance, credits, userId, balance.version);
+      }
+
+      // Record in ledger
+      const ledgerId = `txn_${crypto.randomBytes(12).toString('hex')}`;
+      const newBalance = (balance?.balance || 0) + credits;
+      db.prepare(
+        'INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        ledgerId,
+        userId,
+        'credit_purchase',
+        credits,
+        newBalance,
+        JSON.stringify({ sessionId, amount_cents: CREDIT_PACK_AMOUNT }),
+        `purchase-${sessionId}`
+      );
+
+      log.info('Credit purchase completed', { userId, credits, newBalance });
+    });
+  },
 };
 
 export const billingRouter = Router();
@@ -252,6 +369,14 @@ billingRouter.post('/checkout', authenticateToken, asyncHandler(async (req: Requ
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user!.userId) as { email: string };
 
   const url = await billingService.createCheckoutSession(req.user!.userId, user.email);
+  res.json({ data: { url } });
+}));
+
+// Create checkout session for credit purchase (100 credits for $1)
+billingRouter.post('/credits/checkout', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user!.userId) as { email: string };
+
+  const url = await billingService.createCreditCheckoutSession(req.user!.userId, user.email);
   res.json({ data: { url } });
 }));
 

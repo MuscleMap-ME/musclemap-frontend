@@ -130,8 +130,32 @@ export function initializeSchema(): void {
       difficulty INTEGER DEFAULT 2,
       description TEXT,
       cues TEXT,
-      primary_muscles TEXT
+      primary_muscles TEXT,
+      equipment_required TEXT DEFAULT '[]',
+      equipment_optional TEXT DEFAULT '[]',
+      locations TEXT DEFAULT '["gym"]',
+      is_compound INTEGER DEFAULT 0,
+      estimated_seconds INTEGER DEFAULT 45,
+      rest_seconds INTEGER DEFAULT 60,
+      movement_pattern TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS prescriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      constraints TEXT NOT NULL,
+      exercises TEXT NOT NULL,
+      warmup TEXT,
+      cooldown TEXT,
+      substitutions TEXT,
+      muscle_coverage TEXT NOT NULL,
+      estimated_duration INTEGER NOT NULL,
+      actual_duration INTEGER NOT NULL,
+      credit_cost INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prescriptions_user ON prescriptions(user_id);
 
     CREATE TABLE IF NOT EXISTS exercise_activations (
       exercise_id TEXT NOT NULL,
@@ -231,6 +255,7 @@ export function seedCreditActions(): void {
     { id: 'workout.complete', name: 'Complete Workout', cost: 25 },
     { id: 'ai.generate', name: 'AI Generation', cost: 50 },
     { id: 'competition.create', name: 'Create Competition', cost: 100 },
+    { id: 'prescription.generate', name: 'Generate Prescription', cost: 1 },
   ];
 
   const stmt = db.prepare(`
