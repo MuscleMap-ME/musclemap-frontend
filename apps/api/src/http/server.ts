@@ -28,6 +28,7 @@ import { createApiRouter } from './router';
 
 // WebSocket for community features
 import { registerWebSocketRoutes } from '../modules/community/websocket';
+import { registerMessagingWebSocket } from '../modules/messaging/websocket';
 
 export async function createServer(): Promise<FastifyInstance> {
   // Use your existing pino logger if it’s compatible; otherwise Fastify can manage its own.
@@ -104,6 +105,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Register WebSocket routes for community features
   await registerWebSocketRoutes(app);
+
+  // Register WebSocket routes for messaging
+  await registerMessagingWebSocket(app);
 
   return app;
 }
