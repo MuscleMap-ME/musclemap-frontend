@@ -11,7 +11,7 @@ import { seedEquipmentLocations } from '../seed-equipment-locations';
 const log = loggers.db;
 
 export function migrate(): void {
-  log.info('Running migration: 003_exercise_equipment_locations');
+  log.info('Running migration: 004_exercise_equipment_locations');
 
   // Check if columns already exist
   const tableInfo = db.prepare("PRAGMA table_info(exercises)").all() as { name: string }[];
@@ -71,5 +71,5 @@ export function migrate(): void {
     log.info('Prescriptions table already exists, skipping...');
   }
 
-  log.info('Migration 003_exercise_equipment_locations complete');
+  log.info('Migration 004_exercise_equipment_locations complete');
 }
