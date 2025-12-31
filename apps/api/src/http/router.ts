@@ -27,6 +27,9 @@ import { loggers } from '../lib/logger';
 // Prescription module (constraint-based workout generation)
 import { prescriptionRouter } from '../modules/prescription';
 
+// Journey module (progress tracking)
+import { journeyRouter } from '../modules/journey';
+
 export function createApiRouter(): Router {
   const router = Router();
 
@@ -125,13 +128,8 @@ router.post('/trace/frontend-log', (req, res) => {
     ok(res, { selected: archetypeId });
   });
 
-  // Journey
-  router.get('/journey/paths', authenticateToken, (_req, res) => {
-    ok(res, { paths: [] });
-  });
-  router.post('/journey/switch', authenticateToken, (req, res) => {
-    ok(res, { archetype: req.body?.archetype ?? null });
-  });
+  // Journey (full module with progress tracking)
+  router.use('/journey', journeyRouter);
 
   // Workouts list (GET /api/workouts)
   router.get('/workouts', authenticateToken, (_req, res) => {
