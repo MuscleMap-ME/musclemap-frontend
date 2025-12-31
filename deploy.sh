@@ -6,6 +6,9 @@ set -e
 
 MESSAGE="${1:-Update}"
 
+echo "🔃 Pulling latest changes..."
+git pull origin main
+
 echo "📦 Committing changes..."
 git add .
 git commit -m "$MESSAGE" || echo "Nothing to commit"
