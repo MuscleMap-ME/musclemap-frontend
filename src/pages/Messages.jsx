@@ -51,11 +51,29 @@ export default function Messages() {
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch(`/api/messaging/conversations?category=${activeTab}`, {
+      const res = await fetch(`/api/messaging/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setConversations(data.conversations || []);
+      // Map API response to expected format
+      const convs = (data.data || []).map(c => ({
+        id: c.id,
+        type: c.type,
+        name: c.name,
+        display_name: c.name || c.participants?.find(p => p.userId !== data.currentUserId)?.displayName || c.participants?.find(p => p.userId !== data.currentUserId)?.username,
+        last_message: c.lastMessage?.content,
+        last_activity_at: c.lastMessageAt || c.createdAt,
+        unread_count: c.unreadCount || 0,
+        participants: c.participants,
+      }));
+      // Filter by tab
+      if (activeTab === 'starred') {
+        setConversations(convs.filter(c => c.starred));
+      } else if (activeTab === 'archived') {
+        setConversations(convs.filter(c => c.archived));
+      } else {
+        setConversations(convs.filter(c => !c.archived));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,7 +87,20 @@ export default function Messages() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setMessages(data.messages || []);
+      // Map API response to expected format
+      const msgs = (data.data || []).map(m => ({
+        id: m.id,
+        content: m.content,
+        sender_id: m.senderId,
+        sender_name: m.sender?.displayName || m.sender?.username || 'Unknown',
+        created_at: m.createdAt,
+      }));
+      setMessages(msgs);
+      // Mark as read
+      fetch(`/api/messaging/conversations/${conversationId}/read`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
     } catch (err) {
       console.error(err);
     }
@@ -86,13 +117,14 @@ export default function Messages() {
         body: JSON.stringify({ content: newMessage })
       });
       const data = await res.json();
-      if (data.message_id) {
+      if (data.data) {
+        const msg = data.data;
         setMessages([...messages, {
-          id: data.message_id,
-          content: newMessage,
+          id: msg.id,
+          content: msg.content,
           sender_id: 'me',
           sender_name: 'You',
-          created_at: new Date().toISOString()
+          created_at: msg.createdAt
         }]);
         setNewMessage('');
       }
@@ -119,13 +151,13 @@ export default function Messages() {
       const res = await fetch('/api/messaging/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type: 'direct', participants: [userId] })
+        body: JSON.stringify({ type: 'direct', participantIds: [userId] })
       });
       const data = await res.json();
-      if (data.conversation_id) {
+      if (data.data?.id) {
         setShowNewChat(false);
         fetchConversations();
-        setActiveConversation({ id: data.conversation_id });
+        setActiveConversation({ id: data.data.id, ...data.data });
       }
     } catch (err) {
       console.error(err);

@@ -18,6 +18,7 @@ import { workoutRouter } from '../modules/workouts';
 import { archetypeRouter } from '../modules/archetypes';
 import { competitionRouter } from '../modules/competitions';
 import { communityRouter } from '../modules/community';
+import { messagingRouter } from '../modules/messaging';
 
 // Plugin system
 import { pluginRegistry } from '../plugins/plugin-loader';
@@ -165,6 +166,9 @@ router.use('/trace', traceRouter);
   router.use('/community', communityRouter);
   // Legacy compatibility endpoint
   router.get('/community/percentile', authenticateToken, (_req, res) => ok(res, { percentile: 50 }));
+
+  // Messaging
+  router.use('/messaging', messagingRouter);
 
   // i18n
   router.get('/i18n/languages', (_req, res) => ok(res, ['en']));
