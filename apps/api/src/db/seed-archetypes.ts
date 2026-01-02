@@ -49,6 +49,8 @@ export async function seedArchetypes(): Promise<void> {
   console.log('🌱 Seeding archetypes...');
 
   for (const a of archetypes) {
+    // Convert comma-separated string to JSON array for JSONB column
+    const focusAreasJson = JSON.stringify(a.focusAreas.split(','));
     await db.query(`
       INSERT INTO archetypes (id, name, philosophy, description, focus_areas, icon_url)
       VALUES ($1, $2, $3, $4, $5, NULL)
@@ -57,7 +59,7 @@ export async function seedArchetypes(): Promise<void> {
         philosophy = EXCLUDED.philosophy,
         description = EXCLUDED.description,
         focus_areas = EXCLUDED.focus_areas
-    `, [a.id, a.name, a.philosophy, a.description, a.focusAreas]);
+    `, [a.id, a.name, a.philosophy, a.description, focusAreasJson]);
   }
   console.log(`✓ Inserted ${archetypes.length} archetypes`);
 
