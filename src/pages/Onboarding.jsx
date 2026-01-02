@@ -30,10 +30,10 @@ export default function Onboarding() {
     setError('');
     try {
       const token = localStorage.getItem('musclemap_token');
-      const res = await fetch('/api/prescription/plan', {
+      const res = await fetch('/api/archetypes/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ archetypeId: archetype.id, equipmentPath: equipment.type, timelineId: 'standard_12week' })
+        body: JSON.stringify({ archetypeId: archetype.id })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -43,7 +43,7 @@ export default function Onboarding() {
       const user = JSON.parse(localStorage.getItem('musclemap_user') || '{}');
       login({ ...user, archetype: archetype.id }, token);
       navigate('/dashboard');
-    } catch (err) { setError(extractErrorMessage(err, 'Failed to create plan')); }
+    } catch (err) { setError(extractErrorMessage(err, 'Failed to select archetype')); }
     finally { setLoading(false); }
   };
 
