@@ -1060,20 +1060,24 @@ function wrapInData(innerSchema: any) {
 export const apiClient = {
   // Authentication
   auth: {
-    login: (email: string, password: string) =>
-      request<AuthResponse>('/auth/login', {
+    login: async (email: string, password: string) => {
+      const response = await request<DataResponse<AuthResponse>>('/auth/login', {
         method: 'POST',
         body: { email, password },
         auth: false,
-        schema: AuthResponseSchema,
-      }),
-    register: (payload: { email: string; password: string; username?: string }) =>
-      request<AuthResponse>('/auth/register', {
+        schema: wrapInData(AuthResponseSchema),
+      });
+      return response.data;
+    },
+    register: async (payload: { email: string; password: string; username?: string }) => {
+      const response = await request<DataResponse<AuthResponse>>('/auth/register', {
         method: 'POST',
         body: payload,
         auth: false,
-        schema: AuthResponseSchema,
-      }),
+        schema: wrapInData(AuthResponseSchema),
+      });
+      return response.data;
+    },
     profile: () => request<User>('/auth/profile', { schema: UserSchema }),
   },
 

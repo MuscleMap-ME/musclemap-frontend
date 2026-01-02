@@ -181,10 +181,18 @@ export async function request<T = unknown>(
 
       // Handle non-OK responses
       if (!response.ok) {
-        const errorBody = await safeJson<{ error?: string; message?: string }>(response);
-        throw new Error(
-          errorBody?.error || errorBody?.message || `Request failed with status ${response.status}`
-        );
+        const errorBody = await safeJson<{ error?: string | { message?: string; code?: string }; message?: string }>(response);
+        let errorMessage = `Request failed with status ${response.status}`;
+        if (errorBody) {
+          if (typeof errorBody.error === 'object' && errorBody.error?.message) {
+            errorMessage = errorBody.error.message;
+          } else if (typeof errorBody.error === 'string') {
+            errorMessage = errorBody.error;
+          } else if (errorBody.message) {
+            errorMessage = errorBody.message;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       // Parse and validate response
