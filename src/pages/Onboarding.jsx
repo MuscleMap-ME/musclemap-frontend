@@ -1,28 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
 
-const ARCHETYPES = [
-  { id: 'judoka', name: 'Judoka', icon: '🥋', desc: 'Throws, grip, hip power' },
-  { id: 'wrestler', name: 'Wrestler', icon: '🤼', desc: 'Takedowns, grinding strength' },
-  { id: 'boxer', name: 'Boxer', icon: '🥊', desc: 'Speed, footwork, endurance' },
-  { id: 'swimmer', name: 'Swimmer', icon: '🏊', desc: 'Shoulders, back, cardio' },
-  { id: 'gymnast', name: 'Gymnast', icon: '🤸', desc: 'Bodyweight mastery' },
-  { id: 'sprinter', name: 'Sprinter', icon: '🏃', desc: 'Explosive leg power' },
-  { id: 'powerlifter', name: 'Powerlifter', icon: '🏋️', desc: 'Squat, bench, deadlift' },
-  { id: 'calisthenics', name: 'Calisthenics', icon: '💪', desc: 'Bodyweight skills' },
-  { id: 'climber', name: 'Rock Climber', icon: '🧗', desc: 'Grip, pulling, core' },
-];
+const ARCHETYPE_ICONS = {
+  'bodybuilder': '💪',
+  'gymnast': '🤸',
+  'powerlifter': '🏋️',
+  'crossfit': '🔥',
+  'martial-artist': '🥋',
+  'runner': '🏃',
+  'climber': '🧗',
+  'strongman': '🦾',
+  'functional': '⚡',
+  'swimmer': '🏊',
+};
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const { login } = useUser();
   const [step, setStep] = useState(1);
   const [archetype, setArchetype] = useState(null);
+  const [archetypes, setArchetypes] = useState([]);
   const [equipment, setEquipment] = useState({ type: 'bodyweight', kettlebellCount: 1, hasPullupBar: false });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/archetypes')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          setArchetypes(data.data.map(a => ({
+            id: a.id,
+            name: a.name,
+            icon: ARCHETYPE_ICONS[a.id] || '🎯',
+            desc: a.description || a.philosophy || ''
+          })));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const handleComplete = async () => {
     if (!archetype) return;
@@ -60,11 +78,13 @@ export default function Onboarding() {
             <h1 className="text-3xl font-black mb-2">Choose Your Path</h1>
             <p className="text-gray-400 mb-6">What kind of athlete do you want to become?</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-              {ARCHETYPES.map(a => (
+              {archetypes.length === 0 ? (
+                <div className="col-span-full text-center text-gray-400 py-8">Loading...</div>
+              ) : archetypes.map(a => (
                 <button key={a.id} onClick={() => setArchetype(a)} className={`p-4 rounded-xl text-left transition-all ${archetype?.id === a.id ? 'bg-blue-600 ring-2 ring-blue-400' : 'bg-gray-800 hover:bg-gray-700'}`}>
                   <div className="text-3xl mb-2">{a.icon}</div>
                   <div className="font-bold">{a.name}</div>
-                  <div className="text-xs text-gray-400">{a.desc}</div>
+                  <div className="text-xs text-gray-400 line-clamp-2">{a.desc}</div>
                 </button>
               ))}
             </div>
