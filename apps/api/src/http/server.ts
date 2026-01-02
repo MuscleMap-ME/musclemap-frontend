@@ -58,7 +58,7 @@ declare module 'fastify' {
  */
 export async function createServer(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: logger as any,
+    loggerInstance: logger,
     trustProxy: true,
     // Increase payload limits
     bodyLimit: 10 * 1024 * 1024, // 10MB
