@@ -28,7 +28,16 @@ export default defineConfig({
       '**/dist/**',
       '**/e2e/**',
       'apps/api/**'
-    ]
+    ],
+
+    // Coverage configuration
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/tests/**', 'src/**/*.test.{js,jsx}', 'src/**/*.spec.{js,jsx}']
+    }
   },
   build: {
     outDir: 'dist',

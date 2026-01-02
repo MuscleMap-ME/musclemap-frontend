@@ -28,36 +28,91 @@ export interface MuscleActivation {
 }
 
 export const muscleService = {
-  getAll(): Muscle[] {
-    return db.prepare(`
-      SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup, 
-             bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
-             recovery_time as recoveryTime
-      FROM muscles ORDER BY muscle_group, name
-    `).all() as Muscle[];
+  async getAll(): Promise<Muscle[]> {
+    const rows = await db.queryAll<{
+      id: string;
+      name: string;
+      anatomicalname: string | null;
+      musclegroup: string;
+      biasweight: number;
+      optimalweeklyvolume: number | null;
+      recoverytime: number | null;
+    }>(
+      `SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup,
+              bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
+              recovery_time as recoveryTime
+       FROM muscles ORDER BY muscle_group, name`
+    );
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      anatomicalName: row.anatomicalname,
+      muscleGroup: row.musclegroup,
+      biasWeight: row.biasweight,
+      optimalWeeklyVolume: row.optimalweeklyvolume,
+      recoveryTime: row.recoverytime,
+    }));
   },
 
-  getById(id: string): Muscle | null {
-    const muscle = db.prepare(`
-      SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup,
-             bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
-             recovery_time as recoveryTime
-      FROM muscles WHERE id = ?
-    `).get(id) as Muscle | undefined;
-    return muscle || null;
+  async getById(id: string): Promise<Muscle | null> {
+    const row = await db.queryOne<{
+      id: string;
+      name: string;
+      anatomicalname: string | null;
+      musclegroup: string;
+      biasweight: number;
+      optimalweeklyvolume: number | null;
+      recoverytime: number | null;
+    }>(
+      `SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup,
+              bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
+              recovery_time as recoveryTime
+       FROM muscles WHERE id = $1`,
+      [id]
+    );
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      anatomicalName: row.anatomicalname,
+      muscleGroup: row.musclegroup,
+      biasWeight: row.biasweight,
+      optimalWeeklyVolume: row.optimalweeklyvolume,
+      recoveryTime: row.recoverytime,
+    };
   },
 
-  getByGroup(group: string): Muscle[] {
-    return db.prepare(`
-      SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup,
-             bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
-             recovery_time as recoveryTime
-      FROM muscles WHERE muscle_group = ? ORDER BY name
-    `).all(group) as Muscle[];
+  async getByGroup(group: string): Promise<Muscle[]> {
+    const rows = await db.queryAll<{
+      id: string;
+      name: string;
+      anatomicalname: string | null;
+      musclegroup: string;
+      biasweight: number;
+      optimalweeklyvolume: number | null;
+      recoverytime: number | null;
+    }>(
+      `SELECT id, name, anatomical_name as anatomicalName, muscle_group as muscleGroup,
+              bias_weight as biasWeight, optimal_weekly_volume as optimalWeeklyVolume,
+              recovery_time as recoveryTime
+       FROM muscles WHERE muscle_group = $1 ORDER BY name`,
+      [group]
+    );
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      anatomicalName: row.anatomicalname,
+      muscleGroup: row.musclegroup,
+      biasWeight: row.biasweight,
+      optimalWeeklyVolume: row.optimalweeklyvolume,
+      recoveryTime: row.recoverytime,
+    }));
   },
 
-  getGroups(): string[] {
-    const rows = db.prepare('SELECT DISTINCT muscle_group FROM muscles ORDER BY muscle_group').all() as any[];
+  async getGroups(): Promise<string[]> {
+    const rows = await db.queryAll<{ muscle_group: string }>(
+      'SELECT DISTINCT muscle_group FROM muscles ORDER BY muscle_group'
+    );
     return rows.map(r => r.muscle_group);
   },
 
@@ -66,8 +121,8 @@ export const muscleService = {
     return Math.min(100, (rawActivation / biasWeight) * 100);
   },
 
-  calculateActivations(rawActivations: Record<string, number>): MuscleActivation[] {
-    const muscles = this.getAll();
+  async calculateActivations(rawActivations: Record<string, number>): Promise<MuscleActivation[]> {
+    const muscles = await this.getAll();
     const activations: MuscleActivation[] = [];
 
     for (const muscle of muscles) {
@@ -94,16 +149,16 @@ export const muscleRouter = Router();
 
 muscleRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
   const group = req.query.group as string | undefined;
-  const muscles = group ? muscleService.getByGroup(group) : muscleService.getAll();
+  const muscles = group ? await muscleService.getByGroup(group) : await muscleService.getAll();
   res.json({ data: muscles });
 }));
 
 muscleRouter.get('/groups', asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: muscleService.getGroups() });
+  res.json({ data: await muscleService.getGroups() });
 }));
 
 muscleRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const muscle = muscleService.getById(req.params.id);
+  const muscle = await muscleService.getById(req.params.id);
   if (!muscle) throw new NotFoundError('Muscle');
   res.json({ data: muscle });
 }));

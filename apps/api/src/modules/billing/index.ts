@@ -38,7 +38,7 @@ interface SubscriptionRecord {
   status: string;
   current_period_start: string | null;
   current_period_end: string | null;
-  cancel_at_period_end: number;
+  cancel_at_period_end: boolean;
 }
 
 // Founding Members - First 1000 subscribers get special perks
@@ -81,9 +81,10 @@ export const billingService = {
     if (!stripe) throw new ValidationError('Stripe not configured');
 
     // Check if user already has a customer ID
-    const sub = db.prepare(
-      'SELECT stripe_customer_id FROM subscriptions WHERE user_id = ? AND stripe_customer_id IS NOT NULL LIMIT 1'
-    ).get(userId) as { stripe_customer_id: string } | undefined;
+    const sub = await db.queryOne<{ stripe_customer_id: string }>(
+      'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 AND stripe_customer_id IS NOT NULL LIMIT 1',
+      [userId]
+    );
 
     if (sub?.stripe_customer_id) {
       return sub.stripe_customer_id;
@@ -108,9 +109,10 @@ export const billingService = {
     const customerId = await this.getOrCreateCustomer(userId, email);
 
     // Check if user already has an active subscription
-    const existing = db.prepare(
-      "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'active'"
-    ).get(userId);
+    const existing = await db.queryOne(
+      "SELECT id FROM subscriptions WHERE user_id = $1 AND status = 'active'",
+      [userId]
+    );
 
     if (existing) {
       throw new ValidationError('You already have an active subscription');
@@ -153,9 +155,10 @@ export const billingService = {
   async createPortalSession(userId: string): Promise<string> {
     if (!stripe) throw new ValidationError('Stripe not configured');
 
-    const sub = db.prepare(
-      'SELECT stripe_customer_id FROM subscriptions WHERE user_id = ? AND stripe_customer_id IS NOT NULL LIMIT 1'
-    ).get(userId) as { stripe_customer_id: string } | undefined;
+    const sub = await db.queryOne<{ stripe_customer_id: string }>(
+      'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1 AND stripe_customer_id IS NOT NULL LIMIT 1',
+      [userId]
+    );
 
     if (!sub?.stripe_customer_id) {
       throw new ValidationError('No billing account found');
@@ -191,7 +194,7 @@ export const billingService = {
         // Handle credit purchase
         if (session.mode === 'payment' && session.metadata?.type === 'credit_purchase') {
           const credits = parseInt(session.metadata.credits || '100', 10);
-          this.completeCreditPurchase(session.id, session.metadata.userId!, credits);
+          await this.completeCreditPurchase(session.id, session.metadata.userId!, credits);
         }
         break;
       }
@@ -231,24 +234,25 @@ export const billingService = {
     const id = `sub_${crypto.randomBytes(12).toString('hex')}`;
     const now = new Date().toISOString();
 
-    db.prepare(`
-      INSERT INTO subscriptions (id, user_id, stripe_customer_id, stripe_subscription_id, status, current_period_start, current_period_end, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(stripe_subscription_id) DO UPDATE SET
-        status = excluded.status,
-        current_period_start = excluded.current_period_start,
-        current_period_end = excluded.current_period_end,
-        updated_at = excluded.updated_at
-    `).run(
-      id,
-      userId,
-      customerId,
-      subscriptionId,
-      subscription.status,
-      new Date(subscription.current_period_start * 1000).toISOString(),
-      new Date(subscription.current_period_end * 1000).toISOString(),
-      now,
-      now
+    await db.query(
+      `INSERT INTO subscriptions (id, user_id, stripe_customer_id, stripe_subscription_id, status, current_period_start, current_period_end, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT(stripe_subscription_id) DO UPDATE SET
+         status = EXCLUDED.status,
+         current_period_start = EXCLUDED.current_period_start,
+         current_period_end = EXCLUDED.current_period_end,
+         updated_at = EXCLUDED.updated_at`,
+      [
+        id,
+        userId,
+        customerId,
+        subscriptionId,
+        subscription.status,
+        new Date(subscription.current_period_start * 1000).toISOString(),
+        new Date(subscription.current_period_end * 1000).toISOString(),
+        now,
+        now,
+      ]
     );
 
     log.info('Subscription activated', { userId, subscriptionId, status: subscription.status });
@@ -260,21 +264,22 @@ export const billingService = {
   async updateSubscriptionStatus(subscription: Stripe.Subscription): Promise<void> {
     const now = new Date().toISOString();
 
-    db.prepare(`
-      UPDATE subscriptions
-      SET status = ?,
-          current_period_start = ?,
-          current_period_end = ?,
-          cancel_at_period_end = ?,
-          updated_at = ?
-      WHERE stripe_subscription_id = ?
-    `).run(
-      subscription.status,
-      new Date(subscription.current_period_start * 1000).toISOString(),
-      new Date(subscription.current_period_end * 1000).toISOString(),
-      subscription.cancel_at_period_end ? 1 : 0,
-      now,
-      subscription.id
+    await db.query(
+      `UPDATE subscriptions
+       SET status = $1,
+           current_period_start = $2,
+           current_period_end = $3,
+           cancel_at_period_end = $4,
+           updated_at = $5
+       WHERE stripe_subscription_id = $6`,
+      [
+        subscription.status,
+        new Date(subscription.current_period_start * 1000).toISOString(),
+        new Date(subscription.current_period_end * 1000).toISOString(),
+        subscription.cancel_at_period_end,
+        now,
+        subscription.id,
+      ]
     );
 
     log.info('Subscription updated', { subscriptionId: subscription.id, status: subscription.status });
@@ -283,10 +288,11 @@ export const billingService = {
   /**
    * Get user's subscription status
    */
-  getSubscription(userId: string): SubscriptionRecord | null {
-    return db.prepare(
-      'SELECT * FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
-    ).get(userId) as SubscriptionRecord | null;
+  async getSubscription(userId: string): Promise<SubscriptionRecord | null> {
+    return db.queryOne<SubscriptionRecord>(
+      'SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [userId]
+    );
   },
 
   /**
@@ -326,17 +332,10 @@ export const billingService = {
 
     // Record the pending purchase
     const purchaseId = `purch_${crypto.randomBytes(12).toString('hex')}`;
-    db.prepare(`
-      INSERT INTO purchases (id, user_id, tier_id, credits, amount_cents, status, stripe_session_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      purchaseId,
-      userId,
-      'standard',
-      CREDIT_PACK_CREDITS,
-      CREDIT_PACK_AMOUNT,
-      'pending',
-      session.id
+    await db.query(
+      `INSERT INTO purchases (id, user_id, tier_id, credits, amount_cents, status, stripe_session_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [purchaseId, userId, 'standard', CREDIT_PACK_CREDITS, CREDIT_PACK_AMOUNT, 'pending', session.id]
     );
 
     log.info('Created credit checkout session', { userId, sessionId: session.id, purchaseId });
@@ -346,47 +345,53 @@ export const billingService = {
   /**
    * Complete a credit purchase (called from webhook)
    */
-  completeCreditPurchase(sessionId: string, userId: string, credits: number): void {
-    transaction(() => {
+  async completeCreditPurchase(sessionId: string, userId: string, credits: number): Promise<void> {
+    await transaction(async (client) => {
       const now = new Date().toISOString();
 
       // Mark purchase as completed
-      db.prepare(`
-        UPDATE purchases SET status = 'completed', completed_at = ?
-        WHERE stripe_session_id = ? AND user_id = ?
-      `).run(now, sessionId, userId);
+      await client.query(
+        `UPDATE purchases SET status = 'completed', completed_at = $1
+         WHERE stripe_session_id = $2 AND user_id = $3`,
+        [now, sessionId, userId]
+      );
 
       // Get or create credit balance
-      const balance = db.prepare(
-        'SELECT balance, version FROM credit_balances WHERE user_id = ?'
-      ).get(userId) as { balance: number; version: number } | undefined;
+      const balanceResult = await client.query(
+        'SELECT balance, version FROM credit_balances WHERE user_id = $1',
+        [userId]
+      );
+      const balance = balanceResult.rows[0] as { balance: number; version: number } | undefined;
 
       if (!balance) {
         // Create credit account
-        db.prepare(
-          'INSERT INTO credit_balances (user_id, balance, lifetime_earned) VALUES (?, ?, ?)'
-        ).run(userId, credits, credits);
+        await client.query(
+          'INSERT INTO credit_balances (user_id, balance, lifetime_earned) VALUES ($1, $2, $3)',
+          [userId, credits, credits]
+        );
       } else {
         // Add to existing balance
         const newBalance = balance.balance + credits;
-        db.prepare(
-          'UPDATE credit_balances SET balance = ?, lifetime_earned = lifetime_earned + ?, version = version + 1 WHERE user_id = ? AND version = ?'
-        ).run(newBalance, credits, userId, balance.version);
+        await client.query(
+          'UPDATE credit_balances SET balance = $1, lifetime_earned = lifetime_earned + $2, version = version + 1 WHERE user_id = $3 AND version = $4',
+          [newBalance, credits, userId, balance.version]
+        );
       }
 
       // Record in ledger
       const ledgerId = `txn_${crypto.randomBytes(12).toString('hex')}`;
       const newBalance = (balance?.balance || 0) + credits;
-      db.prepare(
-        'INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(
-        ledgerId,
-        userId,
-        'credit_purchase',
-        credits,
-        newBalance,
-        JSON.stringify({ sessionId, amount_cents: CREDIT_PACK_AMOUNT }),
-        `purchase-${sessionId}`
+      await client.query(
+        'INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [
+          ledgerId,
+          userId,
+          'credit_purchase',
+          credits,
+          newBalance,
+          JSON.stringify({ sessionId, amount_cents: CREDIT_PACK_AMOUNT }),
+          `purchase-${sessionId}`,
+        ]
       );
 
       log.info('Credit purchase completed', { userId, credits, newBalance });
@@ -491,17 +496,23 @@ export const billingRouter = Router();
 
 // Create checkout session for subscription
 billingRouter.post('/checkout', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user!.userId) as { email: string };
+  const user = await db.queryOne<{ email: string }>(
+    'SELECT email FROM users WHERE id = $1',
+    [req.user!.userId]
+  );
 
-  const url = await billingService.createCheckoutSession(req.user!.userId, user.email);
+  const url = await billingService.createCheckoutSession(req.user!.userId, user!.email);
   res.json({ data: { url } });
 }));
 
 // Create checkout session for credit purchase (100 credits for $1)
 billingRouter.post('/credits/checkout', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user!.userId) as { email: string };
+  const user = await db.queryOne<{ email: string }>(
+    'SELECT email FROM users WHERE id = $1',
+    [req.user!.userId]
+  );
 
-  const url = await billingService.createCreditCheckoutSession(req.user!.userId, user.email);
+  const url = await billingService.createCreditCheckoutSession(req.user!.userId, user!.email);
   res.json({ data: { url } });
 }));
 
@@ -513,7 +524,7 @@ billingRouter.post('/portal', authenticateToken, asyncHandler(async (req: Reques
 
 // Get subscription status
 billingRouter.get('/subscription', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const subscription = billingService.getSubscription(req.user!.userId);
+  const subscription = await billingService.getSubscription(req.user!.userId);
   res.json({
     data: subscription
       ? {

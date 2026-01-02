@@ -10,10 +10,7 @@ import {
   PrescribedExercise,
   ExerciseWithConstraints,
   MuscleCoverageMap,
-  LocationId,
   GoalType,
-  FitnessLevel,
-  MovementPattern,
   ScoringWeights,
   DEFAULT_SCORING_WEIGHTS,
   BalanceConstraints,
@@ -25,8 +22,8 @@ import {
 /**
  * Get all exercises with their constraint data
  */
-export function getAllExercisesWithConstraints(): ExerciseWithConstraints[] {
-  const rows = db.prepare(`
+export async function getAllExercisesWithConstraints(): Promise<ExerciseWithConstraints[]> {
+  const rows = await db.queryAll<any>(`
     SELECT
       e.id,
       e.name,
@@ -34,25 +31,27 @@ export function getAllExercisesWithConstraints(): ExerciseWithConstraints[] {
       e.difficulty,
       e.description,
       e.cues,
-      e.primary_muscles as primaryMuscles,
-      e.equipment_required as equipmentRequired,
-      e.equipment_optional as equipmentOptional,
+      e.primary_muscles as "primaryMuscles",
+      e.equipment_required as "equipmentRequired",
+      e.equipment_optional as "equipmentOptional",
       e.locations,
-      e.is_compound as isCompound,
-      e.estimated_seconds as estimatedSeconds,
-      e.rest_seconds as restSeconds,
-      e.movement_pattern as movementPattern
+      e.is_compound as "isCompound",
+      e.estimated_seconds as "estimatedSeconds",
+      e.rest_seconds as "restSeconds",
+      e.movement_pattern as "movementPattern"
     FROM exercises e
     WHERE e.equipment_required IS NOT NULL
-  `).all() as any[];
+  `);
 
-  return rows.map(row => {
+  const result: ExerciseWithConstraints[] = [];
+
+  for (const row of rows) {
     // Get activations for this exercise
-    const activations = db.prepare(`
+    const activations = await db.queryAll<{ muscle_id: string; activation: number }>(`
       SELECT muscle_id, activation
       FROM exercise_activations
-      WHERE exercise_id = ?
-    `).all(row.id) as { muscle_id: string; activation: number }[];
+      WHERE exercise_id = $1
+    `, [row.id]);
 
     const activationMap: Record<string, number> = {};
     for (const a of activations) {
@@ -69,7 +68,7 @@ export function getAllExercisesWithConstraints(): ExerciseWithConstraints[] {
       }
     };
 
-    return {
+    result.push({
       id: row.id,
       name: row.name,
       type: row.type,
@@ -85,8 +84,10 @@ export function getAllExercisesWithConstraints(): ExerciseWithConstraints[] {
       restSeconds: row.restSeconds || 60,
       movementPattern: row.movementPattern || 'isolation',
       activations: activationMap,
-    };
-  });
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -248,27 +249,27 @@ export function updateCoverage(
 /**
  * Get muscle names from database
  */
-export function getMuscleNames(): Map<string, string> {
-  const rows = db.prepare('SELECT id, name FROM muscles').all() as { id: string; name: string }[];
+export async function getMuscleNames(): Promise<Map<string, string>> {
+  const rows = await db.queryAll<{ id: string; name: string }>('SELECT id, name FROM muscles');
   return new Map(rows.map(r => [r.id, r.name]));
 }
 
 /**
  * Get muscle activations from recent workouts
  */
-export function getRecentMuscleActivations(
+export async function getRecentMuscleActivations(
   workoutIds: string[]
-): { last24h: Set<string>; last48h: Set<string> } {
+): Promise<{ last24h: Set<string>; last48h: Set<string> }> {
   if (!workoutIds.length) {
     return { last24h: new Set(), last48h: new Set() };
   }
 
-  const placeholders = workoutIds.map(() => '?').join(',');
-  const rows = db.prepare(`
+  const placeholders = workoutIds.map((_, i) => `$${i + 1}`).join(',');
+  const rows = await db.queryAll<{ muscle_activations: string; created_at: string }>(`
     SELECT muscle_activations, created_at
     FROM workouts
     WHERE id IN (${placeholders})
-  `).all(...workoutIds) as { muscle_activations: string; created_at: string }[];
+  `, workoutIds);
 
   const now = Date.now();
   const h24 = 24 * 60 * 60 * 1000;
@@ -404,20 +405,20 @@ export function findSubstitutions(
 /**
  * Main constraint solver
  */
-export function solveConstraints(
+export async function solveConstraints(
   request: PrescriptionRequest
-): {
+): Promise<{
   exercises: PrescribedExercise[];
   coverage: MuscleCoverageMap;
   actualDurationSeconds: number;
   substitutions: Record<string, PrescribedExercise[]>;
-} {
+}> {
   const timeAvailableSeconds = request.timeAvailable * 60;
   const warmupCooldownTime = request.timeAvailable >= 30 ? 300 : 120; // 5 min or 2 min
   let timeRemaining = timeAvailableSeconds - warmupCooldownTime;
 
   // Get all exercises with constraint data
-  const allExercises = getAllExercisesWithConstraints();
+  const allExercises = await getAllExercisesWithConstraints();
 
   // Apply hard filters
   let validExercises = applyHardFilters(allExercises, request);
@@ -432,10 +433,10 @@ export function solveConstraints(
   }
 
   // Get muscle names for coverage map
-  const muscleNames = getMuscleNames();
+  const muscleNames = await getMuscleNames();
 
   // Get recent muscle activations if workout IDs provided
-  const recentMuscles = getRecentMuscleActivations(request.recentWorkoutIds || []);
+  const recentMuscles = await getRecentMuscleActivations(request.recentWorkoutIds || []);
 
   // Initialize tracking
   const coverage: MuscleCoverageMap = {};

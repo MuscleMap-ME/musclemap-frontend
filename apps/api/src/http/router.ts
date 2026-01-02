@@ -6,6 +6,7 @@ import { traceRouter } from '../modules/trace';
  */
 
 import { Router, Request, Response } from 'express';
+import { getPoolMetrics, isPoolHealthy } from '../db/client';
 
 // Module routers
 import { authRouter, authenticateToken } from '../modules/auth';
@@ -71,6 +72,25 @@ router.post('/trace/frontend-log', (req, res) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       version: '2.0.0',
+    });
+  });
+
+  // Detailed health check with pool metrics (for monitoring)
+  router.get('/health/detailed', async (_req: Request, res: Response) => {
+    const poolMetrics = getPoolMetrics();
+    const dbHealthy = await isPoolHealthy();
+
+    const status = dbHealthy ? 'ok' : 'degraded';
+    const statusCode = dbHealthy ? 200 : 503;
+
+    res.status(statusCode).json({
+      status,
+      timestamp: new Date().toISOString(),
+      version: '2.0.0',
+      database: {
+        healthy: dbHealthy,
+        pool: poolMetrics,
+      },
     });
   });
 

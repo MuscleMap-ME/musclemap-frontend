@@ -34,69 +34,57 @@ function setCache(key: string, data: unknown, ttlMs: number): void {
  */
 export async function getOverviewStats(window: '1h' | '24h' | '7d' = '24h') {
   const cacheKey = `overview:${window}`;
-  const cached = getCached<ReturnType<typeof computeOverviewStats>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeOverviewStats>>>(cacheKey);
   if (cached) return cached;
 
-  const stats = computeOverviewStats(window);
+  const stats = await computeOverviewStats(window);
   setCache(cacheKey, stats, window === '1h' ? 60000 : 300000); // 1min or 5min cache
   return stats;
 }
 
-function computeOverviewStats(window: '1h' | '24h' | '7d') {
-  const windowMap = {
-    '1h': '-1 hour',
-    '24h': '-24 hours',
-    '7d': '-7 days',
+async function computeOverviewStats(window: '1h' | '24h' | '7d') {
+  const windowMap: Record<string, string> = {
+    '1h': '1 hour',
+    '24h': '24 hours',
+    '7d': '7 days',
   };
   const interval = windowMap[window];
 
-  const userStats = db
-    .prepare(
-      `
+  const userStats = await db.queryOne<{ total_users: number; new_users: number }>(`
     SELECT
       COUNT(*) as total_users,
-      COUNT(CASE WHEN created_at > datetime('now', ?) THEN 1 END) as new_users
+      COUNT(CASE WHEN created_at > NOW() - INTERVAL '${interval}' THEN 1 END) as new_users
     FROM users
-  `
-    )
-    .get(interval) as { total_users: number; new_users: number };
+  `);
 
-  const workoutStats = db
-    .prepare(
-      `
+  const workoutStats = await db.queryOne<{ workout_count: number; total_tu: number }>(`
     SELECT
       COUNT(*) as workout_count,
       COALESCE(SUM(total_tu), 0) as total_tu
     FROM workouts
-    WHERE created_at > datetime('now', ?)
-  `
-    )
-    .get(interval) as { workout_count: number; total_tu: number };
+    WHERE created_at > NOW() - INTERVAL '${interval}'
+  `);
 
-  const creditStats = db
-    .prepare(
-      `
+  const creditStats = await db.queryOne<{ total_credits: number; avg_credits: number }>(`
     SELECT
       COALESCE(SUM(balance), 0) as total_credits,
       COALESCE(AVG(balance), 0) as avg_credits
     FROM credit_balances
-  `
-    )
-    .get() as { total_credits: number; avg_credits: number };
+  `);
 
   return {
     window,
     users: {
-      total: userStats.total_users,
-      newInWindow: userStats.new_users,
+      total: userStats?.total_users ?? 0,
+      newInWindow: userStats?.new_users ?? 0,
     },
     workouts: {
-      countInWindow: workoutStats.workout_count,
-      totalTuInWindow: Math.round(workoutStats.total_tu * 100) / 100,
+      countInWindow: workoutStats?.workout_count ?? 0,
+      totalTuInWindow: Math.round((workoutStats?.total_tu ?? 0) * 100) / 100,
     },
     credits: {
-      totalInCirculation: creditStats.total_credits,
-      averagePerUser: Math.round(creditStats.avg_credits),
+      totalInCirculation: creditStats?.total_credits ?? 0,
+      averagePerUser: Math.round(creditStats?.avg_credits ?? 0),
     },
   };
 }
@@ -104,20 +92,23 @@ function computeOverviewStats(window: '1h' | '24h' | '7d') {
 /**
  * Get archetype distribution
  */
-export function getArchetypeDistribution() {
+export async function getArchetypeDistribution() {
   const cacheKey = 'archetypes:distribution';
-  const cached = getCached<ReturnType<typeof computeArchetypeDistribution>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeArchetypeDistribution>>>(cacheKey);
   if (cached) return cached;
 
-  const data = computeArchetypeDistribution();
+  const data = await computeArchetypeDistribution();
   setCache(cacheKey, data, 300000); // 5 min cache
   return data;
 }
 
-function computeArchetypeDistribution() {
-  const distribution = db
-    .prepare(
-      `
+async function computeArchetypeDistribution() {
+  const distribution = await db.queryAll<{
+    id: string;
+    name: string;
+    user_count: number;
+    avg_level: number;
+  }>(`
     SELECT
       a.id,
       a.name,
@@ -125,24 +116,17 @@ function computeArchetypeDistribution() {
       AVG(u.current_level) as avg_level
     FROM archetypes a
     LEFT JOIN users u ON u.current_archetype_id = a.id
-    GROUP BY a.id
+    GROUP BY a.id, a.name
     ORDER BY user_count DESC
-  `
-    )
-    .all() as Array<{
-    id: string;
-    name: string;
-    user_count: number;
-    avg_level: number;
-  }>;
+  `);
 
-  const total = distribution.reduce((sum, a) => sum + a.user_count, 0);
+  const total = distribution.reduce((sum, a) => sum + Number(a.user_count), 0);
 
   return distribution.map((a) => ({
     archetypeId: a.id,
     name: a.name,
-    userCount: a.user_count,
-    percentage: total > 0 ? Math.round((a.user_count / total) * 1000) / 10 : 0,
+    userCount: Number(a.user_count),
+    percentage: total > 0 ? Math.round((Number(a.user_count) / total) * 1000) / 10 : 0,
     avgLevel: Math.round((a.avg_level || 1) * 10) / 10,
   }));
 }
@@ -150,45 +134,42 @@ function computeArchetypeDistribution() {
 /**
  * Get exercise popularity ranking
  */
-export function getExerciseRanking(limit = 20, window: '7d' | '30d' = '7d') {
+export async function getExerciseRanking(limit = 20, window: '7d' | '30d' = '7d') {
   const cacheKey = `exercises:ranking:${window}`;
-  const cached = getCached<ReturnType<typeof computeExerciseRanking>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeExerciseRanking>>>(cacheKey);
   if (cached) return cached;
 
-  const data = computeExerciseRanking(limit, window);
+  const data = await computeExerciseRanking(limit, window);
   setCache(cacheKey, data, 600000); // 10 min cache
   return data;
 }
 
-function computeExerciseRanking(limit: number, window: '7d' | '30d') {
-  const interval = window === '7d' ? '-7 days' : '-30 days';
+async function computeExerciseRanking(limit: number, window: '7d' | '30d') {
+  const interval = window === '7d' ? '7 days' : '30 days';
 
-  // Count exercises from activity_events
-  const ranking = db
-    .prepare(
-      `
+  // Count exercises from activity_events - using PostgreSQL JSONB extraction
+  const ranking = await db.queryAll<{ exercise_id: string; usage_count: number }>(`
     SELECT
-      json_extract(payload, '$.exerciseId') as exercise_id,
+      payload->>'exerciseId' as exercise_id,
       COUNT(*) as usage_count
     FROM activity_events
     WHERE event_type = 'exercise.selected'
-      AND created_at > datetime('now', ?)
-      AND json_extract(payload, '$.exerciseId') IS NOT NULL
+      AND created_at > NOW() - INTERVAL '${interval}'
+      AND payload->>'exerciseId' IS NOT NULL
     GROUP BY exercise_id
     ORDER BY usage_count DESC
-    LIMIT ?
-  `
-    )
-    .all(interval, limit) as Array<{ exercise_id: string; usage_count: number }>;
+    LIMIT $1
+  `, [limit]);
 
   // Fetch exercise names
   const exerciseIds = ranking.map((r) => r.exercise_id);
   if (exerciseIds.length === 0) return [];
 
-  const placeholders = exerciseIds.map(() => '?').join(',');
-  const exercises = db
-    .prepare(`SELECT id, name FROM exercises WHERE id IN (${placeholders})`)
-    .all(...exerciseIds) as Array<{ id: string; name: string }>;
+  const placeholders = exerciseIds.map((_, i) => `$${i + 1}`).join(',');
+  const exercises = await db.queryAll<{ id: string; name: string }>(
+    `SELECT id, name FROM exercises WHERE id IN (${placeholders})`,
+    exerciseIds
+  );
 
   const nameMap = new Map(exercises.map((e) => [e.id, e.name]));
 
@@ -196,108 +177,92 @@ function computeExerciseRanking(limit: number, window: '7d' | '30d') {
     rank: i + 1,
     exerciseId: r.exercise_id,
     name: nameMap.get(r.exercise_id) || 'Unknown',
-    usageCount: r.usage_count,
+    usageCount: Number(r.usage_count),
   }));
 }
 
 /**
  * Get user journey funnel
  */
-export function getFunnelStats() {
+export async function getFunnelStats() {
   const cacheKey = 'funnel:stats';
-  const cached = getCached<ReturnType<typeof computeFunnelStats>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeFunnelStats>>>(cacheKey);
   if (cached) return cached;
 
-  const data = computeFunnelStats();
+  const data = await computeFunnelStats();
   setCache(cacheKey, data, 600000); // 10 min cache
   return data;
 }
 
-function computeFunnelStats() {
-  const totalUsers = db
-    .prepare('SELECT COUNT(*) as count FROM users')
-    .get() as { count: number };
+async function computeFunnelStats() {
+  const totalUsers = await db.queryOne<{ count: number }>(
+    'SELECT COUNT(*) as count FROM users'
+  );
 
-  const withWorkouts = db
-    .prepare(
-      `
+  const withWorkouts = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM workouts
-  `
-    )
-    .get() as { count: number };
+  `);
 
-  const weeklyActive = db
-    .prepare(
-      `
+  const weeklyActive = await db.queryOne<{ count: number }>(`
     SELECT COUNT(DISTINCT user_id) as count
     FROM workouts
-    WHERE created_at > datetime('now', '-7 days')
-  `
-    )
-    .get() as { count: number };
+    WHERE created_at > NOW() - INTERVAL '7 days'
+  `);
 
-  const levelMilestones = db
-    .prepare(
-      `
+  const levelMilestones = await db.queryOne<{
+    level_5: number;
+    level_10: number;
+    level_20: number;
+    level_50: number;
+  }>(`
     SELECT
       SUM(CASE WHEN current_level >= 5 THEN 1 ELSE 0 END) as level_5,
       SUM(CASE WHEN current_level >= 10 THEN 1 ELSE 0 END) as level_10,
       SUM(CASE WHEN current_level >= 20 THEN 1 ELSE 0 END) as level_20,
       SUM(CASE WHEN current_level >= 50 THEN 1 ELSE 0 END) as level_50
     FROM users
-  `
-    )
-    .get() as {
-    level_5: number;
-    level_10: number;
-    level_20: number;
-    level_50: number;
-  };
+  `);
 
-  const subscribers = db
-    .prepare(
-      `
+  const subscribers = await db.queryOne<{ count: number }>(`
     SELECT COUNT(*) as count
     FROM subscriptions
     WHERE status = 'active'
-  `
-    )
-    .get() as { count: number };
+  `);
 
-  const total = totalUsers.count || 1; // Avoid division by zero
+  const total = Number(totalUsers?.count) || 1; // Avoid division by zero
 
   return {
     stages: [
       {
         name: 'Registered',
-        count: totalUsers.count,
+        count: Number(totalUsers?.count ?? 0),
         percentage: 100,
       },
       {
         name: 'First Workout',
-        count: withWorkouts.count,
-        percentage: Math.round((withWorkouts.count / total) * 100),
+        count: Number(withWorkouts?.count ?? 0),
+        percentage: Math.round((Number(withWorkouts?.count ?? 0) / total) * 100),
       },
       {
         name: 'Weekly Active',
-        count: weeklyActive.count,
-        percentage: Math.round((weeklyActive.count / total) * 100),
+        count: Number(weeklyActive?.count ?? 0),
+        percentage: Math.round((Number(weeklyActive?.count ?? 0) / total) * 100),
       },
       {
         name: 'Level 5+',
-        count: levelMilestones.level_5 || 0,
-        percentage: Math.round(((levelMilestones.level_5 || 0) / total) * 100),
+        count: Number(levelMilestones?.level_5 ?? 0),
+        percentage: Math.round((Number(levelMilestones?.level_5 ?? 0) / total) * 100),
       },
       {
         name: 'Level 10+',
-        count: levelMilestones.level_10 || 0,
-        percentage: Math.round(((levelMilestones.level_10 || 0) / total) * 100),
+        count: Number(levelMilestones?.level_10 ?? 0),
+        percentage: Math.round((Number(levelMilestones?.level_10 ?? 0) / total) * 100),
       },
       {
         name: 'Subscribed',
-        count: subscribers.count,
-        percentage: Math.round((subscribers.count / total) * 100),
+        count: Number(subscribers?.count ?? 0),
+        percentage: Math.round((Number(subscribers?.count ?? 0) / total) * 100),
       },
     ],
   };
@@ -306,21 +271,19 @@ function computeFunnelStats() {
 /**
  * Get credit distribution histogram
  */
-export function getCreditDistribution() {
+export async function getCreditDistribution() {
   const cacheKey = 'credits:distribution';
-  const cached = getCached<ReturnType<typeof computeCreditDistribution>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeCreditDistribution>>>(cacheKey);
   if (cached) return cached;
 
-  const data = computeCreditDistribution();
+  const data = await computeCreditDistribution();
   setCache(cacheKey, data, 600000); // 10 min cache
   return data;
 }
 
-function computeCreditDistribution() {
+async function computeCreditDistribution() {
   // Get distribution in buckets
-  const buckets = db
-    .prepare(
-      `
+  const buckets = await db.queryAll<{ bucket: string; count: number }>(`
     SELECT
       CASE
         WHEN balance < 0 THEN 'negative'
@@ -334,35 +297,29 @@ function computeCreditDistribution() {
       COUNT(*) as count
     FROM credit_balances
     GROUP BY bucket
-  `
-    )
-    .all() as Array<{ bucket: string; count: number }>;
+  `);
 
-  const stats = db
-    .prepare(
-      `
+  const stats = await db.queryOne<{
+    min_balance: number;
+    max_balance: number;
+    avg_balance: number;
+    total_balance: number;
+  }>(`
     SELECT
       MIN(balance) as min_balance,
       MAX(balance) as max_balance,
       AVG(balance) as avg_balance,
       SUM(balance) as total_balance
     FROM credit_balances
-  `
-    )
-    .get() as {
-    min_balance: number;
-    max_balance: number;
-    avg_balance: number;
-    total_balance: number;
-  };
+  `);
 
   return {
     buckets,
     stats: {
-      min: stats.min_balance || 0,
-      max: stats.max_balance || 0,
-      average: Math.round(stats.avg_balance || 0),
-      total: stats.total_balance || 0,
+      min: stats?.min_balance || 0,
+      max: stats?.max_balance || 0,
+      average: Math.round(stats?.avg_balance || 0),
+      total: stats?.total_balance || 0,
     },
   };
 }
@@ -370,40 +327,34 @@ function computeCreditDistribution() {
 /**
  * Get geographic distribution (from user_locations)
  */
-export function getGeographicDistribution() {
+export async function getGeographicDistribution() {
   const cacheKey = 'geo:distribution';
-  const cached = getCached<ReturnType<typeof computeGeographicDistribution>>(cacheKey);
+  const cached = getCached<Awaited<ReturnType<typeof computeGeographicDistribution>>>(cacheKey);
   if (cached) return cached;
 
-  const data = computeGeographicDistribution();
+  const data = await computeGeographicDistribution();
   setCache(cacheKey, data, 600000); // 10 min cache
   return data;
 }
 
-function computeGeographicDistribution() {
-  const byCountry = db
-    .prepare(
-      `
+async function computeGeographicDistribution() {
+  const byCountry = await db.queryAll<{
+    country_code: string;
+    country: string;
+    user_count: number;
+  }>(`
     SELECT
       country_code,
       country,
       COUNT(*) as user_count
     FROM user_locations
     WHERE country_code IS NOT NULL
-    GROUP BY country_code
+    GROUP BY country_code, country
     ORDER BY user_count DESC
     LIMIT 20
-  `
-    )
-    .all() as Array<{
-    country_code: string;
-    country: string;
-    user_count: number;
-  }>;
+  `);
 
-  const byCity = db
-    .prepare(
-      `
+  const byCity = await db.queryAll<{ city: string; country_code: string; user_count: number }>(`
     SELECT
       city,
       country_code,
@@ -413,16 +364,14 @@ function computeGeographicDistribution() {
     GROUP BY city, country_code
     ORDER BY user_count DESC
     LIMIT 10
-  `
-    )
-    .all() as Array<{ city: string; country_code: string; user_count: number }>;
+  `);
 
-  const totalLocations = db
-    .prepare('SELECT COUNT(*) as count FROM user_locations')
-    .get() as { count: number };
+  const totalLocations = await db.queryOne<{ count: number }>(
+    'SELECT COUNT(*) as count FROM user_locations'
+  );
 
   return {
-    totalWithLocation: totalLocations.count,
+    totalWithLocation: Number(totalLocations?.count ?? 0),
     byCountry,
     byCity,
   };

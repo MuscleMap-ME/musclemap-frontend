@@ -65,15 +65,15 @@ function parseCompetition(row: any): Competition {
     maxParticipants: row.max_participants,
     entryFee: row.entry_fee,
     prizePool: row.prize_pool,
-    rules: row.rules ? JSON.parse(row.rules) : null,
+    rules: row.rules ? (typeof row.rules === 'string' ? JSON.parse(row.rules) : row.rules) : null,
     isPublic: Boolean(row.is_public),
     createdAt: row.created_at,
-    participantCount: row.participant_count,
+    participantCount: row.participant_count ? Number(row.participant_count) : undefined,
   };
 }
 
 export const competitionService = {
-  create: (userId: string, data: any) => {
+  async create(userId: string, data: any): Promise<any> {
     const d: any = (data ?? {});
     const name: string = d.name;
     const description: string | null = d.description ?? null;
@@ -96,19 +96,19 @@ export const competitionService = {
     const maxParticipants: number | null = d.maxParticipants ?? d.max_participants ?? null;
     const entryFee: number | null = d.entryFee ?? d.entry_fee ?? null;
     const prizePool: number | null = d.prizePool ?? d.prize_pool ?? null;
-    const rules: string | null = d.rules ?? null;
+    const rules: string | null = d.rules ? JSON.stringify(d.rules) : null;
 
     const isPublicRaw: any = d.isPublic ?? d.is_public;
-    const isPublic: number = (isPublicRaw == null) ? 1 : (isPublicRaw ? 1 : 0);
+    const isPublic: boolean = (isPublicRaw == null) ? true : Boolean(isPublicRaw);
 
     const id = `comp_${randomBytes(12).toString('hex')}`;
 
-    db.prepare(
-      `INSERT INTO competitions
+    await db.query(`
+      INSERT INTO competitions
         (id, name, description, creator_id, type, status, start_date, end_date, max_participants, entry_fee, prize_pool, rules, is_public)
        VALUES
-        (?,  ?,    ?,          ?,          ?,    ?,      ?,          ?,        ?,              ?,         ?,          ?,     ?)`
-    ).run(
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
       id,
       name,
       description,
@@ -122,59 +122,59 @@ export const competitionService = {
       prizePool,
       rules,
       isPublic
-    );
+    ]);
 
     // Return stored row (preferred), otherwise a minimal payload with id
     try {
-      const stored = db.prepare("SELECT * FROM competitions WHERE id = ? LIMIT 1").get(id);
+      const stored = await db.queryOne<any>("SELECT * FROM competitions WHERE id = $1 LIMIT 1", [id]);
       return stored ?? { id, name, description, creator_id: userId, type, status, start_date: startDate, end_date: endDate, is_public: isPublic };
     } catch {
       return { id, name, description, creator_id: userId, type, status, start_date: startDate, end_date: endDate, is_public: isPublic };
     }
   },
 
-  getById(id: string): Competition | null {
-    const row = db.prepare(`
+  async getById(id: string): Promise<Competition | null> {
+    const row = await db.queryOne<any>(`
       SELECT c.*, (SELECT COUNT(*) FROM competition_participants WHERE competition_id = c.id) as participant_count
-      FROM competitions c WHERE c.id = ?
-    `).get(id) as any;
+      FROM competitions c WHERE c.id = $1
+    `, [id]);
     return row ? parseCompetition(row) : null;
   },
 
-  getActive(limit: number = 20): Competition[] {
-    const rows = db.prepare(`
+  async getActive(limit: number = 20): Promise<Competition[]> {
+    const rows = await db.queryAll<any>(`
       SELECT c.*, (SELECT COUNT(*) FROM competition_participants WHERE competition_id = c.id) as participant_count
-      FROM competitions c WHERE c.status = 'active' AND c.is_public = 1
-      ORDER BY c.start_date DESC LIMIT ?
-    `).all(limit) as any[];
+      FROM competitions c WHERE c.status = 'active' AND c.is_public = true
+      ORDER BY c.start_date DESC LIMIT $1
+    `, [limit]);
     return rows.map(parseCompetition);
   },
 
-  getUpcoming(limit: number = 20): Competition[] {
-    const rows = db.prepare(`
+  async getUpcoming(limit: number = 20): Promise<Competition[]> {
+    const rows = await db.queryAll<any>(`
       SELECT c.*, (SELECT COUNT(*) FROM competition_participants WHERE competition_id = c.id) as participant_count
-      FROM competitions c WHERE c.status = 'draft' AND c.is_public = 1 AND c.start_date > datetime('now')
-      ORDER BY c.start_date ASC LIMIT ?
-    `).all(limit) as any[];
+      FROM competitions c WHERE c.status = 'draft' AND c.is_public = true AND c.start_date > NOW()
+      ORDER BY c.start_date ASC LIMIT $1
+    `, [limit]);
     return rows.map(parseCompetition);
   },
 
-  getUserCompetitions(userId: string): Competition[] {
-    const rows = db.prepare(`
+  async getUserCompetitions(userId: string): Promise<Competition[]> {
+    const rows = await db.queryAll<any>(`
       SELECT c.*, (SELECT COUNT(*) FROM competition_participants WHERE competition_id = c.id) as participant_count
       FROM competitions c JOIN competition_participants cp ON cp.competition_id = c.id
-      WHERE cp.user_id = ? ORDER BY c.start_date DESC
-    `).all(userId) as any[];
+      WHERE cp.user_id = $1 ORDER BY c.start_date DESC
+    `, [userId]);
     return rows.map(parseCompetition);
   },
 
-  join(userId: string, competitionId: string): void {
-    return transaction(() => {
-      const comp = this.getById(competitionId);
+  async join(userId: string, competitionId: string): Promise<void> {
+    return transaction(async (client) => {
+      const comp = await this.getById(competitionId);
       if (!comp) throw new NotFoundError('Competition');
 
-      const existing = db.prepare('SELECT 1 FROM competition_participants WHERE competition_id = ? AND user_id = ?').get(competitionId, userId);
-      if (existing) throw new ValidationError('Already joined');
+      const existing = await client.query('SELECT 1 FROM competition_participants WHERE competition_id = $1 AND user_id = $2', [competitionId, userId]);
+      if (existing.rows.length > 0) throw new ValidationError('Already joined');
 
       if (comp.maxParticipants && comp.participantCount && comp.participantCount >= comp.maxParticipants) {
         throw new ValidationError('Competition is full');
@@ -183,68 +183,68 @@ export const competitionService = {
       if (new Date(comp.endDate) < new Date()) throw new ValidationError('Competition has ended');
 
       if (comp.entryFee && comp.entryFee > 0) {
-        const result = economyService.charge({
+        const result = await economyService.charge({
           userId, action: 'competition.join', amount: comp.entryFee,
           idempotencyKey: `comp-join-${competitionId}-${userId}`,
           metadata: { competitionId, competitionName: comp.name },
         });
         if (!result.success) throw new ValidationError(result.error || 'Insufficient credits');
-        db.prepare('UPDATE competitions SET prize_pool = COALESCE(prize_pool, 0) + ? WHERE id = ?').run(comp.entryFee, competitionId);
+        await client.query('UPDATE competitions SET prize_pool = COALESCE(prize_pool, 0) + $1 WHERE id = $2', [comp.entryFee, competitionId]);
       }
 
-      db.prepare('INSERT INTO competition_participants (competition_id, user_id, score, rank) VALUES (?, ?, 0, NULL)').run(competitionId, userId);
+      await client.query('INSERT INTO competition_participants (competition_id, user_id, score, rank) VALUES ($1, $2, 0, NULL)', [competitionId, userId]);
       log.info('User joined competition', { userId, competitionId });
     });
   },
 
-  leave(userId: string, competitionId: string): void {
-    const comp = this.getById(competitionId);
+  async leave(userId: string, competitionId: string): Promise<void> {
+    const comp = await this.getById(competitionId);
     if (!comp) throw new NotFoundError('Competition');
     if (comp.creatorId === userId) throw new ValidationError('Creator cannot leave');
     if (comp.status === 'active') throw new ValidationError('Cannot leave active competition');
-    db.prepare('DELETE FROM competition_participants WHERE competition_id = ? AND user_id = ?').run(competitionId, userId);
+    await db.query('DELETE FROM competition_participants WHERE competition_id = $1 AND user_id = $2', [competitionId, userId]);
   },
 
-  getLeaderboard(competitionId: string): LeaderboardEntry[] {
-    const comp = this.getById(competitionId);
+  async getLeaderboard(competitionId: string): Promise<LeaderboardEntry[]> {
+    const comp = await this.getById(competitionId);
     if (!comp) throw new NotFoundError('Competition');
 
     let rows: any[];
     if (comp.type === 'total_tu') {
-      rows = db.prepare(`
+      rows = await db.queryAll<any>(`
         SELECT cp.user_id, u.username, COALESCE(SUM(w.total_tu), 0) as score
         FROM competition_participants cp
         JOIN users u ON u.id = cp.user_id
-        LEFT JOIN workouts w ON w.user_id = cp.user_id AND w.date >= ? AND w.date <= ?
-        WHERE cp.competition_id = ?
+        LEFT JOIN workouts w ON w.user_id = cp.user_id AND w.date >= $1 AND w.date <= $2
+        WHERE cp.competition_id = $3
         GROUP BY cp.user_id, u.username ORDER BY score DESC
-      `).all(comp.startDate, comp.endDate, competitionId);
+      `, [comp.startDate, comp.endDate, competitionId]);
     } else if (comp.type === 'workout_count') {
-      rows = db.prepare(`
+      rows = await db.queryAll<any>(`
         SELECT cp.user_id, u.username, COUNT(w.id) as score
         FROM competition_participants cp
         JOIN users u ON u.id = cp.user_id
-        LEFT JOIN workouts w ON w.user_id = cp.user_id AND w.date >= ? AND w.date <= ?
-        WHERE cp.competition_id = ?
+        LEFT JOIN workouts w ON w.user_id = cp.user_id AND w.date >= $1 AND w.date <= $2
+        WHERE cp.competition_id = $3
         GROUP BY cp.user_id, u.username ORDER BY score DESC
-      `).all(comp.startDate, comp.endDate, competitionId);
+      `, [comp.startDate, comp.endDate, competitionId]);
     } else {
-      rows = db.prepare(`
+      rows = await db.queryAll<any>(`
         SELECT cp.user_id, u.username, cp.score
         FROM competition_participants cp JOIN users u ON u.id = cp.user_id
-        WHERE cp.competition_id = ? ORDER BY cp.score DESC
-      `).all(competitionId);
+        WHERE cp.competition_id = $1 ORDER BY cp.score DESC
+      `, [competitionId]);
     }
 
-    return rows.map((row, index) => ({ rank: index + 1, userId: row.user_id, username: row.username, score: row.score }));
+    return rows.map((row, index) => ({ rank: index + 1, userId: row.user_id, username: row.username, score: Number(row.score) }));
   },
 
-  start(userId: string, competitionId: string): void {
-    const comp = this.getById(competitionId);
+  async start(userId: string, competitionId: string): Promise<void> {
+    const comp = await this.getById(competitionId);
     if (!comp) throw new NotFoundError('Competition');
     if (comp.creatorId !== userId) throw new AuthorizationError('Only creator can start');
     if (comp.status !== 'draft') throw new ValidationError('Already started');
-    db.prepare("UPDATE competitions SET status = 'active' WHERE id = ?").run(competitionId);
+    await db.query("UPDATE competitions SET status = 'active' WHERE id = $1", [competitionId]);
   },
 };
 
@@ -252,18 +252,12 @@ export const competitionRouter = Router();
 
 competitionRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
   const status = req.query.status as string;
-  res.json({ data: status === 'upcoming' ? competitionService.getUpcoming() : competitionService.getActive() });
+  res.json({ data: status === 'upcoming' ? await competitionService.getUpcoming() : await competitionService.getActive() });
 }));
 
 competitionRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: competitionService.getUserCompetitions(req.user!.userId) });
+  res.json({ data: await competitionService.getUserCompetitions(req.user!.userId) });
 }));
-
-
-
-
-
-
 
 competitionRouter.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   // Compatibility: accept snake_case from older clients/tests
@@ -318,14 +312,14 @@ competitionRouter.post('/', authenticateToken, asyncHandler(async (req: Request,
     Object.keys(rulesObj).length ? JSON.stringify(rulesObj) : (typeof data.rules === 'string' ? data.rules : null);
 
   const isPublicRaw: any = data.isPublic ?? data.is_public;
-  const isPublic: number = (isPublicRaw == null) ? 1 : (isPublicRaw ? 1 : 0);
+  const isPublic: boolean = (isPublicRaw == null) ? true : Boolean(isPublicRaw);
 
-  db.prepare(
-    `INSERT INTO competitions
+  await db.query(`
+    INSERT INTO competitions
       (id, name, description, creator_id, type, status, start_date, end_date, max_participants, entry_fee, prize_pool, rules, is_public)
      VALUES
-      (?,  ?,    ?,          ?,          ?,    ?,      ?,          ?,        ?,              ?,         ?,          ?,     ?)`
-  ).run(
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+  `, [
     id,
     name,
     description,
@@ -339,7 +333,7 @@ competitionRouter.post('/', authenticateToken, asyncHandler(async (req: Request,
     prizePool,
     rules,
     isPublic
-  );
+  ]);
 
   // Make it obvious in test output that this is the new handler
   res.set('x-competitions-post', 'insert-v1');
@@ -352,12 +346,12 @@ competitionRouter.post('/', authenticateToken, asyncHandler(async (req: Request,
 competitionRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
 
-  const row: any = db.prepare(
-    `SELECT id, name, description, creator_id, type, status, start_date, end_date,
+  const row = await db.queryOne<any>(`
+    SELECT id, name, description, creator_id, type, status, start_date, end_date,
             max_participants, entry_fee, prize_pool, rules, is_public, created_at
        FROM competitions
-      WHERE id = ?`
-  ).get(id);
+      WHERE id = $1
+  `, [id]);
 
   if (!row) {
     res.status(404).json({ error: 'Competition not found' });
@@ -378,16 +372,15 @@ competitionRouter.get('/:id', asyncHandler(async (req: Request, res: Response) =
 
   res.json({ data });
 }));
-;
 
 competitionRouter.get('/:id/leaderboard', asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: competitionService.getLeaderboard(req.params.id) });
+  res.json({ data: await competitionService.getLeaderboard(req.params.id) });
 }));
 
 competitionRouter.post('/:id/join', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
 
-  const exists: any = db.prepare(`SELECT id FROM competitions WHERE id = ?`).get(id);
+  const exists = await db.queryOne<any>(`SELECT id FROM competitions WHERE id = $1`, [id]);
   if (!exists) {
     res.status(404).json({ error: 'Competition not found' });
 
@@ -395,50 +388,48 @@ competitionRouter.post('/:id/join', authenticateToken, asyncHandler(async (req: 
   }
   // Best-effort participant record if table exists; otherwise still return success for API compatibility
   try {
-    db.prepare(
-      `INSERT OR IGNORE INTO competition_participants (competition_id, user_id, joined_at)
-       VALUES (?, ?, datetime('now'))`
-    ).run(id, req.user!.userId);
+    await db.query(`
+      INSERT INTO competition_participants (competition_id, user_id, joined_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT DO NOTHING
+    `, [id, req.user!.userId]);
   } catch {
     // ignore if table doesn't exist yet in this schema
   }
 
   res.json({ data: { joined: true, id } });
 }));
-;
 
 competitionRouter.post('/:id/leave', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
 
-  const exists: any = db.prepare(`SELECT id FROM competitions WHERE id = ?`).get(id);
+  const exists = await db.queryOne<any>(`SELECT id FROM competitions WHERE id = $1`, [id]);
   if (!exists) {
     res.status(404).json({ error: 'Competition not found' });
 
     return;
   }
   try {
-    db.prepare(
-      `DELETE FROM competition_participants WHERE competition_id = ? AND user_id = ?`
-    ).run(id, req.user!.userId);
+    await db.query(`
+      DELETE FROM competition_participants WHERE competition_id = $1 AND user_id = $2
+    `, [id, req.user!.userId]);
   } catch {
     // ignore if table doesn't exist yet
   }
 
   res.json({ data: { left: true, id } });
 }));
-;
 
 competitionRouter.post('/:id/start', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
 
-  const exists: any = db.prepare(`SELECT id FROM competitions WHERE id = ?`).get(id);
+  const exists = await db.queryOne<any>(`SELECT id FROM competitions WHERE id = $1`, [id]);
   if (!exists) {
     res.status(404).json({ error: 'Competition not found' });
 
     return;
   }
-  db.prepare(`UPDATE competitions SET status = 'active' WHERE id = ?`).run(id);
+  await db.query(`UPDATE competitions SET status = 'active' WHERE id = $1`, [id]);
 
   res.json({ data: { started: true, id } });
 }));
-;

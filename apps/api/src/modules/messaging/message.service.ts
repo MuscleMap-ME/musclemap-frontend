@@ -28,10 +28,10 @@ function generateId(prefix: string): string {
 /**
  * Create a new conversation
  */
-export function createConversation(
+export async function createConversation(
   creatorId: string,
   request: CreateConversationRequest
-): ConversationWithParticipants {
+): Promise<ConversationWithParticipants> {
   const { type = 'direct', name, participantIds } = request;
 
   // Validate participants
@@ -46,16 +46,16 @@ export function createConversation(
 
   // Check if direct conversation already exists between these users
   if (type === 'direct') {
-    const existing = findDirectConversation(creatorId, participantIds[0]);
+    const existing = await findDirectConversation(creatorId, participantIds[0]);
     if (existing) {
-      return getConversationWithDetails(existing.id, creatorId)!;
+      return (await getConversationWithDetails(existing.id, creatorId))!;
     }
   }
 
   // Check for blocked users
   const allParticipants = [creatorId, ...participantIds];
   for (const participantId of participantIds) {
-    if (isBlocked(creatorId, participantId) || isBlocked(participantId, creatorId)) {
+    if (await isBlocked(creatorId, participantId) || await isBlocked(participantId, creatorId)) {
       throw new ValidationError('Cannot create conversation with blocked user');
     }
   }
@@ -63,42 +63,42 @@ export function createConversation(
   const conversationId = generateId('conv');
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.query(`
     INSERT INTO conversations (id, type, name, created_by, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(conversationId, type, name || null, creatorId, now, now);
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `, [conversationId, type, name || null, creatorId, now, now]);
 
-  // Add all participants
-  const insertParticipant = db.prepare(`
+  // Add all participants - Creator is owner
+  await db.query(`
     INSERT INTO conversation_participants (conversation_id, user_id, joined_at, role)
-    VALUES (?, ?, ?, ?)
-  `);
-
-  // Creator is owner
-  insertParticipant.run(conversationId, creatorId, now, 'owner');
+    VALUES ($1, $2, $3, $4)
+  `, [conversationId, creatorId, now, 'owner']);
 
   // Other participants are members
   for (const participantId of participantIds) {
-    insertParticipant.run(conversationId, participantId, now, 'member');
+    await db.query(`
+      INSERT INTO conversation_participants (conversation_id, user_id, joined_at, role)
+      VALUES ($1, $2, $3, $4)
+    `, [conversationId, participantId, now, 'member']);
   }
 
   log.info({ conversationId, type, participantCount: allParticipants.length }, 'Conversation created');
 
-  return getConversationWithDetails(conversationId, creatorId)!;
+  return (await getConversationWithDetails(conversationId, creatorId))!;
 }
 
 /**
  * Find existing direct conversation between two users
  */
-function findDirectConversation(userId1: string, userId2: string): Conversation | null {
-  const result = db.prepare(`
+async function findDirectConversation(userId1: string, userId2: string): Promise<Conversation | null> {
+  const result = await db.queryOne<any>(`
     SELECT c.*
     FROM conversations c
-    JOIN conversation_participants cp1 ON c.id = cp1.conversation_id AND cp1.user_id = ?
-    JOIN conversation_participants cp2 ON c.id = cp2.conversation_id AND cp2.user_id = ?
+    JOIN conversation_participants cp1 ON c.id = cp1.conversation_id AND cp1.user_id = $1
+    JOIN conversation_participants cp2 ON c.id = cp2.conversation_id AND cp2.user_id = $2
     WHERE c.type = 'direct'
     LIMIT 1
-  `).get(userId1, userId2) as any;
+  `, [userId1, userId2]);
 
   return result ? rowToConversation(result) : null;
 }
@@ -106,54 +106,55 @@ function findDirectConversation(userId1: string, userId2: string): Conversation 
 /**
  * Get conversation with participants and metadata
  */
-export function getConversationWithDetails(
+export async function getConversationWithDetails(
   conversationId: string,
   userId: string
-): ConversationWithParticipants | null {
+): Promise<ConversationWithParticipants | null> {
   // Check participant access
-  const participant = db.prepare(`
+  const participant = await db.queryOne<any>(`
     SELECT * FROM conversation_participants
-    WHERE conversation_id = ? AND user_id = ?
-  `).get(conversationId, userId);
+    WHERE conversation_id = $1 AND user_id = $2
+  `, [conversationId, userId]);
 
   if (!participant) {
     return null;
   }
 
-  const conversation = db.prepare(`
-    SELECT * FROM conversations WHERE id = ?
-  `).get(conversationId) as any;
+  const conversation = await db.queryOne<any>(`
+    SELECT * FROM conversations WHERE id = $1
+  `, [conversationId]);
 
   if (!conversation) {
     return null;
   }
 
-  const participants = db.prepare(`
+  const participants = await db.queryAll<any>(`
     SELECT cp.*, u.username, u.display_name, u.avatar_url
     FROM conversation_participants cp
     JOIN users u ON cp.user_id = u.id
-    WHERE cp.conversation_id = ?
-  `).all(conversationId) as any[];
+    WHERE cp.conversation_id = $1
+  `, [conversationId]);
 
   // Get last message
-  const lastMessage = db.prepare(`
+  const lastMessage = await db.queryOne<any>(`
     SELECT * FROM messages
-    WHERE conversation_id = ? AND deleted_at IS NULL
+    WHERE conversation_id = $1 AND deleted_at IS NULL
     ORDER BY created_at DESC
     LIMIT 1
-  `).get(conversationId) as any;
+  `, [conversationId]);
 
   // Count unread messages
-  const lastReadAt = (participant as any).last_read_at;
+  const lastReadAt = participant.last_read_at;
   let unreadCount = 0;
   if (lastReadAt) {
-    unreadCount = (db.prepare(`
+    const unreadResult = await db.queryOne<{ count: number }>(`
       SELECT COUNT(*) as count FROM messages
-      WHERE conversation_id = ?
-        AND created_at > ?
-        AND sender_id != ?
+      WHERE conversation_id = $1
+        AND created_at > $2
+        AND sender_id != $3
         AND deleted_at IS NULL
-    `).get(conversationId, lastReadAt, userId) as any).count;
+    `, [conversationId, lastReadAt, userId]);
+    unreadCount = Number(unreadResult?.count ?? 0);
   }
 
   return {
@@ -167,35 +168,38 @@ export function getConversationWithDetails(
 /**
  * Get all conversations for a user
  */
-export function getUserConversations(userId: string): ConversationWithParticipants[] {
-  const conversationIds = db.prepare(`
+export async function getUserConversations(userId: string): Promise<ConversationWithParticipants[]> {
+  const conversationIds = await db.queryAll<{ conversation_id: string }>(`
     SELECT conversation_id FROM conversation_participants
-    WHERE user_id = ?
-  `).all(userId) as { conversation_id: string }[];
+    WHERE user_id = $1
+  `, [userId]);
 
-  return conversationIds
-    .map(row => getConversationWithDetails(row.conversation_id, userId))
-    .filter((c): c is ConversationWithParticipants => c !== null)
-    .sort((a, b) => {
-      const aTime = a.lastMessageAt || a.createdAt;
-      const bTime = b.lastMessageAt || b.createdAt;
-      return new Date(bTime).getTime() - new Date(aTime).getTime();
-    });
+  const conversations: ConversationWithParticipants[] = [];
+  for (const row of conversationIds) {
+    const conv = await getConversationWithDetails(row.conversation_id, userId);
+    if (conv) conversations.push(conv);
+  }
+
+  return conversations.sort((a, b) => {
+    const aTime = a.lastMessageAt || a.createdAt;
+    const bTime = b.lastMessageAt || b.createdAt;
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
 }
 
 /**
  * Send a message in a conversation
  */
-export function sendMessage(
+export async function sendMessage(
   conversationId: string,
   senderId: string,
   request: SendMessageRequest
-): MessageWithSender {
+): Promise<MessageWithSender> {
   // Verify sender is a participant
-  const participant = db.prepare(`
+  const participant = await db.queryOne<any>(`
     SELECT * FROM conversation_participants
-    WHERE conversation_id = ? AND user_id = ?
-  `).get(conversationId, senderId);
+    WHERE conversation_id = $1 AND user_id = $2
+  `, [conversationId, senderId]);
 
   if (!participant) {
     throw new AuthorizationError('Not a participant in this conversation');
@@ -209,9 +213,9 @@ export function sendMessage(
 
   // Validate reply target exists
   if (replyToId) {
-    const replyTarget = db.prepare(`
-      SELECT id FROM messages WHERE id = ? AND conversation_id = ?
-    `).get(replyToId, conversationId);
+    const replyTarget = await db.queryOne<any>(`
+      SELECT id FROM messages WHERE id = $1 AND conversation_id = $2
+    `, [replyToId, conversationId]);
 
     if (!replyTarget) {
       throw new ValidationError('Reply target message not found');
@@ -221,47 +225,47 @@ export function sendMessage(
   const messageId = generateId('msg');
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.query(`
     INSERT INTO messages (id, conversation_id, sender_id, content, content_type, reply_to_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(messageId, conversationId, senderId, content || null, contentType, replyToId || null, now);
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `, [messageId, conversationId, senderId, content || null, contentType, replyToId || null, now]);
 
   // Update conversation's last_message_at
-  db.prepare(`
-    UPDATE conversations SET last_message_at = ?, updated_at = ? WHERE id = ?
-  `).run(now, now, conversationId);
+  await db.query(`
+    UPDATE conversations SET last_message_at = $1, updated_at = $2 WHERE id = $3
+  `, [now, now, conversationId]);
 
   log.info({ messageId, conversationId, senderId, contentType }, 'Message sent');
 
-  return getMessageWithSender(messageId)!;
+  return (await getMessageWithSender(messageId))!;
 }
 
 /**
  * Get message with sender info
  */
-export function getMessageWithSender(messageId: string): MessageWithSender | null {
-  const message = db.prepare(`
+export async function getMessageWithSender(messageId: string): Promise<MessageWithSender | null> {
+  const message = await db.queryOne<any>(`
     SELECT m.*, u.username, u.display_name, u.avatar_url
     FROM messages m
     JOIN users u ON m.sender_id = u.id
-    WHERE m.id = ?
-  `).get(messageId) as any;
+    WHERE m.id = $1
+  `, [messageId]);
 
   if (!message) {
     return null;
   }
 
   // Get attachments
-  const attachments = db.prepare(`
-    SELECT * FROM message_attachments WHERE message_id = ?
-  `).all(messageId) as any[];
+  const attachments = await db.queryAll<any>(`
+    SELECT * FROM message_attachments WHERE message_id = $1
+  `, [messageId]);
 
   // Get reply target if exists
   let replyTo: Message | undefined;
   if (message.reply_to_id) {
-    const replyMessage = db.prepare(`
-      SELECT * FROM messages WHERE id = ?
-    `).get(message.reply_to_id) as any;
+    const replyMessage = await db.queryOne<any>(`
+      SELECT * FROM messages WHERE id = $1
+    `, [message.reply_to_id]);
     if (replyMessage) {
       replyTo = rowToMessage(replyMessage);
     }
@@ -283,16 +287,16 @@ export function getMessageWithSender(messageId: string): MessageWithSender | nul
 /**
  * Get messages in a conversation (paginated)
  */
-export function getConversationMessages(
+export async function getConversationMessages(
   conversationId: string,
   userId: string,
   options: { limit?: number; before?: string } = {}
-): MessageWithSender[] {
+): Promise<MessageWithSender[]> {
   // Verify user is a participant
-  const participant = db.prepare(`
+  const participant = await db.queryOne<any>(`
     SELECT * FROM conversation_participants
-    WHERE conversation_id = ? AND user_id = ?
-  `).get(conversationId, userId);
+    WHERE conversation_id = $1 AND user_id = $2
+  `, [conversationId, userId]);
 
   if (!participant) {
     throw new AuthorizationError('Not a participant in this conversation');
@@ -304,26 +308,28 @@ export function getConversationMessages(
     SELECT m.*, u.username, u.display_name, u.avatar_url
     FROM messages m
     JOIN users u ON m.sender_id = u.id
-    WHERE m.conversation_id = ? AND m.deleted_at IS NULL
+    WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
   `;
   const params: any[] = [conversationId];
+  let paramIndex = 2;
 
   if (before) {
-    query += ` AND m.created_at < ?`;
+    query += ` AND m.created_at < $${paramIndex++}`;
     params.push(before);
   }
 
-  query += ` ORDER BY m.created_at DESC LIMIT ?`;
+  query += ` ORDER BY m.created_at DESC LIMIT $${paramIndex}`;
   params.push(limit);
 
-  const messages = db.prepare(query).all(...params) as any[];
+  const messages = await db.queryAll<any>(query, params);
 
-  return messages.map(message => {
-    const attachments = db.prepare(`
-      SELECT * FROM message_attachments WHERE message_id = ?
-    `).all(message.id) as any[];
+  const result: MessageWithSender[] = [];
+  for (const message of messages) {
+    const attachments = await db.queryAll<any>(`
+      SELECT * FROM message_attachments WHERE message_id = $1
+    `, [message.id]);
 
-    return {
+    result.push({
       ...rowToMessage(message),
       sender: {
         id: message.sender_id,
@@ -332,30 +338,32 @@ export function getConversationMessages(
         avatarUrl: message.avatar_url,
       },
       attachments: attachments.map(rowToAttachment),
-    };
-  }).reverse(); // Return in chronological order
+    });
+  }
+
+  return result.reverse(); // Return in chronological order
 }
 
 /**
  * Mark messages as read
  */
-export function markAsRead(conversationId: string, userId: string): void {
+export async function markAsRead(conversationId: string, userId: string): Promise<void> {
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.query(`
     UPDATE conversation_participants
-    SET last_read_at = ?
-    WHERE conversation_id = ? AND user_id = ?
-  `).run(now, conversationId, userId);
+    SET last_read_at = $1
+    WHERE conversation_id = $2 AND user_id = $3
+  `, [now, conversationId, userId]);
 }
 
 /**
  * Delete a message (soft delete)
  */
-export function deleteMessage(messageId: string, userId: string): void {
-  const message = db.prepare(`
-    SELECT * FROM messages WHERE id = ?
-  `).get(messageId) as any;
+export async function deleteMessage(messageId: string, userId: string): Promise<void> {
+  const message = await db.queryOne<any>(`
+    SELECT * FROM messages WHERE id = $1
+  `, [messageId]);
 
   if (!message) {
     throw new NotFoundError('Message');
@@ -367,9 +375,9 @@ export function deleteMessage(messageId: string, userId: string): void {
 
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE messages SET deleted_at = ? WHERE id = ?
-  `).run(now, messageId);
+  await db.query(`
+    UPDATE messages SET deleted_at = $1 WHERE id = $2
+  `, [now, messageId]);
 
   log.info({ messageId, userId }, 'Message deleted');
 }
@@ -377,10 +385,10 @@ export function deleteMessage(messageId: string, userId: string): void {
 /**
  * Edit a message
  */
-export function editMessage(messageId: string, userId: string, newContent: string): MessageWithSender {
-  const message = db.prepare(`
-    SELECT * FROM messages WHERE id = ?
-  `).get(messageId) as any;
+export async function editMessage(messageId: string, userId: string, newContent: string): Promise<MessageWithSender> {
+  const message = await db.queryOne<any>(`
+    SELECT * FROM messages WHERE id = $1
+  `, [messageId]);
 
   if (!message) {
     throw new NotFoundError('Message');
@@ -396,23 +404,24 @@ export function editMessage(messageId: string, userId: string, newContent: strin
 
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE messages SET content = ?, edited_at = ? WHERE id = ?
-  `).run(newContent, now, messageId);
+  await db.query(`
+    UPDATE messages SET content = $1, edited_at = $2 WHERE id = $3
+  `, [newContent, now, messageId]);
 
   log.info({ messageId, userId }, 'Message edited');
 
-  return getMessageWithSender(messageId)!;
+  return (await getMessageWithSender(messageId))!;
 }
 
 /**
  * Block a user
  */
-export function blockUser(blockerId: string, blockedId: string): void {
-  db.prepare(`
-    INSERT OR IGNORE INTO user_blocks (blocker_id, blocked_id, created_at)
-    VALUES (?, ?, datetime('now'))
-  `).run(blockerId, blockedId);
+export async function blockUser(blockerId: string, blockedId: string): Promise<void> {
+  await db.query(`
+    INSERT INTO user_blocks (blocker_id, blocked_id, created_at)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT DO NOTHING
+  `, [blockerId, blockedId]);
 
   log.info({ blockerId, blockedId }, 'User blocked');
 }
@@ -420,10 +429,10 @@ export function blockUser(blockerId: string, blockedId: string): void {
 /**
  * Unblock a user
  */
-export function unblockUser(blockerId: string, blockedId: string): void {
-  db.prepare(`
-    DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?
-  `).run(blockerId, blockedId);
+export async function unblockUser(blockerId: string, blockedId: string): Promise<void> {
+  await db.query(`
+    DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2
+  `, [blockerId, blockedId]);
 
   log.info({ blockerId, blockedId }, 'User unblocked');
 }
@@ -431,10 +440,10 @@ export function unblockUser(blockerId: string, blockedId: string): void {
 /**
  * Check if a user is blocked
  */
-export function isBlocked(blockerId: string, blockedId: string): boolean {
-  const result = db.prepare(`
-    SELECT 1 FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?
-  `).get(blockerId, blockedId);
+export async function isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+  const result = await db.queryOne<any>(`
+    SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2
+  `, [blockerId, blockedId]);
 
   return !!result;
 }
@@ -442,10 +451,10 @@ export function isBlocked(blockerId: string, blockedId: string): boolean {
 /**
  * Get blocked users list
  */
-export function getBlockedUsers(userId: string): string[] {
-  const rows = db.prepare(`
-    SELECT blocked_id FROM user_blocks WHERE blocker_id = ?
-  `).all(userId) as { blocked_id: string }[];
+export async function getBlockedUsers(userId: string): Promise<string[]> {
+  const rows = await db.queryAll<{ blocked_id: string }>(`
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = $1
+  `, [userId]);
 
   return rows.map(r => r.blocked_id);
 }

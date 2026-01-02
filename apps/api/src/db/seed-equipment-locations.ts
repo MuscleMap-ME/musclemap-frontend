@@ -5,7 +5,7 @@
  * for each exercise in the database, used by the prescription constraint solver.
  */
 
-import Database from 'better-sqlite3';
+import { db, initializePool, closePool } from './client';
 
 // Equipment Taxonomy
 export const EQUIPMENT = {
@@ -717,37 +717,35 @@ export const EXERCISE_MAPPINGS: Record<string, ExerciseEquipmentMapping> = {
 /**
  * Apply exercise equipment/location mappings to the database
  */
-export function seedEquipmentLocations(db: Database.Database): void {
+export async function seedEquipmentLocations(): Promise<void> {
   console.log('Seeding exercise equipment and location mappings...');
-
-  const stmt = db.prepare(`
-    UPDATE exercises SET
-      equipment_required = ?,
-      equipment_optional = ?,
-      locations = ?,
-      is_compound = ?,
-      estimated_seconds = ?,
-      rest_seconds = ?,
-      movement_pattern = ?
-    WHERE id = ?
-  `);
 
   let updated = 0;
   let skipped = 0;
 
   for (const [id, data] of Object.entries(EXERCISE_MAPPINGS)) {
-    const result = stmt.run(
+    const result = await db.query(`
+      UPDATE exercises SET
+        equipment_required = $1,
+        equipment_optional = $2,
+        locations = $3,
+        is_compound = $4,
+        estimated_seconds = $5,
+        rest_seconds = $6,
+        movement_pattern = $7
+      WHERE id = $8
+    `, [
       JSON.stringify(data.equipment_required),
       JSON.stringify(data.equipment_optional),
       JSON.stringify(data.locations),
-      data.is_compound ? 1 : 0,
+      data.is_compound,
       data.estimated_seconds,
       data.rest_seconds,
       data.movement_pattern,
       id
-    );
+    ]);
 
-    if (result.changes > 0) {
+    if (result.rowCount && result.rowCount > 0) {
       updated++;
     } else {
       skipped++;
@@ -760,16 +758,16 @@ export function seedEquipmentLocations(db: Database.Database): void {
 
 // Run seeder if executed directly
 if (require.main === module) {
-  const path = require('path');
-  const db = new Database(path.join(__dirname, '../../../data/musclemap.db'));
-
-  try {
-    seedEquipmentLocations(db);
-    console.log('Equipment/location seeding completed successfully');
-  } catch (error) {
-    console.error('Seeding failed:', error);
-    process.exit(1);
-  } finally {
-    db.close();
-  }
+  (async () => {
+    try {
+      await initializePool();
+      await seedEquipmentLocations();
+      console.log('Equipment/location seeding completed successfully');
+    } catch (error) {
+      console.error('Seeding failed:', error);
+      process.exit(1);
+    } finally {
+      await closePool();
+    }
+  })();
 }

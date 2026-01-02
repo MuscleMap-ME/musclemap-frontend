@@ -157,7 +157,7 @@ function handleClientMessage(
 /**
  * Subscribe to conversation updates
  */
-function handleSubscribe(ws: WebSocket, user: JwtPayload, conversationIds: string[]): void {
+async function handleSubscribe(ws: WebSocket, user: JwtPayload, conversationIds: string[]): Promise<void> {
   if (!Array.isArray(conversationIds)) return;
 
   const subscriptions = connectionSubscriptions.get(ws);
@@ -165,7 +165,7 @@ function handleSubscribe(ws: WebSocket, user: JwtPayload, conversationIds: strin
 
   for (const conversationId of conversationIds) {
     // Verify user is a participant
-    const conversation = messageService.getConversationWithDetails(conversationId, user.userId);
+    const conversation = await messageService.getConversationWithDetails(conversationId, user.userId);
     if (conversation) {
       subscriptions.add(conversationId);
     }
@@ -194,9 +194,9 @@ function handleUnsubscribe(ws: WebSocket, conversationIds: string[]): void {
 /**
  * Handle typing indicator
  */
-function handleTyping(user: JwtPayload, conversationId: string, isTyping: boolean): void {
+async function handleTyping(user: JwtPayload, conversationId: string, isTyping: boolean): Promise<void> {
   // Get participants in the conversation (excluding the typer)
-  const conversation = messageService.getConversationWithDetails(conversationId, user.userId);
+  const conversation = await messageService.getConversationWithDetails(conversationId, user.userId);
   if (!conversation) return;
 
   const targetUserIds = conversation.participants
@@ -217,16 +217,16 @@ function handleTyping(user: JwtPayload, conversationId: string, isTyping: boolea
 /**
  * Handle mark as read
  */
-function handleMarkRead(user: JwtPayload, conversationId: string): void {
-  messageService.markAsRead(conversationId, user.userId);
+async function handleMarkRead(user: JwtPayload, conversationId: string): Promise<void> {
+  await messageService.markAsRead(conversationId, user.userId);
 }
 
 /**
  * Broadcast presence change
  */
-function broadcastPresence(userId: string, status: 'online' | 'offline'): void {
+async function broadcastPresence(userId: string, status: 'online' | 'offline'): Promise<void> {
   // Get all conversations the user is part of
-  const conversations = messageService.getUserConversations(userId);
+  const conversations = await messageService.getUserConversations(userId);
 
   // Collect all unique participant user IDs
   const targetUserIds = new Set<string>();
@@ -250,12 +250,12 @@ function broadcastPresence(userId: string, status: 'online' | 'offline'): void {
 /**
  * Broadcast a new message to conversation participants
  */
-export function broadcastNewMessage(
+export async function broadcastNewMessage(
   conversationId: string,
   message: any,
   senderUserId: string
-): void {
-  const conversation = messageService.getConversationWithDetails(conversationId, senderUserId);
+): Promise<void> {
+  const conversation = await messageService.getConversationWithDetails(conversationId, senderUserId);
   if (!conversation) return;
 
   const targetUserIds = conversation.participants.map(p => p.userId);
@@ -273,12 +273,12 @@ export function broadcastNewMessage(
 /**
  * Broadcast message edit
  */
-export function broadcastMessageEdit(
+export async function broadcastMessageEdit(
   conversationId: string,
   message: any,
   senderUserId: string
-): void {
-  const conversation = messageService.getConversationWithDetails(conversationId, senderUserId);
+): Promise<void> {
+  const conversation = await messageService.getConversationWithDetails(conversationId, senderUserId);
   if (!conversation) return;
 
   const targetUserIds = conversation.participants.map(p => p.userId);
@@ -296,12 +296,12 @@ export function broadcastMessageEdit(
 /**
  * Broadcast message deletion
  */
-export function broadcastMessageDelete(
+export async function broadcastMessageDelete(
   conversationId: string,
   messageId: string,
   senderUserId: string
-): void {
-  const conversation = messageService.getConversationWithDetails(conversationId, senderUserId);
+): Promise<void> {
+  const conversation = await messageService.getConversationWithDetails(conversationId, senderUserId);
   if (!conversation) return;
 
   const targetUserIds = conversation.participants.map(p => p.userId);

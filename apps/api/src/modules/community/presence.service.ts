@@ -188,14 +188,15 @@ export async function getTopExercisesNow(
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
 
-    // Fetch exercise names from SQLite
+    // Fetch exercise names from PostgreSQL
     const exerciseIds = sorted.map((e) => e.exerciseId);
     if (exerciseIds.length === 0) return [];
 
-    const placeholders = exerciseIds.map(() => '?').join(',');
-    const exercises = db
-      .prepare(`SELECT id, name FROM exercises WHERE id IN (${placeholders})`)
-      .all(...exerciseIds) as Array<{ id: string; name: string }>;
+    const placeholders = exerciseIds.map((_, i) => `$${i + 1}`).join(',');
+    const exercises = await db.queryAll<{ id: string; name: string }>(
+      `SELECT id, name FROM exercises WHERE id IN (${placeholders})`,
+      exerciseIds
+    );
 
     const nameMap = new Map(exercises.map((e) => [e.id, e.name]));
 
