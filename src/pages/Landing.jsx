@@ -16,13 +16,14 @@ export default function Landing() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <RouterLink
             to="/"
-            className="text-xl font-extrabold"
+            className="flex items-center gap-2 text-xl font-extrabold"
             style={{
               background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
           >
+            <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" style={{ WebkitTextFillColor: 'initial' }} />
             MuscleMap
           </RouterLink>
 

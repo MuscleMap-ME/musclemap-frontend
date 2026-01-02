@@ -149,7 +149,7 @@ export default function Dashboard() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center font-bold text-sm">M</div>
+            <img src="/logo.png" alt="MuscleMap" className="w-8 h-8 rounded-lg" />
             <span className="font-semibold text-lg hidden sm:block">MuscleMap</span>
           </div>
           
