@@ -1,4 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Load .env file from the api directory BEFORE any other setup
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Ensure test environment variables are set before any imports
 process.env.NODE_ENV = 'test';
@@ -9,6 +14,9 @@ process.env.JWT_SECRET ||= 'test-secret-32-bytes-minimum-aaaaaaaaaaaa';
 if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('_test')) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/\/musclemap$/, '/musclemap_test');
 }
+
+// Track if we have database available
+let _dbAvailable = false;
 
 // Dynamic imports to ensure env vars are set first
 let initializePool: typeof import('../src/db/client').initializePool;
@@ -32,16 +40,29 @@ async function loadModules() {
 
   // Initialize pool before importing modules that use db
   console.log('[test_app] Initializing database pool...');
-  await initializePool();
-  console.log('[test_app] Database pool initialized');
+  console.log('[test_app] DATABASE_URL:', process.env.DATABASE_URL ? 'set' : 'not set');
 
-  // Verify pool is actually ready
-  const { isPoolHealthy } = clientModule;
-  const healthy = await isPoolHealthy();
-  if (!healthy) {
-    throw new Error('Database pool initialization failed - pool is not healthy');
+  try {
+    await initializePool();
+    console.log('[test_app] Database pool initialized');
+
+    // Verify pool is actually ready
+    const { isPoolHealthy } = clientModule;
+    const healthy = await isPoolHealthy();
+    if (!healthy) {
+      console.warn('[test_app] Database pool not healthy, tests requiring database will be skipped');
+      _dbAvailable = false;
+    } else {
+      console.log('[test_app] Database pool health check passed');
+      _dbAvailable = true;
+    }
+  } catch (error) {
+    console.warn('[test_app] Database connection failed, tests requiring database will be skipped');
+    console.warn('[test_app] Error:', error instanceof Error ? error.message : String(error));
+    _dbAvailable = false;
+    _modulesLoaded = true;
+    return;
   }
-  console.log('[test_app] Database pool health check passed');
 
   // Now safe to import modules that use db
   const schemaModule = await import('../src/db/schema');
@@ -136,6 +157,14 @@ export async function getTestApp(): Promise<FastifyInstance> {
   // This also initializes the database pool
   await loadModules();
 
+  // Check if database is available
+  if (!_dbAvailable) {
+    throw new Error(
+      'SKIP: Database not available. Set DATABASE_URL in apps/api/.env to run integration tests.\n' +
+      'Example: DATABASE_URL=postgresql://user:password@localhost:5432/musclemap_test'
+    );
+  }
+
   // Ensure database schema and migrations are run
   if (!_dbInitialized) {
     await initializeSchema();
@@ -148,59 +177,66 @@ export async function getTestApp(): Promise<FastifyInstance> {
 
   if (_app) return _app;
 
-  const tried: string[] = [];
-
-  // IMPORTANT: do NOT import ../src/index or ../dist/index (they start listening)
-  // Keep this list tight and “server factory only”.
-  const modulePaths = [
-    '../src/http/server',
-    '../src/http',
-    '../src/server',
-    '../src/app',
-    '../dist/http/server',
-    '../dist/http',
-    '../dist/server',
-    '../dist/app',
-  ];
-
-  for (const p of modulePaths) {
-    const mod = await tryImport(p);
-    tried.push(`${p}${mod ? '' : ' (import failed)'}`);
-    if (!mod) continue;
-
-    for (const { label, value } of pickCandidates(mod)) {
-      // If it’s a promise somehow, skip (we only want actual instances/functions)
-      if (isThenable(value)) continue;
-
-      // direct instance
-      if (isFastify(value)) {
-        _app = value;
-        await _app.ready();
-        return _app;
-      }
-
-      // only call functions that look like factories
-      if (typeof value === 'function' && looksLikeFactory(value)) {
-        const made = await tryCall(value);
-        if (isFastify(made)) {
-          _app = made;
-          await _app.ready();
-          return _app;
-        }
-      }
-
-      // NEVER call default exports (this is where accidental startServer tends to hide)
-      if (label === 'export:default' && typeof value === 'function') {
-        continue;
-      }
-    }
+  // Direct import of createServer - we know exactly where the app factory is
+  console.log('[test_app] Importing createServer from ../src/http/server...');
+  try {
+    const { createServer } = await import('../src/http/server');
+    console.log('[test_app] createServer imported successfully, calling it...');
+    _app = await createServer();
+    console.log('[test_app] Fastify app created, waiting for ready...');
+    await _app.ready();
+    console.log('[test_app] Fastify app ready');
+    return _app;
+  } catch (error) {
+    console.error('[test_app] Failed to create server:', error);
+    throw new Error(
+      `getTestApp: Failed to create Fastify server.\n` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
+}
 
-  throw new Error(
-    `getTestApp: could not resolve Fastify instance.\n` +
-      `Tried modules: ${modulePaths.join(', ')}\n` +
-      `tried:\n- ${tried.join('\n- ')}\n`
-  );
+/**
+ * Check if database is available for tests
+ */
+export async function isDatabaseAvailable(): Promise<boolean> {
+  await loadModules();
+  return _dbAvailable;
+}
+
+/**
+ * Safely get test app, returning null if database is unavailable.
+ * Use this for tests that should skip when no database is present.
+ */
+export async function tryGetTestApp(): Promise<FastifyInstance | null> {
+  try {
+    return await getTestApp();
+  } catch (error: any) {
+    // Skip on explicit SKIP message
+    if (error instanceof Error && error.message.startsWith('SKIP:')) {
+      return null;
+    }
+    // Skip on database connection errors (role doesn't exist, auth failed, connection refused, db doesn't exist)
+    const pgErrorCodes = ['28000', '28P01', 'ECONNREFUSED', '3D000'];
+    if (error?.code && pgErrorCodes.includes(error.code)) {
+      console.warn(`[test_app] Database error (${error.code}), skipping tests`);
+      return null;
+    }
+    // Skip on common connection error messages
+    const skipPatterns = [
+      'role .* does not exist',
+      'password authentication failed',
+      'database .* does not exist',
+      'could not connect to server',
+      'Connection refused',
+      'SKIP:',
+    ];
+    if (error?.message && skipPatterns.some(p => new RegExp(p, 'i').test(error.message))) {
+      console.warn(`[test_app] Database connection error, skipping tests: ${error.message}`);
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function closeTestApp(): Promise<void> {
