@@ -125,10 +125,19 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     }>('SELECT * FROM archetypes');
 
     return reply.send({
-      data: archetypes.map((a) => ({
-        ...a,
-        focusAreas: JSON.parse(a.focus_areas || '[]'),
-      })),
+      data: archetypes.map((a) => {
+        // Handle both JSON array and comma-separated string formats
+        let focusAreas: string[] = [];
+        if (a.focus_areas) {
+          try {
+            focusAreas = JSON.parse(a.focus_areas);
+          } catch {
+            // If not valid JSON, treat as comma-separated string
+            focusAreas = a.focus_areas.split(',').map((s) => s.trim());
+          }
+        }
+        return { ...a, focusAreas };
+      }),
     });
   });
 
