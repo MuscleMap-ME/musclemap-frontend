@@ -295,3 +295,41 @@ export async function closePool(): Promise<void> {
 
 // Legacy alias for compatibility
 export const closeDatabase = closePool;
+
+// Standalone query function exports for convenience
+export async function query<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<DbQueryResult<T>> {
+  return db.query<T>(sql, params);
+}
+
+export async function queryOne<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<T | undefined> {
+  return db.queryOne<T>(sql, params);
+}
+
+export async function queryAll<T = Record<string, unknown>>(
+  sql: string,
+  params?: unknown[]
+): Promise<T[]> {
+  return db.queryAll<T>(sql, params);
+}
+
+// Health check alias
+export const healthCheck = isPoolHealthy;
+
+// Pool stats alias
+export const getPoolStats = getPoolMetrics;
+
+/**
+ * Execute a function within a SERIALIZABLE transaction with automatic retry
+ */
+export async function serializableTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>,
+  options?: { retries?: number }
+): Promise<T> {
+  return transaction(fn, { ...options, isolationLevel: 'SERIALIZABLE' });
+}

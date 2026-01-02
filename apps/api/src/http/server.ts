@@ -5,7 +5,7 @@
  * No Express dependencies - fully migrated to Fastify.
  */
 
-import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply, FastifyError } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -58,7 +58,7 @@ declare module 'fastify' {
  */
 export async function createServer(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: logger as any,
+    loggerInstance: logger,
     trustProxy: true,
     // Increase payload limits
     bodyLimit: 10 * 1024 * 1024, // 10MB
@@ -67,7 +67,7 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // Error handler
-  app.setErrorHandler(async (error, request, reply) => {
+  app.setErrorHandler(async (error: FastifyError, request, reply) => {
     const statusCode = error.statusCode || 500;
 
     log.error({
