@@ -41,6 +41,38 @@ interface SubscriptionRecord {
   cancel_at_period_end: number;
 }
 
+// Founding Members - First 1000 subscribers get special perks
+const FOUNDING_MEMBER_LIMIT = 1000;
+const FOUNDING_MEMBER_PERKS = [
+  'Lifetime "Founding Member" badge',
+  'Priority support',
+  'Early access to new features',
+  'Exclusive founding member color theme',
+  'Name in credits',
+];
+
+interface FoundingMemberRecord {
+  id: string;
+  user_id: string;
+  member_number: number;
+  joined_at: string;
+}
+
+// Initialize founding members table
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS founding_members (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      member_number INTEGER NOT NULL UNIQUE,
+      joined_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_founding_members_number ON founding_members(member_number);
+  `);
+} catch (e) {
+  // Table may already exist
+}
+
 export const billingService = {
   /**
    * Get or create Stripe customer for user
@@ -360,6 +392,99 @@ export const billingService = {
       log.info('Credit purchase completed', { userId, credits, newBalance });
     });
   },
+
+  /**
+   * Get founding member status for a user
+   */
+  getFoundingMemberStatus(userId: string): {
+    isFoundingMember: boolean;
+    memberNumber: number | null;
+    joinedAt: string | null;
+    perks: string[];
+  } {
+    const member = db.prepare(
+      'SELECT * FROM founding_members WHERE user_id = ?'
+    ).get(userId) as FoundingMemberRecord | undefined;
+
+    if (member) {
+      return {
+        isFoundingMember: true,
+        memberNumber: member.member_number,
+        joinedAt: member.joined_at,
+        perks: FOUNDING_MEMBER_PERKS,
+      };
+    }
+
+    return {
+      isFoundingMember: false,
+      memberNumber: null,
+      joinedAt: null,
+      perks: [],
+    };
+  },
+
+  /**
+   * Get founding member availability
+   */
+  getFoundingMemberAvailability(): { available: boolean; spotsRemaining: number; totalSpots: number } {
+    const count = db.prepare('SELECT COUNT(*) as count FROM founding_members').get() as { count: number };
+    const spotsRemaining = Math.max(0, FOUNDING_MEMBER_LIMIT - count.count);
+    return {
+      available: spotsRemaining > 0,
+      spotsRemaining,
+      totalSpots: FOUNDING_MEMBER_LIMIT,
+    };
+  },
+
+  /**
+   * Claim founding member status (only if user has active subscription and spots available)
+   */
+  claimFoundingMember(userId: string): {
+    isFoundingMember: boolean;
+    memberNumber: number | null;
+    joinedAt: string | null;
+    perks: string[];
+  } {
+    // Check if already a founding member
+    const existing = this.getFoundingMemberStatus(userId);
+    if (existing.isFoundingMember) {
+      return existing;
+    }
+
+    // Check subscription status
+    const subscription = this.getSubscription(userId);
+    if (!subscription || subscription.status !== 'active') {
+      throw new ValidationError('Active subscription required to become a founding member');
+    }
+
+    // Check availability
+    const availability = this.getFoundingMemberAvailability();
+    if (!availability.available) {
+      throw new ValidationError('Founding member spots are no longer available');
+    }
+
+    // Claim the spot
+    const id = `fm_${crypto.randomBytes(12).toString('hex')}`;
+    const now = new Date().toISOString();
+
+    // Get next member number (in a transaction for safety)
+    const nextNumber = db.prepare(
+      'SELECT COALESCE(MAX(member_number), 0) + 1 as next FROM founding_members'
+    ).get() as { next: number };
+
+    db.prepare(
+      'INSERT INTO founding_members (id, user_id, member_number, joined_at) VALUES (?, ?, ?, ?)'
+    ).run(id, userId, nextNumber.next, now);
+
+    log.info('Founding member claimed', { userId, memberNumber: nextNumber.next });
+
+    return {
+      isFoundingMember: true,
+      memberNumber: nextNumber.next,
+      joinedAt: now,
+      perks: FOUNDING_MEMBER_PERKS,
+    };
+  },
 };
 
 export const billingRouter = Router();
@@ -425,4 +550,22 @@ billingRouter.post('/webhook', asyncHandler(async (req: Request, res: Response) 
 
   await billingService.handleWebhook(event);
   res.json({ received: true });
+}));
+
+// Get founding member status
+billingRouter.get('/founding-member', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const status = billingService.getFoundingMemberStatus(req.user!.userId);
+  const availability = billingService.getFoundingMemberAvailability();
+  res.json({
+    data: {
+      ...status,
+      ...availability,
+    },
+  });
+}));
+
+// Claim founding member status
+billingRouter.post('/founding-member/claim', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const status = billingService.claimFoundingMember(req.user!.userId);
+  res.json({ data: status });
 }));
