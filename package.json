@@ -26,6 +26,7 @@
     "@headlessui/react": "^2.2.9",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@musclemap/client": "workspace:*",
     "@musclemap/shared": "workspace:*",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",

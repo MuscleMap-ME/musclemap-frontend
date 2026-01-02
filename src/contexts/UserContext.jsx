@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth } from '@musclemap/client';
 
 const UserContext = createContext(null);
 
@@ -7,24 +8,32 @@ export function UserProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('musclemap_token');
-    const savedUser = localStorage.getItem('musclemap_user');
-    if (token && savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch (e) { localStorage.clear(); }
-    }
-    setLoading(false);
+    const loadAuth = async () => {
+      try {
+        const [token, savedUser] = await Promise.all([
+          auth.getToken(),
+          auth.getUser(),
+        ]);
+        if (token && savedUser && savedUser.id) {
+          setUser(savedUser);
+        }
+      } catch (e) {
+        console.error('Failed to restore auth state:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAuth();
   }, []);
 
-  const login = (userData, token) => {
+  const login = async (userData, token) => {
     setUser(userData);
-    localStorage.setItem('musclemap_user', JSON.stringify(userData));
-    if (token) localStorage.setItem('musclemap_token', token);
+    await auth.setAuth(token, userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
-    localStorage.removeItem('musclemap_user');
-    localStorage.removeItem('musclemap_token');
+    await auth.clearAuth();
   };
 
   return (
