@@ -6,7 +6,13 @@
     "cleanup": "DRY_RUN=1 sh ./scripts/repo-cleanup.sh",
     "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
     "build": "vite build",
+    "build:api": "pnpm -C apps/api build",
+    "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build",
+    "build:all": "pnpm build:packages && pnpm build:api && pnpm build",
     "cron:smoke": "node cron-jobs.js --smoke-test",
+    "lint": "pnpm -C apps/api lint && pnpm -C packages/core lint && pnpm -C packages/plugin-sdk lint",
+    "typecheck": "pnpm -C apps/api typecheck && pnpm -C packages/core typecheck && pnpm -C packages/shared typecheck && pnpm -C packages/plugin-sdk typecheck",
+    "test": "pnpm test:api && pnpm test:frontend",
     "test:frontend": "vitest run",
     "test:e2e": "playwright test",
     "test:api": "pnpm -C apps/api test"
