@@ -34,8 +34,8 @@ export const loggers = {
   db: logger.child({ module: 'database' }),
   auth: logger.child({ module: 'auth' }),
   economy: logger.child({ module: 'economy' }),
+  entitlements: logger.child({ module: 'entitlements' }),
   plugins: logger.child({ module: 'plugins' }),
-  frontend: logger.child({ module: 'frontend' }),
   core: logger.child({ module: 'core' }),
   prescription: logger.child({ module: 'prescription' }),
 };
