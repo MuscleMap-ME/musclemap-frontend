@@ -7,10 +7,7 @@
  * 3. Credit balance (for non-subscribers after trial)
  */
 
-import { Router, Request, Response } from 'express';
 import { db, transaction } from '../../db/client';
-import { authenticateToken } from '../auth';
-import { asyncHandler } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
 
@@ -198,16 +195,4 @@ export const entitlementsService = {
   },
 };
 
-export const entitlementsRouter = Router();
-
-// Get current user's entitlements
-entitlementsRouter.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const entitlements = await entitlementsService.getEntitlements(req.user!.userId);
-  res.json({ data: entitlements });
-}));
-
-// Alias for frontend convenience
-entitlementsRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const entitlements = await entitlementsService.getEntitlements(req.user!.userId);
-  res.json({ data: entitlements });
-}));
+// Note: Express router removed - routes now in src/http/routes/

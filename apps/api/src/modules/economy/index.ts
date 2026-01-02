@@ -5,13 +5,9 @@
  * and race condition prevention using PostgreSQL's serializable transactions.
  */
 
-import { Router, Request, Response } from 'express';
-import { db, transaction, serializableTransaction, queryOne, queryAll, query } from '../../db/client';
-import { authenticateToken } from '../auth';
-import { asyncHandler, InsufficientCreditsError, ValidationError, ConflictError } from '../../lib/errors';
+import { serializableTransaction, queryOne, queryAll, query } from '../../db/client';
+import { ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
-import { PRICING_TIERS, PRICING_RATE } from '@musclemap/core';
-import { z } from 'zod';
 import crypto from 'crypto';
 import { entitlementsService } from '../entitlements';
 
@@ -289,81 +285,4 @@ export const economyService = {
   },
 };
 
-export const economyRouter = Router();
-
-economyRouter.get('/pricing', (_req: Request, res: Response) => {
-  res.json({ tiers: PRICING_TIERS, rate: PRICING_RATE });
-});
-
-economyRouter.get(
-  '/balance',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const balance = await economyService.getBalance(req.user!.userId);
-    res.json({ data: { balance } });
-  })
-);
-
-economyRouter.get(
-  '/history',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
-
-    const [transactions, total] = await Promise.all([
-      economyService.getHistory(req.user!.userId, limit, offset),
-      economyService.getHistoryCount(req.user!.userId),
-    ]);
-
-    res.json({
-      data: transactions.map((t) => ({
-        ...t,
-        metadata: t.metadata ? JSON.parse(t.metadata) : null,
-      })),
-      meta: { limit, offset, total },
-    });
-  })
-);
-
-const chargeSchema = z.object({
-  action: z.string(),
-  amount: z.number().optional(),
-  metadata: z.record(z.unknown()).optional(),
-  idempotencyKey: z.string(),
-});
-
-economyRouter.post(
-  '/charge',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const data = chargeSchema.parse(req.body);
-    const result = await economyService.charge({
-      userId: req.user!.userId,
-      action: data.action,
-      amount: data.amount,
-      metadata: data.metadata,
-      idempotencyKey: data.idempotencyKey,
-    });
-
-    if (!result.success) {
-      if (result.error?.includes('Insufficient')) {
-        const balance = await economyService.getBalance(req.user!.userId);
-        throw new InsufficientCreditsError(data.amount || 0, balance);
-      }
-      throw new ValidationError(result.error || 'Charge failed');
-    }
-
-    res.json({ data: result });
-  })
-);
-
-economyRouter.get(
-  '/actions',
-  asyncHandler(async (_req: Request, res: Response) => {
-    const actions = await queryAll(
-      'SELECT id, name, description, default_cost, plugin_id FROM credit_actions WHERE enabled = TRUE'
-    );
-    res.json({ data: actions });
-  })
-);
+// Note: Express router removed - routes now in src/http/routes/economy.ts

@@ -1,8 +1,10 @@
 /**
  * Plugin System
+ *
+ * Simplified plugin loader without Express dependencies.
+ * Plugins are loaded for their hooks only (routes handled by Fastify).
  */
 
-import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
@@ -23,15 +25,14 @@ interface PluginManifest {
 }
 
 interface PluginHooks {
-  onServerStart?(ctx: any): Promise<void>;
-  onShutdown?(ctx: any): Promise<void>;
+  onServerStart?(ctx: unknown): Promise<void>;
+  onShutdown?(ctx: unknown): Promise<void>;
 }
 
 interface LoadedPlugin {
   id: string;
   manifest: PluginManifest;
   hooks: PluginHooks;
-  router: Router;
   enabled: boolean;
 }
 
@@ -66,7 +67,7 @@ class PluginRegistry {
     this.hooks.get(event)!.add(handler);
   }
 
-  async invokeHooks(event: string, ...args: any[]): Promise<void> {
+  async invokeHooks(event: string, ...args: unknown[]): Promise<void> {
     const handlers = this.hooks.get(event);
     if (!handlers) return;
     for (const handler of handlers) {
@@ -89,7 +90,7 @@ function createPluginContext(pluginId: string) {
     config: {},
     logger: pluginLog,
     credits: {
-      async charge(request: any) {
+      async charge(request: { userId: string; action: string; cost?: number; metadata?: Record<string, unknown>; idempotencyKey: string }) {
         return economyService.charge({
           userId: request.userId,
           action: `plugin:${pluginId}:${request.action}`,
@@ -122,24 +123,16 @@ export async function loadPlugin(pluginPath: string): Promise<LoadedPlugin | nul
 
     const pluginId = manifest.id;
     const ctx = createPluginContext(pluginId);
-    const router = Router();
     const hooks: PluginHooks = {};
 
     // Load backend entry
     const backendEntry = manifest.entry?.backend || './backend/index.js';
     const entryPath = path.join(pluginPath, backendEntry);
-    
+
     if (fs.existsSync(entryPath)) {
       const module = await import(entryPath);
       const registration = await (module.default || module)(ctx);
-      if (registration?.registerRoutes) registration.registerRoutes(router);
       if (registration?.registerHooks) registration.registerHooks(hooks);
-    } else {
-      // Try .ts version for development
-      const tsEntryPath = entryPath.replace('.js', '.ts');
-      if (fs.existsSync(tsEntryPath)) {
-        log.warn({ plugin: pluginId }, 'Plugin has .ts entry but no .js - compile plugins first');
-      }
     }
 
     // Register in database
@@ -154,7 +147,7 @@ export async function loadPlugin(pluginPath: string): Promise<LoadedPlugin | nul
         enabled = TRUE
     `, [pluginId, manifest.name, manifest.version, manifest.name, manifest.description || null]);
 
-    const loaded: LoadedPlugin = { id: pluginId, manifest, hooks, router, enabled: true };
+    const loaded: LoadedPlugin = { id: pluginId, manifest, hooks, enabled: true };
     pluginRegistry.register(loaded);
 
     for (const [event, handler] of Object.entries(hooks)) {
@@ -171,18 +164,18 @@ export async function loadPlugin(pluginPath: string): Promise<LoadedPlugin | nul
 export async function loadAllPlugins(): Promise<void> {
   // Load from configured plugin directories
   const configuredDirs = config.PLUGIN_DIRS.split(',').map(d => d.trim());
-  
+
   // Also check repo root /plugins directory
   const repoPluginsDir = path.resolve(__dirname, '../../../../plugins');
   const allDirs = [...configuredDirs];
-  
+
   if (fs.existsSync(repoPluginsDir) && !allDirs.includes(repoPluginsDir)) {
     allDirs.push(repoPluginsDir);
   }
 
   for (const dir of allDirs) {
     if (!fs.existsSync(dir)) continue;
-    
+
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory() && !entry.name.startsWith('.')) {
         await loadPlugin(path.join(dir, entry.name));
@@ -193,12 +186,6 @@ export async function loadAllPlugins(): Promise<void> {
   log.info({ count: pluginRegistry.getAll().length }, 'All plugins loaded');
 }
 
-export function mountPluginRoutes(mainRouter: Router): void {
-  for (const plugin of pluginRegistry.getEnabled()) {
-    mainRouter.use(`/plugins/${plugin.id}`, plugin.router);
-  }
-}
-
-export async function invokePluginHook(event: string, ...args: any[]): Promise<void> {
+export async function invokePluginHook(event: string, ...args: unknown[]): Promise<void> {
   await pluginRegistry.invokeHooks(event, ...args);
 }
