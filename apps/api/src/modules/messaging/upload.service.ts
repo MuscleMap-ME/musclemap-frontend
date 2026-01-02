@@ -10,7 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
-import { classifyImage, ModerationResult } from '../../lib/nsfw-detector';
+import { classifyImage } from '../../lib/nsfw-detector';
 import { ValidationError } from '../../lib/errors';
 import { MessageAttachment, ModerationStatus } from './types';
 
@@ -106,7 +106,7 @@ export async function processUpload(
         await fs.writeFile(rejectedPath, fileBuffer);
 
         // Don't store the file in regular uploads
-        return saveAttachmentRecord({
+        return await saveAttachmentRecord({
           id: attachmentId,
           messageId,
           fileName,
@@ -134,7 +134,7 @@ export async function processUpload(
   await fs.writeFile(storagePath, fileBuffer);
 
   // Save to database
-  return saveAttachmentRecord({
+  return await saveAttachmentRecord({
     id: attachmentId,
     messageId,
     fileName,
@@ -176,7 +176,7 @@ async function generateThumbnail(
 /**
  * Save attachment record to database
  */
-function saveAttachmentRecord(attachment: {
+async function saveAttachmentRecord(attachment: {
   id: string;
   messageId: string;
   fileName: string;
@@ -187,17 +187,17 @@ function saveAttachmentRecord(attachment: {
   moderationStatus: ModerationStatus;
   moderationResult?: string;
   moderationScores?: Record<string, number>;
-}): MessageAttachment {
+}): Promise<MessageAttachment> {
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.query(`
     INSERT INTO message_attachments (
       id, message_id, file_name, file_type, file_size,
       storage_path, thumbnail_path, moderation_status,
       moderation_result, moderation_scores, moderated_at, created_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+  `, [
     attachment.id,
     attachment.messageId,
     attachment.fileName,
@@ -210,7 +210,7 @@ function saveAttachmentRecord(attachment: {
     attachment.moderationScores ? JSON.stringify(attachment.moderationScores) : null,
     now,
     now
-  );
+  ]);
 
   return {
     id: attachment.id,
@@ -248,10 +248,10 @@ function getExtensionFromMime(mimeType: string): string {
 /**
  * Get attachment file path for serving
  */
-export function getAttachmentPath(attachmentId: string): string | null {
-  const attachment = db.prepare(`
-    SELECT storage_path, moderation_status FROM message_attachments WHERE id = ?
-  `).get(attachmentId) as any;
+export async function getAttachmentPath(attachmentId: string): Promise<string | null> {
+  const attachment = await db.queryOne<{ storage_path: string; moderation_status: string }>(`
+    SELECT storage_path, moderation_status FROM message_attachments WHERE id = $1
+  `, [attachmentId]);
 
   if (!attachment) {
     return null;
@@ -268,10 +268,10 @@ export function getAttachmentPath(attachmentId: string): string | null {
 /**
  * Get thumbnail path for serving
  */
-export function getThumbnailPath(attachmentId: string): string | null {
-  const attachment = db.prepare(`
-    SELECT thumbnail_path, moderation_status FROM message_attachments WHERE id = ?
-  `).get(attachmentId) as any;
+export async function getThumbnailPath(attachmentId: string): Promise<string | null> {
+  const attachment = await db.queryOne<{ thumbnail_path: string | null; moderation_status: string }>(`
+    SELECT thumbnail_path, moderation_status FROM message_attachments WHERE id = $1
+  `, [attachmentId]);
 
   if (!attachment || !attachment.thumbnail_path) {
     return null;
@@ -289,9 +289,9 @@ export function getThumbnailPath(attachmentId: string): string | null {
  * Delete attachment files
  */
 export async function deleteAttachment(attachmentId: string): Promise<void> {
-  const attachment = db.prepare(`
-    SELECT storage_path, thumbnail_path FROM message_attachments WHERE id = ?
-  `).get(attachmentId) as any;
+  const attachment = await db.queryOne<{ storage_path: string; thumbnail_path: string | null }>(`
+    SELECT storage_path, thumbnail_path FROM message_attachments WHERE id = $1
+  `, [attachmentId]);
 
   if (!attachment) {
     return;
@@ -308,24 +308,24 @@ export async function deleteAttachment(attachmentId: string): Promise<void> {
   }
 
   // Delete database record
-  db.prepare(`DELETE FROM message_attachments WHERE id = ?`).run(attachmentId);
+  await db.query(`DELETE FROM message_attachments WHERE id = $1`, [attachmentId]);
 }
 
 /**
  * Update moderation status (for manual review)
  */
-export function updateModerationStatus(
+export async function updateModerationStatus(
   attachmentId: string,
   status: ModerationStatus,
   result?: string
-): void {
+): Promise<void> {
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.query(`
     UPDATE message_attachments
-    SET moderation_status = ?, moderation_result = ?, moderated_at = ?
-    WHERE id = ?
-  `).run(status, result || null, now, attachmentId);
+    SET moderation_status = $1, moderation_result = $2, moderated_at = $3
+    WHERE id = $4
+  `, [status, result || null, now, attachmentId]);
 
   log.info({ attachmentId, status, result }, 'Moderation status updated');
 }
@@ -333,12 +333,12 @@ export function updateModerationStatus(
 /**
  * Get attachments pending review
  */
-export function getPendingReviewAttachments(): MessageAttachment[] {
-  const rows = db.prepare(`
+export async function getPendingReviewAttachments(): Promise<MessageAttachment[]> {
+  const rows = await db.queryAll<any>(`
     SELECT * FROM message_attachments
     WHERE moderation_status = 'review'
     ORDER BY created_at ASC
-  `).all() as any[];
+  `);
 
   return rows.map(row => ({
     id: row.id,

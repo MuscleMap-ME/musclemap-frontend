@@ -12,29 +12,30 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
 
-export function migrate(): void {
+export async function migrate(): Promise<void> {
   log.info('Running migration: 001_add_trial_and_subscriptions');
 
-  // Check if columns already exist
-  const tableInfo = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
-  const hasTrialStarted = tableInfo.some(col => col.name === 'trial_started_at');
+  // Check if columns already exist using PostgreSQL information_schema
+  const columnCheck = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.columns
+     WHERE table_name = 'users' AND column_name = 'trial_started_at'`
+  );
+  const hasTrialStarted = parseInt(columnCheck?.count || '0') > 0;
 
   if (!hasTrialStarted) {
     log.info('Adding trial columns to users table...');
 
     // Add trial columns
-    db.exec(`
-      ALTER TABLE users ADD COLUMN trial_started_at TEXT;
-      ALTER TABLE users ADD COLUMN trial_ends_at TEXT;
-    `);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMP`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP`);
 
     // Set trial dates for existing users based on created_at
     // Give them 90 days from their account creation
-    db.exec(`
+    await db.query(`
       UPDATE users
       SET trial_started_at = created_at,
-          trial_ends_at = datetime(created_at, '+90 days')
-      WHERE trial_started_at IS NULL;
+          trial_ends_at = created_at + INTERVAL '90 days'
+      WHERE trial_started_at IS NULL
     `);
 
     log.info('Trial columns added and backfilled for existing users');
@@ -43,28 +44,32 @@ export function migrate(): void {
   }
 
   // Check if subscriptions table exists
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='subscriptions'").get();
+  const tableCheck = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.tables
+     WHERE table_name = 'subscriptions'`
+  );
+  const hasTable = parseInt(tableCheck?.count || '0') > 0;
 
-  if (!tables) {
+  if (!hasTable) {
     log.info('Creating subscriptions table...');
 
-    db.exec(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS subscriptions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         stripe_customer_id TEXT,
         stripe_subscription_id TEXT UNIQUE,
         status TEXT NOT NULL DEFAULT 'inactive',
-        current_period_start TEXT,
-        current_period_end TEXT,
-        cancel_at_period_end INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
+        current_period_start TIMESTAMP,
+        current_period_end TIMESTAMP,
+        cancel_at_period_end BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
     `);
+
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id)`);
 
     log.info('Subscriptions table created');
   } else {

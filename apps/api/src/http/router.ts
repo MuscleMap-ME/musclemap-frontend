@@ -6,6 +6,7 @@ import { traceRouter } from '../modules/trace';
  */
 
 import { Router, Request, Response } from 'express';
+import { getPoolMetrics, isPoolHealthy } from '../db/client';
 
 // Module routers
 import { authRouter, authenticateToken } from '../modules/auth';
@@ -19,6 +20,9 @@ import { archetypeRouter } from '../modules/archetypes';
 import { competitionRouter } from '../modules/competitions';
 import { communityRouter } from '../modules/community';
 import { messagingRouter } from '../modules/messaging';
+import { createRivalsRouter } from '../modules/rivals';
+import { createWearablesRouter } from '../modules/wearables';
+import { createCrewsRouter } from '../modules/crews';
 
 // Plugin system
 import { pluginRegistry } from '../plugins/plugin-loader';
@@ -68,6 +72,25 @@ router.post('/trace/frontend-log', (req, res) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       version: '2.0.0',
+    });
+  });
+
+  // Detailed health check with pool metrics (for monitoring)
+  router.get('/health/detailed', async (_req: Request, res: Response) => {
+    const poolMetrics = getPoolMetrics();
+    const dbHealthy = await isPoolHealthy();
+
+    const status = dbHealthy ? 'ok' : 'degraded';
+    const statusCode = dbHealthy ? 200 : 503;
+
+    res.status(statusCode).json({
+      status,
+      timestamp: new Date().toISOString(),
+      version: '2.0.0',
+      database: {
+        healthy: dbHealthy,
+        pool: poolMetrics,
+      },
     });
   });
 
@@ -188,6 +211,15 @@ router.post('/trace/frontend-log', (req, res) => {
 
   // -------------------------------------------------------
 router.use('/competitions', competitionRouter);
+
+  // Rivals
+  router.use('/rivals', createRivalsRouter());
+
+  // Wearables (Apple Watch, Fitbit, etc.)
+  router.use('/wearables', createWearablesRouter());
+
+  // Crews & Crew Wars
+  router.use('/crews', createCrewsRouter());
 
   // Plugin routes
   for (const plugin of pluginRegistry.getEnabled()) {

@@ -43,7 +43,7 @@ messagingRouter.use(authenticateToken);
  * Get all conversations for the current user
  */
 messagingRouter.get('/conversations', asyncHandler(async (req: Request, res: Response) => {
-  const conversations = messageService.getUserConversations(req.user!.userId);
+  const conversations = await messageService.getUserConversations(req.user!.userId);
 
   // Add online status for participants
   const conversationsWithStatus = conversations.map(conv => ({
@@ -64,7 +64,7 @@ messagingRouter.get('/conversations', asyncHandler(async (req: Request, res: Res
 messagingRouter.post('/conversations', asyncHandler(async (req: Request, res: Response) => {
   const validated = createConversationSchema.parse(req.body);
 
-  const conversation = messageService.createConversation(req.user!.userId, {
+  const conversation = await messageService.createConversation(req.user!.userId, {
     type: validated.type,
     name: validated.name,
     participantIds: validated.participantIds,
@@ -78,7 +78,7 @@ messagingRouter.post('/conversations', asyncHandler(async (req: Request, res: Re
  * Get a specific conversation
  */
 messagingRouter.get('/conversations/:id', asyncHandler(async (req: Request, res: Response) => {
-  const conversation = messageService.getConversationWithDetails(req.params.id, req.user!.userId);
+  const conversation = await messageService.getConversationWithDetails(req.params.id, req.user!.userId);
 
   if (!conversation) {
     throw new NotFoundError('Conversation');
@@ -104,7 +104,7 @@ messagingRouter.get('/conversations/:id/messages', asyncHandler(async (req: Requ
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
   const before = req.query.before as string | undefined;
 
-  const messages = messageService.getConversationMessages(
+  const messages = await messageService.getConversationMessages(
     req.params.id,
     req.user!.userId,
     { limit, before }
@@ -120,7 +120,7 @@ messagingRouter.get('/conversations/:id/messages', asyncHandler(async (req: Requ
 messagingRouter.post('/conversations/:id/messages', asyncHandler(async (req: Request, res: Response) => {
   const validated = sendMessageSchema.parse(req.body);
 
-  const message = messageService.sendMessage(req.params.id, req.user!.userId, validated);
+  const message = await messageService.sendMessage(req.params.id, req.user!.userId, validated);
 
   // Broadcast to other participants via WebSocket
   broadcastNewMessage(req.params.id, message, req.user!.userId);
@@ -135,7 +135,7 @@ messagingRouter.post('/conversations/:id/messages', asyncHandler(async (req: Req
 messagingRouter.put('/messages/:id', asyncHandler(async (req: Request, res: Response) => {
   const validated = editMessageSchema.parse(req.body);
 
-  const message = messageService.editMessage(req.params.id, req.user!.userId, validated.content);
+  const message = await messageService.editMessage(req.params.id, req.user!.userId, validated.content);
 
   // Broadcast edit via WebSocket
   broadcastMessageEdit(message.conversationId, message, req.user!.userId);
@@ -149,13 +149,13 @@ messagingRouter.put('/messages/:id', asyncHandler(async (req: Request, res: Resp
  */
 messagingRouter.delete('/messages/:id', asyncHandler(async (req: Request, res: Response) => {
   // Get message first to know the conversation
-  const message = messageService.getMessageWithSender(req.params.id);
+  const message = await messageService.getMessageWithSender(req.params.id);
 
   if (!message) {
     throw new NotFoundError('Message');
   }
 
-  messageService.deleteMessage(req.params.id, req.user!.userId);
+  await messageService.deleteMessage(req.params.id, req.user!.userId);
 
   // Broadcast deletion via WebSocket
   broadcastMessageDelete(message.conversationId, req.params.id, req.user!.userId);
@@ -168,7 +168,7 @@ messagingRouter.delete('/messages/:id', asyncHandler(async (req: Request, res: R
  * Mark conversation as read
  */
 messagingRouter.post('/conversations/:id/read', asyncHandler(async (req: Request, res: Response) => {
-  messageService.markAsRead(req.params.id, req.user!.userId);
+  await messageService.markAsRead(req.params.id, req.user!.userId);
   res.status(204).send();
 }));
 
@@ -181,7 +181,7 @@ messagingRouter.post('/block/:userId', asyncHandler(async (req: Request, res: Re
     throw new ValidationError('Cannot block yourself');
   }
 
-  messageService.blockUser(req.user!.userId, req.params.userId);
+  await messageService.blockUser(req.user!.userId, req.params.userId);
   res.status(204).send();
 }));
 
@@ -190,7 +190,7 @@ messagingRouter.post('/block/:userId', asyncHandler(async (req: Request, res: Re
  * Unblock a user
  */
 messagingRouter.delete('/block/:userId', asyncHandler(async (req: Request, res: Response) => {
-  messageService.unblockUser(req.user!.userId, req.params.userId);
+  await messageService.unblockUser(req.user!.userId, req.params.userId);
   res.status(204).send();
 }));
 
@@ -199,7 +199,7 @@ messagingRouter.delete('/block/:userId', asyncHandler(async (req: Request, res: 
  * Get list of blocked users
  */
 messagingRouter.get('/blocked', asyncHandler(async (req: Request, res: Response) => {
-  const blockedIds = messageService.getBlockedUsers(req.user!.userId);
+  const blockedIds = await messageService.getBlockedUsers(req.user!.userId);
   res.json({ data: blockedIds });
 }));
 
@@ -208,7 +208,7 @@ messagingRouter.get('/blocked', asyncHandler(async (req: Request, res: Response)
  * Get an attachment file
  */
 messagingRouter.get('/attachments/:id', asyncHandler(async (req: Request, res: Response) => {
-  const filePath = uploadService.getAttachmentPath(req.params.id);
+  const filePath = await uploadService.getAttachmentPath(req.params.id);
 
   if (!filePath) {
     throw new NotFoundError('Attachment');
@@ -222,7 +222,7 @@ messagingRouter.get('/attachments/:id', asyncHandler(async (req: Request, res: R
  * Get attachment thumbnail
  */
 messagingRouter.get('/attachments/:id/thumbnail', asyncHandler(async (req: Request, res: Response) => {
-  const thumbnailPath = uploadService.getThumbnailPath(req.params.id);
+  const thumbnailPath = await uploadService.getThumbnailPath(req.params.id);
 
   if (!thumbnailPath) {
     throw new NotFoundError('Thumbnail');

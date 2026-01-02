@@ -1,132 +1,297 @@
 /**
- * Database Client
+ * PostgreSQL Database Client
  *
- * Unified database interface for PostgreSQL.
- * Provides a similar API to the previous SQLite client for easy migration.
+ * Optimized for high concurrency with:
+ * - Connection pooling with tuned parameters
+ * - Statement timeout protection
+ * - Idle connection management
+ * - Pool monitoring and metrics
+ * - Transaction retry with exponential backoff
+ * - Advisory locks for distributed locking
  */
 
-import { PoolClient, QueryResultRow } from 'pg';
-import {
-  query,
-  queryOne,
-  queryAll,
-  execute,
-  transaction as pgTransaction,
-  serializableTransaction,
-  getPool,
-  closePool,
-  healthCheck,
-  getPoolStats,
-  sql,
-  upsert,
-  batchInsert,
-} from './postgres';
+import { Pool, PoolClient, PoolConfig } from 'pg';
+import { config } from '../config';
 import { loggers } from '../lib/logger';
 
 const log = loggers.db;
 
-/**
- * PreparedStatement-like interface for PostgreSQL
- * Converts SQLite-style ? placeholders to PostgreSQL $1, $2, etc.
- */
-interface PreparedStatement {
-  get<T = any>(...params: any[]): Promise<T | null>;
-  all<T = any>(...params: any[]): Promise<T[]>;
-  run(...params: any[]): Promise<{ changes: number }>;
+let pool: Pool | null = null;
+
+// Pool metrics for monitoring
+export interface PoolMetrics {
+  totalConnections: number;
+  idleConnections: number;
+  waitingClients: number;
+}
+
+function createPoolConfig(): PoolConfig {
+  const baseConfig: PoolConfig = {
+    // Connection limits
+    min: config.PG_POOL_MIN,
+    max: config.PG_POOL_MAX,
+
+    // Timeout settings for high concurrency
+    idleTimeoutMillis: config.PG_IDLE_TIMEOUT,
+    connectionTimeoutMillis: config.PG_CONNECTION_TIMEOUT,
+
+    // Statement timeout to prevent runaway queries
+    statement_timeout: config.PG_STATEMENT_TIMEOUT,
+
+    // Keep connections alive
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+
+    // Allow exit even with open connections in development
+    allowExitOnIdle: config.NODE_ENV !== 'production',
+  };
+
+  if (config.DATABASE_URL) {
+    return {
+      ...baseConfig,
+      connectionString: config.DATABASE_URL,
+      // SSL for production database URLs
+      ssl: config.DATABASE_URL.includes('sslmode=require')
+        ? { rejectUnauthorized: false }
+        : undefined,
+    };
+  }
+
+  return {
+    ...baseConfig,
+    host: config.PGHOST,
+    port: config.PGPORT,
+    database: config.PGDATABASE,
+    user: config.PGUSER,
+    password: config.PGPASSWORD,
+  };
 }
 
 /**
- * Database client with prepared statement-like interface
- *
- * Provides compatibility with the previous SQLite API while using PostgreSQL.
+ * Initialize the connection pool
+ */
+export async function initializePool(): Promise<void> {
+  if (pool) {
+    log.warn('Pool already initialized');
+    return;
+  }
+
+  const poolConfig = createPoolConfig();
+  pool = new Pool(poolConfig);
+
+  // Connection event handlers
+  pool.on('connect', (client) => {
+    log.debug('New client connected to PostgreSQL pool');
+    // Set session-level optimizations for each connection
+    client.query('SET statement_timeout = $1', [config.PG_STATEMENT_TIMEOUT]).catch(() => {});
+  });
+
+  pool.on('remove', () => {
+    log.debug('Client removed from pool');
+  });
+
+  pool.on('error', (err) => {
+    log.error('Unexpected error on idle PostgreSQL client', { error: err.message });
+  });
+
+  // Verify connection
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT version()');
+    client.release();
+    log.info('PostgreSQL pool initialized', {
+      host: config.DATABASE_URL ? 'from DATABASE_URL' : config.PGHOST,
+      database: config.DATABASE_URL ? 'from DATABASE_URL' : config.PGDATABASE,
+      poolMin: config.PG_POOL_MIN,
+      poolMax: config.PG_POOL_MAX,
+      version: result.rows[0]?.version?.split(' ').slice(0, 2).join(' '),
+    });
+  } catch (error) {
+    log.error('Failed to connect to PostgreSQL', { error });
+    throw error;
+  }
+}
+
+/**
+ * Get pool metrics for monitoring
+ */
+export function getPoolMetrics(): PoolMetrics {
+  if (!pool) {
+    return { totalConnections: 0, idleConnections: 0, waitingClients: 0 };
+  }
+  return {
+    totalConnections: pool.totalCount,
+    idleConnections: pool.idleCount,
+    waitingClients: pool.waitingCount,
+  };
+}
+
+/**
+ * Check if pool is healthy
+ */
+export async function isPoolHealthy(): Promise<boolean> {
+  if (!pool) return false;
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface DbQueryResult<T = Record<string, unknown>> {
+  rows: T[];
+  rowCount: number | null;
+}
+
+function getPool(): Pool {
+  if (!pool) {
+    throw new Error('Database pool not initialized. Call initializePool() first.');
+  }
+  return pool;
+}
+
+/**
+ * Database interface that provides query methods
  */
 export const db = {
   /**
-   * Create a prepared statement-like object
-   * Note: PostgreSQL caches execution plans automatically
+   * Execute a query with parameters
    */
-  prepare(text: string): PreparedStatement {
-    // Convert SQLite-style ? placeholders to PostgreSQL $1, $2, etc.
-    let paramIndex = 0;
-    const pgText = text.replace(/\?/g, () => `$${++paramIndex}`);
-
-    // Convert SQLite date functions to PostgreSQL
-    const convertedText = pgText
-      .replace(/datetime\('now'\)/gi, 'NOW()')
-      .replace(/date\('now'\)/gi, 'CURRENT_DATE')
-      .replace(/date\('now',\s*'([^']+)'\)/gi, "CURRENT_DATE + INTERVAL '$1'")
-      .replace(/datetime\('now',\s*'([^']+)'\)/gi, "NOW() + INTERVAL '$1'");
-
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<DbQueryResult<T>> {
+    const result = await getPool().query(sql, params);
     return {
-      async get<T = any>(...params: any[]): Promise<T | null> {
-        return queryOne<T & QueryResultRow>(convertedText, params);
-      },
-
-      async all<T = any>(...params: any[]): Promise<T[]> {
-        return queryAll<T & QueryResultRow>(convertedText, params);
-      },
-
-      async run(...params: any[]): Promise<{ changes: number }> {
-        const result = await query(convertedText, params);
-        return { changes: result.rowCount || 0 };
-      },
+      rows: result.rows as T[],
+      rowCount: result.rowCount,
     };
   },
 
   /**
-   * Execute raw SQL (for schema operations)
+   * Get a single row from query result
    */
-  async exec(text: string) {
-    return query(text);
+  async queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<T | undefined> {
+    const result = await getPool().query(sql, params);
+    return result.rows[0] as T | undefined;
   },
 
   /**
-   * Close the database connection
+   * Get all rows from query result
    */
-  close() {
-    return closePool();
+  async queryAll<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<T[]> {
+    const result = await getPool().query(sql, params);
+    return result.rows as T[];
+  },
+
+  /**
+   * Execute a statement (INSERT, UPDATE, DELETE) and return affected row count
+   */
+  async execute(sql: string, params?: unknown[]): Promise<number> {
+    const result = await getPool().query(sql, params);
+    return result.rowCount ?? 0;
+  },
+
+  /**
+   * Get a client from the pool for transactions
+   */
+  async getClient(): Promise<PoolClient> {
+    return getPool().connect();
+  },
+
+  /**
+   * Get the underlying pool for advanced usage
+   */
+  getPool(): Pool {
+    return getPool();
   },
 };
 
 /**
- * Transaction wrapper
- *
- * Usage:
- *   const result = await transaction(async (client) => {
- *     await client.query('INSERT INTO users ...');
- *     return { success: true };
- *   });
+ * Execute a function within a transaction with automatic retry on serialization failure
  */
 export async function transaction<T>(
-  fn: ((client: PoolClient) => Promise<T>) | (() => T | Promise<T>)
+  fn: (client: PoolClient) => Promise<T>,
+  options?: { retries?: number; isolationLevel?: 'READ COMMITTED' | 'REPEATABLE READ' | 'SERIALIZABLE' }
 ): Promise<T> {
-  // Wrap in async transaction
-  return pgTransaction(async (client) => {
-    if (fn.length === 0) {
-      // Legacy-style function without client parameter
-      return (fn as () => T | Promise<T>)();
+  const maxRetries = options?.retries ?? 3;
+  const isolationLevel = options?.isolationLevel ?? 'READ COMMITTED';
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const client = await getPool().connect();
+    try {
+      await client.query(`BEGIN ISOLATION LEVEL ${isolationLevel}`);
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error: any) {
+      await client.query('ROLLBACK');
+
+      // Retry on serialization failure (code 40001) or deadlock (code 40P01)
+      if ((error.code === '40001' || error.code === '40P01') && attempt < maxRetries) {
+        log.warn(`Transaction retry ${attempt}/${maxRetries} due to ${error.code}`);
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 10));
+        continue;
+      }
+      throw error;
+    } finally {
+      client.release();
     }
-    return (fn as (client: PoolClient) => Promise<T>)(client);
-  });
+  }
+
+  throw new Error('Transaction failed after max retries');
 }
 
 /**
- * Serializable transaction for operations requiring strongest isolation
+ * Execute a function with advisory lock for distributed locking
  */
-export { serializableTransaction };
+export async function withAdvisoryLock<T>(
+  lockId: number,
+  fn: () => Promise<T>,
+  timeout?: number
+): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    // Try to acquire lock with timeout
+    if (timeout) {
+      await client.query('SET lock_timeout = $1', [timeout]);
+    }
+
+    const lockResult = await client.query('SELECT pg_try_advisory_lock($1)', [lockId]);
+    if (!lockResult.rows[0]?.pg_try_advisory_lock) {
+      throw new Error(`Could not acquire advisory lock ${lockId}`);
+    }
+
+    try {
+      return await fn();
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [lockId]);
+    }
+  } finally {
+    client.release();
+  }
+}
 
 /**
- * Direct query functions for new code
+ * Close the database pool
  */
-export { query, queryOne, queryAll, execute, sql, upsert, batchInsert };
+export async function closePool(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    log.info('PostgreSQL pool closed');
+  }
+}
 
-/**
- * Pool management
- */
-export { getPool, closePool as closeDatabase, healthCheck, getPoolStats };
-
-// Initialize connection on import
-log.info('PostgreSQL client initialized');
-
-// Re-export for compatibility
-export default db;
+// Legacy alias for compatibility
+export const closeDatabase = closePool;

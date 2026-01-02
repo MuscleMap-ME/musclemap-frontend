@@ -143,10 +143,16 @@ export async function loadPlugin(pluginPath: string): Promise<LoadedPlugin | nul
     }
 
     // Register in database
-    db.prepare(`
-      INSERT OR REPLACE INTO installed_plugins (id, name, version, display_name, description, enabled)
-      VALUES (?, ?, ?, ?, ?, 1)
-    `).run(pluginId, manifest.name, manifest.version, manifest.name, manifest.description);
+    await db.query(`
+      INSERT INTO installed_plugins (id, name, version, display_name, description, enabled)
+      VALUES ($1, $2, $3, $4, $5, TRUE)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        version = EXCLUDED.version,
+        display_name = EXCLUDED.display_name,
+        description = EXCLUDED.description,
+        enabled = TRUE
+    `, [pluginId, manifest.name, manifest.version, manifest.name, manifest.description || null]);
 
     const loaded: LoadedPlugin = { id: pluginId, manifest, hooks, router, enabled: true };
     pluginRegistry.register(loaded);

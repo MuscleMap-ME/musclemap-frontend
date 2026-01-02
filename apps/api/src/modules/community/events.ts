@@ -233,7 +233,7 @@ export async function emitEvent(
   payload: Record<string, unknown> = {},
   options: EmitEventOptions = {}
 ): Promise<ActivityEvent> {
-  const privacy = getPrivacySettings(userId);
+  const privacy = await getPrivacySettings(userId);
   const visibilityScope = determineVisibility(eventType, privacy);
 
   // Compute geoBucket only if user shares location
@@ -250,13 +250,13 @@ export async function emitEvent(
     createdAt: new Date().toISOString(),
   };
 
-  // Persist to SQLite (unless skipped)
+  // Persist to PostgreSQL (unless skipped)
   if (!options.skipPersist) {
     try {
-      db.prepare(`
+      await db.query(`
         INSERT INTO activity_events (id, user_id, event_type, payload, geo_bucket, visibility_scope, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
         event.id,
         event.userId,
         event.eventType,
@@ -264,7 +264,7 @@ export async function emitEvent(
         event.geoBucket || null,
         event.visibilityScope,
         event.createdAt
-      );
+      ]);
     } catch (err) {
       log.error({ error: err, eventId: event.id }, 'Failed to persist event');
     }

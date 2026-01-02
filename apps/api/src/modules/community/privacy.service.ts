@@ -17,19 +17,19 @@ const CACHE_TTL_MS = 60000; // 1 minute
 /**
  * Get privacy settings for a user
  */
-export function getPrivacySettings(userId: string): PrivacySettings {
+export async function getPrivacySettings(userId: string): Promise<PrivacySettings> {
   // Check cache first
   const cached = privacyCache.get(userId);
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
     return cached.settings;
   }
 
-  const row = db.prepare(`
+  const row = await db.queryOne<any>(`
     SELECT user_id, share_location, show_in_feed, show_on_map,
            show_workout_details, public_profile, public_display_name, updated_at
     FROM user_privacy_settings
-    WHERE user_id = ?
-  `).get(userId) as any;
+    WHERE user_id = $1
+  `, [userId]);
 
   const settings: PrivacySettings = row
     ? {
@@ -62,11 +62,11 @@ export function getPrivacySettings(userId: string): PrivacySettings {
 /**
  * Update privacy settings for a user
  */
-export function updatePrivacySettings(
+export async function updatePrivacySettings(
   userId: string,
   updates: Partial<Omit<PrivacySettings, 'userId' | 'updatedAt'>>
-): PrivacySettings {
-  const current = getPrivacySettings(userId);
+): Promise<PrivacySettings> {
+  const current = await getPrivacySettings(userId);
 
   const merged = {
     shareLocation: updates.shareLocation ?? current.shareLocation,
@@ -77,28 +77,28 @@ export function updatePrivacySettings(
     publicDisplayName: updates.publicDisplayName ?? current.publicDisplayName,
   };
 
-  db.prepare(`
+  await db.query(`
     INSERT INTO user_privacy_settings (
       user_id, share_location, show_in_feed, show_on_map,
       show_workout_details, public_profile, public_display_name, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
     ON CONFLICT(user_id) DO UPDATE SET
-      share_location = excluded.share_location,
-      show_in_feed = excluded.show_in_feed,
-      show_on_map = excluded.show_on_map,
-      show_workout_details = excluded.show_workout_details,
-      public_profile = excluded.public_profile,
-      public_display_name = excluded.public_display_name,
-      updated_at = excluded.updated_at
-  `).run(
+      share_location = EXCLUDED.share_location,
+      show_in_feed = EXCLUDED.show_in_feed,
+      show_on_map = EXCLUDED.show_on_map,
+      show_workout_details = EXCLUDED.show_workout_details,
+      public_profile = EXCLUDED.public_profile,
+      public_display_name = EXCLUDED.public_display_name,
+      updated_at = EXCLUDED.updated_at
+  `, [
     userId,
-    merged.shareLocation ? 1 : 0,
-    merged.showInFeed ? 1 : 0,
-    merged.showOnMap ? 1 : 0,
-    merged.showWorkoutDetails ? 1 : 0,
-    merged.publicProfile ? 1 : 0,
+    merged.shareLocation,
+    merged.showInFeed,
+    merged.showOnMap,
+    merged.showWorkoutDetails,
+    merged.publicProfile,
     merged.publicDisplayName || null
-  );
+  ]);
 
   // Invalidate cache
   privacyCache.delete(userId);

@@ -47,12 +47,12 @@ export const prescriptionService = {
   /**
    * Generate a workout prescription based on constraints
    */
-  generate(userId: string, request: PrescriptionRequest): PrescriptionResponse {
-    return transaction(() => {
+  async generate(userId: string, request: PrescriptionRequest): Promise<PrescriptionResponse> {
+    return transaction(async (client) => {
       const prescriptionId = `rx_${crypto.randomBytes(12).toString('hex')}`;
 
       // Solve constraints
-      const { exercises, coverage, actualDurationSeconds, substitutions } = solveConstraints(request);
+      const { exercises, coverage, actualDurationSeconds, substitutions } = await solveConstraints(request);
 
       if (exercises.length === 0) {
         throw new ValidationError(
@@ -85,10 +85,10 @@ export const prescriptionService = {
       };
 
       // Store prescription in database
-      db.prepare(`
+      await client.query(`
         INSERT INTO prescriptions (id, user_id, constraints, exercises, warmup, cooldown, substitutions, muscle_coverage, estimated_duration, actual_duration, credit_cost)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
         prescriptionId,
         userId,
         JSON.stringify(request),
@@ -100,7 +100,7 @@ export const prescriptionService = {
         request.timeAvailable,
         actualDuration,
         1
-      );
+      ]);
 
       log.info('Prescription generated', {
         prescriptionId,
@@ -116,10 +116,10 @@ export const prescriptionService = {
   /**
    * Get a prescription by ID
    */
-  getById(id: string, userId?: string): PrescriptionResponse | null {
-    const row = db.prepare(`
-      SELECT * FROM prescriptions WHERE id = ?
-    `).get(id) as any;
+  async getById(id: string, userId?: string): Promise<PrescriptionResponse | null> {
+    const row = await db.queryOne<any>(`
+      SELECT * FROM prescriptions WHERE id = $1
+    `, [id]);
 
     if (!row) return null;
 
@@ -146,13 +146,13 @@ export const prescriptionService = {
   /**
    * Get user's prescription history
    */
-  getByUser(userId: string, limit: number = 20): PrescriptionResponse[] {
-    const rows = db.prepare(`
+  async getByUser(userId: string, limit: number = 20): Promise<PrescriptionResponse[]> {
+    const rows = await db.queryAll<any>(`
       SELECT * FROM prescriptions
-      WHERE user_id = ?
+      WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT ?
-    `).all(userId, limit) as any[];
+      LIMIT $2
+    `, [userId, limit]);
 
     return rows.map(row => ({
       id: row.id,
@@ -240,7 +240,7 @@ async function requireCreditsForPrescription(req: Request, res: Response, next: 
   }
 
   // Check if user has unlimited access (trial or subscription)
-  const entitlements = entitlementsService.getEntitlements(userId);
+  const entitlements = await entitlementsService.getEntitlements(userId);
 
   if (entitlements.unlimited) {
     // Trial or subscription - no credit needed
@@ -249,10 +249,10 @@ async function requireCreditsForPrescription(req: Request, res: Response, next: 
   }
 
   // Check credit balance
-  const canPerform = entitlementsService.canPerformAction(userId, 1);
+  const canPerform = await entitlementsService.canPerformAction(userId, 1);
 
   if (!canPerform.allowed) {
-    const balance = economyService.getBalance(userId);
+    const balance = await economyService.getBalance(userId);
     return res.status(402).json({
       error: {
         code: 'INSUFFICIENT_CREDITS',
@@ -284,12 +284,12 @@ prescriptionRouter.post(
     const data = prescriptionRequestSchema.parse(req.body);
 
     // Generate prescription
-    const prescription = prescriptionService.generate(userId, data as PrescriptionRequest);
+    const prescription = await prescriptionService.generate(userId, data as PrescriptionRequest);
 
     // Charge credit if needed
     const creditCost = (req as any).creditCost;
     if (creditCost > 0) {
-      const chargeResult = economyService.charge({
+      const chargeResult = await economyService.charge({
         userId,
         action: 'prescription.generate',
         amount: 1,
@@ -320,7 +320,7 @@ prescriptionRouter.get(
   '/:id',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const prescription = prescriptionService.getById(req.params.id, req.user!.userId);
+    const prescription = await prescriptionService.getById(req.params.id, req.user!.userId);
 
     if (!prescription) {
       res.status(404).json({
@@ -342,7 +342,7 @@ prescriptionRouter.get(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const prescriptions = prescriptionService.getByUser(req.user!.userId, limit);
+    const prescriptions = await prescriptionService.getByUser(req.user!.userId, limit);
 
     res.json({
       data: prescriptions,
@@ -357,7 +357,7 @@ prescriptionRouter.post(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     const data = prescriptionRequestSchema.parse(req.body);
-    const { exercises, coverage, actualDurationSeconds, substitutions } = solveConstraints(
+    const { exercises, coverage, actualDurationSeconds, substitutions } = await solveConstraints(
       data as PrescriptionRequest
     );
 
