@@ -128,12 +128,18 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       data: archetypes.map((a) => {
         // Handle both JSON array and comma-separated string formats
         let focusAreas: string[] = [];
-        if (a.focus_areas) {
-          try {
-            focusAreas = JSON.parse(a.focus_areas);
-          } catch {
-            // If not valid JSON, treat as comma-separated string
-            focusAreas = a.focus_areas.split(',').map((s) => s.trim());
+        const raw = a.focus_areas;
+        if (raw) {
+          if (Array.isArray(raw)) {
+            focusAreas = raw;
+          } else if (typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              focusAreas = Array.isArray(parsed) ? parsed : [raw];
+            } catch {
+              // If not valid JSON, treat as comma-separated string
+              focusAreas = raw.split(',').map((s) => s.trim());
+            }
           }
         }
         return { ...a, focusAreas };
