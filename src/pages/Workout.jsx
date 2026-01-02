@@ -177,7 +177,7 @@ export default function Workout() {
         setRewards(data.rewards);
         setLogged([]);
       } else {
-        alert(data.error || 'Failed to complete');
+        alert(data.error?.message || data.error || 'Failed to complete');
       }
     } catch(e) { alert('Error completing workout'); }
     setCompleting(false);

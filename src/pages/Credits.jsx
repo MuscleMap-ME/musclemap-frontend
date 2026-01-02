@@ -39,7 +39,7 @@ export default function Credits() {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else setMsg({ t: data.error || "Failed", o: false });
+      else setMsg({ t: data.error?.message || data.error || "Failed", o: false });
     } catch (e) { setMsg({ t: "Network error", o: false }); }
     setLoading(null);
   }

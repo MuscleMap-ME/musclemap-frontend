@@ -36,7 +36,10 @@ export default function Onboarding() {
         body: JSON.stringify({ archetypeId: archetype.id, equipmentPath: equipment.type, timelineId: 'standard_12week' })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      if (!res.ok) {
+        const errorMsg = data.error?.message || data.error || data.message || 'Failed';
+        throw new Error(errorMsg);
+      }
       const user = JSON.parse(localStorage.getItem('musclemap_user') || '{}');
       login({ ...user, archetype: archetype.id }, token);
       navigate('/dashboard');
