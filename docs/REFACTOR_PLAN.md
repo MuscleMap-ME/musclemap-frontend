@@ -1,28 +1,106 @@
-# Refactor Scope, Boundaries, and Quality Gates
+# Refactor Status and Future Plans
 
-## Module boundaries and ownership signals
-| Area | Scope | Responsibilities | Integration & notes |
-| --- | --- | --- | --- |
-| `apps/api` | Fastify host with embedded Express compatibility layer | Bootstraps DB schema/seeds, loads plugins, mounts Express router, and handles lifecycle hooks | Depends on `@musclemap/core` and `@musclemap/plugin-sdk`; Fastify middleware stack wraps legacy Express routes while migration is in progress. |
-| `packages/core` | Shared domain contracts | Exposes canonical types (users, economy, workouts), constants, and permission helpers for all runtimes | Acts as the single source of truth for typed models across API, plugins, and (future) frontend usage. |
-| `packages/plugin-sdk` | Plugin authoring surface | Defines backend plugin manifests, hook interfaces, auth helpers, and frontend plugin contracts (routes, widgets, nav) | Relies on `@musclemap/core` for domain types; currently ships loose Express typings to avoid hard dependency. |
-| `src/` | Frontend (Vite + React) | UI shell (`App.jsx`), page-level routes, global stores/contexts, and shared components/styles | Currently JavaScript-only; does not consume `@musclemap/core` types or shared validation yet. |
-| `plugins/` | Runtime plugin drop-ins | Holds user-provided plugin manifests and entries loaded by the API | Lifecycle managed by `apps/api` plugin loader; SDK shapes live in `packages/plugin-sdk`. |
+## Completed Migrations
 
-## Refactor goals
-- **Reduce duplication and drift**: centralize domain models and permission logic through `@musclemap/core` to keep API, plugins, and UI aligned.
-- **Improve typing and safety**: adopt TypeScript (or JSDoc typings) in frontend and plugin surfaces, replacing `any`-based helpers in the SDK backend layer.
-- **Standardize API contracts**: codify request/response schemas (e.g., Zod) at the edge and reuse them across clients; ensure plugin hooks follow the same contracts as first-party routes.
-- **Consolidate runtime guardrails**: share logger and error-handling patterns between Fastify and Express layers; surface consistent shutdown and request ID handling.
+### Express to Fastify Migration (Completed January 2025)
 
-## Non-goals
-- Database schema redesigns or new product features.
-- Replacing Fastify/Express hosting strategy during the migration window.
-- Introducing new plugin capabilities beyond aligning with existing SDK contracts.
+The API has been fully migrated from Express to Fastify:
 
-## Code-quality gates and current gaps
-| Gate | Required? | Current coverage | Gaps / actions |
-| --- | --- | --- | --- |
-| `pnpm lint` | Yes | Implemented per-package in `apps/api` and `packages/core`; missing at workspace/root and in `packages/plugin-sdk` | Add a root `lint` script that runs package lint tasks; introduce lint config + script for `packages/plugin-sdk` and the React app. |
-| `pnpm test` | Yes | API (`apps/api`) and frontend (`test:frontend`) have isolated scripts; no workspace aggregator | Create a top-level `test` script to fan out to API, frontend, and package unit tests; add coverage reporting targets where absent. |
-| Type checks (`pnpm typecheck`) | Yes | Available in `apps/api`, `packages/core`, and `packages/plugin-sdk`; absent for the React app and the workspace | Add a workspace `typecheck` that delegates to packages; migrate frontend to TS or add JSDoc + `tsc --allowJs` to enforce types. |
+**What Changed:**
+- All routes now use Fastify's native route registration
+- Request/response handling uses Fastify patterns (`request`, `reply`)
+- Authentication middleware uses Fastify's `preHandler` hooks
+- Error handling follows Fastify conventions
+
+**Benefits Achieved:**
+- Faster request handling (Fastify's optimized routing)
+- Better TypeScript integration
+- Native JSON schema validation support
+- Improved logging with Pino integration
+
+**Files Updated:**
+- `apps/api/src/http/server.ts` - Pure Fastify configuration
+- `apps/api/src/http/router.ts` - Route registration
+- `apps/api/src/http/routes/*.ts` - All route handlers
+
+### Database Migration to PostgreSQL (Completed)
+
+Migrated from SQLite to PostgreSQL with:
+- Connection pooling via `pg` library
+- Automatic migrations on startup
+- Query helpers (`queryOne`, `queryAll`, `query`)
+- Proper type safety with generics
+
+## Current Module Structure
+
+| Module | Status | Description |
+|--------|--------|-------------|
+| `apps/api` | Active | Fastify API server |
+| `packages/client` | Active | HTTP client with caching/retry |
+| `packages/shared` | Active | Shared utilities (error extraction) |
+| `packages/core` | Active | Types, constants, permissions |
+| `packages/plugin-sdk` | Legacy | Plugin development SDK |
+| `src/` | Active | React frontend |
+
+## Code Quality Status
+
+| Gate | Status | Notes |
+|------|--------|-------|
+| TypeScript (API) | Enabled | Full type safety in `apps/api` |
+| TypeScript (Packages) | Enabled | `packages/client`, `packages/shared`, `packages/core` |
+| TypeScript (Frontend) | Partial | JSX files, no strict typing |
+| Linting | Per-package | ESLint configured in each package |
+| Testing | Minimal | Basic test setup, needs expansion |
+
+## Future Improvements
+
+### Near-term
+
+1. **Frontend TypeScript Migration**
+   - Convert `.jsx` files to `.tsx`
+   - Add type definitions for components
+   - Enable strict TypeScript checking
+
+2. **Test Coverage**
+   - Unit tests for critical business logic
+   - API integration tests
+   - Component tests for UI
+
+3. **API Documentation**
+   - OpenAPI/Swagger spec generation
+   - Automatic documentation from TypeBox schemas
+
+### Medium-term
+
+1. **Performance Optimization**
+   - Response caching for static data
+   - Query optimization analysis
+   - Bundle size reduction
+
+2. **Plugin System Modernization**
+   - Update SDK for Fastify compatibility
+   - Improve plugin isolation
+   - Add plugin marketplace support
+
+3. **Mobile App Completion**
+   - Finish React Native implementation
+   - Share code with web via packages
+   - Push notifications
+
+### Long-term
+
+1. **Real-time Features**
+   - WebSocket improvements
+   - Live workout collaboration
+   - Real-time leaderboards
+
+2. **AI/ML Integration**
+   - Workout recommendation improvements
+   - Form analysis from video
+   - Personalized coaching
+
+## Non-Goals
+
+- Major database schema redesigns without user migration plan
+- Breaking API changes without versioning
+- Removing plugin system
