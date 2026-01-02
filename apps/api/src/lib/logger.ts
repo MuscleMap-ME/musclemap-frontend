@@ -37,4 +37,5 @@ export const loggers = {
   plugins: logger.child({ module: 'plugins' }),
   frontend: logger.child({ module: 'frontend' }),
   core: logger.child({ module: 'core' }),
+  prescription: logger.child({ module: 'prescription' }),
 };

@@ -1,45 +1,73 @@
 /**
- * Auth utilities - re-exported from @musclemap/client for backwards compatibility
+ * Auth Utilities
  *
- * @deprecated Import directly from '@musclemap/client' instead:
- *   import { auth, request } from '@musclemap/client';
+ * These functions provide access to auth state from the Zustand store.
+ * They work both inside and outside React components.
  */
-import { auth, request } from '@musclemap/client';
 
-// Sync wrappers for backwards compatibility (these are now async in the client)
-// Using localStorage directly for sync access since webStorage is initialized
-export const getToken = () => localStorage.getItem('musclemap_token');
+import { useAuthStore, getToken as storeGetToken, getAuthHeader } from '../store/authStore';
+
+/**
+ * Get the current auth token
+ */
+export const getToken = () => {
+  return storeGetToken();
+};
+
+/**
+ * Get the current user
+ */
 export const getUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem('musclemap_user') || '{}');
-  } catch {
-    return {};
-  }
+  return useAuthStore.getState().user || {};
 };
 
-export const setAuth = async (token, user) => {
-  await auth.setAuth(token, user);
+/**
+ * Set auth state (login)
+ */
+export const setAuth = (token, user) => {
+  useAuthStore.getState().setAuth(user, token);
 };
 
-export const clearAuth = async () => {
-  await auth.clearAuth();
+/**
+ * Clear auth state (logout)
+ */
+export const clearAuth = () => {
+  useAuthStore.getState().logout();
 };
 
-export const authHeaders = () => ({ Authorization: 'Bearer ' + getToken() });
+/**
+ * Get authorization headers
+ */
+export const authHeaders = () => {
+  return getAuthHeader();
+};
 
+/**
+ * Fetch with auth headers
+ */
 export const authFetch = async (url, options = {}) => {
-  const token = getToken();
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'Content-Type': 'application/json'
-    }
-  });
+  const headers = {
+    ...options.headers,
+    ...authHeaders(),
+    'Content-Type': 'application/json',
+  };
+
+  const res = await fetch(url, { ...options, headers });
+
   if (res.status === 401) {
-    await clearAuth();
-    window.location.href = '/login';
+    clearAuth();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   }
+
   return res;
+};
+
+/**
+ * Check if user is authenticated
+ */
+export const isAuthenticated = () => {
+  const state = useAuthStore.getState();
+  return state._hasHydrated && state.isAuthenticated;
 };

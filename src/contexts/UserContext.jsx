@@ -1,51 +1,62 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '@musclemap/client';
+/**
+ * User Context (Legacy Wrapper)
+ *
+ * This is a compatibility layer that wraps the Zustand auth store.
+ * New code should use useAuth() from store/authStore.js directly.
+ *
+ * @deprecated Use useAuth() from 'store/authStore' instead
+ */
+
+import React, { createContext, useContext } from 'react';
+import { useAuth, useAuthStore } from '../store/authStore';
 
 const UserContext = createContext(null);
 
+/**
+ * UserProvider - wraps the Zustand store for backward compatibility
+ * @deprecated Use Zustand store directly
+ */
 export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const auth = useAuth();
 
-  useEffect(() => {
-    const loadAuth = async () => {
-      try {
-        const [token, savedUser] = await Promise.all([
-          auth.getToken(),
-          auth.getUser(),
-        ]);
-        if (token && savedUser && savedUser.id) {
-          setUser(savedUser);
-        }
-      } catch (e) {
-        console.error('Failed to restore auth state:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadAuth();
-  }, []);
-
-  const login = async (userData, token) => {
-    setUser(userData);
-    await auth.setAuth(token, userData);
-  };
-
-  const logout = async () => {
-    setUser(null);
-    await auth.clearAuth();
+  // Provide the same interface as the old context
+  const value = {
+    user: auth.user,
+    setUser: (user) => useAuthStore.getState().updateUser(user),
+    login: auth.login,
+    logout: auth.logout,
+    loading: auth.loading,
+    isAuthenticated: auth.isAuthenticated,
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, loading, isAuthenticated: !!user }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   );
 }
 
+/**
+ * useUser hook - wraps the Zustand store for backward compatibility
+ * @deprecated Use useAuth() from 'store/authStore' instead
+ */
 export function useUser() {
   const context = useContext(UserContext);
-  return context || { user: null, loading: false, isAuthenticated: false, login: () => {}, logout: () => {} };
+
+  // If used outside provider, fall back to Zustand store directly
+  if (!context) {
+    const auth = useAuth();
+    return {
+      user: auth.user,
+      setUser: auth.updateUser,
+      login: auth.login,
+      logout: auth.logout,
+      loading: auth.loading,
+      isAuthenticated: auth.isAuthenticated,
+    };
+  }
+
+  return context;
 }
 
 export default UserContext;

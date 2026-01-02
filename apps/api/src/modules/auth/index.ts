@@ -1,11 +1,14 @@
 /**
  * Auth Module
+ *
+ * Handles user authentication, registration, and authorization.
+ * Uses PostgreSQL with proper async queries and security best practices.
  */
 
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
-import { db } from '../../db/client';
+import { queryOne, query } from '../../db/client';
 import { config } from '../../config';
 import { AuthenticationError, ValidationError, asyncHandler } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
@@ -31,11 +34,9 @@ const ROLE_HIERARCHY: Record<string, number> = {
  * Get the effective role for a user from their JWT payload
  */
 export function getEffectiveRole(payload: JwtPayload): 'user' | 'moderator' | 'admin' {
-  // Check explicit role field first
   if (payload.role && ROLE_HIERARCHY[payload.role] !== undefined) {
     return payload.role;
   }
-  // Fall back to roles array
   if (payload.roles.includes('admin')) return 'admin';
   if (payload.roles.includes('moderator')) return 'moderator';
   return 'user';
@@ -81,32 +82,52 @@ declare global {
   }
 }
 
+/**
+ * Hash password using PBKDF2 with random salt
+ */
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
 }
 
+/**
+ * Verify password using timing-safe comparison
+ */
 export function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(':');
+  if (!salt || !hash) return false;
   const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return hash === verifyHash;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
+  } catch {
+    return false;
+  }
 }
 
+/**
+ * Generate JWT access token
+ */
 export function generateToken(payload: JwtPayload): string {
   return jwt.sign(payload, config.JWT_SECRET, {
     expiresIn: config.JWT_EXPIRES_IN,
   } as jwt.SignOptions);
 }
 
+/**
+ * Verify JWT token
+ */
 export function verifyToken(token: string): JwtPayload {
   try {
     return jwt.verify(token, config.JWT_SECRET) as JwtPayload;
-  } catch (error) {
+  } catch {
     throw new AuthenticationError('Invalid or expired token');
   }
 }
 
+/**
+ * Express middleware to authenticate JWT token
+ */
 export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
@@ -125,18 +146,24 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   }
 }
 
+/**
+ * Optional auth middleware - doesn't fail if no token
+ */
 export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       req.user = verifyToken(authHeader.substring(7));
-    } catch {}
+    } catch {
+      // Ignore invalid tokens for optional auth
+    }
   }
 
   next();
 }
 
+// Validation schemas
 const registerSchema = z.object({
   email: z.string().email(),
   username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
@@ -150,10 +177,14 @@ const loginSchema = z.object({
 });
 
 export const authService = {
+  /**
+   * Register a new user
+   */
   async register(data: z.infer<typeof registerSchema>) {
     const validated = registerSchema.parse(data);
 
-    const existing = await db.queryOne<{ id: string }>(
+    // Check for existing email or username
+    const existing = await queryOne<{ id: string }>(
       'SELECT id FROM users WHERE email = $1 OR username = $2',
       [validated.email, validated.username]
     );
@@ -169,7 +200,7 @@ export const authService = {
     const now = new Date();
     const trialEnds = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-    await db.query(
+    await query(
       `INSERT INTO users (id, email, username, display_name, password_hash, trial_started_at, trial_ends_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -183,8 +214,11 @@ export const authService = {
       ]
     );
 
-    await db.query(
-      'INSERT INTO credit_balances (user_id, balance) VALUES ($1, 100)',
+    // Initialize credit balance
+    await query(
+      `INSERT INTO credit_balances (user_id, balance, lifetime_earned)
+       VALUES ($1, 100, 100)
+       ON CONFLICT (user_id) DO NOTHING`,
       [userId]
     );
 
@@ -194,77 +228,83 @@ export const authService = {
 
     return {
       token,
-      user: { id: userId, email: validated.email, username: validated.username, displayName: validated.displayName },
+      user: {
+        id: userId,
+        email: validated.email,
+        username: validated.username,
+        displayName: validated.displayName,
+      },
     };
   },
 
+  /**
+   * Login user
+   */
   async login(data: z.infer<typeof loginSchema>) {
     const validated = loginSchema.parse(data);
 
-    const user = await db.queryOne<{
+    const user = await queryOne<{
       id: string;
       email: string;
       username: string;
       display_name: string | null;
       password_hash: string;
       roles: string[];
-      role: string | null;
     }>(
-      'SELECT id, email, username, display_name, password_hash, roles, role FROM users WHERE email = $1',
+      'SELECT id, email, username, display_name, password_hash, roles FROM users WHERE email = $1',
       [validated.email]
     );
 
+    // Use generic error message to prevent user enumeration
     if (!user || !verifyPassword(validated.password, user.password_hash)) {
       throw new AuthenticationError('Invalid email or password');
     }
 
     const roles = user.roles || ['user'];
-    const role = (user.role as 'user' | 'moderator' | 'admin') || 'user';
+    const role = roles.includes('admin') ? 'admin' : roles.includes('moderator') ? 'moderator' : 'user';
     const token = generateToken({ userId: user.id, email: user.email, roles, role });
 
     log.info('User logged in', { userId: user.id, role });
 
     return {
       token,
-      user: { id: user.id, email: user.email, username: user.username, displayName: user.display_name, roles, role },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        displayName: user.display_name,
+        roles,
+        role,
+      },
     };
   },
-};
 
-export const authRouter = Router();
+  /**
+   * Get user profile
+   */
+  async getProfile(userId: string) {
+    const user = await queryOne<{
+      id: string;
+      email: string;
+      username: string;
+      display_name: string | null;
+      roles: string[];
+      created_at: Date;
+    }>(
+      'SELECT id, email, username, display_name, roles, created_at FROM users WHERE id = $1',
+      [userId]
+    );
 
-authRouter.post('/register', asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.register(req.body);
-  res.status(201).json({ data: result });
-}));
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
 
-authRouter.post('/login', asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.login(req.body);
-  res.json({ data: result });
-}));
+    const balance = await queryOne<{ balance: number }>(
+      'SELECT balance FROM credit_balances WHERE user_id = $1',
+      [userId]
+    );
 
-authRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = await db.queryOne<{
-    id: string;
-    email: string;
-    username: string;
-    display_name: string | null;
-    roles: string[];
-    created_at: string;
-  }>(
-    'SELECT id, email, username, display_name, roles, created_at FROM users WHERE id = $1',
-    [req.user!.userId]
-  );
-
-  if (!user) throw new AuthenticationError('User not found');
-
-  const balance = await db.queryOne<{ balance: number }>(
-    'SELECT balance FROM credit_balances WHERE user_id = $1',
-    [user.id]
-  );
-
-  res.json({
-    data: {
+    return {
       id: user.id,
       email: user.email,
       username: user.username,
@@ -272,19 +312,64 @@ authRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: 
       roles: user.roles || ['user'],
       creditBalance: balance?.balance || 0,
       createdAt: user.created_at,
-    },
-  });
-}));
+    };
+  },
 
-authRouter.get('/me/capabilities', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = await db.queryOne<{ roles: string[] }>(
-    'SELECT roles FROM users WHERE id = $1',
-    [req.user!.userId]
-  );
-  const roles = user?.roles || ['user'];
+  /**
+   * Get user capabilities based on roles
+   */
+  async getCapabilities(userId: string): Promise<string[]> {
+    const user = await queryOne<{ roles: string[] }>(
+      'SELECT roles FROM users WHERE id = $1',
+      [userId]
+    );
 
-  const capabilities = ['users.read', 'economy.read', 'workouts.create', 'workouts.read'];
-  if (roles.includes('admin')) capabilities.push('admin.*');
+    const roles = user?.roles || ['user'];
+    const capabilities = ['users.read', 'economy.read', 'workouts.create', 'workouts.read'];
 
-  res.json({ data: { capabilities } });
-}));
+    if (roles.includes('admin')) {
+      capabilities.push('admin.*');
+    }
+    if (roles.includes('moderator')) {
+      capabilities.push('moderation.*');
+    }
+
+    return capabilities;
+  },
+};
+
+export const authRouter = Router();
+
+authRouter.post(
+  '/register',
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await authService.register(req.body);
+    res.status(201).json({ data: result });
+  })
+);
+
+authRouter.post(
+  '/login',
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await authService.login(req.body);
+    res.json({ data: result });
+  })
+);
+
+authRouter.get(
+  '/me',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const profile = await authService.getProfile(req.user!.userId);
+    res.json({ data: profile });
+  })
+);
+
+authRouter.get(
+  '/me/capabilities',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const capabilities = await authService.getCapabilities(req.user!.userId);
+    res.json({ data: { capabilities } });
+  })
+);
