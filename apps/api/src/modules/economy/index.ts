@@ -1,9 +1,12 @@
 /**
  * Economy Module
+ *
+ * Handles credit balance management with proper transaction isolation
+ * and race condition prevention using PostgreSQL's serializable transactions.
  */
 
 import { Router, Request, Response } from 'express';
-import { db, transaction } from '../../db/client';
+import { db, transaction, serializableTransaction, queryOne, queryAll, query } from '../../db/client';
 import { authenticateToken } from '../auth';
 import { asyncHandler, InsufficientCreditsError, ValidationError, ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
@@ -30,90 +33,298 @@ interface CreditChargeResult {
 }
 
 export const economyService = {
-  getBalance(userId: string): number {
-    const row = db.prepare('SELECT balance FROM credit_balances WHERE user_id = ?').get(userId) as { balance: number } | undefined;
+  /**
+   * Get user's current credit balance
+   */
+  async getBalance(userId: string): Promise<number> {
+    const row = await queryOne<{ balance: number }>(
+      'SELECT balance FROM credit_balances WHERE user_id = $1',
+      [userId]
+    );
     return row?.balance ?? 0;
   },
 
-  canCharge(userId: string, amount: number): boolean {
-    return this.getBalance(userId) >= amount;
+  /**
+   * Check if user can afford a charge
+   */
+  async canCharge(userId: string, amount: number): Promise<boolean> {
+    const balance = await this.getBalance(userId);
+    return balance >= amount;
   },
 
-  charge(request: CreditChargeRequest): CreditChargeResult {
+  /**
+   * Charge credits with proper transaction isolation
+   *
+   * Uses PostgreSQL's serializable isolation level for:
+   * - Idempotency via unique constraint on idempotency_key
+   * - Atomic balance update with version checking
+   * - Automatic retry on serialization failure
+   */
+  async charge(request: CreditChargeRequest): Promise<CreditChargeResult> {
     // Check if user has unlimited access (trial or subscription)
-    const entitlements = entitlementsService.getEntitlements(request.userId);
+    const entitlements = await entitlementsService.getEntitlements(request.userId);
 
     if (entitlements.unlimited) {
-      // User has unlimited access - don't charge credits, just log the action
       log.info('Action performed with unlimited access', {
         userId: request.userId,
         action: request.action,
-        reason: entitlements.reason
+        reason: entitlements.reason,
       });
       return {
         success: true,
         ledgerEntryId: undefined,
-        newBalance: entitlements.creditBalance ?? undefined
+        newBalance: entitlements.creditBalance ?? undefined,
       };
     }
 
-    return transaction(() => {
-      const existing = db.prepare('SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = ?').get(request.idempotencyKey) as any;
+    try {
+      // Use serializable transaction for strongest isolation
+      return await serializableTransaction(async (client) => {
+        // Check for existing idempotent transaction
+        const existing = await client.query<{ id: string; balance_after: number }>(
+          'SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = $1',
+          [request.idempotencyKey]
+        );
 
-      if (existing) {
-        return { success: true, ledgerEntryId: existing.id, newBalance: existing.balance_after };
+        if (existing.rows.length > 0) {
+          return {
+            success: true,
+            ledgerEntryId: existing.rows[0].id,
+            newBalance: existing.rows[0].balance_after,
+          };
+        }
+
+        // Get action cost
+        let cost = request.amount;
+        if (cost === undefined) {
+          const action = await client.query<{ default_cost: number }>(
+            'SELECT default_cost FROM credit_actions WHERE id = $1 AND enabled = TRUE',
+            [request.action]
+          );
+          if (action.rows.length === 0) {
+            return { success: false, error: `Unknown action: ${request.action}` };
+          }
+          cost = action.rows[0].default_cost;
+        }
+
+        // Get current balance with row-level lock (FOR UPDATE)
+        const balance = await client.query<{ balance: number; version: number }>(
+          'SELECT balance, version FROM credit_balances WHERE user_id = $1 FOR UPDATE',
+          [request.userId]
+        );
+
+        if (balance.rows.length === 0) {
+          return { success: false, error: 'User has no credit account' };
+        }
+
+        const currentBalance = balance.rows[0].balance;
+        const currentVersion = balance.rows[0].version;
+
+        if (currentBalance < cost) {
+          return { success: false, error: 'Insufficient credits' };
+        }
+
+        const newBalance = currentBalance - cost;
+        const entryId = `txn_${crypto.randomBytes(12).toString('hex')}`;
+
+        // Atomic update with version check
+        const updateResult = await client.query(
+          `UPDATE credit_balances
+           SET balance = $1, lifetime_spent = lifetime_spent + $2, version = version + 1, updated_at = NOW()
+           WHERE user_id = $3 AND version = $4`,
+          [newBalance, cost, request.userId, currentVersion]
+        );
+
+        if (updateResult.rowCount === 0) {
+          throw new ConflictError('Concurrent modification detected');
+        }
+
+        // Insert ledger entry (idempotency_key has UNIQUE constraint)
+        await client.query(
+          `INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            entryId,
+            request.userId,
+            request.action,
+            -cost,
+            newBalance,
+            request.metadata ? JSON.stringify(request.metadata) : null,
+            request.idempotencyKey,
+          ]
+        );
+
+        log.info('Credits charged', {
+          userId: request.userId,
+          action: request.action,
+          amount: cost,
+          newBalance,
+        });
+
+        return { success: true, ledgerEntryId: entryId, newBalance };
+      });
+    } catch (error: any) {
+      // Handle unique constraint violation (duplicate idempotency key from race)
+      if (error.code === '23505' && error.constraint?.includes('idempotency')) {
+        const existing = await queryOne<{ id: string; balance_after: number }>(
+          'SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = $1',
+          [request.idempotencyKey]
+        );
+        if (existing) {
+          return {
+            success: true,
+            ledgerEntryId: existing.id,
+            newBalance: existing.balance_after,
+          };
+        }
       }
 
-      let cost = request.amount;
-      if (cost === undefined) {
-        const action = db.prepare('SELECT default_cost FROM credit_actions WHERE id = ? AND enabled = 1').get(request.action) as any;
-        if (!action) return { success: false, error: `Unknown action: ${request.action}` };
-        cost = action.default_cost;
+      log.error({ error, request }, 'Credit charge failed');
+      throw error;
+    }
+  },
+
+  /**
+   * Add credits to a user's balance (for purchases, rewards, etc.)
+   */
+  async addCredits(
+    userId: string,
+    amount: number,
+    action: string,
+    metadata?: Record<string, unknown>,
+    idempotencyKey?: string
+  ): Promise<CreditChargeResult> {
+    const key = idempotencyKey || `add-${userId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+    return await serializableTransaction(async (client) => {
+      // Check for existing idempotent transaction
+      if (idempotencyKey) {
+        const existing = await client.query<{ id: string; balance_after: number }>(
+          'SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = $1',
+          [key]
+        );
+
+        if (existing.rows.length > 0) {
+          return {
+            success: true,
+            ledgerEntryId: existing.rows[0].id,
+            newBalance: existing.rows[0].balance_after,
+          };
+        }
       }
 
-      const balance = db.prepare('SELECT balance, version FROM credit_balances WHERE user_id = ?').get(request.userId) as any;
-      if (!balance) return { success: false, error: 'User has no credit account' };
-      if (balance.balance < cost) return { success: false, error: 'Insufficient credits' };
+      // Upsert credit balance
+      const result = await client.query<{ balance: number }>(
+        `INSERT INTO credit_balances (user_id, balance, lifetime_earned, version)
+         VALUES ($1, $2, $2, 1)
+         ON CONFLICT (user_id) DO UPDATE SET
+           balance = credit_balances.balance + $2,
+           lifetime_earned = credit_balances.lifetime_earned + $2,
+           version = credit_balances.version + 1,
+           updated_at = NOW()
+         RETURNING balance`,
+        [userId, amount]
+      );
 
-      const newBalance = balance.balance - cost;
+      const newBalance = result.rows[0].balance;
       const entryId = `txn_${crypto.randomBytes(12).toString('hex')}`;
 
-      const result = db.prepare('UPDATE credit_balances SET balance = ?, lifetime_spent = lifetime_spent + ?, version = version + 1 WHERE user_id = ? AND version = ?').run(newBalance, cost, request.userId, balance.version);
+      // Insert ledger entry
+      await client.query(
+        `INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [entryId, userId, action, amount, newBalance, metadata ? JSON.stringify(metadata) : null, key]
+      );
 
-      if (result.changes === 0) throw new ConflictError('Concurrent modification');
-
-      db.prepare('INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)').run(entryId, request.userId, request.action, -cost, newBalance, request.metadata ? JSON.stringify(request.metadata) : null, request.idempotencyKey);
-
-      log.info('Credits charged', { userId: request.userId, action: request.action, amount: cost, newBalance });
+      log.info('Credits added', { userId, action, amount, newBalance });
 
       return { success: true, ledgerEntryId: entryId, newBalance };
     });
   },
 
-  getHistory(userId: string, limit: number = 50, offset: number = 0) {
-    return db.prepare('SELECT id, action, amount, balance_after, metadata, created_at FROM credit_ledger WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, limit, offset) as any[];
+  /**
+   * Get transaction history with pagination
+   */
+  async getHistory(userId: string, limit: number = 50, offset: number = 0) {
+    const rows = await queryAll<{
+      id: string;
+      action: string;
+      amount: number;
+      balance_after: number;
+      metadata: string | null;
+      created_at: Date;
+    }>(
+      `SELECT id, action, amount, balance_after, metadata, created_at
+       FROM credit_ledger
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+
+    return rows;
+  },
+
+  /**
+   * Get total transaction count for pagination
+   */
+  async getHistoryCount(userId: string): Promise<number> {
+    const result = await queryOne<{ count: string }>(
+      'SELECT COUNT(*) as count FROM credit_ledger WHERE user_id = $1',
+      [userId]
+    );
+    return parseInt(result?.count || '0', 10);
+  },
+
+  /**
+   * Initialize credit balance for new user
+   */
+  async initializeBalance(userId: string, initialBalance: number = 100): Promise<void> {
+    await query(
+      `INSERT INTO credit_balances (user_id, balance, lifetime_earned)
+       VALUES ($1, $2, $2)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId, initialBalance]
+    );
   },
 };
 
 export const economyRouter = Router();
 
-economyRouter.get('/pricing', (req: Request, res: Response) => {
+economyRouter.get('/pricing', (_req: Request, res: Response) => {
   res.json({ tiers: PRICING_TIERS, rate: PRICING_RATE });
 });
 
-economyRouter.get('/balance', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: { balance: economyService.getBalance(req.user!.userId) } });
-}));
+economyRouter.get(
+  '/balance',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const balance = await economyService.getBalance(req.user!.userId);
+    res.json({ data: { balance } });
+  })
+);
 
-economyRouter.get('/history', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-  const offset = parseInt(req.query.offset as string) || 0;
-  const transactions = economyService.getHistory(req.user!.userId, limit, offset);
-  res.json({
-    data: transactions.map((t: any) => ({ ...t, metadata: t.metadata ? JSON.parse(t.metadata) : null })),
-    meta: { limit, offset },
-  });
-}));
+economyRouter.get(
+  '/history',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const [transactions, total] = await Promise.all([
+      economyService.getHistory(req.user!.userId, limit, offset),
+      economyService.getHistoryCount(req.user!.userId),
+    ]);
+
+    res.json({
+      data: transactions.map((t) => ({
+        ...t,
+        metadata: t.metadata ? JSON.parse(t.metadata) : null,
+      })),
+      meta: { limit, offset, total },
+    });
+  })
+);
 
 const chargeSchema = z.object({
   action: z.string(),
@@ -122,26 +333,37 @@ const chargeSchema = z.object({
   idempotencyKey: z.string(),
 });
 
-economyRouter.post('/charge', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const data = chargeSchema.parse(req.body);
-  const result = economyService.charge({ 
-    userId: req.user!.userId, 
-    action: data.action,
-    amount: data.amount,
-    metadata: data.metadata,
-    idempotencyKey: data.idempotencyKey
-  });
+economyRouter.post(
+  '/charge',
+  authenticateToken,
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = chargeSchema.parse(req.body);
+    const result = await economyService.charge({
+      userId: req.user!.userId,
+      action: data.action,
+      amount: data.amount,
+      metadata: data.metadata,
+      idempotencyKey: data.idempotencyKey,
+    });
 
-  if (!result.success) {
-    if (result.error?.includes('Insufficient')) {
-      throw new InsufficientCreditsError(data.amount || 0, economyService.getBalance(req.user!.userId));
+    if (!result.success) {
+      if (result.error?.includes('Insufficient')) {
+        const balance = await economyService.getBalance(req.user!.userId);
+        throw new InsufficientCreditsError(data.amount || 0, balance);
+      }
+      throw new ValidationError(result.error || 'Charge failed');
     }
-    throw new ValidationError(result.error || 'Charge failed');
-  }
 
-  res.json({ data: result });
-}));
+    res.json({ data: result });
+  })
+);
 
-economyRouter.get('/actions', asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: db.prepare('SELECT id, name, description, default_cost, plugin_id FROM credit_actions WHERE enabled = 1').all() });
-}));
+economyRouter.get(
+  '/actions',
+  asyncHandler(async (_req: Request, res: Response) => {
+    const actions = await queryAll(
+      'SELECT id, name, description, default_cost, plugin_id FROM credit_actions WHERE enabled = TRUE'
+    );
+    res.json({ data: actions });
+  })
+);

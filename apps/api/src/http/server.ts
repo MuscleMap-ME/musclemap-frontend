@@ -1,65 +1,180 @@
 /**
- * Fastify Server (Phase 2)
+ * Fastify Server
  *
- * Fastify is the main server process.
- * For now, we mount the existing Express API stack under /api (compat mode),
- * so nothing breaks while we migrate modules route-by-route (Phase 3).
+ * Pure Fastify implementation with PostgreSQL, compression, and optimized routing.
+ * No Express dependencies - fully migrated to Fastify.
  */
 
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
-import fastifyExpress from '@fastify/express';
-
-import express from 'express';
-import corsExpress from 'cors';
-import helmetExpress from 'helmet';
+import compress from '@fastify/compress';
+import websocket from '@fastify/websocket';
+import multipart from '@fastify/multipart';
 
 import { config, isProduction } from '../config';
-import { logger } from '../lib/logger';
+import { logger, loggers } from '../lib/logger';
+import { closeDatabase, healthCheck as dbHealthCheck, getPoolStats } from '../db/client';
+import { closeRedis, isRedisAvailable } from '../lib/redis';
 
-// Existing Express middleware + router (compat layer)
-import { requestId, apiRateLimiter, errorHandler, notFoundHandler } from './middleware';
-import { createApiRouter } from './router';
+// Route modules
+import { registerAuthRoutes } from './routes/auth';
+import { registerEconomyRoutes } from './routes/economy';
+import { registerWorkoutRoutes } from './routes/workouts';
+import { registerPrescriptionRoutes } from './routes/prescription';
+import { registerCommunityRoutes } from './routes/community';
+import { registerMessagingRoutes } from './routes/messaging';
+import { registerJourneyRoutes } from './routes/journey';
+import { registerTipsRoutes } from './routes/tips';
+import { registerMiscRoutes } from './routes/misc';
 
-// WebSocket for community features
-import { registerWebSocketRoutes } from '../modules/community/websocket';
-import { registerMessagingWebSocket } from '../modules/messaging/websocket';
+const log = loggers.http;
 
+/**
+ * JWT Payload type for authentication
+ */
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  roles: string[];
+  role?: 'user' | 'moderator' | 'admin';
+}
+
+/**
+ * Extend FastifyRequest with user property
+ */
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: JwtPayload;
+  }
+}
+
+/**
+ * Create and configure the Fastify server
+ */
 export async function createServer(): Promise<FastifyInstance> {
-  // Use your existing pino logger if it’s compatible; otherwise Fastify can manage its own.
   const app = Fastify({
-    loggerInstance: logger as any,
+    logger: logger as any,
     trustProxy: true,
+    // Increase payload limits
+    bodyLimit: 10 * 1024 * 1024, // 10MB
+    // Request ID generation
+    genReqId: () => `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`,
   });
 
-  // Fastify-native baseline (useful immediately for future migration)
+  // Error handler
+  app.setErrorHandler(async (error, request, reply) => {
+    const statusCode = error.statusCode || 500;
+
+    log.error({
+      requestId: request.id,
+      error: error.message,
+      stack: isProduction ? undefined : error.stack,
+      statusCode,
+    }, 'Request error');
+
+    // Don't expose internal errors in production
+    const message = isProduction && statusCode >= 500
+      ? 'Internal server error'
+      : error.message;
+
+    return reply.status(statusCode).send({
+      error: {
+        code: (error as any).code || 'ERROR',
+        message,
+        statusCode,
+      },
+    });
+  });
+
+  // Not found handler
+  app.setNotFoundHandler(async (request, reply) => {
+    return reply.status(404).send({
+      error: {
+        code: 'NOT_FOUND',
+        message: `Route ${request.method} ${request.url} not found`,
+        statusCode: 404,
+      },
+    });
+  });
+
+  // Register plugins
+  await app.register(compress, {
+    encodings: ['gzip', 'deflate', 'br'],
+    threshold: 1024, // Only compress responses > 1KB
+  });
+
   await app.register(cors, {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(','),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Idempotency-Key'],
   });
 
   await app.register(helmet, {
-    contentSecurityPolicy: isProduction,
+    contentSecurityPolicy: isProduction ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'wss:', 'https:'],
+      },
+    } : false,
+    crossOriginEmbedderPolicy: false,
   });
 
   await app.register(sensible);
 
   await app.register(rateLimit, {
-    max: 500,
-    timeWindow: '1 minute',
+    max: config.RATE_LIMIT_MAX,
+    timeWindow: config.RATE_LIMIT_WINDOW_MS,
+    errorResponseBuilder: () => ({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many requests, please try again later',
+        statusCode: 429,
+      },
+    }),
   });
 
-  // Swagger shell (routes will appear as you migrate endpoints to Fastify)
+  await app.register(websocket, {
+    options: {
+      maxPayload: 1024 * 64, // 64KB max message
+      perMessageDeflate: true,
+    },
+  });
+
+  await app.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+      files: 5,
+    },
+  });
+
+  // Swagger documentation
   await app.register(swagger, {
     openapi: {
       info: {
         title: 'MuscleMap API',
         version: '2.0.0',
+        description: 'Fitness tracking and workout management API',
+      },
+      servers: [
+        { url: `http://localhost:${config.PORT}`, description: 'Development' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+        },
       },
     },
   });
@@ -68,58 +183,76 @@ export async function createServer(): Promise<FastifyInstance> {
     routePrefix: '/docs',
     uiConfig: {
       docExpansion: 'list',
-      deepLinking: false,
+      deepLinking: true,
     },
   });
 
-  // ---------------------------
-  // Express compatibility mount
-  // ---------------------------
-  await app.register(fastifyExpress);
+  // Health check endpoints
+  app.get('/health', async () => {
+    const dbHealthy = await dbHealthCheck();
+    const poolStats = getPoolStats();
 
-  // Build an Express app identical to your previous server.ts wiring,
-  // then mount it into Fastify.
-  const exp = express();
+    return {
+      status: dbHealthy ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      version: '2.0.0',
+      database: {
+        connected: dbHealthy,
+        pool: poolStats,
+      },
+      redis: {
+        enabled: config.REDIS_ENABLED,
+        connected: isRedisAvailable(),
+      },
+    };
+  });
 
-  exp.use(helmetExpress({ contentSecurityPolicy: isProduction }));
-  exp.use(corsExpress({
-    origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(','),
-    credentials: true,
-  }));
+  app.get('/ready', async (request, reply) => {
+    const dbHealthy = await dbHealthCheck();
+    if (!dbHealthy) {
+      return reply.status(503).send({ status: 'not ready', reason: 'database unavailable' });
+    }
+    return { status: 'ready' };
+  });
 
-  exp.use(express.json({ limit: '10mb' }));
-  exp.use(express.urlencoded({ extended: true }));
-
-  exp.use(requestId);
-  exp.use('/api/', apiRateLimiter);
-
-  exp.use('/api', createApiRouter());
-  exp.use('/api', notFoundHandler);
-  exp.use(errorHandler);
-
-  // Mount the express app at root (it already uses /api prefix internally)
-  app.use(exp);
-
-  // Optional: tiny Fastify-native ping that bypasses express
-  app.get('/__fastify', async () => ({ ok: true, ts: new Date().toISOString() }));
-
-  // Register WebSocket routes for community features
-  await registerWebSocketRoutes(app);
-
-  // Register WebSocket routes for messaging
-  await registerMessagingWebSocket(app);
+  // API routes (all under /api prefix)
+  await app.register(async (api) => {
+    // Register all route modules
+    await registerAuthRoutes(api);
+    await registerEconomyRoutes(api);
+    await registerWorkoutRoutes(api);
+    await registerPrescriptionRoutes(api);
+    await registerCommunityRoutes(api);
+    await registerMessagingRoutes(api);
+    await registerJourneyRoutes(api);
+    await registerTipsRoutes(api);
+    await registerMiscRoutes(api);
+  }, { prefix: '/api' });
 
   return app;
 }
 
+/**
+ * Start the server
+ */
 export async function startServer(app: FastifyInstance): Promise<void> {
   const shutdown = async (signal: string) => {
     try {
-      app.log.info({ signal }, `${signal} received, shutting down gracefully...`);
+      log.info({ signal }, `${signal} received, shutting down gracefully...`);
+
+      // Close server (stops accepting new connections)
       await app.close();
+
+      // Close database connections
+      await closeDatabase();
+
+      // Close Redis connections
+      await closeRedis();
+
+      log.info('Graceful shutdown completed');
       process.exit(0);
     } catch (err) {
-      app.log.error({ err }, 'Forced shutdown after error');
+      log.error({ err }, 'Error during shutdown');
       process.exit(1);
     }
   };
@@ -128,12 +261,17 @@ export async function startServer(app: FastifyInstance): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
   try {
-    await app.listen({ port: Number(config.PORT), host: config.HOST });
-    app.log.info(`Server running on http://${config.HOST}:${config.PORT}`);
-    app.log.info(`Environment: ${config.NODE_ENV}`);
-    app.log.info(`Docs: http://${config.HOST}:${config.PORT}/docs`);
+    await app.listen({ port: config.PORT, host: config.HOST });
+
+    log.info(`Server running on http://${config.HOST}:${config.PORT}`);
+    log.info(`Environment: ${config.NODE_ENV}`);
+    log.info(`API Docs: http://${config.HOST}:${config.PORT}/docs`);
+
+    if (config.REDIS_ENABLED) {
+      log.info('Redis: enabled');
+    }
   } catch (err) {
-    app.log.fatal({ err }, 'Failed to start server');
+    log.fatal({ err }, 'Failed to start server');
     process.exit(1);
   }
 }

@@ -1,19 +1,73 @@
-export const getToken = () => localStorage.getItem('musclemap_token');
-export const getUser = () => JSON.parse(localStorage.getItem('musclemap_user') || '{}');
+/**
+ * Auth Utilities
+ *
+ * These functions provide access to auth state from the Zustand store.
+ * They work both inside and outside React components.
+ */
+
+import { useAuthStore, getToken as storeGetToken, getAuthHeader } from '../store/authStore';
+
+/**
+ * Get the current auth token
+ */
+export const getToken = () => {
+  return storeGetToken();
+};
+
+/**
+ * Get the current user
+ */
+export const getUser = () => {
+  return useAuthStore.getState().user || {};
+};
+
+/**
+ * Set auth state (login)
+ */
 export const setAuth = (token, user) => {
-  localStorage.setItem('musclemap_token', token);
-  localStorage.setItem('musclemap_user', JSON.stringify(user));
+  useAuthStore.getState().setAuth(user, token);
 };
+
+/**
+ * Clear auth state (logout)
+ */
 export const clearAuth = () => {
-  localStorage.removeItem('musclemap_token');
-  localStorage.removeItem('musclemap_user');
+  useAuthStore.getState().logout();
 };
-export const authHeaders = () => ({ Authorization: 'Bearer ' + getToken() });
+
+/**
+ * Get authorization headers
+ */
+export const authHeaders = () => {
+  return getAuthHeader();
+};
+
+/**
+ * Fetch with auth headers
+ */
 export const authFetch = async (url, options = {}) => {
-  const res = await fetch(url, {
-    ...options,
-    headers: { ...options.headers, ...authHeaders(), 'Content-Type': 'application/json' }
-  });
-  if (res.status === 401) { clearAuth(); window.location.href = '/login'; }
+  const headers = {
+    ...options.headers,
+    ...authHeaders(),
+    'Content-Type': 'application/json',
+  };
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    clearAuth();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  }
+
   return res;
+};
+
+/**
+ * Check if user is authenticated
+ */
+export const isAuthenticated = () => {
+  const state = useAuthStore.getState();
+  return state._hasHydrated && state.isAuthenticated;
 };
