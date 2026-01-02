@@ -24,6 +24,7 @@ import Messages from './pages/Messages';
 import Wallet from './pages/Wallet';
 import SkinsStore from './pages/SkinsStore';
 import AdminControl from './pages/AdminControl';
+import Exercises from './pages/Exercises';
 
 // Page view tracker
 function PageTracker() {
@@ -105,7 +106,8 @@ function AppRoutes() {
         <Route path="/messages" element={<ProtectedRoute name="Messages"><Messages /></ProtectedRoute>} />
         <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
         <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
-        
+        <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
+
         {/* Admin routes */}
         <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
         
