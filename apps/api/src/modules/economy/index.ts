@@ -285,4 +285,3 @@ export const economyService = {
   },
 };
 
-// Note: Express router removed - routes now in src/http/routes/economy.ts

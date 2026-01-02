@@ -11,7 +11,7 @@ import { db, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
 
-const log = loggers.economy;
+const log = loggers.entitlements;
 
 export interface Entitlements {
   unlimited: boolean;
@@ -194,5 +194,3 @@ export const entitlementsService = {
     };
   },
 };
-
-// Note: Express router removed - routes now in src/http/routes/

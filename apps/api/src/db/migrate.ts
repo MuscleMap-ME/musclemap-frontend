@@ -8,12 +8,12 @@
 import fs from 'fs';
 import path from 'path';
 import { db, query, queryOne, closePool } from './client';
-
-// Helper to get pool for connection testing
-const getPool = () => db.getPool();
 import { loggers } from '../lib/logger';
 
 const log = loggers.db;
+
+// Helper to get pool for connection testing
+const getPool = () => db.getPool();
 
 interface Migration {
   id: number;
