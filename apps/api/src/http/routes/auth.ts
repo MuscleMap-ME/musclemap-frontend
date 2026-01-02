@@ -60,7 +60,7 @@ function generateToken(payload: JwtPayload): string {
   } as jwt.SignOptions);
 }
 
-function verifyToken(token: string): JwtPayload {
+export function verifyToken(token: string): JwtPayload {
   return jwt.verify(token, config.JWT_SECRET) as JwtPayload;
 }
 
@@ -275,4 +275,4 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 }
 
-export { authenticate, optionalAuth, verifyToken, JwtPayload };
+export { JwtPayload };

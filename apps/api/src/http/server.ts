@@ -5,7 +5,7 @@
  * No Express dependencies - fully migrated to Fastify.
  */
 
-import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import Fastify, { FastifyInstance, FastifyRequest, FastifyReply, FastifyError } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -67,7 +67,7 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // Error handler
-  app.setErrorHandler(async (error, request, reply) => {
+  app.setErrorHandler(async (error: FastifyError, request, reply) => {
     const statusCode = error.statusCode || 500;
 
     log.error({

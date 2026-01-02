@@ -20,9 +20,7 @@ import { archetypeRouter } from '../modules/archetypes';
 import { competitionRouter } from '../modules/competitions';
 import { communityRouter } from '../modules/community';
 import { messagingRouter } from '../modules/messaging';
-import { createRivalsRouter } from '../modules/rivals';
-import { createWearablesRouter } from '../modules/wearables';
-import { createCrewsRouter } from '../modules/crews';
+// Removed: rivals, wearables, crews modules (not yet implemented)
 
 // Plugin system
 import { pluginRegistry } from '../plugins/plugin-loader';
@@ -212,14 +210,7 @@ router.post('/trace/frontend-log', (req, res) => {
   // -------------------------------------------------------
 router.use('/competitions', competitionRouter);
 
-  // Rivals
-  router.use('/rivals', createRivalsRouter());
-
-  // Wearables (Apple Watch, Fitbit, etc.)
-  router.use('/wearables', createWearablesRouter());
-
-  // Crews & Crew Wars
-  router.use('/crews', createCrewsRouter());
+  // Rivals, Wearables, Crews - coming soon
 
   // Plugin routes
   for (const plugin of pluginRegistry.getEnabled()) {

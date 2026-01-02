@@ -7,7 +7,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getPool, query, queryOne, closePool } from './postgres';
+import { db, query, queryOne, closePool } from './client';
+
+// Helper to get pool for connection testing
+const getPool = () => db.getPool();
 import { loggers } from '../lib/logger';
 
 const log = loggers.db;

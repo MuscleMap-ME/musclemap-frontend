@@ -58,20 +58,7 @@ interface FoundingMemberRecord {
   joined_at: string;
 }
 
-// Initialize founding members table
-try {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS founding_members (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL UNIQUE,
-      member_number INTEGER NOT NULL UNIQUE,
-      joined_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE INDEX IF NOT EXISTS idx_founding_members_number ON founding_members(member_number);
-  `);
-} catch (e) {
-  // Table may already exist
-}
+// Note: Founding members table created via migration
 
 export const billingService = {
   /**
@@ -401,15 +388,16 @@ export const billingService = {
   /**
    * Get founding member status for a user
    */
-  getFoundingMemberStatus(userId: string): {
+  async getFoundingMemberStatus(userId: string): Promise<{
     isFoundingMember: boolean;
     memberNumber: number | null;
     joinedAt: string | null;
     perks: string[];
-  } {
-    const member = db.prepare(
-      'SELECT * FROM founding_members WHERE user_id = ?'
-    ).get(userId) as FoundingMemberRecord | undefined;
+  }> {
+    const member = await db.queryOne<FoundingMemberRecord>(
+      'SELECT * FROM founding_members WHERE user_id = $1',
+      [userId]
+    );
 
     if (member) {
       return {
@@ -431,9 +419,10 @@ export const billingService = {
   /**
    * Get founding member availability
    */
-  getFoundingMemberAvailability(): { available: boolean; spotsRemaining: number; totalSpots: number } {
-    const count = db.prepare('SELECT COUNT(*) as count FROM founding_members').get() as { count: number };
-    const spotsRemaining = Math.max(0, FOUNDING_MEMBER_LIMIT - count.count);
+  async getFoundingMemberAvailability(): Promise<{ available: boolean; spotsRemaining: number; totalSpots: number }> {
+    const result = await db.queryOne<{ count: string }>('SELECT COUNT(*) as count FROM founding_members');
+    const count = parseInt(result?.count || '0', 10);
+    const spotsRemaining = Math.max(0, FOUNDING_MEMBER_LIMIT - count);
     return {
       available: spotsRemaining > 0,
       spotsRemaining,
@@ -444,51 +433,55 @@ export const billingService = {
   /**
    * Claim founding member status (only if user has active subscription and spots available)
    */
-  claimFoundingMember(userId: string): {
+  async claimFoundingMember(userId: string): Promise<{
     isFoundingMember: boolean;
     memberNumber: number | null;
     joinedAt: string | null;
     perks: string[];
-  } {
+  }> {
     // Check if already a founding member
-    const existing = this.getFoundingMemberStatus(userId);
+    const existing = await this.getFoundingMemberStatus(userId);
     if (existing.isFoundingMember) {
       return existing;
     }
 
     // Check subscription status
-    const subscription = this.getSubscription(userId);
+    const subscription = await this.getSubscription(userId);
     if (!subscription || subscription.status !== 'active') {
       throw new ValidationError('Active subscription required to become a founding member');
     }
 
     // Check availability
-    const availability = this.getFoundingMemberAvailability();
+    const availability = await this.getFoundingMemberAvailability();
     if (!availability.available) {
       throw new ValidationError('Founding member spots are no longer available');
     }
 
-    // Claim the spot
-    const id = `fm_${crypto.randomBytes(12).toString('hex')}`;
-    const now = new Date().toISOString();
+    // Claim the spot in a transaction for safety
+    return await transaction(async (client) => {
+      const id = `fm_${crypto.randomBytes(12).toString('hex')}`;
+      const now = new Date().toISOString();
 
-    // Get next member number (in a transaction for safety)
-    const nextNumber = db.prepare(
-      'SELECT COALESCE(MAX(member_number), 0) + 1 as next FROM founding_members'
-    ).get() as { next: number };
+      // Get next member number
+      const nextResult = await client.query<{ next: number }>(
+        'SELECT COALESCE(MAX(member_number), 0) + 1 as next FROM founding_members'
+      );
+      const nextNumber = nextResult.rows[0]?.next || 1;
 
-    db.prepare(
-      'INSERT INTO founding_members (id, user_id, member_number, joined_at) VALUES (?, ?, ?, ?)'
-    ).run(id, userId, nextNumber.next, now);
+      await client.query(
+        'INSERT INTO founding_members (id, user_id, member_number, joined_at) VALUES ($1, $2, $3, $4)',
+        [id, userId, nextNumber, now]
+      );
 
-    log.info('Founding member claimed', { userId, memberNumber: nextNumber.next });
+      log.info('Founding member claimed', { userId, memberNumber: nextNumber });
 
-    return {
-      isFoundingMember: true,
-      memberNumber: nextNumber.next,
-      joinedAt: now,
-      perks: FOUNDING_MEMBER_PERKS,
-    };
+      return {
+        isFoundingMember: true,
+        memberNumber: nextNumber,
+        joinedAt: now,
+        perks: FOUNDING_MEMBER_PERKS,
+      };
+    });
   },
 };
 
@@ -565,8 +558,8 @@ billingRouter.post('/webhook', asyncHandler(async (req: Request, res: Response) 
 
 // Get founding member status
 billingRouter.get('/founding-member', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const status = billingService.getFoundingMemberStatus(req.user!.userId);
-  const availability = billingService.getFoundingMemberAvailability();
+  const status = await billingService.getFoundingMemberStatus(req.user!.userId);
+  const availability = await billingService.getFoundingMemberAvailability();
   res.json({
     data: {
       ...status,
@@ -577,6 +570,6 @@ billingRouter.get('/founding-member', authenticateToken, asyncHandler(async (req
 
 // Claim founding member status
 billingRouter.post('/founding-member/claim', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const status = billingService.claimFoundingMember(req.user!.userId);
+  const status = await billingService.claimFoundingMember(req.user!.userId);
   res.json({ data: status });
 }));

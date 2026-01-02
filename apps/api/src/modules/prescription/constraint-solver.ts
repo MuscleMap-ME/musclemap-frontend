@@ -19,12 +19,42 @@ import {
   GOAL_PREFERENCES,
   DIFFICULTY_BY_LEVEL,
 } from './types';
-import {
-  isNativeAvailable,
-  initializeExercises,
-  nativeSolve,
-  isInitialized,
-} from '../../../native';
+// Native solver result type
+interface NativeSolveResult {
+  index: number;
+  sets: number;
+  reps: number;
+}
+
+// Native module - loaded dynamically to avoid TypeScript rootDir issues
+let nativeModule: {
+  isNativeAvailable: () => boolean;
+  initializeExercises: (exercises: ExerciseWithConstraints[]) => void;
+  nativeSolve: (
+    exercises: ExerciseWithConstraints[],
+    request: PrescriptionRequest,
+    last24h: Set<string>,
+    last48h: Set<string>
+  ) => NativeSolveResult[];
+  isInitialized: () => boolean;
+} | null = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  nativeModule = require('../../../native');
+} catch {
+  // Native module not available
+}
+
+const isNativeAvailable = () => nativeModule?.isNativeAvailable() ?? false;
+const initializeExercises = (exercises: ExerciseWithConstraints[]) => nativeModule?.initializeExercises(exercises);
+const nativeSolve = (
+  exercises: ExerciseWithConstraints[],
+  request: PrescriptionRequest,
+  last24h: Set<string>,
+  last48h: Set<string>
+) => nativeModule?.nativeSolve(exercises, request, last24h, last48h) ?? [];
+const isInitialized = () => nativeModule?.isInitialized() ?? false;
 import { loggers } from '../../lib/logger';
 
 const log = loggers.prescription;
