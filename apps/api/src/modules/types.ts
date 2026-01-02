@@ -5,11 +5,11 @@
  */
 
 import { Router } from 'express';
-import { Database } from 'better-sqlite3';
+import { Pool } from 'pg';
 import { Logger } from 'pino';
 
 export interface ModuleContext {
-  db: Database;
+  db: Pool;
   logger: Logger;
   config: Record<string, unknown>;
 }

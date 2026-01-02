@@ -55,20 +55,20 @@ const createWorkoutSchema = z.object({
 });
 
 export const workoutService = {
-  calculateTU(exercises: WorkoutExercise[]): { totalTU: number; muscleActivations: Record<string, number> } {
+  async calculateTU(exercises: WorkoutExercise[]): Promise<{ totalTU: number; muscleActivations: Record<string, number> }> {
     const muscleActivations: Record<string, number> = {};
 
     for (const exercise of exercises) {
-      const activationMap = exerciseService.getActivationMap(exercise.exerciseId);
+      const activationMap = await exerciseService.getActivationMap(exercise.exerciseId);
       for (const [muscleId, activation] of Object.entries(activationMap)) {
         const contribution = exercise.sets * (activation / 100);
         muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + contribution;
       }
     }
 
-    const muscles = muscleService.getAll();
+    const muscles = await muscleService.getAll();
     const muscleMap = new Map(muscles.map(m => [m.id, m]));
-    
+
     let totalTU = 0;
     for (const [muscleId, rawActivation] of Object.entries(muscleActivations)) {
       const muscle = muscleMap.get(muscleId);
@@ -81,24 +81,29 @@ export const workoutService = {
     return { totalTU: Math.round(totalTU * 100) / 100, muscleActivations };
   },
 
-  create(userId: string, data: z.infer<typeof createWorkoutSchema>): Workout {
-    return transaction(() => {
-      const existing = db.prepare('SELECT id FROM workouts WHERE id = ?').get(data.idempotencyKey) as any;
-      if (existing) {
-        return this.getById(existing.id)!;
+  async create(userId: string, data: z.infer<typeof createWorkoutSchema>): Promise<Workout> {
+    return transaction(async (client) => {
+      const existingResult = await client.query(
+        'SELECT id FROM workouts WHERE id = $1',
+        [data.idempotencyKey]
+      );
+      if (existingResult.rows[0]) {
+        return (await this.getById(existingResult.rows[0].id))!;
       }
 
-      // Cast exercises to WorkoutExercise[] since Zod has validated them
       const exercises = data.exercises as WorkoutExercise[];
 
       for (const ex of exercises) {
-        const exists = db.prepare('SELECT 1 FROM exercises WHERE id = ?').get(ex.exerciseId);
-        if (!exists) throw new ValidationError(`Exercise not found: ${ex.exerciseId}`);
+        const existsResult = await client.query(
+          'SELECT 1 FROM exercises WHERE id = $1',
+          [ex.exerciseId]
+        );
+        if (!existsResult.rows[0]) throw new ValidationError(`Exercise not found: ${ex.exerciseId}`);
       }
 
-      const { totalTU, muscleActivations } = this.calculateTU(exercises);
+      const { totalTU, muscleActivations } = await this.calculateTU(exercises);
 
-      const chargeResult = economyService.charge({
+      const chargeResult = await economyService.charge({
         userId,
         action: 'workout.complete',
         idempotencyKey: `workout-${data.idempotencyKey}`,
@@ -112,56 +117,104 @@ export const workoutService = {
       const workoutId = `workout_${crypto.randomBytes(12).toString('hex')}`;
       const workoutDate = data.date || new Date().toISOString().split('T')[0];
 
-      db.prepare(`
-        INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(workoutId, userId, workoutDate, totalTU, 25, data.notes || null, data.isPublic !== false ? 1 : 0, JSON.stringify(exercises), JSON.stringify(muscleActivations));
+      await client.query(
+        `INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          workoutId,
+          userId,
+          workoutDate,
+          totalTU,
+          25,
+          data.notes || null,
+          data.isPublic !== false,
+          JSON.stringify(exercises),
+          JSON.stringify(muscleActivations),
+        ]
+      );
 
       log.info('Workout created', { workoutId, userId, totalTU });
-      return this.getById(workoutId)!;
+      return (await this.getById(workoutId))!;
     });
   },
 
-  getById(id: string): Workout | null {
-    const row = db.prepare(`
-      SELECT id, user_id as userId, date, total_tu as totalTU, credits_used as creditsUsed,
-             notes, is_public as isPublic, exercise_data, muscle_activations, created_at as createdAt
-      FROM workouts WHERE id = ?
-    `).get(id) as any;
+  async getById(id: string): Promise<Workout | null> {
+    const row = await db.queryOne<{
+      id: string;
+      userid: string;
+      date: string;
+      totaltu: number;
+      creditsused: number;
+      notes: string | null;
+      ispublic: boolean;
+      exercise_data: WorkoutExercise[];
+      muscle_activations: Record<string, number>;
+      createdat: string;
+    }>(
+      `SELECT id, user_id as userId, date, total_tu as totalTU, credits_used as creditsUsed,
+              notes, is_public as isPublic, exercise_data, muscle_activations, created_at as createdAt
+       FROM workouts WHERE id = $1`,
+      [id]
+    );
 
     if (!row) return null;
     return {
-      ...row,
-      isPublic: Boolean(row.isPublic),
-      exerciseData: JSON.parse(row.exercise_data || '[]'),
-      muscleActivations: JSON.parse(row.muscle_activations || '{}'),
+      id: row.id,
+      userId: row.userid,
+      date: row.date,
+      totalTU: row.totaltu,
+      creditsUsed: row.creditsused,
+      notes: row.notes,
+      isPublic: row.ispublic,
+      exerciseData: row.exercise_data || [],
+      muscleActivations: row.muscle_activations || {},
+      createdAt: row.createdat,
     };
   },
 
-  getByUser(userId: string, limit: number = 50, offset: number = 0): Workout[] {
-    const rows = db.prepare(`
-      SELECT id, user_id as userId, date, total_tu as totalTU, credits_used as creditsUsed,
-             notes, is_public as isPublic, exercise_data, muscle_activations, created_at as createdAt
-      FROM workouts WHERE user_id = ? ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?
-    `).all(userId, limit, offset) as any[];
+  async getByUser(userId: string, limit: number = 50, offset: number = 0): Promise<Workout[]> {
+    const rows = await db.queryAll<{
+      id: string;
+      userid: string;
+      date: string;
+      totaltu: number;
+      creditsused: number;
+      notes: string | null;
+      ispublic: boolean;
+      exercise_data: WorkoutExercise[];
+      muscle_activations: Record<string, number>;
+      createdat: string;
+    }>(
+      `SELECT id, user_id as userId, date, total_tu as totalTU, credits_used as creditsUsed,
+              notes, is_public as isPublic, exercise_data, muscle_activations, created_at as createdAt
+       FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
 
     return rows.map(row => ({
-      ...row,
-      isPublic: Boolean(row.isPublic),
-      exerciseData: JSON.parse(row.exercise_data || '[]'),
-      muscleActivations: JSON.parse(row.muscle_activations || '{}'),
+      id: row.id,
+      userId: row.userid,
+      date: row.date,
+      totalTU: row.totaltu,
+      creditsUsed: row.creditsused,
+      notes: row.notes,
+      isPublic: row.ispublic,
+      exerciseData: row.exercise_data || [],
+      muscleActivations: row.muscle_activations || {},
+      createdAt: row.createdat,
     }));
   },
 
-  getUserMuscleActivation(userId: string, days: number = 7): Record<string, number> {
-    const rows = db.prepare(`
-      SELECT muscle_activations FROM workouts
-      WHERE user_id = ? AND date >= date('now', ?)
-    `).all(userId, `-${days} days`) as any[];
+  async getUserMuscleActivation(userId: string, days: number = 7): Promise<Record<string, number>> {
+    const rows = await db.queryAll<{ muscle_activations: Record<string, number> }>(
+      `SELECT muscle_activations FROM workouts
+       WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '1 day' * $2`,
+      [userId, days]
+    );
 
     const totals: Record<string, number> = {};
     for (const row of rows) {
-      const activations = JSON.parse(row.muscle_activations || '{}');
+      const activations = row.muscle_activations || {};
       for (const [muscleId, value] of Object.entries(activations)) {
         totals[muscleId] = (totals[muscleId] || 0) + (value as number);
       }
@@ -169,23 +222,30 @@ export const workoutService = {
     return totals;
   },
 
-  getUserStats(userId: string) {
-    const allTime = db.prepare(`
-      SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
-      FROM workouts WHERE user_id = ?
-    `).get(userId) as { workoutCount: number; totalTU: number };
+  async getUserStats(userId: string) {
+    const allTime = await db.queryOne<{ workoutcount: number; totaltu: number }>(
+      `SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
+       FROM workouts WHERE user_id = $1`,
+      [userId]
+    );
 
-    const thisWeek = db.prepare(`
-      SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
-      FROM workouts WHERE user_id = ? AND date >= date('now', '-7 days')
-    `).get(userId) as { workoutCount: number; totalTU: number };
+    const thisWeek = await db.queryOne<{ workoutcount: number; totaltu: number }>(
+      `SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
+       FROM workouts WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'`,
+      [userId]
+    );
 
-    const thisMonth = db.prepare(`
-      SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
-      FROM workouts WHERE user_id = ? AND date >= date('now', '-30 days')
-    `).get(userId) as { workoutCount: number; totalTU: number };
+    const thisMonth = await db.queryOne<{ workoutcount: number; totaltu: number }>(
+      `SELECT COUNT(*) as workoutCount, COALESCE(SUM(total_tu), 0) as totalTU
+       FROM workouts WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'`,
+      [userId]
+    );
 
-    return { allTime, thisWeek, thisMonth };
+    return {
+      allTime: { workoutCount: Number(allTime?.workoutcount || 0), totalTU: Number(allTime?.totaltu || 0) },
+      thisWeek: { workoutCount: Number(thisWeek?.workoutcount || 0), totalTU: Number(thisWeek?.totaltu || 0) },
+      thisMonth: { workoutCount: Number(thisMonth?.workoutcount || 0), totalTU: Number(thisMonth?.totaltu || 0) },
+    };
   },
 };
 
@@ -193,37 +253,37 @@ export const workoutRouter = Router();
 
 workoutRouter.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const data = createWorkoutSchema.parse(req.body);
-  const workout = workoutService.create(req.user!.userId, data);
+  const workout = await workoutService.create(req.user!.userId, data);
   res.status(201).json({ data: workout });
 }));
 
 workoutRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
   const offset = parseInt(req.query.offset as string) || 0;
-  res.json({ data: workoutService.getByUser(req.user!.userId, limit, offset), meta: { limit, offset } });
+  res.json({ data: await workoutService.getByUser(req.user!.userId, limit, offset), meta: { limit, offset } });
 }));
 
 workoutRouter.get('/me/stats', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  res.json({ data: workoutService.getUserStats(req.user!.userId) });
+  res.json({ data: await workoutService.getUserStats(req.user!.userId) });
 }));
 
 workoutRouter.get('/me/muscles', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const days = Math.min(parseInt(req.query.days as string) || 7, 365);
-  const rawActivations = workoutService.getUserMuscleActivation(req.user!.userId, days);
-  const activations = muscleService.calculateActivations(rawActivations);
+  const rawActivations = await workoutService.getUserMuscleActivation(req.user!.userId, days);
+  const activations = await muscleService.calculateActivations(rawActivations);
   res.json({ data: activations, meta: { days } });
 }));
 
 workoutRouter.post('/preview', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const parsed = z.object({ exercises: z.array(workoutExerciseSchema) }).parse(req.body);
   const exercises = parsed.exercises as WorkoutExercise[];
-  const { totalTU, muscleActivations } = workoutService.calculateTU(exercises);
-  const activations = muscleService.calculateActivations(muscleActivations);
+  const { totalTU, muscleActivations } = await workoutService.calculateTU(exercises);
+  const activations = await muscleService.calculateActivations(muscleActivations);
   res.json({ data: { totalTU, activations } });
 }));
 
 workoutRouter.get('/:id', optionalAuth, asyncHandler(async (req: Request, res: Response) => {
-  const workout = workoutService.getById(req.params.id);
+  const workout = await workoutService.getById(req.params.id);
   if (!workout) throw new NotFoundError('Workout');
   if (!workout.isPublic && workout.userId !== req.user?.userId) throw new NotFoundError('Workout');
   res.json({ data: workout });

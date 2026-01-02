@@ -5,13 +5,14 @@
  */
 
 import { createServer, startServer } from './http';
-import { db } from './db/client';
+import { initializePool, closePool } from './db/client';
 import { initializeSchema, seedCreditActions } from './db/schema';
 import { migrate as migrateTrialAndSubscriptions } from './db/migrations/001_add_trial_and_subscriptions';
 import { migrate as migrateCommunityDashboard } from './db/migrations/002_community_dashboard';
 import { migrate as migrateMessaging } from './db/migrations/003_messaging';
 import { migrate as migrateExerciseEquipmentLocations } from './db/migrations/004_exercise_equipment_locations';
 import { migrate as migrateTipsAndMilestones } from './db/migrations/005_tips_and_milestones';
+import { migrate as migratePerformanceOptimization } from './db/migrations/006_performance_optimization';
 import { loadAllPlugins, invokePluginHook } from './plugins/plugin-loader';
 import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
@@ -20,14 +21,18 @@ import { config } from './config';
 async function main(): Promise<void> {
   logger.info('🚀 Starting MuscleMap API server...');
 
-  // Initialize database
-  initializeSchema();
-  seedCreditActions();
-  migrateTrialAndSubscriptions();
-  migrateCommunityDashboard();
-  migrateMessaging();
-  migrateExerciseEquipmentLocations();
-  migrateTipsAndMilestones();
+  // Initialize database pool
+  await initializePool();
+
+  // Initialize schema and run migrations
+  await initializeSchema();
+  await seedCreditActions();
+  await migrateTrialAndSubscriptions();
+  await migrateCommunityDashboard();
+  await migrateMessaging();
+  await migrateExerciseEquipmentLocations();
+  await migrateTipsAndMilestones();
+  await migratePerformanceOptimization();
   logger.info('✅ Database initialized');
 
   // Initialize Redis if enabled
@@ -71,7 +76,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      db.close();
+      await closePool();
     } catch (error) {
       logger.error({ error }, 'Error closing database');
     }

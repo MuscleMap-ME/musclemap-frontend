@@ -13,66 +13,63 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
 
-export function migrate(): void {
+async function tableExists(tableName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.tables
+     WHERE table_name = $1`,
+    [tableName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
+export async function migrate(): Promise<void> {
   log.info('Running migration: 003_messaging');
 
   // Conversations table
-  const hasConversations = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='conversations'"
-  ).get();
-
-  if (!hasConversations) {
+  if (!(await tableExists('conversations'))) {
     log.info('Creating conversations table...');
-    db.exec(`
+    await db.query(`
       CREATE TABLE conversations (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL DEFAULT 'direct',
         name TEXT,
         created_by TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now')),
-        last_message_at TEXT,
-        metadata TEXT
-      );
-
-      CREATE INDEX idx_conversations_created_by ON conversations(created_by);
-      CREATE INDEX idx_conversations_last_message ON conversations(last_message_at);
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        last_message_at TIMESTAMP,
+        metadata JSONB
+      )
     `);
+
+    await db.query(`CREATE INDEX idx_conversations_created_by ON conversations(created_by)`);
+    await db.query(`CREATE INDEX idx_conversations_last_message ON conversations(last_message_at)`);
     log.info('conversations table created');
   }
 
   // Conversation participants
-  const hasParticipants = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_participants'"
-  ).get();
-
-  if (!hasParticipants) {
+  if (!(await tableExists('conversation_participants'))) {
     log.info('Creating conversation_participants table...');
-    db.exec(`
+    await db.query(`
       CREATE TABLE conversation_participants (
         conversation_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
-        joined_at TEXT DEFAULT (datetime('now')),
-        last_read_at TEXT,
-        muted INTEGER DEFAULT 0,
+        joined_at TIMESTAMP DEFAULT NOW(),
+        last_read_at TIMESTAMP,
+        muted BOOLEAN DEFAULT FALSE,
         role TEXT DEFAULT 'member',
         PRIMARY KEY (conversation_id, user_id)
-      );
-
-      CREATE INDEX idx_participants_user ON conversation_participants(user_id);
-      CREATE INDEX idx_participants_conversation ON conversation_participants(conversation_id);
+      )
     `);
+
+    await db.query(`CREATE INDEX idx_participants_user ON conversation_participants(user_id)`);
+    await db.query(`CREATE INDEX idx_participants_conversation ON conversation_participants(conversation_id)`);
     log.info('conversation_participants table created');
   }
 
   // Messages table
-  const hasMessages = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='messages'"
-  ).get();
-
-  if (!hasMessages) {
+  if (!(await tableExists('messages'))) {
     log.info('Creating messages table...');
-    db.exec(`
+    await db.query(`
       CREATE TABLE messages (
         id TEXT PRIMARY KEY,
         conversation_id TEXT NOT NULL,
@@ -80,27 +77,23 @@ export function migrate(): void {
         content TEXT,
         content_type TEXT DEFAULT 'text',
         reply_to_id TEXT,
-        edited_at TEXT,
-        deleted_at TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        metadata TEXT
-      );
-
-      CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
-      CREATE INDEX idx_messages_sender ON messages(sender_id);
-      CREATE INDEX idx_messages_reply ON messages(reply_to_id);
+        edited_at TIMESTAMP,
+        deleted_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        metadata JSONB
+      )
     `);
+
+    await db.query(`CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at)`);
+    await db.query(`CREATE INDEX idx_messages_sender ON messages(sender_id)`);
+    await db.query(`CREATE INDEX idx_messages_reply ON messages(reply_to_id)`);
     log.info('messages table created');
   }
 
   // Message attachments with moderation
-  const hasAttachments = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='message_attachments'"
-  ).get();
-
-  if (!hasAttachments) {
+  if (!(await tableExists('message_attachments'))) {
     log.info('Creating message_attachments table...');
-    db.exec(`
+    await db.query(`
       CREATE TABLE message_attachments (
         id TEXT PRIMARY KEY,
         message_id TEXT NOT NULL,
@@ -111,35 +104,31 @@ export function migrate(): void {
         thumbnail_path TEXT,
         moderation_status TEXT DEFAULT 'pending',
         moderation_result TEXT,
-        moderation_scores TEXT,
-        moderated_at TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE INDEX idx_attachments_message ON message_attachments(message_id);
-      CREATE INDEX idx_attachments_moderation ON message_attachments(moderation_status);
+        moderation_scores JSONB,
+        moderated_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
     `);
+
+    await db.query(`CREATE INDEX idx_attachments_message ON message_attachments(message_id)`);
+    await db.query(`CREATE INDEX idx_attachments_moderation ON message_attachments(moderation_status)`);
     log.info('message_attachments table created');
   }
 
   // User blocks table
-  const hasBlocks = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='user_blocks'"
-  ).get();
-
-  if (!hasBlocks) {
+  if (!(await tableExists('user_blocks'))) {
     log.info('Creating user_blocks table...');
-    db.exec(`
+    await db.query(`
       CREATE TABLE user_blocks (
         blocker_id TEXT NOT NULL,
         blocked_id TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now')),
+        created_at TIMESTAMP DEFAULT NOW(),
         PRIMARY KEY (blocker_id, blocked_id)
-      );
-
-      CREATE INDEX idx_blocks_blocker ON user_blocks(blocker_id);
-      CREATE INDEX idx_blocks_blocked ON user_blocks(blocked_id);
+      )
     `);
+
+    await db.query(`CREATE INDEX idx_blocks_blocker ON user_blocks(blocker_id)`);
+    await db.query(`CREATE INDEX idx_blocks_blocked ON user_blocks(blocked_id)`);
     log.info('user_blocks table created');
   }
 

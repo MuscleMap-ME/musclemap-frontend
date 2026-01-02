@@ -16,8 +16,8 @@ interface WorkoutRow {
   id: string;
   date: string;
   total_tu: number;
-  muscle_activations: string | null;
-  exercise_data: string | null;
+  muscle_activations: Record<string, number> | null;
+  exercise_data: any[] | null;
   created_at: string;
 }
 
@@ -26,7 +26,7 @@ interface ArchetypeRow {
   name: string;
   philosophy: string;
   description: string;
-  focus_areas: string;
+  focus_areas: string[] | string;
   icon_url: string | null;
 }
 
@@ -56,43 +56,48 @@ export const journeyService = {
   /**
    * Get comprehensive journey data for a user
    */
-  getJourneyData(userId: string) {
+  async getJourneyData(userId: string) {
     // Get user info
-    const user = db.prepare(`
-      SELECT current_archetype_id, current_level, created_at
-      FROM users WHERE id = ?
-    `).get(userId) as UserRow | undefined;
+    const user = await db.queryOne<UserRow>(
+      `SELECT current_archetype_id, current_level, created_at
+       FROM users WHERE id = $1`,
+      [userId]
+    );
 
     if (!user) {
       return null;
     }
 
     // Get all workouts for this user
-    const workouts = db.prepare(`
-      SELECT id, date, total_tu, muscle_activations, exercise_data, created_at
-      FROM workouts
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-    `).all(userId) as WorkoutRow[];
+    const workouts = await db.queryAll<WorkoutRow>(
+      `SELECT id, date, total_tu, muscle_activations, exercise_data, created_at
+       FROM workouts
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    );
 
     // Calculate total TU
     const totalTU = workouts.reduce((sum, w) => sum + (w.total_tu || 0), 0);
 
     // Get all archetypes
-    const archetypes = db.prepare(`
-      SELECT id, name, philosophy, description, focus_areas, icon_url
-      FROM archetypes
-    `).all() as ArchetypeRow[];
+    const archetypes = await db.queryAll<ArchetypeRow>(
+      `SELECT id, name, philosophy, description, focus_areas, icon_url
+       FROM archetypes`
+    );
 
     // Get levels for current archetype (or default to first archetype)
     const currentArchetypeId = user.current_archetype_id || archetypes[0]?.id;
 
-    const levels = currentArchetypeId ? db.prepare(`
-      SELECT level, name, total_tu, description
-      FROM archetype_levels
-      WHERE archetype_id = ?
-      ORDER BY level ASC
-    `).all(currentArchetypeId) as ArchetypeLevelRow[] : [];
+    const levels = currentArchetypeId
+      ? await db.queryAll<ArchetypeLevelRow>(
+          `SELECT level, name, total_tu, description
+           FROM archetype_levels
+           WHERE archetype_id = $1
+           ORDER BY level ASC`,
+          [currentArchetypeId]
+        )
+      : [];
 
     // Calculate current level based on total TU
     let currentLevel = 1;
@@ -119,17 +124,15 @@ export const journeyService = {
     const muscleActivations: Record<string, number> = {};
     for (const workout of workouts) {
       if (workout.muscle_activations) {
-        try {
-          const activations = JSON.parse(workout.muscle_activations);
-          for (const [muscleId, value] of Object.entries(activations)) {
-            muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + (value as number);
-          }
-        } catch {}
+        const activations = workout.muscle_activations;
+        for (const [muscleId, value] of Object.entries(activations)) {
+          muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + (value as number);
+        }
       }
     }
 
     // Get muscle names
-    const muscles = db.prepare(`SELECT id, name, muscle_group FROM muscles`).all() as MuscleRow[];
+    const muscles = await db.queryAll<MuscleRow>(`SELECT id, name, muscle_group FROM muscles`);
     const muscleMap = new Map(muscles.map(m => [m.id, m]));
 
     // Build muscle breakdown
@@ -185,28 +188,35 @@ export const journeyService = {
     }
 
     // Build paths (archetypes with progress)
-    const paths = archetypes.map(arch => {
-      const archLevels = db.prepare(`
-        SELECT level, name, total_tu
-        FROM archetype_levels
-        WHERE archetype_id = ?
-        ORDER BY level ASC
-      `).all(arch.id) as ArchetypeLevelRow[];
+    const paths = await Promise.all(
+      archetypes.map(async arch => {
+        const archLevels = await db.queryAll<ArchetypeLevelRow>(
+          `SELECT level, name, total_tu
+           FROM archetype_levels
+           WHERE archetype_id = $1
+           ORDER BY level ASC`,
+          [arch.id]
+        );
 
-      const maxTU = archLevels[archLevels.length - 1]?.total_tu || 1000;
-      const percentComplete = Math.min(100, (totalTU / maxTU) * 100);
+        const maxTU = archLevels[archLevels.length - 1]?.total_tu || 1000;
+        const percentComplete = Math.min(100, (totalTU / maxTU) * 100);
 
-      return {
-        archetype: arch.id,
-        name: arch.name,
-        philosophy: arch.philosophy,
-        description: arch.description,
-        focusAreas: arch.focus_areas?.split(',').map(s => s.trim()) || [],
-        isCurrent: arch.id === currentArchetypeId,
-        percentComplete,
-        levels: archLevels,
-      };
-    });
+        const focusAreas = Array.isArray(arch.focus_areas)
+          ? arch.focus_areas
+          : arch.focus_areas?.split(',').map(s => s.trim()) || [];
+
+        return {
+          archetype: arch.id,
+          name: arch.name,
+          philosophy: arch.philosophy,
+          description: arch.description,
+          focusAreas,
+          isCurrent: arch.id === currentArchetypeId,
+          percentComplete,
+          levels: archLevels,
+        };
+      })
+    );
 
     // Calculate days since joined
     const joinedDate = new Date(user.created_at);
@@ -216,16 +226,14 @@ export const journeyService = {
     const exerciseCounts: Record<string, { name: string; count: number }> = {};
     for (const workout of workouts) {
       if (workout.exercise_data) {
-        try {
-          const exercises = JSON.parse(workout.exercise_data);
-          for (const ex of exercises) {
-            const id = ex.exerciseId || ex.id;
-            if (!exerciseCounts[id]) {
-              exerciseCounts[id] = { name: ex.name || id, count: 0 };
-            }
-            exerciseCounts[id].count++;
+        const exercises = workout.exercise_data;
+        for (const ex of exercises) {
+          const id = ex.exerciseId || ex.id;
+          if (!exerciseCounts[id]) {
+            exerciseCounts[id] = { name: ex.name || id, count: 0 };
           }
-        } catch {}
+          exerciseCounts[id].count++;
+        }
       }
     }
     const topExercises = Object.entries(exerciseCounts)
@@ -298,15 +306,15 @@ export const journeyService = {
   /**
    * Switch user's archetype
    */
-  switchArchetype(userId: string, archetypeId: string) {
+  async switchArchetype(userId: string, archetypeId: string) {
     // Verify archetype exists
-    const archetype = db.prepare(`SELECT id, name FROM archetypes WHERE id = ?`).get(archetypeId);
+    const archetype = await db.queryOne(`SELECT id, name FROM archetypes WHERE id = $1`, [archetypeId]);
     if (!archetype) {
       return { success: false, error: 'Archetype not found' };
     }
 
     // Update user
-    db.prepare(`UPDATE users SET current_archetype_id = ? WHERE id = ?`).run(archetypeId, userId);
+    await db.query(`UPDATE users SET current_archetype_id = $1 WHERE id = $2`, [archetypeId, userId]);
 
     log.info('User switched archetype', { userId, archetypeId });
 
@@ -337,7 +345,7 @@ journeyRouter.get(
   '/',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const data = journeyService.getJourneyData(req.user!.userId);
+    const data = await journeyService.getJourneyData(req.user!.userId);
 
     if (!data) {
       res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found' } });
@@ -353,7 +361,7 @@ journeyRouter.get(
   '/paths',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const data = journeyService.getJourneyData(req.user!.userId);
+    const data = await journeyService.getJourneyData(req.user!.userId);
 
     if (!data) {
       res.json({ data: { paths: [] } });
@@ -376,7 +384,7 @@ journeyRouter.post(
       return;
     }
 
-    const result = journeyService.switchArchetype(req.user!.userId, archetype);
+    const result = await journeyService.switchArchetype(req.user!.userId, archetype);
 
     if (!result.success) {
       res.status(400).json({ error: { code: 'INVALID_ARCHETYPE', message: result.error } });

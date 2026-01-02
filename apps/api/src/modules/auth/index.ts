@@ -153,9 +153,10 @@ export const authService = {
   async register(data: z.infer<typeof registerSchema>) {
     const validated = registerSchema.parse(data);
 
-    const existing = db.prepare(
-      'SELECT id FROM users WHERE email = ? OR username = ?'
-    ).get(validated.email, validated.username) as any;
+    const existing = await db.queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE email = $1 OR username = $2',
+      [validated.email, validated.username]
+    );
 
     if (existing) {
       throw new ValidationError('Email or username already in use');
@@ -168,20 +169,24 @@ export const authService = {
     const now = new Date();
     const trialEnds = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-    db.prepare(`
-      INSERT INTO users (id, email, username, display_name, password_hash, trial_started_at, trial_ends_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      userId,
-      validated.email,
-      validated.username,
-      validated.displayName || null,
-      passwordHash,
-      now.toISOString(),
-      trialEnds.toISOString()
+    await db.query(
+      `INSERT INTO users (id, email, username, display_name, password_hash, trial_started_at, trial_ends_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        userId,
+        validated.email,
+        validated.username,
+        validated.displayName || null,
+        passwordHash,
+        now.toISOString(),
+        trialEnds.toISOString(),
+      ]
     );
 
-    db.prepare('INSERT INTO credit_balances (user_id, balance) VALUES (?, 100)').run(userId);
+    await db.query(
+      'INSERT INTO credit_balances (user_id, balance) VALUES ($1, 100)',
+      [userId]
+    );
 
     const token = generateToken({ userId, email: validated.email, roles: ['user'] });
 
@@ -196,13 +201,24 @@ export const authService = {
   async login(data: z.infer<typeof loginSchema>) {
     const validated = loginSchema.parse(data);
 
-    const user = db.prepare('SELECT id, email, username, display_name, password_hash, roles, role FROM users WHERE email = ?').get(validated.email) as any;
+    const user = await db.queryOne<{
+      id: string;
+      email: string;
+      username: string;
+      display_name: string | null;
+      password_hash: string;
+      roles: string[];
+      role: string | null;
+    }>(
+      'SELECT id, email, username, display_name, password_hash, roles, role FROM users WHERE email = $1',
+      [validated.email]
+    );
 
     if (!user || !verifyPassword(validated.password, user.password_hash)) {
       throw new AuthenticationError('Invalid email or password');
     }
 
-    const roles = JSON.parse(user.roles || '["user"]');
+    const roles = user.roles || ['user'];
     const role = (user.role as 'user' | 'moderator' | 'admin') || 'user';
     const token = generateToken({ userId: user.id, email: user.email, roles, role });
 
@@ -228,11 +244,24 @@ authRouter.post('/login', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 authRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = db.prepare('SELECT id, email, username, display_name, roles, created_at FROM users WHERE id = ?').get(req.user!.userId) as any;
+  const user = await db.queryOne<{
+    id: string;
+    email: string;
+    username: string;
+    display_name: string | null;
+    roles: string[];
+    created_at: string;
+  }>(
+    'SELECT id, email, username, display_name, roles, created_at FROM users WHERE id = $1',
+    [req.user!.userId]
+  );
 
   if (!user) throw new AuthenticationError('User not found');
 
-  const balance = db.prepare('SELECT balance FROM credit_balances WHERE user_id = ?').get(user.id) as any;
+  const balance = await db.queryOne<{ balance: number }>(
+    'SELECT balance FROM credit_balances WHERE user_id = $1',
+    [user.id]
+  );
 
   res.json({
     data: {
@@ -240,7 +269,7 @@ authRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: 
       email: user.email,
       username: user.username,
       displayName: user.display_name,
-      roles: JSON.parse(user.roles || '["user"]'),
+      roles: user.roles || ['user'],
       creditBalance: balance?.balance || 0,
       createdAt: user.created_at,
     },
@@ -248,9 +277,12 @@ authRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: 
 }));
 
 authRouter.get('/me/capabilities', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const user = db.prepare('SELECT roles FROM users WHERE id = ?').get(req.user!.userId) as any;
-  const roles = JSON.parse(user?.roles || '["user"]');
-  
+  const user = await db.queryOne<{ roles: string[] }>(
+    'SELECT roles FROM users WHERE id = $1',
+    [req.user!.userId]
+  );
+  const roles = user?.roles || ['user'];
+
   const capabilities = ['users.read', 'economy.read', 'workouts.create', 'workouts.read'];
   if (roles.includes('admin')) capabilities.push('admin.*');
 

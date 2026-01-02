@@ -694,16 +694,15 @@ const MILESTONES_SEED: MilestoneSeed[] = [
   },
 ];
 
-export function seedTips(): void {
+export async function seedTips(): Promise<void> {
   log.info('Seeding tips...');
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO tips (id, title, content, source, category, subcategory, trigger_type, trigger_value, display_context)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
   for (const tip of TIPS_SEED) {
-    stmt.run(
+    await db.query(`
+      INSERT INTO tips (id, title, content, source, category, subcategory, trigger_type, trigger_value, display_context)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO NOTHING
+    `, [
       tip.id,
       tip.title || null,
       tip.content,
@@ -713,22 +712,21 @@ export function seedTips(): void {
       tip.trigger_type,
       tip.trigger_value || null,
       tip.display_context || null
-    );
+    ]);
   }
 
   log.info(`Seeded ${TIPS_SEED.length} tips`);
 }
 
-export function seedMilestones(): void {
+export async function seedMilestones(): Promise<void> {
   log.info('Seeding milestones...');
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO milestones (id, name, description, metric, threshold, reward_type, reward_value)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
   for (const milestone of MILESTONES_SEED) {
-    stmt.run(
+    await db.query(`
+      INSERT INTO milestones (id, name, description, metric, threshold, reward_type, reward_value)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (id) DO NOTHING
+    `, [
       milestone.id,
       milestone.name,
       milestone.description || null,
@@ -736,7 +734,7 @@ export function seedMilestones(): void {
       milestone.threshold,
       milestone.reward_type || null,
       milestone.reward_value || null
-    );
+    ]);
   }
 
   log.info(`Seeded ${MILESTONES_SEED.length} milestones`);

@@ -1,5 +1,5 @@
 /**
- * Database Schema
+ * Database Schema (PostgreSQL)
  */
 
 import { db } from './client';
@@ -7,10 +7,10 @@ import { loggers } from '../lib/logger';
 
 const log = loggers.db;
 
-export function initializeSchema(): void {
+export async function initializeSchema(): Promise<void> {
   log.info('Initializing database schema...');
 
-  db.exec(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -18,71 +18,83 @@ export function initializeSchema(): void {
       display_name TEXT,
       password_hash TEXT NOT NULL,
       avatar_url TEXT,
-      roles TEXT DEFAULT '["user"]',
-      flags TEXT DEFAULT '{"verified":false,"banned":false,"suspended":false,"emailConfirmed":false}',
+      roles JSONB DEFAULT '["user"]',
+      flags JSONB DEFAULT '{"verified":false,"banned":false,"suspended":false,"emailConfirmed":false}',
       current_archetype_id TEXT,
       current_level INTEGER DEFAULT 1,
-      trial_started_at TEXT,
-      trial_ends_at TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      trial_started_at TIMESTAMP,
+      trial_ends_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS groups (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
       avatar_url TEXT,
       owner_id TEXT NOT NULL,
-      settings TEXT DEFAULT '{}',
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      settings JSONB DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS group_memberships (
       group_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'member',
-      joined_at TEXT DEFAULT (datetime('now')),
+      joined_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (group_id, user_id)
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS credit_balances (
       user_id TEXT PRIMARY KEY,
       balance INTEGER NOT NULL DEFAULT 0,
       lifetime_earned INTEGER NOT NULL DEFAULT 0,
       lifetime_spent INTEGER NOT NULL DEFAULT 0,
       version INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS credit_ledger (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       action TEXT NOT NULL,
       amount INTEGER NOT NULL,
       balance_after INTEGER NOT NULL,
-      metadata TEXT,
+      metadata JSONB,
       idempotency_key TEXT UNIQUE,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user ON credit_ledger(user_id);
-    CREATE INDEX IF NOT EXISTS idx_credit_ledger_idempotency ON credit_ledger(idempotency_key);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_credit_ledger_user ON credit_ledger(user_id)`);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_credit_ledger_idempotency ON credit_ledger(idempotency_key)`);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS credit_actions (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
       default_cost INTEGER NOT NULL,
       plugin_id TEXT,
-      enabled INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      enabled BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS purchases (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -92,37 +104,43 @@ export function initializeSchema(): void {
       status TEXT NOT NULL DEFAULT 'pending',
       stripe_payment_id TEXT,
       stripe_session_id TEXT,
-      metadata TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      completed_at TEXT
-    );
+      metadata JSONB,
+      created_at TIMESTAMP DEFAULT NOW(),
+      completed_at TIMESTAMP
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS subscriptions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT UNIQUE,
       status TEXT NOT NULL DEFAULT 'inactive',
-      current_period_start TEXT,
-      current_period_end TEXT,
-      cancel_at_period_end INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      current_period_start TIMESTAMP,
+      current_period_end TIMESTAMP,
+      cancel_at_period_end BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe ON subscriptions(stripe_subscription_id)`);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS muscles (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       anatomical_name TEXT,
       muscle_group TEXT NOT NULL,
-      bias_weight REAL NOT NULL,
+      bias_weight NUMERIC NOT NULL,
       optimal_weekly_volume INTEGER,
       recovery_time INTEGER
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS exercises (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -131,74 +149,86 @@ export function initializeSchema(): void {
       description TEXT,
       cues TEXT,
       primary_muscles TEXT,
-      equipment_required TEXT DEFAULT '[]',
-      equipment_optional TEXT DEFAULT '[]',
-      locations TEXT DEFAULT '["gym"]',
-      is_compound INTEGER DEFAULT 0,
+      equipment_required JSONB DEFAULT '[]',
+      equipment_optional JSONB DEFAULT '[]',
+      locations JSONB DEFAULT '["gym"]',
+      is_compound BOOLEAN DEFAULT FALSE,
       estimated_seconds INTEGER DEFAULT 45,
       rest_seconds INTEGER DEFAULT 60,
       movement_pattern TEXT
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS prescriptions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
-      constraints TEXT NOT NULL,
-      exercises TEXT NOT NULL,
-      warmup TEXT,
-      cooldown TEXT,
-      substitutions TEXT,
-      muscle_coverage TEXT NOT NULL,
+      constraints JSONB NOT NULL,
+      exercises JSONB NOT NULL,
+      warmup JSONB,
+      cooldown JSONB,
+      substitutions JSONB,
+      muscle_coverage JSONB NOT NULL,
       estimated_duration INTEGER NOT NULL,
       actual_duration INTEGER NOT NULL,
       credit_cost INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_prescriptions_user ON prescriptions(user_id);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_prescriptions_user ON prescriptions(user_id)`);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS exercise_activations (
       exercise_id TEXT NOT NULL,
       muscle_id TEXT NOT NULL,
       activation INTEGER NOT NULL,
       PRIMARY KEY (exercise_id, muscle_id)
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS archetypes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       philosophy TEXT,
       description TEXT,
-      focus_areas TEXT,
+      focus_areas JSONB,
       icon_url TEXT
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS archetype_levels (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       archetype_id TEXT NOT NULL,
       level INTEGER NOT NULL,
       name TEXT NOT NULL,
       total_tu INTEGER NOT NULL,
       description TEXT,
-      muscle_targets TEXT,
+      muscle_targets JSONB,
       UNIQUE(archetype_id, level)
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS workouts (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       date TEXT NOT NULL,
-      total_tu REAL NOT NULL,
+      total_tu NUMERIC NOT NULL,
       credits_used INTEGER NOT NULL DEFAULT 25,
       notes TEXT,
-      is_public INTEGER DEFAULT 1,
-      exercise_data TEXT,
-      muscle_activations TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      is_public BOOLEAN DEFAULT TRUE,
+      exercise_data JSONB,
+      muscle_activations JSONB,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id);
+  await db.query(`CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id)`);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS competitions (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -211,46 +241,52 @@ export function initializeSchema(): void {
       max_participants INTEGER,
       entry_fee INTEGER,
       prize_pool INTEGER,
-      rules TEXT,
-      is_public INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+      rules JSONB,
+      is_public BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS competition_participants (
       competition_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
-      score REAL NOT NULL DEFAULT 0,
+      score NUMERIC NOT NULL DEFAULT 0,
       rank INTEGER,
-      joined_at TEXT DEFAULT (datetime('now')),
+      joined_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (competition_id, user_id)
-    );
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS installed_plugins (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       version TEXT NOT NULL,
       display_name TEXT,
       description TEXT,
-      enabled INTEGER DEFAULT 1,
-      config TEXT,
-      installed_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+      enabled BOOLEAN DEFAULT TRUE,
+      config JSONB,
+      installed_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
+  await db.query(`
     CREATE TABLE IF NOT EXISTS refresh_tokens (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       token_hash TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now')),
-      revoked_at TEXT
-    );
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      revoked_at TIMESTAMP
+    )
   `);
 
   log.info('Database schema initialized');
 }
 
-export function seedCreditActions(): void {
+export async function seedCreditActions(): Promise<void> {
   const actions = [
     { id: 'workout.complete', name: 'Complete Workout', cost: 25 },
     { id: 'ai.generate', name: 'AI Generation', cost: 50 },
@@ -258,13 +294,13 @@ export function seedCreditActions(): void {
     { id: 'prescription.generate', name: 'Generate Prescription', cost: 1 },
   ];
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO credit_actions (id, name, default_cost)
-    VALUES (?, ?, ?)
-  `);
-
   for (const action of actions) {
-    stmt.run(action.id, action.name, action.cost);
+    await db.query(
+      `INSERT INTO credit_actions (id, name, default_cost)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO NOTHING`,
+      [action.id, action.name, action.cost]
+    );
   }
 
   log.info('Credit actions seeded');

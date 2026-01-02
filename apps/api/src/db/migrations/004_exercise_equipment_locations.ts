@@ -10,31 +10,46 @@ import { seedEquipmentLocations } from '../seed-equipment-locations';
 
 const log = loggers.db;
 
-export function migrate(): void {
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.columns
+     WHERE table_name = $1 AND column_name = $2`,
+    [tableName, columnName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
+async function tableExists(tableName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.tables
+     WHERE table_name = $1`,
+    [tableName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
+export async function migrate(): Promise<void> {
   log.info('Running migration: 004_exercise_equipment_locations');
 
   // Check if columns already exist
-  const tableInfo = db.prepare("PRAGMA table_info(exercises)").all() as { name: string }[];
-  const hasEquipmentRequired = tableInfo.some(col => col.name === 'equipment_required');
+  const hasEquipmentRequired = await columnExists('exercises', 'equipment_required');
 
   if (!hasEquipmentRequired) {
     log.info('Adding equipment/location columns to exercises table...');
 
     // Add new columns to exercises table
-    db.exec(`
-      ALTER TABLE exercises ADD COLUMN equipment_required TEXT DEFAULT '[]';
-      ALTER TABLE exercises ADD COLUMN equipment_optional TEXT DEFAULT '[]';
-      ALTER TABLE exercises ADD COLUMN locations TEXT DEFAULT '["gym"]';
-      ALTER TABLE exercises ADD COLUMN is_compound INTEGER DEFAULT 0;
-      ALTER TABLE exercises ADD COLUMN estimated_seconds INTEGER DEFAULT 45;
-      ALTER TABLE exercises ADD COLUMN rest_seconds INTEGER DEFAULT 60;
-      ALTER TABLE exercises ADD COLUMN movement_pattern TEXT;
-    `);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS equipment_required JSONB DEFAULT '[]'`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS equipment_optional JSONB DEFAULT '[]'`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS locations JSONB DEFAULT '["gym"]'`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS is_compound BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS estimated_seconds INTEGER DEFAULT 45`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS rest_seconds INTEGER DEFAULT 60`);
+    await db.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS movement_pattern TEXT`);
 
     log.info('Equipment/location columns added');
 
     // Seed exercise equipment/location mappings
-    seedEquipmentLocations(db);
+    await seedEquipmentLocations();
 
     log.info('Equipment/location data seeded');
   } else {
@@ -42,29 +57,27 @@ export function migrate(): void {
   }
 
   // Check if prescriptions table exists
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='prescriptions'").get();
-
-  if (!tables) {
+  if (!(await tableExists('prescriptions'))) {
     log.info('Creating prescriptions table...');
 
-    db.exec(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS prescriptions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
-        constraints TEXT NOT NULL,
-        exercises TEXT NOT NULL,
-        warmup TEXT,
-        cooldown TEXT,
-        substitutions TEXT,
-        muscle_coverage TEXT NOT NULL,
+        constraints JSONB NOT NULL,
+        exercises JSONB NOT NULL,
+        warmup JSONB,
+        cooldown JSONB,
+        substitutions JSONB,
+        muscle_coverage JSONB NOT NULL,
         estimated_duration INTEGER NOT NULL,
         actual_duration INTEGER NOT NULL,
         credit_cost INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_prescriptions_user ON prescriptions(user_id);
+        created_at TIMESTAMP DEFAULT NOW()
+      )
     `);
+
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_prescriptions_user ON prescriptions(user_id)`);
 
     log.info('Prescriptions table created');
   } else {

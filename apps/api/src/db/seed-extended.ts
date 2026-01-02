@@ -1,8 +1,10 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+/**
+ * Extended Exercises Seed Script
+ *
+ * Run with: npx tsx src/db/seed-extended.ts
+ */
 
-const db = new Database(path.join(__dirname, '../../data/musclemap.db'));
-console.log('🌱 Seeding extended exercises...');
+import { db, initializePool, closePool } from './client';
 
 const exercises = [
   { id: 'bw-ring-dip', name: 'Ring Dip', type: 'bodyweight', difficulty: 3, primaryMuscles: 'triceps-long,chest-lower,delt-front' },
@@ -32,10 +34,6 @@ const exercises = [
   { id: 'fw-pallof-press', name: 'Pallof Press', type: 'freeweight', difficulty: 2, primaryMuscles: 'obliques,transverse-abdominis' },
 ];
 
-const stmt = db.prepare('INSERT OR REPLACE INTO exercises (id, name, type, difficulty, primary_muscles) VALUES (?, ?, ?, ?, ?)');
-for (const e of exercises) stmt.run(e.id, e.name, e.type, e.difficulty, e.primaryMuscles);
-console.log(`✓ Inserted ${exercises.length} exercises`);
-
 const activations = [
   { exerciseId: 'bw-ring-dip', muscleId: 'triceps-long', activation: 85 },
   { exerciseId: 'bw-ring-dip', muscleId: 'chest-lower', activation: 70 },
@@ -61,9 +59,49 @@ const activations = [
   { exerciseId: 'bw-pistol-squat', muscleId: 'glute-med', activation: 65 },
 ];
 
-const actStmt = db.prepare('INSERT OR REPLACE INTO exercise_activations (exercise_id, muscle_id, activation) VALUES (?, ?, ?)');
-for (const a of activations) actStmt.run(a.exerciseId, a.muscleId, a.activation);
-console.log(`✓ Inserted ${activations.length} activations`);
+/**
+ * Seed extended exercises and activations
+ */
+export async function seedExtendedExercises(): Promise<void> {
+  console.log('🌱 Seeding extended exercises...');
 
-console.log('✅ Done!');
-db.close();
+  for (const e of exercises) {
+    await db.query(`
+      INSERT INTO exercises (id, name, type, difficulty, primary_muscles)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        difficulty = EXCLUDED.difficulty,
+        primary_muscles = EXCLUDED.primary_muscles
+    `, [e.id, e.name, e.type, e.difficulty, e.primaryMuscles]);
+  }
+  console.log(`✓ Inserted ${exercises.length} exercises`);
+
+  for (const a of activations) {
+    await db.query(`
+      INSERT INTO exercise_activations (exercise_id, muscle_id, activation)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (exercise_id, muscle_id) DO UPDATE SET
+        activation = EXCLUDED.activation
+    `, [a.exerciseId, a.muscleId, a.activation]);
+  }
+  console.log(`✓ Inserted ${activations.length} activations`);
+
+  console.log('✅ Done!');
+}
+
+// Run if executed directly
+if (require.main === module) {
+  (async () => {
+    try {
+      await initializePool();
+      await seedExtendedExercises();
+    } catch (error) {
+      console.error('Seeding failed:', error);
+      process.exit(1);
+    } finally {
+      await closePool();
+    }
+  })();
+}

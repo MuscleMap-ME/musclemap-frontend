@@ -63,22 +63,23 @@ communityRouter.get(
       WHERE visibility_scope IN ('public_anon', 'public_profile')
     `;
     const params: unknown[] = [];
+    let paramIndex = 1;
 
     if (before) {
-      query += ' AND created_at < ?';
+      query += ` AND created_at < $${paramIndex++}`;
       params.push(before);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ?';
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
     params.push(limit);
 
-    const events = db.prepare(query).all(...params) as Array<{
+    const events = await db.queryAll<{
       id: string;
       event_type: string;
       payload: string;
       geo_bucket: string | null;
       created_at: string;
-    }>;
+    }>(query, params);
 
     const publicEvents: PublicEvent[] = events.map((row) => ({
       id: row.id,
@@ -147,7 +148,7 @@ communityRouter.get(
 communityRouter.get(
   '/stats/archetypes',
   asyncHandler(async (_req: Request, res: Response) => {
-    const distribution = getArchetypeDistribution();
+    const distribution = await getArchetypeDistribution();
     res.json({ data: distribution });
   })
 );
@@ -161,7 +162,7 @@ communityRouter.get(
   asyncHandler(async (req: Request, res: Response) => {
     const window = (req.query.window as '7d' | '30d') || '7d';
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-    const ranking = getExerciseRanking(limit, window);
+    const ranking = await getExerciseRanking(limit, window);
     res.json({ data: ranking });
   })
 );
@@ -173,7 +174,7 @@ communityRouter.get(
 communityRouter.get(
   '/stats/funnel',
   asyncHandler(async (_req: Request, res: Response) => {
-    const funnel = getFunnelStats();
+    const funnel = await getFunnelStats();
     res.json({ data: funnel });
   })
 );
@@ -185,7 +186,7 @@ communityRouter.get(
 communityRouter.get(
   '/stats/credits',
   asyncHandler(async (_req: Request, res: Response) => {
-    const distribution = getCreditDistribution();
+    const distribution = await getCreditDistribution();
     res.json({ data: distribution });
   })
 );
@@ -197,7 +198,7 @@ communityRouter.get(
 communityRouter.get(
   '/stats/geographic',
   asyncHandler(async (_req: Request, res: Response) => {
-    const geo = getGeographicDistribution();
+    const geo = await getGeographicDistribution();
     res.json({ data: geo });
   })
 );
@@ -245,7 +246,7 @@ communityRouter.get(
   '/privacy',
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
-    const settings = getPrivacySettings(req.user!.userId);
+    const settings = await getPrivacySettings(req.user!.userId);
     res.json({ data: settings });
   })
 );
@@ -259,7 +260,7 @@ communityRouter.patch(
   authenticateToken,
   asyncHandler(async (req: Request, res: Response) => {
     const updates = privacyUpdateSchema.parse(req.body);
-    const settings = updatePrivacySettings(req.user!.userId, updates);
+    const settings = await updatePrivacySettings(req.user!.userId, updates);
 
     // Emit privacy change event if location sharing toggled
     if (updates.shareLocation !== undefined) {
@@ -293,7 +294,7 @@ communityRouter.post(
     const userId = req.user!.userId;
 
     // Check if user has location sharing enabled
-    const privacy = getPrivacySettings(userId);
+    const privacy = await getPrivacySettings(userId);
     if (!privacy.shareLocation) {
       res.status(400).json({
         error: 'Location sharing disabled',
@@ -302,18 +303,18 @@ communityRouter.post(
       return;
     }
 
-    db.prepare(`
+    await db.query(`
       INSERT INTO user_locations (user_id, geo_bucket, city, region, country, country_code, timezone, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       ON CONFLICT(user_id) DO UPDATE SET
-        geo_bucket = excluded.geo_bucket,
-        city = excluded.city,
-        region = excluded.region,
-        country = excluded.country,
-        country_code = excluded.country_code,
-        timezone = excluded.timezone,
-        updated_at = excluded.updated_at
-    `).run(
+        geo_bucket = EXCLUDED.geo_bucket,
+        city = EXCLUDED.city,
+        region = EXCLUDED.region,
+        country = EXCLUDED.country,
+        country_code = EXCLUDED.country_code,
+        timezone = EXCLUDED.timezone,
+        updated_at = EXCLUDED.updated_at
+    `, [
       userId,
       data.geoBucket,
       data.city || null,
@@ -321,7 +322,7 @@ communityRouter.post(
       data.country || null,
       data.countryCode || null,
       data.timezone || null
-    );
+    ]);
 
     res.json({ data: { updated: true } });
   })
@@ -338,9 +339,10 @@ communityRouter.post(
     const userId = req.user!.userId;
 
     // Get user's location for presence
-    const location = db
-      .prepare('SELECT geo_bucket FROM user_locations WHERE user_id = ?')
-      .get(userId) as { geo_bucket: string } | undefined;
+    const location = await db.queryOne<{ geo_bucket: string }>(
+      'SELECT geo_bucket FROM user_locations WHERE user_id = $1',
+      [userId]
+    );
 
     await emitHeartbeat(userId, {
       geoBucket: location?.geo_bucket,
@@ -371,21 +373,22 @@ communityRouter.get(
       FROM activity_events
     `;
     const params: unknown[] = [];
+    let paramIndex = 1;
 
     if (before) {
-      query += ' WHERE created_at < ?';
+      query += ` WHERE created_at < $${paramIndex++}`;
       params.push(before);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ?';
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
     params.push(limit);
 
-    const events = db.prepare(query).all(...params);
+    const events = await db.queryAll<any>(query, params);
 
     res.json({
       data: {
         events,
-        nextCursor: events.length === limit ? (events[events.length - 1] as any)?.created_at : null,
+        nextCursor: events.length === limit ? events[events.length - 1]?.created_at : null,
       },
     });
   })
@@ -409,24 +412,20 @@ communityRouter.get(
     ]);
 
     // Event counts by type
-    const windowMap = {
-      '1h': '-1 hour',
-      '24h': '-24 hours',
-      '7d': '-7 days',
+    const windowMap: Record<string, string> = {
+      '1h': '1 hour',
+      '24h': '24 hours',
+      '7d': '7 days',
     };
     const interval = windowMap[window];
 
-    const eventCounts = db
-      .prepare(
-        `
+    const eventCounts = await db.queryAll<{ event_type: string; count: number }>(`
       SELECT event_type, COUNT(*) as count
       FROM activity_events
-      WHERE created_at > datetime('now', ?)
+      WHERE created_at > NOW() - INTERVAL '${interval}'
       GROUP BY event_type
       ORDER BY count DESC
-    `
-      )
-      .all(interval) as Array<{ event_type: string; count: number }>;
+    `);
 
     res.json({
       data: {
@@ -453,23 +452,20 @@ communityRouter.get(
     const { userId } = req.params;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
 
-    const events = db
-      .prepare(
-        `
+    const events = await db.queryAll<any>(`
       SELECT id, event_type, payload, geo_bucket, visibility_scope, created_at
       FROM activity_events
-      WHERE user_id = ?
+      WHERE user_id = $1
       ORDER BY created_at DESC
-      LIMIT ?
-    `
-      )
-      .all(userId, limit);
+      LIMIT $2
+    `, [userId, limit]);
 
-    const user = db
-      .prepare('SELECT id, username, display_name, role, created_at FROM users WHERE id = ?')
-      .get(userId);
+    const user = await db.queryOne<any>(
+      'SELECT id, username, display_name, role, created_at FROM users WHERE id = $1',
+      [userId]
+    );
 
-    const privacy = getPrivacySettings(userId);
+    const privacy = await getPrivacySettings(userId);
 
     res.json({
       data: {

@@ -1,8 +1,10 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+/**
+ * Archetype Seed Script
+ *
+ * Run with: npx tsx src/db/seed-archetypes.ts
+ */
 
-const db = new Database(path.join(__dirname, '../../data/musclemap.db'));
-console.log('🌱 Seeding archetypes...');
+import { db, initializePool, closePool } from './client';
 
 const archetypes = [
   { id: 'bodybuilder', name: 'Bodybuilder', philosophy: 'Aesthetic symmetry through hypertrophy.', description: 'Focus on balanced muscle development, symmetry, and size.', focusAreas: 'chest,back,shoulders,arms,legs,core' },
@@ -16,10 +18,6 @@ const archetypes = [
   { id: 'functional', name: 'Functional Athlete', philosophy: 'Train for life.', description: 'Balanced strength, mobility, and conditioning.', focusAreas: 'full-body,mobility,stability' },
   { id: 'swimmer', name: 'Swimmer', philosophy: 'Flow through water.', description: 'Upper body pulling power with core stability.', focusAreas: 'lats,shoulders,core,chest' },
 ];
-
-const archetypeStmt = db.prepare('INSERT OR REPLACE INTO archetypes (id, name, philosophy, description, focus_areas, icon_url) VALUES (?, ?, ?, ?, ?, NULL)');
-for (const a of archetypes) archetypeStmt.run(a.id, a.name, a.philosophy, a.description, a.focusAreas);
-console.log(`✓ Inserted ${archetypes.length} archetypes`);
 
 const levels = [
   { archetypeId: 'bodybuilder', level: 1, name: 'Novice', totalTU: 0, description: 'Learning the basics' },
@@ -44,9 +42,52 @@ const levels = [
   { archetypeId: 'crossfit', level: 5, name: 'Games Athlete', totalTU: 10000, description: 'Elite fitness' },
 ];
 
-const levelStmt = db.prepare('INSERT OR REPLACE INTO archetype_levels (archetype_id, level, name, total_tu, description, muscle_targets) VALUES (?, ?, ?, ?, ?, ?)');
-for (const l of levels) levelStmt.run(l.archetypeId, l.level, l.name, l.totalTU, l.description, '{}');
-console.log(`✓ Inserted ${levels.length} levels`);
+/**
+ * Seed archetypes and levels
+ */
+export async function seedArchetypes(): Promise<void> {
+  console.log('🌱 Seeding archetypes...');
 
-console.log('✅ Done!');
-db.close();
+  for (const a of archetypes) {
+    await db.query(`
+      INSERT INTO archetypes (id, name, philosophy, description, focus_areas, icon_url)
+      VALUES ($1, $2, $3, $4, $5, NULL)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        philosophy = EXCLUDED.philosophy,
+        description = EXCLUDED.description,
+        focus_areas = EXCLUDED.focus_areas
+    `, [a.id, a.name, a.philosophy, a.description, a.focusAreas]);
+  }
+  console.log(`✓ Inserted ${archetypes.length} archetypes`);
+
+  for (const l of levels) {
+    await db.query(`
+      INSERT INTO archetype_levels (archetype_id, level, name, total_tu, description, muscle_targets)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (archetype_id, level) DO UPDATE SET
+        name = EXCLUDED.name,
+        total_tu = EXCLUDED.total_tu,
+        description = EXCLUDED.description,
+        muscle_targets = EXCLUDED.muscle_targets
+    `, [l.archetypeId, l.level, l.name, l.totalTU, l.description, '{}']);
+  }
+  console.log(`✓ Inserted ${levels.length} levels`);
+
+  console.log('✅ Done!');
+}
+
+// Run if executed directly
+if (require.main === module) {
+  (async () => {
+    try {
+      await initializePool();
+      await seedArchetypes();
+    } catch (error) {
+      console.error('Seeding failed:', error);
+      process.exit(1);
+    } finally {
+      await closePool();
+    }
+  })();
+}

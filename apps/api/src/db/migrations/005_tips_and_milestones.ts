@@ -10,96 +10,90 @@ import { seedTips, seedMilestones } from '../seed-tips';
 
 const log = loggers.db;
 
-export function migrate(): void {
+async function tableExists(tableName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.tables
+     WHERE table_name = $1`,
+    [tableName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
+export async function migrate(): Promise<void> {
   log.info('Running migration: 005_tips_and_milestones');
 
   // Check if tips table already exists
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tips'").get();
-
-  if (!tables) {
+  if (!(await tableExists('tips'))) {
     log.info('Creating tips and milestones tables...');
 
-    db.exec(`
-      -- Tips and insights library
+    // Tips and insights library
+    await db.query(`
       CREATE TABLE IF NOT EXISTS tips (
         id TEXT PRIMARY KEY,
-
-        -- Content
         title TEXT,
         content TEXT NOT NULL,
         source TEXT,
-
-        -- Categorization
         category TEXT NOT NULL,
         subcategory TEXT,
-
-        -- Targeting
         trigger_type TEXT NOT NULL,
         trigger_value TEXT,
-
-        -- Display context
         display_context TEXT,
-
-        -- Engagement
         times_shown INTEGER DEFAULT 0,
         times_liked INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
 
-        created_at TEXT DEFAULT (datetime('now'))
-      );
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_tips_trigger ON tips(trigger_type, trigger_value)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_tips_category ON tips(category)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_tips_display_context ON tips(display_context)`);
 
-      CREATE INDEX IF NOT EXISTS idx_tips_trigger ON tips(trigger_type, trigger_value);
-      CREATE INDEX IF NOT EXISTS idx_tips_category ON tips(category);
-      CREATE INDEX IF NOT EXISTS idx_tips_display_context ON tips(display_context);
-
-      -- Track which tips user has seen (avoid repetition)
+    // Track which tips user has seen (avoid repetition)
+    await db.query(`
       CREATE TABLE IF NOT EXISTS user_tips_seen (
         user_id TEXT NOT NULL,
         tip_id TEXT NOT NULL,
-        seen_at TEXT DEFAULT (datetime('now')),
-        liked INTEGER DEFAULT 0,
-
+        seen_at TIMESTAMP DEFAULT NOW(),
+        liked BOOLEAN DEFAULT FALSE,
         PRIMARY KEY (user_id, tip_id)
-      );
+      )
+    `);
 
-      CREATE INDEX IF NOT EXISTS idx_user_tips_seen_user ON user_tips_seen(user_id);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_user_tips_seen_user ON user_tips_seen(user_id)`);
 
-      -- Milestone definitions for unlocking tips
+    // Milestone definitions for unlocking tips
+    await db.query(`
       CREATE TABLE IF NOT EXISTS milestones (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
-
-        -- Trigger conditions
         metric TEXT NOT NULL,
         threshold INTEGER NOT NULL,
-
-        -- Reward
         reward_type TEXT,
         reward_value TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
 
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      -- User milestone progress
+    // User milestone progress
+    await db.query(`
       CREATE TABLE IF NOT EXISTS user_milestones (
         user_id TEXT NOT NULL,
         milestone_id TEXT NOT NULL,
-
         current_value INTEGER DEFAULT 0,
-        completed_at TEXT,
-        reward_claimed INTEGER DEFAULT 0,
-
+        completed_at TIMESTAMP,
+        reward_claimed BOOLEAN DEFAULT FALSE,
         PRIMARY KEY (user_id, milestone_id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_user_milestones_user ON user_milestones(user_id);
+      )
     `);
+
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_user_milestones_user ON user_milestones(user_id)`);
 
     log.info('Tips and milestones tables created');
 
     // Seed tips and milestones
-    seedTips();
-    seedMilestones();
+    await seedTips();
+    await seedMilestones();
 
     log.info('Tips and milestones data seeded');
   } else {

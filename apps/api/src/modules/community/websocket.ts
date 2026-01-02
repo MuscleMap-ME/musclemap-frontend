@@ -69,24 +69,20 @@ function extractJwtFromRequest(request: FastifyRequest): JwtPayload | null {
  */
 async function sendCommunitySnapshot(socket: WebSocket): Promise<void> {
   try {
-    // Get recent public events from SQLite
-    const recentEvents = db
-      .prepare(
-        `
-      SELECT id, event_type, payload, geo_bucket, created_at
-      FROM activity_events
-      WHERE visibility_scope IN ('public_anon', 'public_profile')
-      ORDER BY created_at DESC
-      LIMIT 50
-    `
-      )
-      .all() as Array<{
+    // Get recent public events from PostgreSQL
+    const recentEvents = await db.queryAll<{
       id: string;
       event_type: string;
       payload: string;
       geo_bucket: string | null;
       created_at: string;
-    }>;
+    }>(`
+      SELECT id, event_type, payload, geo_bucket, created_at
+      FROM activity_events
+      WHERE visibility_scope IN ('public_anon', 'public_profile')
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
 
     const events: PublicEvent[] = recentEvents.map((row) => ({
       id: row.id,
@@ -122,16 +118,12 @@ async function sendCommunitySnapshot(socket: WebSocket): Promise<void> {
 async function sendMonitorSnapshot(socket: WebSocket): Promise<void> {
   try {
     // Get recent events (including non-public)
-    const recentEvents = db
-      .prepare(
-        `
+    const recentEvents = await db.queryAll(`
       SELECT id, user_id, event_type, payload, geo_bucket, visibility_scope, created_at
       FROM activity_events
       ORDER BY created_at DESC
       LIMIT 100
-    `
-      )
-      .all();
+    `);
 
     const activeNow = await getActiveNowStats();
 

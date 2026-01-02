@@ -34,7 +34,7 @@ interface UserTrialInfo {
 interface SubscriptionInfo {
   status: string;
   current_period_end: string | null;
-  cancel_at_period_end: number;
+  cancel_at_period_end: boolean;
 }
 
 const INITIAL_FREE_CREDITS = 150;
@@ -43,11 +43,12 @@ export const entitlementsService = {
   /**
    * Get user's current entitlements
    */
-  getEntitlements(userId: string): Entitlements {
+  async getEntitlements(userId: string): Promise<Entitlements> {
     // Get user trial info
-    const user = db.prepare(
-      'SELECT trial_started_at, trial_ends_at FROM users WHERE id = ?'
-    ).get(userId) as UserTrialInfo | undefined;
+    const user = await db.queryOne<UserTrialInfo>(
+      'SELECT trial_started_at, trial_ends_at FROM users WHERE id = $1',
+      [userId]
+    );
 
     if (!user) {
       return {
@@ -62,9 +63,10 @@ export const entitlementsService = {
     }
 
     // Check for active subscription first
-    const subscription = db.prepare(
-      'SELECT status, current_period_end, cancel_at_period_end FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
-    ).get(userId) as SubscriptionInfo | undefined;
+    const subscription = await db.queryOne<SubscriptionInfo>(
+      'SELECT status, current_period_end, cancel_at_period_end FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [userId]
+    );
 
     if (subscription?.status === 'active') {
       return {
@@ -97,11 +99,12 @@ export const entitlementsService = {
 
     // Trial ended, not subscribed - use credits
     // Grant 150 free credits if they haven't received them yet
-    this.grantInitialCreditsIfNeeded(userId);
+    await this.grantInitialCreditsIfNeeded(userId);
 
-    const balance = db.prepare(
-      'SELECT balance FROM credit_balances WHERE user_id = ?'
-    ).get(userId) as { balance: number } | undefined;
+    const balance = await db.queryOne<{ balance: number }>(
+      'SELECT balance FROM credit_balances WHERE user_id = $1',
+      [userId]
+    );
 
     return {
       unlimited: false,
@@ -118,49 +121,55 @@ export const entitlementsService = {
    * Grant 150 free credits when user first enters credit mode (after trial ends)
    * This is idempotent - only grants once
    */
-  grantInitialCreditsIfNeeded(userId: string): boolean {
-    return transaction(() => {
+  async grantInitialCreditsIfNeeded(userId: string): Promise<boolean> {
+    return transaction(async (client) => {
       // Check if they already received the initial grant
-      const existingGrant = db.prepare(
-        "SELECT id FROM credit_ledger WHERE user_id = ? AND action = 'initial_grant_150'"
-      ).get(userId);
+      const existingGrantResult = await client.query(
+        "SELECT id FROM credit_ledger WHERE user_id = $1 AND action = 'initial_grant_150'",
+        [userId]
+      );
 
-      if (existingGrant) {
+      if (existingGrantResult.rows[0]) {
         return false; // Already granted
       }
 
       // Get current balance
-      const balanceRow = db.prepare(
-        'SELECT balance, version FROM credit_balances WHERE user_id = ?'
-      ).get(userId) as { balance: number; version: number } | undefined;
+      const balanceResult = await client.query(
+        'SELECT balance, version FROM credit_balances WHERE user_id = $1',
+        [userId]
+      );
+      const balanceRow = balanceResult.rows[0] as { balance: number; version: number } | undefined;
 
       if (!balanceRow) {
         // Create credit account if it doesn't exist
-        db.prepare(
-          'INSERT INTO credit_balances (user_id, balance, lifetime_earned) VALUES (?, ?, ?)'
-        ).run(userId, INITIAL_FREE_CREDITS, INITIAL_FREE_CREDITS);
+        await client.query(
+          'INSERT INTO credit_balances (user_id, balance, lifetime_earned) VALUES ($1, $2, $3)',
+          [userId, INITIAL_FREE_CREDITS, INITIAL_FREE_CREDITS]
+        );
       } else {
         // Add to existing balance
         const newBalance = balanceRow.balance + INITIAL_FREE_CREDITS;
-        db.prepare(
-          'UPDATE credit_balances SET balance = ?, lifetime_earned = lifetime_earned + ?, version = version + 1 WHERE user_id = ? AND version = ?'
-        ).run(newBalance, INITIAL_FREE_CREDITS, userId, balanceRow.version);
+        await client.query(
+          'UPDATE credit_balances SET balance = $1, lifetime_earned = lifetime_earned + $2, version = version + 1 WHERE user_id = $3 AND version = $4',
+          [newBalance, INITIAL_FREE_CREDITS, userId, balanceRow.version]
+        );
       }
 
       // Record the grant in ledger
       const entryId = `txn_${crypto.randomBytes(12).toString('hex')}`;
       const newBalance = (balanceRow?.balance ?? 0) + INITIAL_FREE_CREDITS;
 
-      db.prepare(
-        'INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(
-        entryId,
-        userId,
-        'initial_grant_150',
-        INITIAL_FREE_CREDITS,
-        newBalance,
-        JSON.stringify({ reason: 'Trial ended - initial credits grant' }),
-        `initial_grant_${userId}`
+      await client.query(
+        'INSERT INTO credit_ledger (id, user_id, action, amount, balance_after, metadata, idempotency_key) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [
+          entryId,
+          userId,
+          'initial_grant_150',
+          INITIAL_FREE_CREDITS,
+          newBalance,
+          JSON.stringify({ reason: 'Trial ended - initial credits grant' }),
+          `initial_grant_${userId}`,
+        ]
       );
 
       log.info('Granted initial 150 credits', { userId });
@@ -171,8 +180,8 @@ export const entitlementsService = {
   /**
    * Check if user can perform an action (has unlimited access or sufficient credits)
    */
-  canPerformAction(userId: string, creditCost: number): { allowed: boolean; reason: string } {
-    const entitlements = this.getEntitlements(userId);
+  async canPerformAction(userId: string, creditCost: number): Promise<{ allowed: boolean; reason: string }> {
+    const entitlements = await this.getEntitlements(userId);
 
     if (entitlements.unlimited) {
       return { allowed: true, reason: entitlements.reason };
@@ -193,12 +202,12 @@ export const entitlementsRouter = Router();
 
 // Get current user's entitlements
 entitlementsRouter.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const entitlements = entitlementsService.getEntitlements(req.user!.userId);
+  const entitlements = await entitlementsService.getEntitlements(req.user!.userId);
   res.json({ data: entitlements });
 }));
 
 // Alias for frontend convenience
 entitlementsRouter.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const entitlements = entitlementsService.getEntitlements(req.user!.userId);
+  const entitlements = await entitlementsService.getEntitlements(req.user!.userId);
   res.json({ data: entitlements });
 }));
