@@ -3,6 +3,10 @@ import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
 
 export default [
+  // Global ignores must come first
+  {
+    ignores: ['dist/**', 'node_modules/**', 'apps/**', 'packages/**', 'plugins/**', 'coverage/**'],
+  },
   {
     files: ['src/**/*.{js,jsx}'],
     languageOptions: {
@@ -36,8 +40,5 @@ export default [
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
     },
-  },
-  {
-    ignores: ['dist/**', 'node_modules/**', 'apps/**', 'packages/**', 'plugins/**'],
   },
 ];

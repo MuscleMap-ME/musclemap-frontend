@@ -46,7 +46,7 @@ const manifestSchema = z.object({
 
 class PluginRegistry {
   private plugins = new Map<string, LoadedPlugin>();
-  private hooks: Map<string, Set<Function>> = new Map();
+  private hooks: Map<string, Set<(...args: unknown[]) => Promise<void> | void>> = new Map();
 
   register(plugin: LoadedPlugin): void {
     this.plugins.set(plugin.id, plugin);
@@ -61,7 +61,7 @@ class PluginRegistry {
     return Array.from(this.plugins.values());
   }
 
-  addHook(event: string, handler: Function): void {
+  addHook(event: string, handler: (...args: unknown[]) => Promise<void> | void): void {
     if (!this.hooks.has(event)) this.hooks.set(event, new Set());
     this.hooks.get(event)!.add(handler);
   }

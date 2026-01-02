@@ -1,11 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { initializeSchema, seedCreditActions } from '../src/db/schema';
-import { migrate as migrateTrialAndSubscriptions } from '../src/db/migrations/001_add_trial_and_subscriptions';
-import { migrate as migrateCommunityDashboard } from '../src/db/migrations/002_community_dashboard';
-import { migrate as migrateMessaging } from '../src/db/migrations/003_messaging';
+import { initializePool } from '../src/db/client';
 
 let _app: FastifyInstance | null = null;
-let _dbInitialized = false;
+let _poolInitialized = false;
 
 function isFastify(x: any): x is FastifyInstance {
   return !!x && typeof x === 'object' && typeof x.inject === 'function' && typeof x.ready === 'function';
@@ -81,14 +78,10 @@ function pickCandidates(mod: any): Array<{ label: string; value: any }> {
 }
 
 export async function getTestApp(): Promise<FastifyInstance> {
-  // Ensure database is initialized with all migrations before any tests
-  if (!_dbInitialized) {
-    initializeSchema();
-    seedCreditActions();
-    migrateTrialAndSubscriptions();
-    migrateCommunityDashboard();
-    migrateMessaging();
-    _dbInitialized = true;
+  // Pool must be initialized in each fork (globalSetup ran schema migrations once)
+  if (!_poolInitialized) {
+    await initializePool();
+    _poolInitialized = true;
   }
 
   if (_app) return _app;

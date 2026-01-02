@@ -33,7 +33,6 @@ export function createServer(): Express {
     	}
   	};
 
-  	// @ts-ignore
   	walk(app._router?.stack || []);
   	res.json({ routes: out.sort() });
 	});

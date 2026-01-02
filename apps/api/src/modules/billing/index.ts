@@ -151,9 +151,9 @@ export const billingService = {
         const session = event.data.object as Stripe.Checkout.Session;
 
         // Handle subscription checkout
-        if (session.mode === 'subscription' && session.subscription) {
+        if (session.mode === 'subscription' && session.subscription && session.metadata?.userId) {
           await this.activateSubscription(
-            session.metadata?.userId!,
+            session.metadata.userId,
             session.customer as string,
             session.subscription as string
           );

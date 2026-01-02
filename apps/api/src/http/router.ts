@@ -94,7 +94,6 @@ router.post('/trace/frontend-log', (req, res) => {
   // Debug: list registered top-level routes (temporary)
   router.get('/__routes', (_req, res) => {
     const out: string[] = [];
-    // @ts-ignore
     router.stack?.forEach((layer: any) => {
       if (layer.route?.path) {
         const methods = Object.keys(layer.route.methods).join(',').toUpperCase();

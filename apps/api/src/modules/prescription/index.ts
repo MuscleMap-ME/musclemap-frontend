@@ -227,7 +227,7 @@ function generateCooldown(timeAvailable: number): PrescribedExercise[] {
 /**
  * Credit check middleware for prescription generation
  */
-async function requireCreditsForPrescription(req: Request, res: Response, next: Function) {
+async function requireCreditsForPrescription(req: Request, res: Response, next: (err?: Error) => void) {
   const userId = req.user?.userId;
 
   if (!userId) {
