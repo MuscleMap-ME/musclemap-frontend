@@ -29,7 +29,7 @@ export default function Admin() {
     setRunning(name);
     setOutput('Running...');
     const res = await api('/scripts/run', { method: 'POST', body: JSON.stringify({ script: name }) });
-    setOutput(res.output || res.error || 'No output');
+    setOutput(res.output || res.error?.message || res.error || 'No output');
     setRunning(null);
   };
 
