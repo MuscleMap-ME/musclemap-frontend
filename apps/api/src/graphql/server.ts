@@ -22,7 +22,7 @@ import { buildSchema, getSchemaRegistry } from './schema-builder';
 import { createLoaders, type Loaders } from './loaders';
 import { getGraphQLCache } from './cache';
 import { getAPQManager } from './persisted-queries';
-import type { GraphQLPluginContext } from '@musclemap/plugin-sdk';
+import type { PluginContext, PubSubService, RequestCache } from '@musclemap/plugin-sdk';
 import { loggers } from '../lib/logger';
 
 const log = loggers.core;
@@ -31,8 +31,31 @@ const log = loggers.core;
 // TYPES
 // ============================================
 
-export interface GraphQLContext extends GraphQLPluginContext {
+export interface GraphQLContext extends PluginContext {
+  /**
+   * Current authenticated user (if any).
+   */
+  user?: {
+    id: string;
+    email: string;
+    username: string;
+    roles: string[];
+  };
+
+  /**
+   * DataLoaders for batched queries.
+   */
   loaders: Loaders;
+
+  /**
+   * Pub/Sub for subscriptions.
+   */
+  pubsub: PubSubService;
+
+  /**
+   * Request-scoped cache.
+   */
+  cache: RequestCache;
 }
 
 interface ServerConfig {
