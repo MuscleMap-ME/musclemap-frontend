@@ -10,6 +10,7 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET ||= 'test-secret-32-bytes-minimum-aaaaaaaaaaaa';
 
 // Use test database if DATABASE_URL points to production
+// Only replace the database name (after the last slash), not the username
 if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('_test')) {
-  process.env.DATABASE_URL = process.env.DATABASE_URL.replace('/musclemap', '/musclemap_test');
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/\/musclemap$/, '/musclemap_test');
 }
