@@ -22,10 +22,9 @@ const DIFFICULTY_LABELS = {
 
 const EXERCISE_TYPES = [
   { id: 'all', label: 'All' },
-  { id: 'strength', label: 'Strength' },
-  { id: 'cardio', label: 'Cardio' },
-  { id: 'mobility', label: 'Mobility' },
-  { id: 'plyometric', label: 'Plyometric' },
+  { id: 'bodyweight', label: 'Bodyweight' },
+  { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'freeweight', label: 'Free Weights' },
 ];
 
 const ExerciseCard = ({ exercise, onClick }) => {
@@ -197,7 +196,16 @@ export default function Exercises() {
       .then(res => res.json())
       .then(data => {
         if (data.data) {
-          setExercises(data.data);
+          // Normalize primaryMuscles to always be an array
+          const normalized = data.data.map(ex => ({
+            ...ex,
+            primaryMuscles: Array.isArray(ex.primaryMuscles)
+              ? ex.primaryMuscles
+              : typeof ex.primaryMuscles === 'string'
+                ? ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean)
+                : []
+          }));
+          setExercises(normalized);
         }
       })
       .catch(console.error)
