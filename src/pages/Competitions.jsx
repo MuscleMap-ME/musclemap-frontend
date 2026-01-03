@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../store/authStore';
 
 export default function Competitions() {
+  const { token } = useAuth();
   const [tab, setTab] = useState('active');
   const [competitions, setCompetitions] = useState([]);
   const [myEntries, setMyEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newComp, setNewComp] = useState({ name: '', description: '', type: 'weekly', goal_tu: 100 });
-  const token = localStorage.getItem('musclemap_token');
   const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
   useEffect(() => { load(); }, [tab]);

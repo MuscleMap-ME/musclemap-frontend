@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { useAuth } from '../store/authStore';
 import { api } from '../utils/api';
 
 const LIMITATIONS = [
@@ -27,6 +28,7 @@ const EQUIPMENT = [
 
 export default function Profile() {
   const { user, login } = useUser();
+  const { token } = useAuth();
   const [profile, setProfile] = useState(null);
   const [avatars, setAvatars] = useState([]);
   const [themes, setThemes] = useState([]);
@@ -52,7 +54,6 @@ export default function Profile() {
     setSaving(true);
     try {
       await api.profile.update({ ...profile, limitations: JSON.stringify(profile.limitations), equipment_inventory: JSON.stringify(profile.equipment_inventory) });
-      const token = localStorage.getItem('musclemap_token');
       login({ ...user, ...profile }, token);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);

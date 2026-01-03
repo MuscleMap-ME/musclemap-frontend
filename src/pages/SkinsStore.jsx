@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { useAuth } from '../store/authStore';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -28,6 +29,7 @@ const tabs = [
 ];
 
 export default function SkinsStore() {
+  const { token } = useAuth();
   const [skins, setSkins] = useState([]);
   const [ownedSkins, setOwnedSkins] = useState([]);
   const [equippedSkins, setEquippedSkins] = useState([]);
@@ -38,7 +40,6 @@ export default function SkinsStore() {
   const [selectedRarity, setSelectedRarity] = useState('all');
   const [selectedSkin, setSelectedSkin] = useState(null);
   const [wallet, setWallet] = useState(null);
-  const token = localStorage.getItem('musclemap_token');
 
   useEffect(() => {
     fetchData();
