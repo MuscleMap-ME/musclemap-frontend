@@ -9,6 +9,33 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 /**
+ * Safe localStorage wrapper that handles Safari private mode and other edge cases
+ */
+const safeStorage = {
+  getItem: (name) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      // Safari private mode or quota exceeded - silently fail
+    }
+  },
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Ignore errors
+    }
+  },
+};
+
+/**
  * Auth store with persistent state
  */
 export const useAuthStore = create(
@@ -22,7 +49,7 @@ export const useAuthStore = create(
       _hasHydrated: false,
 
       // Hydration
-      setHasHydrated: (state) => set({ _hasHydrated: state, loading: false }),
+      setHasHydrated: (hasHydrated) => set({ _hasHydrated: hasHydrated, loading: false }),
 
       // Actions
       setAuth: (user, token) => {
@@ -52,7 +79,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'musclemap-auth',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
@@ -62,15 +89,30 @@ export const useAuthStore = create(
         if (error) {
           console.error('Auth state rehydration error:', error);
           // Clear corrupted state
-          localStorage.removeItem('musclemap-auth');
+          safeStorage.removeItem('musclemap-auth');
         } else if (state?.token) {
           console.log('Auth state restored from storage');
         }
-        state?.setHasHydrated(true);
+        // Schedule hydration completion for next tick to ensure store is ready
+        setTimeout(() => {
+          useAuthStore.getState().setHasHydrated(true);
+        }, 0);
       },
     }
   )
 );
+
+// Fallback: ensure hydration completes even if onRehydrateStorage doesn't fire
+// This handles edge cases in Safari private mode where persist may not call the callback
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    const state = useAuthStore.getState();
+    if (!state._hasHydrated) {
+      console.log('Forcing hydration completion (fallback)');
+      state.setHasHydrated(true);
+    }
+  }, 100);
+}
 
 /**
  * Hook to access auth state (replaces UserContext)

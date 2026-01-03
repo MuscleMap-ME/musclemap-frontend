@@ -32,60 +32,33 @@ const useScrollPosition = () => {
 
 /**
  * Animated MuscleMap Logo
- * Extracts the visual DNA from the SVG logo with breathing pulse effect
+ * Displays the MuscleMap logo with optional breathing glow effect
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
   return (
     <motion.div
       className={clsx(
-        'relative flex items-center justify-center rounded-lg overflow-hidden',
+        'relative flex items-center justify-center rounded-xl overflow-hidden',
         breathing && 'glow-breathing'
       )}
       style={{
         width: size,
         height: size,
-        background: 'linear-gradient(135deg, var(--brand-blue-500), var(--brand-blue-600))',
-        boxShadow: 'var(--glow-brand-sm)',
+        boxShadow: breathing ? 'var(--glow-brand-sm)' : 'none',
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      <svg
-        width={size * 0.75}
-        height={size * 0.75}
-        viewBox="0 0 64 64"
-        fill="none"
-      >
-        {/* Body/torso form */}
-        <path
-          d="M32 16C28 16 24 20 24 24V32C24 36 28 40 32 40C36 40 40 36 40 32V24C40 20 36 16 32 16Z"
-          fill="white"
-        />
-        {/* Pulse point */}
-        <motion.circle
-          cx="32"
-          cy="46"
-          r="6"
-          fill="var(--brand-pulse-500)"
-          animate={
-            breathing
-              ? {
-                  scale: [1, 1.15, 1],
-                  opacity: [0.9, 1, 0.9],
-                }
-              : {}
-          }
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        {/* Arm extensions */}
-        <path d="M20 28H18V36H20V28Z" fill="white" />
-        <path d="M44 28H46V36H44V28Z" fill="white" />
-      </svg>
+      <img
+        src="/logo.png"
+        alt="MuscleMap"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
     </motion.div>
   );
 };
@@ -96,6 +69,7 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
 const GlassNavBar = ({
   logo,
   brandName = 'MuscleMap',
+  brandSlot,
   children,
   leftContent,
   rightContent,
@@ -125,17 +99,19 @@ const GlassNavBar = ({
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Left section: Logo + Brand */}
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
-              {logo || <AnimatedLogo size={32} breathing={!isScrolled} />}
-              <motion.span
-                className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                {brandName}
-              </motion.span>
-            </Link>
+            {brandSlot || (
+              <Link to="/" className="flex items-center gap-3">
+                {logo || <AnimatedLogo size={32} breathing={!isScrolled} />}
+                <motion.span
+                  className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  {brandName}
+                </motion.span>
+              </Link>
+            )}
             {leftContent}
           </div>
 
