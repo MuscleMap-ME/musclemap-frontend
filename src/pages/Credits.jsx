@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../store/authStore";
 
 export default function Credits() {
+  const { token } = useAuth();
   const [packs, setPacks] = useState([]);
   const [balance, setBalance] = useState(0);
   const [foundersLeft, setFoundersLeft] = useState(100);
@@ -13,10 +15,9 @@ export default function Credits() {
     if (params.get('success')) setMsg({ t: 'Payment successful! Credits added.', o: true });
     if (params.get('canceled')) setMsg({ t: 'Payment canceled.', o: false });
     load();
-  }, []);
+  }, [token]);
 
   async function load() {
-    const token = localStorage.getItem("musclemap_token");
     const [priceRes, balRes] = await Promise.all([
       fetch("/api/credits/pricing"),
       fetch("/api/credits/balance", { headers: { Authorization: "Bearer " + token } })
@@ -31,7 +32,6 @@ export default function Credits() {
   async function buy(packId) {
     setLoading(packId);
     try {
-      const token = localStorage.getItem("musclemap_token");
       const res = await fetch("/api/credits/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },

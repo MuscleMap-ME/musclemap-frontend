@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../store/authStore';
 
 const TYPES = [
   { id: 'gym', name: 'Gym', icon: '🏋️' },
@@ -10,6 +11,7 @@ const TYPES = [
 ];
 
 export default function Locations() {
+  const { token } = useAuth();
   const [tab, setTab] = useState('nearby');
   const [locations, setLocations] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -23,7 +25,6 @@ export default function Locations() {
   const [showRate, setShowRate] = useState(false);
   const [rating, setRating] = useState({ rating: 5, safety_rating: 5, crowd_level: 3, cleanliness: 5, comment: '' });
 
-  const token = localStorage.getItem('musclemap_token');
   const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
   useEffect(() => {

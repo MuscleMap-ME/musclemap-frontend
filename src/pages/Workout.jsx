@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
+import { useAuth } from '../store/authStore';
 
 // Constraint options
 const TIME_OPTIONS = [
@@ -64,6 +65,8 @@ const CATEGORY = {
 };
 
 export default function Workout() {
+  const { token } = useAuth();
+
   // Mode: 'select' (constraints), 'workout' (doing exercises), 'manual' (browse all)
   const [mode, setMode] = useState('select');
 
@@ -109,7 +112,6 @@ export default function Workout() {
   const generateWorkout = async () => {
     setLoading(true);
     setError(null);
-    const token = localStorage.getItem('musclemap_token');
 
     try {
       const response = await fetch('/api/prescription/generate', {
@@ -166,7 +168,6 @@ export default function Workout() {
     if (logged.length === 0) return;
     setCompleting(true);
     try {
-      const token = localStorage.getItem('musclemap_token');
       const res = await fetch('/api/workout/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
@@ -192,7 +193,6 @@ export default function Workout() {
 
   async function logExercise() {
     if (!adding) return;
-    const token = localStorage.getItem('musclemap_token');
     try {
       await fetch('/api/workouts/exercise', {
         method: 'POST',
@@ -212,7 +212,6 @@ export default function Workout() {
 
   // Log an exercise from prescription mode
   const logPrescribedExercise = async (exercise) => {
-    const token = localStorage.getItem('musclemap_token');
     try {
       await fetch('/api/workouts/exercise', {
         method: 'POST',

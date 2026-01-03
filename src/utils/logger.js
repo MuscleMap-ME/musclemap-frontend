@@ -1,4 +1,5 @@
 // Frontend Logger - sends events to backend for unified logging
+import { getToken } from '../store/authStore';
 
 const LOG_ENDPOINT = '/api/trace/frontend-log';
 
@@ -61,7 +62,7 @@ class FrontendLogger {
 
   getUserId() {
     try {
-      const token = localStorage.getItem('musclemap_token');
+      const token = getToken();
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.userId || payload.id;
@@ -154,7 +155,7 @@ class FrontendLogger {
     const entries = [...this.queue];
     this.queue = [];
 
-    const token = localStorage.getItem('musclemap_token');
+    const token = getToken();
     const headers = {
       'Content-Type': 'application/json'
     };

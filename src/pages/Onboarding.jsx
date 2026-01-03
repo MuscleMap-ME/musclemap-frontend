@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
+import { useAuth } from '../store/authStore';
 
 const ARCHETYPE_ICONS = {
   'bodybuilder': '💪',
@@ -19,6 +20,7 @@ const ARCHETYPE_ICONS = {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { login } = useUser();
+  const { token, user } = useAuth();
   const [step, setStep] = useState(1);
   const [archetype, setArchetype] = useState(null);
   const [archetypes, setArchetypes] = useState([]);
@@ -47,7 +49,6 @@ export default function Onboarding() {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('musclemap_token');
       const res = await fetch('/api/archetypes/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -58,7 +59,6 @@ export default function Onboarding() {
         const errorMsg = data.error?.message || data.error || data.message || 'Failed';
         throw new Error(errorMsg);
       }
-      const user = JSON.parse(localStorage.getItem('musclemap_user') || '{}');
       login({ ...user, archetype: archetype.id }, token);
       navigate('/dashboard');
     } catch (err) { setError(extractErrorMessage(err, 'Failed to select archetype')); }

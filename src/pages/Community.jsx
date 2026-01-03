@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../store/authStore';
 
 const ARCHETYPES = ['bodybuilder', 'powerlifter', 'gymnast', 'crossfit', 'sprinter', 'judoka', 'boxer', 'wrestler', 'mma', 'rock_climber', 'marathon', 'cyclist'];
 
 export default function Community() {
+  const { token } = useAuth();
   const [tab, setTab] = useState('feed');
   const [feed, setFeed] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -18,7 +20,6 @@ export default function Community() {
   const [titles, setTitles] = useState([]);
   const [myLocation, setMyLocation] = useState({ city: '', country: '' });
 
-  const token = localStorage.getItem('musclemap_token');
   const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
   useEffect(() => {

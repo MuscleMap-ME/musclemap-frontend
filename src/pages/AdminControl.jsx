@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { format } from 'date-fns';
+import { useAuth } from '../store/authStore';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -35,12 +36,12 @@ const sections = [
 ];
 
 export default function AdminControl() {
+  const { token } = useAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [scope, setScope] = useState('LIVE');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({});
   const [emergencyStatus, setEmergencyStatus] = useState({});
-  const token = localStorage.getItem('musclemap_token');
 
   useEffect(() => {
     fetchEmergencyStatus();

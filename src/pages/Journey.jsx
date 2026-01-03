@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
+import { useAuth } from "../store/authStore";
 
 // Archetype icons and colors
 const ARC = {
@@ -36,16 +37,16 @@ const MUSCLE_COLORS = {
 
 export default function Journey() {
   const { user, login } = useUser();
+  const { token } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [token]);
 
   async function load() {
-    const token = localStorage.getItem("musclemap_token");
     if (!token) { setLoading(false); return; }
     try {
       const res = await fetch("/api/journey", { headers: { Authorization: "Bearer " + token } });
@@ -61,7 +62,6 @@ export default function Journey() {
 
   async function switchPath(id) {
     setSwitching(id);
-    const token = localStorage.getItem("musclemap_token");
     try {
       const res = await fetch("/api/journey/switch", {
         method: "POST",

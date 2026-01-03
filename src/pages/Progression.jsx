@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../store/authStore';
 
 const TIERS = [
   { id: 'novice', name: 'Novice', min: 0, icon: 'S', color: 'bg-gray-600' },
@@ -17,7 +18,7 @@ export default function Progression() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem('musclemap_token');
+  const { token } = useAuth();
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
