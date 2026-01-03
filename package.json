@@ -5,6 +5,7 @@
   "scripts": {
     "cleanup": "DRY_RUN=1 sh ./scripts/repo-cleanup.sh",
     "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
+    "dev": "vite",
     "build": "vite build",
     "build:api": "pnpm -C apps/api build",
     "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build",
