@@ -1078,7 +1078,7 @@ export const apiClient = {
       });
       return response.data;
     },
-    profile: () => request<User>('/auth/profile', { schema: UserSchema }),
+    profile: () => request<User>('/auth/me', { schema: UserSchema }),
   },
 
   // Billing
