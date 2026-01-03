@@ -32,7 +32,7 @@ const useScrollPosition = () => {
 
 /**
  * Animated MuscleMap Logo
- * Uses the custom MM icon with breathing pulse effect
+ * Displays the MuscleMap logo with optional breathing glow effect
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
   return (
@@ -44,40 +44,21 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
       style={{
         width: size,
         height: size,
-        background: '#1a1a1a',
-        boxShadow: 'var(--glow-brand-sm)',
+        boxShadow: breathing ? 'var(--glow-brand-sm)' : 'none',
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      {/* MM Logo - Two rounded squares with M letters */}
-      <div className="flex items-center gap-0.5" style={{ transform: `scale(${size / 40})` }}>
-        <motion.div
-          className="flex items-center justify-center rounded-md bg-black"
-          style={{ width: 14, height: 14 }}
-          animate={
-            breathing
-              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
-              : {}
-          }
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
-        </motion.div>
-        <motion.div
-          className="flex items-center justify-center rounded-md bg-black"
-          style={{ width: 14, height: 14 }}
-          animate={
-            breathing
-              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
-              : {}
-          }
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-        >
-          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
-        </motion.div>
-      </div>
+      <img
+        src="/logo.png"
+        alt="MuscleMap"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
     </motion.div>
   );
 };
@@ -88,6 +69,7 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
 const GlassNavBar = ({
   logo,
   brandName = 'MuscleMap',
+  brandSlot,
   children,
   leftContent,
   rightContent,
@@ -117,17 +99,19 @@ const GlassNavBar = ({
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Left section: Logo + Brand */}
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
-              {logo || <AnimatedLogo size={32} breathing={!isScrolled} />}
-              <motion.span
-                className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                {brandName}
-              </motion.span>
-            </Link>
+            {brandSlot || (
+              <Link to="/" className="flex items-center gap-3">
+                {logo || <AnimatedLogo size={32} breathing={!isScrolled} />}
+                <motion.span
+                  className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  {brandName}
+                </motion.span>
+              </Link>
+            )}
             {leftContent}
           </div>
 
