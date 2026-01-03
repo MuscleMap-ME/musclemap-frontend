@@ -18,7 +18,10 @@
     "test:frontend:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:api": "pnpm -C apps/api test",
-    "test:coverage": "pnpm test:frontend:coverage && pnpm -C apps/api test:coverage"
+    "test:coverage": "pnpm test:frontend:coverage && pnpm -C apps/api test:coverage",
+    "deploy": "sh ./scripts/deploy-branch.sh",
+    "deploy:auto": "sh ./scripts/deploy-branch.sh --auto-merge",
+    "deploy:dry": "sh ./scripts/deploy-branch.sh --dry-run"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

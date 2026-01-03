@@ -25,6 +25,7 @@ import Wallet from './pages/Wallet';
 import SkinsStore from './pages/SkinsStore';
 import AdminControl from './pages/AdminControl';
 import Exercises from './pages/Exercises';
+import DesignSystem from './pages/DesignSystem';
 
 // Page view tracker
 function PageTracker() {
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="/" element={<ErrorBoundary name="Landing"><Landing /></ErrorBoundary>} />
         <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
         <Route path="/signup" element={<ErrorBoundary name="Signup"><Signup /></ErrorBoundary>} />
+        <Route path="/design-system" element={<ErrorBoundary name="DesignSystem"><DesignSystem /></ErrorBoundary>} />
         
         {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
