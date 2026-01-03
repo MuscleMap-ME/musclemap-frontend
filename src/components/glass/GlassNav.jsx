@@ -32,60 +32,52 @@ const useScrollPosition = () => {
 
 /**
  * Animated MuscleMap Logo
- * Extracts the visual DNA from the SVG logo with breathing pulse effect
+ * Uses the custom MM icon with breathing pulse effect
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
   return (
     <motion.div
       className={clsx(
-        'relative flex items-center justify-center rounded-lg overflow-hidden',
+        'relative flex items-center justify-center rounded-xl overflow-hidden',
         breathing && 'glow-breathing'
       )}
       style={{
         width: size,
         height: size,
-        background: 'linear-gradient(135deg, var(--brand-blue-500), var(--brand-blue-600))',
+        background: '#1a1a1a',
         boxShadow: 'var(--glow-brand-sm)',
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      <svg
-        width={size * 0.75}
-        height={size * 0.75}
-        viewBox="0 0 64 64"
-        fill="none"
-      >
-        {/* Body/torso form */}
-        <path
-          d="M32 16C28 16 24 20 24 24V32C24 36 28 40 32 40C36 40 40 36 40 32V24C40 20 36 16 32 16Z"
-          fill="white"
-        />
-        {/* Pulse point */}
-        <motion.circle
-          cx="32"
-          cy="46"
-          r="6"
-          fill="var(--brand-pulse-500)"
+      {/* MM Logo - Two rounded squares with M letters */}
+      <div className="flex items-center gap-0.5" style={{ transform: `scale(${size / 40})` }}>
+        <motion.div
+          className="flex items-center justify-center rounded-md bg-black"
+          style={{ width: 14, height: 14 }}
           animate={
             breathing
-              ? {
-                  scale: [1, 1.15, 1],
-                  opacity: [0.9, 1, 0.9],
-                }
+              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
               : {}
           }
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        {/* Arm extensions */}
-        <path d="M20 28H18V36H20V28Z" fill="white" />
-        <path d="M44 28H46V36H44V28Z" fill="white" />
-      </svg>
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
+        </motion.div>
+        <motion.div
+          className="flex items-center justify-center rounded-md bg-black"
+          style={{ width: 14, height: 14 }}
+          animate={
+            breathing
+              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
+              : {}
+          }
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        >
+          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
