@@ -26,6 +26,9 @@ export const useAuthStore = create(
 
       // Actions
       setAuth: (user, token) => {
+        // Also save to legacy keys for @musclemap/client compatibility
+        localStorage.setItem('musclemap_token', token);
+        localStorage.setItem('musclemap_user', JSON.stringify(user));
         set({ user, token, isAuthenticated: true, loading: false });
       },
 
@@ -35,6 +38,9 @@ export const useAuthStore = create(
         })),
 
       logout: () => {
+        // Also clear legacy keys
+        localStorage.removeItem('musclemap_token');
+        localStorage.removeItem('musclemap_user');
         set({ user: null, token: null, isAuthenticated: false, loading: false });
       },
 
@@ -65,6 +71,11 @@ export const useAuthStore = create(
           localStorage.removeItem('musclemap-auth');
         } else if (state?.token) {
           console.log('Auth state restored from storage');
+          // Sync to legacy keys for @musclemap/client compatibility
+          localStorage.setItem('musclemap_token', state.token);
+          if (state.user) {
+            localStorage.setItem('musclemap_user', JSON.stringify(state.user));
+          }
         }
         // Use getState().setHasHydrated since state is just the hydrated data, not the store
         useAuthStore.getState().setHasHydrated(true);
