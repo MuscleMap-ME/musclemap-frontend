@@ -1,1 +1,4 @@
+/* MuscleMap Liquid Glass Design System */
+@import "./styles/design-tokens.css";
+
 @import "tailwindcss";
