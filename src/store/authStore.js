@@ -66,7 +66,8 @@ export const useAuthStore = create(
         } else if (state?.token) {
           console.log('Auth state restored from storage');
         }
-        state?.setHasHydrated(true);
+        // Use getState().setHasHydrated since state is just the hydrated data, not the store
+        useAuthStore.getState().setHasHydrated(true);
       },
     }
   )
