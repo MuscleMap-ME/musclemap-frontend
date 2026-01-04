@@ -82,20 +82,44 @@ const FEATURE_CATEGORIES = [
     color: VGA_COLORS.brightMagenta,
   },
   {
-    title: 'Economy & Monetization',
+    title: 'Cross-Platform Apps',
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
     ),
     features: [
-      { name: 'Credit System', progress: 100, status: 'Live' },
-      { name: 'Stripe Subscriptions', progress: 100, status: 'Live' },
-      { name: 'Transaction History', progress: 100, status: 'Live' },
-      { name: 'In-App Wallet', progress: 85, status: 'Beta' },
+      { name: 'Web Browser (Any)', progress: 100, status: 'Live' },
+      { name: 'iOS & Android Apps', progress: 100, status: 'Live' },
+      { name: 'Mac, Windows & Linux', progress: 100, status: 'Live' },
+      { name: 'Apple Vision Pro', progress: 100, status: 'Live' },
     ],
     color: VGA_COLORS.brightYellow,
   },
+];
+
+// Biometric integrations
+const BIOMETRIC_INTEGRATIONS = [
+  { name: 'Apple HealthKit', status: 'Supported', color: VGA_COLORS.brightGreen },
+  { name: 'Google Fit', status: 'Supported', color: VGA_COLORS.brightGreen },
+  { name: 'Apple Watch', status: 'Supported', color: VGA_COLORS.brightGreen },
+  { name: 'Fitbit', status: 'Supported', color: VGA_COLORS.brightGreen },
+  { name: 'Oura Ring', status: 'Supported', color: VGA_COLORS.brightGreen },
+  { name: 'Garmin Connect', status: 'Coming Soon', color: VGA_COLORS.brightYellow },
+  { name: 'Whoop', status: 'Coming Soon', color: VGA_COLORS.brightYellow },
+  { name: 'Polar', status: 'Planned', color: VGA_COLORS.brightCyan },
+];
+
+// Platform support
+const PLATFORMS = [
+  { name: 'Web Browser', icon: '🌐', desc: 'Chrome, Safari, Firefox, Edge' },
+  { name: 'iOS', icon: '📱', desc: 'iPhone & iPad' },
+  { name: 'Android', icon: '🤖', desc: 'Phones & Tablets' },
+  { name: 'macOS', icon: '💻', desc: 'Native Mac App' },
+  { name: 'Windows', icon: '🪟', desc: 'Native Windows App' },
+  { name: 'Linux', icon: '🐧', desc: 'Native Linux App' },
+  { name: 'visionOS', icon: '🥽', desc: 'Apple Vision Pro' },
+  { name: 'watchOS', icon: '⌚', desc: 'Apple Watch' },
 ];
 
 // Archetype data for chart
@@ -239,7 +263,7 @@ export default function Features() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[var(--void-base)]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
           <RouterLink to="/" className="flex items-center gap-3">
-            <img src="/logo.svg" alt="MuscleMap" className="w-8 h-8" />
+            <img src="/logo.png" alt="MuscleMap" className="w-10 h-10 rounded-lg" />
             <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               MuscleMap
             </span>
@@ -338,6 +362,59 @@ export default function Features() {
         </div>
       </section>
 
+      {/* Platform Support */}
+      <section className="px-6 pb-16">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span style={{ color: VGA_COLORS.brightYellow }}>AVAILABLE</span>
+            <span className="text-white"> EVERYWHERE</span>
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {PLATFORMS.map((platform, i) => (
+              <motion.div
+                key={platform.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="p-4 border-2 text-center font-mono"
+                style={{ borderColor: VGA_COLORS.brightYellow, backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <div className="text-3xl mb-2">{platform.icon}</div>
+                <div className="font-bold text-white">{platform.name}</div>
+                <div className="text-xs" style={{ color: VGA_COLORS.white }}>{platform.desc}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Biometric Integrations */}
+      <section className="px-6 pb-16">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span style={{ color: VGA_COLORS.brightMagenta }}>BIOMETRIC</span>
+            <span className="text-white"> INTEGRATIONS</span>
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {BIOMETRIC_INTEGRATIONS.map((item, i) => (
+              <motion.div
+                key={item.name}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="p-4 border-2 text-center font-mono"
+                style={{ borderColor: item.color, backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <div className="font-bold mb-1" style={{ color: item.color }}>{item.name}</div>
+                <div className="text-xs" style={{ color: VGA_COLORS.white }}>{item.status}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Muscle Groups Display */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
@@ -390,7 +467,7 @@ export default function Features() {
       <footer className="border-t border-white/5 py-8 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="MuscleMap" className="w-6 h-6" />
+            <img src="/logo.png" alt="MuscleMap" className="w-8 h-8 rounded" />
             <span className="text-sm text-[var(--text-tertiary)]">
               MuscleMap - See Every Rep. Know Every Muscle.
             </span>

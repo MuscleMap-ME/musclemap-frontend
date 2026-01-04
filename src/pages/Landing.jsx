@@ -17,14 +17,19 @@ export default function Landing() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <RouterLink
             to="/"
-            className="text-xl font-extrabold"
-            style={{
-              background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
+            className="flex items-center gap-3"
           >
-            MuscleMap
+            <img src="/logo.png" alt="MuscleMap" className="w-10 h-10 rounded-lg" />
+            <span
+              className="text-xl font-extrabold"
+              style={{
+                background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              MuscleMap
+            </span>
           </RouterLink>
 
           <div className="flex items-center gap-3">
@@ -154,12 +159,11 @@ export default function Landing() {
             transition={{ delay: 0.5 }}
             className="flex justify-center"
           >
-            <RouterLink to="/features" className="block hover:scale-105 transition-transform duration-300">
+            <RouterLink to="/features" className="block hover:scale-[1.02] transition-transform duration-300">
               <img
                 src="/MuscleMap-Landing-Page-Decal.svg"
                 alt="MuscleMap - Visualize Every Muscle. Track Every Rep."
-                className="max-w-full h-auto"
-                style={{ maxHeight: '120px' }}
+                className="max-w-full h-auto rounded-xl"
               />
             </RouterLink>
           </motion.div>
