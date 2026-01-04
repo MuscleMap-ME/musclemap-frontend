@@ -30,6 +30,7 @@ import Features from './pages/Features';
 import Technology from './pages/Technology';
 import Science from './pages/Science';
 import Design from './pages/Design';
+import Docs from './pages/Docs';
 
 // Page view tracker
 function PageTracker() {
@@ -99,7 +100,9 @@ function AppRoutes() {
         <Route path="/technology" element={<ErrorBoundary name="Technology"><Technology /></ErrorBoundary>} />
         <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />
         <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
-        
+        <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+        <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+
         {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
         <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
