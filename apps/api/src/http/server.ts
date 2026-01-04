@@ -31,6 +31,10 @@ import { registerMessagingRoutes } from './routes/messaging';
 import { registerJourneyRoutes } from './routes/journey';
 import { registerTipsRoutes } from './routes/tips';
 import { registerMiscRoutes } from './routes/misc';
+import { registerHangoutRoutes } from './routes/hangouts';
+
+// Security middleware
+import { registerSecurityMiddleware } from '../middleware/security';
 
 const log = loggers.http;
 
@@ -112,7 +116,16 @@ export async function createServer(): Promise<FastifyInstance> {
     origin: config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Idempotency-Key'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-ID',
+      'X-Idempotency-Key',
+      'X-CSRF-Token',
+      'X-Signature',
+      'X-Timestamp',
+      'Accept-Language',
+    ],
   });
 
   await app.register(helmet, {
@@ -215,6 +228,9 @@ export async function createServer(): Promise<FastifyInstance> {
     return { status: 'ready' };
   });
 
+  // Register security middleware
+  registerSecurityMiddleware(app);
+
   // API routes (all under /api prefix)
   await app.register(async (api) => {
     // Register all route modules
@@ -227,6 +243,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerJourneyRoutes(api);
     await registerTipsRoutes(api);
     await registerMiscRoutes(api);
+    await registerHangoutRoutes(api);
   }, { prefix: '/api' });
 
   return app;

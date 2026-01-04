@@ -1,0 +1,29 @@
+{
+  "name": "@musclemap/native",
+  "version": "1.0.0",
+  "description": "High-performance native modules for MuscleMap",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:native": "make release",
+    "build:all": "npm run build:native && npm run build",
+    "clean": "rm -rf dist && make clean",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "geohash",
+    "rate-limiter",
+    "native",
+    "performance"
+  ],
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
