@@ -287,62 +287,87 @@ export default function Features() {
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section - More Fun! */}
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-7xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
+            <motion.div
+              className="text-6xl mb-6"
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            >
+              💪
+            </motion.div>
             <h1 className="text-5xl md:text-6xl font-black mb-6">
-              <span className="text-white">Powerful </span>
-              <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Features</span>
+              <span className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 bg-clip-text text-transparent">Level Up</span>
+              <span className="text-white"> Your Training</span>
             </h1>
-            <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto">
-              Everything you need to transform your fitness journey with real-time muscle visualization and intelligent workout tracking.
+            <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
+              Real-time muscle visualization, AI-powered workouts, and cross-platform tracking that actually makes fitness fun.
             </p>
+            <div className="flex justify-center gap-4 flex-wrap">
+              <motion.span
+                className="px-4 py-2 rounded-full bg-red-500/20 text-red-400 text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+              >
+                🔥 AI Workouts
+              </motion.span>
+              <motion.span
+                className="px-4 py-2 rounded-full bg-blue-500/20 text-blue-400 text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+              >
+                📊 Real-time Tracking
+              </motion.span>
+              <motion.span
+                className="px-4 py-2 rounded-full bg-green-500/20 text-green-400 text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+              >
+                🌍 Works Everywhere
+              </motion.span>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Stats Grid with VGA Style */}
+      {/* Fun Stats with bouncing animations */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <VGAStatBox
-              value="90+"
-              label="Exercises"
-              color={VGA_COLORS.brightBlue}
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h4m10 0h4M7 12v4a1 1 0 001 1h1M7 12V8a1 1 0 011-1h1m7 5v4a1 1 0 01-1 1h-1m1-5V8a1 1 0 00-1-1h-1m-4 0h4m-4 10h4" /></svg>}
-            />
-            <VGAStatBox
-              value="40+"
-              label="Muscles"
-              color={VGA_COLORS.brightRed}
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
-            />
-            <VGAStatBox
-              value="10"
-              label="Archetypes"
-              color={VGA_COLORS.brightGreen}
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-            />
-            <VGAStatBox
-              value="24/7"
-              label="Tracking"
-              color={VGA_COLORS.brightMagenta}
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-            />
+            {[
+              { value: '90+', label: 'Exercises', emoji: '🏋️', color: '#3b82f6' },
+              { value: '40+', label: 'Muscles Tracked', emoji: '💪', color: '#ef4444' },
+              { value: '10', label: 'Training Styles', emoji: '🎯', color: '#22c55e' },
+              { value: '8', label: 'Platforms', emoji: '📱', color: '#a855f7' },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="p-6 rounded-2xl border-2 text-center cursor-default"
+                style={{ borderColor: stat.color, backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <div className="text-4xl mb-2">{stat.emoji}</div>
+                <div className="text-3xl font-black mb-1" style={{ color: stat.color }}>
+                  {stat.value}
+                </div>
+                <div className="text-sm text-gray-400">{stat.label}</div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Feature Categories */}
+      {/* Feature Categories - More colorful headings */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">
-            <span style={{ color: VGA_COLORS.brightCyan }}>FEATURE</span>
-            <span className="text-white"> MATRIX</span>
+            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">EVERYTHING</span>
+            <span className="text-white"> YOU NEED</span>
           </h2>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -362,13 +387,13 @@ export default function Features() {
         </div>
       </section>
 
-      {/* Platform Support */}
+      {/* Platform Support - Fun! */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            <span style={{ color: VGA_COLORS.brightYellow }}>AVAILABLE</span>
-            <span className="text-white"> EVERYWHERE</span>
+          <h2 className="text-3xl font-bold text-center mb-4">
+            <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent">TRAIN ANYWHERE</span>
           </h2>
+          <p className="text-center text-gray-400 mb-12">One account. Every device. Always in sync.</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {PLATFORMS.map((platform, i) => (
@@ -377,25 +402,25 @@ export default function Features() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="p-4 border-2 text-center font-mono"
-                style={{ borderColor: VGA_COLORS.brightYellow, backgroundColor: 'rgba(0,0,0,0.5)' }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                className="p-5 rounded-2xl border border-white/10 bg-white/5 text-center cursor-default"
               >
-                <div className="text-3xl mb-2">{platform.icon}</div>
+                <div className="text-4xl mb-3">{platform.icon}</div>
                 <div className="font-bold text-white">{platform.name}</div>
-                <div className="text-xs" style={{ color: VGA_COLORS.white }}>{platform.desc}</div>
+                <div className="text-xs text-gray-500">{platform.desc}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Biometric Integrations */}
+      {/* Biometric Integrations - Friendlier */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            <span style={{ color: VGA_COLORS.brightMagenta }}>BIOMETRIC</span>
-            <span className="text-white"> INTEGRATIONS</span>
+          <h2 className="text-3xl font-bold text-center mb-4">
+            <span className="bg-gradient-to-r from-pink-400 via-purple-500 to-indigo-500 bg-clip-text text-transparent">SYNC YOUR WEARABLES</span>
           </h2>
+          <p className="text-center text-gray-400 mb-12">Connect your favorite devices for smarter training insights.</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {BIOMETRIC_INTEGRATIONS.map((item, i) => (
@@ -404,24 +429,25 @@ export default function Features() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="p-4 border-2 text-center font-mono"
-                style={{ borderColor: item.color, backgroundColor: 'rgba(0,0,0,0.5)' }}
+                whileHover={{ scale: 1.05 }}
+                className="p-4 rounded-2xl border-2 text-center cursor-default"
+                style={{ borderColor: item.color, backgroundColor: 'rgba(0,0,0,0.3)' }}
               >
                 <div className="font-bold mb-1" style={{ color: item.color }}>{item.name}</div>
-                <div className="text-xs" style={{ color: VGA_COLORS.white }}>{item.status}</div>
+                <div className="text-xs text-gray-400">{item.status}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Muscle Groups Display */}
+      {/* Muscle Groups Display - More playful */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            <span style={{ color: VGA_COLORS.brightCyan }}>MUSCLE</span>
-            <span className="text-white"> TRACKING</span>
+          <h2 className="text-3xl font-bold text-center mb-4">
+            <span className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent">SEE IT LIGHT UP</span>
           </h2>
+          <p className="text-center text-gray-400 mb-12">Watch your muscles activate in real-time as you log each set.</p>
 
           <GlassSurface className="p-8">
             <div className="flex flex-wrap justify-center gap-8">
@@ -431,12 +457,18 @@ export default function Features() {
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.1, type: 'spring' }}
-                  className="text-center"
+                  whileHover={{ scale: 1.1 }}
+                  className="text-center cursor-default"
                 >
                   <MuscleIndicator muscle={muscle} size="xl" showLabel />
-                  <div className="mt-2 font-mono text-xs" style={{ color: VGA_COLORS.brightGreen }}>
+                  <motion.div
+                    className="mt-2 text-xs font-bold"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    style={{ color: '#22c55e' }}
+                  >
                     ACTIVE
-                  </div>
+                  </motion.div>
                 </motion.div>
               ))}
             </div>

@@ -339,58 +339,31 @@ export default function Science() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h1 className="text-5xl md:text-6xl font-black mb-6 font-mono">
-              <span style={{ color: VGA_COLORS.brightMagenta }}>THE</span>
-              <span className="text-white"> SCIENCE</span>
+            <h1 className="text-5xl md:text-6xl font-black mb-6">
+              <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">THE SCIENCE</span>
             </h1>
-            <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto">
-              Understanding the proprietary Training Unit system and muscle activation algorithms powering MuscleMap.
+            <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
+              Evidence-based muscle activation tracking powered by our proprietary Training Unit algorithm.
             </p>
+            <a
+              href="https://github.com/jeanpaulniko/musclemap/blob/main/docs/BIOMETRICS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-[var(--brand-blue-400)] hover:text-white transition"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+              Read Full Documentation
+            </a>
           </motion.div>
         </div>
       </section>
 
-      {/* Training Units Formula */}
-      <section className="px-6 pb-16">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 font-mono">
-            <span style={{ color: VGA_COLORS.brightCyan }}>TRAINING</span>
-            <span className="text-white"> UNITS (TU)</span>
-          </h2>
-
-          <div className="grid gap-6 mb-8">
-            <FormulaDisplay
-              title="Core Formula"
-              formula="TU = sum(muscleActivation / biasWeight) x 100"
-              description="Training Units normalize muscle activation across different muscle sizes, enabling fair comparison between workouts targeting different body parts."
-            />
-
-            <FormulaDisplay
-              title="Normalized Activation"
-              formula="normalizedActivation = rawActivation / biasWeight x 100"
-              description="Large muscles (glutes, lats) have higher bias weights (18-22), while small muscles (rear delts) have lower weights (4-8). This ensures balanced visual feedback."
-            />
-          </div>
-
-          <TUCalculator />
-        </div>
-      </section>
-
-      {/* Bias Weight Chart */}
-      <section className="px-6 pb-16">
-        <div className="max-w-4xl mx-auto">
-          <GlassSurface className="p-8">
-            <BiasWeightChart />
-          </GlassSurface>
-        </div>
-      </section>
-
-      {/* Muscle Activation Examples */}
+      {/* Colorful Muscle Activation Examples - FIRST */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 font-mono">
-            <span style={{ color: VGA_COLORS.brightCyan }}>MUSCLE</span>
-            <span className="text-white"> ACTIVATION</span>
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 bg-clip-text text-transparent">MUSCLE ACTIVATION</span>
+            <span className="text-white"> IN ACTION</span>
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -399,7 +372,7 @@ export default function Science() {
                 key={exercise.name}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.2 }}
+                transition={{ delay: i * 0.15 }}
               >
                 <MuscleActivationViz exercise={exercise} />
               </motion.div>
@@ -408,69 +381,127 @@ export default function Science() {
         </div>
       </section>
 
-      {/* Recovery Science */}
+      {/* Colorful Bias Weight Chart */}
       <section className="px-6 pb-16">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 font-mono">
-            <span style={{ color: VGA_COLORS.brightMagenta }}>RECOVERY</span>
-            <span className="text-white"> SCIENCE</span>
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">MUSCLE SIZE</span>
+            <span className="text-white"> BIAS WEIGHTS</span>
+          </h2>
+          <GlassSurface className="p-8">
+            <BiasWeightChart />
+          </GlassSurface>
+        </div>
+      </section>
+
+      {/* Interactive TU Calculator */}
+      <section className="px-6 pb-16">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">TRY IT</span>
+            <span className="text-white"> YOURSELF</span>
+          </h2>
+          <TUCalculator />
+        </div>
+      </section>
+
+      {/* Recovery Science with colorful visuals */}
+      <section className="px-6 pb-16">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent">RECOVERY</span>
+            <span className="text-white"> SCORING</span>
           </h2>
 
           <GlassSurface className="p-8">
             <RecoveryBreakdown />
           </GlassSurface>
-
-          <div className="grid md:grid-cols-2 gap-6 mt-8">
-            <FormulaDisplay
-              title="HRV Status"
-              formula="deviation = (currentHRV - baseline) / baseline"
-              description="Positive deviation indicates better recovery. We weight 7-day baseline (70%) more than 30-day baseline (30%)."
-            />
-
-            <FormulaDisplay
-              title="Readiness Score"
-              formula="score = sum(factor * weight) / totalWeight * 100"
-              description="Missing factors are excluded from calculation, normalizing the score based on available biometric data."
-            />
-          </div>
         </div>
       </section>
 
-      {/* Future Biometrics */}
+      {/* Future Biometrics - Colorful */}
       <section className="px-6 pb-16">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12 font-mono">
-            <span style={{ color: VGA_COLORS.brightGreen }}>BIOMETRIC</span>
+          <h2 className="text-3xl font-bold text-center mb-12">
+            <span className="bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 bg-clip-text text-transparent">BIOMETRIC</span>
             <span className="text-white"> INTEGRATIONS</span>
           </h2>
 
           <div className="grid md:grid-cols-4 gap-4">
             {[
-              { name: 'Apple HealthKit', status: 'High Priority', icon: '', color: VGA_COLORS.brightGreen },
-              { name: 'Google Fit', status: 'High Priority', icon: '', color: VGA_COLORS.brightGreen },
-              { name: 'Garmin Connect', status: 'Medium Priority', icon: '', color: VGA_COLORS.brightYellow },
-              { name: 'Whoop', status: 'Medium Priority', icon: '', color: VGA_COLORS.brightYellow },
-              { name: 'Oura Ring', status: 'Medium Priority', icon: '', color: VGA_COLORS.brightYellow },
-              { name: 'Polar', status: 'Low Priority', icon: '', color: VGA_COLORS.brightCyan },
-              { name: 'CGM Sensors', status: '2025', icon: '', color: VGA_COLORS.brightMagenta },
-              { name: 'EMG Clothing', status: '2026', icon: '', color: VGA_COLORS.brightMagenta },
+              { name: 'Apple HealthKit', status: 'Supported', color: '#22c55e' },
+              { name: 'Google Fit', status: 'Supported', color: '#22c55e' },
+              { name: 'Apple Watch', status: 'Supported', color: '#22c55e' },
+              { name: 'Fitbit', status: 'Supported', color: '#22c55e' },
+              { name: 'Oura Ring', status: 'Supported', color: '#22c55e' },
+              { name: 'Garmin Connect', status: 'Coming Soon', color: '#eab308' },
+              { name: 'Whoop', status: 'Coming Soon', color: '#eab308' },
+              { name: 'CGM Sensors', status: '2025', color: '#a855f7' },
             ].map((item, i) => (
               <motion.div
                 key={item.name}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="p-4 border-2 text-center font-mono"
+                className="p-4 border-2 text-center rounded-xl"
                 style={{ borderColor: item.color, backgroundColor: 'rgba(0,0,0,0.5)' }}
               >
                 <div className="text-lg font-bold mb-1" style={{ color: item.color }}>
                   {item.name}
                 </div>
-                <div className="text-xs" style={{ color: VGA_COLORS.white }}>
+                <div className="text-xs text-gray-400">
                   {item.status}
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Technical Formulas - AT THE BOTTOM */}
+      <section className="px-6 pb-16">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12 font-mono">
+            <span style={{ color: VGA_COLORS.brightCyan }}>TECHNICAL</span>
+            <span className="text-white"> FORMULAS</span>
+          </h2>
+
+          <div className="grid gap-6">
+            <FormulaDisplay
+              title="Training Units (TU)"
+              formula="TU = Σ(muscleActivation / biasWeight) × 100"
+              description="Normalizes muscle activation across different muscle sizes for fair workout comparison."
+            />
+
+            <FormulaDisplay
+              title="Normalized Activation"
+              formula="normalizedActivation = rawActivation / biasWeight × 100"
+              description="Large muscles (glutes, lats) have higher bias weights (18-22), small muscles (rear delts) have lower weights (4-8)."
+            />
+
+            <FormulaDisplay
+              title="HRV Status"
+              formula="deviation = (currentHRV - baseline) / baseline"
+              description="Positive deviation indicates better recovery. 7-day baseline weighted 70%, 30-day baseline weighted 30%."
+            />
+
+            <FormulaDisplay
+              title="Readiness Score"
+              formula="score = Σ(factor × weight) / totalWeight × 100"
+              description="Missing factors excluded from calculation, normalizing based on available biometric data."
+            />
+          </div>
+
+          <div className="mt-8 text-center">
+            <a
+              href="https://github.com/jeanpaulniko/musclemap/blob/main/docs/BIOMETRICS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition text-white"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+              View Full Technical Documentation
+            </a>
           </div>
         </div>
       </section>
