@@ -222,11 +222,24 @@ export default function Landing() {
             className="flex justify-center"
           >
             <RouterLink to="/features" className="block hover:scale-[1.02] transition-transform duration-300">
-              <img
-                src="/MuscleMap-Landing-Page-Hood-Decal.jpg"
-                alt="MuscleMap - Visualize Every Muscle. Track Every Rep."
-                className="max-w-full h-auto rounded-xl"
-              />
+              <picture>
+                <source
+                  type="image/webp"
+                  srcSet="/landing-decal-640w.webp 640w, /landing-decal-1024w.webp 1024w, /landing-decal-1600w.webp 1600w, /landing-decal-2400w.webp 2400w"
+                  sizes="(max-width: 640px) 640px, (max-width: 1024px) 1024px, (max-width: 1600px) 1600px, 2400px"
+                />
+                <source
+                  type="image/png"
+                  srcSet="/landing-decal-640w.png 640w, /landing-decal-1024w.png 1024w, /landing-decal-1600w.png 1600w, /landing-decal-2400w.png 2400w"
+                  sizes="(max-width: 640px) 640px, (max-width: 1024px) 1024px, (max-width: 1600px) 1600px, 2400px"
+                />
+                <img
+                  src="/landing-decal-1024w.png"
+                  alt="MuscleMap - Visualize Every Muscle. Track Every Rep."
+                  className="max-w-full h-auto rounded-xl"
+                  loading="lazy"
+                />
+              </picture>
             </RouterLink>
           </motion.div>
 
