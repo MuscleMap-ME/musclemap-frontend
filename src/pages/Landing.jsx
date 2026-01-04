@@ -50,9 +50,8 @@ export default function Landing() {
       </header>
 
       <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-20 text-center md:py-28">
-        <h1 className="mb-4 text-4xl font-black leading-tight text-white md:text-6xl">
-          See Every Rep.
-          <br />
+        <h1 className="mb-6 text-4xl font-black leading-tight text-white md:text-6xl">
+          Your Goal.{' '}
           <span
             style={{
               display: 'inline-block',
@@ -61,19 +60,25 @@ export default function Landing() {
               WebkitTextFillColor: 'transparent',
             }}
           >
-            Know Every Muscle.
+            Your Form.
           </span>
+          <br />
+          Your Tribe.
         </h1>
 
-        <p className="mb-8 max-w-2xl text-lg text-gray-300 md:text-xl">
-          Real-time muscle activation visualization. Log a set, watch it light up.
+        <p className="mb-4 max-w-2xl text-lg text-gray-300 md:text-xl">
+          Build the Spartan physique—or lose 10 pounds before summer. Train for the archetype you admire—or the marathon you signed up for.
+        </p>
+
+        <p className="mb-8 max-w-2xl text-lg text-gray-400 md:text-xl">
+          See every muscle fire. Find your people along the way.
         </p>
 
         <RouterLink
           to="/signup"
           className="rounded-xl bg-indigo-500 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400"
         >
-          Start Your Journey
+          Begin Your Journey
         </RouterLink>
       </main>
 
