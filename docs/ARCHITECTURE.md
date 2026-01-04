@@ -2,122 +2,210 @@
 
 ## Overview
 
-MuscleMap is a fitness visualization platform that transforms workout data into real-time muscle activation displays using a proprietary bias weight normalization system.
+MuscleMap is a fitness visualization platform that transforms workout data into real-time muscle activation displays using a proprietary Training Units (TU) bias weight normalization system. The platform includes workout logging, AI-powered workout generation, a credit-based economy, social features, and real-time community presence.
+
+```mermaid
+graph TD
+    subgraph Clients
+        Web[Web App<br/>React + Vite]
+        Mobile[Mobile App<br/>React Native/Expo]
+    end
+
+    subgraph API Layer
+        Fastify[Fastify API Server<br/>Port 3001]
+        WS[WebSocket Server<br/>Real-time Events]
+    end
+
+    subgraph Data Stores
+        Postgres[(PostgreSQL<br/>Primary Database)]
+        Redis[(Redis<br/>Cache/Pub-Sub)]
+    end
+
+    subgraph External Services
+        Stripe[Stripe<br/>Payments]
+    end
+
+    Web --> Fastify
+    Mobile --> Fastify
+    Web --> WS
+    Mobile --> WS
+
+    Fastify --> Postgres
+    Fastify --> Redis
+    WS --> Redis
+
+    Fastify --> Stripe
+
+    Redis -.->|Pub/Sub| WS
+```
 
 ## Tech Stack
 
 ### Backend
-- **Runtime**: Node.js 20+
-- **Language**: TypeScript 5.x
-- **Framework**: Fastify 5.x
-- **Database**: PostgreSQL 16+ with connection pooling (pg library)
-- **Cache/Realtime**: Redis (optional, for pub/sub and presence)
-- **Schema Validation**: TypeBox (JSON Schema compatible)
-- **Logging**: Pino with structured JSON output
-- **Auth**: JWT with bcrypt password hashing
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Runtime | Node.js 20+ | JavaScript runtime |
+| Language | TypeScript 5.x | Type-safe development |
+| Framework | Fastify 5.x | High-performance HTTP server |
+| Database | PostgreSQL 16+ | Primary data store |
+| Cache | Redis (ioredis) | Caching, pub/sub, presence |
+| Validation | Zod | Schema validation |
+| Logging | Pino | Structured JSON logging |
+| Auth | JWT + PBKDF2 | Authentication & password hashing |
+| Payments | Stripe API | Subscription & purchases |
 
 ### Frontend
-- **Build Tool**: Vite 5.x
-- **Framework**: React 18.x
-- **Styling**: Tailwind CSS 3.x
-- **3D Visualization**: Three.js with @react-three/fiber
-- **Animation**: Framer Motion
-- **HTTP Client**: Custom HTTP client with retry/caching (`@musclemap/client`)
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Build Tool | Vite 5.x | Fast development & bundling |
+| Framework | React 18.x | UI components |
+| Styling | Tailwind CSS 3.x | Utility-first CSS |
+| 3D Graphics | Three.js + @react-three/fiber | Muscle visualization |
+| Animation | Framer Motion | UI animations |
+| State | Zustand | State management |
+| HTTP Client | @musclemap/client | Retry/caching HTTP client |
 
 ### Infrastructure
-- **Hosting**: VPS with Nginx reverse proxy
-- **Process Manager**: PM2
-- **Package Manager**: pnpm (workspace monorepo)
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Hosting | VPS | Production server |
+| Reverse Proxy | Nginx | SSL termination, routing |
+| Process Manager | PM2 | Process supervision |
+| Package Manager | pnpm | Monorepo workspaces |
 
 ## Monorepo Structure
 
 ```
 musclemap/
 ├── apps/
-│   ├── api/              # Fastify API server
-│   └── mobile/           # React Native app (Expo)
+│   ├── api/                    # Fastify REST API server
+│   │   ├── src/
+│   │   │   ├── index.ts        # Entry point
+│   │   │   ├── config/         # Environment config (Zod validated)
+│   │   │   ├── db/
+│   │   │   │   ├── client.ts   # PostgreSQL connection pool
+│   │   │   │   ├── schema.sql  # Database schema
+│   │   │   │   ├── seed.ts     # Data seeding
+│   │   │   │   ├── migrate.ts  # Migration runner
+│   │   │   │   └── migrations/ # Incremental migrations
+│   │   │   ├── http/
+│   │   │   │   ├── server.ts   # Fastify configuration
+│   │   │   │   ├── router.ts   # Route mounting
+│   │   │   │   └── routes/     # Route handlers
+│   │   │   ├── lib/
+│   │   │   │   ├── logger.ts   # Pino logger
+│   │   │   │   ├── errors.ts   # Error types
+│   │   │   │   └── redis.ts    # Redis client
+│   │   │   ├── modules/        # Business logic
+│   │   │   │   ├── economy/    # Credit system
+│   │   │   │   └── entitlements/ # Access control
+│   │   │   └── plugins/        # Plugin loader
+│   │   └── package.json
+│   └── mobile/                 # React Native app (Expo)
 ├── packages/
-│   ├── client/           # HTTP client with caching & retry
-│   ├── core/             # Shared types, constants, permissions
-│   ├── shared/           # Shared utilities (error extraction, etc.)
-│   └── plugin-sdk/       # Plugin development SDK
-├── plugins/              # Drop-in plugins
-├── src/                  # Frontend (Vite + React)
-│   ├── components/       # Shared React components
-│   ├── contexts/         # React contexts (UserContext, etc.)
-│   ├── pages/            # Route pages
-│   └── utils/            # Frontend utilities
-└── docs/                 # Documentation
+│   ├── client/                 # HTTP client with retry/caching
+│   ├── core/                   # Shared types, constants, permissions
+│   ├── shared/                 # Utilities (error extraction)
+│   ├── plugin-sdk/             # Plugin development SDK
+│   └── ui/                     # Shared UI components
+├── plugins/                    # Drop-in plugins
+│   ├── admin-tools/
+│   └── leaderboard/
+├── src/                        # Frontend (Vite + React)
+│   ├── components/
+│   ├── contexts/
+│   ├── pages/
+│   └── utils/
+├── docs/                       # Documentation
+├── cron-jobs.js                # Scheduled tasks
+└── deploy.sh                   # Deployment script
 ```
 
-## API Architecture
+## Component Architecture
 
-```
-apps/api/src/
-├── index.ts              # Entry point
-├── config/               # Environment configuration (Zod validated)
-├── db/
-│   ├── client.ts         # PostgreSQL pool with query helpers
-│   ├── schema.sql        # Database schema
-│   ├── seed.ts           # Data seeding
-│   ├── migrate.ts        # Migration runner
-│   └── migrations/       # Incremental schema migrations
-├── http/
-│   ├── server.ts         # Fastify app configuration
-│   ├── router.ts         # API route mounting
-│   └── routes/           # Route handlers
-│       ├── auth.ts       # Authentication endpoints
-│       ├── community.ts  # Activity feed & social
-│       ├── economy.ts    # Credits & transactions
-│       ├── journey.ts    # Archetypes & progress
-│       ├── messaging.ts  # Direct messaging
-│       ├── misc.ts       # Exercises, muscles, settings
-│       ├── prescription.ts # Workout generation
-│       ├── tips.ts       # Contextual tips & insights
-│       └── workouts.ts   # Workout logging
-├── lib/
-│   ├── logger.ts         # Pino logger with child loggers
-│   ├── errors.ts         # Error types and helpers
-│   └── redis.ts          # Redis client (optional)
-└── modules/              # Business logic modules
-    ├── entitlements/     # Feature access control
-    └── economy/          # Credit system logic
+### API Server
+
+The API server uses Fastify with the following plugins:
+
+```mermaid
+graph LR
+    subgraph Fastify Plugins
+        Compress[fastify/compress<br/>Gzip/Brotli]
+        CORS[fastify/cors<br/>Cross-Origin]
+        Helmet[fastify/helmet<br/>Security Headers]
+        RateLimit[fastify/rate-limit<br/>100 req/min]
+        Swagger[fastify/swagger<br/>OpenAPI Docs]
+        WebSocket[fastify/websocket<br/>Real-time]
+        Multipart[fastify/multipart<br/>File Uploads]
+    end
 ```
 
-## Frontend Architecture
+**Server Configuration:**
+- Body limit: 10MB
+- File uploads: 10MB max, 5 files max
+- Rate limiting: 100 requests/minute (configurable)
+- Trust proxy: enabled
+- Request ID format: `req_{timestamp}_{random}`
 
+### Database Layer
+
+PostgreSQL connection pool with optimized settings:
+
+```typescript
+// apps/api/src/db/client.ts
+{
+  min: PG_POOL_MIN,        // Default: 2
+  max: PG_POOL_MAX,        // Default: 20
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 30000
+}
 ```
-src/
-├── App.jsx               # Route definitions
-├── pages/
-│   ├── Landing.jsx       # Public landing page
-│   ├── Login.jsx         # Authentication
-│   ├── Signup.jsx        # Registration
-│   ├── Onboarding.jsx    # Archetype selection
-│   ├── Dashboard.jsx     # Main dashboard
-│   ├── Workout.jsx       # Active workout session
-│   ├── Exercises.jsx     # Exercise library browser
-│   ├── Journey.jsx       # Progress tracking
-│   ├── Progression.jsx   # Level progression
-│   ├── Profile.jsx       # User profile
-│   ├── Settings.jsx      # User settings
-│   ├── Credits.jsx       # Credit management
-│   ├── CommunityDashboard.jsx # Social features
-│   ├── Competitions.jsx  # Challenges & leaderboards
-│   ├── HighFives.jsx     # Social recognition
-│   ├── Messages.jsx      # Direct messaging
-│   ├── Locations.jsx     # Workout locations
-│   ├── Wallet.jsx        # In-app wallet
-│   ├── SkinsStore.jsx    # Cosmetic store
-│   └── AdminControl.jsx  # Admin panel
-├── components/
-│   ├── ErrorBoundary.jsx # Error handling
-│   └── ...               # Shared components
-├── contexts/
-│   └── UserContext.jsx   # Auth state management
-└── utils/
-    └── logger.js         # Frontend logging
+
+**Features:**
+- Connection pooling with min/max limits
+- Statement timeout protection (30s)
+- Automatic retry for serialization conflicts
+- Pool metrics for monitoring
+- SSL support for production
+
+### Redis Layer (Optional)
+
+Redis provides caching and real-time features when enabled:
+
+```mermaid
+graph TD
+    subgraph Redis Clients
+        Main[Main Client<br/>General Operations]
+        Sub[Subscriber Client<br/>Pub/Sub Receive]
+        Pub[Publisher Client<br/>Pub/Sub Send]
+    end
+
+    subgraph Key Patterns
+        Presence[presence:zset<br/>Online Users]
+        Meta[presence:meta:{userId}<br/>User Metadata]
+        Bucket[presence:bucket:{geo}<br/>Geo Counts]
+        Now[now:*:{minute}<br/>Time-Series Stats]
+    end
+
+    subgraph Channels
+        Community[rt:community<br/>Activity Feed]
+        Monitor[rt:monitor<br/>System Events]
+    end
+
+    Main --> Presence
+    Main --> Meta
+    Main --> Bucket
+    Main --> Now
+    Pub --> Community
+    Pub --> Monitor
+    Sub --> Community
+    Sub --> Monitor
 ```
+
+**TTL Values:**
+- Presence metadata: 120 seconds (2 minutes)
+- "Now" stats buckets: 1800 seconds (30 minutes)
 
 ## Core Concepts
 
@@ -129,145 +217,106 @@ The proprietary bias weight system normalizes muscle activation across different
 normalizedActivation = rawActivation / biasWeight × 100
 ```
 
-- Large muscles (glutes, lats) have higher bias weights (18-22)
-- Small muscles (rear delts, rotator cuff) have lower bias weights (4-8)
-- This ensures balanced visual feedback regardless of muscle size
+| Muscle Size | Bias Weight | Examples |
+|-------------|-------------|----------|
+| Large | 18-22 | Glutes, Lats, Quads |
+| Medium | 10-14 | Deltoids, Biceps, Triceps |
+| Small | 4-8 | Rear Delts, Rotator Cuff |
+
+This ensures balanced visual feedback regardless of muscle size.
 
 ### Archetypes
 
 Users select a training archetype that defines their fitness path:
-- **Bodybuilder** - Aesthetic muscle building
-- **Powerlifter** - Strength-focused training
-- **Gymnast** - Bodyweight mastery
-- **CrossFit** - Functional fitness
-- **Martial Artist** - Combat sports conditioning
-- **Runner** - Endurance training
-- **Climber** - Grip and pull strength
-- **Strongman** - Functional strength
-- **Functional** - General fitness
-- **Swimmer** - Aquatic conditioning
+
+| Archetype | Focus |
+|-----------|-------|
+| Bodybuilder | Aesthetic muscle building |
+| Powerlifter | Strength-focused training |
+| Gymnast | Bodyweight mastery |
+| CrossFit | Functional fitness |
+| Martial Artist | Combat conditioning |
+| Runner | Endurance training |
+| Climber | Grip and pull strength |
+| Strongman | Functional strength |
+| Functional | General fitness |
+| Swimmer | Aquatic conditioning |
 
 Each archetype has multiple progression levels with specific muscle targets.
 
 ### Credit Economy
 
 Users spend credits to complete workouts:
-- 100 credits on registration
-- 25 credits per workout
-- Idempotent transactions prevent double-charging
-- Optional subscription for unlimited workouts
+
+| Trigger | Credits |
+|---------|---------|
+| Registration bonus | +100 |
+| Workout (free tier) | -25 |
+| Trial period (90 days) | Unlimited |
+| Active subscription | Unlimited |
+
+**Transaction Safety:**
+- Idempotent transactions via unique `idempotency_key`
+- Optimistic locking with version field
+- Serializable isolation with automatic retry
+- Immutable ledger (append-only)
 
 ### Plugin System
 
 Plugins extend functionality without modifying core code:
-- Drop files into `/plugins/<name>/`
-- Provide `plugin.json` manifest
-- Export route registration function
 
-## Database
+```
+plugins/
+└── my-plugin/
+    ├── plugin.json         # Manifest
+    └── backend/
+        └── index.js        # Entry point
+```
 
-### PostgreSQL Connection Pool
+**Manifest format:**
+```json
+{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "entry": { "backend": "./backend/index.js" },
+  "capabilities": ["routes", "hooks"],
+  "requires": { "host": ">=2.0.0" }
+}
+```
 
-The API uses `pg` library with optimized connection pooling:
-- Configurable pool size (min/max connections)
-- Statement timeout protection
-- Automatic retry with exponential backoff for serialization failures
-- Advisory locks for distributed locking
+**Plugin Hooks:**
+- `onServerStart(ctx)` - Server initialization
+- `onShutdown(ctx)` - Graceful shutdown
 
-### Key Tables
+## Authentication Flow
 
-**Users & Auth**
-- `users` - User accounts with roles, subscription status, archetype
-- `subscriptions` - Stripe subscription records
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB
 
-**Economy**
-- `credit_balances` - Current credit balance per user
-- `credit_ledger` - Transaction history (immutable)
+    Client->>API: POST /auth/login
+    API->>DB: Verify credentials
+    DB-->>API: User record
+    API->>API: PBKDF2 verify (100k iterations)
+    API->>API: Generate JWT (7d expiry)
+    API-->>Client: { token, user }
 
-**Fitness Data**
-- `muscles` - Muscle catalog with bias weights (40+ muscles)
-- `exercises` - Exercise catalog with equipment/location metadata (90+ exercises)
-- `exercise_activations` - Muscle activation percentages per exercise
-- `workouts` - Logged workouts with TU calculations
+    Note over Client,API: Subsequent requests
 
-**Progression**
-- `archetypes` - Training archetypes (10 types)
-- `archetype_levels` - Progression levels per archetype
-- `milestones` - Achievement definitions
-- `user_milestone_progress` - User achievement progress
+    Client->>API: GET /api/* + Authorization header
+    API->>API: Verify JWT signature
+    API->>DB: Fetch user data
+    API-->>Client: Response
+```
 
-**Social**
-- `competitions` - Challenges
-- `competition_participants` - Leaderboard entries
-- `conversations` / `messages` - Direct messaging
-- `activity_events` - Community activity feed
-
-**Contextual Guidance**
-- `tips` - Contextual tips
-- `insights` - User insights
-- `user_tips_seen` - Tip dismissal tracking
-
-### Migrations
-
-Migrations are run automatically on server startup:
-
-1. `001_add_trial_and_subscriptions.ts` - Trial periods & Stripe integration
-2. `002_community_dashboard.ts` - Activity events & privacy settings
-3. `003_messaging.ts` - Direct messaging tables
-4. `004_exercise_equipment_locations.ts` - Equipment & location metadata
-5. `005_tips_and_milestones.ts` - Contextual tips system
-6. `006_performance_optimization.ts` - Database indexes
-
-## API Endpoints
-
-### Authentication (`/auth`)
-- `POST /auth/register` - Create account
-- `POST /auth/login` - Login
-- `GET /auth/profile` - Get current user
-
-### Exercises & Muscles (`/`)
-- `GET /exercises` - List all exercises (filterable by location)
-- `GET /exercises/:id/activations` - Get muscle activations
-- `GET /muscles` - List all muscles with bias weights
-
-### Prescription (`/prescription`)
-- `POST /prescription/generate` - Generate personalized workout
-
-### Workouts (`/workouts`)
-- `POST /workouts` - Log completed workout
-- `GET /workouts` - Get workout history
-- `GET /workouts/:id` - Get workout details
-
-### Journey (`/journey`)
-- `GET /journey` - Get journey overview (archetype, level, stats)
-- `GET /journey/progress` - Get weekly progress & muscle balance
-
-### Archetypes (`/archetypes`)
-- `GET /archetypes` - List all archetypes
-- `POST /archetypes/select` - Select archetype
-- `GET /archetypes/:id/levels` - Get archetype levels
-
-### Economy (`/economy`)
-- `GET /credits/balance` - Get credit balance
-- `GET /credits/history` - Get transaction history
-- `POST /credits/purchase` - Purchase credits
-
-### Tips & Insights (`/tips`)
-- `GET /tips/contextual` - Get contextual tips
-- `POST /tips/:id/dismiss` - Dismiss a tip
-- `GET /insights` - Get personalized insights
-- `GET /milestones` - Get milestone progress
-
-### Community
-- `GET /progression/leaderboard` - Global leaderboard
-- `GET /competitions` - List competitions
-- `GET /competitions/:id` - Competition details
-
-### Messaging (`/messages`)
-- `GET /conversations` - List conversations
-- `POST /conversations` - Start conversation
-- `GET /conversations/:id/messages` - Get messages
-- `POST /conversations/:id/messages` - Send message
+**Security:**
+- Password hashing: PBKDF2 with 100,000 iterations (SHA-512)
+- JWT expiry: 7 days (configurable)
+- JWT secret: minimum 32 characters
+- Rate limiting: 100 requests/minute
 
 ## Error Handling
 
@@ -283,21 +332,68 @@ All API errors follow a consistent format:
 }
 ```
 
-The `@musclemap/shared` package provides `extractErrorMessage()` to safely extract error messages for display.
+The `@musclemap/shared` package provides `extractErrorMessage()` for safe error extraction.
+
+## Logging
+
+Structured JSON logging with Pino:
+
+```typescript
+// Child loggers by module
+loggers.http      // HTTP requests
+loggers.db        // Database operations
+loggers.auth      // Authentication
+loggers.economy   // Credit transactions
+loggers.plugins   // Plugin loading
+loggers.core      // General operations
+```
 
 ## Deployment
 
 ### Production Server
 
-1. Build packages: `pnpm build`
-2. Deploy to server via git pull
-3. PM2 manages the API process
+1. Code syncs via `deploy.sh` to VPS
+2. Build packages: `pnpm build`
+3. PM2 manages API process
 4. Nginx proxies requests to Fastify
 
-### Environment Variables
+### Scheduled Tasks
 
-Key configuration (validated with Zod):
-- `DATABASE_URL` or `PG*` variables
-- `JWT_SECRET` (min 32 chars)
-- `STRIPE_SECRET_KEY` (optional)
-- `REDIS_URL` (optional)
+Cron jobs via `cron-jobs.js`:
+
+| Schedule | Task |
+|----------|------|
+| Hourly | `checkStreaks`, `updateRivalScores` |
+| Daily (midnight) | `expireChallenges`, `assignDailyChallenges`, `createWeeklySnapshots` |
+| Weekly (Sunday) | `snapshotLeaderboards` |
+
+## Environment Configuration
+
+Configuration is validated with Zod on startup. See `apps/api/src/config/index.ts`.
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `NODE_ENV` | No | development | Environment mode |
+| `PORT` | No | 3001 | API server port |
+| `DATABASE_URL` | No | - | PostgreSQL URL (or use PG* vars) |
+| `JWT_SECRET` | Yes | - | JWT signing secret (min 32 chars) |
+| `REDIS_URL` | No | redis://localhost:6379 | Redis connection |
+| `REDIS_ENABLED` | No | false | Enable Redis features |
+| `STRIPE_SECRET_KEY` | No | - | Stripe API key |
+| `LOG_LEVEL` | No | info | Logging verbosity |
+| `RATE_LIMIT_MAX` | No | 100 | Max requests per minute |
+
+## Health Endpoints
+
+| Endpoint | Purpose | Checks |
+|----------|---------|--------|
+| `GET /health` | Full health check | Database, Redis, version, pool stats |
+| `GET /ready` | K8s readiness probe | Database only |
+
+## Related Documentation
+
+- [DATA_MODEL.md](./DATA_MODEL.md) - Database schema and Redis key patterns
+- [API_REFERENCE.md](./API_REFERENCE.md) - REST API endpoint documentation
+- [DATA_FLOW.md](./DATA_FLOW.md) - Request lifecycle and data flow diagrams
+- [PLUGINS.md](./PLUGINS.md) - Plugin development guide
+- [SECURITY.md](./SECURITY.md) - Security practices
