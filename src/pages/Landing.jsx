@@ -161,7 +161,7 @@ export default function Landing() {
           >
             <RouterLink to="/features" className="block hover:scale-[1.02] transition-transform duration-300">
               <img
-                src="/MuscleMap-Landing-Page-Decal.svg"
+                src="/MuscleMap-Landing-Page-Hood-Decal.jpg"
                 alt="MuscleMap - Visualize Every Muscle. Track Every Rep."
                 className="max-w-full h-auto rounded-xl"
               />
