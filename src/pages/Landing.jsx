@@ -49,37 +49,94 @@ export default function Landing() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-20 text-center md:py-28">
-        <h1 className="mb-6 text-4xl font-black leading-tight text-white md:text-6xl">
+      <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:py-24">
+        {/* CTA Button at top */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <RouterLink
+            to="/signup"
+            className="group relative inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-8 py-4 text-lg font-bold text-white shadow-2xl shadow-purple-500/40 transition-all duration-300 hover:scale-105 hover:shadow-purple-500/60"
+            style={{
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            }}
+          >
+            <span>Begin Your Journey</span>
+            <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-50" />
+          </RouterLink>
+        </motion.div>
+
+        {/* Main headline with 3D embossed effect */}
+        <motion.h1
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="mt-12 mb-8 text-5xl font-black leading-tight md:text-7xl"
+          style={{
+            background: 'linear-gradient(180deg, #ffffff 0%, #c7d2fe 50%, #818cf8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            textShadow: '0 4px 8px rgba(99, 102, 241, 0.3), 0 8px 32px rgba(139, 92, 246, 0.2)',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+          }}
+        >
           Your Goal.{' '}
           <span
             style={{
               display: 'inline-block',
-              background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
+              background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 50%, #ec4899 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 4px 8px rgba(168, 85, 247, 0.5))',
             }}
           >
             Your Form.
           </span>
           <br />
-          Your Tribe.
-        </h1>
+          <span
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(180deg, #ffffff 0%, #e0e7ff 50%, #a5b4fc 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            Your Tribe.
+          </span>
+        </motion.h1>
 
-        <p className="mb-4 max-w-2xl text-lg text-gray-300 md:text-xl">
-          Build the Spartan physique—or lose 10 pounds before summer. Train for the archetype you admire—or the marathon you signed up for.
-        </p>
-
-        <p className="mb-8 max-w-2xl text-lg text-gray-400 md:text-xl">
-          See every muscle fire. Find your people along the way.
-        </p>
-
-        <RouterLink
-          to="/signup"
-          className="rounded-xl bg-indigo-500 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:bg-indigo-400"
+        {/* Subtext with glass card effect */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="relative max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm"
+          style={{
+            boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.2)',
+          }}
         >
-          Begin Your Journey
-        </RouterLink>
+          <p className="text-lg font-medium text-gray-200 md:text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+            Build the <span className="text-indigo-400 font-bold">Spartan physique</span>—or lose 10 pounds before summer.
+            <br className="hidden md:block" />{' '}
+            Train for the <span className="text-purple-400 font-bold">archetype you admire</span>—or the marathon you signed up for.
+          </p>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+            <span className="text-indigo-400">✦</span>
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+          </div>
+
+          <p className="mt-4 text-lg text-gray-300 md:text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+            See every muscle <span className="text-cyan-400 font-semibold">fire</span>. Find your people along the way.
+          </p>
+        </motion.div>
       </main>
 
       {/* Explore Section with Navigation Icons */}
