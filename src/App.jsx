@@ -26,6 +26,10 @@ import SkinsStore from './pages/SkinsStore';
 import AdminControl from './pages/AdminControl';
 import Exercises from './pages/Exercises';
 import DesignSystem from './pages/DesignSystem';
+import Features from './pages/Features';
+import Technology from './pages/Technology';
+import Science from './pages/Science';
+import Design from './pages/Design';
 
 // Page view tracker
 function PageTracker() {
@@ -91,6 +95,10 @@ function AppRoutes() {
         <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
         <Route path="/signup" element={<ErrorBoundary name="Signup"><Signup /></ErrorBoundary>} />
         <Route path="/design-system" element={<ErrorBoundary name="DesignSystem"><DesignSystem /></ErrorBoundary>} />
+        <Route path="/features" element={<ErrorBoundary name="Features"><Features /></ErrorBoundary>} />
+        <Route path="/technology" element={<ErrorBoundary name="Technology"><Technology /></ErrorBoundary>} />
+        <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />
+        <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
         
         {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />

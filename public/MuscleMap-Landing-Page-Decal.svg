@@ -1,0 +1,55 @@
+<svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient definitions -->
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0066FF"/>
+      <stop offset="100%" stop-color="#FF3366"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Main container with subtle glass effect -->
+  <rect x="10" y="10" width="380" height="100" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+  <!-- Left M Logo -->
+  <g transform="translate(30, 25)">
+    <rect width="50" height="70" rx="10" fill="#1a1a1a"/>
+    <rect x="4" y="12" width="42" height="46" rx="6" fill="#000"/>
+    <text x="25" y="44" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="white" text-anchor="middle">M</text>
+  </g>
+
+  <!-- Right M Logo -->
+  <g transform="translate(90, 25)">
+    <rect width="50" height="70" rx="10" fill="#1a1a1a"/>
+    <rect x="4" y="12" width="42" height="46" rx="6" fill="#000"/>
+    <text x="25" y="44" font-family="Georgia, serif" font-size="28" font-weight="bold" fill="white" text-anchor="middle">M</text>
+  </g>
+
+  <!-- Brand text -->
+  <text x="160" y="52" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="800" fill="url(#brandGradient)">MuscleMap</text>
+
+  <!-- Tagline -->
+  <text x="160" y="78" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="rgba(255,255,255,0.6)">Visualize Every Muscle. Track Every Rep.</text>
+
+  <!-- Decorative muscle activation bars -->
+  <g transform="translate(160, 90)" filter="url(#glow)">
+    <rect width="30" height="4" rx="2" fill="#ef4444" opacity="0.8"/>
+    <rect x="35" width="30" height="4" rx="2" fill="#3b82f6" opacity="0.8"/>
+    <rect x="70" width="30" height="4" rx="2" fill="#f97316" opacity="0.8"/>
+    <rect x="105" width="30" height="4" rx="2" fill="#a855f7" opacity="0.8"/>
+    <rect x="140" width="30" height="4" rx="2" fill="#22c55e" opacity="0.8"/>
+    <rect x="175" width="30" height="4" rx="2" fill="#eab308" opacity="0.8"/>
+  </g>
+</svg>
