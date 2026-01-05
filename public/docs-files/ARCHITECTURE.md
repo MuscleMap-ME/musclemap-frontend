@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> **Note:** This repository is public on GitHub at [github.com/jeanpaulniko/musclemap](https://github.com/jeanpaulniko/musclemap). Contributions and feedback are welcome!
+> **Note:** This repository will be made public on GitHub. The open-source release date is to be determined.
 
 ## Overview
 
@@ -74,7 +74,7 @@ graph TD
 | Reverse Proxy | Caddy | Automatic SSL, HTTP/3, routing |
 | Process Manager | PM2 | Process supervision |
 | Package Manager | pnpm | Monorepo workspaces |
-| Version Control | GitHub | Source code repository (public) |
+| Version Control | GitHub | Source code repository (public release planned) |
 
 ## Monorepo Structure
 
