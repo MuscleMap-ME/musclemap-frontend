@@ -1,5 +1,7 @@
 # MuscleMap Architecture
 
+> **Note:** This repository is public on GitHub at [github.com/jeanpaulniko/musclemap](https://github.com/jeanpaulniko/musclemap). Contributions and feedback are welcome!
+
 ## Overview
 
 MuscleMap is a fitness visualization platform that transforms workout data into real-time muscle activation displays using a proprietary Training Units (TU) bias weight normalization system. The platform includes workout logging, AI-powered workout generation, a credit-based economy, social features, and real-time community presence.
@@ -69,9 +71,10 @@ graph TD
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Hosting | VPS | Production server |
-| Reverse Proxy | Nginx | SSL termination, routing |
+| Reverse Proxy | Caddy | Automatic SSL, HTTP/3, routing |
 | Process Manager | PM2 | Process supervision |
 | Package Manager | pnpm | Monorepo workspaces |
+| Version Control | GitHub | Source code repository (public) |
 
 ## Monorepo Structure
 
@@ -353,9 +356,14 @@ loggers.core      // General operations
 ### Production Server
 
 1. Code syncs via `deploy.sh` to VPS
-2. Build packages: `pnpm build`
+2. Build packages: `pnpm build:packages && pnpm -C packages/client build && pnpm build`
 3. PM2 manages API process
-4. Nginx proxies requests to Fastify
+4. Caddy proxies requests to Fastify with automatic HTTPS
+
+**Deployment Methods:**
+- Local: `./scripts/deploy-branch.sh --deploy` (commits, pushes, PRs, merges, SSHs to server)
+- GitHub Actions: Automatic deployment on merge to main
+- Server: `./scripts/production-deploy.sh` (can be run directly on server)
 
 ### Scheduled Tasks
 
