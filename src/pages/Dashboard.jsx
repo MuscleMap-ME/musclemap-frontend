@@ -98,6 +98,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
     </svg>
   ),
+  Feedback: ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
   Bolt: ({ className = 'w-5 h-5' }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -518,6 +523,7 @@ const navSections = [
       { to: '/skins', icon: Icons.Customize, label: 'Customize' },
       { to: '/settings', icon: Icons.Settings, label: 'Settings' },
       { to: '/profile', icon: Icons.User, label: 'Profile' },
+      { to: '/issues', icon: Icons.Feedback, label: 'Feedback' },
     ]
   }
 ];

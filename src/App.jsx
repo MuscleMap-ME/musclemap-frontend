@@ -30,6 +30,13 @@ import Features from './pages/Features';
 import Technology from './pages/Technology';
 import Science from './pages/Science';
 import Design from './pages/Design';
+import Issues from './pages/Issues';
+import IssueDetail from './pages/IssueDetail';
+import NewIssue from './pages/NewIssue';
+import MyIssues from './pages/MyIssues';
+import DevUpdates from './pages/DevUpdates';
+import Roadmap from './pages/Roadmap';
+import AdminIssues from './pages/AdminIssues';
 
 // Page view tracker
 function PageTracker() {
@@ -99,7 +106,13 @@ function AppRoutes() {
         <Route path="/technology" element={<ErrorBoundary name="Technology"><Technology /></ErrorBoundary>} />
         <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />
         <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
-        
+
+        {/* Issue Tracker - Public */}
+        <Route path="/issues" element={<ErrorBoundary name="Issues"><Issues /></ErrorBoundary>} />
+        <Route path="/issues/:id" element={<ErrorBoundary name="IssueDetail"><IssueDetail /></ErrorBoundary>} />
+        <Route path="/updates" element={<ErrorBoundary name="DevUpdates"><DevUpdates /></ErrorBoundary>} />
+        <Route path="/roadmap" element={<ErrorBoundary name="Roadmap"><Roadmap /></ErrorBoundary>} />
+
         {/* Protected routes */}
         <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
         <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
@@ -117,10 +130,13 @@ function AppRoutes() {
         <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
         <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
         <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
+        <Route path="/issues/new" element={<ProtectedRoute name="NewIssue"><NewIssue /></ProtectedRoute>} />
+        <Route path="/my-issues" element={<ProtectedRoute name="MyIssues"><MyIssues /></ProtectedRoute>} />
 
         {/* Admin routes */}
         <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
-        
+        <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
+
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

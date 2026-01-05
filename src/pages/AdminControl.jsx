@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { format } from 'date-fns';
@@ -29,6 +29,7 @@ const sections = [
   { id: 'users', label: 'Users', icon: Icons.Users },
   { id: 'groups', label: 'Groups', icon: Icons.Group },
   { id: 'credits', label: 'Credits', icon: Icons.Credit },
+  { id: 'issues', label: 'Issues', icon: Icons.Alert, link: '/admin/issues' },
   { id: 'pipelines', label: 'Pipelines', icon: Icons.Pipeline },
   { id: 'scripts', label: 'Scripts', icon: Icons.Script },
   { id: 'emergency', label: 'Emergency', icon: Icons.Alert },
@@ -37,6 +38,7 @@ const sections = [
 
 export default function AdminControl() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
   const [scope, setScope] = useState('LIVE');
   const [loading, setLoading] = useState(false);
@@ -407,16 +409,21 @@ export default function AdminControl() {
             {sections.map(section => (
               <button
                 key={section.id}
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => section.link ? navigate(section.link) : setActiveSection(section.id)}
                 className={clsx(
                   'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left',
-                  activeSection === section.id 
-                    ? 'bg-white/10 text-white' 
+                  activeSection === section.id
+                    ? 'bg-white/10 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 )}
               >
                 <section.icon />
                 <span className="font-medium">{section.label}</span>
+                {section.link && (
+                  <svg className="w-3 h-3 ml-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                )}
               </button>
             ))}
           </nav>
