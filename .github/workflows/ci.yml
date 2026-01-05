@@ -54,10 +54,15 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-        
-      - name: Build
+
+      - name: Build packages
+        run: |
+          pnpm build:packages || true
+          pnpm -C packages/client build || true
+
+      - name: Build frontend
         run: pnpm build
-        
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:

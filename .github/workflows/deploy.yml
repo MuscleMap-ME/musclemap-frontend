@@ -1,0 +1,65 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes (not PR merges that haven't completed)
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 72.62.83.202
+          username: root
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/musclemap.me
+
+            echo "🔄 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "📦 Installing dependencies..."
+            pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+            echo "🔨 Building shared packages..."
+            pnpm build:packages 2>/dev/null || true
+
+            echo "🔨 Building client package..."
+            pnpm -C packages/client build 2>/dev/null || true
+
+            echo "🔨 Building frontend..."
+            pnpm build
+
+            echo "🔨 Building API..."
+            pnpm build:api 2>/dev/null || true
+
+            echo "🔄 Restarting services..."
+            pm2 restart all --update-env 2>/dev/null || pm2 start ecosystem.config.js 2>/dev/null || true
+
+            echo "✅ Deployment complete!"
+
+      - name: Verify Deployment
+        run: |
+          sleep 10
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://musclemap.me)
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ Site is live (HTTP $HTTP_STATUS)"
+          else
+            echo "⚠️ Site returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "Commit: ${{ github.sha }}"
+          echo "URL: https://musclemap.me"

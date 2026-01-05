@@ -37,6 +37,7 @@ import MyIssues from './pages/MyIssues';
 import DevUpdates from './pages/DevUpdates';
 import Roadmap from './pages/Roadmap';
 import AdminIssues from './pages/AdminIssues';
+import Docs from './pages/Docs';
 
 // Page view tracker
 function PageTracker() {
@@ -106,6 +107,8 @@ function AppRoutes() {
         <Route path="/technology" element={<ErrorBoundary name="Technology"><Technology /></ErrorBoundary>} />
         <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />
         <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
+        <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+        <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
 
         {/* Issue Tracker - Public */}
         <Route path="/issues" element={<ErrorBoundary name="Issues"><Issues /></ErrorBoundary>} />
