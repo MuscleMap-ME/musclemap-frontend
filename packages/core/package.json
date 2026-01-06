@@ -9,10 +9,12 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/",
+    "lint": "eslint --no-error-on-unmatched-pattern .",
     "test": "vitest"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
   }

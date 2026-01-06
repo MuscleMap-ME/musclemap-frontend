@@ -8,12 +8,16 @@ const createResponse = (data, ok = true, status = 200) => ({
 });
 
 describe('apiClient', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+    globalThis.fetch = vi.fn();
+    // Ensure localStorage is cleared for each test
+    localStorage.clear();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
