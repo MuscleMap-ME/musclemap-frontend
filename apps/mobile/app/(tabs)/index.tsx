@@ -16,24 +16,30 @@ import {
   Progress,
 } from 'tamagui';
 import { ScrollView } from 'react-native';
-import { useAuth, apiClient, type JourneyData, type Wallet } from '@musclemap/client';
+import { useAuth, apiClient, type JourneyData, type Wallet, type CharacterStats } from '@musclemap/client';
+import { CharacterStatsCard } from '../../src/components/CharacterStatsCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [journey, setJourney] = useState<JourneyData | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [characterStats, setCharacterStats] = useState<CharacterStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [journeyData, walletData] = await Promise.all([
+        const [journeyData, walletData, statsData] = await Promise.all([
           apiClient.journey.get(),
           apiClient.wallet.balance(),
+          apiClient.characterStats.me().catch(() => null),
         ]);
         setJourney(journeyData.data);
         setWallet(walletData);
+        if (statsData) {
+          setCharacterStats(statsData.data.stats);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -93,6 +99,11 @@ export default function Dashboard() {
               </YStack>
             </YStack>
           </Card>
+        )}
+
+        {/* Character Stats */}
+        {characterStats && (
+          <CharacterStatsCard stats={characterStats} showRadar={false} compact={true} />
         )}
 
         {/* Stats Grid */}

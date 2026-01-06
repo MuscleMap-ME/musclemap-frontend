@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { db, query, queryOne, closePool } from './client';
+import { db, query, queryOne, closePool, initializePool } from './client';
 import { loggers } from '../lib/logger';
 
 const log = loggers.db;
@@ -113,6 +113,9 @@ async function migrate(): Promise<void> {
   log.info('Starting database migration...');
 
   try {
+    // Initialize the pool first
+    await initializePool();
+
     // Test connection
     const pool = getPool();
     await pool.query('SELECT 1');

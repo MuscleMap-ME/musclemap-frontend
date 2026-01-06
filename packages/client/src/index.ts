@@ -138,6 +138,15 @@ export {
   type CrewStats,
   type CrewLeaderboardEntry,
   type MyCrewData,
+  // Character Stats types (D&D-style attributes)
+  type CharacterStats,
+  type StatRanking,
+  type StatRankingsByScope,
+  type StatsWithRankings,
+  type StatsHistoryEntry,
+  type ExtendedProfile,
+  type LeaderboardEntry,
+  type StatInfo,
 } from './api';
 
 // Hooks

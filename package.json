@@ -6,9 +6,10 @@
     "cleanup": "DRY_RUN=1 sh ./scripts/repo-cleanup.sh",
     "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
     "dev": "vite",
+    "generate:icons": "node scripts/generate-icons.cjs",
     "build": "vite build",
     "build:api": "pnpm -C apps/api build",
-    "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build",
+    "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build && pnpm -C packages/client build && pnpm -C packages/ui build",
     "build:all": "pnpm build:packages && pnpm build:api && pnpm build",
     "cron:smoke": "node cron-jobs.js --smoke-test",
     "lint": "eslint src/ && pnpm -C apps/api lint && pnpm -C packages/core lint && pnpm -C packages/plugin-sdk lint",
@@ -62,6 +63,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "sharp": "^0.33.5",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
@@ -85,6 +87,11 @@
       "@fastify/sensible": "^6.0.0",
       "@fastify/swagger": "^9.0.0",
       "@fastify/swagger-ui": "^5.0.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp"
+    ]
   }
 }

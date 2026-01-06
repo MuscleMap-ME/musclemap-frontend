@@ -31,6 +31,7 @@ import { registerMessagingRoutes } from './routes/messaging';
 import { registerJourneyRoutes } from './routes/journey';
 import { registerTipsRoutes } from './routes/tips';
 import { registerMiscRoutes } from './routes/misc';
+import { registerStatsRoutes } from './routes/stats';
 import { registerHangoutRoutes } from './routes/hangouts';
 
 // Security middleware
@@ -243,6 +244,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerJourneyRoutes(api);
     await registerTipsRoutes(api);
     await registerMiscRoutes(api);
+    await registerStatsRoutes(api);
     await registerHangoutRoutes(api);
   }, { prefix: '/api' });
 

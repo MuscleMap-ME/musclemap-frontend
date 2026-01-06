@@ -4,7 +4,7 @@
  * Bottom tab navigation for authenticated users.
  */
 import { Tabs } from 'expo-router';
-import { Home, Dumbbell, User, Swords, Users } from '@tamagui/lucide-icons';
+import { Home, Dumbbell, User, Swords, Users, BarChart3 } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
 
 export default function TabsLayout() {
@@ -52,6 +52,13 @@ export default function TabsLayout() {
         options={{
           title: 'Rivals',
           tabBarIcon: ({ color, size }) => <Swords color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Stats',
+          tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} />,
         }}
       />
       {/* Hidden screens - accessible via navigation but not in tab bar */}

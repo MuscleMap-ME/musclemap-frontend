@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { authenticate, optionalAuth } from './auth';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { economyService } from '../../modules/economy';
+import { statsService } from '../../modules/stats';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -175,6 +176,12 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
 
     log.info({ workoutId, userId, totalTU }, 'Workout created');
 
+    // Update character stats based on workout
+    const updatedStats = await statsService.updateStatsFromWorkout(userId, data.exercises as any);
+
+    // Create daily snapshot for progress tracking
+    await statsService.createDailySnapshot(userId);
+
     const workout = await queryOne(
       `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
               notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
@@ -187,6 +194,14 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         ...workout,
         exerciseData: JSON.parse((workout as any).exercise_data || '[]'),
         muscleActivations: JSON.parse((workout as any).muscle_activations || '{}'),
+        characterStats: updatedStats ? {
+          strength: Number(updatedStats.strength),
+          constitution: Number(updatedStats.constitution),
+          dexterity: Number(updatedStats.dexterity),
+          power: Number(updatedStats.power),
+          endurance: Number(updatedStats.endurance),
+          vitality: Number(updatedStats.vitality),
+        } : undefined,
       },
     });
   });

@@ -787,6 +787,171 @@ const JourneyDataSchema = Type.Object(
 );
 
 // =====================
+// Character Stats Types & Schemas
+// =====================
+export interface CharacterStats {
+  strength: number;
+  constitution: number;
+  dexterity: number;
+  power: number;
+  endurance: number;
+  vitality: number;
+  lastCalculatedAt?: string;
+}
+
+export interface StatRanking {
+  rank: number;
+  total: number;
+  percentile: number;
+}
+
+export interface StatRankingsByScope {
+  global: StatRanking;
+  country?: StatRanking;
+  state?: StatRanking;
+  city?: StatRanking;
+}
+
+export interface StatsWithRankings {
+  stats: CharacterStats;
+  rankings: Record<string, StatRankingsByScope>;
+}
+
+export interface StatsHistoryEntry {
+  snapshotDate: string;
+  strength: number;
+  constitution: number;
+  dexterity: number;
+  power: number;
+  endurance: number;
+  vitality: number;
+}
+
+export interface ExtendedProfile {
+  gender: string | null;
+  city: string | null;
+  county: string | null;
+  state: string | null;
+  country: string | null;
+  countryCode: string | null;
+  leaderboardOptIn: boolean;
+  profileVisibility: string;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  statValue: number;
+  rank: number;
+  gender?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+}
+
+export interface StatInfo {
+  id: string;
+  name: string;
+  abbr: string;
+  description: string;
+  color: string;
+}
+
+const CharacterStatsSchema = Type.Object(
+  {
+    strength: Type.Number(),
+    constitution: Type.Number(),
+    dexterity: Type.Number(),
+    power: Type.Number(),
+    endurance: Type.Number(),
+    vitality: Type.Number(),
+    lastCalculatedAt: Type.Optional(Type.String()),
+  },
+  { additionalProperties: true }
+);
+
+const StatRankingSchema = Type.Object(
+  {
+    rank: Type.Number(),
+    total: Type.Number(),
+    percentile: Type.Number(),
+  },
+  { additionalProperties: true }
+);
+
+const StatRankingsByScopeSchema = Type.Object(
+  {
+    global: StatRankingSchema,
+    country: Type.Optional(StatRankingSchema),
+    state: Type.Optional(StatRankingSchema),
+    city: Type.Optional(StatRankingSchema),
+  },
+  { additionalProperties: true }
+);
+
+const StatsWithRankingsSchema = Type.Object(
+  {
+    stats: CharacterStatsSchema,
+    rankings: Type.Record(Type.String(), StatRankingsByScopeSchema),
+  },
+  { additionalProperties: true }
+);
+
+const StatsHistoryEntrySchema = Type.Object(
+  {
+    snapshotDate: Type.String(),
+    strength: Type.Number(),
+    constitution: Type.Number(),
+    dexterity: Type.Number(),
+    power: Type.Number(),
+    endurance: Type.Number(),
+    vitality: Type.Number(),
+  },
+  { additionalProperties: true }
+);
+
+const ExtendedProfileSchema = Type.Object(
+  {
+    gender: Type.Union([Type.String(), Type.Null()]),
+    city: Type.Union([Type.String(), Type.Null()]),
+    county: Type.Union([Type.String(), Type.Null()]),
+    state: Type.Union([Type.String(), Type.Null()]),
+    country: Type.Union([Type.String(), Type.Null()]),
+    countryCode: Type.Union([Type.String(), Type.Null()]),
+    leaderboardOptIn: Type.Boolean(),
+    profileVisibility: Type.String(),
+  },
+  { additionalProperties: true }
+);
+
+const LeaderboardEntrySchema = Type.Object(
+  {
+    userId: Type.String(),
+    username: Type.String(),
+    avatarUrl: Type.Union([Type.String(), Type.Null()]),
+    statValue: Type.Number(),
+    rank: Type.Number(),
+    gender: Type.Optional(Type.String()),
+    country: Type.Optional(Type.String()),
+    state: Type.Optional(Type.String()),
+    city: Type.Optional(Type.String()),
+  },
+  { additionalProperties: true }
+);
+
+const StatInfoSchema = Type.Object(
+  {
+    id: Type.String(),
+    name: Type.String(),
+    abbr: Type.String(),
+    description: Type.String(),
+    color: Type.String(),
+  },
+  { additionalProperties: true }
+);
+
+// =====================
 // User & Auth Types & Schemas
 // =====================
 export interface User {
@@ -1475,6 +1640,135 @@ export const apiClient = {
     getWars: (crewId: string) =>
       request<DataResponse<CrewWar[]>>(`/crews/${crewId}/wars`, {
         schema: wrapInData(Type.Array(CrewWarSchema, { default: [] })),
+      }),
+  },
+
+  // Character Stats (D&D-style attributes)
+  characterStats: {
+    /**
+     * Get current user's character stats and rankings
+     */
+    me: () =>
+      request<DataResponse<StatsWithRankings>>('/stats/me', {
+        schema: wrapInData(StatsWithRankingsSchema),
+      }),
+
+    /**
+     * Get another user's stats (if public)
+     */
+    getUser: (userId: string) =>
+      request<DataResponse<{ userId: string; stats: CharacterStats }>>(`/stats/user/${userId}`, {
+        schema: wrapInData(
+          Type.Object({
+            userId: Type.String(),
+            stats: CharacterStatsSchema,
+          })
+        ),
+      }),
+
+    /**
+     * Get stats history for progress charts
+     */
+    history: (days = 30) =>
+      request<DataResponse<StatsHistoryEntry[]>>(`/stats/history?days=${days}`, {
+        schema: wrapInData(Type.Array(StatsHistoryEntrySchema)),
+      }),
+
+    /**
+     * Force recalculate all stats from workout history
+     */
+    recalculate: () =>
+      request<DataResponse<{ stats: CharacterStats; message: string }>>('/stats/recalculate', {
+        method: 'POST',
+        schema: wrapInData(
+          Type.Object({
+            stats: CharacterStatsSchema,
+            message: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Get leaderboard rankings with filtering
+     */
+    leaderboard: (options?: {
+      stat?: 'strength' | 'constitution' | 'dexterity' | 'power' | 'endurance' | 'vitality';
+      scope?: 'global' | 'country' | 'state' | 'city';
+      scopeValue?: string;
+      gender?: 'male' | 'female' | 'non_binary';
+      limit?: number;
+      offset?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.stat) params.set('stat', options.stat);
+      if (options?.scope) params.set('scope', options.scope);
+      if (options?.scopeValue) params.set('scopeValue', options.scopeValue);
+      if (options?.gender) params.set('gender', options.gender);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<DataResponse<LeaderboardEntry[]>>(`/stats/leaderboards${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Array(LeaderboardEntrySchema)),
+      });
+    },
+
+    /**
+     * Get current user's rankings across all scopes
+     */
+    myRankings: () =>
+      request<
+        DataResponse<{
+          rankings: Record<string, StatRankingsByScope>;
+          profile: { gender: string | null; city: string | null; state: string | null; country: string | null };
+        }>
+      >('/stats/leaderboards/me', {
+        schema: wrapInData(
+          Type.Object({
+            rankings: Type.Record(Type.String(), StatRankingsByScopeSchema),
+            profile: Type.Object({
+              gender: Type.Union([Type.String(), Type.Null()]),
+              city: Type.Union([Type.String(), Type.Null()]),
+              state: Type.Union([Type.String(), Type.Null()]),
+              country: Type.Union([Type.String(), Type.Null()]),
+            }),
+          })
+        ),
+      }),
+
+    /**
+     * Get extended profile (gender, location)
+     */
+    extendedProfile: () =>
+      request<DataResponse<ExtendedProfile>>('/stats/profile/extended', {
+        schema: wrapInData(ExtendedProfileSchema),
+      }),
+
+    /**
+     * Update extended profile
+     */
+    updateExtendedProfile: (updates: Partial<{
+      gender: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
+      city: string;
+      county: string;
+      state: string;
+      country: string;
+      countryCode: string;
+      leaderboardOptIn: boolean;
+      profileVisibility: 'public' | 'friends' | 'private';
+    }>) =>
+      request<DataResponse<ExtendedProfile>>('/stats/profile/extended', {
+        method: 'PUT',
+        body: updates,
+        schema: wrapInData(ExtendedProfileSchema),
+      }),
+
+    /**
+     * Get information about the stats system
+     */
+    info: () =>
+      request<DataResponse<{ stats: StatInfo[] }>>('/stats/info', {
+        schema: wrapInData(Type.Object({ stats: Type.Array(StatInfoSchema) })),
+        cacheTtl: 300_000, // Cache for 5 minutes
       }),
   },
 };
