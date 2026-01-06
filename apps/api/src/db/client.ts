@@ -146,11 +146,31 @@ export interface DbQueryResult<T = Record<string, unknown>> {
   rowCount: number | null;
 }
 
+let poolInitPromise: Promise<void> | null = null;
+
 function getPool(): Pool {
   if (!pool) {
+    // In test environment, throw a more helpful error
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error(
+        'Database pool not initialized. In tests, ensure initializePool() is awaited before any database operations. ' +
+        'Check that test setup runs initializePool() before importing modules that use db.'
+      );
+    }
     throw new Error('Database pool not initialized. Call initializePool() first.');
   }
   return pool;
+}
+
+/**
+ * Get a promise that resolves when pool is ready.
+ * Useful for ensuring pool is initialized before use.
+ */
+export function ensurePoolReady(): Promise<void> {
+  if (pool) return Promise.resolve();
+  if (poolInitPromise) return poolInitPromise;
+  poolInitPromise = initializePool();
+  return poolInitPromise;
 }
 
 /**
