@@ -17,3 +17,6 @@ export {
   pluginPermission
 } from './permissions/index';
 export type { PermissionContext, CorePermission } from './permissions/index';
+
+// Re-export utilities
+export * from './utils/index';

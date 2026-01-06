@@ -39,3 +39,33 @@ export {
   useHasPermission,
   usePluginApi,
 } from './frontend';
+
+// GraphQL plugin support
+export {
+  type TypeDefs,
+  type ResolverFn,
+  type TypeResolvers,
+  type Resolvers,
+  type SubscriptionResolver,
+  type SubscriptionResolvers,
+  type GraphQLPluginContext,
+  type DataLoaderRegistry,
+  type DataLoader,
+  type PubSubService,
+  type RequestCache,
+  type GraphQLSchemaExtension,
+  type GraphQLDirective,
+  type DirectiveLocation,
+  type GraphQLPluginRegistration,
+  type GraphQLMiddleware,
+  type FieldAuthorizationRule,
+  type GraphQLPluginEntry,
+  type GraphQLPluginFactory,
+  type SubscriptionTopic,
+  defineGraphQLPlugin,
+  SubscriptionTopics,
+  withFilter,
+  authenticated,
+  authorized,
+  withCreditCharge,
+} from './graphql';
