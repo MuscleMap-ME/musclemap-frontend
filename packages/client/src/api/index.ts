@@ -787,6 +787,7 @@ const JourneyDataSchema = Type.Object(
 );
 
 // =====================
+<<<<<<< HEAD
 // Character Stats Types & Schemas
 // =====================
 export interface CharacterStats {
@@ -952,6 +953,8 @@ const StatInfoSchema = Type.Object(
 );
 
 // =====================
+=======
+>>>>>>> gifted-blackburn
 // User & Auth Types & Schemas
 // =====================
 export interface User {
@@ -1225,6 +1228,7 @@ function wrapInData(innerSchema: any) {
 export const apiClient = {
   // Authentication
   auth: {
+<<<<<<< HEAD
     login: async (email: string, password: string) => {
       const response = await request<DataResponse<AuthResponse>>('/auth/login', {
         method: 'POST',
@@ -1244,6 +1248,23 @@ export const apiClient = {
       return response.data;
     },
     profile: () => request<User>('/auth/me', { schema: UserSchema }),
+=======
+    login: (email: string, password: string) =>
+      request<AuthResponse>('/auth/login', {
+        method: 'POST',
+        body: { email, password },
+        auth: false,
+        schema: AuthResponseSchema,
+      }),
+    register: (payload: { email: string; password: string; username?: string }) =>
+      request<AuthResponse>('/auth/register', {
+        method: 'POST',
+        body: payload,
+        auth: false,
+        schema: AuthResponseSchema,
+      }),
+    profile: () => request<User>('/auth/profile', { schema: UserSchema }),
+>>>>>>> gifted-blackburn
   },
 
   // Billing
@@ -1642,6 +1663,7 @@ export const apiClient = {
         schema: wrapInData(Type.Array(CrewWarSchema, { default: [] })),
       }),
   },
+<<<<<<< HEAD
 
   // Character Stats (D&D-style attributes)
   characterStats: {
@@ -1771,6 +1793,8 @@ export const apiClient = {
         cacheTtl: 300_000, // Cache for 5 minutes
       }),
   },
+=======
+>>>>>>> gifted-blackburn
 };
 
 export default apiClient;

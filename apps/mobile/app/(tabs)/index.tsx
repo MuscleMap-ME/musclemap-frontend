@@ -16,20 +16,28 @@ import {
   Progress,
 } from 'tamagui';
 import { ScrollView } from 'react-native';
+<<<<<<< HEAD
 import { useAuth, apiClient, type JourneyData, type Wallet, type CharacterStats } from '@musclemap/client';
 import { CharacterStatsCard } from '../../src/components/CharacterStatsCard';
+=======
+import { useAuth, apiClient, type JourneyData, type Wallet } from '@musclemap/client';
+>>>>>>> gifted-blackburn
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [journey, setJourney] = useState<JourneyData | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+<<<<<<< HEAD
   const [characterStats, setCharacterStats] = useState<CharacterStats | null>(null);
+=======
+>>>>>>> gifted-blackburn
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
+<<<<<<< HEAD
         const [journeyData, walletData, statsData] = await Promise.all([
           apiClient.journey.get(),
           apiClient.wallet.balance(),
@@ -40,6 +48,14 @@ export default function Dashboard() {
         if (statsData) {
           setCharacterStats(statsData.data.stats);
         }
+=======
+        const [journeyData, walletData] = await Promise.all([
+          apiClient.journey.get(),
+          apiClient.wallet.balance(),
+        ]);
+        setJourney(journeyData.data);
+        setWallet(walletData);
+>>>>>>> gifted-blackburn
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
@@ -101,11 +117,14 @@ export default function Dashboard() {
           </Card>
         )}
 
+<<<<<<< HEAD
         {/* Character Stats */}
         {characterStats && (
           <CharacterStatsCard stats={characterStats} showRadar={false} compact={true} />
         )}
 
+=======
+>>>>>>> gifted-blackburn
         {/* Stats Grid */}
         <XStack space="$3" flexWrap="wrap">
           <Card flex={1} minWidth={150} padding="$4" elevate>

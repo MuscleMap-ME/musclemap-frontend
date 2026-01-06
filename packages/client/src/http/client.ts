@@ -181,6 +181,7 @@ export async function request<T = unknown>(
 
       // Handle non-OK responses
       if (!response.ok) {
+<<<<<<< HEAD
         const errorBody = await safeJson<{ error?: string | { message?: string; code?: string }; message?: string }>(response);
         let errorMessage = `Request failed with status ${response.status}`;
         if (errorBody) {
@@ -193,6 +194,12 @@ export async function request<T = unknown>(
           }
         }
         throw new Error(errorMessage);
+=======
+        const errorBody = await safeJson<{ error?: string; message?: string }>(response);
+        throw new Error(
+          errorBody?.error || errorBody?.message || `Request failed with status ${response.status}`
+        );
+>>>>>>> gifted-blackburn
       }
 
       // Parse and validate response
