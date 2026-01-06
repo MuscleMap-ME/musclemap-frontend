@@ -114,7 +114,40 @@ Your changes are isolated from main until you merge. This allows parallel develo
 3. Run `pnpm typecheck` to verify no TypeScript errors
 4. Commit your changes frequently
 
-### Step 4: Merge & Deploy
+### Step 4: Regenerate Documentation
+
+**IMPORTANT:** After any feature addition, technology change, or significant code modification, regenerate the documentation:
+
+```bash
+# Regenerate all docs (Markdown + LaTeX)
+pnpm docs:generate
+
+# Compile LaTeX to PDF
+cd docs/latex && make all
+```
+
+This updates:
+- `docs/ARCHITECTURE.md` - System architecture
+- `docs/API_REFERENCE.md` - API endpoints
+- `docs/FEATURES.md` - Feature documentation
+- `README.md` - Project readme
+- `docs/latex/*.pdf` - Professional PDF documentation
+
+The documentation generator scans the codebase and auto-generates docs reflecting:
+- All pages and routes
+- API endpoints
+- Package structure
+- Available scripts
+
+**When to regenerate:**
+- After adding new pages/routes
+- After adding new API endpoints
+- After adding/removing packages
+- After adding new scripts
+- After any architectural changes
+- Before major releases or deployments
+
+### Step 5: Merge & Deploy
 
 Use these scripts in order:
 
@@ -183,6 +216,33 @@ Run directly on the VPS for manual deployments:
 #### `generate-icons.cjs` - App Icon Generation
 ```bash
 node scripts/generate-icons.cjs
+```
+
+#### `generate-docs.cjs` - Documentation Generator
+Regenerates all documentation from codebase analysis.
+```bash
+pnpm docs:generate          # Generate all (Markdown + LaTeX)
+pnpm docs:md                # Markdown only
+pnpm docs:latex             # LaTeX only
+
+# Compile LaTeX to PDF
+cd docs/latex && make all   # Build all PDFs
+cd docs/latex && make clean # Remove temp files
+```
+
+#### `prepare-app-store.cjs` - App Store Assets
+Generates icons, screenshots, and metadata for iOS/Android submission.
+```bash
+pnpm prepare:appstore
+```
+
+#### `publish-app.sh` - Mobile App Publishing
+Build and submit to App Store / Play Store.
+```bash
+./scripts/publish-app.sh ios        # Submit to App Store
+./scripts/publish-app.sh android    # Submit to Play Store
+./scripts/publish-app.sh both       # Submit to both
+./scripts/publish-app.sh build-only # Build without submitting
 ```
 
 #### `maintain.sh` - Interactive Maintenance Menu
@@ -475,6 +535,7 @@ When starting a new task:
 - [ ] Make changes in your worktree
 - [ ] Run `pnpm typecheck` to verify TypeScript
 - [ ] Commit changes frequently
+- [ ] **Regenerate docs if needed:** `pnpm docs:generate && cd docs/latex && make all`
 - [ ] Run `./scripts/merge-all.sh` to merge branches
 - [ ] Run `./deploy.sh` to deploy to VPS
 - [ ] Run migrations if you added any

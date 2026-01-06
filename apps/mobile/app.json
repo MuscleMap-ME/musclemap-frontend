@@ -6,23 +6,46 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "musclemap",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "owner": "musclemap",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0a0f"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.musclemap.app"
+      "bundleIdentifier": "com.musclemap.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "MuscleMap uses HealthKit to track your workouts and sync fitness data.",
+        "NSHealthUpdateUsageDescription": "MuscleMap writes workout data to HealthKit to keep your fitness history in sync.",
+        "NSCameraUsageDescription": "MuscleMap uses your camera for progress photos and profile pictures.",
+        "NSPhotoLibraryUsageDescription": "MuscleMap accesses your photo library to save and share progress photos."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0a0a0f"
       },
-      "package": "com.musclemap.app"
+      "package": "com.musclemap.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.BODY_SENSORS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,10 +54,28 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-font",
+        {
+          "fonts": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      },
+      "apiUrl": "https://musclemap.me/api"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id-here"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

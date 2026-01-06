@@ -5,6 +5,37 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
 
+// PDF Documentation (LaTeX-generated)
+const PDF_DOCS = [
+  {
+    id: 'architecture',
+    title: 'System Architecture',
+    description: 'Complete technical architecture with data flow diagrams, tech stack details, and deployment guide',
+    icon: 'cube',
+    color: 'purple',
+    file: 'musclemap-architecture.pdf',
+    pages: 12,
+  },
+  {
+    id: 'features',
+    title: 'Feature Guide',
+    description: 'Visual guide to all MuscleMap features including muscle tracking, archetypes, and RPG progression',
+    icon: 'star',
+    color: 'yellow',
+    file: 'musclemap-features.pdf',
+    pages: 10,
+  },
+  {
+    id: 'api-reference',
+    title: 'API Quick Reference',
+    description: 'Printable API reference card with all endpoints, request/response formats, and error codes',
+    icon: 'code',
+    color: 'cyan',
+    file: 'musclemap-api-reference.pdf',
+    pages: 1,
+  },
+];
+
 // Document metadata with icons and descriptions
 const DOCS = [
   {
@@ -184,6 +215,68 @@ const COLOR_CLASSES = {
   violet: { bg: 'bg-violet-500/20', text: 'text-violet-400', border: 'border-violet-500/30', hover: 'hover:border-violet-500/50' },
   amber: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30', hover: 'hover:border-amber-500/50' },
 };
+
+// PDF document card component
+function PdfDocCard({ doc }) {
+  const colors = COLOR_CLASSES[doc.color];
+
+  return (
+    <motion.a
+      href={`/docs/pdf/${doc.file}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02, y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className={clsx(
+        'group block p-6 rounded-xl border bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm transition-all duration-300',
+        colors.border,
+        colors.hover,
+        'hover:bg-white/10 hover:shadow-lg hover:shadow-violet-500/10'
+      )}
+    >
+      <div className="flex items-start gap-4">
+        <div className={clsx(
+          'w-14 h-14 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110',
+          colors.bg
+        )}>
+          <span className={colors.text}>
+            {ICON_COMPONENTS[doc.icon]}
+          </span>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-white text-lg">{doc.title}</h3>
+            <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-xs font-medium">
+              PDF
+            </span>
+          </div>
+          <p className="text-sm text-gray-400 mb-3">{doc.description}</p>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {doc.pages} {doc.pages === 1 ? 'page' : 'pages'}
+            </span>
+            <span className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              LaTeX
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 group-hover:bg-violet-500/20 transition-colors">
+          <svg className="w-5 h-5 text-gray-400 group-hover:text-violet-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </div>
+      </div>
+    </motion.a>
+  );
+}
 
 // Document card component
 function DocCard({ doc, onClick }) {
@@ -488,6 +581,69 @@ export default function Docs() {
           </p>
         </motion.div>
 
+        {/* PDF Documentation Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-16"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Visual Documentation</h2>
+              <p className="text-sm text-gray-400">Beautiful LaTeX-generated PDFs with diagrams and examples</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {PDF_DOCS.map((doc, index) => (
+              <motion.div
+                key={doc.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + index * 0.05 }}
+              >
+                <PdfDocCard doc={doc} />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* LaTeX source note */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="mt-4 text-center text-xs text-gray-500"
+          >
+            Generated from LaTeX source files in <code className="px-1.5 py-0.5 rounded bg-white/10 text-gray-400">docs/latex/</code>
+          </motion.p>
+        </motion.div>
+
+        {/* Markdown Documentation Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Developer Documentation</h2>
+              <p className="text-sm text-gray-400">Detailed technical docs in Markdown format</p>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Document Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {DOCS.map((doc, index) => (
@@ -495,7 +651,7 @@ export default function Docs() {
               key={doc.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
+              transition={{ delay: 0.25 + index * 0.05 }}
             >
               <DocCard doc={doc} onClick={handleDocClick} />
             </motion.div>

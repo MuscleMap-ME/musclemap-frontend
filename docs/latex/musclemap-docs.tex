@@ -1,0 +1,170 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================
+% PACKAGES
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{parskip}
+\usepackage{enumitem}
+
+% ============================================
+% COLORS (MuscleMap Brand)
+% ============================================
+\definecolor{brandblue}{HTML}{0066FF}
+\definecolor{brandpulse}{HTML}{FF3366}
+\definecolor{voidbase}{HTML}{0A0A0F}
+\definecolor{textprimary}{HTML}{FFFFFF}
+\definecolor{textsecondary}{HTML}{B3B3B3}
+\definecolor{codebg}{HTML}{1A1A24}
+
+% ============================================
+% HYPERREF SETUP
+% ============================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=brandblue,
+    filecolor=brandpulse,
+    urlcolor=brandblue,
+    pdftitle={MuscleMap Documentation},
+    pdfauthor={MuscleMap Team},
+}
+
+% ============================================
+% CODE LISTINGS
+% ============================================
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small\color{textprimary},
+    keywordstyle=\color{brandblue}\bfseries,
+    stringstyle=\color{brandpulse},
+    commentstyle=\color{textsecondary}\itshape,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{textsecondary},
+    tabsize=2,
+    showstringspaces=false,
+}
+
+% ============================================
+% SECTION FORMATTING
+% ============================================
+\titleformat{\section}{\Large\bfseries\color{brandblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{brandblue!80}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{brandblue!60}}{\thesubsubsection}{1em}{}
+
+% ============================================
+% HEADER/FOOTER
+% ============================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{brandblue}{MuscleMap}}
+\fancyhead[R]{\textcolor{textsecondary}{\nouppercase{\leftmark}}}
+\fancyfoot[C]{\textcolor{textsecondary}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+
+\title{
+    \vspace{2cm}
+    \textcolor{brandblue}{\Huge\textbf{MuscleMap}}\\[1em]
+    \textcolor{textsecondary}{\LARGE Technical Documentation}\\[2em]
+    \large Version 1.0.0
+}
+\author{
+    \textcolor{textsecondary}{MuscleMap Development Team}
+}
+\date{2026-01-06}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+
+\begin{center}
+\textcolor{textsecondary}{
+    \textit{Visual Workout Tracking}\\[1em]
+    \url{https://musclemap.me}
+}
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================
+\part{Introduction}
+% ============================================
+
+\section{About MuscleMap}
+
+MuscleMap is a cross-platform fitness tracking application that visualizes muscle activation in real-time. The platform helps users understand which muscles they're targeting during workouts, enabling more effective training.
+
+\subsection{Key Features}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{3D Muscle Visualization}: See exactly which muscles are being worked
+    \item \textbf{Workout Tracking}: Log exercises, sets, reps, and weights
+    \item \textbf{Progress Analytics}: Track your fitness journey over time
+    \item \textbf{Community Features}: Compete, connect, and motivate
+    \item \textbf{Cross-Platform}: Web, iOS, and Android
+\end{itemize}
+
+\subsection{Technology Highlights}
+
+\begin{itemize}[leftmargin=*]
+    \item React + Vite for blazing-fast web experience
+    \item React Native + Expo for native mobile apps
+    \item Fastify API with TypeScript
+    \item PostgreSQL for reliable data storage
+    \item Three.js for 3D muscle rendering
+\end{itemize}
+
+% ============================================
+\part{Architecture}
+% ============================================
+
+\input{architecture-content}
+
+% ============================================
+\part{API Reference}
+% ============================================
+
+\input{api-reference-content}
+
+% ============================================
+\part{Features}
+% ============================================
+
+\input{features-content}
+
+% ============================================
+\part{Appendix}
+% ============================================
+
+\section{Links}
+
+\begin{itemize}[leftmargin=*]
+    \item Website: \url{https://musclemap.me}
+    \item GitHub: \url{https://github.com/jeanpaulniko/musclemap}
+    \item API Health: \url{https://musclemap.me/health}
+\end{itemize}
+
+\section{Contact}
+
+For support or inquiries: \texttt{support@musclemap.me}
+
+\end{document}

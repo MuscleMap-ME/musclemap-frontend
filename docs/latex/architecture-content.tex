@@ -1,0 +1,213 @@
+% Architecture content (for inclusion in master document)
+% ============================================
+\section{Overview}
+% ============================================
+
+MuscleMap is a cross-platform fitness tracking application with real-time muscle visualization. The architecture follows a modular, layered approach with clear separation of concerns.
+
+\subsection{Design Principles}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Single Source of Truth}: PostgreSQL is the only data store
+    \item \textbf{Cross-Platform}: One codebase serves web and mobile
+    \item \textbf{Modular}: Clear package boundaries
+    \item \textbf{Type-Safe}: TypeScript throughout
+\end{itemize}
+
+% ============================================
+\section{Technology Stack}
+% ============================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Layer} & \textbf{Technology} & \textbf{Purpose} \\
+\midrule
+Frontend Web & React + Vite + TailwindCSS & Single-page application \\
+Frontend Mobile & React Native + Expo & iOS \& Android apps \\
+API Server & Fastify + TypeScript & REST/GraphQL API \\
+Database & PostgreSQL & Primary data store \\
+Cache & Redis (optional) & Session/query caching \\
+Reverse Proxy & Caddy & HTTPS termination \\
+\bottomrule
+\end{tabular}
+\caption{Technology Stack}
+\end{table}
+
+% ============================================
+\section{Packages}
+% ============================================
+
+The monorepo contains 5 packages:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Package} & \textbf{Description} \\
+\midrule
+\texttt{@musclemap/client} & Shared client-side business logic for MuscleMap \\
+\texttt{@musclemap/core} & Shared domain types and utilities for MuscleMap \\
+\texttt{@musclemap/plugin-sdk} & SDK for building MuscleMap plugins \\
+\texttt{@musclemap/shared} & Shared utilities and constants for MuscleMap apps \\
+\texttt{@musclemap/ui} & Shared cross-platform UI components for MuscleMap \\
+\bottomrule
+\end{tabular}
+\caption{Monorepo Packages}
+\end{table}
+
+% ============================================
+\section{Frontend Pages}
+% ============================================
+
+The application contains 34 pages:
+
+\begin{longtable}{@{}lcc@{}}
+\toprule
+\textbf{Page} & \textbf{Protected} & \textbf{Description} \\
+\midrule
+\endhead
+AdminControl & No & AdminControl page \\
+AdminIssues & Yes & Admin Issues Page  Admin dashboard for m \\
+CommunityDashboard & Yes & CommunityDashboard Page  Comprehensive c \\
+Competitions & No & Competitions page \\
+Credits & No & Credits page \\
+Dashboard & Yes & Dashboard - MuscleMap Liquid Glass Desig \\
+Design & No & Design Page  Showcases MuscleMap's desig \\
+DesignSystem & No & Design System Showcase  Demonstrates the \\
+DevUpdates & No & Dev Updates Page  Development updates, a \\
+Docs & No & Docs page \\
+Exercises & No & Exercises page \\
+Features & No & Features Page  Showcases MuscleMap featu \\
+HighFives & No & HighFives page \\
+IssueDetail & Yes & Issue Detail Page  Single issue view wit \\
+Issues & Yes & Issues Page  Bug and issue tracker with: \\
+Journey & Yes & Journey page \\
+Landing & No & Landing page \\
+Locations & No & Locations page \\
+Login & Yes & Login page \\
+Messages & No & Messages page \\
+MyIssues & Yes & My Issues Page  User's submitted issues: \\
+NewIssue & Yes & New Issue Page  Create a new bug report, \\
+Onboarding & Yes & Onboarding page \\
+Privacy & No & Privacy Policy Page  Required for App St \\
+Profile & Yes & Profile page \\
+Progression & No & Progression page \\
+Roadmap & No & Roadmap Page  Public roadmap showing: -  \\
+Science & No & Science Page  Explains the science behin \\
+Settings & No & Settings page \\
+Signup & Yes & Signup page \\
+SkinsStore & No & SkinsStore page \\
+Technology & No & Technology Stack Page  Showcases MuscleM \\
+Wallet & No & Wallet page \\
+Workout & No & Workout page \\
+\bottomrule
+\caption{Frontend Pages}
+\end{longtable}
+
+% ============================================
+\section{API Endpoints}
+% ============================================
+
+The API exposes 112 endpoints:
+
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Method} & \textbf{Path} & \textbf{Handler} \\
+\midrule
+\endhead
+\texttt{GET} & \texttt{/\_\_routes} & misc \\
+\texttt{GET} & \texttt{/admin/issues} & issues \\
+\texttt{POST} & \texttt{/admin/issues/bulk} & issues \\
+\texttt{GET} & \texttt{/alternatives/low-impact} & misc \\
+\texttt{GET} & \texttt{/alternatives/seated} & misc \\
+\texttt{GET} & \texttt{/archetypes} & journey \\
+\texttt{GET} & \texttt{/archetypes/:id/levels} & journey \\
+\texttt{POST} & \texttt{/archetypes/select} & journey \\
+\texttt{POST} & \texttt{/auth/login} & auth \\
+\texttt{GET} & \texttt{/auth/me} & auth \\
+\texttt{GET} & \texttt{/auth/me/capabilities} & auth \\
+\texttt{POST} & \texttt{/auth/register} & auth \\
+\texttt{GET} & \texttt{/community/feed} & community \\
+\texttt{GET} & \texttt{/community/monitor} & community \\
+\texttt{GET} & \texttt{/community/percentile} & community \\
+\texttt{GET} & \texttt{/community/presence} & community \\
+\texttt{POST} & \texttt{/community/presence} & community \\
+\texttt{GET} & \texttt{/community/stats} & community \\
+\texttt{GET} & \texttt{/community/ws} & community \\
+\texttt{GET} & \texttt{/competitions} & misc \\
+\texttt{GET} & \texttt{/competitions/:id} & misc \\
+\texttt{GET} & \texttt{/credits/balance} & economy \\
+\texttt{GET} & \texttt{/economy/actions} & economy \\
+\texttt{GET} & \texttt{/economy/balance} & economy \\
+\texttt{POST} & \texttt{/economy/charge} & economy \\
+\texttt{GET} & \texttt{/economy/history} & economy \\
+\texttt{GET} & \texttt{/economy/pricing} & economy \\
+\texttt{GET} & \texttt{/economy/transactions} & economy \\
+\texttt{GET} & \texttt{/economy/wallet} & economy \\
+\texttt{GET} & \texttt{/entitlements} & misc \\
+\bottomrule
+\caption{API Endpoints}
+\end{longtable}
+
+% ============================================
+\section{Data Flow}
+% ============================================
+
+\begin{lstlisting}
++-------------+     +-------------+     +-------------+
+|   Client    |---->|   Caddy     |---->|   Fastify   |
+|  (React)    |<----|   (HTTPS)   |<----|   (API)     |
++-------------+     +-------------+     +-------------+
+                                              |
+                                              v
+                                        +-------------+
+                                        | PostgreSQL  |
+                                        |  (Data)     |
+                                        +-------------+
+\end{lstlisting}
+
+% ============================================
+\section{Build Process}
+% ============================================
+
+\begin{lstlisting}[language=bash]
+# Build order
+pnpm build:packages  # shared -> core -> plugin-sdk -> client -> ui
+pnpm build:api       # API server
+pnpm build           # Frontend (Vite)
+
+# Full deployment
+./deploy.sh "commit message"
+\end{lstlisting}
+
+% ============================================
+\section{Scripts}
+% ============================================
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Script} & \textbf{Description} \\
+\midrule
+\texttt{deploy-branch.sh} & \# deploy-branch.sh - Full deployment: commit, push \\
+\texttt{deploy.sh} & Deployment helper for MuscleMap \\
+\texttt{errors.sh} & errors.sh \\
+\texttt{generate-docs.cjs} & MuscleMap Documentation Generator  Analyzes the co \\
+\texttt{generate-icons.cjs} & App Icon Generator for MuscleMap Mobile App  Gener \\
+\texttt{logs.sh} & Unified Log Viewer for MuscleMap \\
+\texttt{maintain.sh} & --- preflight --- \\
+\texttt{merge-all.sh} & \# merge-all.sh - Merge all worktree branches into  \\
+\texttt{prepare-app-store.cjs} & MuscleMap App Store Preparation Script  Automates  \\
+\texttt{production-deploy.sh} & \# production-deploy.sh - Deploy script for MuscleM \\
+\texttt{publish-app.sh} & \# MuscleMap App Publishing Script \\
+\texttt{repo-cleanup.sh} & If caller sets DRY\_RUN/APPLY explicitly, we do not \\
+\texttt{reset-devbox.sh} & ---- toggles (set by menu) ---- \\
+\texttt{test.sh} & Create a competition to get an ID (avoid hardcoded \\
+\texttt{tidy-root-js.sh} & Collect file basenames referenced by systemd units \\
+\bottomrule
+\end{tabular}
+\caption{Available Scripts}
+\end{table}

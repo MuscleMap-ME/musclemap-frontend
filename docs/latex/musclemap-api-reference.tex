@@ -1,0 +1,473 @@
+%!TEX program = xelatex
+\documentclass[10pt,landscape,letterpaper]{article}
+
+% ============================================
+% MUSCLEMAP API QUICK REFERENCE CARD
+% Compact, printable API documentation
+% ============================================
+
+\usepackage[landscape,margin=0.5in]{geometry}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{multicol}
+\usepackage{booktabs}
+\usepackage{fontawesome5}
+\usepackage{listings}
+\usepackage{hyperref}
+
+% TikZ
+\usetikzlibrary{shapes.geometric, positioning, calc}
+
+% --- Colors ---
+\definecolor{mmblue}{HTML}{0066FF}
+\definecolor{mmpurple}{HTML}{A855F7}
+\definecolor{mmcyan}{HTML}{06B6D4}
+\definecolor{mmgreen}{HTML}{22C55E}
+\definecolor{mmred}{HTML}{EF4444}
+\definecolor{mmyellow}{HTML}{EAB308}
+\definecolor{mmvoid}{HTML}{0A0A0F}
+\definecolor{mmgray}{HTML}{6B7280}
+
+% Method colors
+\definecolor{getcolor}{HTML}{3B82F6}
+\definecolor{postcolor}{HTML}{22C55E}
+\definecolor{putcolor}{HTML}{F97316}
+\definecolor{deletecolor}{HTML}{EF4444}
+
+% --- Fonts ---
+\setmainfont{Helvetica Neue}
+\setmonofont{Menlo}[Scale=0.85]
+
+% --- Listings ---
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{mmvoid!5},
+  frame=single,
+  rulecolor=\color{mmgray!30},
+  breaklines=true,
+  showstringspaces=false,
+}
+
+% --- Custom commands ---
+\newcommand{\apimethod}[1]{%
+  \ifstrequal{#1}{GET}{\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{#1}}}}{}%
+  \ifstrequal{#1}{POST}{\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{#1}}}}{}%
+  \ifstrequal{#1}{PUT}{\colorbox{putcolor!20}{\textcolor{putcolor}{\textbf{#1}}}}{}%
+  \ifstrequal{#1}{DELETE}{\colorbox{deletecolor!20}{\textcolor{deletecolor}{\textbf{#1}}}}{}%
+}
+
+\tcbuselibrary{skins}
+
+\newtcolorbox{apibox}[1][]{
+  enhanced,
+  colback=white,
+  colframe=mmcyan!60,
+  fonttitle=\bfseries\small,
+  title=#1,
+  boxrule=0.5pt,
+  arc=3pt,
+  left=4pt,
+  right=4pt,
+  top=3pt,
+  bottom=3pt,
+}
+
+\newtcolorbox{headerbox}{
+  enhanced,
+  colback=mmblue!10,
+  colframe=mmblue,
+  boxrule=1pt,
+  arc=4pt,
+}
+
+% Remove page numbers
+\pagestyle{empty}
+
+\begin{document}
+
+% Header
+\begin{center}
+\begin{tikzpicture}
+  \node[
+    rectangle,
+    rounded corners=6pt,
+    fill=mmblue!10,
+    draw=mmblue,
+    minimum width=26cm,
+    minimum height=1.2cm
+  ] {
+    \textcolor{mmblue}{\Large\bfseries\faBook~MuscleMap API Quick Reference}
+    \quad
+    \textcolor{mmgray}{\small Base URL: \texttt{https://musclemap.me/api}}
+    \quad
+    \textcolor{mmgray}{\small v2.0}
+  };
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.3cm}
+
+\begin{multicols}{4}
+
+% ============================================
+% AUTHENTICATION
+% ============================================
+\begin{apibox}[\faLock~Authentication]
+\small
+
+\textbf{Register}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/auth/register}
+\begin{lstlisting}
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "displayName": "Athlete"
+}
+\end{lstlisting}
+
+\textbf{Login}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/auth/login}
+\begin{lstlisting}
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+\end{lstlisting}
+Returns: \texttt{\{token, user\}}
+
+\textbf{Refresh Token}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/auth/refresh}
+
+\textbf{Logout}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/auth/logout}
+
+\vspace{0.2cm}
+\textcolor{mmgray}{\scriptsize\faInfoCircle~Include JWT in header:}\\
+\texttt{\scriptsize Authorization: Bearer <token>}
+\end{apibox}
+
+% ============================================
+% EXERCISES
+% ============================================
+\begin{apibox}[\faDumbbell~Exercises]
+\small
+
+\textbf{List All Exercises}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/exercises}\\
+Query: \texttt{?muscle=chest\&equipment=barbell}
+
+\textbf{Get Exercise Details}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/exercises/:id}
+
+\textbf{Search Exercises}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/exercises/search}\\
+Query: \texttt{?q=bench\&limit=10}
+
+\vspace{0.2cm}
+\textcolor{mmgray}{\scriptsize Response includes:}\\
+\texttt{\scriptsize name, muscles[], equipment, difficulty}
+\end{apibox}
+
+% ============================================
+% WORKOUTS
+% ============================================
+\begin{apibox}[\faFire~Workouts]
+\small
+
+\textbf{List User Workouts}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/workouts}\\
+Query: \texttt{?limit=20\&offset=0}
+
+\textbf{Log New Workout}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/workouts}
+\begin{lstlisting}
+{
+  "exercises": [{
+    "exerciseId": "uuid",
+    "sets": 3,
+    "reps": 10,
+    "weight": 135
+  }],
+  "duration": 3600,
+  "notes": "Great session"
+}
+\end{lstlisting}
+
+\textbf{Get Workout Details}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/workouts/:id}
+
+\textbf{Delete Workout}\\
+\colorbox{deletecolor!20}{\textcolor{deletecolor}{\textbf{DELETE}}} \texttt{/workouts/:id}
+\end{apibox}
+
+% ============================================
+% AI PRESCRIPTION
+% ============================================
+\begin{apibox}[\faRobot~AI Workouts]
+\small
+
+\textbf{Generate Workout}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/prescription/generate}
+\begin{lstlisting}
+{
+  "archetype": "bodybuilder",
+  "targetMuscles": ["chest", "triceps"],
+  "equipment": ["barbell", "dumbbell"],
+  "duration": 60
+}
+\end{lstlisting}
+
+\textbf{Get Recommendations}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/prescription/recommend}
+
+\vspace{0.2cm}
+\textcolor{mmgray}{\scriptsize Uses 1 credit per generation}
+\end{apibox}
+
+\columnbreak
+
+% ============================================
+% CHARACTER STATS
+% ============================================
+\begin{apibox}[\faChartLine~Character Stats]
+\small
+
+\textbf{Get My Stats}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/stats/me}\\
+Returns RPG-style attributes
+
+\textbf{Get Leaderboards}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/stats/leaderboards}\\
+Query: \texttt{?scope=global\&stat=strength}
+
+\textbf{Stats Response:}
+\begin{lstlisting}
+{
+  "level": 15,
+  "xp": 2450,
+  "strength": 85,
+  "endurance": 72,
+  "agility": 68,
+  "flexibility": 45,
+  "balance": 58,
+  "mentalFocus": 92
+}
+\end{lstlisting}
+\end{apibox}
+
+% ============================================
+% JOURNEY & PROGRESS
+% ============================================
+\begin{apibox}[\faRoad~Journey]
+\small
+
+\textbf{Get Journey Data}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/journey}
+
+\textbf{Get Progress Stats}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/journey/stats}\\
+Query: \texttt{?period=30d}
+
+\textbf{Get Archetype Progress}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/archetypes/progress}
+
+\textbf{Available Archetypes}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/archetypes}
+\end{apibox}
+
+% ============================================
+% SOCIAL
+% ============================================
+\begin{apibox}[\faUsers~Social]
+\small
+
+\textbf{Send High Five}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/highfives}
+\begin{lstlisting}
+{
+  "recipientId": "user-uuid",
+  "message": "Great workout!"
+}
+\end{lstlisting}
+
+\textbf{Get High Five Feed}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/highfives/feed}
+
+\textbf{Get Rivals}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/rivals}
+
+\textbf{Challenge Rival}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/rivals/challenge}
+\end{apibox}
+
+\columnbreak
+
+% ============================================
+% CREWS
+% ============================================
+\begin{apibox}[\faUserFriends~Crews]
+\small
+
+\textbf{Get My Crew}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/crews/mine}
+
+\textbf{Create Crew}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/crews}
+\begin{lstlisting}
+{
+  "name": "Iron Warriors",
+  "description": "Train hard"
+}
+\end{lstlisting}
+
+\textbf{Join Crew}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/crews/:id/join}
+
+\textbf{Crew Leaderboard}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/crews/leaderboard}
+
+\textbf{Leave Crew}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/crews/:id/leave}
+\end{apibox}
+
+% ============================================
+% WEARABLES
+% ============================================
+\begin{apibox}[\faClock~Wearables]
+\small
+
+\textbf{List Connections}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/wearables}
+
+\textbf{Connect Device}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/wearables/connect}
+\begin{lstlisting}
+{
+  "provider": "apple_health",
+  "authToken": "oauth-token"
+}
+\end{lstlisting}
+
+\textbf{Sync Health Data}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/wearables/sync}
+
+\textbf{Providers:}\\
+\texttt{\scriptsize apple\_health, google\_fit, fitbit, oura}
+\end{apibox}
+
+% ============================================
+% BILLING
+% ============================================
+\begin{apibox}[\faCreditCard~Billing]
+\small
+
+\textbf{Get Subscription}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/billing/subscription}
+
+\textbf{Create Checkout}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/billing/checkout}
+
+\textbf{Get Credit Balance}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/credits/balance}
+
+\textbf{Purchase Credits}\\
+\colorbox{postcolor!20}{\textcolor{postcolor}{\textbf{POST}}} \texttt{/credits/purchase}
+\end{apibox}
+
+\columnbreak
+
+% ============================================
+% USER PROFILE
+% ============================================
+\begin{apibox}[\faUser~Profile]
+\small
+
+\textbf{Get Profile}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/profile}
+
+\textbf{Update Profile}\\
+\colorbox{putcolor!20}{\textcolor{putcolor}{\textbf{PUT}}} \texttt{/profile}
+\begin{lstlisting}
+{
+  "displayName": "New Name",
+  "archetype": "powerlifter",
+  "bio": "Lifting heavy"
+}
+\end{lstlisting}
+
+\textbf{Get Settings}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/settings}
+
+\textbf{Update Settings}\\
+\colorbox{putcolor!20}{\textcolor{putcolor}{\textbf{PUT}}} \texttt{/settings}
+\end{apibox}
+
+% ============================================
+% SYSTEM
+% ============================================
+\begin{apibox}[\faServer~System]
+\small
+
+\textbf{Health Check}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/health}\\
+Returns: DB \& Redis status
+
+\textbf{Contextual Tips}\\
+\colorbox{getcolor!20}{\textcolor{getcolor}{\textbf{GET}}} \texttt{/tips/contextual}\\
+Smart training tips
+\end{apibox}
+
+% ============================================
+% ERROR CODES
+% ============================================
+\begin{apibox}[\faExclamationTriangle~Error Codes]
+\scriptsize
+\begin{tabular}{@{}ll@{}}
+\texttt{400} & Bad Request \\
+\texttt{401} & Unauthorized \\
+\texttt{403} & Forbidden \\
+\texttt{404} & Not Found \\
+\texttt{422} & Validation Error \\
+\texttt{429} & Rate Limited \\
+\texttt{500} & Server Error \\
+\end{tabular}
+
+\vspace{0.2cm}
+\textbf{Error Response:}
+\begin{lstlisting}
+{
+  "error": "VALIDATION_ERROR",
+  "message": "Invalid email",
+  "statusCode": 422
+}
+\end{lstlisting}
+\end{apibox}
+
+% ============================================
+% FOOTER INFO
+% ============================================
+\vfill
+\begin{center}
+\begin{tikzpicture}
+  \node[
+    rectangle,
+    rounded corners=4pt,
+    fill=mmgray!10,
+    minimum width=6cm,
+    minimum height=0.8cm
+  ] {
+    \scriptsize
+    \textcolor{mmgray}{
+      \faGlobe~\href{https://musclemap.me}{musclemap.me}
+      \quad|\quad
+      \faGithub~\href{https://github.com/jeanpaulniko/musclemap}{GitHub}
+    }
+  };
+\end{tikzpicture}
+\end{center}
+
+\end{multicols}
+
+\end{document}

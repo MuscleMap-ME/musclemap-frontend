@@ -1,0 +1,36 @@
+MuscleMap is the fitness app that shows you exactly which muscles you're working - in real-time.
+
+VISUALIZE YOUR PROGRESS
+See your muscle activation light up as you train. Our proprietary 3D muscle visualization system shows you exactly which muscle groups are being targeted with every exercise.
+
+SMART WORKOUT TRACKING
+• Log exercises with sets, reps, and weight
+• Track your progress over time with detailed analytics
+• View muscle group coverage to ensure balanced training
+• Get AI-powered workout recommendations
+
+PERSONALIZED TRAINING
+MuscleMap learns your training patterns and preferences to suggest workouts that target your lagging muscle groups. Never miss a muscle again.
+
+COMMUNITY & COMPETITION
+• Join challenges and compete on leaderboards
+• Share your achievements and progress photos
+• Connect with other fitness enthusiasts
+• Find workout partners in your area
+
+HEALTHKIT INTEGRATION
+Sync your workouts with Apple Health to keep all your fitness data in one place.
+
+KEY FEATURES:
+✓ Real-time 3D muscle visualization
+✓ Comprehensive exercise library with 500+ exercises
+✓ Progress tracking and analytics
+✓ AI-powered workout recommendations
+✓ Social features and leaderboards
+✓ Apple Watch companion app
+✓ HealthKit integration
+✓ Dark mode optimized UI
+
+Whether you're a beginner or advanced athlete, MuscleMap helps you train smarter by showing you exactly what's happening inside your body.
+
+Start your transformation today.

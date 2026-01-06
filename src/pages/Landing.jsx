@@ -139,6 +139,205 @@ export default function Landing() {
         </motion.div>
       </main>
 
+      {/* How It Works - Visual Architecture */}
+      <section className="py-20 px-6 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <span
+                style={{
+                  background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                How It Works
+              </span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              One platform, any device. Your data flows securely through our GraphQL API.
+            </p>
+          </motion.div>
+
+          {/* Architecture Diagram */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="relative rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm p-8 mb-12"
+          >
+            {/* Device Layer */}
+            <div className="flex justify-center gap-4 md:gap-8 mb-6 flex-wrap">
+              {[
+                { icon: '🌐', label: 'Web Browser', desc: 'Chrome, Safari, Firefox' },
+                { icon: '📱', label: 'iOS & Android', desc: 'Native Apps' },
+                { icon: '⌚', label: 'Apple Watch', desc: 'Wearables' },
+                { icon: '🥽', label: 'Vision Pro', desc: 'Spatial Computing' },
+              ].map((device, i) => (
+                <motion.div
+                  key={device.label}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + i * 0.1 }}
+                  className="flex flex-col items-center p-3 rounded-xl bg-white/5 border border-white/10 hover:border-blue-500/30 transition-colors"
+                >
+                  <span className="text-2xl mb-1">{device.icon}</span>
+                  <span className="text-xs font-medium text-white">{device.label}</span>
+                  <span className="text-[10px] text-gray-500">{device.desc}</span>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Connection Lines */}
+            <div className="flex justify-center mb-4">
+              <div className="flex flex-col items-center">
+                <div className="w-px h-8 bg-gradient-to-b from-blue-500/50 to-purple-500/50" />
+                <div className="px-3 py-1 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-purple-500/30 text-xs text-purple-300 font-mono">
+                  HTTPS / SSL Encrypted
+                </div>
+                <div className="w-px h-8 bg-gradient-to-b from-purple-500/50 to-cyan-500/50" />
+              </div>
+            </div>
+
+            {/* API Layer */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="flex justify-center mb-4"
+            >
+              <div className="px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-bold text-white">Fastify API + GraphQL</div>
+                    <div className="text-xs text-gray-400">Single endpoint for all data</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Connection to DB */}
+            <div className="flex justify-center mb-4">
+              <div className="w-px h-8 bg-gradient-to-b from-cyan-500/50 to-green-500/50" />
+            </div>
+
+            {/* Database Layer */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="flex justify-center gap-4"
+            >
+              <div className="px-6 py-3 rounded-xl bg-green-500/10 border border-green-500/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-bold text-sm">PostgreSQL</span>
+                  <span className="text-[10px] text-gray-500">Single Source of Truth</span>
+                </div>
+              </div>
+              <div className="px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400 font-bold text-sm">Redis</span>
+                  <span className="text-[10px] text-gray-500">Cache & Real-time</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Tech Stack Pills */}
+            <div className="mt-8 pt-6 border-t border-white/5">
+              <div className="flex flex-wrap justify-center gap-2">
+                {['React', 'TypeScript', 'Fastify', 'Caddy', 'React Native', 'Expo'].map((tech, i) => (
+                  <motion.span
+                    key={tech}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.9 + i * 0.05 }}
+                    className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 font-mono"
+                  >
+                    {tech}
+                  </motion.span>
+                ))}
+              </div>
+              <p className="text-center text-xs text-gray-600 mt-3">
+                No Docker. No SQLite. No Express. No Nginx. Just clean, modern infrastructure.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Feature Examples Grid */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {/* Real-time Muscle Tracking */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:border-red-500/30 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">💪</span>
+              </div>
+              <h3 className="font-bold text-white mb-2">Real-time Muscle Tracking</h3>
+              <p className="text-sm text-gray-400 mb-4">See exactly which muscles you're hitting with every exercise.</p>
+              <div className="flex gap-2">
+                {['Chest', 'Back', 'Legs'].map((muscle) => (
+                  <span key={muscle} className="px-2 py-1 rounded bg-red-500/10 text-red-400 text-xs">
+                    {muscle}
+                  </span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* AI Workout Generation */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:border-purple-500/30 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">🤖</span>
+              </div>
+              <h3 className="font-bold text-white mb-2">AI-Generated Workouts</h3>
+              <p className="text-sm text-gray-400 mb-4">Get personalized workouts based on your goals and archetype.</p>
+              <div className="flex items-center gap-2">
+                <div className="h-2 flex-1 rounded bg-purple-500/20">
+                  <div className="h-full w-3/4 rounded bg-gradient-to-r from-purple-500 to-pink-500" />
+                </div>
+                <span className="text-xs text-purple-400">75%</span>
+              </div>
+            </motion.div>
+
+            {/* Cross-Platform Sync */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 hover:border-blue-500/30 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">🔄</span>
+              </div>
+              <h3 className="font-bold text-white mb-2">Instant Cross-Platform Sync</h3>
+              <p className="text-sm text-gray-400 mb-4">Start on your phone, continue on web. Always in sync.</p>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Web</span>
+                <span className="text-blue-400">Synced</span>
+                <span>Mobile</span>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Explore Section with Navigation Icons */}
       <section className="pb-20 px-6">
         <div className="max-w-4xl mx-auto">
@@ -243,80 +442,143 @@ export default function Landing() {
             </RouterLink>
           </motion.div>
 
-          {/* Documentation CTA Card */}
+          {/* Visual Documentation - Front and Center */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
             className="mt-12 w-full"
           >
-            <RouterLink
-              to="/docs"
-              className="group block p-6 rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/10 via-transparent to-indigo-500/10 backdrop-blur-sm hover:border-violet-500/30 hover:bg-white/5 transition-all duration-300"
-            >
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                {/* Icon grid representing docs */}
-                <div className="relative w-24 h-24 flex-shrink-0">
-                  <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-1.5">
-                    {[
-                      'bg-blue-500/40',
-                      'bg-purple-500/40',
-                      'bg-cyan-500/40',
-                      'bg-green-500/40',
-                      'bg-yellow-500/40',
-                      'bg-pink-500/40',
-                      'bg-indigo-500/40',
-                      'bg-red-500/40',
-                      'bg-teal-500/40',
-                    ].map((color, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.7 + i * 0.05, type: 'spring', stiffness: 300, damping: 20 }}
-                        className={`${color} rounded-md flex items-center justify-center group-hover:scale-110 transition-transform`}
-                        style={{ transitionDelay: `${i * 30}ms` }}
-                      >
-                        <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </motion.div>
-                    ))}
-                  </div>
-                  {/* Glow effect behind grid */}
-                  <div className="absolute inset-0 -z-10 blur-2xl bg-gradient-to-r from-violet-500/30 to-indigo-500/30 rounded-full group-hover:blur-3xl transition-all" />
-                </div>
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-bold text-white mb-2">
+                <span
+                  style={{
+                    background: 'linear-gradient(90deg, #a855f7 0%, #6366f1 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Visual Documentation
+                </span>
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Beautiful LaTeX-generated guides with diagrams and examples
+              </p>
+            </div>
 
-                {/* Text content */}
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
-                    <span
-                      style={{
-                        background: 'linear-gradient(90deg, #a855f7 0%, #6366f1 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                      }}
-                    >
-                      Explore Our Documentation
-                    </span>
-                    <svg className="w-5 h-5 text-violet-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            {/* PDF Document Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Architecture PDF */}
+              <motion.a
+                href="/docs/pdf/musclemap-architecture.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ scale: 1.02, y: -4 }}
+                className="group p-5 rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-transparent backdrop-blur-sm hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                  </h3>
-                  <p className="text-gray-400 text-sm md:text-base">
-                    Dive into our comprehensive guides covering features, architecture, API reference, and more.
-                    <span className="text-violet-400 font-medium"> 13 detailed docs</span> to help you master MuscleMap.
-                  </p>
-                </div>
-
-                {/* Arrow indicator */}
-                <div className="hidden md:flex items-center justify-center w-12 h-12 rounded-full bg-white/5 group-hover:bg-violet-500/20 transition-colors">
-                  <svg className="w-6 h-6 text-gray-400 group-hover:text-violet-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-white">System Architecture</h4>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/30 text-purple-300">PDF</span>
+                    </div>
+                    <p className="text-xs text-gray-400">Data flow diagrams, tech stack, deployment guide</p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-500 group-hover:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </div>
-              </div>
-            </RouterLink>
+              </motion.a>
+
+              {/* Features PDF */}
+              <motion.a
+                href="/docs/pdf/musclemap-features.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.75 }}
+                whileHover={{ scale: 1.02, y: -4 }}
+                className="group p-5 rounded-xl border border-yellow-500/30 bg-gradient-to-br from-yellow-500/10 to-transparent backdrop-blur-sm hover:border-yellow-500/50 hover:bg-yellow-500/10 transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-white">Feature Guide</h4>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500/30 text-yellow-300">PDF</span>
+                    </div>
+                    <p className="text-xs text-gray-400">Muscle tracking, archetypes, RPG progression</p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-500 group-hover:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </div>
+              </motion.a>
+
+              {/* API Reference PDF */}
+              <motion.a
+                href="/docs/pdf/musclemap-api-reference.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                whileHover={{ scale: 1.02, y: -4 }}
+                className="group p-5 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-transparent backdrop-blur-sm hover:border-cyan-500/50 hover:bg-cyan-500/10 transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-white">API Reference</h4>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/30 text-cyan-300">PDF</span>
+                    </div>
+                    <p className="text-xs text-gray-400">Printable quick reference card for all endpoints</p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </div>
+              </motion.a>
+            </div>
+
+            {/* Text docs fallback link */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9 }}
+              className="text-center"
+            >
+              <RouterLink
+                to="/docs"
+                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Prefer plain text? View all 13 markdown docs
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </RouterLink>
+            </motion.div>
           </motion.div>
 
           {/* Subtle footer links */}
@@ -331,6 +593,7 @@ export default function Landing() {
             <RouterLink to="/science" className="hover:text-gray-300 transition">Science</RouterLink>
             <RouterLink to="/design" className="hover:text-gray-300 transition">Design</RouterLink>
             <RouterLink to="/docs" className="hover:text-violet-400 transition font-medium">Documentation</RouterLink>
+            <a href="https://triptomean.com/about" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition">About the Creator</a>
           </motion.div>
         </div>
       </section>

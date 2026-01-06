@@ -1,0 +1,4 @@
+• New icon library with premium fitness icons
+• Improved muscle visualization system
+• Bug fixes and performance improvements
+• Enhanced dark mode support

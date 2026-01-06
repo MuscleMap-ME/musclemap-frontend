@@ -1,0 +1,422 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================
+% PACKAGES
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{parskip}
+\usepackage{enumitem}
+
+% ============================================
+% COLORS (MuscleMap Brand)
+% ============================================
+\definecolor{brandblue}{HTML}{0066FF}
+\definecolor{brandpulse}{HTML}{FF3366}
+\definecolor{voidbase}{HTML}{0A0A0F}
+\definecolor{textprimary}{HTML}{FFFFFF}
+\definecolor{textsecondary}{HTML}{B3B3B3}
+\definecolor{codebg}{HTML}{1A1A24}
+
+% ============================================
+% HYPERREF SETUP
+% ============================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=brandblue,
+    filecolor=brandpulse,
+    urlcolor=brandblue,
+    pdftitle={MuscleMap Documentation},
+    pdfauthor={MuscleMap Team},
+}
+
+% ============================================
+% CODE LISTINGS
+% ============================================
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small\color{textprimary},
+    keywordstyle=\color{brandblue}\bfseries,
+    stringstyle=\color{brandpulse},
+    commentstyle=\color{textsecondary}\itshape,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{textsecondary},
+    tabsize=2,
+    showstringspaces=false,
+}
+
+% ============================================
+% SECTION FORMATTING
+% ============================================
+\titleformat{\section}{\Large\bfseries\color{brandblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{brandblue!80}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{brandblue!60}}{\thesubsubsection}{1em}{}
+
+% ============================================
+% HEADER/FOOTER
+% ============================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{brandblue}{MuscleMap}}
+\fancyhead[R]{\textcolor{textsecondary}{\nouppercase{\leftmark}}}
+\fancyfoot[C]{\textcolor{textsecondary}{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+
+\title{
+    \textcolor{brandblue}{\Huge\textbf{MuscleMap}}\\[0.5em]
+    \textcolor{textsecondary}{\Large API Reference}
+}
+\author{Auto-generated}
+\date{2026-01-06}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ============================================
+\section{Overview}
+% ============================================
+
+\subsection{Base URLs}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Production}: \texttt{https://musclemap.me/api}
+    \item \textbf{Development}: \texttt{http://localhost:3001}
+\end{itemize}
+
+\subsection{Authentication}
+
+Most endpoints require authentication via JWT token:
+
+\begin{lstlisting}
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\subsection{Response Format}
+
+\subsubsection{Success Response}
+\begin{lstlisting}
+{
+  "success": true,
+  "data": { ... }
+}
+\end{lstlisting}
+
+\subsubsection{Error Response}
+\begin{lstlisting}
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message"
+  }
+}
+\end{lstlisting}
+
+% ============================================
+\section{Endpoints}
+% ============================================
+
+
+\subsection{Misc}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/\_\_routes} \\
+\texttt{GET} & \texttt{/alternatives/low-impact} \\
+\texttt{GET} & \texttt{/alternatives/seated} \\
+\texttt{GET} & \texttt{/competitions} \\
+\texttt{GET} & \texttt{/competitions/:id} \\
+\texttt{GET} & \texttt{/entitlements} \\
+\texttt{GET} & \texttt{/exercises} \\
+\texttt{GET} & \texttt{/exercises/:id/activations} \\
+\texttt{POST} & \texttt{/highfives/send} \\
+\texttt{GET} & \texttt{/highfives/stats} \\
+\texttt{GET} & \texttt{/highfives/users} \\
+\texttt{GET} & \texttt{/i18n/languages} \\
+\texttt{GET} & \texttt{/locations/nearby} \\
+\texttt{GET} & \texttt{/me/entitlements} \\
+\texttt{GET} & \texttt{/muscles} \\
+\texttt{GET} & \texttt{/progress/stats} \\
+\texttt{GET} & \texttt{/progression/achievements} \\
+\texttt{GET} & \texttt{/progression/leaderboard} \\
+\texttt{GET} & \texttt{/progression/mastery-levels} \\
+\texttt{GET} & \texttt{/settings} \\
+\texttt{PATCH} & \texttt{/settings} \\
+\texttt{GET} & \texttt{/settings/themes} \\
+\texttt{POST} & \texttt{/trace/frontend-log} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Issues}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/issues} \\
+\texttt{POST} & \texttt{/admin/issues/bulk} \\
+\texttt{GET} & \texttt{/issues} \\
+\texttt{POST} & \texttt{/issues} \\
+\texttt{GET} & \texttt{/issues/:id} \\
+\texttt{PATCH} & \texttt{/issues/:id} \\
+\texttt{GET} & \texttt{/issues/:id/comments} \\
+\texttt{POST} & \texttt{/issues/:id/comments} \\
+\texttt{POST} & \texttt{/issues/:id/subscribe} \\
+\texttt{POST} & \texttt{/issues/:id/vote} \\
+\texttt{POST} & \texttt{/issues/:issueId/comments/:commentId/solution} \\
+\texttt{GET} & \texttt{/issues/labels} \\
+\texttt{GET} & \texttt{/issues/stats} \\
+\texttt{GET} & \texttt{/me/issues} \\
+\texttt{GET} & \texttt{/roadmap} \\
+\texttt{POST} & \texttt{/roadmap} \\
+\texttt{POST} & \texttt{/roadmap/:id/vote} \\
+\texttt{GET} & \texttt{/updates} \\
+\texttt{POST} & \texttt{/updates} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Journey}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/archetypes} \\
+\texttt{GET} & \texttt{/archetypes/:id/levels} \\
+\texttt{POST} & \texttt{/archetypes/select} \\
+\texttt{GET} & \texttt{/journey} \\
+\texttt{GET} & \texttt{/journey/progress} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Auth}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/auth/login} \\
+\texttt{GET} & \texttt{/auth/me} \\
+\texttt{GET} & \texttt{/auth/me/capabilities} \\
+\texttt{POST} & \texttt{/auth/register} \\
+\texttt{GET} & \texttt{/profile} \\
+\texttt{PUT} & \texttt{/profile} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Community}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/community/feed} \\
+\texttt{GET} & \texttt{/community/monitor} \\
+\texttt{GET} & \texttt{/community/percentile} \\
+\texttt{GET} & \texttt{/community/presence} \\
+\texttt{POST} & \texttt{/community/presence} \\
+\texttt{GET} & \texttt{/community/stats} \\
+\texttt{GET} & \texttt{/community/ws} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Economy}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/credits/balance} \\
+\texttt{GET} & \texttt{/economy/actions} \\
+\texttt{GET} & \texttt{/economy/balance} \\
+\texttt{POST} & \texttt{/economy/charge} \\
+\texttt{GET} & \texttt{/economy/history} \\
+\texttt{GET} & \texttt{/economy/pricing} \\
+\texttt{GET} & \texttt{/economy/transactions} \\
+\texttt{GET} & \texttt{/economy/wallet} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Hangouts}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/hangouts} \\
+\texttt{GET} & \texttt{/hangouts/:id} \\
+\texttt{POST} & \texttt{/hangouts/:id/join} \\
+\texttt{POST} & \texttt{/hangouts/:id/leave} \\
+\texttt{GET} & \texttt{/hangouts/:id/members} \\
+\texttt{POST} & \texttt{/hangouts/:id/posts} \\
+\texttt{GET} & \texttt{/hangouts/:id/posts} \\
+\texttt{GET} & \texttt{/hangouts/nearby} \\
+\texttt{GET} & \texttt{/hangouts/stats} \\
+\texttt{GET} & \texttt{/hangouts/types} \\
+\texttt{GET} & \texttt{/me/hangouts} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Messaging}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/messaging/block/:userId} \\
+\texttt{DELETE} & \texttt{/messaging/block/:userId} \\
+\texttt{GET} & \texttt{/messaging/conversations} \\
+\texttt{POST} & \texttt{/messaging/conversations} \\
+\texttt{GET} & \texttt{/messaging/conversations/:id/messages} \\
+\texttt{POST} & \texttt{/messaging/conversations/:id/messages} \\
+\texttt{POST} & \texttt{/messaging/conversations/:id/read} \\
+\texttt{DELETE} & \texttt{/messaging/messages/:id} \\
+\texttt{GET} & \texttt{/messaging/ws} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Tips}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/milestones} \\
+\texttt{POST} & \texttt{/milestones/:id/claim} \\
+\texttt{POST} & \texttt{/milestones/:id/progress} \\
+\texttt{GET} & \texttt{/tips} \\
+\texttt{POST} & \texttt{/tips/:id/seen} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Prescription}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/prescription/:id} \\
+\texttt{POST} & \texttt{/prescription/generate} \\
+\texttt{POST} & \texttt{/v1/prescription/generate} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Stats}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/stats/history} \\
+\texttt{GET} & \texttt{/stats/info} \\
+\texttt{GET} & \texttt{/stats/leaderboards} \\
+\texttt{GET} & \texttt{/stats/leaderboards/me} \\
+\texttt{GET} & \texttt{/stats/me} \\
+\texttt{GET} & \texttt{/stats/profile/extended} \\
+\texttt{PUT} & \texttt{/stats/profile/extended} \\
+\texttt{POST} & \texttt{/stats/recalculate} \\
+\texttt{GET} & \texttt{/stats/user/:userId} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Workouts}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/workout/complete} \\
+\texttt{POST} & \texttt{/workouts} \\
+\texttt{GET} & \texttt{/workouts/:id} \\
+\texttt{GET} & \texttt{/workouts/me} \\
+\texttt{GET} & \texttt{/workouts/me/muscles} \\
+\texttt{GET} & \texttt{/workouts/me/stats} \\
+\texttt{POST} & \texttt{/workouts/preview} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ============================================
+\section{Rate Limiting}
+% ============================================
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Authenticated}: 100 requests/minute
+    \item \textbf{Unauthenticated}: 20 requests/minute
+\end{itemize}
+
+% ============================================
+\section{Health Check}
+% ============================================
+
+\begin{lstlisting}[language=bash]
+curl https://musclemap.me/health
+\end{lstlisting}
+
+\end{document}

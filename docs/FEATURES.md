@@ -1,243 +1,223 @@
 # MuscleMap Features
 
-## User Authentication
+> Auto-generated on 2026-01-06
 
-### Registration & Login
-- Email/password registration with validation
-- JWT-based authentication
-- Secure password hashing with bcrypt
-- 7-day token expiration
+## Overview
 
-### User Profile
-- Username and display name
-- Avatar support
-- Privacy settings
-- Account management
+MuscleMap is a comprehensive fitness platform with 34 pages/features across multiple categories.
 
-## Onboarding
+## Core Features
 
-### Archetype Selection
-New users choose their training archetype:
+### Dashboard
+Dashboard - MuscleMap Liquid Glass Design  A comprehensive, modern dashboard using the liquid glass design system inspired by visionOS and iOS 18 spatial computing aesthetics
+- **Route**: `/dashboard`
+- **Protected**: Yes (requires login)
 
-| Archetype | Focus | Description |
-|-----------|-------|-------------|
-| Bodybuilder | Aesthetic muscle building | Hypertrophy-focused training |
-| Powerlifter | Strength | Big 3 compound lifts |
-| Gymnast | Bodyweight mastery | Calisthenics progression |
-| CrossFit | Functional fitness | High-intensity varied workouts |
-| Martial Artist | Combat conditioning | Strike power & endurance |
-| Runner | Endurance | Leg strength & cardio |
-| Climber | Grip & pull strength | Upper body focus |
-| Strongman | Functional strength | Odd object training |
-| Functional | General fitness | Balanced training |
-| Swimmer | Aquatic conditioning | Full body endurance |
+### Exercises
+Exercises page
+- **Route**: `/exercises`
+- **Protected**: No (public)
 
-### Equipment Setup
-Users specify available equipment:
-- **Bodyweight Only** - No equipment needed
-- **Kettlebells** - Single or double kettlebell training
-- **Full Gym** - Barbells, dumbbells, machines
-- **Pull-up Bar** - Optional for bodyweight/kettlebell users
+### Journey
+Journey page
+- **Route**: `/journey`
+- **Protected**: Yes (requires login)
 
-## Dashboard
+### Progression
+Progression page
+- **Route**: `/progression`
+- **Protected**: No (public)
 
-### Quick Stats
-- Total Training Units (TU) earned
-- Current level and archetype
-- Workout streak
-- Credit balance
+### Workout
+Workout page
+- **Route**: `/workout`
+- **Protected**: No (public)
 
-### Quick Actions
-- Start Workout
-- Browse Exercise Library
-- View Journey Progress
-- Community Feed
+## Community
 
-### Contextual Tips
-- Personalized guidance based on workout history
-- Dismissible tip cards
-- Progressive insights as user advances
-
-## Workout System
-
-### Workout Generation
-The prescription engine generates personalized workouts:
-- Considers user's archetype and level
-- Accounts for available equipment
-- Balances muscle activation across workout
-- Avoids recently worked muscles
-
-### Exercise Library
-90+ exercises across categories:
-
-**Exercise Types:**
-- Bodyweight (push-ups, pull-ups, squats, etc.)
-- Kettlebell (swings, cleans, Turkish get-ups)
-- Freeweight (barbell, dumbbell exercises)
-
-**Metadata per Exercise:**
-- Difficulty level (1-5)
-- Primary muscles targeted
-- Equipment required/optional
-- Valid locations (gym, home, park, hotel, office, travel)
-- Estimated duration
-- Rest period
-- Movement pattern (push, pull, squat, hinge, core, etc.)
-
-### Muscle Activation
-Each exercise has scientifically-based muscle activations:
-- Primary muscles with high activation (60-100%)
-- Secondary muscles with moderate activation (20-59%)
-- Stabilizer muscles with low activation (5-19%)
-
-### Training Units (TU)
-Proprietary metric for workout volume:
-```
-TU = sum(muscleActivation / biasWeight) × 100
-```
-- Normalizes across muscle sizes
-- Enables fair comparison between workouts
-- Tracks cumulative progress
-
-### Workout Logging
-- Set-by-set tracking
-- Rep and weight logging
-- RPE (Rate of Perceived Exertion) optional
-- Notes per set
-- Workout completion with TU calculation
-
-## Progression System
-
-### Archetype Levels
-Each archetype has 10+ progression levels:
-- Level names themed to archetype
-- TU thresholds for advancement
-- Muscle-specific targets per level
-- Unique descriptions and philosophies
-
-### Milestones
-Achievement system with:
-- Workout count milestones
-- TU accumulation milestones
-- Streak achievements
-- Muscle balance achievements
-
-### Journey Page
-Comprehensive progress tracking:
-- Current level and archetype info
-- Progress toward next level
-- Weekly workout chart
-- Muscle balance heatmap
-- Recent milestones achieved
-
-## Exercise Library Browser
-
-### Search & Filter
-- Search by exercise name
-- Search by muscle group
-- Filter by type (bodyweight, kettlebell, freeweight)
-
-### Exercise Details
-- Difficulty rating
-- Description and cues
-- Primary muscles targeted
-- Equipment requirements
-- Available locations
-- Duration and rest timing
-
-## Credit Economy
-
-### Credit System
-- 100 credits on registration
-- 25 credits per workout
-- Credit purchase options
-- Transaction history
-
-### Entitlements
-Access control based on:
-- Trial period (new users)
-- Active subscription
-- Credit balance
-
-### Subscriptions
-Stripe integration for:
-- Monthly subscription
-- Unlimited workout access
-- Subscription management
-
-## Social Features
-
-### Community Dashboard
-- Activity feed
-- Privacy-respecting event display
-- Community statistics
-
-### Leaderboard
-- Global TU rankings
-- Workout count rankings
-- Weekly/monthly periods
-
-### High Fives
-- Send encouragement to other users
-- Recognition system
-- Notification of received high fives
+### CommunityDashboard
+CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings /
+- **Route**: `/communitydashboard`
+- **Protected**: Yes (requires login)
 
 ### Competitions
-- Challenge events
-- Participant leaderboards
-- Competition details and rules
+Competitions page
+- **Route**: `/competitions`
+- **Protected**: No (public)
 
-### Direct Messaging
-- Private conversations
-- Real-time updates (WebSocket)
-- Message history
+### HighFives
+HighFives page
+- **Route**: `/highfives`
+- **Protected**: No (public)
 
-## Settings
+### Locations
+Locations page
+- **Route**: `/locations`
+- **Protected**: No (public)
 
-### User Settings
-- Profile editing
-- Display preferences
-- Notification settings
-- Privacy controls
+### Messages
+Messages page
+- **Route**: `/messages`
+- **Protected**: No (public)
 
-### Account
-- Password change
-- Email update
-- Account deletion
+## User Account
 
-## Admin Features
+### Credits
+Credits page
+- **Route**: `/credits`
+- **Protected**: No (public)
 
-### Admin Control Panel
-- User management
-- Content moderation
-- System statistics
-- Manual credit adjustments
+### Profile
+Profile page
+- **Route**: `/profile`
+- **Protected**: Yes (requires login)
 
-## Technical Features
+### Settings
+Settings page
+- **Route**: `/settings`
+- **Protected**: No (public)
 
-### HTTP Client
-The `@musclemap/client` package provides:
-- Automatic retry with exponential backoff
-- Request caching (30s TTL for GET)
-- Schema validation with TypeBox
-- Auth token management
-- Unauthorized handler callbacks
+### SkinsStore
+SkinsStore page
+- **Route**: `/skinsstore`
+- **Protected**: No (public)
 
-### Error Handling
-- Consistent error format across API
-- User-friendly error messages
-- Error boundary protection in UI
-- Structured logging
+### Wallet
+Wallet page
+- **Route**: `/wallet`
+- **Protected**: No (public)
 
-### Performance
-- PostgreSQL connection pooling
-- Request rate limiting
-- Database query optimization
-- Indexed queries for hot paths
+## Public Pages
 
-### Security
-- JWT authentication
-- Password hashing (bcrypt)
-- SQL parameterization
-- Input validation (Zod/TypeBox)
-- CORS configuration
+### Design
+Design Page  Showcases MuscleMap's design system with links to the interactive design system page
+- **Route**: `/design`
+- **Protected**: No (public)
+
+### Docs
+Docs page
+- **Route**: `/docs`
+- **Protected**: No (public)
+
+### Features
+Features Page  Showcases MuscleMap features with VGA-style graphics, charts, and bars
+- **Route**: `/features`
+- **Protected**: No (public)
+
+### Landing
+Landing page
+- **Route**: `/landing`
+- **Protected**: No (public)
+
+### Science
+Science Page  Explains the science behind MuscleMap's Training Units and muscle activation system
+- **Route**: `/science`
+- **Protected**: No (public)
+
+### Technology
+Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics
+- **Route**: `/technology`
+- **Protected**: No (public)
+
+## Issue Tracker
+
+### DevUpdates
+Dev Updates Page  Development updates, announcements, and changelog: - Release notes - Bug fixes - Feature announcements /
+- **Route**: `/devupdates`
+- **Protected**: No (public)
+
+### IssueDetail
+Issue Detail Page  Single issue view with: - Full issue details - Comments thread - Voting and subscription - Status history /
+- **Route**: `/issuedetail`
+- **Protected**: Yes (requires login)
+
+### Issues
+Issues Page  Bug and issue tracker with: - Issue listing with filters - Search functionality - Voting system - Status badges /
+- **Route**: `/issues`
+- **Protected**: Yes (requires login)
+
+### MyIssues
+My Issues Page  User's submitted issues: - View status of reported issues - Track responses /
+- **Route**: `/myissues`
+- **Protected**: Yes (requires login)
+
+### NewIssue
+New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection /
+- **Route**: `/newissue`
+- **Protected**: Yes (requires login)
+
+### Roadmap
+Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities /
+- **Route**: `/roadmap`
+- **Protected**: No (public)
+
+## Admin
+
+### AdminControl
+AdminControl page
+- **Route**: `/admincontrol`
+- **Protected**: No (public)
+
+### AdminIssues
+Admin Issues Page  Admin dashboard for managing issues: - View all issues (including private) - Change status, priority, assignee - Bulk actions - Create dev updates - Manage roadmap /
+- **Route**: `/adminissues`
+- **Protected**: Yes (requires login)
+
+## Auth
+
+### Login
+Login page
+- **Route**: `/login`
+- **Protected**: Yes (requires login)
+
+### Onboarding
+Onboarding page
+- **Route**: `/onboarding`
+- **Protected**: Yes (requires login)
+
+### Signup
+Signup page
+- **Route**: `/signup`
+- **Protected**: Yes (requires login)
+
+
+## Feature Highlights
+
+### Real-Time Muscle Visualization
+- 3D muscle model using Three.js
+- Color-coded muscle activation display
+- Interactive body part selection
+
+### Workout Tracking
+- Log exercises with sets, reps, weight
+- Timer for rest periods
+- Progress tracking over time
+
+### Community Features
+- Leaderboards and competitions
+- Location-based gym finder
+- High-five system for encouragement
+- Direct messaging
+
+### Gamification
+- XP and leveling system
+- Achievements and badges
+- Character stats (RPG-style)
+- Skins and customization
+
+### AI Integration
+- Personalized workout recommendations
+- Exercise form analysis (planned)
+- Nutrition suggestions (planned)
+
+## Mobile App
+
+The React Native mobile app (in `apps/mobile/`) provides:
+- Native iOS and Android experience
+- HealthKit/Google Fit integration
+- Push notifications
+- Offline workout logging
+
+## API
+
+Full API documentation available at `docs/API_REFERENCE.md`.

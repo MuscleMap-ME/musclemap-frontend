@@ -38,6 +38,7 @@ import DevUpdates from './pages/DevUpdates';
 import Roadmap from './pages/Roadmap';
 import AdminIssues from './pages/AdminIssues';
 import Docs from './pages/Docs';
+import Privacy from './pages/Privacy';
 
 // Page view tracker
 function PageTracker() {
@@ -109,6 +110,7 @@ function AppRoutes() {
         <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
         <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
         <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+        <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
 
         {/* Issue Tracker - Public */}
         <Route path="/issues" element={<ErrorBoundary name="Issues"><Issues /></ErrorBoundary>} />

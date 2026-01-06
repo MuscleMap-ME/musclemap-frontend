@@ -7,6 +7,10 @@
     "cleanup:apply": "APPLY=1 sh ./scripts/repo-cleanup.sh",
     "dev": "vite",
     "generate:icons": "node scripts/generate-icons.cjs",
+    "prepare:appstore": "node scripts/prepare-app-store.cjs",
+    "docs:generate": "node scripts/generate-docs.cjs",
+    "docs:latex": "node scripts/generate-docs.cjs --latex",
+    "docs:md": "node scripts/generate-docs.cjs --md",
     "build": "vite build",
     "build:api": "pnpm -C apps/api build",
     "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build && pnpm -C packages/client build && pnpm -C packages/ui build",
@@ -28,6 +32,8 @@
     "deploy:merge": "sh ./scripts/deploy-branch.sh --merge-now"
   },
   "dependencies": {
+    "@dicebear/collection": "^9.2.4",
+    "@dicebear/core": "^9.2.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.9",
@@ -35,6 +41,7 @@
     "@mui/material": "^7.3.6",
     "@musclemap/client": "workspace:*",
     "@musclemap/shared": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "bcryptjs": "^2.4.3",
@@ -46,7 +53,7 @@
     "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
-    "lucide-react": "^0.303.0",
+    "lucide-react": "^0.562.0",
     "pg": "^8.13.0",
     "pm2": "^6.0.14",
     "react": "^18.3.1",
@@ -63,7 +70,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
-    "sharp": "^0.33.5",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
@@ -78,6 +84,7 @@
     "globals": "^16.2.0",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
+    "sharp": "^0.33.5",
     "tailwindcss": "^4.1.18",
     "vite": "^5.4.21",
     "vitest": "^4.0.16"
