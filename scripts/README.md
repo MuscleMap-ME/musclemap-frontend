@@ -25,13 +25,13 @@ Welcome to **MuscleMap** - a cross-platform fitness tracking application that vi
 
 MuscleMap is a **universal fitness platform** built on these core principles:
 
-- **Single Source of Truth**: PostgreSQL database with Redis caching layer
-- **API-First Architecture**: All clients (web, mobile, VisionOS, Apple Watch) consume the same REST/GraphQL API
-- **Clients Only Animate**: Frontend apps are pure presentation layers - they receive state and render it beautifully
-- **Cross-Platform**: React web app, React Native mobile, VisionOS spatial computing, Apple Watch companion
+- **Single Source of Truth**: PostgreSQL database is the only source of truth
+- **GraphQL Data Stream**: All data flows through a single GraphQL API endpoint over encrypted SSL
+- **Cross-Platform via React**: One codebase serves web (React + Vite) and mobile (React Native + Expo) - works on any browser, any device
+- **Clients Only Render**: Frontend apps are pure presentation layers - they receive state from the API and render it
+- **No Docker, No SQLite, No Express, No Nginx**: We use Fastify for the API, PostgreSQL for data, and Caddy for reverse proxy
 - **Extensible**: Plugin architecture for third-party fitness device integrations
-- **Performance-First**: Native C modules for compute-intensive operations (geohashing, rate limiting)
-- **Biometric Integration**: Apple Watch, HealthKit, Garmin, Fitbit, and other fitness device data
+- **Biometric Integration**: Apple Watch, HealthKit, Garmin, Fitbit data via the API
 
 ### Design Aesthetic
 
@@ -47,16 +47,23 @@ MuscleMap is a **universal fitness platform** built on these core principles:
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend Web** | React + Vite + TailwindCSS + Three.js (3D) |
-| **Mobile** | React Native + Expo |
-| **VisionOS** | SwiftUI + RealityKit |
-| **API Server** | Fastify (Node.js) + TypeScript |
-| **Database** | PostgreSQL |
-| **Cache/State** | Redis |
-| **Native Modules** | C code compiled to Node addons |
-| **Hosting** | Linux VPS (Caddy reverse proxy) |
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| **Frontend Web** | React + Vite + TailwindCSS + Three.js | Runs in any browser |
+| **Mobile** | React Native + Expo | Same React codebase, native performance |
+| **VisionOS** | SwiftUI + RealityKit | Spatial computing (planned) |
+| **API Server** | Fastify (Node.js) + TypeScript | NOT Express |
+| **Data Transport** | GraphQL over SSL | Single endpoint, efficient queries |
+| **Database** | PostgreSQL | NOT SQLite - this is the only data store |
+| **Cache** | Redis (optional) | For performance, not required |
+| **Reverse Proxy** | Caddy | NOT Nginx - automatic HTTPS |
+| **Hosting** | Linux VPS | No Docker, no containers |
+
+**What We DON'T Use:**
+- ❌ Express (we use Fastify)
+- ❌ Nginx (we use Caddy)
+- ❌ SQLite (we use PostgreSQL)
+- ❌ Docker (direct deployment on VPS)
 
 ### Directory Structure
 
@@ -481,17 +488,19 @@ When starting a new task:
 ### Modular & Hierarchical
 
 Everything is built in layers:
-1. **Database Layer**: PostgreSQL with well-defined schemas
+1. **Database Layer**: PostgreSQL with well-defined schemas (single source of truth)
 2. **Service Layer**: Business logic in TypeScript modules
-3. **API Layer**: Fastify routes exposing services
-4. **Client Layer**: SDK for consuming API
-5. **UI Layer**: Platform-specific rendering
+3. **API Layer**: Fastify + GraphQL exposing services
+4. **Client Layer**: SDK for consuming API (works on web and mobile)
+5. **UI Layer**: React components that only render data
 
-### Native Performance
+### Cross-Platform Strategy
 
-When performance matters, we use C:
-- `native/src/geo/geohash.c` - Fast geohashing for location queries
-- `native/src/ratelimit/limiter.c` - High-performance rate limiting
+We achieve cross-platform through the web stack:
+- **React + Vite**: Runs in any modern browser on any device
+- **React Native + Expo**: Native mobile apps sharing React code
+- **Same API**: All platforms consume the same GraphQL endpoint
+- **No native code required**: Everything works through the browser or Expo
 
 ### Plugin Architecture
 
@@ -502,22 +511,71 @@ Third-party integrations via plugins:
 
 ### State Management
 
-- **Server**: PostgreSQL is truth, Redis is cache
-- **Client**: Minimal state, fetch what you need
+- **Server**: PostgreSQL is the ONLY source of truth
+- **Client**: No local state - fetch what you need from the API
 - **Real-time**: WebSocket for live updates
+
+---
+
+## Data Architecture & Cross-Platform Strategy
+
+### How Cross-Platform Works
+
+MuscleMap achieves cross-platform compatibility through a simple architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     ANY DEVICE / BROWSER                     │
+│  (Chrome, Safari, Firefox, iOS, Android, Desktop, Tablet)   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ HTTPS (SSL encrypted)
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      CADDY REVERSE PROXY                     │
+│              (Automatic HTTPS, HTTP/2, HTTP/3)              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    FASTIFY API SERVER                        │
+│                   GraphQL Endpoint /api                      │
+│          (Single data stream for ALL clients)               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       POSTGRESQL                             │
+│              (Single Source of Truth)                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Principles
+
+1. **All state lives in PostgreSQL** - clients never store state locally
+2. **GraphQL minimizes bandwidth** - clients request only the fields they need
+3. **SSL encrypts everything** - bidirectional encrypted data stream
+4. **Clients only render** - no business logic in frontend, just display data
+5. **React everywhere** - same React code runs on web (Vite) and mobile (Expo)
+
+### Optimization Strategies
+
+- **GraphQL field selection**: Only fetch needed fields, reducing payload size
+- **Query batching**: Multiple queries in single request
+- **Response caching**: Redis caches frequent queries (optional)
+- **CDN for static assets**: Images, fonts served from edge
 
 ---
 
 ## Server Infrastructure
 
-- **We want to minimize the amount of data flowing through the by directional encrypted SSL data stream that is flowing out of the API using GraphQL. How can we optimize this can we run certain reoccurring things on the client end. Can we use some kind of vacuum rehydration technology to serve it more efficiently with lower latency using less data creating less traffic needing less bandwidth we have to optimize for that how do we distribute to work as uniformly as possible? What assets do we have available?
-
-- **VPS Provider:** Linux server at 72.62.83.202
-- **Reverse Proxy:** Caddy (automatic HTTPS)
-- **Process Manager:** PM2 test suite
-- **Database:** PostgreSQL (local)
-- **Cache:** Redis (optional)
-- **Deployment:** Git pull + pnpm build
+- **VPS Provider:** Linux server at 72.62.83.202 (musclemap.me)
+- **Reverse Proxy:** Caddy (automatic HTTPS, NOT Nginx)
+- **API Framework:** Fastify (NOT Express)
+- **Process Manager:** PM2
+- **Database:** PostgreSQL (NOT SQLite)
+- **Cache:** Redis (optional, for performance)
+- **Deployment:** Git pull + pnpm build (no Docker)
 
 ---
 
