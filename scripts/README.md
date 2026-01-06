@@ -41,6 +41,10 @@ MuscleMap is a **universal fitness platform** built on these core principles:
 - **Animations:** Smooth, physics-based, performance-optimized
 - **Mobile:** Native feel with haptic feedback
 
+### Technical Design
+
+- **We are a LaTeX first shop. Use it liberally for our documentation and generation
+
 ### Tech Stack
 
 | Layer | Technology |
@@ -506,21 +510,24 @@ Third-party integrations via plugins:
 
 ## Server Infrastructure
 
+- **We want to minimize the amount of data flowing through the by directional encrypted SSL data stream that is flowing out of the API using GraphQL. How can we optimize this can we run certain reoccurring things on the client end. Can we use some kind of vacuum rehydration technology to serve it more efficiently with lower latency using less data creating less traffic needing less bandwidth we have to optimize for that how do we distribute to work as uniformly as possible? What assets do we have available?
+
 - **VPS Provider:** Linux server at 72.62.83.202
 - **Reverse Proxy:** Caddy (automatic HTTPS)
-- **Process Manager:** PM2
+- **Process Manager:** PM2 test suite
 - **Database:** PostgreSQL (local)
 - **Cache:** Redis (optional)
 - **Deployment:** Git pull + pnpm build
 
 ---
 
-## Contact & Resources
+## Contact & Resources:
 
 - **GitHub:** https://github.com/jeanpaulniko/musclemap
 - **Live Site:** https://musclemap.me/
 - **API Health:** https://musclemap.me/health
-- **VPS Access:** `ssh root@musclemap.me`
+- **VPS Access:** `ssh root@musclemap.me
+- **Full test suite in /tests/ and we use Pino and Winston for thorough logging front and back to express themselves as data streams`
 
 ---
 

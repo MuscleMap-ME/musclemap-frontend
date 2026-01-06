@@ -138,7 +138,6 @@ export {
   type CrewStats,
   type CrewLeaderboardEntry,
   type MyCrewData,
-<<<<<<< HEAD
   // Character Stats types (D&D-style attributes)
   type CharacterStats,
   type StatRanking,
@@ -148,8 +147,6 @@ export {
   type ExtendedProfile,
   type LeaderboardEntry,
   type StatInfo,
-=======
->>>>>>> gifted-blackburn
 } from './api';
 
 // Hooks
