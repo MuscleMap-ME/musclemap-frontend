@@ -32,7 +32,7 @@ const useScrollPosition = () => {
 
 /**
  * Animated MuscleMap Logo
- * Displays the MuscleMap logo with optional breathing glow effect
+ * Uses the custom MM icon with breathing pulse effect
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
   return (
@@ -44,21 +44,40 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
       style={{
         width: size,
         height: size,
-        boxShadow: breathing ? 'var(--glow-brand-sm)' : 'none',
+        background: '#1a1a1a',
+        boxShadow: 'var(--glow-brand-sm)',
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      <img
-        src="/logo.png"
-        alt="MuscleMap"
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-        }}
-      />
+      {/* MM Logo - Two rounded squares with M letters */}
+      <div className="flex items-center gap-0.5" style={{ transform: `scale(${size / 40})` }}>
+        <motion.div
+          className="flex items-center justify-center rounded-md bg-black"
+          style={{ width: 14, height: 14 }}
+          animate={
+            breathing
+              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
+              : {}
+          }
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
+        </motion.div>
+        <motion.div
+          className="flex items-center justify-center rounded-md bg-black"
+          style={{ width: 14, height: 14 }}
+          animate={
+            breathing
+              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
+              : {}
+          }
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        >
+          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
