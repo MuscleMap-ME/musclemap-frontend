@@ -684,6 +684,25 @@
   transform: translateY(-4px);
 }
 
+/* Fallback for browsers that don't support backdrop-filter (e.g., Brave on iOS) */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass,
+  .glass-subtle,
+  .glass-medium,
+  .glass-heavy,
+  .glass-brand,
+  .glass-pulse,
+  .card-glass,
+  .nav-glass,
+  .modal-glass {
+    background: rgba(15, 15, 25, 0.95) !important;
+  }
+
+  .card-glass {
+    background: rgba(20, 20, 35, 0.98) !important;
+  }
+}
+
 /* ============================================
    NAVIGATION GLASS
    ============================================ */
