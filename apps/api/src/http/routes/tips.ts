@@ -103,22 +103,21 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     const milestones = await queryAll<{
       id: string;
       name: string;
-      description: string;
-      category: string;
-      condition_type: string;
-      condition_value: string;
-      reward_credits: number;
-      badge_icon: string;
-    }>('SELECT * FROM milestones');
+      description: string | null;
+      metric: string;
+      threshold: number;
+      reward_type: string | null;
+      reward_value: string | null;
+    }>('SELECT * FROM milestones ORDER BY threshold');
 
     // Get user's progress
     const progress = await queryAll<{
       milestone_id: string;
-      progress: number;
-      completed_at: Date;
+      current_value: number;
+      completed_at: Date | null;
       reward_claimed: boolean;
     }>(
-      'SELECT * FROM user_milestone_progress WHERE user_id = $1',
+      'SELECT * FROM user_milestones WHERE user_id = $1',
       [userId]
     );
 
@@ -127,16 +126,18 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     return reply.send({
       data: milestones.map((m) => {
         const userProgress = progressMap.get(m.id);
+        const currentValue = userProgress?.current_value || 0;
+        const progressPercent = Math.min(100, Math.round((currentValue / m.threshold) * 100));
         return {
           id: m.id,
           name: m.name,
           description: m.description,
-          category: m.category,
-          conditionType: m.condition_type,
-          conditionValue: JSON.parse(m.condition_value || '{}'),
-          rewardCredits: m.reward_credits,
-          badgeIcon: m.badge_icon,
-          progress: userProgress?.progress || 0,
+          metric: m.metric,
+          threshold: m.threshold,
+          rewardType: m.reward_type,
+          rewardValue: m.reward_value,
+          currentValue,
+          progress: progressPercent,
           completedAt: userProgress?.completed_at,
           rewardClaimed: userProgress?.reward_claimed || false,
         };
@@ -150,29 +151,29 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
 
     // Check milestone is completed and not claimed
-    const progress = await queryOne<{
-      completed_at: Date;
+    const userMilestone = await queryOne<{
+      completed_at: Date | null;
       reward_claimed: boolean;
     }>(
-      'SELECT completed_at, reward_claimed FROM user_milestone_progress WHERE user_id = $1 AND milestone_id = $2',
+      'SELECT completed_at, reward_claimed FROM user_milestones WHERE user_id = $1 AND milestone_id = $2',
       [userId, id]
     );
 
-    if (!progress?.completed_at) {
+    if (!userMilestone?.completed_at) {
       return reply.status(400).send({
         error: { code: 'NOT_COMPLETED', message: 'Milestone not yet completed', statusCode: 400 },
       });
     }
 
-    if (progress.reward_claimed) {
+    if (userMilestone.reward_claimed) {
       return reply.status(400).send({
         error: { code: 'ALREADY_CLAIMED', message: 'Reward already claimed', statusCode: 400 },
       });
     }
 
     // Get milestone reward
-    const milestone = await queryOne<{ reward_credits: number }>(
-      'SELECT reward_credits FROM milestones WHERE id = $1',
+    const milestone = await queryOne<{ reward_type: string | null; reward_value: string | null }>(
+      'SELECT reward_type, reward_value FROM milestones WHERE id = $1',
       [id]
     );
 
@@ -182,58 +183,47 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       });
     }
 
-    // Add credits and mark as claimed
-    const { economyService } = require('../../modules/economy');
-    await economyService.addCredits(
-      userId,
-      milestone.reward_credits,
-      'milestone.claim',
-      { milestoneId: id },
-      `milestone-${id}-${userId}`
-    );
-
+    // Mark as claimed
     await query(
-      'UPDATE user_milestone_progress SET reward_claimed = TRUE WHERE user_id = $1 AND milestone_id = $2',
+      'UPDATE user_milestones SET reward_claimed = TRUE WHERE user_id = $1 AND milestone_id = $2',
       [userId, id]
     );
 
     return reply.send({
-      data: { credited: milestone.reward_credits },
+      data: { rewardType: milestone.reward_type, rewardValue: milestone.reward_value },
     });
   });
 
   // Update milestone progress (internal use)
   app.post('/milestones/:id/progress', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { progress } = request.body as { progress: number };
+    const { value } = request.body as { value: number };
     const userId = request.user!.userId;
 
-    await query(
-      `INSERT INTO user_milestone_progress (user_id, milestone_id, progress)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, milestone_id)
-       DO UPDATE SET progress = GREATEST(user_milestone_progress.progress, $3)`,
-      [userId, id, progress]
-    );
-
-    // Check if milestone is now complete
-    const milestone = await queryOne<{ condition_value: string }>(
-      'SELECT condition_value FROM milestones WHERE id = $1',
+    // Get milestone threshold
+    const milestone = await queryOne<{ threshold: number }>(
+      'SELECT threshold FROM milestones WHERE id = $1',
       [id]
     );
 
-    if (milestone) {
-      const condition = JSON.parse(milestone.condition_value || '{}');
-      if (progress >= (condition.target || 0)) {
-        await query(
-          `UPDATE user_milestone_progress
-           SET completed_at = NOW()
-           WHERE user_id = $1 AND milestone_id = $2 AND completed_at IS NULL`,
-          [userId, id]
-        );
-      }
+    if (!milestone) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Milestone not found', statusCode: 404 },
+      });
     }
 
-    return reply.send({ data: { progress } });
+    const isComplete = value >= milestone.threshold;
+
+    await query(
+      `INSERT INTO user_milestones (user_id, milestone_id, current_value, completed_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, milestone_id)
+       DO UPDATE SET
+         current_value = GREATEST(user_milestones.current_value, EXCLUDED.current_value),
+         completed_at = COALESCE(user_milestones.completed_at, EXCLUDED.completed_at)`,
+      [userId, id, value, isComplete ? new Date() : null]
+    );
+
+    return reply.send({ data: { currentValue: value, isComplete } });
   });
 }
