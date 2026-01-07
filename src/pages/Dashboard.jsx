@@ -431,7 +431,7 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
               );
             })()}
 
-            {/* Stat points and labels */}
+            {/* Stat points only (labels shown in stat bars) */}
             {STAT_ORDER.map((key, i) => {
               const center = 80;
               const maxRadius = 60;
@@ -441,32 +441,18 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
               const radius = value * maxRadius;
               const x = center + radius * Math.cos(angle);
               const y = center + radius * Math.sin(angle);
-              const labelX = center + (maxRadius + 18) * Math.cos(angle);
-              const labelY = center + (maxRadius + 18) * Math.sin(angle);
 
               return (
-                <g key={key}>
-                  <motion.circle
-                    cx={x}
-                    cy={y}
-                    r={4}
-                    fill={STAT_META[key].color}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
-                  />
-                  <text
-                    x={labelX}
-                    y={labelY}
-                    fill={STAT_META[key].color}
-                    fontSize={10}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                  >
-                    {STAT_META[key].abbr}
-                  </text>
-                </g>
+                <motion.circle
+                  key={key}
+                  cx={x}
+                  cy={y}
+                  r={4}
+                  fill={STAT_META[key].color}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                />
               );
             })}
           </svg>
