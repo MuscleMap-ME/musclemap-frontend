@@ -289,6 +289,16 @@ export async function registerMiscRoutes(app: FastifyInstance) {
   // Trace/logging endpoint
   app.post('/trace/frontend-log', async (request, reply) => {
     const body = request.body as { entries?: any[] };
+    // Log each frontend entry with full details for debugging
+    if (body?.entries) {
+      for (const entry of body.entries) {
+        if (entry.level === 'error') {
+          log.error({ requestId: request.id, frontendEntry: entry }, 'frontend-error');
+        } else {
+          log.info({ requestId: request.id, frontendEntry: entry }, 'frontend-log-entry');
+        }
+      }
+    }
     log.info({
       requestId: request.id,
       count: body?.entries?.length,
