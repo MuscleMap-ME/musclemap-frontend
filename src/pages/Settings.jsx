@@ -132,6 +132,30 @@ export default function Settings() {
         <section className="bg-gray-800 rounded-2xl p-4">
           <h2 className="font-bold mb-4">🔒 Privacy</h2>
           <div className="space-y-4">
+            {/* Link to full privacy settings */}
+            <Link
+              to="/community"
+              state={{ tab: 'privacy' }}
+              className="block p-4 bg-green-900/30 border border-green-600/30 rounded-xl hover:bg-green-900/40 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🛡️</span>
+                  <div>
+                    <div className="font-medium">Privacy Mode & Data Controls</div>
+                    <div className="text-sm text-gray-400">
+                      Opt out of community features, manage data collection
+                    </div>
+                  </div>
+                </div>
+                <span className="text-gray-400">→</span>
+              </div>
+            </Link>
+
+            <div className="pt-2 border-t border-gray-700">
+              <p className="text-xs text-gray-500 mb-4">Quick settings (for full control, use Privacy Mode above)</p>
+            </div>
+
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">Public Profile</div>
@@ -139,7 +163,7 @@ export default function Settings() {
               </div>
               <Toggle value={settings.is_public} onChange={() => save({ is_public: settings.is_public ? 0 : 1 })} />
             </div>
-            
+
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">Show Location</div>
@@ -147,7 +171,7 @@ export default function Settings() {
               </div>
               <Toggle value={settings.show_location} onChange={() => save({ show_location: settings.show_location ? 0 : 1 })} />
             </div>
-            
+
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">Show Progress</div>

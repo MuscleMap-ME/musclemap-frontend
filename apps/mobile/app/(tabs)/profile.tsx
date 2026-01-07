@@ -19,24 +19,27 @@ import {
   Spinner,
 } from 'tamagui';
 import { ScrollView } from 'react-native';
-import { LogOut, Bell, Moon, Shield } from '@tamagui/lucide-icons';
-import { useAuth, apiClient, type Settings, type Profile } from '@musclemap/client';
+import { LogOut, Bell, Moon, Shield, ChevronRight } from '@tamagui/lucide-icons';
+import { useAuth, apiClient, type Settings, type Profile, type PrivacySettings } from '@musclemap/client';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [profileData, settingsData] = await Promise.all([
+        const [profileData, settingsData, privacyData] = await Promise.all([
           apiClient.profile.get(),
           apiClient.settings.fetch(),
+          apiClient.privacy.get(),
         ]);
         setProfile(profileData);
         setSettings(settingsData.settings || null);
+        setPrivacySettings((privacyData as any).data);
       } catch (err) {
         console.error('Failed to load profile data:', err);
       } finally {
@@ -146,6 +149,28 @@ export default function ProfileScreen() {
               <Text color="$gray11">{settings?.theme || 'System'}</Text>
             </XStack>
           </YStack>
+        </Card>
+
+        <Card
+          padding="$4"
+          elevate
+          pressStyle={{ opacity: 0.8 }}
+          onPress={() => router.push('/(tabs)/privacy')}
+        >
+          <XStack justifyContent="space-between" alignItems="center">
+            <XStack space="$3" alignItems="center" flex={1}>
+              <Shield size={24} color={privacySettings?.minimalistMode ? '$green10' : '$blue10'} />
+              <YStack flex={1}>
+                <H3>Privacy & Data</H3>
+                <Text color="$gray11" fontSize="$2">
+                  {privacySettings?.minimalistMode
+                    ? 'Minimalist mode active'
+                    : 'Manage community features & data'}
+                </Text>
+              </YStack>
+            </XStack>
+            <ChevronRight size={20} color="$gray10" />
+          </XStack>
         </Card>
 
         <Card padding="$4" elevate>

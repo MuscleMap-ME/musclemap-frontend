@@ -90,6 +90,7 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     }
 
     // Use keyset pagination for scale
+    // Exclude users who have opted out of community feed via privacy settings
     let sql: string;
     let queryParams: unknown[];
 
@@ -99,6 +100,11 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
              LEFT JOIN users u ON ae.user_id = u.id
              WHERE ae.visibility_scope IN ('public_anon', 'public_profile')
                AND (ae.created_at, ae.id) < ($1::timestamptz, $2)
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_privacy_mode pm
+                 WHERE pm.user_id = ae.user_id
+                 AND (pm.minimalist_mode = true OR pm.opt_out_community_feed = true OR pm.exclude_from_activity_feed = true)
+               )
              ORDER BY ae.created_at DESC, ae.id DESC
              LIMIT $3`;
       queryParams = [cursorTime, cursorId, limit];
@@ -107,6 +113,11 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
              FROM activity_events ae
              LEFT JOIN users u ON ae.user_id = u.id
              WHERE ae.visibility_scope IN ('public_anon', 'public_profile')
+               AND NOT EXISTS (
+                 SELECT 1 FROM user_privacy_mode pm
+                 WHERE pm.user_id = ae.user_id
+                 AND (pm.minimalist_mode = true OR pm.opt_out_community_feed = true OR pm.exclude_from_activity_feed = true)
+               )
              ORDER BY ae.created_at DESC, ae.id DESC
              LIMIT $1`;
       queryParams = [limit];

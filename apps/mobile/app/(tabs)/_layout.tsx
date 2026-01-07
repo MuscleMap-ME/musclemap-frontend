@@ -2,13 +2,37 @@
  * Tabs Layout
  *
  * Bottom tab navigation for authenticated users.
+ * Respects user privacy settings - hides community tabs in minimalist mode.
  */
+import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Dumbbell, User, Swords, Users, BarChart3 } from '@tamagui/lucide-icons';
+import { Home, Dumbbell, User, Swords, Users, BarChart3, Shield } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
+import { apiClient, type PrivacySettings } from '@musclemap/client';
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings | null>(null);
+
+  // Load privacy settings on mount
+  useEffect(() => {
+    async function loadPrivacySettings() {
+      try {
+        const result = await apiClient.privacy.get();
+        setPrivacySettings((result as any).data);
+      } catch (err) {
+        // If settings fail to load, show all tabs by default
+        console.warn('Failed to load privacy settings:', err);
+      }
+    }
+    loadPrivacySettings();
+  }, []);
+
+  // Determine which tabs to show based on privacy settings
+  const isMinimalist = privacySettings?.minimalistMode ?? false;
+  const hideCrews = isMinimalist || privacySettings?.optOutCrews;
+  const hideRivals = isMinimalist || privacySettings?.optOutRivals;
+  const hideLeaderboards = isMinimalist || privacySettings?.optOutLeaderboards;
 
   return (
     <Tabs
@@ -44,6 +68,7 @@ export default function TabsLayout() {
         name="crews"
         options={{
           title: 'Crews',
+          href: hideCrews ? null : undefined, // Hide when opted out
           tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
@@ -51,6 +76,7 @@ export default function TabsLayout() {
         name="rivals"
         options={{
           title: 'Rivals',
+          href: hideRivals ? null : undefined, // Hide when opted out
           tabBarIcon: ({ color, size }) => <Swords color={color} size={size} />,
         }}
       />
@@ -58,7 +84,17 @@ export default function TabsLayout() {
         name="stats"
         options={{
           title: 'Stats',
+          // Stats tab shows personal stats regardless of leaderboard opt-out
+          // but hides the leaderboard section within the screen
           tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} />,
+        }}
+      />
+      {/* Privacy settings - always accessible */}
+      <Tabs.Screen
+        name="privacy"
+        options={{
+          title: 'Privacy',
+          tabBarIcon: ({ color, size }) => <Shield color={color} size={size} />,
         }}
       />
       {/* Hidden screens - accessible via navigation but not in tab bar */}
@@ -74,6 +110,13 @@ export default function TabsLayout() {
         options={{
           href: null, // Hide from tab bar
           title: 'Health',
+        }}
+      />
+      <Tabs.Screen
+        name="journey"
+        options={{
+          href: null, // Hide from tab bar
+          title: 'Journey',
         }}
       />
       <Tabs.Screen

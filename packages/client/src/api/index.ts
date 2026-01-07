@@ -952,6 +952,98 @@ const StatInfoSchema = Type.Object(
 );
 
 // =====================
+// Privacy Settings Types & Schemas
+// =====================
+export interface PrivacySettings {
+  // Master toggle
+  minimalistMode: boolean;
+
+  // Community feature opt-outs
+  optOutLeaderboards: boolean;
+  optOutCommunityFeed: boolean;
+  optOutCrews: boolean;
+  optOutRivals: boolean;
+  optOutHangouts: boolean;
+  optOutMessaging: boolean;
+  optOutHighFives: boolean;
+
+  // Data collection opt-outs
+  excludeFromStatsComparison: boolean;
+  excludeFromLocationFeatures: boolean;
+  excludeFromActivityFeed: boolean;
+
+  // UI preferences
+  hideGamification: boolean;
+  hideAchievements: boolean;
+  hideTips: boolean;
+  hideSocialNotifications: boolean;
+  hideProgressComparisons: boolean;
+
+  // Presence & activity
+  disablePresenceTracking: boolean;
+  disableWorkoutSharing: boolean;
+
+  // Profile
+  profileCompletelyPrivate: boolean;
+}
+
+export interface PrivacySummary {
+  mode: 'minimalist' | 'standard';
+  summary: string;
+  enabledFeatures: string[];
+  disabledFeatures: string[];
+  dataPrivacy: {
+    excludedFromComparisons: boolean;
+    excludedFromActivityFeed: boolean;
+    locationHidden: boolean;
+    presenceHidden: boolean;
+    profilePrivate: boolean;
+  };
+}
+
+const PrivacySettingsSchema = Type.Object(
+  {
+    minimalistMode: Type.Boolean(),
+    optOutLeaderboards: Type.Boolean(),
+    optOutCommunityFeed: Type.Boolean(),
+    optOutCrews: Type.Boolean(),
+    optOutRivals: Type.Boolean(),
+    optOutHangouts: Type.Boolean(),
+    optOutMessaging: Type.Boolean(),
+    optOutHighFives: Type.Boolean(),
+    excludeFromStatsComparison: Type.Boolean(),
+    excludeFromLocationFeatures: Type.Boolean(),
+    excludeFromActivityFeed: Type.Boolean(),
+    hideGamification: Type.Boolean(),
+    hideAchievements: Type.Boolean(),
+    hideTips: Type.Boolean(),
+    hideSocialNotifications: Type.Boolean(),
+    hideProgressComparisons: Type.Boolean(),
+    disablePresenceTracking: Type.Boolean(),
+    disableWorkoutSharing: Type.Boolean(),
+    profileCompletelyPrivate: Type.Boolean(),
+  },
+  { additionalProperties: true }
+);
+
+const PrivacySummarySchema = Type.Object(
+  {
+    mode: Type.String(),
+    summary: Type.String(),
+    enabledFeatures: Type.Array(Type.String()),
+    disabledFeatures: Type.Array(Type.String()),
+    dataPrivacy: Type.Object({
+      excludedFromComparisons: Type.Boolean(),
+      excludedFromActivityFeed: Type.Boolean(),
+      locationHidden: Type.Boolean(),
+      presenceHidden: Type.Boolean(),
+      profilePrivate: Type.Boolean(),
+    }),
+  },
+  { additionalProperties: true }
+);
+
+// =====================
 // User & Auth Types & Schemas
 // =====================
 export interface User {
@@ -1769,6 +1861,64 @@ export const apiClient = {
       request<DataResponse<{ stats: StatInfo[] }>>('/stats/info', {
         schema: wrapInData(Type.Object({ stats: Type.Array(StatInfoSchema) })),
         cacheTtl: 300_000, // Cache for 5 minutes
+      }),
+  },
+
+  // Privacy Settings (Minimalist Mode)
+  privacy: {
+    /**
+     * Get current user's privacy settings
+     */
+    get: () =>
+      request<DataResponse<PrivacySettings>>('/privacy', {
+        schema: wrapInData(PrivacySettingsSchema),
+      }),
+
+    /**
+     * Update privacy settings
+     */
+    update: (updates: Partial<PrivacySettings>) =>
+      request<DataResponse<PrivacySettings>>('/privacy', {
+        method: 'PUT',
+        body: updates,
+        schema: wrapInData(PrivacySettingsSchema),
+      }),
+
+    /**
+     * Enable full minimalist mode (one-click privacy)
+     * Disables all community features and excludes user from all comparisons
+     */
+    enableMinimalist: () =>
+      request<DataResponse<{ minimalistMode: boolean; message: string }>>('/privacy/enable-minimalist', {
+        method: 'POST',
+        schema: wrapInData(
+          Type.Object({
+            minimalistMode: Type.Boolean(),
+            message: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Disable minimalist mode and restore defaults
+     */
+    disableMinimalist: () =>
+      request<DataResponse<{ minimalistMode: boolean; message: string }>>('/privacy/disable-minimalist', {
+        method: 'POST',
+        schema: wrapInData(
+          Type.Object({
+            minimalistMode: Type.Boolean(),
+            message: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Get a user-friendly summary of privacy settings
+     */
+    summary: () =>
+      request<DataResponse<PrivacySummary>>('/privacy/summary', {
+        schema: wrapInData(PrivacySummarySchema),
       }),
   },
 };

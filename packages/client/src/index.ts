@@ -147,6 +147,9 @@ export {
   type ExtendedProfile,
   type LeaderboardEntry,
   type StatInfo,
+  // Privacy Settings types (Minimalist Mode)
+  type PrivacySettings,
+  type PrivacySummary,
 } from './api';
 
 // Hooks

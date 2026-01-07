@@ -527,8 +527,15 @@ export async function getLeaderboard(options: {
   const params: unknown[] = [];
   let paramIndex = 1;
 
-  // Only show users who opted in
+  // Only show users who opted in to leaderboards
   whereConditions.push('(up.leaderboard_opt_in = true OR up.leaderboard_opt_in IS NULL)');
+
+  // Exclude users who have opted out via privacy mode (minimalist mode or explicit opt-out)
+  whereConditions.push(`NOT EXISTS (
+    SELECT 1 FROM user_privacy_mode pm
+    WHERE pm.user_id = cs.user_id
+    AND (pm.minimalist_mode = true OR pm.opt_out_leaderboards = true OR pm.exclude_from_stats_comparison = true)
+  )`);
 
   // Gender filter
   if (gender) {
