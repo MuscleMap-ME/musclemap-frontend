@@ -65,7 +65,6 @@ export async function up(): Promise<void> {
       )
     `);
     await db.query(`CREATE INDEX idx_health_heart_rate_user_time ON health_heart_rate(user_id, timestamp DESC)`);
-    await db.query(`CREATE INDEX idx_health_heart_rate_recent ON health_heart_rate(user_id, timestamp DESC) WHERE timestamp > NOW() - INTERVAL '7 days'`);
   }
 
   // Create health_workouts table
