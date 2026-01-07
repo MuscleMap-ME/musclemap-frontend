@@ -55,7 +55,7 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     }
 
     paramIndex++;
-    sql += ` ORDER BY priority DESC LIMIT $${paramIndex}`;
+    sql += ` ORDER BY times_shown ASC, RANDOM() LIMIT $${paramIndex}`;
     queryParams.push(parseInt(params.limit || '5'));
 
     const tips = await queryAll<{
@@ -65,7 +65,7 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       category: string;
       title: string;
       content: string;
-      priority: number;
+      times_shown: number;
       display_context: string | null;
     }>(sql, queryParams);
 
@@ -77,7 +77,7 @@ export async function registerTipsRoutes(app: FastifyInstance) {
         category: t.category,
         title: t.title,
         content: t.content,
-        priority: t.priority,
+        timesShown: t.times_shown,
         displayContext: t.display_context,
       })),
     });
