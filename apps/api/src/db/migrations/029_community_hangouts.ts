@@ -911,7 +911,7 @@ export async function up(): Promise<void> {
         -- Location (virtual or physical)
         location_type TEXT DEFAULT 'virtual' CHECK (location_type IN ('virtual', 'physical', 'hybrid')),
         location_details JSONB DEFAULT '{}',
-        hangout_id BIGINT REFERENCES hangouts(id),
+        hangout_id BIGINT REFERENCES virtual_hangouts(id),
 
         -- Capacity
         max_participants INTEGER,
