@@ -297,7 +297,7 @@ const STAT_META = {
 const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance', 'vitality'];
 
 // ============================================
-// CHARACTER STATS CARD (D&D-style)
+// STATS CARD
 // ============================================
 const CharacterStatsCard = ({ characterStats, loading }) => {
   if (loading) {
@@ -348,8 +348,8 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
             <Icons.Target className="w-5 h-5 text-[var(--brand-blue-400)]" />
           </div>
           <div>
-            <h3 className="font-bold text-[var(--text-primary)]">Character Stats</h3>
-            <p className="text-xs text-[var(--text-tertiary)]">D&D-style attributes</p>
+            <h3 className="font-bold text-[var(--text-primary)]">Your Stats</h3>
+            <p className="text-xs text-[var(--text-tertiary)]">Fitness attributes</p>
           </div>
         </div>
         <Link
@@ -763,7 +763,7 @@ const navSections = [
       { to: '/journey', icon: Icons.Journey, label: 'Journey' },
       { to: '/exercises', icon: Icons.Library, label: 'Exercises' },
       { to: '/progression', icon: Icons.Chart, label: 'Progress' },
-      { to: '/stats', icon: Icons.Target, label: 'Character Stats' },
+      { to: '/stats', icon: Icons.Target, label: 'Stats' },
       { to: '/health', icon: Icons.Heart, label: 'Health' },
       { to: '/goals', icon: Icons.Goal, label: 'Goals' },
       { to: '/limitations', icon: Icons.Shield, label: 'Limitations' },
@@ -912,7 +912,7 @@ export default function Dashboard() {
               </p>
             </motion.div>
 
-            {/* Current Path Hero Card + Character Stats Row */}
+            {/* Current Path Hero Card + Stats Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Current Path - Takes 2 columns on large screens */}
               <div className="lg:col-span-2">
@@ -923,7 +923,7 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Character Stats - Takes 1 column on large screens */}
+              {/* Stats - Takes 1 column on large screens */}
               <div className="lg:col-span-1">
                 <CharacterStatsCard
                   characterStats={characterStats}
