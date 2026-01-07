@@ -194,8 +194,9 @@ export const resolvers = {
     // Exercises & Muscles
     exercises: async (_: unknown, args: { search?: string; muscleGroup?: string; equipment?: string; limit?: number }) => {
       const limit = Math.min(args.limit || 100, 500);
-      let sql = `SELECT id, name, description, type, primary_muscles, secondary_muscles,
-                        equipment, difficulty, instructions, tips, image_url, video_url
+      let sql = `SELECT id, name, description, type, primary_muscles, difficulty, cues,
+                        equipment_required, equipment_optional, locations, is_compound,
+                        movement_pattern
                  FROM exercises WHERE 1=1`;
       const params: unknown[] = [];
       let paramIndex = 1;
@@ -211,7 +212,7 @@ export const resolvers = {
         paramIndex++;
       }
       if (args.equipment) {
-        sql += ` AND $${paramIndex} = ANY(equipment)`;
+        sql += ` AND ($${paramIndex} = ANY(equipment_required) OR $${paramIndex} = ANY(equipment_optional))`;
         params.push(args.equipment);
         paramIndex++;
       }
@@ -224,22 +225,23 @@ export const resolvers = {
         id: e.id,
         name: e.name,
         description: e.description,
-        type: e.type,
+        type: e.type || e.movement_pattern,
         primaryMuscles: e.primary_muscles || [],
-        secondaryMuscles: e.secondary_muscles || [],
-        equipment: e.equipment || [],
+        secondaryMuscles: [],
+        equipment: [...(e.equipment_required || []), ...(e.equipment_optional || [])],
         difficulty: e.difficulty,
-        instructions: e.instructions || [],
-        tips: e.tips || [],
-        imageUrl: e.image_url,
-        videoUrl: e.video_url,
+        instructions: e.cues || [],
+        tips: [],
+        imageUrl: null,
+        videoUrl: null,
       }));
     },
 
     exercise: async (_: unknown, args: { id: string }) => {
       const e = await queryOne<any>(
-        `SELECT id, name, description, type, primary_muscles, secondary_muscles,
-                equipment, difficulty, instructions, tips, image_url, video_url
+        `SELECT id, name, description, type, primary_muscles, difficulty, cues,
+                equipment_required, equipment_optional, locations, is_compound,
+                movement_pattern
          FROM exercises WHERE id = $1`,
         [args.id]
       );
@@ -248,26 +250,26 @@ export const resolvers = {
         id: e.id,
         name: e.name,
         description: e.description,
-        type: e.type,
+        type: e.type || e.movement_pattern,
         primaryMuscles: e.primary_muscles || [],
-        secondaryMuscles: e.secondary_muscles || [],
-        equipment: e.equipment || [],
+        secondaryMuscles: [],
+        equipment: [...(e.equipment_required || []), ...(e.equipment_optional || [])],
         difficulty: e.difficulty,
-        instructions: e.instructions || [],
-        tips: e.tips || [],
-        imageUrl: e.image_url,
-        videoUrl: e.video_url,
+        instructions: e.cues || [],
+        tips: [],
+        imageUrl: null,
+        videoUrl: null,
       };
     },
 
     muscles: async () => {
-      const muscles = await queryAll('SELECT id, name, muscle_group, sub_group, description FROM muscles');
+      const muscles = await queryAll('SELECT id, name, anatomical_name, muscle_group, bias_weight FROM muscles');
       return muscles.map((m: any) => ({
         id: m.id,
         name: m.name,
         group: m.muscle_group,
-        subGroup: m.sub_group,
-        description: m.description,
+        subGroup: m.anatomical_name,
+        description: null,
       }));
     },
 
