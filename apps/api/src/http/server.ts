@@ -43,6 +43,9 @@ import { registerLimitationsRoutes } from './routes/limitations';
 import { registerPTTestsRoutes } from './routes/pt-tests';
 import { registerPersonalizationRoutes } from './routes/personalization';
 
+// GraphQL
+import { registerGraphQLRoutes } from '../graphql/server';
+
 // Security middleware
 import { registerSecurityMiddleware } from '../middleware/security';
 
@@ -241,7 +244,12 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register security middleware
   registerSecurityMiddleware(app);
 
-  // API routes (all under /api prefix)
+  // GraphQL endpoint (at /api/graphql)
+  await app.register(async (gql) => {
+    await registerGraphQLRoutes(gql);
+  }, { prefix: '/api' });
+
+  // REST API routes (all under /api prefix)
   await app.register(async (api) => {
     // Register all route modules
     await registerAuthRoutes(api);

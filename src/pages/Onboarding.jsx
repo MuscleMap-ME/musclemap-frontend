@@ -17,6 +17,13 @@ const ARCHETYPE_ICONS = {
   'swimmer': '🏊',
 };
 
+const ADDITIONAL_EQUIPMENT = [
+  { id: 'pullupBar', name: 'Pull-up Bar', icon: '🔩', desc: 'Pull-ups, chin-ups, hanging' },
+  { id: 'dipBars', name: 'Dip Bars', icon: '⬜', desc: 'Dips, leg raises, rows' },
+  { id: 'rings', name: 'Gym Rings', icon: '⭕', desc: 'Ring rows, muscle-ups' },
+  { id: 'bench', name: 'Bench', icon: '🪑', desc: 'Step-ups, elevated pushups' },
+];
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const { login } = useUser();
@@ -24,7 +31,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [archetype, setArchetype] = useState(null);
   const [archetypes, setArchetypes] = useState([]);
-  const [equipment, setEquipment] = useState({ type: 'bodyweight', kettlebellCount: 1, hasPullupBar: false });
+  const [equipment, setEquipment] = useState({ type: 'bodyweight', kettlebellCount: 1, extras: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -126,23 +133,32 @@ export default function Onboarding() {
             )}
 
             {(equipment.type === 'bodyweight' || equipment.type === 'kettlebell') && (
-              <div className="bg-gray-800 rounded-xl p-4 mb-6">
-                <p className="text-sm text-gray-400 mb-3">Do you have access to any of these?</p>
-                <label className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600">
-                  <input 
-                    type="checkbox" 
-                    checked={equipment.hasPullupBar} 
-                    onChange={e => setEquipment({...equipment, hasPullupBar: e.target.checked})} 
-                    className="w-5 h-5 rounded" 
-                  />
-                  <div>
-                    <div className="font-medium">🔩 Pull-up Bar</div>
-                    <div className="text-xs text-gray-400">For pull-ups, chin-ups, and hanging exercises</div>
-                  </div>
-                </label>
-                {!equipment.hasPullupBar && (
-                  <p className="text-xs text-yellow-400 mt-3">
-                    💡 No pull-up bar? No problem! We'll substitute with other exercises.
+              <div className="mb-6">
+                <p className="text-sm text-gray-400 mb-3">Do you have access to any of these? (optional)</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ADDITIONAL_EQUIPMENT.map(eq => {
+                    const isSelected = equipment.extras.includes(eq.id);
+                    return (
+                      <button
+                        key={eq.id}
+                        onClick={() => setEquipment({
+                          ...equipment,
+                          extras: isSelected
+                            ? equipment.extras.filter(e => e !== eq.id)
+                            : [...equipment.extras, eq.id]
+                        })}
+                        className={`p-3 rounded-xl text-left transition-all ${isSelected ? 'bg-green-600 ring-2 ring-green-400' : 'bg-gray-800 hover:bg-gray-700'}`}
+                      >
+                        <div className="text-2xl mb-1">{eq.icon}</div>
+                        <div className="font-bold text-sm">{eq.name}</div>
+                        <div className="text-xs text-gray-400">{eq.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {equipment.extras.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-3">
+                    No extras? No problem! We'll work with what you have.
                   </p>
                 )}
               </div>

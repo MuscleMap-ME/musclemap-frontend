@@ -4,22 +4,17 @@
  * Main entry point for the GraphQL layer.
  */
 
-// Schema building
-export {
-  SchemaRegistry,
-  getSchemaRegistry,
-  resetSchemaRegistry,
-  buildSchema,
-  CORE_TYPE_DEFS,
-  CORE_RESOLVERS,
-} from './schema-builder';
+// Schema
+export { typeDefs } from './schema';
+export { resolvers } from './resolvers';
 
 // Server setup
 export {
   createGraphQLServer,
   createContext,
-  handleGraphQLRequest,
+  registerGraphQLRoutes,
   createSubscriptionHandler,
+  getApolloServer,
   type GraphQLContext,
 } from './server';
 

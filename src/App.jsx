@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ApolloProvider } from '@apollo/client/react';
+import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import logger from './utils/logger';
@@ -185,11 +187,13 @@ export default function App() {
 
   return (
     <ErrorBoundary name="App">
-      <BrowserRouter>
-        <UserProvider>
-          <AppRoutes />
-        </UserProvider>
-      </BrowserRouter>
+      <ApolloProvider client={apolloClient}>
+        <BrowserRouter>
+          <UserProvider>
+            <AppRoutes />
+          </UserProvider>
+        </BrowserRouter>
+      </ApolloProvider>
     </ErrorBoundary>
   );
 }

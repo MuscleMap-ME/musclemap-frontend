@@ -4,46 +4,19 @@
  * Configures Apollo Server 4 with Fastify integration and all optimizations:
  * - Query depth limiting
  * - Query complexity limiting
- * - Automatic persisted queries
  * - Response caching
  * - DataLoader integration
- * - Subscription support via graphql-ws
  */
 
-// GraphQL packages - uncomment when installed:
-// import { ApolloServer } from '@apollo/server';
-// import { fastifyApolloDrainPlugin } from '@as-integrations/fastify';
-// import { makeExecutableSchema } from '@graphql-tools/schema';
-// import { applyMiddleware } from 'graphql-middleware';
-// import depthLimit from 'graphql-depth-limit';
-// import { createComplexityLimitRule } from 'graphql-validation-complexity';
-
-import type { FastifyInstance } from 'fastify';
-import { buildSchema, getSchemaRegistry } from './schema-builder';
+import { ApolloServer } from '@apollo/server';
+import { fastifyApolloDrainPlugin } from '@as-integrations/fastify';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import depthLimit from 'graphql-depth-limit';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { typeDefs } from './schema';
+import { resolvers } from './resolvers';
 import { createLoaders, type Loaders } from './loaders';
-import { getGraphQLCache } from './cache';
-import { getAPQManager } from './persisted-queries';
 import { loggers } from '../lib/logger';
-
-// Stub types until GraphQL packages are installed
-type PubSubService = any;
-type RequestCache = any;
-type PluginContext = Record<string, any>;
-const depthLimit = (_n: number, _opts?: any) => () => {};
-const createComplexityLimitRule = (_max: number, _opts?: any) => () => {};
-const makeExecutableSchema = (_opts: any) => ({});
-const applyMiddleware = (schema: any) => schema;
-const fastifyApolloDrainPlugin = (_app: any) => ({});
-
-// ApolloServer stub class
-class ApolloServer<T = any> {
-  constructor(_opts: any) {}
-  async start() {}
-  createHandler() { return (_req: any, _res: any) => {}; }
-  async executeOperation(_opts: any, _ctx?: any) {
-    return { body: { kind: 'single', singleResult: { data: null, errors: null } } };
-  }
-}
 
 const log = loggers.core;
 
@@ -51,14 +24,13 @@ const log = loggers.core;
 // TYPES
 // ============================================
 
-export interface GraphQLContext extends PluginContext {
+export interface GraphQLContext {
   /**
    * Current authenticated user (if any).
    */
   user?: {
-    id: string;
+    userId: string;
     email: string;
-    username: string;
     roles: string[];
   };
 
@@ -68,14 +40,15 @@ export interface GraphQLContext extends PluginContext {
   loaders: Loaders;
 
   /**
-   * Pub/Sub for subscriptions.
-   */
-  pubsub: PubSubService;
-
-  /**
    * Request-scoped cache.
    */
-  cache: RequestCache;
+  cache: {
+    get: <T>(key: string) => T | undefined;
+    set: <T>(key: string, value: T) => void;
+    has: (key: string) => boolean;
+    delete: (key: string) => boolean;
+    clear: () => void;
+  };
 }
 
 interface ServerConfig {
@@ -83,11 +56,6 @@ interface ServerConfig {
    * Maximum query depth (default: 10).
    */
   maxDepth?: number;
-
-  /**
-   * Maximum query complexity (default: 1000).
-   */
-  maxComplexity?: number;
 
   /**
    * Enable introspection (default: false in production).
@@ -109,6 +77,8 @@ interface ServerConfig {
 // SERVER FACTORY
 // ============================================
 
+let apolloServer: ApolloServer<GraphQLContext> | null = null;
+
 /**
  * Create and configure Apollo Server.
  */
@@ -117,37 +87,15 @@ export async function createGraphQLServer(
 ): Promise<ApolloServer<GraphQLContext>> {
   const {
     maxDepth = 10,
-    maxComplexity = 1000,
     introspection = process.env.NODE_ENV !== 'production',
     debug = process.env.NODE_ENV !== 'production',
     fastify,
   } = config;
 
-  // Build schema from core + plugins
-  const registry = getSchemaRegistry();
-  const { typeDefs, resolvers, errors } = buildSchema(registry);
-
-  if (errors.length > 0) {
-    log.error({ errors }, 'Schema conflicts detected');
-    throw new Error(`Schema has ${errors.length} conflicts. Check logs.`);
-  }
-
   // Create executable schema
-  let schema = makeExecutableSchema({
+  const schema = makeExecutableSchema({
     typeDefs,
     resolvers,
-  });
-
-  // Apply middleware (if any)
-  // schema = applyMiddleware(schema, ...middleware);
-
-  // Create complexity limit rule
-  const complexityLimitRule = createComplexityLimitRule(maxComplexity, {
-    onCost: (cost: number) => {
-      log.debug({ cost }, 'Query complexity calculated');
-    },
-    formatErrorMessage: (cost: number) =>
-      `Query too complex: ${cost}. Maximum allowed: ${maxComplexity}`,
   });
 
   // Create server plugins
@@ -163,10 +111,7 @@ export async function createGraphQLServer(
     schema,
     introspection,
     plugins,
-    validationRules: [
-      depthLimit(maxDepth, { ignore: ['__schema', '__type'] }),
-      complexityLimitRule,
-    ],
+    validationRules: [depthLimit(maxDepth, { ignore: ['__schema', '__type'] })],
     formatError: (formattedError, error) => {
       // Log error details
       log.error({ error: formattedError }, 'GraphQL error');
@@ -188,9 +133,17 @@ export async function createGraphQLServer(
   });
 
   await server.start();
-  log.info({ introspection, maxDepth, maxComplexity }, 'GraphQL server started');
+  log.info({ introspection, maxDepth }, 'GraphQL server started');
 
+  apolloServer = server;
   return server;
+}
+
+/**
+ * Get the existing Apollo Server instance.
+ */
+export function getApolloServer(): ApolloServer<GraphQLContext> | null {
+  return apolloServer;
 }
 
 // ============================================
@@ -200,36 +153,25 @@ export async function createGraphQLServer(
 /**
  * Create GraphQL context for each request.
  */
-export function createContext(
-  deps: {
-    db: any;
-    credits: any;
-    logger: any;
-    pubsub: any;
-  },
-  req: { user?: any; headers: any }
-): GraphQLContext {
+export function createContext(req: FastifyRequest): GraphQLContext {
   // Create per-request DataLoaders
   const loaders = createLoaders();
 
   // Create request-scoped cache
   const requestCache = new Map<string, any>();
 
+  // Get user from Fastify request (set by auth middleware)
+  const user = (req as any).user
+    ? {
+        userId: (req as any).user.userId,
+        email: (req as any).user.email,
+        roles: (req as any).user.roles || ['user'],
+      }
+    : undefined;
+
   return {
-    pluginId: 'core',
-    config: {},
-    logger: deps.logger,
-    credits: deps.credits,
-    db: deps.db,
-    request: {
-      requestId: req.headers['x-request-id'] || crypto.randomUUID(),
-      userId: req.user?.id,
-      ip: req.headers['x-forwarded-for'] || 'unknown',
-      userAgent: req.headers['user-agent'],
-    },
-    user: req.user,
+    user,
     loaders,
-    pubsub: deps.pubsub,
     cache: {
       get: <T>(key: string) => requestCache.get(key) as T | undefined,
       set: <T>(key: string, value: T) => {
@@ -243,117 +185,107 @@ export function createContext(
 }
 
 // ============================================
-// REQUEST HANDLER
+// FASTIFY ROUTE HANDLER
 // ============================================
 
 /**
- * Process a GraphQL request with APQ and caching.
+ * Register GraphQL routes on Fastify instance.
  */
-export async function handleGraphQLRequest(
-  server: ApolloServer<GraphQLContext>,
-  request: {
-    query?: string;
-    operationName?: string;
-    variables?: Record<string, unknown>;
-    extensions?: any;
-  },
-  context: GraphQLContext
-): Promise<any> {
-  const apqManager = getAPQManager();
-  const cache = getGraphQLCache();
+export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void> {
+  // Create Apollo Server with Fastify drain plugin
+  const server = await createGraphQLServer({ fastify: app });
 
-  // Process APQ
-  const apqResult = await apqManager.process(request);
-
-  if (apqResult.error) {
-    return {
-      errors: [
-        {
-          message: apqResult.error,
-          extensions: {
-            code: apqResult.error,
-          },
-        },
-      ],
+  // GraphQL POST endpoint
+  app.post('/graphql', async (request: FastifyRequest, reply: FastifyReply) => {
+    const context = createContext(request);
+    const { query, operationName, variables } = request.body as {
+      query?: string;
+      operationName?: string;
+      variables?: Record<string, unknown>;
     };
-  }
 
-  const query = apqResult.query || request.query;
+    if (!query) {
+      return reply.status(400).send({
+        errors: [{ message: 'Query required', extensions: { code: 'BAD_REQUEST' } }],
+      });
+    }
 
-  if (!query) {
-    return {
-      errors: [
-        {
-          message: 'Query required',
-          extensions: { code: 'BAD_REQUEST' },
-        },
-      ],
-    };
-  }
-
-  // Check cache for non-mutation queries
-  const isMutation = query.trim().startsWith('mutation');
-  const isSubscription = query.trim().startsWith('subscription');
-
-  if (!isMutation && !isSubscription) {
-    const cacheKey = cache.generateKey(
-      request.operationName,
-      query,
-      request.variables,
-      context.user?.id
+    const response = await server.executeOperation(
+      {
+        query,
+        operationName,
+        variables,
+      },
+      { contextValue: context }
     );
 
-    const cachedResponse = await cache.get(cacheKey);
-    if (cachedResponse) {
-      return cachedResponse;
+    if (response.body.kind === 'single') {
+      // Set proper content type
+      reply.header('Content-Type', 'application/json');
+      return response.body.singleResult;
     }
-  }
 
-  // Execute query
-  const response = await server.executeOperation(
-    {
-      query,
-      operationName: request.operationName,
-      variables: request.variables,
-    },
-    { contextValue: context }
-  );
+    return response.body;
+  });
 
-  // Cache successful query responses
-  if (!isMutation && !isSubscription && response.body.kind === 'single') {
-    const singleResult = response.body.singleResult;
-    if (!singleResult.errors) {
-      const cacheKey = cache.generateKey(
-        request.operationName,
+  // GraphQL GET endpoint (for introspection tools)
+  app.get('/graphql', async (request: FastifyRequest, reply: FastifyReply) => {
+    const context = createContext(request);
+    const { query, operationName, variables } = request.query as {
+      query?: string;
+      operationName?: string;
+      variables?: string;
+    };
+
+    if (!query) {
+      return reply.status(400).send({
+        errors: [{ message: 'Query required', extensions: { code: 'BAD_REQUEST' } }],
+      });
+    }
+
+    let parsedVariables: Record<string, unknown> | undefined;
+    if (variables) {
+      try {
+        parsedVariables = JSON.parse(variables);
+      } catch {
+        return reply.status(400).send({
+          errors: [{ message: 'Invalid variables JSON', extensions: { code: 'BAD_REQUEST' } }],
+        });
+      }
+    }
+
+    const response = await server.executeOperation(
+      {
         query,
-        request.variables,
-        context.user?.id
-      );
-      await cache.set(cacheKey, singleResult);
+        operationName,
+        variables: parsedVariables,
+      },
+      { contextValue: context }
+    );
+
+    if (response.body.kind === 'single') {
+      reply.header('Content-Type', 'application/json');
+      return response.body.singleResult;
     }
-  }
 
-  if (response.body.kind === 'single') {
-    return response.body.singleResult;
-  }
+    return response.body;
+  });
 
-  return response.body;
+  log.info('GraphQL routes registered at /graphql');
 }
 
 // ============================================
-// SUBSCRIPTION SERVER
+// SUBSCRIPTION SERVER (placeholder)
 // ============================================
 
 /**
- * Create a WebSocket subscription server.
+ * Create a WebSocket subscription handler.
  * Uses graphql-ws protocol.
  */
 export function createSubscriptionHandler(
   schema: any,
   contextFactory: (connectionParams: any) => Promise<GraphQLContext>
 ) {
-  // This would be integrated with graphql-ws
-  // The actual WebSocket server setup depends on the Fastify plugin used
   return {
     schema,
     context: contextFactory,
