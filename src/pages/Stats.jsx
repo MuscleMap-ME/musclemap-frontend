@@ -1,10 +1,10 @@
 /**
- * Stats Page - D&D Character Stats
+ * Stats Page
  *
  * Character stats display with radar chart visualization and leaderboards.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
@@ -14,6 +14,28 @@ import {
   GlassButton,
   GlassProgressBar,
 } from '../components/glass';
+
+// Hook for responsive chart sizing
+function useContainerWidth(ref) {
+  const [width, setWidth] = useState(280);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const updateWidth = () => {
+      if (ref.current) {
+        const containerWidth = ref.current.offsetWidth;
+        setWidth(Math.min(320, containerWidth - 32)); // Leave padding
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, [ref]);
+
+  return width;
+}
 
 // ============================================
 // ICONS
@@ -432,6 +454,8 @@ export default function Stats() {
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState(null);
+  const chartContainerRef = useRef(null);
+  const chartSize = useContainerWidth(chartContainerRef);
 
   const loadData = useCallback(async () => {
     try {
@@ -478,7 +502,7 @@ export default function Stats() {
       <GlassSurface className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Loading character stats...</p>
+          <p className="text-white/60">Loading stats...</p>
         </div>
       </GlassSurface>
     );
@@ -488,15 +512,15 @@ export default function Stats() {
     <GlassSurface className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Character Stats</h1>
-            <p className="text-white/60">Your D&D-style attributes</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Your Stats</h1>
+            <p className="text-white/60 text-sm sm:text-base">Track your fitness progress</p>
           </div>
           <GlassButton
             onClick={handleRecalculate}
             disabled={recalculating}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto justify-center"
           >
             <Icons.Refresh className={`w-4 h-4 ${recalculating ? 'animate-spin' : ''}`} />
             Recalculate
@@ -509,16 +533,20 @@ export default function Stats() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Radar Chart */}
-          <GlassCard className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4 text-center">Stat Overview</h2>
-            {stats && <RadarChart stats={stats} size={320} />}
+          <GlassCard className="p-4 sm:p-6" ref={chartContainerRef}>
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-4 text-center">Stat Overview</h2>
+            {stats && (
+              <div className="flex justify-center overflow-hidden">
+                <RadarChart stats={stats} size={chartSize} />
+              </div>
+            )}
           </GlassCard>
 
           {/* Stat Bars */}
-          <GlassCard className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">Individual Stats</h2>
+          <GlassCard className="p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Individual Stats</h2>
             <div className="space-y-4">
               {stats && STAT_ORDER.map((key) => (
                 <StatBar
@@ -534,9 +562,9 @@ export default function Stats() {
 
         {/* Rankings */}
         {rankings && (
-          <GlassCard className="p-6">
+          <GlassCard className="p-4 sm:p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                 <Icons.TrendingUp className="w-5 h-5 text-blue-400" />
                 Your Rankings
               </h2>
@@ -550,7 +578,7 @@ export default function Stats() {
             )}
 
             {/* Other stats grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {['strength', 'constitution', 'dexterity', 'power', 'endurance'].map((key) =>
                 rankings[key] && (
                   <RankingDisplay key={key} statKey={key} rankings={rankings[key]} />
@@ -565,15 +593,15 @@ export default function Stats() {
 
         {/* Location Info */}
         {profile && (profile.city || profile.country) && (
-          <GlassCard className="p-6">
-            <h3 className="text-lg font-bold text-white mb-2">Your Location</h3>
-            <div className="flex items-center gap-2 text-white/60">
-              <Icons.MapPin className="w-4 h-4" />
+          <GlassCard className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-white mb-2">Your Location</h3>
+            <div className="flex items-center gap-2 text-white/60 text-sm sm:text-base">
+              <Icons.MapPin className="w-4 h-4 flex-shrink-0" />
               <span>
                 {[profile.city, profile.state, profile.country].filter(Boolean).join(', ')}
               </span>
             </div>
-            <p className="text-white/40 text-sm mt-2">
+            <p className="text-white/40 text-xs sm:text-sm mt-2">
               Update your location in settings for local rankings
             </p>
           </GlassCard>

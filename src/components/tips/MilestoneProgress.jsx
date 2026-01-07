@@ -72,7 +72,7 @@ export default function MilestoneProgress({ limit = 6 }) {
   useEffect(() => {
     const fetchMilestones = async () => {
       try {
-        const response = await request('/tips/milestones');
+        const response = await request('/milestones');
         setMilestones(response?.data || []);
       } catch (error) {
         console.error('Failed to fetch milestones:', error);

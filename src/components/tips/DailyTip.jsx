@@ -16,8 +16,10 @@ export default function DailyTip() {
   useEffect(() => {
     const fetchTip = async () => {
       try {
-        const response = await request('/tips/daily');
-        setTip(response?.data);
+        const response = await request('/tips?context=dashboard&limit=1');
+        // API returns array, get first item
+        const tips = response?.data || [];
+        setTip(tips[0] || null);
       } catch (error) {
         console.error('Failed to fetch daily tip:', error);
       } finally {
