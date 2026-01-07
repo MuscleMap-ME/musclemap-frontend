@@ -2291,7 +2291,7 @@ export const apiClient = {
      * Get all hangout themes
      */
     themes: () =>
-      request<DataResponse<VirtualHangoutTheme[]>>('/hangouts/themes', {
+      request<DataResponse<VirtualHangoutTheme[]>>('/virtual-hangouts/themes', {
         schema: wrapInData(Type.Array(VirtualHangoutThemeSchema)),
         cacheTtl: 300_000,
       }),
@@ -2301,7 +2301,7 @@ export const apiClient = {
      */
     list: (themeId?: number, limit = 50, offset = 0) =>
       request<DataResponse<VirtualHangout[]> & { meta: { total: number } }>(
-        `/hangouts?${new URLSearchParams({ ...(themeId ? { themeId: String(themeId) } : {}), limit: String(limit), offset: String(offset) }).toString()}`,
+        `/virtual-hangouts?${new URLSearchParams({ ...(themeId ? { themeId: String(themeId) } : {}), limit: String(limit), offset: String(offset) }).toString()}`,
         { schema: wrapInData(Type.Array(VirtualHangoutSchema)) }
       ),
 
@@ -2309,7 +2309,7 @@ export const apiClient = {
      * Get recommended hangouts for current user
      */
     recommended: (limit = 5) =>
-      request<DataResponse<VirtualHangout[]>>(`/hangouts/recommended?limit=${limit}`, {
+      request<DataResponse<VirtualHangout[]>>(`/virtual-hangouts/recommended?limit=${limit}`, {
         schema: wrapInData(Type.Array(VirtualHangoutSchema)),
       }),
 
@@ -2318,7 +2318,7 @@ export const apiClient = {
      */
     my: (limit = 50, offset = 0) =>
       request<DataResponse<VirtualHangout[]> & { meta: { total: number } }>(
-        `/hangouts/my?limit=${limit}&offset=${offset}`,
+        `/virtual-hangouts/my?limit=${limit}&offset=${offset}`,
         { schema: wrapInData(Type.Array(VirtualHangoutSchema)) }
       ),
 
@@ -2326,7 +2326,7 @@ export const apiClient = {
      * Get a single hangout
      */
     get: (id: number) =>
-      request<DataResponse<VirtualHangout>>(`/hangouts/${id}`, {
+      request<DataResponse<VirtualHangout>>(`/virtual-hangouts/${id}`, {
         schema: wrapInData(VirtualHangoutSchema),
       }),
 
@@ -2334,7 +2334,7 @@ export const apiClient = {
      * Join a hangout
      */
     join: (id: number, showInMemberList = true, receiveNotifications = true) =>
-      request<DataResponse<{ message: string }>>(`/hangouts/${id}/join`, {
+      request<DataResponse<{ message: string }>>(`/virtual-hangouts/${id}/join`, {
         method: 'POST',
         body: { showInMemberList, receiveNotifications },
         schema: wrapInData(Type.Object({ message: Type.String() })),
@@ -2344,7 +2344,7 @@ export const apiClient = {
      * Leave a hangout
      */
     leave: (id: number) =>
-      request<DataResponse<{ message: string }>>(`/hangouts/${id}/leave`, {
+      request<DataResponse<{ message: string }>>(`/virtual-hangouts/${id}/leave`, {
         method: 'POST',
         schema: wrapInData(Type.Object({ message: Type.String() })),
       }),
@@ -2354,7 +2354,7 @@ export const apiClient = {
      */
     members: (id: number, limit = 50, offset = 0) =>
       request<DataResponse<HangoutMember[]> & { meta: { total: number } }>(
-        `/hangouts/${id}/members?limit=${limit}&offset=${offset}`,
+        `/virtual-hangouts/${id}/members?limit=${limit}&offset=${offset}`,
         { schema: wrapInData(Type.Array(HangoutMemberSchema)) }
       ),
 
@@ -2363,7 +2363,7 @@ export const apiClient = {
      */
     activity: (id: number, limit = 50, offset = 0) =>
       request<DataResponse<HangoutActivity[]>>(
-        `/hangouts/${id}/activity?limit=${limit}&offset=${offset}`,
+        `/virtual-hangouts/${id}/activity?limit=${limit}&offset=${offset}`,
         { schema: wrapInData(Type.Array(HangoutActivitySchema)) }
       ),
 
@@ -2371,7 +2371,7 @@ export const apiClient = {
      * Share a workout to a hangout
      */
     shareWorkout: (id: number, workoutId: string, message?: string) =>
-      request<DataResponse<{ message: string }>>(`/hangouts/${id}/share-workout`, {
+      request<DataResponse<{ message: string }>>(`/virtual-hangouts/${id}/share-workout`, {
         method: 'POST',
         body: { workoutId, message },
         schema: wrapInData(Type.Object({ message: Type.String() })),
@@ -2381,7 +2381,7 @@ export const apiClient = {
      * Send heartbeat to update last active time
      */
     heartbeat: (id: number) =>
-      request<DataResponse<{ acknowledged: boolean }>>(`/hangouts/${id}/heartbeat`, {
+      request<DataResponse<{ acknowledged: boolean }>>(`/virtual-hangouts/${id}/heartbeat`, {
         method: 'POST',
         schema: wrapInData(Type.Object({ acknowledged: Type.Boolean() })),
       }),
@@ -2391,7 +2391,7 @@ export const apiClient = {
      */
     posts: (id: number, options?: { limit?: number; offset?: number; sortBy?: 'hot' | 'new' | 'top' }) =>
       request<DataResponse<BulletinPost[]> & { meta: { total: number; boardId: number } }>(
-        `/hangouts/${id}/posts?${new URLSearchParams({
+        `/virtual-hangouts/${id}/posts?${new URLSearchParams({
           limit: String(options?.limit || 20),
           offset: String(options?.offset || 0),
           sortBy: options?.sortBy || 'hot',
@@ -2403,7 +2403,7 @@ export const apiClient = {
      * Create a post in hangout bulletin board
      */
     createPost: (id: number, post: { title: string; content: string; postType?: string; mediaUrls?: string[] }) =>
-      request<DataResponse<BulletinPost>>(`/hangouts/${id}/posts`, {
+      request<DataResponse<BulletinPost>>(`/virtual-hangouts/${id}/posts`, {
         method: 'POST',
         body: post,
         schema: wrapInData(BulletinPostSchema),

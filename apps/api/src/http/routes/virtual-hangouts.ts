@@ -45,10 +45,10 @@ const createPostSchema = z.object({
 
 export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   /**
-   * GET /hangouts/themes
+   * GET /virtual-hangouts/themes
    * Get all available hangout themes
    */
-  app.get('/hangouts/themes', async (request, reply) => {
+  app.get('/virtual-hangouts/themes', async (request, reply) => {
     const themes = await virtualHangoutsService.getThemes();
 
     return reply.send({
@@ -57,10 +57,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts
+   * GET /virtual-hangouts
    * List all virtual hangouts (optionally filtered by theme)
    */
-  app.get('/hangouts', { preHandler: optionalAuth }, async (request, reply) => {
+  app.get('/virtual-hangouts', { preHandler: optionalAuth }, async (request, reply) => {
     const query = request.query as {
       themeId?: string;
       limit?: string;
@@ -81,10 +81,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts/recommended
+   * GET /virtual-hangouts/recommended
    * Get recommended hangouts based on user's archetype/goals
    */
-  app.get('/hangouts/recommended', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/virtual-hangouts/recommended', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const query = request.query as { limit?: string };
 
@@ -98,10 +98,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts/my
+   * GET /virtual-hangouts/my
    * Get user's hangout memberships
    */
-  app.get('/hangouts/my', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/virtual-hangouts/my', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const query = request.query as { limit?: string; offset?: string };
 
@@ -117,10 +117,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts/:id
+   * GET /virtual-hangouts/:id
    * Get a single hangout by ID
    */
-  app.get('/hangouts/:id', { preHandler: optionalAuth }, async (request, reply) => {
+  app.get('/virtual-hangouts/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user?.userId;
 
@@ -138,10 +138,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /hangouts/:id/join
+   * POST /virtual-hangouts/:id/join
    * Join a virtual hangout
    */
-  app.post('/hangouts/:id/join', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/virtual-hangouts/:id/join', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const body = joinHangoutSchema.parse(request.body);
@@ -154,10 +154,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /hangouts/:id/leave
+   * POST /virtual-hangouts/:id/leave
    * Leave a virtual hangout
    */
-  app.post('/hangouts/:id/leave', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/virtual-hangouts/:id/leave', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
@@ -169,10 +169,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * PATCH /hangouts/:id/membership
+   * PATCH /virtual-hangouts/:id/membership
    * Update membership settings
    */
-  app.patch('/hangouts/:id/membership', { preHandler: authenticate }, async (request, reply) => {
+  app.patch('/virtual-hangouts/:id/membership', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const body = updateMembershipSchema.parse(request.body);
@@ -185,10 +185,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts/:id/members
+   * GET /virtual-hangouts/:id/members
    * Get hangout members
    */
-  app.get('/hangouts/:id/members', { preHandler: optionalAuth }, async (request, reply) => {
+  app.get('/virtual-hangouts/:id/members', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const query = request.query as { limit?: string; offset?: string };
 
@@ -204,10 +204,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /hangouts/:id/activity
+   * GET /virtual-hangouts/:id/activity
    * Get recent activity in a hangout
    */
-  app.get('/hangouts/:id/activity', { preHandler: optionalAuth }, async (request, reply) => {
+  app.get('/virtual-hangouts/:id/activity', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const query = request.query as { limit?: string; offset?: string };
 
@@ -222,10 +222,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /hangouts/:id/share-workout
+   * POST /virtual-hangouts/:id/share-workout
    * Share a workout to a hangout
    */
-  app.post('/hangouts/:id/share-workout', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/virtual-hangouts/:id/share-workout', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const body = shareWorkoutSchema.parse(request.body);
@@ -238,10 +238,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /hangouts/:id/heartbeat
+   * POST /virtual-hangouts/:id/heartbeat
    * Update last active time (call periodically while viewing hangout)
    */
-  app.post('/hangouts/:id/heartbeat', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/virtual-hangouts/:id/heartbeat', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
 
@@ -255,10 +255,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   // ========== Bulletin Board Routes ==========
 
   /**
-   * GET /hangouts/:id/posts
+   * GET /virtual-hangouts/:id/posts
    * Get posts from the hangout's bulletin board
    */
-  app.get('/hangouts/:id/posts', { preHandler: optionalAuth }, async (request, reply) => {
+  app.get('/virtual-hangouts/:id/posts', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user?.userId;
     const query = request.query as {
@@ -285,10 +285,10 @@ export async function registerVirtualHangoutsRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /hangouts/:id/posts
+   * POST /virtual-hangouts/:id/posts
    * Create a post in the hangout's bulletin board
    */
-  app.post('/hangouts/:id/posts', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/virtual-hangouts/:id/posts', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const userId = request.user!.userId;
     const body = createPostSchema.parse(request.body);
