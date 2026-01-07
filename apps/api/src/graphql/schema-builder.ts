@@ -5,11 +5,25 @@
  * Validates for conflicts and provides type-safe schema composition.
  */
 
-import type {
-  GraphQLSchemaExtension,
-  GraphQLPluginRegistration,
-  Resolvers,
-} from '@musclemap/plugin-sdk';
+// Stub types until GraphQL is enabled
+// import type {
+//   GraphQLSchemaExtension,
+//   GraphQLPluginRegistration,
+//   Resolvers,
+// } from '@musclemap/plugin-sdk';
+
+type GraphQLSchemaExtension = {
+  typeDefs?: string;
+  resolvers?: Record<string, any>;
+};
+
+type GraphQLPluginRegistration = {
+  pluginId: string;
+  schema: GraphQLSchemaExtension;
+  priority?: number;
+};
+
+type Resolvers = Record<string, any>;
 
 // ============================================
 // SCHEMA REGISTRY
@@ -418,7 +432,7 @@ export function buildSchema(registry: SchemaRegistry): {
   const resolvers: Resolvers = {};
   // Start with core resolvers
   for (const [typeName, typeResolvers] of Object.entries(CORE_RESOLVERS)) {
-    resolvers[typeName] = { ...typeResolvers };
+    resolvers[typeName] = { ...(typeResolvers as Record<string, any>) };
   }
   // Merge plugin resolvers
   const pluginResolvers = registry.buildResolvers();

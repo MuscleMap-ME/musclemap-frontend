@@ -27,8 +27,8 @@ const RATELIMIT_LIB_PATH = join(LIB_DIR, `libratelimit${LIB_EXT}`);
 // Track native availability
 let nativeGeoAvailable = false;
 let nativeRatelimitAvailable = false;
-let ffiModule: typeof import('ffi-napi') | null = null;
-let refModule: typeof import('ref-napi') | null = null;
+let ffiModule: any = null;
+let refModule: any = null;
 
 // Native library handles
 let geoLib: any = null;
