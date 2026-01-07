@@ -937,7 +937,8 @@ export async function up(): Promise<void> {
 
     await db.query('CREATE INDEX idx_events_community ON community_events(community_id, starts_at) WHERE community_id IS NOT NULL');
     await db.query('CREATE INDEX idx_events_vh ON community_events(virtual_hangout_id, starts_at) WHERE virtual_hangout_id IS NOT NULL');
-    await db.query(`CREATE INDEX idx_events_upcoming ON community_events(starts_at) WHERE status = 'scheduled' AND starts_at > NOW()`);
+    // Note: Can't use NOW() in partial index predicate (not IMMUTABLE), so we just index scheduled events
+    await db.query(`CREATE INDEX idx_events_upcoming ON community_events(starts_at) WHERE status = 'scheduled'`);
   }
 
   // ============================================
