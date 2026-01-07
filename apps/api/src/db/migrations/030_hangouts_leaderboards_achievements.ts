@@ -445,7 +445,7 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query('CREATE INDEX idx_flags_pending ON suspicious_flags(status, created_at) WHERE status = ''pending''');
+    await db.query(`CREATE INDEX idx_flags_pending ON suspicious_flags(status, created_at) WHERE status = 'pending'`);
     await db.query('CREATE INDEX idx_flags_user ON suspicious_flags(user_id, created_at DESC)');
   }
 
