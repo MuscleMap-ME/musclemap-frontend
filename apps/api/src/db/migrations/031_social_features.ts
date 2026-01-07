@@ -44,7 +44,7 @@ export async function up(): Promise<void> {
   // ============================================
   log.info('Adding feature flags for social features...');
   await db.query(`
-    INSERT INTO feature_flags (key, name, description, enabled, rollout_percentage)
+    INSERT INTO feature_flags (id, name, description, enabled, rollout_percentage)
     VALUES
       ('social_graph', 'Social Graph', 'Friends, follows, and connections between users', true, 100),
       ('buddy_matching', 'Buddy Matching', 'Find workout partners with similar goals', true, 100),
@@ -53,7 +53,7 @@ export async function up(): Promise<void> {
       ('community_resources', 'Community Resources', 'Knowledge base and artifacts per community', true, 100),
       ('content_reporting', 'Content Reporting', 'Report and flag inappropriate content', true, 100),
       ('inter_community_challenges', 'Inter-Community Challenges', 'Federated challenges between communities', true, 100)
-    ON CONFLICT (key) DO NOTHING
+    ON CONFLICT (id) DO NOTHING
   `);
 
   // ============================================
