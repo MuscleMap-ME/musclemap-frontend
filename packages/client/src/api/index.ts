@@ -2078,7 +2078,7 @@ export const apiClient = {
     saveProfile: (profile: PhysicalProfileInput) =>
       request<DataResponse<{ success: boolean; message: string }>>('/onboarding/profile', {
         method: 'POST',
-        body: profile as Record<string, unknown>,
+        body: profile as unknown as Record<string, unknown>,
         schema: wrapInData(
           Type.Object({
             success: Type.Boolean(),
