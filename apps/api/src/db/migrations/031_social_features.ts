@@ -91,7 +91,7 @@ export async function up(): Promise<void> {
 
         -- Context
         met_at_hangout_id BIGINT REFERENCES hangouts(id) ON DELETE SET NULL,
-        met_at_community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL,
+        met_at_community_id TEXT REFERENCES communities(id) ON DELETE SET NULL,
 
         created_at TIMESTAMPTZ DEFAULT NOW(),
         accepted_at TIMESTAMPTZ,
@@ -305,7 +305,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE community_analytics_daily (
         id TEXT PRIMARY KEY DEFAULT 'cad_' || replace(gen_random_uuid()::text, '-', ''),
-        community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+        community_id TEXT REFERENCES communities(id) ON DELETE CASCADE,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE CASCADE,
 
         date DATE NOT NULL,
@@ -347,7 +347,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE community_health_scores (
         id TEXT PRIMARY KEY DEFAULT 'chs_' || replace(gen_random_uuid()::text, '-', ''),
-        community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+        community_id TEXT REFERENCES communities(id) ON DELETE CASCADE,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE CASCADE,
 
         calculated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -390,7 +390,7 @@ export async function up(): Promise<void> {
         archetype_id TEXT NOT NULL REFERENCES archetypes(id) ON DELETE CASCADE,
 
         -- Link to either a community or virtual hangout
-        community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+        community_id TEXT REFERENCES communities(id) ON DELETE CASCADE,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE CASCADE,
 
         -- Auto-join behavior
@@ -419,7 +419,7 @@ export async function up(): Promise<void> {
         id TEXT PRIMARY KEY DEFAULT 'cr_' || replace(gen_random_uuid()::text, '-', ''),
 
         -- Owner
-        community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+        community_id TEXT REFERENCES communities(id) ON DELETE CASCADE,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE CASCADE,
 
         -- Resource details
@@ -503,7 +503,7 @@ export async function up(): Promise<void> {
         details TEXT,
 
         -- Context
-        community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL,
+        community_id TEXT REFERENCES communities(id) ON DELETE SET NULL,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE SET NULL,
 
         -- Status
@@ -541,7 +541,7 @@ export async function up(): Promise<void> {
 
         -- Scope
         scope TEXT DEFAULT 'global' CHECK (scope IN ('global', 'community', 'hangout')),
-        community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL,
+        community_id TEXT REFERENCES communities(id) ON DELETE SET NULL,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE SET NULL,
 
         -- Details
@@ -594,7 +594,7 @@ export async function up(): Promise<void> {
         status TEXT DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'registration', 'active', 'completed', 'cancelled')),
 
         -- Results
-        winner_community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL,
+        winner_community_id TEXT REFERENCES communities(id) ON DELETE SET NULL,
         winner_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE SET NULL,
 
         -- Creator
@@ -614,7 +614,7 @@ export async function up(): Promise<void> {
         challenge_id TEXT NOT NULL REFERENCES inter_community_challenges(id) ON DELETE CASCADE,
 
         -- Participant (community or hangout)
-        community_id INTEGER REFERENCES communities(id) ON DELETE CASCADE,
+        community_id TEXT REFERENCES communities(id) ON DELETE CASCADE,
         virtual_hangout_id BIGINT REFERENCES virtual_hangouts(id) ON DELETE CASCADE,
 
         -- Registration
