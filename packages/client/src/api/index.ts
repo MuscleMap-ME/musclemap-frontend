@@ -2655,31 +2655,34 @@ export const apiClient = {
 // Virtual Hangout Types & Schemas
 // =====================
 export interface VirtualHangoutTheme {
-  id: number;
-  slug: string;
+  id: string;
   name: string;
-  description: string;
-  iconEmoji: string;
+  tagline?: string;
+  description?: string;
+  primaryColor: string;
+  secondaryColor: string;
   accentColor: string;
-  backgroundPattern: string;
-  relatedArchetypes: number[];
-  relatedGoals: string[];
+  backgroundImageUrl?: string;
+  iconUrl?: string;
+  bannerUrl?: string;
+  archetypeCategoryId?: string;
+  goalTypes: string[];
+  targetAudiences: string[];
   isActive: boolean;
 }
 
 export interface VirtualHangout {
   id: number;
-  themeId: number;
+  themeId: string;
   themeName: string;
-  themeSlug: string;
-  name: string;
-  description?: string;
-  welcomeMessage?: string;
-  iconEmoji: string;
+  customName?: string;
+  customDescription?: string;
+  customBannerUrl?: string;
+  primaryColor: string;
   accentColor: string;
-  bannerImageUrl?: string;
   memberCount: number;
-  activeNow: number;
+  activeMemberCount: number;
+  postCount: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -2828,31 +2831,34 @@ export interface BulletinComment {
 }
 
 const VirtualHangoutThemeSchema = Type.Object({
-  id: Type.Number(),
-  slug: Type.String(),
+  id: Type.String(),
   name: Type.String(),
-  description: Type.String(),
-  iconEmoji: Type.String(),
+  tagline: Type.Optional(Type.String()),
+  description: Type.Optional(Type.String()),
+  primaryColor: Type.String(),
+  secondaryColor: Type.String(),
   accentColor: Type.String(),
-  backgroundPattern: Type.String(),
-  relatedArchetypes: Type.Array(Type.Number()),
-  relatedGoals: Type.Array(Type.String()),
+  backgroundImageUrl: Type.Optional(Type.String()),
+  iconUrl: Type.Optional(Type.String()),
+  bannerUrl: Type.Optional(Type.String()),
+  archetypeCategoryId: Type.Optional(Type.String()),
+  goalTypes: Type.Array(Type.String()),
+  targetAudiences: Type.Array(Type.String()),
   isActive: Type.Boolean(),
 }, { additionalProperties: true });
 
 const VirtualHangoutSchema = Type.Object({
   id: Type.Number(),
-  themeId: Type.Number(),
+  themeId: Type.String(),
   themeName: Type.String(),
-  themeSlug: Type.String(),
-  name: Type.String(),
-  description: Type.Optional(Type.String()),
-  welcomeMessage: Type.Optional(Type.String()),
-  iconEmoji: Type.String(),
+  customName: Type.Optional(Type.String()),
+  customDescription: Type.Optional(Type.String()),
+  customBannerUrl: Type.Optional(Type.String()),
+  primaryColor: Type.String(),
   accentColor: Type.String(),
-  bannerImageUrl: Type.Optional(Type.String()),
   memberCount: Type.Number(),
-  activeNow: Type.Number(),
+  activeMemberCount: Type.Number(),
+  postCount: Type.Number(),
   isActive: Type.Boolean(),
   createdAt: Type.String(),
   updatedAt: Type.String(),

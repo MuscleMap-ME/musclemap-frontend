@@ -44,31 +44,34 @@ export type HangoutThemeSlug = (typeof HANGOUT_THEMES)[keyof typeof HANGOUT_THEM
 
 // Interfaces
 export interface VirtualHangoutTheme {
-  id: number;
-  slug: string;
+  id: string;
   name: string;
-  description: string;
-  iconEmoji: string;
+  tagline?: string;
+  description?: string;
+  primaryColor: string;
+  secondaryColor: string;
   accentColor: string;
-  backgroundPattern: string;
-  relatedArchetypes: number[];
-  relatedGoals: string[];
+  backgroundImageUrl?: string;
+  iconUrl?: string;
+  bannerUrl?: string;
+  archetypeCategoryId?: string;
+  goalTypes: string[];
+  targetAudiences: string[];
   isActive: boolean;
 }
 
 export interface VirtualHangout {
   id: number;
-  themeId: number;
+  themeId: string;
   themeName: string;
-  themeSlug: string;
-  name: string;
-  description?: string;
-  welcomeMessage?: string;
-  iconEmoji: string;
+  customName?: string;
+  customDescription?: string;
+  customBannerUrl?: string;
+  primaryColor: string;
   accentColor: string;
-  bannerImageUrl?: string;
   memberCount: number;
-  activeNow: number;
+  activeMemberCount: number;
+  postCount: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -107,19 +110,24 @@ export const virtualHangoutsService = {
    */
   async getThemes(): Promise<VirtualHangoutTheme[]> {
     const rows = await queryAll<{
-      id: number;
-      slug: string;
+      id: string;
       name: string;
-      description: string;
-      icon_emoji: string;
+      tagline: string | null;
+      description: string | null;
+      primary_color: string;
+      secondary_color: string;
       accent_color: string;
-      background_pattern: string;
-      related_archetypes: string;
-      related_goals: string;
+      background_image_url: string | null;
+      icon_url: string | null;
+      banner_url: string | null;
+      archetype_category_id: string | null;
+      goal_types: string | null;
+      target_audiences: string | null;
       is_active: boolean;
     }>(
-      `SELECT id, slug, name, description, icon_emoji, accent_color, background_pattern,
-              related_archetypes, related_goals, is_active
+      `SELECT id, name, tagline, description, primary_color, secondary_color, accent_color,
+              background_image_url, icon_url, banner_url, archetype_category_id,
+              goal_types, target_audiences, is_active
        FROM virtual_hangout_themes
        WHERE is_active = TRUE
        ORDER BY display_order, name`
@@ -127,14 +135,18 @@ export const virtualHangoutsService = {
 
     return rows.map(r => ({
       id: r.id,
-      slug: r.slug,
       name: r.name,
-      description: r.description,
-      iconEmoji: r.icon_emoji,
+      tagline: r.tagline ?? undefined,
+      description: r.description ?? undefined,
+      primaryColor: r.primary_color,
+      secondaryColor: r.secondary_color,
       accentColor: r.accent_color,
-      backgroundPattern: r.background_pattern,
-      relatedArchetypes: r.related_archetypes ? JSON.parse(r.related_archetypes) : [],
-      relatedGoals: r.related_goals ? JSON.parse(r.related_goals) : [],
+      backgroundImageUrl: r.background_image_url ?? undefined,
+      iconUrl: r.icon_url ?? undefined,
+      bannerUrl: r.banner_url ?? undefined,
+      archetypeCategoryId: r.archetype_category_id ?? undefined,
+      goalTypes: r.goal_types ? JSON.parse(r.goal_types) : [],
+      targetAudiences: r.target_audiences ? JSON.parse(r.target_audiences) : [],
       isActive: r.is_active,
     }));
   },
@@ -154,7 +166,7 @@ export const virtualHangoutsService = {
 
     if (themeId) {
       whereClause += ` AND vh.theme_id = $${paramIndex++}`;
-      params.push(themeId);
+      params.push(String(themeId));
     }
 
     // User membership join if user is authenticated
@@ -167,17 +179,16 @@ export const virtualHangoutsService = {
 
     const rows = await queryAll<{
       id: number;
-      theme_id: number;
+      theme_id: string;
       theme_name: string;
-      theme_slug: string;
-      name: string;
-      description: string | null;
-      welcome_message: string | null;
-      icon_emoji: string;
+      custom_name: string | null;
+      custom_description: string | null;
+      custom_banner_url: string | null;
+      primary_color: string;
       accent_color: string;
-      banner_image_url: string | null;
       member_count: number;
-      active_now: number;
+      active_member_count: number;
+      post_count: number;
       is_active: boolean;
       created_at: Date;
       updated_at: Date;
@@ -186,16 +197,17 @@ export const virtualHangoutsService = {
       last_visited_at: Date | null;
     }>(
       `SELECT
-        vh.id, vh.theme_id, vht.name as theme_name, vht.slug as theme_slug,
-        vh.name, vh.description, vh.welcome_message, vht.icon_emoji, vht.accent_color,
-        vh.banner_image_url, vh.member_count, vh.active_now, vh.is_active,
-        vh.created_at, vh.updated_at
+        vh.id, vh.theme_id, vht.name as theme_name,
+        vh.custom_name, vh.custom_description, vh.custom_banner_url,
+        vht.primary_color, vht.accent_color,
+        vh.member_count, vh.active_member_count, vh.post_count,
+        vh.is_active, vh.created_at, vh.updated_at
         ${userSelect}
        FROM virtual_hangouts vh
        JOIN virtual_hangout_themes vht ON vht.id = vh.theme_id
        ${userJoin}
        WHERE ${whereClause}
-       ORDER BY vh.member_count DESC, vh.name
+       ORDER BY vh.member_count DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, limit, offset]
     );
@@ -210,15 +222,14 @@ export const virtualHangoutsService = {
         id: r.id,
         themeId: r.theme_id,
         themeName: r.theme_name,
-        themeSlug: r.theme_slug,
-        name: r.name,
-        description: r.description ?? undefined,
-        welcomeMessage: r.welcome_message ?? undefined,
-        iconEmoji: r.icon_emoji,
+        customName: r.custom_name ?? undefined,
+        customDescription: r.custom_description ?? undefined,
+        customBannerUrl: r.custom_banner_url ?? undefined,
+        primaryColor: r.primary_color,
         accentColor: r.accent_color,
-        bannerImageUrl: r.banner_image_url ?? undefined,
         memberCount: r.member_count,
-        activeNow: r.active_now,
+        activeMemberCount: r.active_member_count,
+        postCount: r.post_count,
         isActive: r.is_active,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -243,17 +254,16 @@ export const virtualHangoutsService = {
 
     const row = await queryOne<{
       id: number;
-      theme_id: number;
+      theme_id: string;
       theme_name: string;
-      theme_slug: string;
-      name: string;
-      description: string | null;
-      welcome_message: string | null;
-      icon_emoji: string;
+      custom_name: string | null;
+      custom_description: string | null;
+      custom_banner_url: string | null;
+      primary_color: string;
       accent_color: string;
-      banner_image_url: string | null;
       member_count: number;
-      active_now: number;
+      active_member_count: number;
+      post_count: number;
       is_active: boolean;
       created_at: Date;
       updated_at: Date;
@@ -262,10 +272,11 @@ export const virtualHangoutsService = {
       last_visited_at: Date | null;
     }>(
       `SELECT
-        vh.id, vh.theme_id, vht.name as theme_name, vht.slug as theme_slug,
-        vh.name, vh.description, vh.welcome_message, vht.icon_emoji, vht.accent_color,
-        vh.banner_image_url, vh.member_count, vh.active_now, vh.is_active,
-        vh.created_at, vh.updated_at
+        vh.id, vh.theme_id, vht.name as theme_name,
+        vh.custom_name, vh.custom_description, vh.custom_banner_url,
+        vht.primary_color, vht.accent_color,
+        vh.member_count, vh.active_member_count, vh.post_count,
+        vh.is_active, vh.created_at, vh.updated_at
         ${userSelect}
        FROM virtual_hangouts vh
        JOIN virtual_hangout_themes vht ON vht.id = vh.theme_id
@@ -280,15 +291,14 @@ export const virtualHangoutsService = {
       id: row.id,
       themeId: row.theme_id,
       themeName: row.theme_name,
-      themeSlug: row.theme_slug,
-      name: row.name,
-      description: row.description ?? undefined,
-      welcomeMessage: row.welcome_message ?? undefined,
-      iconEmoji: row.icon_emoji,
+      customName: row.custom_name ?? undefined,
+      customDescription: row.custom_description ?? undefined,
+      customBannerUrl: row.custom_banner_url ?? undefined,
+      primaryColor: row.primary_color,
       accentColor: row.accent_color,
-      bannerImageUrl: row.banner_image_url ?? undefined,
       memberCount: row.member_count,
-      activeNow: row.active_now,
+      activeMemberCount: row.active_member_count,
+      postCount: row.post_count,
       isActive: row.is_active,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -309,7 +319,7 @@ export const virtualHangoutsService = {
 
     // Get user's archetype and goals
     const userProfile = await queryOne<{
-      archetype_id: number | null;
+      archetype_id: string | null;
       primary_goal: string | null;
     }>(
       'SELECT archetype_id, primary_goal FROM user_profiles WHERE user_id = $1',
@@ -323,16 +333,16 @@ export const virtualHangoutsService = {
     }
 
     // Find themes matching user's archetype/goals
-    const themes = await queryAll<{ id: number }>(
+    const themes = await queryAll<{ id: string }>(
       `SELECT id FROM virtual_hangout_themes
        WHERE is_active = TRUE
          AND (
-           (related_archetypes::jsonb ? $1::text)
-           OR (related_goals::jsonb ? $2::text)
+           archetype_category_id = $1
+           OR (goal_types::jsonb ? $2::text)
          )
        ORDER BY display_order
        LIMIT 10`,
-      [String(userProfile.archetype_id || ''), userProfile.primary_goal || '']
+      [userProfile.archetype_id || '', userProfile.primary_goal || '']
     );
 
     const themeIds = themes.map(t => t.id);
@@ -345,26 +355,26 @@ export const virtualHangoutsService = {
     // Get hangouts from matching themes that user hasn't joined
     const rows = await queryAll<{
       id: number;
-      theme_id: number;
+      theme_id: string;
       theme_name: string;
-      theme_slug: string;
-      name: string;
-      description: string | null;
-      welcome_message: string | null;
-      icon_emoji: string;
+      custom_name: string | null;
+      custom_description: string | null;
+      custom_banner_url: string | null;
+      primary_color: string;
       accent_color: string;
-      banner_image_url: string | null;
       member_count: number;
-      active_now: number;
+      active_member_count: number;
+      post_count: number;
       is_active: boolean;
       created_at: Date;
       updated_at: Date;
     }>(
       `SELECT
-        vh.id, vh.theme_id, vht.name as theme_name, vht.slug as theme_slug,
-        vh.name, vh.description, vh.welcome_message, vht.icon_emoji, vht.accent_color,
-        vh.banner_image_url, vh.member_count, vh.active_now, vh.is_active,
-        vh.created_at, vh.updated_at
+        vh.id, vh.theme_id, vht.name as theme_name,
+        vh.custom_name, vh.custom_description, vh.custom_banner_url,
+        vht.primary_color, vht.accent_color,
+        vh.member_count, vh.active_member_count, vh.post_count,
+        vh.is_active, vh.created_at, vh.updated_at
        FROM virtual_hangouts vh
        JOIN virtual_hangout_themes vht ON vht.id = vh.theme_id
        LEFT JOIN virtual_hangout_memberships vhm ON vhm.hangout_id = vh.id AND vhm.user_id = $1
@@ -378,15 +388,14 @@ export const virtualHangoutsService = {
       id: r.id,
       themeId: r.theme_id,
       themeName: r.theme_name,
-      themeSlug: r.theme_slug,
-      name: r.name,
-      description: r.description ?? undefined,
-      welcomeMessage: r.welcome_message ?? undefined,
-      iconEmoji: r.icon_emoji,
+      customName: r.custom_name ?? undefined,
+      customDescription: r.custom_description ?? undefined,
+      customBannerUrl: r.custom_banner_url ?? undefined,
+      primaryColor: r.primary_color,
       accentColor: r.accent_color,
-      bannerImageUrl: r.banner_image_url ?? undefined,
       memberCount: r.member_count,
-      activeNow: r.active_now,
+      activeMemberCount: r.active_member_count,
+      postCount: r.post_count,
       isActive: r.is_active,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -567,17 +576,16 @@ export const virtualHangoutsService = {
 
     const rows = await queryAll<{
       id: number;
-      theme_id: number;
+      theme_id: string;
       theme_name: string;
-      theme_slug: string;
-      name: string;
-      description: string | null;
-      welcome_message: string | null;
-      icon_emoji: string;
+      custom_name: string | null;
+      custom_description: string | null;
+      custom_banner_url: string | null;
+      primary_color: string;
       accent_color: string;
-      banner_image_url: string | null;
       member_count: number;
-      active_now: number;
+      active_member_count: number;
+      post_count: number;
       is_active: boolean;
       created_at: Date;
       updated_at: Date;
@@ -585,10 +593,12 @@ export const virtualHangoutsService = {
       last_visited_at: Date | null;
     }>(
       `SELECT
-        vh.id, vh.theme_id, vht.name as theme_name, vht.slug as theme_slug,
-        vh.name, vh.description, vh.welcome_message, vht.icon_emoji, vht.accent_color,
-        vh.banner_image_url, vh.member_count, vh.active_now, vh.is_active,
-        vh.created_at, vh.updated_at, vhm.role as user_role, vhm.last_active_at as last_visited_at
+        vh.id, vh.theme_id, vht.name as theme_name,
+        vh.custom_name, vh.custom_description, vh.custom_banner_url,
+        vht.primary_color, vht.accent_color,
+        vh.member_count, vh.active_member_count, vh.post_count,
+        vh.is_active, vh.created_at, vh.updated_at,
+        vhm.role as user_role, vhm.last_active_at as last_visited_at
        FROM virtual_hangout_memberships vhm
        JOIN virtual_hangouts vh ON vh.id = vhm.hangout_id
        JOIN virtual_hangout_themes vht ON vht.id = vh.theme_id
@@ -610,15 +620,14 @@ export const virtualHangoutsService = {
         id: r.id,
         themeId: r.theme_id,
         themeName: r.theme_name,
-        themeSlug: r.theme_slug,
-        name: r.name,
-        description: r.description ?? undefined,
-        welcomeMessage: r.welcome_message ?? undefined,
-        iconEmoji: r.icon_emoji,
+        customName: r.custom_name ?? undefined,
+        customDescription: r.custom_description ?? undefined,
+        customBannerUrl: r.custom_banner_url ?? undefined,
+        primaryColor: r.primary_color,
         accentColor: r.accent_color,
-        bannerImageUrl: r.banner_image_url ?? undefined,
         memberCount: r.member_count,
-        activeNow: r.active_now,
+        activeMemberCount: r.active_member_count,
+        postCount: r.post_count,
         isActive: r.is_active,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
