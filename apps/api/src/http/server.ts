@@ -46,6 +46,10 @@ import { registerMonitoringRoutes } from './routes/monitoring';
 import { registerVirtualHangoutsRoutes } from './routes/virtual-hangouts';
 import { registerCommunitiesRoutes } from './routes/communities';
 import { registerBulletinRoutes } from './routes/bulletin';
+import { registerLeaderboardRoutes } from './routes/leaderboards';
+import { registerAchievementRoutes } from './routes/achievements';
+import { registerCohortPreferencesRoutes } from './routes/cohort-preferences';
+import { registerCheckInRoutes } from './routes/checkins';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -280,6 +284,10 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerVirtualHangoutsRoutes(api);
     await registerCommunitiesRoutes(api);
     await registerBulletinRoutes(api);
+    await registerLeaderboardRoutes(api);
+    await registerAchievementRoutes(api);
+    await registerCohortPreferencesRoutes(api);
+    await registerCheckInRoutes(api);
   }, { prefix: '/api' });
 
   return app;

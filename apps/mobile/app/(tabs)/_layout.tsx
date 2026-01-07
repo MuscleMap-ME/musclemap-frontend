@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Dumbbell, User, Swords, Users, BarChart3, Shield, MessageCircle } from '@tamagui/lucide-icons';
+import { Home, Dumbbell, User, Swords, Users, BarChart3, Shield, MessageCircle, Trophy, Award } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
 import { apiClient, type PrivacySettings } from '@musclemap/client';
 
@@ -96,6 +96,21 @@ export default function TabsLayout() {
           // Stats tab shows personal stats regardless of leaderboard opt-out
           // but hides the leaderboard section within the screen
           tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          title: 'Leaderboards',
+          href: hideLeaderboards ? null : undefined, // Hide when opted out
+          tabBarIcon: ({ color, size }) => <Trophy color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          title: 'Achievements',
+          tabBarIcon: ({ color, size }) => <Award color={color} size={size} />,
         }}
       />
       {/* Privacy settings - always accessible */}

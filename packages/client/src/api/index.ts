@@ -2649,6 +2649,561 @@ export const apiClient = {
         schema: wrapInData(Type.Object({ message: Type.String() })),
       }),
   },
+
+  // Exercise-Based Leaderboards
+  exerciseLeaderboards: {
+    /**
+     * Get leaderboard for a specific metric
+     */
+    get: (options: {
+      exerciseId: string;
+      metricKey: string;
+      periodType?: 'daily' | 'weekly' | 'monthly' | 'all_time';
+      hangoutId?: number;
+      gender?: string;
+      ageBand?: string;
+      limit?: number;
+      cursor?: string;
+    }) => {
+      const params = new URLSearchParams();
+      params.set('exerciseId', options.exerciseId);
+      params.set('metricKey', options.metricKey);
+      if (options.periodType) params.set('periodType', options.periodType);
+      if (options.hangoutId) params.set('hangoutId', String(options.hangoutId));
+      if (options.gender) params.set('gender', options.gender);
+      if (options.ageBand) params.set('ageBand', options.ageBand);
+      if (options.limit) params.set('limit', String(options.limit));
+      if (options.cursor) params.set('cursor', options.cursor);
+      return request<DataResponse<{
+        entries: Array<{
+          rank: number;
+          userId: string;
+          username: string;
+          avatarUrl?: string;
+          value: number;
+          updatedAt: string;
+        }>;
+        nextCursor?: string;
+        hasMore: boolean;
+      }>>(`/leaderboards?${params.toString()}`, {
+        schema: wrapInData(Type.Object({
+          entries: Type.Array(Type.Object({
+            rank: Type.Number(),
+            userId: Type.String(),
+            username: Type.String(),
+            avatarUrl: Type.Optional(Type.String()),
+            value: Type.Number(),
+            updatedAt: Type.String(),
+          })),
+          nextCursor: Type.Optional(Type.String()),
+          hasMore: Type.Boolean(),
+        })),
+      });
+    },
+
+    /**
+     * Get global leaderboard across all exercises
+     */
+    global: (options?: {
+      periodType?: 'daily' | 'weekly' | 'monthly' | 'all_time';
+      gender?: string;
+      ageBand?: string;
+      limit?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.periodType) params.set('periodType', options.periodType);
+      if (options?.gender) params.set('gender', options.gender);
+      if (options?.ageBand) params.set('ageBand', options.ageBand);
+      if (options?.limit) params.set('limit', String(options.limit));
+      const query = params.toString();
+      return request<DataResponse<{
+        entries: Array<{
+          rank: number;
+          userId: string;
+          username: string;
+          avatarUrl?: string;
+          totalPoints: number;
+          recordCount: number;
+        }>;
+      }>>(`/leaderboards/global${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Object({
+          entries: Type.Array(Type.Object({
+            rank: Type.Number(),
+            userId: Type.String(),
+            username: Type.String(),
+            avatarUrl: Type.Optional(Type.String()),
+            totalPoints: Type.Number(),
+            recordCount: Type.Number(),
+          })),
+        })),
+      });
+    },
+
+    /**
+     * Get leaderboard for a specific hangout
+     */
+    hangout: (hangoutId: number, options?: {
+      exerciseId?: string;
+      metricKey?: string;
+      periodType?: 'daily' | 'weekly' | 'monthly' | 'all_time';
+      limit?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.exerciseId) params.set('exerciseId', options.exerciseId);
+      if (options?.metricKey) params.set('metricKey', options.metricKey);
+      if (options?.periodType) params.set('periodType', options.periodType);
+      if (options?.limit) params.set('limit', String(options.limit));
+      const query = params.toString();
+      return request<DataResponse<{
+        entries: Array<{
+          rank: number;
+          userId: string;
+          username: string;
+          avatarUrl?: string;
+          value: number;
+          updatedAt: string;
+        }>;
+      }>>(`/hangouts/${hangoutId}/leaderboard${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Object({
+          entries: Type.Array(Type.Object({
+            rank: Type.Number(),
+            userId: Type.String(),
+            username: Type.String(),
+            avatarUrl: Type.Optional(Type.String()),
+            value: Type.Number(),
+            updatedAt: Type.String(),
+          })),
+        })),
+      });
+    },
+
+    /**
+     * Get current user's rank for a specific metric
+     */
+    myRank: (options: {
+      exerciseId: string;
+      metricKey: string;
+      periodType?: 'daily' | 'weekly' | 'monthly' | 'all_time';
+      hangoutId?: number;
+    }) => {
+      const params = new URLSearchParams();
+      params.set('exerciseId', options.exerciseId);
+      params.set('metricKey', options.metricKey);
+      if (options.periodType) params.set('periodType', options.periodType);
+      if (options.hangoutId) params.set('hangoutId', String(options.hangoutId));
+      return request<DataResponse<{
+        rank: number;
+        percentile: number;
+        value: number;
+        totalParticipants: number;
+      }>>(`/me/rank?${params.toString()}`, {
+        schema: wrapInData(Type.Object({
+          rank: Type.Number(),
+          percentile: Type.Number(),
+          value: Type.Number(),
+          totalParticipants: Type.Number(),
+        })),
+      });
+    },
+
+    /**
+     * Get available metric definitions
+     */
+    metrics: () =>
+      request<DataResponse<Array<{
+        id: string;
+        exerciseId: string;
+        metricKey: string;
+        displayName: string;
+        unit: string;
+        direction: 'higher' | 'lower';
+      }>>>('/leaderboards/metrics', {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          exerciseId: Type.String(),
+          metricKey: Type.String(),
+          displayName: Type.String(),
+          unit: Type.String(),
+          direction: Type.String(),
+        }))),
+        cacheTtl: 300_000, // Cache for 5 minutes
+      }),
+  },
+
+  // Achievements / Badges
+  achievements: {
+    /**
+     * Get all achievement definitions
+     */
+    definitions: () =>
+      request<DataResponse<Array<{
+        id: string;
+        key: string;
+        name: string;
+        description?: string;
+        icon?: string;
+        category: string;
+        points: number;
+        rarity: string;
+        enabled: boolean;
+      }>>>('/achievements/definitions', {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          key: Type.String(),
+          name: Type.String(),
+          description: Type.Optional(Type.String()),
+          icon: Type.Optional(Type.String()),
+          category: Type.String(),
+          points: Type.Number(),
+          rarity: Type.String(),
+          enabled: Type.Boolean(),
+        }))),
+        cacheTtl: 300_000,
+      }),
+
+    /**
+     * Get current user's achievements
+     */
+    my: (options?: { limit?: number; cursor?: string; category?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.cursor) params.set('cursor', options.cursor);
+      if (options?.category) params.set('category', options.category);
+      const query = params.toString();
+      return request<DataResponse<Array<{
+        id: string;
+        achievementKey: string;
+        achievementName: string;
+        achievementDescription?: string;
+        achievementIcon?: string;
+        category: string;
+        points: number;
+        rarity: string;
+        earnedAt: string;
+        value?: number;
+        hangoutId?: number;
+        exerciseId?: string;
+      }>>>(`/me/achievements${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          achievementKey: Type.String(),
+          achievementName: Type.String(),
+          achievementDescription: Type.Optional(Type.String()),
+          achievementIcon: Type.Optional(Type.String()),
+          category: Type.String(),
+          points: Type.Number(),
+          rarity: Type.String(),
+          earnedAt: Type.String(),
+          value: Type.Optional(Type.Number()),
+          hangoutId: Type.Optional(Type.Number()),
+          exerciseId: Type.Optional(Type.String()),
+        }))),
+      });
+    },
+
+    /**
+     * Get current user's achievement summary
+     */
+    summary: () =>
+      request<DataResponse<{
+        totalPoints: number;
+        totalAchievements: number;
+        byCategory: Record<string, number>;
+        byRarity: Record<string, number>;
+        recentAchievements: Array<{
+          id: string;
+          achievementKey: string;
+          achievementName: string;
+          category: string;
+          points: number;
+          rarity: string;
+          earnedAt: string;
+        }>;
+      }>>('/me/achievements/summary', {
+        schema: wrapInData(Type.Object({
+          totalPoints: Type.Number(),
+          totalAchievements: Type.Number(),
+          byCategory: Type.Record(Type.String(), Type.Number()),
+          byRarity: Type.Record(Type.String(), Type.Number()),
+          recentAchievements: Type.Array(Type.Object({
+            id: Type.String(),
+            achievementKey: Type.String(),
+            achievementName: Type.String(),
+            category: Type.String(),
+            points: Type.Number(),
+            rarity: Type.String(),
+            earnedAt: Type.String(),
+          })),
+        })),
+      }),
+
+    /**
+     * Get hangout achievement feed
+     */
+    hangoutFeed: (hangoutId: number, options?: { limit?: number; cursor?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.cursor) params.set('cursor', options.cursor);
+      const query = params.toString();
+      return request<DataResponse<Array<{
+        id: string;
+        userId: string;
+        username: string;
+        avatarUrl?: string;
+        achievementName: string;
+        achievementIcon?: string;
+        points: number;
+        rarity: string;
+        earnedAt: string;
+      }>>>(`/hangouts/${hangoutId}/achievements${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          userId: Type.String(),
+          username: Type.String(),
+          avatarUrl: Type.Optional(Type.String()),
+          achievementName: Type.String(),
+          achievementIcon: Type.Optional(Type.String()),
+          points: Type.Number(),
+          rarity: Type.String(),
+          earnedAt: Type.String(),
+        }))),
+      });
+    },
+  },
+
+  // Cohort Preferences (for leaderboard filtering)
+  cohortPreferences: {
+    /**
+     * Get current user's cohort preferences
+     */
+    get: () =>
+      request<DataResponse<{
+        gender?: string;
+        ageBand?: string;
+        adaptiveCategory?: string;
+        leaderboardOptIn: boolean;
+        showGenderInLeaderboard: boolean;
+        showAgeInLeaderboard: boolean;
+      }>>('/me/cohort-preferences', {
+        schema: wrapInData(Type.Object({
+          gender: Type.Optional(Type.String()),
+          ageBand: Type.Optional(Type.String()),
+          adaptiveCategory: Type.Optional(Type.String()),
+          leaderboardOptIn: Type.Boolean(),
+          showGenderInLeaderboard: Type.Boolean(),
+          showAgeInLeaderboard: Type.Boolean(),
+        })),
+      }),
+
+    /**
+     * Update cohort preferences
+     */
+    update: (updates: {
+      gender?: string;
+      ageBand?: string;
+      adaptiveCategory?: string;
+      showGenderInLeaderboard?: boolean;
+      showAgeInLeaderboard?: boolean;
+    }) =>
+      request<DataResponse<{
+        gender?: string;
+        ageBand?: string;
+        adaptiveCategory?: string;
+        leaderboardOptIn: boolean;
+        showGenderInLeaderboard: boolean;
+        showAgeInLeaderboard: boolean;
+      }>>('/me/cohort-preferences', {
+        method: 'PATCH',
+        body: updates,
+        schema: wrapInData(Type.Object({
+          gender: Type.Optional(Type.String()),
+          ageBand: Type.Optional(Type.String()),
+          adaptiveCategory: Type.Optional(Type.String()),
+          leaderboardOptIn: Type.Boolean(),
+          showGenderInLeaderboard: Type.Boolean(),
+          showAgeInLeaderboard: Type.Boolean(),
+        })),
+      }),
+
+    /**
+     * Opt into exercise leaderboards
+     */
+    optIn: () =>
+      request<DataResponse<{ leaderboardOptIn: boolean; message: string }>>('/me/leaderboard-opt-in', {
+        method: 'POST',
+        schema: wrapInData(Type.Object({
+          leaderboardOptIn: Type.Boolean(),
+          message: Type.String(),
+        })),
+      }),
+
+    /**
+     * Opt out of exercise leaderboards
+     */
+    optOut: () =>
+      request<DataResponse<{ leaderboardOptIn: boolean; message: string }>>('/me/leaderboard-opt-out', {
+        method: 'POST',
+        schema: wrapInData(Type.Object({
+          leaderboardOptIn: Type.Boolean(),
+          message: Type.String(),
+        })),
+      }),
+
+    /**
+     * Get available cohort options
+     */
+    options: () =>
+      request<DataResponse<{
+        genderOptions: string[];
+        ageBandOptions: string[];
+        adaptiveCategoryOptions: string[];
+      }>>('/cohort-options', {
+        schema: wrapInData(Type.Object({
+          genderOptions: Type.Array(Type.String()),
+          ageBandOptions: Type.Array(Type.String()),
+          adaptiveCategoryOptions: Type.Array(Type.String()),
+        })),
+        cacheTtl: 300_000,
+      }),
+  },
+
+  // Hangout Check-ins
+  checkins: {
+    /**
+     * Check in to a hangout
+     */
+    checkIn: (hangoutId: number, options?: { latitude?: number; longitude?: number }) =>
+      request<DataResponse<{
+        id: string;
+        checkInTime: string;
+        message: string;
+      }>>(`/hangouts/${hangoutId}/check-in`, {
+        method: 'POST',
+        body: options || {},
+        schema: wrapInData(Type.Object({
+          id: Type.String(),
+          checkInTime: Type.String(),
+          message: Type.String(),
+        })),
+      }),
+
+    /**
+     * Check out from a hangout
+     */
+    checkOut: (hangoutId: number, options?: { workoutId?: string }) =>
+      request<DataResponse<{
+        checkOutTime: string;
+        duration: number;
+        message: string;
+      }>>(`/hangouts/${hangoutId}/check-out`, {
+        method: 'POST',
+        body: options || {},
+        schema: wrapInData(Type.Object({
+          checkOutTime: Type.String(),
+          duration: Type.Number(),
+          message: Type.String(),
+        })),
+      }),
+
+    /**
+     * Get active check-ins at a hangout
+     */
+    activeAt: (hangoutId: number) =>
+      request<DataResponse<Array<{
+        id: string;
+        userId: string;
+        username: string;
+        avatarUrl?: string;
+        checkInTime: string;
+      }>>>(`/hangouts/${hangoutId}/check-ins/active`, {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          userId: Type.String(),
+          username: Type.String(),
+          avatarUrl: Type.Optional(Type.String()),
+          checkInTime: Type.String(),
+        }))),
+      }),
+
+    /**
+     * Get current user's active check-in
+     */
+    myActive: () =>
+      request<DataResponse<{
+        id: string;
+        hangoutId: number;
+        hangoutName: string;
+        checkInTime: string;
+      } | null>>('/me/check-in', {
+        schema: wrapInData(Type.Union([
+          Type.Object({
+            id: Type.String(),
+            hangoutId: Type.Number(),
+            hangoutName: Type.String(),
+            checkInTime: Type.String(),
+          }),
+          Type.Null(),
+        ])),
+      }),
+
+    /**
+     * Get current user's check-in history
+     */
+    myHistory: (options?: { limit?: number; offset?: number }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<DataResponse<Array<{
+        id: string;
+        hangoutId: number;
+        hangoutName: string;
+        checkInTime: string;
+        checkOutTime?: string;
+        duration?: number;
+        workoutId?: string;
+      }>>>(`/me/check-ins${query ? `?${query}` : ''}`, {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          hangoutId: Type.Number(),
+          hangoutName: Type.String(),
+          checkInTime: Type.String(),
+          checkOutTime: Type.Optional(Type.String()),
+          duration: Type.Optional(Type.Number()),
+          workoutId: Type.Optional(Type.String()),
+        }))),
+      });
+    },
+  },
+
+  /**
+   * Generic GET request helper
+   */
+  get: <T = unknown>(path: string) => request<T>(path),
+
+  /**
+   * Generic POST request helper
+   */
+  post: <T = unknown>(path: string, body?: Record<string, unknown>) =>
+    request<T>(path, { method: 'POST', body }),
+
+  /**
+   * Generic PUT request helper
+   */
+  put: <T = unknown>(path: string, body?: Record<string, unknown>) =>
+    request<T>(path, { method: 'PUT', body }),
+
+  /**
+   * Generic PATCH request helper
+   */
+  patch: <T = unknown>(path: string, body?: Record<string, unknown>) =>
+    request<T>(path, { method: 'PATCH', body }),
+
+  /**
+   * Generic DELETE request helper
+   */
+  delete: <T = unknown>(path: string) =>
+    request<T>(path, { method: 'DELETE' }),
 };
 
 // =====================
