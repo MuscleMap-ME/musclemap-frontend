@@ -1,12 +1,22 @@
-import { request } from '@musclemap/client';
+import { apiClient, request } from '@musclemap/client';
 
 /**
- * Axios-style API wrapper using the @musclemap/client request function.
- * Provides get, post, put, delete methods for legacy code compatibility.
+ * API client re-exported from @musclemap/client.
+ *
+ * This provides the full typed API client with all endpoints:
+ * - api.characterStats.me() - Get user's D&D-style character stats
+ * - api.progress.stats() - Get user's progress stats
+ * - api.wallet.balance() - Get user's wallet balance
+ * - etc.
+ *
+ * For legacy code compatibility, also provides get/post/put/delete methods.
  */
 export const api = {
+  // Re-export full apiClient properties
+  ...apiClient,
+
   /**
-   * Make a GET request
+   * Make a GET request (legacy compatibility)
    * @param {string} path - API path
    * @returns {Promise<{data: any}>} Response with data property
    */
@@ -16,7 +26,7 @@ export const api = {
   },
 
   /**
-   * Make a POST request
+   * Make a POST request (legacy compatibility)
    * @param {string} path - API path
    * @param {object} body - Request body
    * @returns {Promise<{data: any}>} Response with data property
@@ -27,7 +37,7 @@ export const api = {
   },
 
   /**
-   * Make a PUT request
+   * Make a PUT request (legacy compatibility)
    * @param {string} path - API path
    * @param {object} body - Request body
    * @returns {Promise<{data: any}>} Response with data property
@@ -38,7 +48,7 @@ export const api = {
   },
 
   /**
-   * Make a DELETE request
+   * Make a DELETE request (legacy compatibility)
    * @param {string} path - API path
    * @returns {Promise<{data: any}>} Response with data property
    */
