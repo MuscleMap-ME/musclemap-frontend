@@ -88,6 +88,27 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 }
 
 /**
+ * Require admin role - must be used after authenticate
+ */
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as JwtPayload | undefined;
+
+  if (!user) {
+    return reply.status(401).send({
+      error: { code: 'UNAUTHORIZED', message: 'Authentication required', statusCode: 401 },
+    });
+  }
+
+  const isAdmin = user.roles?.includes('admin') || user.role === 'admin';
+
+  if (!isAdmin) {
+    return reply.status(403).send({
+      error: { code: 'FORBIDDEN', message: 'Admin access required', statusCode: 403 },
+    });
+  }
+}
+
+/**
  * Optional authentication - doesn't fail if no token
  */
 export async function optionalAuth(request: FastifyRequest, reply: FastifyReply) {

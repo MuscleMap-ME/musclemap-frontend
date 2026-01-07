@@ -39,6 +39,7 @@ import MyIssues from './pages/MyIssues';
 import DevUpdates from './pages/DevUpdates';
 import Roadmap from './pages/Roadmap';
 import AdminIssues from './pages/AdminIssues';
+import AdminMonitoring from './pages/AdminMonitoring';
 import Docs from './pages/Docs';
 import Privacy from './pages/Privacy';
 import Stats from './pages/Stats';
@@ -157,6 +158,7 @@ function AppRoutes() {
         {/* Admin routes */}
         <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
         <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
+        <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

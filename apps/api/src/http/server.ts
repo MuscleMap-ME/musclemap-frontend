@@ -42,6 +42,7 @@ import { registerGoalsRoutes } from './routes/goals';
 import { registerLimitationsRoutes } from './routes/limitations';
 import { registerPTTestsRoutes } from './routes/pt-tests';
 import { registerPersonalizationRoutes } from './routes/personalization';
+import { registerMonitoringRoutes } from './routes/monitoring';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -272,6 +273,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerLimitationsRoutes(api);
     await registerPTTestsRoutes(api);
     await registerPersonalizationRoutes(api);
+    await registerMonitoringRoutes(api);
   }, { prefix: '/api' });
 
   return app;
