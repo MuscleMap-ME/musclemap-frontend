@@ -121,8 +121,8 @@ export const virtualHangoutsService = {
       icon_url: string | null;
       banner_url: string | null;
       archetype_category_id: string | null;
-      goal_types: string | null;
-      target_audiences: string | null;
+      goal_types: string[] | null;
+      target_audiences: string[] | null;
       is_active: boolean;
     }>(
       `SELECT id, name, tagline, description, primary_color, secondary_color, accent_color,
@@ -145,8 +145,9 @@ export const virtualHangoutsService = {
       iconUrl: r.icon_url ?? undefined,
       bannerUrl: r.banner_url ?? undefined,
       archetypeCategoryId: r.archetype_category_id ?? undefined,
-      goalTypes: r.goal_types ? JSON.parse(r.goal_types) : [],
-      targetAudiences: r.target_audiences ? JSON.parse(r.target_audiences) : [],
+      // JSONB columns are already parsed by pg driver
+      goalTypes: r.goal_types ?? [],
+      targetAudiences: r.target_audiences ?? [],
       isActive: r.is_active,
     }));
   },
