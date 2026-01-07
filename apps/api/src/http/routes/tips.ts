@@ -43,7 +43,7 @@ export async function registerTipsRoutes(app: FastifyInstance) {
 
     if (params.context) {
       paramIndex++;
-      sql += ` AND $${paramIndex} = ANY(display_context)`;
+      sql += ` AND display_context = $${paramIndex}`;
       queryParams.push(params.context);
     }
 
@@ -66,7 +66,7 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       title: string;
       content: string;
       priority: number;
-      display_context: string[];
+      display_context: string | null;
     }>(sql, queryParams);
 
     return reply.send({
