@@ -12,6 +12,23 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.core;
 
+// Threshold constants for public stats
+const THRESHOLDS = {
+  ACTIVE_NOW: 5,
+  ACTIVE_WORKOUTS: 3,
+};
+
+// Milestone thresholds
+const MILESTONES = [100, 500, 1000, 5000, 10000, 25000, 50000, 100000];
+
+// Anonymous activity messages
+const ACTIVITY_MESSAGES: Record<string, (payload: any) => string> = {
+  'workout.completed': (p) => `Someone just completed ${p.exerciseName || 'a workout'}`,
+  'workout.started': () => 'Someone just started a workout',
+  'level.up': () => 'Someone just leveled up!',
+  'milestone.reached': () => 'Someone hit a new milestone!',
+};
+
 // In-memory presence fallback
 const inMemoryPresence = new Map<string, { ts: number; geoBucket?: string; stageId?: string }>();
 
@@ -73,6 +90,107 @@ async function getPresenceByGeoBucket(): Promise<Array<{ geoBucket: string; coun
     .map(([geoBucket, count]) => ({ geoBucket, count }))
     .sort((a, b) => b.count - a.count);
 }
+
+/**
+ * Get count of users currently working out (have an active workout session)
+ */
+async function getActiveWorkoutCount(): Promise<number> {
+  // Check for workouts started in the last hour that haven't been completed
+  const result = await queryOne<{ count: string }>(
+    `SELECT COUNT(DISTINCT user_id)::int as count
+     FROM workouts
+     WHERE date = CURRENT_DATE
+     AND created_at > NOW() - INTERVAL '1 hour'`
+  );
+  return parseInt(result?.count || '0');
+}
+
+/**
+ * Get total workout count for milestone calculations
+ */
+async function getTotalWorkoutCount(): Promise<number> {
+  const result = await queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM workouts');
+  return parseInt(result?.count || '0');
+}
+
+/**
+ * Get recent anonymous activity events (last 30 minutes)
+ */
+async function getRecentAnonymousActivity(): Promise<Array<{ type: string; message: string; createdAt: Date }>> {
+  const events = await queryAll<{
+    event_type: string;
+    payload: string;
+    created_at: Date;
+  }>(
+    `SELECT event_type, payload, created_at
+     FROM activity_events
+     WHERE visibility_scope = 'public_anon'
+       AND created_at > NOW() - INTERVAL '30 minutes'
+     ORDER BY created_at DESC
+     LIMIT 20`
+  );
+
+  return events
+    .map((e) => {
+      const messageGen = ACTIVITY_MESSAGES[e.event_type];
+      if (!messageGen) return null;
+      try {
+        const payload = JSON.parse(e.payload || '{}');
+        return {
+          type: e.event_type,
+          message: messageGen(payload),
+          createdAt: e.created_at,
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+}
+
+/**
+ * Calculate current milestone (if any)
+ */
+function calculateMilestone(totalWorkouts: number): { reached: boolean; value: number; next: number } | null {
+  // Find the highest milestone reached
+  let reachedMilestone = 0;
+  let nextMilestone = MILESTONES[0];
+
+  for (const milestone of MILESTONES) {
+    if (totalWorkouts >= milestone) {
+      reachedMilestone = milestone;
+    } else {
+      nextMilestone = milestone;
+      break;
+    }
+  }
+
+  if (reachedMilestone === 0) {
+    return null;
+  }
+
+  // Only show if we just hit the milestone (within 100 workouts)
+  const justReached = totalWorkouts - reachedMilestone < 100;
+
+  return {
+    reached: justReached,
+    value: reachedMilestone,
+    next: nextMilestone,
+  };
+}
+
+/**
+ * Format stat with threshold logic
+ */
+function formatStatWithThreshold(value: number, threshold: number): { value: number; display: string; threshold: boolean } {
+  if (value < threshold) {
+    return { value, display: `${threshold}+`, threshold: true };
+  }
+  return { value, display: value.toString(), threshold: false };
+}
+
+// In-memory tracking of public WebSocket connections
+const publicWsConnections = new Set<WebSocket>();
 
 export async function registerCommunityRoutes(app: FastifyInstance) {
   // Get community feed
@@ -181,6 +299,78 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
         totalUsers: parseInt(totalUsers?.count || '0'),
         workoutsToday: parseInt(workoutsToday?.count || '0'),
       },
+    });
+  });
+
+  // Public stats endpoint (no auth required) - for landing page
+  app.get('/community/stats/public', async (request, reply) => {
+    const [activeNow, totalUsers, activeWorkouts, totalWorkouts, recentActivity] = await Promise.all([
+      getActiveUserCount(),
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
+      getActiveWorkoutCount(),
+      getTotalWorkoutCount(),
+      getRecentAnonymousActivity(),
+    ]);
+
+    const totalUsersCount = parseInt(totalUsers?.count || '0');
+    const milestone = calculateMilestone(totalWorkouts);
+
+    return reply.send({
+      data: {
+        activeNow: formatStatWithThreshold(activeNow, THRESHOLDS.ACTIVE_NOW),
+        activeWorkouts: formatStatWithThreshold(activeWorkouts, THRESHOLDS.ACTIVE_WORKOUTS),
+        totalUsers: { value: totalUsersCount, display: totalUsersCount.toString(), threshold: false },
+        totalWorkouts: { value: totalWorkouts, display: totalWorkouts.toString(), threshold: false },
+        recentActivity,
+        milestone,
+      },
+    });
+  });
+
+  // Public WebSocket for real-time updates (no auth required)
+  app.get('/community/ws/public', { websocket: true }, (socket, request) => {
+    log.info('Public WebSocket connected');
+    publicWsConnections.add(socket as unknown as WebSocket);
+
+    // Send initial snapshot
+    Promise.all([
+      getActiveUserCount(),
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
+      getActiveWorkoutCount(),
+      getTotalWorkoutCount(),
+      getRecentAnonymousActivity(),
+    ]).then(([activeNow, totalUsers, activeWorkouts, totalWorkouts, recentActivity]) => {
+      const totalUsersCount = parseInt(totalUsers?.count || '0');
+      const milestone = calculateMilestone(totalWorkouts);
+
+      socket.send(
+        JSON.stringify({
+          type: 'snapshot',
+          data: {
+            activeNow: formatStatWithThreshold(activeNow, THRESHOLDS.ACTIVE_NOW),
+            activeWorkouts: formatStatWithThreshold(activeWorkouts, THRESHOLDS.ACTIVE_WORKOUTS),
+            totalUsers: { value: totalUsersCount, display: totalUsersCount.toString(), threshold: false },
+            totalWorkouts: { value: totalWorkouts, display: totalWorkouts.toString(), threshold: false },
+            recentActivity,
+            milestone,
+          },
+        })
+      );
+    });
+
+    // Handle messages (ping/pong for keepalive)
+    socket.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.type === 'ping') {
+          socket.send(JSON.stringify({ type: 'pong' }));
+        }
+      } catch {}
+    });
+
+    socket.on('close', () => {
+      log.info('Public WebSocket disconnected');
+      publicWsConnections.delete(socket as unknown as WebSocket);
     });
   });
 

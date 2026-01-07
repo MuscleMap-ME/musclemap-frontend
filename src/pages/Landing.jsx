@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import LiveCommunityStats from '../components/landing/LiveCommunityStats';
 
 export default function Landing() {
   return (
@@ -168,6 +169,9 @@ export default function Landing() {
           </p>
         </motion.div>
       </main>
+
+      {/* Live Community Stats */}
+      <LiveCommunityStats />
 
       {/* How It Works - Visual Architecture */}
       <section className="py-20 px-6 border-t border-white/5">
