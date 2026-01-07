@@ -66,13 +66,13 @@
       "typedRoutes": true
     },
     "extra": {
-      "eas": {
-        "projectId": "your-project-id-here"
+      "apiUrl": "https://musclemap.me/api",
+      "router": {
+        "origin": false
       },
-      "apiUrl": "https://musclemap.me/api"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/your-project-id-here"
+      "eas": {
+        "projectId": "9e673fd0-768e-49d0-861f-a083e4cb33b9"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
