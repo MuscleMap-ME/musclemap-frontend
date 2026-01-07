@@ -10,7 +10,7 @@ import type { WearableProvider, HealthSyncPayload } from './types';
 
 export function registerWearablesRoutes(fastify: FastifyInstance): void {
   // Get wearable connections and health summary
-  fastify.get('/api/wearables', {
+  fastify.get('/wearables', {
     preHandler: [authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user!.userId;
@@ -27,7 +27,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
       refreshToken?: string;
       tokenExpiresAt?: string;
     };
-  }>('/api/wearables/connect', {
+  }>('/wearables/connect', {
     preHandler: [authenticate],
   }, async (request, reply) => {
     const userId = request.user!.userId;
@@ -37,7 +37,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
       return reply.status(400).send({ error: 'Provider is required' });
     }
 
-    const validProviders: WearableProvider[] = ['apple_health', 'fitbit', 'garmin', 'google_fit'];
+    const validProviders: WearableProvider[] = ['apple_health', 'fitbit', 'garmin', 'google_fit', 'whoop', 'oura'];
     if (!validProviders.includes(provider)) {
       return reply.status(400).send({ error: 'Invalid provider' });
     }
@@ -55,7 +55,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
   // Disconnect a wearable provider
   fastify.post<{
     Body: { provider?: WearableProvider };
-  }>('/api/wearables/disconnect', {
+  }>('/wearables/disconnect', {
     preHandler: [authenticate],
   }, async (request, reply) => {
     const userId = request.user!.userId;
@@ -72,7 +72,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
   // Sync health data from a wearable
   fastify.post<{
     Body: { provider?: WearableProvider; data?: HealthSyncPayload };
-  }>('/api/wearables/sync', {
+  }>('/wearables/sync', {
     preHandler: [authenticate],
   }, async (request, reply) => {
     const userId = request.user!.userId;
@@ -89,7 +89,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
   // Get recent workouts from wearables
   fastify.get<{
     Querystring: { limit?: string };
-  }>('/api/wearables/workouts', {
+  }>('/wearables/workouts', {
     preHandler: [authenticate],
   }, async (request, reply) => {
     const userId = request.user!.userId;

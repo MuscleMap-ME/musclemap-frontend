@@ -168,19 +168,39 @@ export default function Workout() {
     if (logged.length === 0) return;
     setCompleting(true);
     try {
-      const res = await fetch('/api/workout/complete', {
+      // Format exercises for the workouts API
+      const exercises = logged.map(e => ({
+        exerciseId: e.id || e.exerciseId,
+        sets: e.sets || 3,
+        reps: e.reps || 10,
+        weight: e.weight || undefined,
+      }));
+
+      const idempotencyKey = `workout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      const res = await fetch('/api/workouts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ duration_minutes: logged.length * 15, exercises: logged })
+        body: JSON.stringify({
+          exercises,
+          idempotencyKey,
+          notes: `${logged.length} exercises completed`,
+        })
       });
       const data = await res.json();
-      if (data.success) {
-        setRewards(data.rewards);
+      if (res.ok && data.data) {
+        setRewards({
+          tuEarned: data.data.totalTU,
+          characterStats: data.data.characterStats,
+        });
         setLogged([]);
       } else {
-        alert(data.error?.message || data.error || 'Failed to complete');
+        alert(data.error?.message || data.error || 'Failed to complete workout');
       }
-    } catch(e) { alert('Error completing workout'); }
+    } catch(e) {
+      console.error('Workout completion error:', e);
+      alert('Error completing workout. Please try again.');
+    }
     setCompleting(false);
   };
 

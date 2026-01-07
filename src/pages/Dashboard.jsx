@@ -154,6 +154,21 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
+  Goal: ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+  Shield: ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  Clipboard: ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+  ),
 };
 
 // ============================================
@@ -266,6 +281,249 @@ const QuickActionCard = ({ to, icon: Icon, label, description, gradient, delay =
     </motion.div>
   </Link>
 );
+
+// ============================================
+// CHARACTER STATS METADATA
+// ============================================
+const STAT_META = {
+  strength: { name: 'Strength', abbr: 'STR', color: '#FF3366', description: 'Raw lifting power' },
+  constitution: { name: 'Constitution', abbr: 'CON', color: '#00CC66', description: 'Recovery & resilience' },
+  dexterity: { name: 'Dexterity', abbr: 'DEX', color: '#FFB800', description: 'Movement skill' },
+  power: { name: 'Power', abbr: 'PWR', color: '#FF6B00', description: 'Explosive force' },
+  endurance: { name: 'Endurance', abbr: 'END', color: '#0066FF', description: 'Stamina' },
+  vitality: { name: 'Vitality', abbr: 'VIT', color: '#9333EA', description: 'Overall health' },
+};
+
+const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance', 'vitality'];
+
+// ============================================
+// CHARACTER STATS CARD (D&D-style)
+// ============================================
+const CharacterStatsCard = ({ characterStats, loading }) => {
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl p-6 bg-gradient-to-br from-[var(--glass-white-5)] to-[var(--glass-white-10)] backdrop-blur-xl border border-[var(--border-subtle)]"
+      >
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-[var(--glass-white-10)] rounded w-1/3" />
+          <div className="grid grid-cols-3 gap-4">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 bg-[var(--glass-white-10)] rounded w-1/2" />
+                <div className="h-8 bg-[var(--glass-white-10)] rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const stats = characterStats?.stats || {
+    strength: 0,
+    constitution: 0,
+    dexterity: 0,
+    power: 0,
+    endurance: 0,
+    vitality: 0,
+  };
+
+  // Calculate total and average
+  const total = STAT_ORDER.reduce((sum, key) => sum + (stats[key] || 0), 0);
+  const maxStat = Math.max(...STAT_ORDER.map(key => stats[key] || 0), 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="h-full rounded-2xl p-6 bg-gradient-to-br from-[var(--glass-white-5)] to-[var(--glass-white-10)] backdrop-blur-xl border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors flex flex-col"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-br from-[var(--brand-blue-500)]/20 to-purple-500/20 rounded-xl border border-[var(--border-subtle)]">
+            <Icons.Target className="w-5 h-5 text-[var(--brand-blue-400)]" />
+          </div>
+          <div>
+            <h3 className="font-bold text-[var(--text-primary)]">Character Stats</h3>
+            <p className="text-xs text-[var(--text-tertiary)]">D&D-style attributes</p>
+          </div>
+        </div>
+        <Link
+          to="/stats"
+          className="text-sm text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-1"
+        >
+          View all
+          <Icons.ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      {/* Compact Radar Visualization */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-6">
+        {/* Mini Radar Chart */}
+        <div className="flex-shrink-0 flex justify-center">
+          <svg width={160} height={160} className="mx-auto">
+            {/* Background hexagon rings */}
+            {[0.33, 0.66, 1].map((level, idx) => {
+              const pts = [];
+              const center = 80;
+              const maxRadius = 60;
+              const angleStep = (2 * Math.PI) / 6;
+              for (let i = 0; i < 6; i++) {
+                const angle = angleStep * i - Math.PI / 2;
+                const radius = level * maxRadius;
+                pts.push(`${center + radius * Math.cos(angle)},${center + radius * Math.sin(angle)}`);
+              }
+              return (
+                <polygon
+                  key={idx}
+                  points={pts.join(' ')}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.1)"
+                  strokeWidth={1}
+                />
+              );
+            })}
+
+            {/* Axis lines */}
+            {STAT_ORDER.map((_, i) => {
+              const center = 80;
+              const maxRadius = 60;
+              const angleStep = (2 * Math.PI) / 6;
+              const angle = angleStep * i - Math.PI / 2;
+              return (
+                <line
+                  key={i}
+                  x1={center}
+                  y1={center}
+                  x2={center + maxRadius * Math.cos(angle)}
+                  y2={center + maxRadius * Math.sin(angle)}
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeWidth={1}
+                />
+              );
+            })}
+
+            {/* Stats polygon */}
+            {(() => {
+              const center = 80;
+              const maxRadius = 60;
+              const angleStep = (2 * Math.PI) / 6;
+              const pts = STAT_ORDER.map((key, i) => {
+                const angle = angleStep * i - Math.PI / 2;
+                const value = (stats[key] || 0) / maxStat;
+                const radius = value * maxRadius;
+                return `${center + radius * Math.cos(angle)},${center + radius * Math.sin(angle)}`;
+              });
+              return (
+                <motion.polygon
+                  points={pts.join(' ')}
+                  fill="rgba(59, 130, 246, 0.3)"
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                />
+              );
+            })()}
+
+            {/* Stat points and labels */}
+            {STAT_ORDER.map((key, i) => {
+              const center = 80;
+              const maxRadius = 60;
+              const angleStep = (2 * Math.PI) / 6;
+              const angle = angleStep * i - Math.PI / 2;
+              const value = (stats[key] || 0) / maxStat;
+              const radius = value * maxRadius;
+              const x = center + radius * Math.cos(angle);
+              const y = center + radius * Math.sin(angle);
+              const labelX = center + (maxRadius + 18) * Math.cos(angle);
+              const labelY = center + (maxRadius + 18) * Math.sin(angle);
+
+              return (
+                <g key={key}>
+                  <motion.circle
+                    cx={x}
+                    cy={y}
+                    r={4}
+                    fill={STAT_META[key].color}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                  />
+                  <text
+                    x={labelX}
+                    y={labelY}
+                    fill={STAT_META[key].color}
+                    fontSize={10}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    {STAT_META[key].abbr}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Stat Bars */}
+        <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-3">
+          {STAT_ORDER.map((key) => {
+            const value = stats[key] || 0;
+            const percentage = Math.min((value / maxStat) * 100, 100);
+            const meta = STAT_META[key];
+
+            return (
+              <motion.div
+                key={key}
+                className="space-y-1"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: STAT_ORDER.indexOf(key) * 0.05 }}
+              >
+                <div className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: meta.color }}
+                    />
+                    <span className="font-semibold text-[var(--text-secondary)]">{meta.abbr}</span>
+                  </div>
+                  <span className="font-bold" style={{ color: meta.color }}>
+                    {value.toFixed(0)}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-[var(--glass-white-5)] rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: meta.color }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ duration: 0.6, delay: STAT_ORDER.indexOf(key) * 0.05 }}
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Total Score */}
+      <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <span className="text-sm text-[var(--text-tertiary)]">Total Power Level</span>
+        <span className="text-xl font-bold bg-gradient-to-r from-[var(--brand-blue-400)] to-purple-400 bg-clip-text text-transparent">
+          {total.toFixed(0)}
+        </span>
+      </div>
+    </motion.div>
+  );
+};
 
 // ============================================
 // CURRENT PATH CARD (Hero Card)
@@ -505,6 +763,11 @@ const navSections = [
       { to: '/journey', icon: Icons.Journey, label: 'Journey' },
       { to: '/exercises', icon: Icons.Library, label: 'Exercises' },
       { to: '/progression', icon: Icons.Chart, label: 'Progress' },
+      { to: '/stats', icon: Icons.Target, label: 'Character Stats' },
+      { to: '/health', icon: Icons.Heart, label: 'Health' },
+      { to: '/goals', icon: Icons.Goal, label: 'Goals' },
+      { to: '/limitations', icon: Icons.Shield, label: 'Limitations' },
+      { to: '/pt-tests', icon: Icons.Clipboard, label: 'PT Tests' },
     ]
   },
   {
@@ -512,6 +775,8 @@ const navSections = [
     items: [
       { to: '/messages', icon: Icons.Message, label: 'Messages', badge: 3 },
       { to: '/community', icon: Icons.Community, label: 'Community' },
+      { to: '/crews', icon: Icons.Community, label: 'Crews' },
+      { to: '/rivals', icon: Icons.Trophy, label: 'Rivals' },
       { to: '/competitions', icon: Icons.Trophy, label: 'Competitions' },
       { to: '/locations', icon: Icons.Map, label: 'Locations' },
     ]
@@ -544,7 +809,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
+  const [characterStats, setCharacterStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -555,6 +822,16 @@ export default function Dashboard() {
       setWallet(walletData);
       setLoading(false);
     });
+
+    // Fetch character stats separately
+    api.characterStats.me()
+      .then(data => {
+        setCharacterStats(data?.data);
+        setStatsLoading(false);
+      })
+      .catch(() => {
+        setStatsLoading(false);
+      });
   }, []);
 
   return (
@@ -635,13 +912,24 @@ export default function Dashboard() {
               </p>
             </motion.div>
 
-            {/* Current Path Hero Card */}
-            <div className="mb-8">
-              <CurrentPathCard
-                archetype={user?.archetype}
-                stats={stats}
-                wallet={wallet}
-              />
+            {/* Current Path Hero Card + Character Stats Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              {/* Current Path - Takes 2 columns on large screens */}
+              <div className="lg:col-span-2">
+                <CurrentPathCard
+                  archetype={user?.archetype}
+                  stats={stats}
+                  wallet={wallet}
+                />
+              </div>
+
+              {/* Character Stats - Takes 1 column on large screens */}
+              <div className="lg:col-span-1">
+                <CharacterStatsCard
+                  characterStats={characterStats}
+                  loading={statsLoading}
+                />
+              </div>
             </div>
 
             {/* Stats Grid */}

@@ -1,5 +1,7 @@
 # MuscleMap Scripts & Claude Developer Guide
 
+*Last Updated: January 2025*
+
 ## Hello, Claude!
 
 Welcome to **MuscleMap** - a cross-platform fitness tracking application that visualizes muscle activation in real-time. You are the AI developer responsible for implementing features, fixing bugs, and deploying changes across our multi-environment infrastructure.
@@ -43,7 +45,7 @@ MuscleMap is a **universal fitness platform** built on these core principles:
 
 ### Technical Design
 
-- **We are a LaTeX first shop. Use it liberally for our documentation and generation
+- **LaTeX First**: We use LaTeX liberally for professional documentation, reports, and generated materials
 
 ### Tech Stack
 
@@ -640,13 +642,14 @@ MuscleMap achieves cross-platform compatibility through a simple architecture:
 
 ---
 
-## Contact & Resources:
+## Contact & Resources
 
 - **GitHub:** https://github.com/jeanpaulniko/musclemap
 - **Live Site:** https://musclemap.me/
 - **API Health:** https://musclemap.me/health
-- **VPS Access:** `ssh root@musclemap.me
-- **Full test suite in /tests/ and we use Pino and Winston for thorough logging front and back to express themselves as data streams`
+- **VPS Access:** `ssh root@musclemap.me`
+- **Test Suite:** Located in `/tests/`
+- **Logging:** Pino (backend) and Winston (frontend) for structured logging as data streams
 
 ---
 

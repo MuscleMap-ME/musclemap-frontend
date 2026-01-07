@@ -35,6 +35,13 @@ import { registerStatsRoutes } from './routes/stats';
 import { registerHangoutRoutes } from './routes/hangouts';
 import { registerIssuesRoutes } from './routes/issues';
 import { registerPrivacyRoutes } from './routes/privacy';
+import { registerOnboardingRoutes } from './routes/onboarding';
+import { registerEquipmentRoutes } from './routes/equipment';
+import { registerWearablesRoutes } from '../modules/wearables';
+import { registerGoalsRoutes } from './routes/goals';
+import { registerLimitationsRoutes } from './routes/limitations';
+import { registerPTTestsRoutes } from './routes/pt-tests';
+import { registerPersonalizationRoutes } from './routes/personalization';
 
 // Security middleware
 import { registerSecurityMiddleware } from '../middleware/security';
@@ -250,6 +257,13 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerHangoutRoutes(api);
     await registerIssuesRoutes(api);
     await registerPrivacyRoutes(api);
+    await registerOnboardingRoutes(api);
+    await registerEquipmentRoutes(api);
+    registerWearablesRoutes(api);
+    await registerGoalsRoutes(api);
+    await registerLimitationsRoutes(api);
+    await registerPTTestsRoutes(api);
+    await registerPersonalizationRoutes(api);
   }, { prefix: '/api' });
 
   return app;

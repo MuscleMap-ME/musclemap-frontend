@@ -39,6 +39,13 @@ import Roadmap from './pages/Roadmap';
 import AdminIssues from './pages/AdminIssues';
 import Docs from './pages/Docs';
 import Privacy from './pages/Privacy';
+import Stats from './pages/Stats';
+import Crews from './pages/Crews';
+import Rivals from './pages/Rivals';
+import Health from './pages/Health';
+import Goals from './pages/Goals';
+import Limitations from './pages/Limitations';
+import PTTests from './pages/PTTests';
 
 // Page view tracker
 function PageTracker() {
@@ -135,6 +142,13 @@ function AppRoutes() {
         <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
         <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
         <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
+        <Route path="/stats" element={<ProtectedRoute name="Stats"><Stats /></ProtectedRoute>} />
+        <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
+        <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
+        <Route path="/health" element={<ProtectedRoute name="Health"><Health /></ProtectedRoute>} />
+        <Route path="/goals" element={<ProtectedRoute name="Goals"><Goals /></ProtectedRoute>} />
+        <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
+        <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
         <Route path="/issues/new" element={<ProtectedRoute name="NewIssue"><NewIssue /></ProtectedRoute>} />
         <Route path="/my-issues" element={<ProtectedRoute name="MyIssues"><MyIssues /></ProtectedRoute>} />
 

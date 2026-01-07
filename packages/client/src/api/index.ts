@@ -1044,6 +1044,138 @@ const PrivacySummarySchema = Type.Object(
 );
 
 // =====================
+// Onboarding Types & Schemas
+// =====================
+export interface OnboardingStatus {
+  completed: boolean;
+  completedAt: string | null;
+  hasProfile: boolean;
+  hasGender: boolean;
+  hasUnits: boolean;
+}
+
+export interface PhysicalProfile {
+  gender: string | null;
+  dateOfBirth: string | null;
+  heightCm: number | null;
+  heightFt: number | null;
+  heightIn: number | null;
+  weightKg: number | null;
+  weightLbs: number | null;
+  preferredUnits: 'metric' | 'imperial';
+  onboardingCompletedAt: string | null;
+}
+
+export interface PhysicalProfileInput {
+  gender?: 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
+  dateOfBirth?: string;
+  heightCm?: number;
+  heightFt?: number;
+  heightIn?: number;
+  weightKg?: number;
+  weightLbs?: number;
+  preferredUnits: 'metric' | 'imperial';
+}
+
+const OnboardingStatusSchema = Type.Object(
+  {
+    completed: Type.Boolean(),
+    completedAt: Type.Union([Type.String(), Type.Null()]),
+    hasProfile: Type.Boolean(),
+    hasGender: Type.Boolean(),
+    hasUnits: Type.Boolean(),
+  },
+  { additionalProperties: true }
+);
+
+const PhysicalProfileSchema = Type.Object(
+  {
+    gender: Type.Union([Type.String(), Type.Null()]),
+    dateOfBirth: Type.Union([Type.String(), Type.Null()]),
+    heightCm: Type.Union([Type.Number(), Type.Null()]),
+    heightFt: Type.Union([Type.Number(), Type.Null()]),
+    heightIn: Type.Union([Type.Number(), Type.Null()]),
+    weightKg: Type.Union([Type.Number(), Type.Null()]),
+    weightLbs: Type.Union([Type.Number(), Type.Null()]),
+    preferredUnits: Type.String(),
+    onboardingCompletedAt: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: true }
+);
+
+// =====================
+// Equipment Types & Schemas
+// =====================
+export interface EquipmentType {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  iconUrl: string | null;
+  displayOrder: number;
+}
+
+export interface LocationEquipment {
+  equipmentTypeId: string;
+  equipmentName: string;
+  category: string;
+  confirmedCount: number;
+  deniedCount: number;
+  isVerified: boolean;
+  firstReportedAt: string;
+  lastReportedAt: string;
+}
+
+export interface UserHomeEquipment {
+  id: number;
+  userId: string;
+  equipmentTypeId: string;
+  equipmentName: string;
+  category: string;
+  locationType: 'home' | 'work' | 'other';
+  notes: string | null;
+}
+
+const EquipmentTypeSchema = Type.Object(
+  {
+    id: Type.String(),
+    name: Type.String(),
+    category: Type.String(),
+    description: Type.Union([Type.String(), Type.Null()]),
+    iconUrl: Type.Union([Type.String(), Type.Null()]),
+    displayOrder: Type.Number(),
+  },
+  { additionalProperties: true }
+);
+
+const LocationEquipmentSchema = Type.Object(
+  {
+    equipmentTypeId: Type.String(),
+    equipmentName: Type.String(),
+    category: Type.String(),
+    confirmedCount: Type.Number(),
+    deniedCount: Type.Number(),
+    isVerified: Type.Boolean(),
+    firstReportedAt: Type.String(),
+    lastReportedAt: Type.String(),
+  },
+  { additionalProperties: true }
+);
+
+const UserHomeEquipmentSchema = Type.Object(
+  {
+    id: Type.Number(),
+    userId: Type.String(),
+    equipmentTypeId: Type.String(),
+    equipmentName: Type.String(),
+    category: Type.String(),
+    locationType: Type.String(),
+    notes: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: true }
+);
+
+// =====================
 // User & Auth Types & Schemas
 // =====================
 export interface User {
@@ -1920,6 +2052,237 @@ export const apiClient = {
       request<DataResponse<PrivacySummary>>('/privacy/summary', {
         schema: wrapInData(PrivacySummarySchema),
       }),
+  },
+
+  // Onboarding
+  onboarding: {
+    /**
+     * Get onboarding status
+     */
+    status: () =>
+      request<DataResponse<OnboardingStatus>>('/onboarding/status', {
+        schema: wrapInData(OnboardingStatusSchema),
+      }),
+
+    /**
+     * Get current physical profile
+     */
+    getProfile: () =>
+      request<DataResponse<PhysicalProfile>>('/onboarding/profile', {
+        schema: wrapInData(PhysicalProfileSchema),
+      }),
+
+    /**
+     * Save physical profile during onboarding
+     */
+    saveProfile: (profile: PhysicalProfileInput) =>
+      request<DataResponse<{ success: boolean; message: string }>>('/onboarding/profile', {
+        method: 'POST',
+        body: profile,
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Save home equipment during onboarding
+     */
+    saveHomeEquipment: (equipmentIds: string[], locationType: 'home' | 'work' | 'other' = 'home') =>
+      request<DataResponse<{ success: boolean; message: string; equipmentCount: number }>>('/onboarding/home-equipment', {
+        method: 'POST',
+        body: { equipmentIds, locationType },
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+            equipmentCount: Type.Number(),
+          })
+        ),
+      }),
+
+    /**
+     * Mark onboarding as complete
+     */
+    complete: () =>
+      request<DataResponse<{ success: boolean; message: string; completedAt: string }>>('/onboarding/complete', {
+        method: 'POST',
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+            completedAt: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Skip onboarding
+     */
+    skip: () =>
+      request<DataResponse<{ success: boolean; message: string; skipped: boolean }>>('/onboarding/skip', {
+        method: 'POST',
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+            skipped: Type.Boolean(),
+          })
+        ),
+      }),
+  },
+
+  // Equipment
+  equipment: {
+    /**
+     * Get all equipment types
+     */
+    types: () =>
+      request<DataResponse<EquipmentType[]>>('/equipment/types', {
+        schema: wrapInData(Type.Array(EquipmentTypeSchema)),
+        cacheTtl: 300_000, // Cache for 5 minutes
+      }),
+
+    /**
+     * Get equipment types by category
+     */
+    typesByCategory: (category: string) =>
+      request<DataResponse<EquipmentType[]>>(`/equipment/types/${encodeURIComponent(category)}`, {
+        schema: wrapInData(Type.Array(EquipmentTypeSchema)),
+        cacheTtl: 300_000,
+      }),
+
+    /**
+     * Get all equipment categories
+     */
+    categories: () =>
+      request<DataResponse<string[]>>('/equipment/categories', {
+        schema: wrapInData(Type.Array(Type.String())),
+        cacheTtl: 300_000,
+      }),
+
+    /**
+     * Get equipment at a location
+     */
+    getLocationEquipment: (hangoutId: string) =>
+      request<DataResponse<LocationEquipment[]>>(`/locations/${hangoutId}/equipment`, {
+        schema: wrapInData(Type.Array(LocationEquipmentSchema)),
+      }),
+
+    /**
+     * Get verified equipment at a location
+     */
+    getVerifiedLocationEquipment: (hangoutId: string) =>
+      request<DataResponse<string[]>>(`/locations/${hangoutId}/equipment/verified`, {
+        schema: wrapInData(Type.Array(Type.String())),
+      }),
+
+    /**
+     * Report equipment at a location
+     */
+    reportEquipment: (hangoutId: string, types: string[], reportType: 'present' | 'absent') =>
+      request<DataResponse<{ success: boolean; message: string; reportedCount: number }>>(
+        `/locations/${hangoutId}/equipment`,
+        {
+          method: 'POST',
+          body: { types, reportType },
+          schema: wrapInData(
+            Type.Object({
+              success: Type.Boolean(),
+              message: Type.String(),
+              reportedCount: Type.Number(),
+            })
+          ),
+        }
+      ),
+
+    /**
+     * Get user's reports for a location
+     */
+    getMyReports: (hangoutId: string) =>
+      request<DataResponse<{ equipmentTypeId: string; reportType: 'present' | 'absent' }[]>>(
+        `/locations/${hangoutId}/equipment/my-reports`,
+        {
+          schema: wrapInData(
+            Type.Array(
+              Type.Object({
+                equipmentTypeId: Type.String(),
+                reportType: Type.String(),
+              })
+            )
+          ),
+        }
+      ),
+
+    /**
+     * Get user's home equipment
+     */
+    getHomeEquipment: (locationType?: 'home' | 'work' | 'other') =>
+      request<DataResponse<UserHomeEquipment[]>>(
+        `/equipment/home${locationType ? `?locationType=${locationType}` : ''}`,
+        {
+          schema: wrapInData(Type.Array(UserHomeEquipmentSchema)),
+        }
+      ),
+
+    /**
+     * Get user's home equipment IDs
+     */
+    getHomeEquipmentIds: (locationType?: 'home' | 'work' | 'other') =>
+      request<DataResponse<string[]>>(
+        `/equipment/home/ids${locationType ? `?locationType=${locationType}` : ''}`,
+        {
+          schema: wrapInData(Type.Array(Type.String())),
+        }
+      ),
+
+    /**
+     * Set user's home equipment (replaces all)
+     */
+    setHomeEquipment: (equipmentIds: string[], locationType: 'home' | 'work' | 'other' = 'home') =>
+      request<DataResponse<{ success: boolean; message: string; equipmentCount: number }>>('/equipment/home', {
+        method: 'PUT',
+        body: { equipmentIds, locationType },
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+            equipmentCount: Type.Number(),
+          })
+        ),
+      }),
+
+    /**
+     * Add single equipment to home
+     */
+    addHomeEquipment: (equipmentId: string, locationType: 'home' | 'work' | 'other' = 'home', notes?: string) =>
+      request<DataResponse<{ success: boolean; message: string }>>('/equipment/home', {
+        method: 'POST',
+        body: { equipmentId, locationType, notes },
+        schema: wrapInData(
+          Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+          })
+        ),
+      }),
+
+    /**
+     * Remove equipment from home
+     */
+    removeHomeEquipment: (equipmentId: string, locationType: 'home' | 'work' | 'other' = 'home') =>
+      request<{ success: boolean; message: string }>(
+        `/equipment/home/${equipmentId}${locationType !== 'home' ? `?locationType=${locationType}` : ''}`,
+        {
+          method: 'DELETE',
+          schema: Type.Object({
+            success: Type.Boolean(),
+            message: Type.String(),
+          }, { additionalProperties: true }),
+        }
+      ),
   },
 };
 

@@ -283,5 +283,34 @@ export const economyService = {
       [userId, initialBalance]
     );
   },
+
+  /**
+   * Refund credits to a user (wrapper around addCredits with refund action)
+   */
+  async refund(request: {
+    userId: string;
+    action: string;
+    amount?: number;
+    idempotencyKey: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<CreditChargeResult> {
+    // Get the action cost to refund if amount not specified
+    let refundAmount = request.amount;
+    if (refundAmount === undefined) {
+      const action = await queryOne<{ default_cost: number }>(
+        'SELECT default_cost FROM credit_actions WHERE id = $1',
+        [request.action]
+      );
+      refundAmount = action?.default_cost ?? 25; // Default to 25 if action not found
+    }
+
+    return this.addCredits(
+      request.userId,
+      refundAmount,
+      `refund.${request.action}`,
+      { ...request.metadata, originalAction: request.action },
+      request.idempotencyKey
+    );
+  },
 };
 

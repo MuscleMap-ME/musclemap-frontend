@@ -4,7 +4,7 @@
  * Type definitions for wearable device integrations (Apple Watch, Fitbit, etc.)
  */
 
-export type WearableProvider = 'apple_health' | 'fitbit' | 'garmin' | 'google_fit';
+export type WearableProvider = 'apple_health' | 'fitbit' | 'garmin' | 'google_fit' | 'whoop' | 'oura';
 
 export interface WearableConnection {
   id: string;

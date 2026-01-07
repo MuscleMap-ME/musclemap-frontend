@@ -104,106 +104,163 @@ async function calculateTU(exercises: WorkoutExercise[]): Promise<{
 export async function registerWorkoutRoutes(app: FastifyInstance) {
   // Create workout
   app.post('/workouts', { preHandler: authenticate }, async (request, reply) => {
-    const data = createWorkoutSchema.parse(request.body);
+    let data;
+    try {
+      data = createWorkoutSchema.parse(request.body);
+    } catch (error) {
+      log.error({ error }, 'Invalid workout data');
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'Invalid workout data', statusCode: 400 },
+      });
+    }
+
     const userId = request.user!.userId;
 
-    // Check idempotency
-    const existing = await queryOne<{ id: string }>(
-      'SELECT id FROM workouts WHERE id = $1',
-      [data.idempotencyKey]
-    );
+    try {
+      // Check idempotency
+      const existing = await queryOne<{ id: string }>(
+        'SELECT id FROM workouts WHERE id = $1',
+        [data.idempotencyKey]
+      );
 
-    if (existing) {
+      if (existing) {
+        const workout = await queryOne(
+          `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
+                  notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
+           FROM workouts WHERE id = $1`,
+          [existing.id]
+        );
+        return reply.send({ data: workout });
+      }
+
+      // Validate exercises exist
+      const exerciseIds = data.exercises.map((e) => e.exerciseId);
+      const placeholders = exerciseIds.map((_, i) => `$${i + 1}`).join(',');
+      const foundExercises = await queryAll<{ id: string }>(
+        `SELECT id FROM exercises WHERE id IN (${placeholders})`,
+        exerciseIds
+      );
+
+      if (foundExercises.length !== exerciseIds.length) {
+        const foundIds = new Set(foundExercises.map((e) => e.id));
+        const missing = exerciseIds.find((id) => !foundIds.has(id));
+        return reply.status(400).send({
+          error: { code: 'VALIDATION', message: `Exercise not found: ${missing}`, statusCode: 400 },
+        });
+      }
+
+      const { totalTU, muscleActivations } = await calculateTU(data.exercises as WorkoutExercise[]);
+
+      // Charge credits
+      let chargeResult;
+      try {
+        chargeResult = await economyService.charge({
+          userId,
+          action: 'workout.complete',
+          idempotencyKey: `workout-${data.idempotencyKey}`,
+          metadata: { totalTU, exerciseCount: data.exercises.length },
+        });
+      } catch (chargeError) {
+        log.error({ chargeError, userId }, 'Failed to charge credits');
+        return reply.status(500).send({
+          error: { code: 'CHARGE_FAILED', message: 'Failed to process payment. Please try again.', statusCode: 500 },
+        });
+      }
+
+      if (!chargeResult.success) {
+        return reply.status(402).send({
+          error: { code: 'INSUFFICIENT_CREDITS', message: chargeResult.error || 'Failed to charge credits', statusCode: 402 },
+        });
+      }
+
+      const workoutId = data.idempotencyKey.startsWith('workout_') ? data.idempotencyKey : `workout_${crypto.randomBytes(12).toString('hex')}`;
+      const workoutDate = data.date || new Date().toISOString().split('T')[0];
+
+      // Insert workout - if this fails after charging, the idempotency key prevents double-charging on retry
+      try {
+        await query(
+          `INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            workoutId,
+            userId,
+            workoutDate,
+            totalTU,
+            25,
+            data.notes || null,
+            data.isPublic !== false,
+            JSON.stringify(data.exercises),
+            JSON.stringify(muscleActivations),
+          ]
+        );
+      } catch (insertError: any) {
+        // Check if it's a duplicate key error (workout already exists)
+        if (insertError.code === '23505') {
+          log.info({ workoutId, userId }, 'Workout already exists (duplicate insert)');
+        } else {
+          log.error({ insertError, workoutId, userId }, 'Failed to insert workout');
+          // Refund the credits since we couldn't save the workout
+          try {
+            await economyService.refund({
+              userId,
+              action: 'workout.complete',
+              idempotencyKey: `refund-${data.idempotencyKey}`,
+              metadata: { reason: 'workout_insert_failed', originalTU: totalTU },
+            });
+          } catch (refundError) {
+            log.error({ refundError, userId, workoutId }, 'Failed to refund credits after workout insert failure');
+          }
+          return reply.status(500).send({
+            error: { code: 'SAVE_FAILED', message: 'Failed to save workout. Please try again.', statusCode: 500 },
+          });
+        }
+      }
+
+      log.info({ workoutId, userId, totalTU }, 'Workout created');
+
+      // Update character stats - non-critical, log errors but don't fail the request
+      let updatedStats = null;
+      try {
+        updatedStats = await statsService.updateStatsFromWorkout(userId, data.exercises as any);
+      } catch (statsError) {
+        log.error({ statsError, userId, workoutId }, 'Failed to update character stats');
+      }
+
+      // Create daily snapshot - non-critical
+      try {
+        await statsService.createDailySnapshot(userId);
+      } catch (snapshotError) {
+        log.error({ snapshotError, userId }, 'Failed to create daily snapshot');
+      }
+
       const workout = await queryOne(
         `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
                 notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
          FROM workouts WHERE id = $1`,
-        [existing.id]
+        [workoutId]
       );
-      return reply.send({ data: workout });
-    }
 
-    // Validate exercises exist
-    const exerciseIds = data.exercises.map((e) => e.exerciseId);
-    const placeholders = exerciseIds.map((_, i) => `$${i + 1}`).join(',');
-    const foundExercises = await queryAll<{ id: string }>(
-      `SELECT id FROM exercises WHERE id IN (${placeholders})`,
-      exerciseIds
-    );
-
-    if (foundExercises.length !== exerciseIds.length) {
-      const foundIds = new Set(foundExercises.map((e) => e.id));
-      const missing = exerciseIds.find((id) => !foundIds.has(id));
-      return reply.status(400).send({
-        error: { code: 'VALIDATION', message: `Exercise not found: ${missing}`, statusCode: 400 },
+      return reply.status(201).send({
+        data: {
+          ...workout,
+          exerciseData: JSON.parse((workout as any).exercise_data || '[]'),
+          muscleActivations: JSON.parse((workout as any).muscle_activations || '{}'),
+          characterStats: updatedStats ? {
+            strength: Number(updatedStats.strength),
+            constitution: Number(updatedStats.constitution),
+            dexterity: Number(updatedStats.dexterity),
+            power: Number(updatedStats.power),
+            endurance: Number(updatedStats.endurance),
+            vitality: Number(updatedStats.vitality),
+          } : undefined,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Unexpected error during workout creation');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred. Please try again.', statusCode: 500 },
       });
     }
-
-    const { totalTU, muscleActivations } = await calculateTU(data.exercises as WorkoutExercise[]);
-
-    // Charge credits
-    const chargeResult = await economyService.charge({
-      userId,
-      action: 'workout.complete',
-      idempotencyKey: `workout-${data.idempotencyKey}`,
-      metadata: { totalTU, exerciseCount: data.exercises.length },
-    });
-
-    if (!chargeResult.success) {
-      return reply.status(402).send({
-        error: { code: 'INSUFFICIENT_CREDITS', message: chargeResult.error || 'Failed to charge credits', statusCode: 402 },
-      });
-    }
-
-    const workoutId = `workout_${crypto.randomBytes(12).toString('hex')}`;
-    const workoutDate = data.date || new Date().toISOString().split('T')[0];
-
-    await query(
-      `INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        workoutId,
-        userId,
-        workoutDate,
-        totalTU,
-        25,
-        data.notes || null,
-        data.isPublic !== false,
-        JSON.stringify(data.exercises),
-        JSON.stringify(muscleActivations),
-      ]
-    );
-
-    log.info({ workoutId, userId, totalTU }, 'Workout created');
-
-    // Update character stats based on workout
-    const updatedStats = await statsService.updateStatsFromWorkout(userId, data.exercises as any);
-
-    // Create daily snapshot for progress tracking
-    await statsService.createDailySnapshot(userId);
-
-    const workout = await queryOne(
-      `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
-              notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
-       FROM workouts WHERE id = $1`,
-      [workoutId]
-    );
-
-    return reply.status(201).send({
-      data: {
-        ...workout,
-        exerciseData: JSON.parse((workout as any).exercise_data || '[]'),
-        muscleActivations: JSON.parse((workout as any).muscle_activations || '{}'),
-        characterStats: updatedStats ? {
-          strength: Number(updatedStats.strength),
-          constitution: Number(updatedStats.constitution),
-          dexterity: Number(updatedStats.dexterity),
-          power: Number(updatedStats.power),
-          endurance: Number(updatedStats.endurance),
-          vitality: Number(updatedStats.vitality),
-        } : undefined,
-      },
-    });
   });
 
   // Get user's workouts (keyset pagination for scale)
@@ -351,10 +408,5 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         muscleActivations: JSON.parse(w.muscle_activations || '{}'),
       },
     });
-  });
-
-  // Complete workout endpoint (legacy)
-  app.post('/workout/complete', { preHandler: authenticate }, async (request, reply) => {
-    return reply.send({ ok: true });
   });
 }
