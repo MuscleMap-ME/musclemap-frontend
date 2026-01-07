@@ -208,7 +208,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE location_equipment (
         id SERIAL PRIMARY KEY,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
         equipment_type_id TEXT NOT NULL REFERENCES equipment_types(id) ON DELETE CASCADE,
         confirmed_count INT DEFAULT 0,
         denied_count INT DEFAULT 0,
@@ -233,7 +233,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE equipment_reports (
         id SERIAL PRIMARY KEY,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
         equipment_type_id TEXT NOT NULL REFERENCES equipment_types(id) ON DELETE CASCADE,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         report_type TEXT NOT NULL CHECK (report_type IN ('present', 'absent')),
