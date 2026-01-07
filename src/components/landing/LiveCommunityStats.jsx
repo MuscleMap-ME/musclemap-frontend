@@ -17,9 +17,21 @@ export default function LiveCommunityStats() {
   const { stats, activity, milestone, loading, connected, formatStat } = useLiveCommunityStats();
   const [currentActivityIndex, setCurrentActivityIndex] = useState(0);
 
+  // Reset index when activity array changes to prevent out of bounds
+  useEffect(() => {
+    if (!activity || activity.length === 0) {
+      setCurrentActivityIndex(0);
+      return;
+    }
+    // Reset if current index is out of bounds
+    if (currentActivityIndex >= activity.length) {
+      setCurrentActivityIndex(0);
+    }
+  }, [activity, currentActivityIndex]);
+
   // Cycle through activity messages
   useEffect(() => {
-    if (!activity || activity.length === 0) return;
+    if (!activity || activity.length <= 1) return;
 
     const interval = setInterval(() => {
       setCurrentActivityIndex((prev) => (prev + 1) % activity.length);

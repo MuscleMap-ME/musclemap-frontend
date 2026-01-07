@@ -22,6 +22,8 @@ export function useLiveCommunityStats() {
   const wsRef = useRef(null);
   const reconnectAttempts = useRef(0);
   const pollIntervalRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
 
   // Format stat display (handles threshold logic from server)
   const formatStat = useCallback((stat) => {
@@ -54,9 +56,23 @@ export function useLiveCommunityStats() {
     }
   }, []);
 
+  // Start polling as fallback
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) return;
+
+    fetchStats();
+    pollIntervalRef.current = setInterval(fetchStats, POLL_INTERVAL);
+  }, [fetchStats]);
+
   // Connect to WebSocket
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    // Clear any existing heartbeat before creating new connection
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/community/ws/public`;
@@ -107,10 +123,16 @@ export function useLiveCommunityStats() {
         setConnected(false);
         wsRef.current = null;
 
+        // Clear heartbeat on close
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+
         // Attempt reconnect
         if (reconnectAttempts.current < WS_RECONNECT_ATTEMPTS) {
           reconnectAttempts.current++;
-          setTimeout(connectWebSocket, WS_RECONNECT_DELAY);
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, WS_RECONNECT_DELAY);
         } else {
           // Fall back to polling
           startPolling();
@@ -122,27 +144,16 @@ export function useLiveCommunityStats() {
       };
 
       // Heartbeat to keep connection alive
-      const heartbeat = setInterval(() => {
+      heartbeatIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ping' }));
         }
       }, 30000);
-
-      // Store cleanup function
-      ws._heartbeatInterval = heartbeat;
     } catch (err) {
       console.error('Error connecting to WebSocket:', err);
       startPolling();
     }
-  }, []);
-
-  // Start polling as fallback
-  const startPolling = useCallback(() => {
-    if (pollIntervalRef.current) return;
-
-    fetchStats();
-    pollIntervalRef.current = setInterval(fetchStats, POLL_INTERVAL);
-  }, [fetchStats]);
+  }, [startPolling]);
 
   // Initial fetch and WebSocket connection
   useEffect(() => {
@@ -154,10 +165,15 @@ export function useLiveCommunityStats() {
 
     return () => {
       // Cleanup
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
       if (wsRef.current) {
-        if (wsRef.current._heartbeatInterval) {
-          clearInterval(wsRef.current._heartbeatInterval);
-        }
         wsRef.current.close();
         wsRef.current = null;
       }
