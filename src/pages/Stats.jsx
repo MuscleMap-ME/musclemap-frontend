@@ -328,19 +328,19 @@ function Leaderboard({ userLocation }) {
   const loadLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
+      const options = {
         stat: statType,
         scope: scope,
-        limit: '20',
-      });
+        limit: 20,
+      };
 
       if (scope === 'country' && userLocation?.country) {
-        params.append('scopeValue', userLocation.country);
+        options.scopeValue = userLocation.country;
       } else if (scope === 'state' && userLocation?.state) {
-        params.append('scopeValue', userLocation.state);
+        options.scopeValue = userLocation.state;
       }
 
-      const response = await api.get(`/stats/leaderboards?${params}`);
+      const response = await api.characterStats.leaderboard(options);
       setLeaderboard(response.data || []);
     } catch (err) {
       console.error('Failed to load leaderboard:', err);
@@ -461,8 +461,8 @@ export default function Stats() {
     try {
       setError(null);
       const [statsRes, profileRes] = await Promise.all([
-        api.get('/stats/me'),
-        api.get('/stats/profile/extended'),
+        api.characterStats.me(),
+        api.characterStats.extendedProfile(),
       ]);
 
       setStats(statsRes.data.stats);
@@ -482,7 +482,7 @@ export default function Stats() {
   const handleRecalculate = async () => {
     setRecalculating(true);
     try {
-      const response = await api.post('/stats/recalculate');
+      const response = await api.characterStats.recalculate();
       setStats(response.data.stats);
       await loadData();
     } catch (err) {
