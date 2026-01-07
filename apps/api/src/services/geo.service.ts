@@ -15,7 +15,7 @@ import { loggers } from '../lib/logger';
 const log = loggers.core;
 
 // Import geohash utilities (pure JS fallback)
-import { geohash, distance } from '../../../../native';
+import { geohash, distance } from '@musclemap/native';
 
 // Cache settings
 const GEO_CACHE_TTL = 300; // 5 minutes

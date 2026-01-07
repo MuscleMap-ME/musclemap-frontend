@@ -237,7 +237,23 @@ export const db = {
 };
 
 /**
+ * Calculate jittered exponential backoff delay
+ * Base delay starts at 50-100ms and doubles with each retry
+ */
+function calculateBackoffDelay(attempt: number): number {
+  const baseDelay = 50 + Math.random() * 50; // 50-100ms base
+  const exponentialDelay = baseDelay * Math.pow(2, attempt - 1);
+  const jitter = exponentialDelay * 0.1 * Math.random(); // 10% jitter
+  return Math.min(exponentialDelay + jitter, 5000); // Cap at 5 seconds
+}
+
+/**
  * Execute a function within a transaction with automatic retry on serialization failure
+ *
+ * PgBouncer Compatibility:
+ * - Uses a single client for all retry attempts (required for transaction mode)
+ * - Releases the client only after all retries complete or succeed
+ * - Uses jittered exponential backoff to reduce contention
  */
 export async function transaction<T>(
   fn: (client: PoolClient) => Promise<T>,
@@ -246,30 +262,37 @@ export async function transaction<T>(
   const maxRetries = options?.retries ?? 3;
   const isolationLevel = options?.isolationLevel ?? 'READ COMMITTED';
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const client = await getPool().connect();
-    try {
-      await client.query(`BEGIN ISOLATION LEVEL ${isolationLevel}`);
-      const result = await fn(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error: any) {
-      await client.query('ROLLBACK');
+  // Acquire a single client for all retry attempts (PgBouncer transaction mode compatible)
+  const client = await getPool().connect();
 
-      // Retry on serialization failure (code 40001) or deadlock (code 40P01)
-      if ((error.code === '40001' || error.code === '40P01') && attempt < maxRetries) {
-        log.warn(`Transaction retry ${attempt}/${maxRetries} due to ${error.code}`);
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 10));
-        continue;
+  try {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await client.query(`BEGIN ISOLATION LEVEL ${isolationLevel}`);
+        const result = await fn(client);
+        await client.query('COMMIT');
+        return result;
+      } catch (error: any) {
+        await client.query('ROLLBACK').catch(() => {
+          // Ignore rollback errors - connection may be in bad state
+        });
+
+        // Retry on serialization failure (code 40001) or deadlock (code 40P01)
+        const isRetryable = error.code === '40001' || error.code === '40P01';
+        if (isRetryable && attempt < maxRetries) {
+          const delay = calculateBackoffDelay(attempt);
+          log.warn({ attempt, maxRetries, code: error.code, delayMs: delay }, 'Transaction retry');
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        throw error;
       }
-      throw error;
-    } finally {
-      client.release();
     }
-  }
 
-  throw new Error('Transaction failed after max retries');
+    throw new Error('Transaction failed after max retries');
+  } finally {
+    client.release();
+  }
 }
 
 /**

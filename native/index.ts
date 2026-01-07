@@ -12,6 +12,100 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 // ============================================
+// FFI CONFIGURATION
+// ============================================
+
+// Detect platform-specific library extension
+const LIB_EXT = process.platform === 'darwin' ? '.dylib' :
+                process.platform === 'win32' ? '.dll' : '.so';
+
+// Library paths
+const LIB_DIR = join(__dirname, 'lib');
+const GEO_LIB_PATH = join(LIB_DIR, `libgeo${LIB_EXT}`);
+const RATELIMIT_LIB_PATH = join(LIB_DIR, `libratelimit${LIB_EXT}`);
+
+// Track native availability
+let nativeGeoAvailable = false;
+let nativeRatelimitAvailable = false;
+let ffiModule: typeof import('ffi-napi') | null = null;
+let refModule: typeof import('ref-napi') | null = null;
+
+// Native library handles
+let geoLib: any = null;
+let ratelimitLib: any = null;
+
+// ============================================
+// FFI INITIALIZATION
+// ============================================
+
+/**
+ * Try to load FFI modules and native libraries
+ */
+function initializeNativeModules(): void {
+  // Check if USE_NATIVE is explicitly disabled
+  if (process.env.USE_NATIVE === 'false') {
+    console.log('[native] Native modules disabled via USE_NATIVE=false');
+    return;
+  }
+
+  // Try to load ffi-napi and ref-napi
+  try {
+    ffiModule = require('ffi-napi');
+    refModule = require('ref-napi');
+  } catch (err) {
+    console.log('[native] FFI modules not available, using JS fallback');
+    return;
+  }
+
+  // Try to load geohash library
+  if (existsSync(GEO_LIB_PATH)) {
+    try {
+      const ref = refModule;
+      const ffi = ffiModule;
+
+      // Define the C function signatures
+      geoLib = ffi.Library(GEO_LIB_PATH, {
+        geohash_encode: ['int', ['double', 'double', 'int', 'pointer']],
+        geohash_decode: ['int', ['string', 'pointer', 'pointer']],
+        haversine_meters: ['double', ['double', 'double', 'double', 'double']],
+        is_within_radius: ['int', ['double', 'double', 'double', 'double', 'double']],
+        bounding_box: ['int', ['double', 'double', 'double', 'pointer', 'pointer', 'pointer', 'pointer']],
+        optimal_precision: ['int', ['double']],
+      });
+
+      nativeGeoAvailable = true;
+      console.log('[native] Loaded libgeo native module');
+    } catch (err) {
+      console.log('[native] Failed to load libgeo:', (err as Error).message);
+    }
+  }
+
+  // Try to load rate limiter library
+  if (existsSync(RATELIMIT_LIB_PATH)) {
+    try {
+      const ffi = ffiModule;
+
+      ratelimitLib = ffi.Library(RATELIMIT_LIB_PATH, {
+        ratelimiter_create: ['pointer', ['int', 'int']],
+        ratelimiter_destroy: ['void', ['pointer']],
+        ratelimiter_check: ['int', ['pointer', 'string', 'int']],
+        ratelimiter_remaining: ['int', ['pointer', 'string']],
+        ratelimiter_reset: ['void', ['pointer', 'string']],
+        ratelimiter_clear: ['void', ['pointer']],
+      });
+
+      nativeRatelimitAvailable = true;
+      console.log('[native] Loaded libratelimit native module');
+    } catch (err) {
+      console.log('[native] Failed to load libratelimit:', (err as Error).message);
+    }
+  }
+}
+
+// Initialize on module load
+initializeNativeModules();
+
+// ============================================
 // GEOHASH MODULE
 // ============================================
 
@@ -64,6 +158,28 @@ function jsGeohashEncode(lat: number, lng: number, precision: number = 9): strin
 }
 
 /**
+ * Native geohash encoder using FFI
+ */
+function nativeGeohashEncode(lat: number, lng: number, precision: number = 9): string {
+  if (!geoLib || !refModule) {
+    return jsGeohashEncode(lat, lng, precision);
+  }
+
+  const ref = refModule;
+  const buffer = Buffer.alloc(13);
+  const result = geoLib.geohash_encode(lat, lng, precision, buffer);
+
+  if (result < 0) {
+    throw new Error('Invalid coordinates');
+  }
+
+  // Find null terminator
+  let end = 0;
+  while (end < 13 && buffer[end] !== 0) end++;
+  return buffer.slice(0, end).toString('ascii');
+}
+
+/**
  * Pure TypeScript geohash decoder
  */
 function jsGeohashDecode(hash: string): { lat: number; lng: number } {
@@ -102,6 +218,30 @@ function jsGeohashDecode(hash: string): { lat: number; lng: number } {
 }
 
 /**
+ * Native geohash decoder using FFI
+ */
+function nativeGeohashDecode(hash: string): { lat: number; lng: number } {
+  if (!geoLib || !refModule) {
+    return jsGeohashDecode(hash);
+  }
+
+  const ref = refModule;
+  const latPtr = ref.alloc('double');
+  const lngPtr = ref.alloc('double');
+
+  const result = geoLib.geohash_decode(hash, latPtr, lngPtr);
+
+  if (result < 0) {
+    throw new Error('Invalid geohash');
+  }
+
+  return {
+    lat: ref.deref(latPtr) as number,
+    lng: ref.deref(lngPtr) as number,
+  };
+}
+
+/**
  * Pure TypeScript haversine distance calculation
  */
 function jsHaversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -119,6 +259,16 @@ function jsHaversineMeters(lat1: number, lng1: number, lat2: number, lng2: numbe
   const a = sinDphi * sinDphi + Math.cos(phi1) * Math.cos(phi2) * sinDlam * sinDlam;
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Native haversine using FFI
+ */
+function nativeHaversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  if (!geoLib) {
+    return jsHaversineMeters(lat1, lng1, lat2, lng2);
+  }
+  return geoLib.haversine_meters(lat1, lng1, lat2, lng2);
 }
 
 /**
@@ -230,19 +380,74 @@ class JSRateLimiter {
   }
 }
 
+/**
+ * Native rate limiter using FFI
+ */
+class NativeRateLimiter {
+  private handle: any;
+  private readonly limit: number;
+  private readonly windowSeconds: number;
+
+  constructor(limit: number, windowSeconds: number = 60) {
+    this.limit = limit;
+    this.windowSeconds = windowSeconds;
+
+    if (ratelimitLib) {
+      this.handle = ratelimitLib.ratelimiter_create(limit, windowSeconds);
+    }
+  }
+
+  check(userId: string, count: number = 1): boolean {
+    if (!this.handle || !ratelimitLib) {
+      return true; // Fail open if native not available
+    }
+    return ratelimitLib.ratelimiter_check(this.handle, userId, count) !== 0;
+  }
+
+  remaining(userId: string): number {
+    if (!this.handle || !ratelimitLib) {
+      return this.limit;
+    }
+    return ratelimitLib.ratelimiter_remaining(this.handle, userId);
+  }
+
+  reset(userId: string): void {
+    if (this.handle && ratelimitLib) {
+      ratelimitLib.ratelimiter_reset(this.handle, userId);
+    }
+  }
+
+  clear(): void {
+    if (this.handle && ratelimitLib) {
+      ratelimitLib.ratelimiter_clear(this.handle);
+    }
+  }
+
+  destroy(): void {
+    if (this.handle && ratelimitLib) {
+      ratelimitLib.ratelimiter_destroy(this.handle);
+      this.handle = null;
+    }
+  }
+}
+
 // ============================================
 // EXPORTS
 // ============================================
 
+// Choose native or JS implementation based on availability
 export const geohash = {
-  encode: jsGeohashEncode,
-  decode: jsGeohashDecode,
-  neighbors: jsGeohashNeighbors,
+  encode: nativeGeoAvailable ? nativeGeohashEncode : jsGeohashEncode,
+  decode: nativeGeoAvailable ? nativeGeohashDecode : jsGeohashDecode,
+  neighbors: jsGeohashNeighbors, // Use JS for neighbors (complex string handling)
 };
 
 export const distance = {
-  haversine: jsHaversineMeters,
+  haversine: nativeGeoAvailable ? nativeHaversineMeters : jsHaversineMeters,
   isWithinRadius: (lat1: number, lng1: number, lat2: number, lng2: number, radiusMeters: number): boolean => {
+    if (nativeGeoAvailable && geoLib) {
+      return geoLib.is_within_radius(lat1, lng1, lat2, lng2, radiusMeters) !== 0;
+    }
     return jsHaversineMeters(lat1, lng1, lat2, lng2) <= radiusMeters;
   },
   boundingBox: (
@@ -250,6 +455,24 @@ export const distance = {
     lng: number,
     radiusMeters: number
   ): { minLat: number; maxLat: number; minLng: number; maxLng: number } => {
+    if (nativeGeoAvailable && geoLib && refModule) {
+      const ref = refModule;
+      const minLatPtr = ref.alloc('double');
+      const maxLatPtr = ref.alloc('double');
+      const minLngPtr = ref.alloc('double');
+      const maxLngPtr = ref.alloc('double');
+
+      geoLib.bounding_box(lat, lng, radiusMeters, minLatPtr, maxLatPtr, minLngPtr, maxLngPtr);
+
+      return {
+        minLat: ref.deref(minLatPtr) as number,
+        maxLat: ref.deref(maxLatPtr) as number,
+        minLng: ref.deref(minLngPtr) as number,
+        maxLng: ref.deref(maxLngPtr) as number,
+      };
+    }
+
+    // JS fallback
     const R = 6371000;
     const DEG2RAD = Math.PI / 180;
     const RAD2DEG = 180 / Math.PI;
@@ -266,17 +489,36 @@ export const distance = {
   },
 };
 
-export function createRateLimiter(limit: number, windowSeconds: number = 60): JSRateLimiter {
+/**
+ * Create a rate limiter
+ * Returns native implementation if available, JS otherwise
+ */
+export function createRateLimiter(limit: number, windowSeconds: number = 60): JSRateLimiter | NativeRateLimiter {
+  if (nativeRatelimitAvailable) {
+    return new NativeRateLimiter(limit, windowSeconds);
+  }
   return new JSRateLimiter(limit, windowSeconds);
 }
 
-// Check if native modules are available
-let nativeAvailable = false;
-const libDir = join(__dirname, 'lib');
-if (existsSync(libDir)) {
-  // Could add FFI bindings here for native performance
-  // For now, we use pure TypeScript
-  nativeAvailable = false;
-}
+// Re-export JS implementation for direct use
+export { JSRateLimiter };
 
-export const isNative = nativeAvailable;
+// Check native module availability
+export const isNative = nativeGeoAvailable || nativeRatelimitAvailable;
+export const isNativeGeo = nativeGeoAvailable;
+export const isNativeRatelimit = nativeRatelimitAvailable;
+
+/**
+ * Get native module status
+ */
+export function getNativeStatus(): {
+  geo: boolean;
+  ratelimit: boolean;
+  ffi: boolean;
+} {
+  return {
+    geo: nativeGeoAvailable,
+    ratelimit: nativeRatelimitAvailable,
+    ffi: ffiModule !== null,
+  };
+}

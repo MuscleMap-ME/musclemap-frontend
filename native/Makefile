@@ -31,10 +31,12 @@ LIB_DIR := lib
 # Source files
 GEO_SRC := $(SRC_DIR)/geo/geohash.c
 RATELIMIT_SRC := $(SRC_DIR)/ratelimit/limiter.c
+TU_SRC := $(SRC_DIR)/workout/tu_calculator.c
 
 # Output libraries
 GEO_LIB := $(LIB_DIR)/libgeo$(LIB_EXT)
 RATELIMIT_LIB := $(LIB_DIR)/libratelimit$(LIB_EXT)
+TU_LIB := $(LIB_DIR)/libtu$(LIB_EXT)
 
 # Debug flags
 DEBUG_CFLAGS := -g -O0 -DDEBUG -fsanitize=address,undefined
@@ -67,6 +69,7 @@ help:
 	@echo "Libraries:"
 	@echo "  libgeo$(LIB_EXT)        - Geohash encoding/decoding"
 	@echo "  libratelimit$(LIB_EXT)  - Rate limiting"
+	@echo "  libtu$(LIB_EXT)         - Training Unit calculator"
 
 # Create directories
 $(BUILD_DIR) $(LIB_DIR):
@@ -74,12 +77,12 @@ $(BUILD_DIR) $(LIB_DIR):
 
 # Release build
 release: CFLAGS += $(RELEASE_CFLAGS)
-release: $(LIB_DIR) $(GEO_LIB) $(RATELIMIT_LIB)
+release: $(LIB_DIR) $(GEO_LIB) $(RATELIMIT_LIB) $(TU_LIB)
 	@echo "Release build complete"
 
 # Debug build
 debug: CFLAGS += $(DEBUG_CFLAGS)
-debug: $(LIB_DIR) $(GEO_LIB) $(RATELIMIT_LIB)
+debug: $(LIB_DIR) $(GEO_LIB) $(RATELIMIT_LIB) $(TU_LIB)
 	@echo "Debug build complete"
 
 # Geo library
@@ -91,6 +94,12 @@ $(GEO_LIB): $(GEO_SRC)
 # Rate limiter library
 $(RATELIMIT_LIB): $(RATELIMIT_SRC)
 	@echo "Building libratelimit..."
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
+	@echo "Built: $@"
+
+# TU calculator library
+$(TU_LIB): $(TU_SRC)
+	@echo "Building libtu..."
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 	@echo "Built: $@"
 

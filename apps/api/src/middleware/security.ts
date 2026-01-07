@@ -12,7 +12,7 @@ import { FastifyRequest, FastifyReply, FastifyInstance } from 'fastify';
 import crypto from 'crypto';
 import { getRedis, isRedisAvailable } from '../lib/redis';
 import { loggers } from '../lib/logger';
-import { createRateLimiter } from '../../../../native';
+import { createRateLimiter } from '@musclemap/native';
 
 const log = loggers.core;
 

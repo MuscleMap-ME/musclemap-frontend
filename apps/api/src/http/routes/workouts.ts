@@ -206,18 +206,48 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
     });
   });
 
-  // Get user's workouts
+  // Get user's workouts (keyset pagination for scale)
   app.get('/workouts/me', { preHandler: authenticate }, async (request, reply) => {
-    const query_params = request.query as { limit?: string; offset?: string };
+    const query_params = request.query as { limit?: string; cursor?: string };
     const limit = Math.min(parseInt(query_params.limit || '50'), 100);
-    const offset = parseInt(query_params.offset || '0');
 
-    const workouts = await queryAll(
-      `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
-              notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
-       FROM workouts WHERE user_id = $1 ORDER BY date DESC, created_at DESC LIMIT $2 OFFSET $3`,
-      [request.user!.userId, limit, offset]
-    );
+    // Parse cursor (format: "date:id" or empty for first page)
+    let cursorDate: string | null = null;
+    let cursorId: string | null = null;
+    if (query_params.cursor) {
+      const [date, id] = query_params.cursor.split(':');
+      cursorDate = date;
+      cursorId = id;
+    }
+
+    // Use keyset pagination: WHERE (date, id) < (cursor_date, cursor_id)
+    // This is much faster than OFFSET at scale
+    let sql: string;
+    let params: unknown[];
+
+    if (cursorDate && cursorId) {
+      sql = `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
+                    notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
+             FROM workouts
+             WHERE user_id = $1 AND (date, id) < ($2, $3)
+             ORDER BY date DESC, id DESC
+             LIMIT $4`;
+      params = [request.user!.userId, cursorDate, cursorId, limit];
+    } else {
+      sql = `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
+                    notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
+             FROM workouts
+             WHERE user_id = $1
+             ORDER BY date DESC, id DESC
+             LIMIT $2`;
+      params = [request.user!.userId, limit];
+    }
+
+    const workouts = await queryAll(sql, params);
+
+    // Generate next cursor from last item
+    const lastWorkout = workouts[workouts.length - 1] as any;
+    const nextCursor = lastWorkout ? `${lastWorkout.date}:${lastWorkout.id}` : null;
 
     return reply.send({
       data: workouts.map((w: any) => ({
@@ -226,7 +256,12 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         exerciseData: JSON.parse(w.exercise_data || '[]'),
         muscleActivations: JSON.parse(w.muscle_activations || '{}'),
       })),
-      meta: { limit, offset },
+      meta: {
+        limit,
+        cursor: query_params.cursor || null,
+        nextCursor,
+        hasMore: workouts.length === limit,
+      },
     });
   });
 

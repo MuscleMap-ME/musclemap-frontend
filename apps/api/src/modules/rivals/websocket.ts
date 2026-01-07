@@ -1,21 +1,137 @@
 /**
  * Rivals WebSocket
  *
- * Real-time updates for active rivalries.
+ * Real-time updates for active rivalries with Redis pub/sub
+ * for cross-node messaging in PM2 cluster mode.
  */
 import type { FastifyInstance } from 'fastify';
 import type { WebSocket } from 'ws';
-import { verifyToken } from '../../auth';
+import { verifyToken } from '../../http/routes/auth';
 import { rivalsService } from './service';
+import { getSubscriber, getPublisher, isRedisAvailable } from '../../lib/redis';
+import { loggers } from '../../lib/logger';
 import type { RivalEvent, RivalWorkoutEvent, RivalMilestoneEvent } from './types';
 
-// Store connections by user ID
+const log = loggers.core;
+
+// ============================================
+// LOCAL STATE (per-instance)
+// ============================================
+
+// Store connections by user ID (local to this instance)
 const userConnections = new Map<string, Set<WebSocket>>();
 
 // Store connection to user mapping for cleanup
 const connectionToUser = new WeakMap<WebSocket, string>();
 
+// Redis pub/sub channels
+const RIVAL_EVENTS_CHANNEL = 'rivals:events';
+const RIVAL_USER_CHANNEL_PREFIX = 'rivals:user:';
+
+// Track if Redis subscription is set up
+let redisSubscribed = false;
+
+// ============================================
+// REDIS PUB/SUB FOR CROSS-NODE MESSAGING
+// ============================================
+
+interface CrossNodeMessage {
+  type: 'broadcast' | 'user';
+  targetUserId?: string;
+  event: RivalEvent;
+}
+
+/**
+ * Set up Redis subscription for cross-node messaging
+ */
+async function setupRedisSubscription(): Promise<void> {
+  if (redisSubscribed || !isRedisAvailable()) return;
+
+  try {
+    const subscriber = getSubscriber();
+    if (!subscriber) return;
+
+    // Subscribe to the main channel
+    await subscriber.subscribe(RIVAL_EVENTS_CHANNEL);
+
+    // Handle messages from other nodes
+    subscriber.on('message', (channel: string, message: string) => {
+      try {
+        if (channel === RIVAL_EVENTS_CHANNEL) {
+          const data: CrossNodeMessage = JSON.parse(message);
+          handleCrossNodeMessage(data);
+        }
+      } catch (err) {
+        log.error({ err, channel, message }, 'Failed to process cross-node message');
+      }
+    });
+
+    redisSubscribed = true;
+    log.info('Redis pub/sub initialized for rivals WebSocket');
+  } catch (err) {
+    log.error({ err }, 'Failed to set up Redis subscription');
+  }
+}
+
+/**
+ * Handle a message from another node
+ */
+function handleCrossNodeMessage(data: CrossNodeMessage): void {
+  if (data.type === 'user' && data.targetUserId) {
+    // Deliver to local connections for this user
+    deliverToLocalConnections(data.targetUserId, data.event);
+  } else if (data.type === 'broadcast') {
+    // Broadcast to all local connections
+    for (const [userId] of userConnections) {
+      deliverToLocalConnections(userId, data.event);
+    }
+  }
+}
+
+/**
+ * Deliver an event to connections on THIS node only
+ */
+function deliverToLocalConnections(userId: string, event: RivalEvent): void {
+  const connections = userConnections.get(userId);
+  if (!connections || connections.size === 0) return;
+
+  const message = JSON.stringify({ type: 'event', event });
+  let delivered = 0;
+
+  for (const socket of connections) {
+    if (socket.readyState === socket.OPEN) {
+      socket.send(message);
+      delivered++;
+    }
+  }
+
+  log.debug({ userId, eventType: event.type, delivered }, 'Event delivered to local connections');
+}
+
+/**
+ * Publish an event to Redis for cross-node delivery
+ */
+async function publishToRedis(message: CrossNodeMessage): Promise<void> {
+  if (!isRedisAvailable()) return;
+
+  try {
+    const publisher = getPublisher();
+    if (!publisher) return;
+
+    await publisher.publish(RIVAL_EVENTS_CHANNEL, JSON.stringify(message));
+  } catch (err) {
+    log.error({ err, message }, 'Failed to publish to Redis');
+  }
+}
+
+// ============================================
+// WEBSOCKET REGISTRATION
+// ============================================
+
 export function registerRivalsWebSocket(fastify: FastifyInstance): void {
+  // Initialize Redis pub/sub
+  setupRedisSubscription();
+
   fastify.get('/ws/rivals', { websocket: true }, (socket, req) => {
     let userId: string | null = null;
 
@@ -44,6 +160,8 @@ export function registerRivalsWebSocket(fastify: FastifyInstance): void {
     userConnections.get(userId)!.add(socket);
     connectionToUser.set(socket, userId);
 
+    log.debug({ userId, connectionCount: userConnections.get(userId)!.size }, 'WebSocket connected');
+
     // Send initial data
     sendInitialData(socket, userId);
 
@@ -69,6 +187,7 @@ export function registerRivalsWebSocket(fastify: FastifyInstance): void {
             userConnections.delete(userId);
           }
         }
+        log.debug({ userId, remainingConnections: userConnections.get(userId)?.size ?? 0 }, 'WebSocket disconnected');
       }
     });
 
@@ -132,19 +251,23 @@ async function handleMessage(
   }
 }
 
+// ============================================
+// EVENT DELIVERY FUNCTIONS
+// ============================================
+
 /**
- * Send event to a specific user
+ * Send event to a specific user (cross-node aware)
  */
 export function sendToUser(userId: string, event: RivalEvent): void {
-  const connections = userConnections.get(userId);
-  if (!connections) return;
+  // First, deliver to local connections
+  deliverToLocalConnections(userId, event);
 
-  const message = JSON.stringify({ type: 'event', event });
-  for (const socket of connections) {
-    if (socket.readyState === socket.OPEN) {
-      socket.send(message);
-    }
-  }
+  // Then publish to Redis for other nodes
+  publishToRedis({
+    type: 'user',
+    targetUserId: userId,
+    event,
+  });
 }
 
 /**
@@ -258,10 +381,14 @@ export function broadcastRivalryStatusChange(
   sendToUser(challengedId, event);
 }
 
+// ============================================
+// STATS AND UTILITIES
+// ============================================
+
 /**
- * Get connection stats
+ * Get connection stats (local instance only)
  */
-export function getConnectionStats(): { users: number; connections: number } {
+export function getConnectionStats(): { users: number; connections: number; instanceId: string } {
   let connections = 0;
   for (const sockets of userConnections.values()) {
     connections += sockets.size;
@@ -269,5 +396,27 @@ export function getConnectionStats(): { users: number; connections: number } {
   return {
     users: userConnections.size,
     connections,
+    instanceId: process.env.pm_id || process.pid.toString(),
   };
+}
+
+/**
+ * Check if a user has active connections on this node
+ */
+export function hasLocalConnection(userId: string): boolean {
+  const connections = userConnections.get(userId);
+  return !!connections && connections.size > 0;
+}
+
+/**
+ * Force disconnect a user from this node
+ */
+export function disconnectUser(userId: string, reason: string = 'Forced disconnect'): void {
+  const connections = userConnections.get(userId);
+  if (connections) {
+    for (const socket of connections) {
+      socket.close(4000, reason);
+    }
+    userConnections.delete(userId);
+  }
 }

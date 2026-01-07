@@ -77,9 +77,40 @@ async function getPresenceByGeoBucket(): Promise<Array<{ geoBucket: string; coun
 export async function registerCommunityRoutes(app: FastifyInstance) {
   // Get community feed
   app.get('/community/feed', { preHandler: optionalAuth }, async (request, reply) => {
-    const params = request.query as { limit?: string; offset?: string };
+    const params = request.query as { limit?: string; cursor?: string };
     const limit = Math.min(parseInt(params.limit || '50'), 100);
-    const offset = parseInt(params.offset || '0');
+
+    // Parse cursor (format: "timestamp:id" or empty for first page)
+    let cursorTime: string | null = null;
+    let cursorId: string | null = null;
+    if (params.cursor) {
+      const [time, id] = params.cursor.split(':');
+      cursorTime = time;
+      cursorId = id;
+    }
+
+    // Use keyset pagination for scale
+    let sql: string;
+    let queryParams: unknown[];
+
+    if (cursorTime && cursorId) {
+      sql = `SELECT ae.*, u.username, u.display_name, u.avatar_url
+             FROM activity_events ae
+             LEFT JOIN users u ON ae.user_id = u.id
+             WHERE ae.visibility_scope IN ('public_anon', 'public_profile')
+               AND (ae.created_at, ae.id) < ($1::timestamptz, $2)
+             ORDER BY ae.created_at DESC, ae.id DESC
+             LIMIT $3`;
+      queryParams = [cursorTime, cursorId, limit];
+    } else {
+      sql = `SELECT ae.*, u.username, u.display_name, u.avatar_url
+             FROM activity_events ae
+             LEFT JOIN users u ON ae.user_id = u.id
+             WHERE ae.visibility_scope IN ('public_anon', 'public_profile')
+             ORDER BY ae.created_at DESC, ae.id DESC
+             LIMIT $1`;
+      queryParams = [limit];
+    }
 
     const events = await queryAll<{
       id: string;
@@ -89,15 +120,13 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
       visibility_scope: string;
       geo_bucket: string;
       created_at: Date;
-    }>(
-      `SELECT ae.*, u.username, u.display_name, u.avatar_url
-       FROM activity_events ae
-       LEFT JOIN users u ON ae.user_id = u.id
-       WHERE ae.visibility_scope IN ('public_anon', 'public_profile')
-       ORDER BY ae.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+    }>(sql, queryParams);
+
+    // Generate next cursor from last item
+    const lastEvent = events[events.length - 1];
+    const nextCursor = lastEvent
+      ? `${new Date(lastEvent.created_at).toISOString()}:${lastEvent.id}`
+      : null;
 
     return reply.send({
       data: events.map((e: any) => ({
@@ -116,7 +145,12 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
             }
           : null,
       })),
-      meta: { limit, offset },
+      meta: {
+        limit,
+        cursor: params.cursor || null,
+        nextCursor,
+        hasMore: events.length === limit,
+      },
     });
   });
 

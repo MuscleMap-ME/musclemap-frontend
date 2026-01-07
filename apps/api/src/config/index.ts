@@ -38,6 +38,11 @@ const envSchema = z.object({
   // Redis configuration
   REDIS_URL: z.string().default('redis://localhost:6379'),
   REDIS_ENABLED: z.coerce.boolean().default(false),
+  // Redis Cluster configuration
+  REDIS_CLUSTER_ENABLED: z.coerce.boolean().default(false),
+  REDIS_CLUSTER_NODES: z.string().optional(), // Comma-separated list: "host1:port1,host2:port2"
+  // Native modules configuration
+  USE_NATIVE: z.coerce.boolean().default(true),
 });
 
 type EnvConfig = z.infer<typeof envSchema>;
@@ -82,6 +87,9 @@ function loadConfig(): EnvConfig {
       FRONTEND_URL: 'http://localhost:5173',
       REDIS_URL: 'redis://localhost:6379',
       REDIS_ENABLED: false,
+      REDIS_CLUSTER_ENABLED: false,
+      REDIS_CLUSTER_NODES: undefined,
+      USE_NATIVE: true,
     };
   }
   
