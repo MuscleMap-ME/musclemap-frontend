@@ -49,6 +49,36 @@ export default function Landing() {
         </div>
       </header>
 
+      {/* Development Notice Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10"
+      >
+        <div className="mx-auto max-w-5xl px-4 py-3">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 text-center">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🚧</span>
+              <span className="text-amber-300 font-semibold text-sm">Active Development</span>
+            </div>
+            <p className="text-gray-300 text-sm">
+              MuscleMap is under heavy development with features added daily.
+              <span className="text-amber-200"> Use as-is</span> — it's experimental but functional!
+            </p>
+            <RouterLink
+              to="/roadmap"
+              className="inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors whitespace-nowrap"
+            >
+              View Roadmap
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </RouterLink>
+          </div>
+        </div>
+      </motion.div>
+
       <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:py-24">
         {/* CTA Button at top */}
         <motion.div
