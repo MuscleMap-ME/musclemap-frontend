@@ -75,17 +75,17 @@ const Icons = {
 
 // Goal type metadata
 const GOAL_TYPE_META = {
-  weight_loss: { label: 'Weight Loss', icon: Scale, color: '#22c55e', description: 'Shed pounds' },
-  weight_gain: { label: 'Weight Gain', icon: Scale, color: '#3b82f6', description: 'Gain healthy weight' },
-  muscle_gain: { label: 'Muscle Gain', icon: Muscle, color: '#8b5cf6', description: 'Build muscle mass' },
-  strength: { label: 'Strength', icon: Fire, color: '#ef4444', description: 'Get stronger' },
-  endurance: { label: 'Endurance', icon: Fire, color: '#f59e0b', description: 'Build stamina' },
-  flexibility: { label: 'Flexibility', icon: Target, color: '#06b6d4', description: 'Improve mobility' },
-  general_fitness: { label: 'General Fitness', icon: Target, color: '#10b981', description: 'Overall health' },
-  body_recomposition: { label: 'Body Recomp', icon: Muscle, color: '#ec4899', description: 'Lose fat, gain muscle' },
-  athletic_performance: { label: 'Performance', icon: Trophy, color: '#f97316', description: 'Athletic goals' },
-  rehabilitation: { label: 'Rehabilitation', icon: Target, color: '#14b8a6', description: 'Recovery' },
-  maintenance: { label: 'Maintenance', icon: Check, color: '#6366f1', description: 'Stay consistent' },
+  weight_loss: { label: 'Weight Loss', icon: Icons.Scale, color: '#22c55e', description: 'Shed pounds' },
+  weight_gain: { label: 'Weight Gain', icon: Icons.Scale, color: '#3b82f6', description: 'Gain healthy weight' },
+  muscle_gain: { label: 'Muscle Gain', icon: Icons.Muscle, color: '#8b5cf6', description: 'Build muscle mass' },
+  strength: { label: 'Strength', icon: Icons.Fire, color: '#ef4444', description: 'Get stronger' },
+  endurance: { label: 'Endurance', icon: Icons.Fire, color: '#f59e0b', description: 'Build stamina' },
+  flexibility: { label: 'Flexibility', icon: Icons.Target, color: '#06b6d4', description: 'Improve mobility' },
+  general_fitness: { label: 'General Fitness', icon: Icons.Target, color: '#10b981', description: 'Overall health' },
+  body_recomposition: { label: 'Body Recomp', icon: Icons.Muscle, color: '#ec4899', description: 'Lose fat, gain muscle' },
+  athletic_performance: { label: 'Performance', icon: Icons.Trophy, color: '#f97316', description: 'Athletic goals' },
+  rehabilitation: { label: 'Rehabilitation', icon: Icons.Target, color: '#14b8a6', description: 'Recovery' },
+  maintenance: { label: 'Maintenance', icon: Icons.Check, color: '#6366f1', description: 'Stay consistent' },
 };
 
 // Goal Card Component
