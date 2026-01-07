@@ -50,6 +50,12 @@ import { registerLeaderboardRoutes } from './routes/leaderboards';
 import { registerAchievementRoutes } from './routes/achievements';
 import { registerCohortPreferencesRoutes } from './routes/cohort-preferences';
 import { registerCheckInRoutes } from './routes/checkins';
+import socialRoutes from './routes/social';
+import mentorshipRoutes from './routes/mentorship';
+import communityAnalyticsRoutes from './routes/community-analytics';
+import communityResourcesRoutes from './routes/community-resources';
+import contentReportsRoutes from './routes/content-reports';
+import archetypeCommunitiesRoutes from './routes/archetype-communities';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -288,6 +294,14 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerAchievementRoutes(api);
     await registerCohortPreferencesRoutes(api);
     await registerCheckInRoutes(api);
+
+    // New social features
+    await api.register(socialRoutes);
+    await api.register(mentorshipRoutes);
+    await api.register(communityAnalyticsRoutes);
+    await api.register(communityResourcesRoutes);
+    await api.register(contentReportsRoutes);
+    await api.register(archetypeCommunitiesRoutes);
   }, { prefix: '/api' });
 
   return app;

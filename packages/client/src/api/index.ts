@@ -3204,6 +3204,353 @@ export const apiClient = {
    */
   delete: <T = unknown>(path: string) =>
     request<T>(path, { method: 'DELETE' }),
+
+  // =====================
+  // Social Graph
+  // =====================
+  social: {
+    // Follows
+    follow: (userId: string) =>
+      request<{ success: boolean }>(`/users/${userId}/follow`, { method: 'POST' }),
+    unfollow: (userId: string) =>
+      request<{ success: boolean }>(`/users/${userId}/follow`, { method: 'DELETE' }),
+    getFollowers: (userId: string, limit = 50, offset = 0) =>
+      request<{ success: boolean; data: { followers: unknown[]; total: number } }>(
+        `/users/${userId}/followers?limit=${limit}&offset=${offset}`
+      ),
+    getFollowing: (userId: string, limit = 50, offset = 0) =>
+      request<{ success: boolean; data: { following: unknown[]; total: number } }>(
+        `/users/${userId}/following?limit=${limit}&offset=${offset}`
+      ),
+    isFollowing: (userId: string) =>
+      request<{ success: boolean; data: { isFollowing: boolean } }>(`/users/${userId}/is-following`),
+
+    // Friends
+    sendFriendRequest: (userId: string, context?: { hangoutId?: number; communityId?: number }) =>
+      request<{ success: boolean; data: unknown }>(`/users/${userId}/friend-request`, {
+        method: 'POST',
+        body: context,
+      }),
+    acceptFriendRequest: (friendshipId: string) =>
+      request<{ success: boolean }>(`/friend-requests/${friendshipId}/accept`, { method: 'POST' }),
+    declineFriendRequest: (friendshipId: string) =>
+      request<{ success: boolean }>(`/friend-requests/${friendshipId}/decline`, { method: 'POST' }),
+    getPendingFriendRequests: () =>
+      request<{ success: boolean; data: unknown[] }>('/friend-requests'),
+    getFriends: (limit = 50, offset = 0) =>
+      request<{ success: boolean; data: { friends: unknown[]; total: number } }>(
+        `/friends?limit=${limit}&offset=${offset}`
+      ),
+    removeFriend: (friendId: string) =>
+      request<{ success: boolean }>(`/friends/${friendId}`, { method: 'DELETE' }),
+    blockUser: (userId: string) =>
+      request<{ success: boolean }>(`/users/${userId}/block`, { method: 'POST' }),
+
+    // Buddy
+    getBuddyPreferences: () =>
+      request<{ success: boolean; data: unknown }>('/buddy/preferences'),
+    updateBuddyPreferences: (prefs: Record<string, unknown>) =>
+      request<{ success: boolean; data: unknown }>('/buddy/preferences', { method: 'PUT', body: prefs }),
+    findBuddyMatches: (limit = 20) =>
+      request<{ success: boolean; data: unknown[] }>(`/buddy/matches?limit=${limit}`),
+    sendBuddyRequest: (userId: string, message?: string) =>
+      request<{ success: boolean; data: unknown }>(`/users/${userId}/buddy-request`, {
+        method: 'POST',
+        body: message ? { message } : undefined,
+      }),
+    getPendingBuddyRequests: () =>
+      request<{ success: boolean; data: unknown[] }>('/buddy/requests'),
+    acceptBuddyRequest: (requestId: string) =>
+      request<{ success: boolean; data: unknown }>(`/buddy/requests/${requestId}/accept`, { method: 'POST' }),
+    declineBuddyRequest: (requestId: string) =>
+      request<{ success: boolean }>(`/buddy/requests/${requestId}/decline`, { method: 'POST' }),
+    getBuddyPairs: () =>
+      request<{ success: boolean; data: unknown[] }>('/buddy/pairs'),
+  },
+
+  // =====================
+  // Mentorship
+  // =====================
+  mentorship: {
+    // Mentor search
+    searchMentors: (options?: {
+      specialties?: string[];
+      minRating?: number;
+      isPro?: boolean;
+      maxHourlyRate?: number;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.specialties) params.set('specialties', options.specialties.join(','));
+      if (options?.minRating) params.set('minRating', String(options.minRating));
+      if (options?.isPro !== undefined) params.set('isPro', String(options.isPro));
+      if (options?.maxHourlyRate) params.set('maxHourlyRate', String(options.maxHourlyRate));
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<{ success: boolean; data: { mentors: unknown[]; total: number } }>(
+        `/mentors${query ? `?${query}` : ''}`
+      );
+    },
+    getMentor: (userId: string) =>
+      request<{ success: boolean; data: unknown }>(`/mentors/${userId}`),
+    updateMentorProfile: (profile: Record<string, unknown>) =>
+      request<{ success: boolean; data: unknown }>('/mentor/profile', { method: 'PUT', body: profile }),
+
+    // Mentorships
+    requestMentorship: (mentorId: string, options?: { focusAreas?: string[]; goals?: string }) =>
+      request<{ success: boolean; data: unknown }>(`/mentors/${mentorId}/request`, {
+        method: 'POST',
+        body: options,
+      }),
+    getPendingRequests: () =>
+      request<{ success: boolean; data: unknown[] }>('/mentorship/requests'),
+    acceptMentorship: (mentorshipId: string) =>
+      request<{ success: boolean; data: unknown }>(`/mentorships/${mentorshipId}/accept`, { method: 'POST' }),
+    declineMentorship: (mentorshipId: string) =>
+      request<{ success: boolean }>(`/mentorships/${mentorshipId}/decline`, { method: 'POST' }),
+    getActiveMentorships: () =>
+      request<{ success: boolean; data: unknown[] }>('/mentorships/active'),
+    getMentorshipHistory: (limit = 20, offset = 0) =>
+      request<{ success: boolean; data: { mentorships: unknown[]; total: number } }>(
+        `/mentorships/history?limit=${limit}&offset=${offset}`
+      ),
+    completeMentorship: (mentorshipId: string, feedback: { rating: number; comment?: string }) =>
+      request<{ success: boolean }>(`/mentorships/${mentorshipId}/complete`, {
+        method: 'POST',
+        body: feedback,
+      }),
+    cancelMentorship: (mentorshipId: string) =>
+      request<{ success: boolean }>(`/mentorships/${mentorshipId}/cancel`, { method: 'POST' }),
+
+    // Check-ins
+    createCheckIn: (mentorshipId: string, checkIn: Record<string, unknown>) =>
+      request<{ success: boolean; data: unknown }>(`/mentorships/${mentorshipId}/check-ins`, {
+        method: 'POST',
+        body: checkIn,
+      }),
+    getCheckIns: (mentorshipId: string, limit = 20, offset = 0) =>
+      request<{ success: boolean; data: { checkIns: unknown[]; total: number } }>(
+        `/mentorships/${mentorshipId}/check-ins?limit=${limit}&offset=${offset}`
+      ),
+    completeCheckIn: (checkInId: string) =>
+      request<{ success: boolean }>(`/check-ins/${checkInId}/complete`, { method: 'POST' }),
+  },
+
+  // =====================
+  // Community Analytics
+  // =====================
+  communityAnalytics: {
+    getDailyAnalytics: (communityId: number, options?: { startDate?: string; endDate?: string; limit?: number }) => {
+      const params = new URLSearchParams();
+      if (options?.startDate) params.set('startDate', options.startDate);
+      if (options?.endDate) params.set('endDate', options.endDate);
+      if (options?.limit) params.set('limit', String(options.limit));
+      const query = params.toString();
+      return request<{ success: boolean; data: unknown[] }>(
+        `/communities/${communityId}/analytics/daily${query ? `?${query}` : ''}`
+      );
+    },
+    refreshAnalytics: (communityId: number) =>
+      request<{ success: boolean; data: unknown }>(`/communities/${communityId}/analytics/refresh`, { method: 'POST' }),
+    getHealthScore: (communityId: number) =>
+      request<{ success: boolean; data: unknown }>(`/communities/${communityId}/health`),
+    calculateHealthScore: (communityId: number) =>
+      request<{ success: boolean; data: unknown }>(`/communities/${communityId}/health/calculate`, { method: 'POST' }),
+    getHealthHistory: (communityId: number, limit = 30) =>
+      request<{ success: boolean; data: unknown[] }>(`/communities/${communityId}/health/history?limit=${limit}`),
+    getGrowthTrends: (communityId: number, period: 'daily' | 'weekly' | 'monthly' = 'daily', limit = 12) =>
+      request<{ success: boolean; data: unknown[] }>(
+        `/communities/${communityId}/analytics/growth?period=${period}&limit=${limit}`
+      ),
+    getEngagementBreakdown: (communityId: number, options?: { startDate?: string; endDate?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.startDate) params.set('startDate', options.startDate);
+      if (options?.endDate) params.set('endDate', options.endDate);
+      const query = params.toString();
+      return request<{ success: boolean; data: unknown }>(
+        `/communities/${communityId}/analytics/engagement${query ? `?${query}` : ''}`
+      );
+    },
+    getTopContributors: (communityId: number, days = 30, limit = 10) =>
+      request<{ success: boolean; data: unknown[] }>(
+        `/communities/${communityId}/analytics/top-contributors?days=${days}&limit=${limit}`
+      ),
+    compareCommunities: (communityIds: number[]) =>
+      request<{ success: boolean; data: unknown[] }>('/analytics/compare', {
+        method: 'POST',
+        body: { communityIds },
+      }),
+  },
+
+  // =====================
+  // Community Resources
+  // =====================
+  communityResources: {
+    getResources: (communityId: number, options?: {
+      resourceType?: string;
+      category?: string;
+      tags?: string[];
+      isPinned?: boolean;
+      searchQuery?: string;
+      limit?: number;
+      offset?: number;
+      sortBy?: 'newest' | 'most_helpful' | 'most_viewed';
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.resourceType) params.set('resourceType', options.resourceType);
+      if (options?.category) params.set('category', options.category);
+      if (options?.tags) params.set('tags', options.tags.join(','));
+      if (options?.isPinned !== undefined) params.set('isPinned', String(options.isPinned));
+      if (options?.searchQuery) params.set('searchQuery', options.searchQuery);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      if (options?.sortBy) params.set('sortBy', options.sortBy);
+      const query = params.toString();
+      return request<{ success: boolean; data: { resources: unknown[]; total: number } }>(
+        `/communities/${communityId}/resources${query ? `?${query}` : ''}`
+      );
+    },
+    getPinnedResources: (communityId: number) =>
+      request<{ success: boolean; data: unknown[] }>(`/communities/${communityId}/resources/pinned`),
+    getCategories: (communityId: number) =>
+      request<{ success: boolean; data: unknown[] }>(`/communities/${communityId}/resources/categories`),
+    getResource: (resourceId: string) =>
+      request<{ success: boolean; data: unknown }>(`/resources/${resourceId}`),
+    createResource: (communityId: number, resource: Record<string, unknown>) =>
+      request<{ success: boolean; data: unknown }>(`/communities/${communityId}/resources`, {
+        method: 'POST',
+        body: resource,
+      }),
+    updateResource: (resourceId: string, updates: Record<string, unknown>) =>
+      request<{ success: boolean }>(`/resources/${resourceId}`, { method: 'PUT', body: updates }),
+    deleteResource: (resourceId: string) =>
+      request<{ success: boolean }>(`/resources/${resourceId}`, { method: 'DELETE' }),
+    pinResource: (resourceId: string) =>
+      request<{ success: boolean }>(`/resources/${resourceId}/pin`, { method: 'POST' }),
+    unpinResource: (resourceId: string) =>
+      request<{ success: boolean }>(`/resources/${resourceId}/pin`, { method: 'DELETE' }),
+    markHelpful: (resourceId: string) =>
+      request<{ success: boolean }>(`/resources/${resourceId}/helpful`, { method: 'POST' }),
+    removeHelpful: (resourceId: string) =>
+      request<{ success: boolean }>(`/resources/${resourceId}/helpful`, { method: 'DELETE' }),
+    getMostHelpful: (options?: { limit?: number; communityIds?: number[] }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.communityIds) params.set('communityIds', options.communityIds.join(','));
+      const query = params.toString();
+      return request<{ success: boolean; data: unknown[] }>(`/resources/most-helpful${query ? `?${query}` : ''}`);
+    },
+  },
+
+  // =====================
+  // Content Reports (Moderation)
+  // =====================
+  reports: {
+    submit: (report: {
+      contentType: 'post' | 'comment' | 'message' | 'user' | 'resource' | 'event' | 'hangout';
+      contentId: string;
+      reportedUserId: string;
+      communityId?: number;
+      reason: string;
+      description?: string;
+    }) =>
+      request<{ success: boolean; data: unknown }>('/reports', { method: 'POST', body: report }),
+    getMyReports: () =>
+      request<{ success: boolean; data: unknown[] }>('/reports/my'),
+
+    // Moderation (admin only)
+    getPendingReports: (options?: {
+      communityId?: number;
+      status?: string | string[];
+      reason?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.communityId) params.set('communityId', String(options.communityId));
+      if (options?.status) params.set('status', Array.isArray(options.status) ? options.status.join(',') : options.status);
+      if (options?.reason) params.set('reason', options.reason);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<{ success: boolean; data: { reports: unknown[]; total: number } }>(
+        `/reports${query ? `?${query}` : ''}`
+      );
+    },
+    getReport: (reportId: string) =>
+      request<{ success: boolean; data: unknown }>(`/reports/${reportId}`),
+    assignReport: (reportId: string) =>
+      request<{ success: boolean }>(`/reports/${reportId}/assign`, { method: 'POST' }),
+    resolveReport: (reportId: string, resolution: {
+      status: 'resolved' | 'dismissed';
+      resolution: string;
+      actionTaken: string;
+    }) =>
+      request<{ success: boolean }>(`/reports/${reportId}/resolve`, { method: 'POST', body: resolution }),
+    getStats: (communityId?: number) => {
+      const params = communityId ? `?communityId=${communityId}` : '';
+      return request<{ success: boolean; data: unknown }>(`/reports/stats${params}`);
+    },
+
+    // User moderation
+    getUserModerationHistory: (userId: string) =>
+      request<{ success: boolean; data: unknown[] }>(`/users/${userId}/moderation-history`),
+    getUserModerationStatus: (userId: string) =>
+      request<{ success: boolean; data: unknown | null }>(`/users/${userId}/moderation-status`),
+    applyModerationAction: (userId: string, action: {
+      action: string;
+      reason: string;
+      durationHours?: number;
+      notes?: string;
+    }) =>
+      request<{ success: boolean; data: unknown }>(`/users/${userId}/moderate`, {
+        method: 'POST',
+        body: action,
+      }),
+  },
+
+  // =====================
+  // Archetype Communities
+  // =====================
+  archetypeCommunities: {
+    getSuggestedCommunities: () =>
+      request<{ success: boolean; data: unknown[] }>('/archetype/suggested-communities'),
+    handleArchetypeChange: (newArchetypeId: string, options?: {
+      oldArchetypeId?: string;
+      leaveOldCommunities?: boolean;
+    }) =>
+      request<{ success: boolean; data: { joined: number[]; left: number[] } }>('/archetype/change', {
+        method: 'POST',
+        body: { newArchetypeId, ...options },
+      }),
+    getLinkedCommunities: (archetypeId: string) =>
+      request<{ success: boolean; data: unknown[] }>(`/archetypes/${archetypeId}/communities`),
+    getDefaultCommunities: (archetypeId: string) =>
+      request<{ success: boolean; data: unknown[] }>(`/archetypes/${archetypeId}/communities/default`),
+    linkCommunity: (archetypeId: string, communityId: number, options?: {
+      isDefault?: boolean;
+      priority?: number;
+    }) =>
+      request<{ success: boolean; data: unknown }>(`/archetypes/${archetypeId}/communities`, {
+        method: 'POST',
+        body: { communityId, ...options },
+      }),
+    bulkLinkCommunities: (archetypeId: string, links: Array<{
+      communityId: number;
+      isDefault?: boolean;
+      priority?: number;
+    }>) =>
+      request<{ success: boolean; data: { linked: number } }>(`/archetypes/${archetypeId}/communities/bulk`, {
+        method: 'POST',
+        body: { links },
+      }),
+    unlinkCommunity: (archetypeId: string, communityId: number) =>
+      request<{ success: boolean }>(`/archetypes/${archetypeId}/communities/${communityId}`, { method: 'DELETE' }),
+    getAllArchetypesWithCommunities: () =>
+      request<{ success: boolean; data: unknown[] }>('/archetypes/communities'),
+  },
 };
 
 // =====================
