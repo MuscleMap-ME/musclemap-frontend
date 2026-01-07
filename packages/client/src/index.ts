@@ -150,6 +150,18 @@ export {
   // Privacy Settings types (Minimalist Mode)
   type PrivacySettings,
   type PrivacySummary,
+  // Virtual Hangout types
+  type VirtualHangoutTheme,
+  type VirtualHangout,
+  type HangoutMember,
+  type HangoutActivity,
+  // Community types
+  type Community,
+  type CommunityMember,
+  type CommunityEvent,
+  // Bulletin board types
+  type BulletinPost,
+  type BulletinComment,
 } from './api';
 
 // Hooks

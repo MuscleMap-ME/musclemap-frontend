@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Dumbbell, User, Swords, Users, BarChart3, Shield } from '@tamagui/lucide-icons';
+import { Home, Dumbbell, User, Swords, Users, BarChart3, Shield, MessageCircle } from '@tamagui/lucide-icons';
 import { useTheme } from 'tamagui';
 import { apiClient, type PrivacySettings } from '@musclemap/client';
 
@@ -33,6 +33,7 @@ export default function TabsLayout() {
   const hideCrews = isMinimalist || privacySettings?.optOutCrews;
   const hideRivals = isMinimalist || privacySettings?.optOutRivals;
   const hideLeaderboards = isMinimalist || privacySettings?.optOutLeaderboards;
+  const hideHangouts = isMinimalist || privacySettings?.optOutHangouts;
 
   return (
     <Tabs
@@ -78,6 +79,14 @@ export default function TabsLayout() {
           title: 'Rivals',
           href: hideRivals ? null : undefined, // Hide when opted out
           tabBarIcon: ({ color, size }) => <Swords color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: 'Community',
+          href: hideHangouts ? null : undefined, // Hide when opted out
+          tabBarIcon: ({ color, size }) => <MessageCircle color={color} size={size} />,
         }}
       />
       <Tabs.Screen

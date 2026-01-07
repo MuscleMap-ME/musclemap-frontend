@@ -43,6 +43,9 @@ import { registerLimitationsRoutes } from './routes/limitations';
 import { registerPTTestsRoutes } from './routes/pt-tests';
 import { registerPersonalizationRoutes } from './routes/personalization';
 import { registerMonitoringRoutes } from './routes/monitoring';
+import { registerVirtualHangoutsRoutes } from './routes/virtual-hangouts';
+import { registerCommunitiesRoutes } from './routes/communities';
+import { registerBulletinRoutes } from './routes/bulletin';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -274,6 +277,9 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerPTTestsRoutes(api);
     await registerPersonalizationRoutes(api);
     await registerMonitoringRoutes(api);
+    await registerVirtualHangoutsRoutes(api);
+    await registerCommunitiesRoutes(api);
+    await registerBulletinRoutes(api);
   }, { prefix: '/api' });
 
   return app;

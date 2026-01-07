@@ -2284,6 +2284,714 @@ export const apiClient = {
         }
       ),
   },
+
+  // Virtual Hangouts (themed community spaces)
+  hangouts: {
+    /**
+     * Get all hangout themes
+     */
+    themes: () =>
+      request<DataResponse<VirtualHangoutTheme[]>>('/hangouts/themes', {
+        schema: wrapInData(Type.Array(VirtualHangoutThemeSchema)),
+        cacheTtl: 300_000,
+      }),
+
+    /**
+     * List virtual hangouts
+     */
+    list: (themeId?: number, limit = 50, offset = 0) =>
+      request<DataResponse<VirtualHangout[]> & { meta: { total: number } }>(
+        `/hangouts?${new URLSearchParams({ ...(themeId ? { themeId: String(themeId) } : {}), limit: String(limit), offset: String(offset) }).toString()}`,
+        { schema: wrapInData(Type.Array(VirtualHangoutSchema)) }
+      ),
+
+    /**
+     * Get recommended hangouts for current user
+     */
+    recommended: (limit = 5) =>
+      request<DataResponse<VirtualHangout[]>>(`/hangouts/recommended?limit=${limit}`, {
+        schema: wrapInData(Type.Array(VirtualHangoutSchema)),
+      }),
+
+    /**
+     * Get user's hangout memberships
+     */
+    my: (limit = 50, offset = 0) =>
+      request<DataResponse<VirtualHangout[]> & { meta: { total: number } }>(
+        `/hangouts/my?limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(VirtualHangoutSchema)) }
+      ),
+
+    /**
+     * Get a single hangout
+     */
+    get: (id: number) =>
+      request<DataResponse<VirtualHangout>>(`/hangouts/${id}`, {
+        schema: wrapInData(VirtualHangoutSchema),
+      }),
+
+    /**
+     * Join a hangout
+     */
+    join: (id: number, showInMemberList = true, receiveNotifications = true) =>
+      request<DataResponse<{ message: string }>>(`/hangouts/${id}/join`, {
+        method: 'POST',
+        body: { showInMemberList, receiveNotifications },
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Leave a hangout
+     */
+    leave: (id: number) =>
+      request<DataResponse<{ message: string }>>(`/hangouts/${id}/leave`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Get hangout members
+     */
+    members: (id: number, limit = 50, offset = 0) =>
+      request<DataResponse<HangoutMember[]> & { meta: { total: number } }>(
+        `/hangouts/${id}/members?limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(HangoutMemberSchema)) }
+      ),
+
+    /**
+     * Get hangout activity feed
+     */
+    activity: (id: number, limit = 50, offset = 0) =>
+      request<DataResponse<HangoutActivity[]>>(
+        `/hangouts/${id}/activity?limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(HangoutActivitySchema)) }
+      ),
+
+    /**
+     * Share a workout to a hangout
+     */
+    shareWorkout: (id: number, workoutId: string, message?: string) =>
+      request<DataResponse<{ message: string }>>(`/hangouts/${id}/share-workout`, {
+        method: 'POST',
+        body: { workoutId, message },
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Send heartbeat to update last active time
+     */
+    heartbeat: (id: number) =>
+      request<DataResponse<{ acknowledged: boolean }>>(`/hangouts/${id}/heartbeat`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ acknowledged: Type.Boolean() })),
+      }),
+
+    /**
+     * Get posts from hangout bulletin board
+     */
+    posts: (id: number, options?: { limit?: number; offset?: number; sortBy?: 'hot' | 'new' | 'top' }) =>
+      request<DataResponse<BulletinPost[]> & { meta: { total: number; boardId: number } }>(
+        `/hangouts/${id}/posts?${new URLSearchParams({
+          limit: String(options?.limit || 20),
+          offset: String(options?.offset || 0),
+          sortBy: options?.sortBy || 'hot',
+        }).toString()}`,
+        { schema: wrapInData(Type.Array(BulletinPostSchema)) }
+      ),
+
+    /**
+     * Create a post in hangout bulletin board
+     */
+    createPost: (id: number, post: { title: string; content: string; postType?: string; mediaUrls?: string[] }) =>
+      request<DataResponse<BulletinPost>>(`/hangouts/${id}/posts`, {
+        method: 'POST',
+        body: post,
+        schema: wrapInData(BulletinPostSchema),
+      }),
+  },
+
+  // Communities (self-organized groups)
+  communities: {
+    /**
+     * Create a new community
+     */
+    create: (data: {
+      name: string;
+      tagline?: string;
+      description?: string;
+      communityType: 'goal' | 'interest' | 'institution' | 'local' | 'challenge';
+      goalType?: string;
+      institutionType?: string;
+      privacy?: 'public' | 'private' | 'secret';
+      iconEmoji?: string;
+      accentColor?: string;
+      rules?: string;
+      requiresApproval?: boolean;
+      allowMemberPosts?: boolean;
+    }) =>
+      request<DataResponse<Community>>('/communities', {
+        method: 'POST',
+        body: data,
+        schema: wrapInData(CommunitySchema),
+      }),
+
+    /**
+     * Search/list communities
+     */
+    search: (options?: {
+      query?: string;
+      communityType?: string;
+      goalType?: string;
+      institutionType?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.query) params.set('query', options.query);
+      if (options?.communityType) params.set('communityType', options.communityType);
+      if (options?.goalType) params.set('goalType', options.goalType);
+      if (options?.institutionType) params.set('institutionType', options.institutionType);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<DataResponse<Community[]> & { meta: { total: number } }>(
+        `/communities${query ? `?${query}` : ''}`,
+        { schema: wrapInData(Type.Array(CommunitySchema)) }
+      );
+    },
+
+    /**
+     * Get user's communities
+     */
+    my: (limit = 50, offset = 0) =>
+      request<DataResponse<Community[]> & { meta: { total: number } }>(
+        `/communities/my?limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(CommunitySchema)) }
+      ),
+
+    /**
+     * Get a community by ID or slug
+     */
+    get: (idOrSlug: string | number) =>
+      request<DataResponse<Community>>(`/communities/${idOrSlug}`, {
+        schema: wrapInData(CommunitySchema),
+      }),
+
+    /**
+     * Join a community
+     */
+    join: (id: number) =>
+      request<DataResponse<{ message: string; status: string }>>(`/communities/${id}/join`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String(), status: Type.String() })),
+      }),
+
+    /**
+     * Leave a community
+     */
+    leave: (id: number) =>
+      request<DataResponse<{ message: string }>>(`/communities/${id}/leave`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Get community members
+     */
+    members: (id: number, limit = 50, offset = 0, status = 'active') =>
+      request<DataResponse<CommunityMember[]> & { meta: { total: number } }>(
+        `/communities/${id}/members?limit=${limit}&offset=${offset}&status=${status}`,
+        { schema: wrapInData(Type.Array(CommunityMemberSchema)) }
+      ),
+
+    /**
+     * Get community events
+     */
+    events: (id: number, upcoming = true, limit = 20, offset = 0) =>
+      request<DataResponse<CommunityEvent[]>>(
+        `/communities/${id}/events?upcoming=${upcoming}&limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(CommunityEventSchema)) }
+      ),
+
+    /**
+     * Create a community event
+     */
+    createEvent: (id: number, event: {
+      title: string;
+      description?: string;
+      eventType: 'meetup' | 'challenge' | 'workshop' | 'competition' | 'social';
+      startsAt: string;
+      endsAt?: string;
+      timezone?: string;
+      locationName?: string;
+      locationAddress?: string;
+      isVirtual?: boolean;
+      virtualUrl?: string;
+      maxParticipants?: number;
+    }) =>
+      request<DataResponse<CommunityEvent>>(`/communities/${id}/events`, {
+        method: 'POST',
+        body: event,
+        schema: wrapInData(CommunityEventSchema),
+      }),
+
+    /**
+     * Get posts from community bulletin board
+     */
+    posts: (id: number, options?: { limit?: number; offset?: number; sortBy?: 'hot' | 'new' | 'top' }) =>
+      request<DataResponse<BulletinPost[]> & { meta: { total: number; boardId: number } }>(
+        `/communities/${id}/posts?${new URLSearchParams({
+          limit: String(options?.limit || 20),
+          offset: String(options?.offset || 0),
+          sortBy: options?.sortBy || 'hot',
+        }).toString()}`,
+        { schema: wrapInData(Type.Array(BulletinPostSchema)) }
+      ),
+
+    /**
+     * Create a post in community bulletin board
+     */
+    createPost: (id: number, post: { title: string; content: string; postType?: string; mediaUrls?: string[] }) =>
+      request<DataResponse<BulletinPost>>(`/communities/${id}/posts`, {
+        method: 'POST',
+        body: post,
+        schema: wrapInData(BulletinPostSchema),
+      }),
+  },
+
+  // Bulletin board actions (shared between hangouts and communities)
+  bulletin: {
+    /**
+     * Get a single post
+     */
+    getPost: (postId: string) =>
+      request<DataResponse<BulletinPost>>(`/bulletin/posts/${postId}`, {
+        schema: wrapInData(BulletinPostSchema),
+      }),
+
+    /**
+     * Vote on a post
+     */
+    votePost: (postId: string, voteType: 'up' | 'down') =>
+      request<DataResponse<{ upvotes: number; downvotes: number; score: number }>>(
+        `/bulletin/posts/${postId}/vote`,
+        {
+          method: 'POST',
+          body: { voteType },
+          schema: wrapInData(Type.Object({
+            upvotes: Type.Number(),
+            downvotes: Type.Number(),
+            score: Type.Number(),
+          })),
+        }
+      ),
+
+    /**
+     * Get comments for a post
+     */
+    getComments: (postId: string, limit = 50, offset = 0) =>
+      request<DataResponse<BulletinComment[]> & { meta: { total: number } }>(
+        `/bulletin/posts/${postId}/comments?limit=${limit}&offset=${offset}`,
+        { schema: wrapInData(Type.Array(BulletinCommentSchema)) }
+      ),
+
+    /**
+     * Add a comment to a post
+     */
+    addComment: (postId: string, content: string, parentId?: string) =>
+      request<DataResponse<BulletinComment>>(`/bulletin/posts/${postId}/comments`, {
+        method: 'POST',
+        body: { content, parentId },
+        schema: wrapInData(BulletinCommentSchema),
+      }),
+
+    /**
+     * Vote on a comment
+     */
+    voteComment: (commentId: string, voteType: 'up' | 'down') =>
+      request<DataResponse<{ upvotes: number; downvotes: number; score: number }>>(
+        `/bulletin/comments/${commentId}/vote`,
+        {
+          method: 'POST',
+          body: { voteType },
+          schema: wrapInData(Type.Object({
+            upvotes: Type.Number(),
+            downvotes: Type.Number(),
+            score: Type.Number(),
+          })),
+        }
+      ),
+
+    /**
+     * Pin a post (moderator)
+     */
+    pinPost: (postId: string) =>
+      request<DataResponse<{ message: string }>>(`/bulletin/posts/${postId}/pin`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Unpin a post (moderator)
+     */
+    unpinPost: (postId: string) =>
+      request<DataResponse<{ message: string }>>(`/bulletin/posts/${postId}/unpin`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+
+    /**
+     * Hide a post (moderator)
+     */
+    hidePost: (postId: string) =>
+      request<DataResponse<{ message: string }>>(`/bulletin/posts/${postId}/hide`, {
+        method: 'POST',
+        schema: wrapInData(Type.Object({ message: Type.String() })),
+      }),
+  },
 };
+
+// =====================
+// Virtual Hangout Types & Schemas
+// =====================
+export interface VirtualHangoutTheme {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  iconEmoji: string;
+  accentColor: string;
+  backgroundPattern: string;
+  relatedArchetypes: number[];
+  relatedGoals: string[];
+  isActive: boolean;
+}
+
+export interface VirtualHangout {
+  id: number;
+  themeId: number;
+  themeName: string;
+  themeSlug: string;
+  name: string;
+  description?: string;
+  welcomeMessage?: string;
+  iconEmoji: string;
+  accentColor: string;
+  bannerImageUrl?: string;
+  memberCount: number;
+  activeNow: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  isMember?: boolean;
+  userRole?: number;
+  lastVisitedAt?: string;
+}
+
+export interface HangoutMember {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  role: number;
+  joinedAt: string;
+  lastActiveAt?: string;
+  showInMemberList: boolean;
+  receiveNotifications: boolean;
+}
+
+export interface HangoutActivity {
+  id: string;
+  hangoutId: number;
+  userId?: string;
+  username?: string;
+  activityType: 'join' | 'leave' | 'post' | 'workout_shared' | 'achievement' | 'milestone';
+  activityData: Record<string, unknown>;
+  createdAt: string;
+}
+
+// =====================
+// Community Types & Schemas
+// =====================
+export interface Community {
+  id: number;
+  slug: string;
+  name: string;
+  tagline?: string;
+  description?: string;
+  communityType: 'goal' | 'interest' | 'institution' | 'local' | 'challenge';
+  goalType?: string;
+  institutionType?: string;
+  archetypeId?: number;
+  privacy: 'public' | 'private' | 'secret';
+  iconEmoji: string;
+  accentColor: string;
+  bannerImageUrl?: string;
+  logoImageUrl?: string;
+  rules?: string;
+  memberCount: number;
+  postCount: number;
+  isVerified: boolean;
+  isActive: boolean;
+  requiresApproval: boolean;
+  allowMemberPosts: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  isMember?: boolean;
+  userRole?: number;
+  membershipStatus?: 'pending' | 'active' | 'suspended' | 'banned';
+}
+
+export interface CommunityMember {
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  role: number;
+  title?: string;
+  status: 'pending' | 'active' | 'suspended' | 'banned';
+  joinedAt: string;
+  lastActiveAt?: string;
+  showInMemberList: boolean;
+}
+
+export interface CommunityEvent {
+  id: string;
+  communityId: number;
+  virtualHangoutId?: number;
+  creatorId: string;
+  title: string;
+  description?: string;
+  eventType: 'meetup' | 'challenge' | 'workshop' | 'competition' | 'social';
+  startsAt: string;
+  endsAt?: string;
+  timezone: string;
+  locationName?: string;
+  locationAddress?: string;
+  isVirtual: boolean;
+  virtualUrl?: string;
+  maxParticipants?: number;
+  participantCount: number;
+  status: 'draft' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+
+// =====================
+// Bulletin Types & Schemas
+// =====================
+export interface BulletinPost {
+  id: string;
+  boardId: number;
+  authorId?: string;
+  authorUsername?: string;
+  authorDisplayName?: string;
+  authorAvatarUrl?: string;
+  title: string;
+  content: string;
+  contentLang: string;
+  postType: 'discussion' | 'question' | 'announcement' | 'poll' | 'workout_share' | 'milestone';
+  mediaUrls: string[];
+  linkedWorkoutId?: string;
+  linkedMilestoneId?: string;
+  upvotes: number;
+  downvotes: number;
+  score: number;
+  commentCount: number;
+  viewCount: number;
+  isPinned: boolean;
+  isHighlighted: boolean;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userVote?: 'up' | 'down';
+}
+
+export interface BulletinComment {
+  id: string;
+  postId: string;
+  parentId?: string;
+  authorId?: string;
+  authorUsername?: string;
+  authorDisplayName?: string;
+  authorAvatarUrl?: string;
+  content: string;
+  upvotes: number;
+  downvotes: number;
+  score: number;
+  replyCount: number;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userVote?: 'up' | 'down';
+  replies?: BulletinComment[];
+}
+
+const VirtualHangoutThemeSchema = Type.Object({
+  id: Type.Number(),
+  slug: Type.String(),
+  name: Type.String(),
+  description: Type.String(),
+  iconEmoji: Type.String(),
+  accentColor: Type.String(),
+  backgroundPattern: Type.String(),
+  relatedArchetypes: Type.Array(Type.Number()),
+  relatedGoals: Type.Array(Type.String()),
+  isActive: Type.Boolean(),
+}, { additionalProperties: true });
+
+const VirtualHangoutSchema = Type.Object({
+  id: Type.Number(),
+  themeId: Type.Number(),
+  themeName: Type.String(),
+  themeSlug: Type.String(),
+  name: Type.String(),
+  description: Type.Optional(Type.String()),
+  welcomeMessage: Type.Optional(Type.String()),
+  iconEmoji: Type.String(),
+  accentColor: Type.String(),
+  bannerImageUrl: Type.Optional(Type.String()),
+  memberCount: Type.Number(),
+  activeNow: Type.Number(),
+  isActive: Type.Boolean(),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+  isMember: Type.Optional(Type.Boolean()),
+  userRole: Type.Optional(Type.Number()),
+  lastVisitedAt: Type.Optional(Type.String()),
+}, { additionalProperties: true });
+
+const HangoutMemberSchema = Type.Object({
+  userId: Type.String(),
+  username: Type.String(),
+  displayName: Type.Optional(Type.String()),
+  avatarUrl: Type.Optional(Type.String()),
+  role: Type.Number(),
+  joinedAt: Type.String(),
+  lastActiveAt: Type.Optional(Type.String()),
+  showInMemberList: Type.Boolean(),
+  receiveNotifications: Type.Boolean(),
+}, { additionalProperties: true });
+
+const HangoutActivitySchema = Type.Object({
+  id: Type.String(),
+  hangoutId: Type.Number(),
+  userId: Type.Optional(Type.String()),
+  username: Type.Optional(Type.String()),
+  activityType: Type.String(),
+  activityData: Type.Record(Type.String(), Type.Any()),
+  createdAt: Type.String(),
+}, { additionalProperties: true });
+
+const CommunitySchema = Type.Object({
+  id: Type.Number(),
+  slug: Type.String(),
+  name: Type.String(),
+  tagline: Type.Optional(Type.String()),
+  description: Type.Optional(Type.String()),
+  communityType: Type.String(),
+  goalType: Type.Optional(Type.String()),
+  institutionType: Type.Optional(Type.String()),
+  archetypeId: Type.Optional(Type.Number()),
+  privacy: Type.String(),
+  iconEmoji: Type.String(),
+  accentColor: Type.String(),
+  bannerImageUrl: Type.Optional(Type.String()),
+  logoImageUrl: Type.Optional(Type.String()),
+  rules: Type.Optional(Type.String()),
+  memberCount: Type.Number(),
+  postCount: Type.Number(),
+  isVerified: Type.Boolean(),
+  isActive: Type.Boolean(),
+  requiresApproval: Type.Boolean(),
+  allowMemberPosts: Type.Boolean(),
+  createdBy: Type.String(),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+  isMember: Type.Optional(Type.Boolean()),
+  userRole: Type.Optional(Type.Number()),
+  membershipStatus: Type.Optional(Type.String()),
+}, { additionalProperties: true });
+
+const CommunityMemberSchema = Type.Object({
+  userId: Type.String(),
+  username: Type.String(),
+  displayName: Type.Optional(Type.String()),
+  avatarUrl: Type.Optional(Type.String()),
+  role: Type.Number(),
+  title: Type.Optional(Type.String()),
+  status: Type.String(),
+  joinedAt: Type.String(),
+  lastActiveAt: Type.Optional(Type.String()),
+  showInMemberList: Type.Boolean(),
+}, { additionalProperties: true });
+
+const CommunityEventSchema = Type.Object({
+  id: Type.String(),
+  communityId: Type.Number(),
+  virtualHangoutId: Type.Optional(Type.Number()),
+  creatorId: Type.String(),
+  title: Type.String(),
+  description: Type.Optional(Type.String()),
+  eventType: Type.String(),
+  startsAt: Type.String(),
+  endsAt: Type.Optional(Type.String()),
+  timezone: Type.String(),
+  locationName: Type.Optional(Type.String()),
+  locationAddress: Type.Optional(Type.String()),
+  isVirtual: Type.Boolean(),
+  virtualUrl: Type.Optional(Type.String()),
+  maxParticipants: Type.Optional(Type.Number()),
+  participantCount: Type.Number(),
+  status: Type.String(),
+  createdAt: Type.String(),
+}, { additionalProperties: true });
+
+const BulletinPostSchema = Type.Object({
+  id: Type.String(),
+  boardId: Type.Number(),
+  authorId: Type.Optional(Type.String()),
+  authorUsername: Type.Optional(Type.String()),
+  authorDisplayName: Type.Optional(Type.String()),
+  authorAvatarUrl: Type.Optional(Type.String()),
+  title: Type.String(),
+  content: Type.String(),
+  contentLang: Type.String(),
+  postType: Type.String(),
+  mediaUrls: Type.Array(Type.String()),
+  linkedWorkoutId: Type.Optional(Type.String()),
+  linkedMilestoneId: Type.Optional(Type.String()),
+  upvotes: Type.Number(),
+  downvotes: Type.Number(),
+  score: Type.Number(),
+  commentCount: Type.Number(),
+  viewCount: Type.Number(),
+  isPinned: Type.Boolean(),
+  isHighlighted: Type.Boolean(),
+  isHidden: Type.Boolean(),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+  userVote: Type.Optional(Type.String()),
+}, { additionalProperties: true });
+
+const BulletinCommentSchema = Type.Object({
+  id: Type.String(),
+  postId: Type.String(),
+  parentId: Type.Optional(Type.String()),
+  authorId: Type.Optional(Type.String()),
+  authorUsername: Type.Optional(Type.String()),
+  authorDisplayName: Type.Optional(Type.String()),
+  authorAvatarUrl: Type.Optional(Type.String()),
+  content: Type.String(),
+  upvotes: Type.Number(),
+  downvotes: Type.Number(),
+  score: Type.Number(),
+  replyCount: Type.Number(),
+  isHidden: Type.Boolean(),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+  userVote: Type.Optional(Type.String()),
+  replies: Type.Optional(Type.Array(Type.Any())),
+}, { additionalProperties: true });
 
 export default apiClient;
