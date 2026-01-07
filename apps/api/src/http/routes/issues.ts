@@ -184,7 +184,17 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   }, async (request: FastifyRequest<{ Body: z.infer<typeof createIssueSchema> }>, reply: FastifyReply) => {
     try {
       const body = createIssueSchema.parse(request.body);
-      const issue = await issuesService.createIssue(request.user!.userId, body);
+      const issue = await issuesService.createIssue(request.user!.userId, {
+        title: body.title,
+        description: body.description,
+        type: body.type,
+        priority: body.priority,
+        labelIds: body.labelIds,
+        browserInfo: body.browserInfo,
+        deviceInfo: body.deviceInfo,
+        pageUrl: body.pageUrl,
+        screenshotUrls: body.screenshotUrls,
+      });
 
       log.info({ issueId: issue.id, userId: request.user!.userId }, 'Issue created');
 
@@ -415,7 +425,13 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
     }
 
     const body = createDevUpdateSchema.parse(request.body);
-    const update = await issuesService.createDevUpdate(request.user!.userId, body);
+    const update = await issuesService.createDevUpdate(request.user!.userId, {
+      title: body.title,
+      content: body.content,
+      type: body.type as UpdateType,
+      relatedIssueIds: body.relatedIssueIds,
+      isPublished: body.isPublished,
+    });
 
     return reply.status(201).send({ data: update });
   });

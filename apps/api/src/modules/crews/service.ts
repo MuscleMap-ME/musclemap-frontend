@@ -3,82 +3,18 @@
  *
  * Business logic for crew management and Crew Wars.
  */
-import { db } from '../../db';
+import { queryOne, queryAll, execute } from '../../db/client';
 import type {
   Crew,
   CrewMember,
   CrewRole,
   CrewInvite,
   CrewWar,
+  CrewWarStatus,
   CrewWarWithDetails,
   CrewLeaderboard,
   CrewStats,
 } from './types';
-
-/**
- * Initialize crews database tables
- */
-export function initCrewsTables(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS crews (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      tag TEXT NOT NULL UNIQUE,
-      description TEXT,
-      avatar TEXT,
-      color TEXT DEFAULT '#3B82F6',
-      owner_id TEXT NOT NULL,
-      member_count INTEGER DEFAULT 1,
-      total_tu INTEGER DEFAULT 0,
-      weekly_tu INTEGER DEFAULT 0,
-      wins INTEGER DEFAULT 0,
-      losses INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS crew_members (
-      id TEXT PRIMARY KEY,
-      crew_id TEXT NOT NULL,
-      user_id TEXT NOT NULL UNIQUE,
-      role TEXT DEFAULT 'member',
-      joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      weekly_tu INTEGER DEFAULT 0,
-      total_tu INTEGER DEFAULT 0,
-      FOREIGN KEY (crew_id) REFERENCES crews(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS crew_invites (
-      id TEXT PRIMARY KEY,
-      crew_id TEXT NOT NULL,
-      inviter_id TEXT NOT NULL,
-      invitee_id TEXT NOT NULL,
-      status TEXT DEFAULT 'pending',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      expires_at TEXT NOT NULL,
-      FOREIGN KEY (crew_id) REFERENCES crews(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS crew_wars (
-      id TEXT PRIMARY KEY,
-      challenger_crew_id TEXT NOT NULL,
-      defending_crew_id TEXT NOT NULL,
-      status TEXT DEFAULT 'pending',
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      challenger_tu INTEGER DEFAULT 0,
-      defending_tu INTEGER DEFAULT 0,
-      winner_id TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (challenger_crew_id) REFERENCES crews(id),
-      FOREIGN KEY (defending_crew_id) REFERENCES crews(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_crew_members_crew ON crew_members(crew_id);
-    CREATE INDEX IF NOT EXISTS idx_crew_members_user ON crew_members(user_id);
-    CREATE INDEX IF NOT EXISTS idx_crew_wars_status ON crew_wars(status);
-    CREATE INDEX IF NOT EXISTS idx_crews_weekly_tu ON crews(weekly_tu DESC);
-  `);
-}
 
 // Helper to generate IDs
 function genId(prefix: string): string {
@@ -88,13 +24,13 @@ function genId(prefix: string): string {
 /**
  * Create a new crew
  */
-export function createCrew(
+export async function createCrew(
   ownerId: string,
   name: string,
   tag: string,
   description?: string,
   color?: string
-): Crew {
+): Promise<Crew> {
   const id = genId('crew');
   const now = new Date().toISOString();
 
@@ -105,24 +41,27 @@ export function createCrew(
   }
 
   // Check if user is already in a crew
-  const existingMember = db
-    .prepare('SELECT crew_id FROM crew_members WHERE user_id = ?')
-    .get(ownerId);
+  const existingMember = await queryOne<{ crew_id: string }>(
+    'SELECT crew_id FROM crew_members WHERE user_id = $1',
+    [ownerId]
+  );
   if (existingMember) {
     throw new Error('You are already in a crew');
   }
 
-  db.prepare(
+  await execute(
     `INSERT INTO crews (id, name, tag, description, color, owner_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, name, cleanTag, description || null, color || '#3B82F6', ownerId, now);
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, name, cleanTag, description || null, color || '#3B82F6', ownerId, now]
+  );
 
   // Add owner as member
   const memberId = genId('cm');
-  db.prepare(
+  await execute(
     `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
-     VALUES (?, ?, ?, 'owner', ?)`
-  ).run(memberId, id, ownerId, now);
+     VALUES ($1, $2, $3, 'owner', $4)`,
+    [memberId, id, ownerId, now]
+  );
 
   return {
     id,
@@ -144,8 +83,23 @@ export function createCrew(
 /**
  * Get a crew by ID
  */
-export function getCrew(crewId: string): Crew | null {
-  const row = db.prepare('SELECT * FROM crews WHERE id = ?').get(crewId) as any;
+export async function getCrew(crewId: string): Promise<Crew | null> {
+  const row = await queryOne<{
+    id: string;
+    name: string;
+    tag: string;
+    description: string | null;
+    avatar: string | null;
+    color: string;
+    owner_id: string;
+    member_count: number;
+    total_tu: number;
+    weekly_tu: number;
+    wins: number;
+    losses: number;
+    created_at: string;
+  }>('SELECT * FROM crews WHERE id = $1', [crewId]);
+
   if (!row) return null;
 
   return {
@@ -168,19 +122,29 @@ export function getCrew(crewId: string): Crew | null {
 /**
  * Get user's crew
  */
-export function getUserCrew(userId: string): { crew: Crew; membership: CrewMember } | null {
-  const membership = db
-    .prepare(
-      `SELECT cm.*, u.username, u.avatar, u.archetype
-       FROM crew_members cm
-       LEFT JOIN users u ON u.id = cm.user_id
-       WHERE cm.user_id = ?`
-    )
-    .get(userId) as any;
+export async function getUserCrew(userId: string): Promise<{ crew: Crew; membership: CrewMember } | null> {
+  const membership = await queryOne<{
+    id: string;
+    crew_id: string;
+    user_id: string;
+    role: string;
+    joined_at: string;
+    weekly_tu: number;
+    total_tu: number;
+    username: string | null;
+    avatar: string | null;
+    archetype: string | null;
+  }>(
+    `SELECT cm.*, u.username, u.avatar, u.archetype
+     FROM crew_members cm
+     LEFT JOIN users u ON u.id = cm.user_id
+     WHERE cm.user_id = $1`,
+    [userId]
+  );
 
   if (!membership) return null;
 
-  const crew = getCrew(membership.crew_id);
+  const crew = await getCrew(membership.crew_id);
   if (!crew) return null;
 
   return {
@@ -193,9 +157,9 @@ export function getUserCrew(userId: string): { crew: Crew; membership: CrewMembe
       joinedAt: membership.joined_at,
       weeklyTU: membership.weekly_tu,
       totalTU: membership.total_tu,
-      username: membership.username,
-      avatar: membership.avatar,
-      archetype: membership.archetype,
+      username: membership.username ?? undefined,
+      avatar: membership.avatar ?? undefined,
+      archetype: membership.archetype ?? undefined,
     },
   };
 }
@@ -203,16 +167,26 @@ export function getUserCrew(userId: string): { crew: Crew; membership: CrewMembe
 /**
  * Get crew members
  */
-export function getCrewMembers(crewId: string): CrewMember[] {
-  const rows = db
-    .prepare(
-      `SELECT cm.*, u.username, u.avatar, u.archetype
-       FROM crew_members cm
-       LEFT JOIN users u ON u.id = cm.user_id
-       WHERE cm.crew_id = ?
-       ORDER BY cm.weekly_tu DESC`
-    )
-    .all(crewId) as any[];
+export async function getCrewMembers(crewId: string): Promise<CrewMember[]> {
+  const rows = await queryAll<{
+    id: string;
+    crew_id: string;
+    user_id: string;
+    role: string;
+    joined_at: string;
+    weekly_tu: number;
+    total_tu: number;
+    username: string | null;
+    avatar: string | null;
+    archetype: string | null;
+  }>(
+    `SELECT cm.*, u.username, u.avatar, u.archetype
+     FROM crew_members cm
+     LEFT JOIN users u ON u.id = cm.user_id
+     WHERE cm.crew_id = $1
+     ORDER BY cm.weekly_tu DESC`,
+    [crewId]
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -222,42 +196,45 @@ export function getCrewMembers(crewId: string): CrewMember[] {
     joinedAt: row.joined_at,
     weeklyTU: row.weekly_tu,
     totalTU: row.total_tu,
-    username: row.username,
-    avatar: row.avatar,
-    archetype: row.archetype,
+    username: row.username ?? undefined,
+    avatar: row.avatar ?? undefined,
+    archetype: row.archetype ?? undefined,
   }));
 }
 
 /**
  * Invite user to crew
  */
-export function inviteToCrew(crewId: string, inviterId: string, inviteeId: string): CrewInvite {
+export async function inviteToCrew(crewId: string, inviterId: string, inviteeId: string): Promise<CrewInvite> {
   const id = genId('inv');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
   // Check inviter has permission
-  const inviterMember = db
-    .prepare('SELECT role FROM crew_members WHERE crew_id = ? AND user_id = ?')
-    .get(crewId, inviterId) as any;
+  const inviterMember = await queryOne<{ role: string }>(
+    'SELECT role FROM crew_members WHERE crew_id = $1 AND user_id = $2',
+    [crewId, inviterId]
+  );
 
   if (!inviterMember || inviterMember.role === 'member') {
     throw new Error('You do not have permission to invite members');
   }
 
   // Check invitee not in a crew
-  const inviteeInCrew = db
-    .prepare('SELECT crew_id FROM crew_members WHERE user_id = ?')
-    .get(inviteeId);
+  const inviteeInCrew = await queryOne<{ crew_id: string }>(
+    'SELECT crew_id FROM crew_members WHERE user_id = $1',
+    [inviteeId]
+  );
 
   if (inviteeInCrew) {
     throw new Error('User is already in a crew');
   }
 
-  db.prepare(
+  await execute(
     `INSERT INTO crew_invites (id, crew_id, inviter_id, invitee_id, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(id, crewId, inviterId, inviteeId, now.toISOString(), expiresAt.toISOString());
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, crewId, inviterId, inviteeId, now.toISOString(), expiresAt.toISOString()]
+  );
 
   return {
     id,
@@ -273,32 +250,44 @@ export function inviteToCrew(crewId: string, inviterId: string, inviteeId: strin
 /**
  * Accept crew invite
  */
-export function acceptInvite(inviteId: string, userId: string): CrewMember {
-  const invite = db
-    .prepare('SELECT * FROM crew_invites WHERE id = ? AND invitee_id = ? AND status = ?')
-    .get(inviteId, userId, 'pending') as any;
+export async function acceptInvite(inviteId: string, userId: string): Promise<CrewMember> {
+  const invite = await queryOne<{
+    id: string;
+    crew_id: string;
+    inviter_id: string;
+    invitee_id: string;
+    status: string;
+    expires_at: string;
+  }>(
+    'SELECT * FROM crew_invites WHERE id = $1 AND invitee_id = $2 AND status = $3',
+    [inviteId, userId, 'pending']
+  );
 
   if (!invite) {
     throw new Error('Invite not found or already used');
   }
 
   if (new Date(invite.expires_at) < new Date()) {
-    db.prepare('UPDATE crew_invites SET status = ? WHERE id = ?').run('expired', inviteId);
+    await execute('UPDATE crew_invites SET status = $1 WHERE id = $2', ['expired', inviteId]);
     throw new Error('Invite has expired');
   }
 
   const memberId = genId('cm');
   const now = new Date().toISOString();
 
-  db.prepare(
+  await execute(
     `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
-     VALUES (?, ?, ?, 'member', ?)`
-  ).run(memberId, invite.crew_id, userId, now);
+     VALUES ($1, $2, $3, 'member', $4)`,
+    [memberId, invite.crew_id, userId, now]
+  );
 
-  db.prepare('UPDATE crew_invites SET status = ? WHERE id = ?').run('accepted', inviteId);
-  db.prepare('UPDATE crews SET member_count = member_count + 1 WHERE id = ?').run(invite.crew_id);
+  await execute('UPDATE crew_invites SET status = $1 WHERE id = $2', ['accepted', inviteId]);
+  await execute('UPDATE crews SET member_count = member_count + 1 WHERE id = $1', [invite.crew_id]);
 
-  const user = db.prepare('SELECT username, avatar, archetype FROM users WHERE id = ?').get(userId) as any || {};
+  const user = await queryOne<{ username: string | null; avatar: string | null; archetype: string | null }>(
+    'SELECT username, avatar, archetype FROM users WHERE id = $1',
+    [userId]
+  );
 
   return {
     id: memberId,
@@ -308,19 +297,20 @@ export function acceptInvite(inviteId: string, userId: string): CrewMember {
     joinedAt: now,
     weeklyTU: 0,
     totalTU: 0,
-    username: user.username,
-    avatar: user.avatar,
-    archetype: user.archetype,
+    username: user?.username ?? undefined,
+    avatar: user?.avatar ?? undefined,
+    archetype: user?.archetype ?? undefined,
   };
 }
 
 /**
  * Leave crew
  */
-export function leaveCrew(userId: string): void {
-  const member = db
-    .prepare('SELECT crew_id, role FROM crew_members WHERE user_id = ?')
-    .get(userId) as any;
+export async function leaveCrew(userId: string): Promise<void> {
+  const member = await queryOne<{ crew_id: string; role: string }>(
+    'SELECT crew_id, role FROM crew_members WHERE user_id = $1',
+    [userId]
+  );
 
   if (!member) {
     throw new Error('You are not in a crew');
@@ -330,40 +320,40 @@ export function leaveCrew(userId: string): void {
     throw new Error('Owners cannot leave. Transfer ownership first or disband the crew.');
   }
 
-  db.prepare('DELETE FROM crew_members WHERE user_id = ?').run(userId);
-  db.prepare('UPDATE crews SET member_count = member_count - 1 WHERE id = ?').run(member.crew_id);
+  await execute('DELETE FROM crew_members WHERE user_id = $1', [userId]);
+  await execute('UPDATE crews SET member_count = member_count - 1 WHERE id = $1', [member.crew_id]);
 }
 
 /**
  * Challenge another crew to war
  */
-export function startCrewWar(
+export async function startCrewWar(
   challengerCrewId: string,
   defendingCrewId: string,
   durationDays = 7
-): CrewWar {
+): Promise<CrewWar> {
   const id = genId('war');
   const now = new Date();
   const endDate = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
   // Check not already in active war with each other
-  const existingWar = db
-    .prepare(
-      `SELECT id FROM crew_wars
-       WHERE status = 'active'
-       AND ((challenger_crew_id = ? AND defending_crew_id = ?)
-            OR (challenger_crew_id = ? AND defending_crew_id = ?))`
-    )
-    .get(challengerCrewId, defendingCrewId, defendingCrewId, challengerCrewId);
+  const existingWar = await queryOne<{ id: string }>(
+    `SELECT id FROM crew_wars
+     WHERE status = 'active'
+     AND ((challenger_crew_id = $1 AND defending_crew_id = $2)
+          OR (challenger_crew_id = $2 AND defending_crew_id = $1))`,
+    [challengerCrewId, defendingCrewId]
+  );
 
   if (existingWar) {
     throw new Error('Already in an active war with this crew');
   }
 
-  db.prepare(
+  await execute(
     `INSERT INTO crew_wars (id, challenger_crew_id, defending_crew_id, status, start_date, end_date, created_at)
-     VALUES (?, ?, ?, 'active', ?, ?, ?)`
-  ).run(id, challengerCrewId, defendingCrewId, now.toISOString(), endDate.toISOString(), now.toISOString());
+     VALUES ($1, $2, $3, 'active', $4, $5, $6)`,
+    [id, challengerCrewId, defendingCrewId, now.toISOString(), endDate.toISOString(), now.toISOString()]
+  );
 
   return {
     id,
@@ -382,54 +372,79 @@ export function startCrewWar(
 /**
  * Record workout contribution to crew war
  */
-export function recordCrewWorkout(userId: string, tu: number): void {
-  const member = db
-    .prepare('SELECT crew_id FROM crew_members WHERE user_id = ?')
-    .get(userId) as any;
+export async function recordCrewWorkout(userId: string, tu: number): Promise<void> {
+  const member = await queryOne<{ crew_id: string }>(
+    'SELECT crew_id FROM crew_members WHERE user_id = $1',
+    [userId]
+  );
 
   if (!member) return;
 
   // Update member stats
-  db.prepare(
-    `UPDATE crew_members SET weekly_tu = weekly_tu + ?, total_tu = total_tu + ?
-     WHERE user_id = ?`
-  ).run(tu, tu, userId);
+  await execute(
+    `UPDATE crew_members SET weekly_tu = weekly_tu + $1, total_tu = total_tu + $1
+     WHERE user_id = $2`,
+    [tu, userId]
+  );
 
   // Update crew stats
-  db.prepare(
-    `UPDATE crews SET weekly_tu = weekly_tu + ?, total_tu = total_tu + ?
-     WHERE id = ?`
-  ).run(tu, tu, member.crew_id);
+  await execute(
+    `UPDATE crews SET weekly_tu = weekly_tu + $1, total_tu = total_tu + $1
+     WHERE id = $2`,
+    [tu, member.crew_id]
+  );
 
   // Update active wars
-  db.prepare(
-    `UPDATE crew_wars SET challenger_tu = challenger_tu + ?
-     WHERE challenger_crew_id = ? AND status = 'active'`
-  ).run(tu, member.crew_id);
+  await execute(
+    `UPDATE crew_wars SET challenger_tu = challenger_tu + $1
+     WHERE challenger_crew_id = $2 AND status = 'active'`,
+    [tu, member.crew_id]
+  );
 
-  db.prepare(
-    `UPDATE crew_wars SET defending_tu = defending_tu + ?
-     WHERE defending_crew_id = ? AND status = 'active'`
-  ).run(tu, member.crew_id);
+  await execute(
+    `UPDATE crew_wars SET defending_tu = defending_tu + $1
+     WHERE defending_crew_id = $2 AND status = 'active'`,
+    [tu, member.crew_id]
+  );
 }
 
 /**
  * Get active crew wars for a crew
  */
-export function getCrewWars(crewId: string): CrewWarWithDetails[] {
-  const rows = db
-    .prepare(
-      `SELECT cw.*,
-              cc.id as cc_id, cc.name as cc_name, cc.tag as cc_tag, cc.avatar as cc_avatar, cc.color as cc_color,
-              dc.id as dc_id, dc.name as dc_name, dc.tag as dc_tag, dc.avatar as dc_avatar, dc.color as dc_color
-       FROM crew_wars cw
-       JOIN crews cc ON cc.id = cw.challenger_crew_id
-       JOIN crews dc ON dc.id = cw.defending_crew_id
-       WHERE (cw.challenger_crew_id = ? OR cw.defending_crew_id = ?)
-       AND cw.status = 'active'
-       ORDER BY cw.end_date ASC`
-    )
-    .all(crewId, crewId) as any[];
+export async function getCrewWars(crewId: string): Promise<CrewWarWithDetails[]> {
+  const rows = await queryAll<{
+    id: string;
+    challenger_crew_id: string;
+    defending_crew_id: string;
+    status: string;
+    start_date: string;
+    end_date: string;
+    challenger_tu: number;
+    defending_tu: number;
+    winner_id: string | null;
+    created_at: string;
+    cc_id: string;
+    cc_name: string;
+    cc_tag: string;
+    cc_avatar: string | null;
+    cc_color: string;
+    dc_id: string;
+    dc_name: string;
+    dc_tag: string;
+    dc_avatar: string | null;
+    dc_color: string;
+  }>(
+    `SELECT cw.*,
+            cc.id as cc_id, cc.name as cc_name, cc.tag as cc_tag, cc.avatar as cc_avatar, cc.color as cc_color,
+            dc.id as dc_id, dc.name as dc_name, dc.tag as dc_tag, dc.avatar as dc_avatar, dc.color as dc_color
+     FROM crew_wars cw
+     JOIN crews cc ON cc.id = cw.challenger_crew_id
+     JOIN crews dc ON dc.id = cw.defending_crew_id
+     WHERE (cw.challenger_crew_id = $1 OR cw.defending_crew_id = $1)
+     AND cw.status = 'active'
+     ORDER BY cw.end_date ASC`,
+    [crewId]
+  );
 
   const now = new Date();
 
@@ -446,7 +461,7 @@ export function getCrewWars(crewId: string): CrewWarWithDetails[] {
       id: row.id,
       challengerCrewId: row.challenger_crew_id,
       defendingCrewId: row.defending_crew_id,
-      status: row.status,
+      status: row.status as CrewWarStatus,
       startDate: row.start_date,
       endDate: row.end_date,
       challengerTU: row.challenger_tu,
@@ -479,15 +494,22 @@ export function getCrewWars(crewId: string): CrewWarWithDetails[] {
 /**
  * Get crew leaderboard
  */
-export function getCrewLeaderboard(limit = 50): CrewLeaderboard[] {
-  const rows = db
-    .prepare(
-      `SELECT id, name, tag, avatar, color, member_count, weekly_tu
-       FROM crews
-       ORDER BY weekly_tu DESC
-       LIMIT ?`
-    )
-    .all(limit) as any[];
+export async function getCrewLeaderboard(limit = 50): Promise<CrewLeaderboard[]> {
+  const rows = await queryAll<{
+    id: string;
+    name: string;
+    tag: string;
+    avatar: string | null;
+    color: string;
+    member_count: number;
+    weekly_tu: number;
+  }>(
+    `SELECT id, name, tag, avatar, color, member_count, weekly_tu
+     FROM crews
+     ORDER BY weekly_tu DESC
+     LIMIT $1`,
+    [limit]
+  );
 
   return rows.map((row, idx) => ({
     rank: idx + 1,
@@ -506,22 +528,26 @@ export function getCrewLeaderboard(limit = 50): CrewLeaderboard[] {
 /**
  * Get crew stats
  */
-export function getCrewStats(crewId: string): CrewStats {
-  const crew = getCrew(crewId);
+export async function getCrewStats(crewId: string): Promise<CrewStats> {
+  const crew = await getCrew(crewId);
   if (!crew) {
     throw new Error('Crew not found');
   }
 
-  const topContributors = db
-    .prepare(
-      `SELECT cm.user_id, cm.weekly_tu, u.username, u.avatar
-       FROM crew_members cm
-       LEFT JOIN users u ON u.id = cm.user_id
-       WHERE cm.crew_id = ?
-       ORDER BY cm.weekly_tu DESC
-       LIMIT 5`
-    )
-    .all(crewId) as any[];
+  const topContributors = await queryAll<{
+    user_id: string;
+    weekly_tu: number;
+    username: string | null;
+    avatar: string | null;
+  }>(
+    `SELECT cm.user_id, cm.weekly_tu, u.username, u.avatar
+     FROM crew_members cm
+     LEFT JOIN users u ON u.id = cm.user_id
+     WHERE cm.crew_id = $1
+     ORDER BY cm.weekly_tu DESC
+     LIMIT 5`,
+    [crewId]
+  );
 
   return {
     totalMembers: crew.memberCount,
@@ -532,8 +558,8 @@ export function getCrewStats(crewId: string): CrewStats {
     currentStreak: 0, // TODO: Calculate streak
     topContributors: topContributors.map((c) => ({
       userId: c.user_id,
-      username: c.username,
-      avatar: c.avatar,
+      username: c.username ?? undefined,
+      avatar: c.avatar ?? undefined,
       weeklyTU: c.weekly_tu,
     })),
   };
@@ -542,15 +568,28 @@ export function getCrewStats(crewId: string): CrewStats {
 /**
  * Search crews
  */
-export function searchCrews(query: string, limit = 20): Crew[] {
-  const rows = db
-    .prepare(
-      `SELECT * FROM crews
-       WHERE name LIKE ? OR tag LIKE ?
-       ORDER BY weekly_tu DESC
-       LIMIT ?`
-    )
-    .all(`%${query}%`, `%${query.toUpperCase()}%`, limit) as any[];
+export async function searchCrews(query: string, limit = 20): Promise<Crew[]> {
+  const rows = await queryAll<{
+    id: string;
+    name: string;
+    tag: string;
+    description: string | null;
+    avatar: string | null;
+    color: string;
+    owner_id: string;
+    member_count: number;
+    total_tu: number;
+    weekly_tu: number;
+    wins: number;
+    losses: number;
+    created_at: string;
+  }>(
+    `SELECT * FROM crews
+     WHERE name ILIKE $1 OR tag ILIKE $2
+     ORDER BY weekly_tu DESC
+     LIMIT $3`,
+    [`%${query}%`, `%${query.toUpperCase()}%`, limit]
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -568,6 +607,3 @@ export function searchCrews(query: string, limit = 20): Crew[] {
     createdAt: row.created_at,
   }));
 }
-
-// Initialize tables on module load
-initCrewsTables();

@@ -148,7 +148,7 @@ export function createRivalsRouter(): Router {
         'rival.request',
         userId,
         challengedId,
-        { challengerUsername: (req as AuthRequest).user?.username }
+        { challengerUsername: (req as AuthRequest).user?.email?.split('@')[0] || 'Unknown' }
       );
 
       res.status(201).json({ data: rival });
@@ -174,7 +174,7 @@ export function createRivalsRouter(): Router {
         'rival.accepted',
         rival.opponent.id,
         userId,
-        { acceptedByUsername: (req as AuthRequest).user?.username }
+        { acceptedByUsername: (req as AuthRequest).user?.email?.split('@')[0] || 'Unknown' }
       );
 
       res.json({ data: rival });

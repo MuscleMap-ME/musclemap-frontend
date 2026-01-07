@@ -78,3 +78,13 @@ export class InsufficientCreditsError extends AppError {
     this.name = 'InsufficientCreditsError';
   }
 }
+
+/**
+ * Forbidden error (403) - alias for AuthorizationError
+ */
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, 403, 'FORBIDDEN');
+    this.name = 'ForbiddenError';
+  }
+}

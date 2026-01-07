@@ -4,10 +4,9 @@
  * Provides contextual tips, insights, and milestone tracking for users.
  */
 
-import { Router, Request, Response } from 'express';
-import { db } from '../../db/client';
-import { authenticateToken } from '../auth';
-import { asyncHandler } from '../../lib/errors';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticate } from '../../http/routes/auth';
+import { db, queryOne, queryAll, execute } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { z } from 'zod';
 
@@ -51,73 +50,71 @@ interface UserStats {
   total_minutes: number;
 }
 
-interface WorkoutRow {
-  date: string;
-  exercise_data: string | null;
-}
-
 export const tipsService = {
   /**
    * Get a contextual tip for the current exercise
    */
-  getExerciseTip(exerciseId: string, userId: string): Tip | null {
+  async getExerciseTip(exerciseId: string, userId: string): Promise<Tip | null> {
     // First try exercise-specific tips user hasn't seen
-    let tip = db.prepare(`
+    let tip = await queryOne<Tip>(`
       SELECT t.* FROM tips t
-      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
       WHERE t.trigger_type = 'exercise'
-        AND t.trigger_value = ?
+        AND t.trigger_value = $2
         AND uts.tip_id IS NULL
       ORDER BY RANDOM()
       LIMIT 1
-    `).get(userId, exerciseId) as Tip | undefined;
+    `, [userId, exerciseId]);
 
     if (!tip) {
       // Fall back to muscle-specific tips
-      const exercise = db.prepare('SELECT primary_muscles FROM exercises WHERE id = ?').get(exerciseId) as { primary_muscles: string | null } | undefined;
+      const exercise = await queryOne<{ primary_muscles: string | null }>(
+        'SELECT primary_muscles FROM exercises WHERE id = $1',
+        [exerciseId]
+      );
       if (exercise?.primary_muscles) {
         const muscles = exercise.primary_muscles.split(',').map(m => m.trim());
         if (muscles.length > 0) {
-          const placeholders = muscles.map(() => '?').join(',');
-          tip = db.prepare(`
+          const placeholders = muscles.map((_, i) => `$${i + 2}`).join(',');
+          tip = await queryOne<Tip>(`
             SELECT t.* FROM tips t
-            LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+            LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
             WHERE t.trigger_type = 'muscle'
               AND t.trigger_value IN (${placeholders})
               AND uts.tip_id IS NULL
             ORDER BY RANDOM()
             LIMIT 1
-          `).get(userId, ...muscles) as Tip | undefined;
+          `, [userId, ...muscles]);
         }
       }
     }
 
     if (!tip) {
       // Fall back to random tips for during_exercise or between_sets contexts
-      tip = db.prepare(`
+      tip = await queryOne<Tip>(`
         SELECT t.* FROM tips t
-        LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+        LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
         WHERE t.trigger_type = 'random'
           AND t.display_context IN ('during_exercise', 'between_sets')
           AND uts.tip_id IS NULL
         ORDER BY RANDOM()
         LIMIT 1
-      `).get(userId) as Tip | undefined;
+      `, [userId]);
     }
 
     if (!tip) {
       // If all tips have been seen, get a random one from exercise/muscle/random types
-      tip = db.prepare(`
+      tip = await queryOne<Tip>(`
         SELECT t.* FROM tips t
         WHERE t.trigger_type IN ('exercise', 'muscle', 'random')
           AND t.display_context IN ('during_exercise', 'between_sets')
         ORDER BY RANDOM()
         LIMIT 1
-      `).get() as Tip | undefined;
+      `);
     }
 
     if (tip) {
-      this.markSeen(tip.id, userId);
+      await this.markSeen(tip.id, userId);
     }
 
     return tip || null;
@@ -126,9 +123,9 @@ export const tipsService = {
   /**
    * Get a tip for workout completion
    */
-  getCompletionTip(userId: string, goals: string[]): { tip: Tip | null; milestone: Milestone | null } {
+  async getCompletionTip(userId: string, goals: string[]): Promise<{ tip: Tip | null; milestone: Milestone | null }> {
     // Check for milestone tips first
-    const milestoneResult = this.checkMilestones(userId);
+    const milestoneResult = await this.checkMilestones(userId);
     if (milestoneResult) {
       return milestoneResult;
     }
@@ -136,48 +133,48 @@ export const tipsService = {
     // Goal-specific tip
     if (goals.length > 0) {
       for (const goal of goals) {
-        const tip = db.prepare(`
+        const tip = await queryOne<Tip>(`
           SELECT t.* FROM tips t
-          LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+          LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
           WHERE t.trigger_type = 'goal'
-            AND t.trigger_value = ?
+            AND t.trigger_value = $2
             AND t.display_context = 'post_workout'
             AND uts.tip_id IS NULL
           ORDER BY RANDOM()
           LIMIT 1
-        `).get(userId, goal) as Tip | undefined;
+        `, [userId, goal]);
 
         if (tip) {
-          this.markSeen(tip.id, userId);
+          await this.markSeen(tip.id, userId);
           return { tip, milestone: null };
         }
       }
     }
 
     // Random post-workout tip (unseen first)
-    let tip = db.prepare(`
+    let tip = await queryOne<Tip>(`
       SELECT t.* FROM tips t
-      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
       WHERE t.display_context = 'post_workout'
         AND t.trigger_type != 'milestone'
         AND uts.tip_id IS NULL
       ORDER BY RANDOM()
       LIMIT 1
-    `).get(userId) as Tip | undefined;
+    `, [userId]);
 
     if (!tip) {
       // Fall back to any post_workout tip
-      tip = db.prepare(`
+      tip = await queryOne<Tip>(`
         SELECT * FROM tips
         WHERE display_context = 'post_workout'
           AND trigger_type != 'milestone'
         ORDER BY RANDOM()
         LIMIT 1
-      `).get() as Tip | undefined;
+      `);
     }
 
     if (tip) {
-      this.markSeen(tip.id, userId);
+      await this.markSeen(tip.id, userId);
     }
 
     return { tip: tip || null, milestone: null };
@@ -186,43 +183,43 @@ export const tipsService = {
   /**
    * Get a daily tip for the dashboard
    */
-  getDailyTip(userId: string): Tip | null {
+  async getDailyTip(userId: string): Promise<Tip | null> {
     // Try dashboard-specific tips first
-    let tip = db.prepare(`
+    let tip = await queryOne<Tip>(`
       SELECT t.* FROM tips t
-      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+      LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
       WHERE t.display_context = 'dashboard'
         AND uts.tip_id IS NULL
       ORDER BY RANDOM()
       LIMIT 1
-    `).get(userId) as Tip | undefined;
+    `, [userId]);
 
     if (!tip) {
       // Fall back to motivation tips
-      tip = db.prepare(`
+      tip = await queryOne<Tip>(`
         SELECT t.* FROM tips t
-        LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = ?
+        LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
         WHERE t.category = 'motivation'
           AND t.trigger_type = 'random'
           AND uts.tip_id IS NULL
         ORDER BY RANDOM()
         LIMIT 1
-      `).get(userId) as Tip | undefined;
+      `, [userId]);
     }
 
     if (!tip) {
       // Fall back to any motivation tip
-      tip = db.prepare(`
+      tip = await queryOne<Tip>(`
         SELECT * FROM tips
         WHERE category = 'motivation'
           OR display_context = 'dashboard'
         ORDER BY RANDOM()
         LIMIT 1
-      `).get() as Tip | undefined;
+      `);
     }
 
     if (tip) {
-      this.markSeen(tip.id, userId);
+      await this.markSeen(tip.id, userId);
     }
 
     return tip || null;
@@ -231,18 +228,18 @@ export const tipsService = {
   /**
    * Check and return any newly achieved milestones
    */
-  checkMilestones(userId: string): { tip: Tip | null; milestone: Milestone } | null {
+  async checkMilestones(userId: string): Promise<{ tip: Tip | null; milestone: Milestone } | null> {
     // Get user stats
-    const stats = this.getUserStats(userId);
-    const streak = this.calculateStreak(userId);
+    const stats = await this.getUserStats(userId);
+    const streak = await this.calculateStreak(userId);
 
     // Get all milestones
-    const milestones = db.prepare('SELECT * FROM milestones ORDER BY threshold ASC').all() as Milestone[];
+    const milestones = await queryAll<Milestone>('SELECT * FROM milestones ORDER BY threshold ASC');
 
     for (const m of milestones) {
-      const userMilestone = db.prepare(`
-        SELECT * FROM user_milestones WHERE user_id = ? AND milestone_id = ?
-      `).get(userId, m.id) as UserMilestone | undefined;
+      const userMilestone = await queryOne<UserMilestone>(`
+        SELECT * FROM user_milestones WHERE user_id = $1 AND milestone_id = $2
+      `, [userId, m.id]);
 
       // Already completed
       if (userMilestone?.completed_at) continue;
@@ -269,23 +266,23 @@ export const tipsService = {
 
       if (currentValue >= m.threshold) {
         // Mark complete
-        db.prepare(`
+        await execute(`
           INSERT INTO user_milestones (user_id, milestone_id, current_value, completed_at)
-          VALUES (?, ?, ?, datetime('now'))
+          VALUES ($1, $2, $3, NOW())
           ON CONFLICT(user_id, milestone_id) DO UPDATE SET
-            current_value = excluded.current_value,
-            completed_at = excluded.completed_at
-        `).run(userId, m.id, currentValue);
+            current_value = EXCLUDED.current_value,
+            completed_at = EXCLUDED.completed_at
+        `, [userId, m.id, currentValue]);
 
-        log.info('Milestone achieved', { userId, milestoneId: m.id, currentValue });
+        log.info({ userId, milestoneId: m.id, currentValue }, 'Milestone achieved');
 
         // Get milestone tip
-        const tip = db.prepare(`
-          SELECT * FROM tips WHERE trigger_type = 'milestone' AND trigger_value = ?
-        `).get(m.id) as Tip | undefined;
+        const tip = await queryOne<Tip>(`
+          SELECT * FROM tips WHERE trigger_type = 'milestone' AND trigger_value = $1
+        `, [m.id]);
 
         if (tip) {
-          this.markSeen(tip.id, userId);
+          await this.markSeen(tip.id, userId);
           return { milestone: m, tip };
         }
 
@@ -300,19 +297,19 @@ export const tipsService = {
   /**
    * Get user workout stats for milestone calculation
    */
-  getUserStats(userId: string): UserStats {
-    const workoutStats = db.prepare(`
+  async getUserStats(userId: string): Promise<UserStats> {
+    const workoutStats = await queryOne<{ workouts_completed: string; total_tu: string }>(`
       SELECT
         COUNT(*) as workouts_completed,
         COALESCE(SUM(total_tu), 0) as total_tu
       FROM workouts
-      WHERE user_id = ?
-    `).get(userId) as { workouts_completed: number; total_tu: number };
+      WHERE user_id = $1
+    `, [userId]);
 
     // Calculate exercises done and total reps from exercise_data
-    const workouts = db.prepare(`
-      SELECT exercise_data FROM workouts WHERE user_id = ?
-    `).all(userId) as { exercise_data: string | null }[];
+    const workouts = await queryAll<{ exercise_data: string | null }>(`
+      SELECT exercise_data FROM workouts WHERE user_id = $1
+    `, [userId]);
 
     let exercisesDone = 0;
     let totalReps = 0;
@@ -336,7 +333,7 @@ export const tipsService = {
     const estimatedMinutes = Math.round((totalReps / 10) * 1.75); // rough estimate
 
     return {
-      workouts_completed: workoutStats.workouts_completed,
+      workouts_completed: parseInt(workoutStats?.workouts_completed || '0', 10),
       exercises_done: exercisesDone,
       total_reps: totalReps,
       total_minutes: estimatedMinutes,
@@ -346,12 +343,12 @@ export const tipsService = {
   /**
    * Calculate current streak (consecutive days with workouts)
    */
-  calculateStreak(userId: string): number {
-    const workouts = db.prepare(`
+  async calculateStreak(userId: string): Promise<number> {
+    const workouts = await queryAll<{ date: string }>(`
       SELECT DISTINCT date FROM workouts
-      WHERE user_id = ?
+      WHERE user_id = $1
       ORDER BY date DESC
-    `).all(userId) as { date: string }[];
+    `, [userId]);
 
     if (workouts.length === 0) return 0;
 
@@ -384,42 +381,43 @@ export const tipsService = {
   /**
    * Mark a tip as seen by the user
    */
-  markSeen(tipId: string, userId: string): void {
-    db.prepare(`
-      INSERT OR IGNORE INTO user_tips_seen (user_id, tip_id) VALUES (?, ?)
-    `).run(userId, tipId);
+  async markSeen(tipId: string, userId: string): Promise<void> {
+    await execute(`
+      INSERT INTO user_tips_seen (user_id, tip_id) VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [userId, tipId]);
 
-    db.prepare(`
-      UPDATE tips SET times_shown = times_shown + 1 WHERE id = ?
-    `).run(tipId);
+    await execute(`
+      UPDATE tips SET times_shown = times_shown + 1 WHERE id = $1
+    `, [tipId]);
   },
 
   /**
    * Like a tip
    */
-  likeTip(tipId: string, userId: string): void {
-    db.prepare(`
-      UPDATE user_tips_seen SET liked = 1 WHERE user_id = ? AND tip_id = ?
-    `).run(userId, tipId);
+  async likeTip(tipId: string, userId: string): Promise<void> {
+    await execute(`
+      UPDATE user_tips_seen SET liked = true WHERE user_id = $1 AND tip_id = $2
+    `, [userId, tipId]);
 
-    db.prepare(`
-      UPDATE tips SET times_liked = times_liked + 1 WHERE id = ?
-    `).run(tipId);
+    await execute(`
+      UPDATE tips SET times_liked = times_liked + 1 WHERE id = $1
+    `, [tipId]);
   },
 
   /**
    * Get user's milestones with progress
    */
-  getMilestones(userId: string): (Milestone & { current_value: number; completed_at: string | null; progress: number })[] {
-    const stats = this.getUserStats(userId);
-    const streak = this.calculateStreak(userId);
+  async getMilestones(userId: string): Promise<(Milestone & { current_value: number; completed_at: string | null; progress: number })[]> {
+    const stats = await this.getUserStats(userId);
+    const streak = await this.calculateStreak(userId);
 
-    const milestones = db.prepare(`
+    const milestones = await queryAll<Milestone & { current_value: number | null; completed_at: string | null }>(`
       SELECT m.*, um.current_value, um.completed_at
       FROM milestones m
-      LEFT JOIN user_milestones um ON um.milestone_id = m.id AND um.user_id = ?
+      LEFT JOIN user_milestones um ON um.milestone_id = m.id AND um.user_id = $1
       ORDER BY m.threshold
-    `).all(userId) as (Milestone & { current_value: number | null; completed_at: string | null })[];
+    `, [userId]);
 
     return milestones.map(m => {
       let currentValue = m.current_value || 0;
@@ -458,96 +456,90 @@ export const tipsService = {
   /**
    * Get tips the user has liked
    */
-  getLikedTips(userId: string, limit: number = 20, offset: number = 0): Tip[] {
-    return db.prepare(`
+  async getLikedTips(userId: string, limit: number = 20, offset: number = 0): Promise<Tip[]> {
+    return queryAll<Tip>(`
       SELECT t.* FROM tips t
       JOIN user_tips_seen uts ON uts.tip_id = t.id
-      WHERE uts.user_id = ? AND uts.liked = 1
+      WHERE uts.user_id = $1 AND uts.liked = true
       ORDER BY uts.seen_at DESC
-      LIMIT ? OFFSET ?
-    `).all(userId, limit, offset) as Tip[];
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
   },
 };
 
 /**
- * Router
+ * Register tips routes
  */
-export const tipsRouter = Router();
+export function registerTipsRoutes(fastify: FastifyInstance): void {
+  // Get tip for current exercise
+  fastify.get<{
+    Params: { exerciseId: string };
+  }>('/api/tips/exercise/:exerciseId', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const tip = await tipsService.getExerciseTip(request.params.exerciseId, request.user!.userId);
+    return { data: tip };
+  });
 
-// Get tip for current exercise
-tipsRouter.get(
-  '/exercise/:exerciseId',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const tip = tipsService.getExerciseTip(req.params.exerciseId, req.user!.userId);
-    res.json({ data: tip });
-  })
-);
+  // Get workout completion tip
+  const completionSchema = z.object({
+    goals: z.array(z.string()).optional(),
+  });
 
-// Get workout completion tip
-const completionSchema = z.object({
-  goals: z.array(z.string()).optional(),
-});
+  fastify.post<{
+    Body: { goals?: string[] };
+  }>('/api/tips/completion', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const { goals } = completionSchema.parse(request.body);
+    const result = await tipsService.getCompletionTip(request.user!.userId, goals || []);
+    return { data: result };
+  });
 
-tipsRouter.post(
-  '/completion',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const { goals } = completionSchema.parse(req.body);
-    const result = tipsService.getCompletionTip(req.user!.userId, goals || []);
-    res.json({ data: result });
-  })
-);
+  // Get daily dashboard tip
+  fastify.get('/api/tips/daily', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const tip = await tipsService.getDailyTip(request.user!.userId);
+    return { data: tip };
+  });
 
-// Get daily dashboard tip
-tipsRouter.get(
-  '/daily',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const tip = tipsService.getDailyTip(req.user!.userId);
-    res.json({ data: tip });
-  })
-);
+  // Like a tip
+  fastify.post<{
+    Params: { tipId: string };
+  }>('/api/tips/:tipId/like', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    await tipsService.likeTip(request.params.tipId, request.user!.userId);
+    return { success: true };
+  });
 
-// Like a tip
-tipsRouter.post(
-  '/:tipId/like',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    tipsService.likeTip(req.params.tipId, req.user!.userId);
-    res.json({ success: true });
-  })
-);
+  // Get user milestones
+  fastify.get('/api/tips/milestones', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const milestones = await tipsService.getMilestones(request.user!.userId);
+    return { data: milestones };
+  });
 
-// Get user milestones
-tipsRouter.get(
-  '/milestones',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const milestones = tipsService.getMilestones(req.user!.userId);
-    res.json({ data: milestones });
-  })
-);
+  // Get user's liked tips
+  fastify.get<{
+    Querystring: { limit?: string; offset?: string };
+  }>('/api/tips/liked', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const limit = Math.min(parseInt(request.query.limit || '20', 10), 100);
+    const offset = parseInt(request.query.offset || '0', 10);
+    const tips = await tipsService.getLikedTips(request.user!.userId, limit, offset);
+    return { data: tips, meta: { limit, offset } };
+  });
 
-// Get user's liked tips
-tipsRouter.get(
-  '/liked',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
-    const tips = tipsService.getLikedTips(req.user!.userId, limit, offset);
-    res.json({ data: tips, meta: { limit, offset } });
-  })
-);
-
-// Get user stats (for debugging/testing)
-tipsRouter.get(
-  '/stats',
-  authenticateToken,
-  asyncHandler(async (req: Request, res: Response) => {
-    const stats = tipsService.getUserStats(req.user!.userId);
-    const streak = tipsService.calculateStreak(req.user!.userId);
-    res.json({ data: { ...stats, streak } });
-  })
-);
+  // Get user stats (for debugging/testing)
+  fastify.get('/api/tips/stats', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const stats = await tipsService.getUserStats(request.user!.userId);
+    const streak = await tipsService.calculateStreak(request.user!.userId);
+    return { data: { ...stats, streak } };
+  });
+}

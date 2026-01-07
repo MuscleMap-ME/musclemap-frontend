@@ -129,7 +129,16 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
     const body = createHangoutSchema.parse(request.body);
 
     const hangout = await hangoutService.create({
-      ...body,
+      name: body.name,
+      description: body.description,
+      typeId: body.typeId,
+      lat: body.lat,
+      lng: body.lng,
+      address: body.address,
+      city: body.city,
+      countryCode: body.countryCode,
+      radiusMeters: body.radiusMeters,
+      coverImageUrl: body.coverImageUrl,
       createdBy: request.user!.userId,
     });
 

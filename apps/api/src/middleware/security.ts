@@ -56,7 +56,7 @@ export async function csrfProtection(request: FastifyRequest, reply: FastifyRepl
   }
 
   const headerToken = request.headers[CSRF_HEADER_NAME] as string | undefined;
-  const cookieToken = (request.cookies as Record<string, string>)?.[CSRF_COOKIE_NAME];
+  const cookieToken = ((request as any).cookies as Record<string, string>)?.[CSRF_COOKIE_NAME];
 
   // Ensure both tokens are present and are strings
   if (!headerToken || !cookieToken || typeof headerToken !== 'string' || typeof cookieToken !== 'string') {
@@ -115,7 +115,7 @@ export async function csrfProtection(request: FastifyRequest, reply: FastifyRepl
 export function setCsrfCookie(reply: FastifyReply): string {
   const token = generateCsrfToken();
 
-  reply.cookie(CSRF_COOKIE_NAME, token, {
+  (reply as any).cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: false, // Must be readable by JavaScript
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

@@ -361,6 +361,11 @@ export async function queryAll<T = Record<string, unknown>>(
   return db.queryAll<T>(sql, params);
 }
 
+// Standalone execute function
+export async function execute(sql: string, params?: unknown[]): Promise<number> {
+  return db.execute(sql, params);
+}
+
 // Health check alias
 export const healthCheck = isPoolHealthy;
 

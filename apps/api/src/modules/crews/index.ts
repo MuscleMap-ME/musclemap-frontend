@@ -3,186 +3,175 @@
  *
  * REST API endpoints for crews and Crew Wars.
  */
-import { Router } from 'express';
-import type { Request, Response } from 'express';
-import { requireAuth } from '../../middleware/auth';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticate } from '../../http/routes/auth';
 import * as crewsService from './service';
+import type { CrewWarStatus } from './types';
 
-export function createCrewsRouter(): Router {
-  const router = Router();
-
+export function registerCrewsRoutes(fastify: FastifyInstance): void {
   // Get user's crew
-  router.get('/my', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      const result = crewsService.getUserCrew(userId);
+  fastify.get('/api/crews/my', {
+    preHandler: [authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const userId = request.user!.userId;
+    const result = await crewsService.getUserCrew(userId);
 
-      if (!result) {
-        return res.json({ data: null });
-      }
-
-      const members = crewsService.getCrewMembers(result.crew.id);
-      const wars = crewsService.getCrewWars(result.crew.id);
-      const stats = crewsService.getCrewStats(result.crew.id);
-
-      res.json({
-        data: {
-          crew: result.crew,
-          membership: result.membership,
-          members,
-          wars,
-          stats,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to get user crew:', error);
-      res.status(500).json({ error: 'Failed to get crew' });
+    if (!result) {
+      return { data: null };
     }
+
+    const [members, wars, stats] = await Promise.all([
+      crewsService.getCrewMembers(result.crew.id),
+      crewsService.getCrewWars(result.crew.id),
+      crewsService.getCrewStats(result.crew.id),
+    ]);
+
+    return {
+      data: {
+        crew: result.crew,
+        membership: result.membership,
+        members,
+        wars,
+        stats,
+      },
+    };
   });
 
-  // Create a new crew
-  router.post('/', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      const { name, tag, description, color } = req.body;
-
-      if (!name || !tag) {
-        return res.status(400).json({ error: 'Name and tag are required' });
-      }
-
-      const crew = crewsService.createCrew(userId, name, tag, description, color);
-      res.status(201).json({ data: crew });
-    } catch (error: any) {
-      console.error('Failed to create crew:', error);
-      res.status(400).json({ error: error.message || 'Failed to create crew' });
-    }
-  });
-
-  // Get crew by ID
-  router.get('/:id', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const crew = crewsService.getCrew(req.params.id);
-      if (!crew) {
-        return res.status(404).json({ error: 'Crew not found' });
-      }
-
-      const members = crewsService.getCrewMembers(crew.id);
-      const stats = crewsService.getCrewStats(crew.id);
-
-      res.json({ data: { crew, members, stats } });
-    } catch (error) {
-      console.error('Failed to get crew:', error);
-      res.status(500).json({ error: 'Failed to get crew' });
-    }
+  // Get leaderboard (public route, before :id)
+  fastify.get('/api/crews/leaderboard', async (request: FastifyRequest<{
+    Querystring: { limit?: string };
+  }>, reply: FastifyReply) => {
+    const limit = parseInt(request.query.limit || '50', 10);
+    const leaderboard = await crewsService.getCrewLeaderboard(limit);
+    return { data: leaderboard };
   });
 
   // Search crews
-  router.get('/search', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const query = (req.query.q as string) || '';
-      const limit = parseInt(req.query.limit as string) || 20;
-      const crews = crewsService.searchCrews(query, limit);
-      res.json({ data: crews });
-    } catch (error) {
-      console.error('Failed to search crews:', error);
-      res.status(500).json({ error: 'Failed to search crews' });
-    }
-  });
-
-  // Get leaderboard
-  router.get('/leaderboard', async (req: Request, res: Response) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 50;
-      const leaderboard = crewsService.getCrewLeaderboard(limit);
-      res.json({ data: leaderboard });
-    } catch (error) {
-      console.error('Failed to get leaderboard:', error);
-      res.status(500).json({ error: 'Failed to get leaderboard' });
-    }
-  });
-
-  // Invite user to crew
-  router.post('/:id/invite', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      const { inviteeId } = req.body;
-
-      if (!inviteeId) {
-        return res.status(400).json({ error: 'inviteeId is required' });
-      }
-
-      const invite = crewsService.inviteToCrew(req.params.id, userId, inviteeId);
-      res.status(201).json({ data: invite });
-    } catch (error: any) {
-      console.error('Failed to invite user:', error);
-      res.status(400).json({ error: error.message || 'Failed to invite user' });
-    }
-  });
-
-  // Accept invite
-  router.post('/invites/:id/accept', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      const member = crewsService.acceptInvite(req.params.id, userId);
-      res.json({ data: member });
-    } catch (error: any) {
-      console.error('Failed to accept invite:', error);
-      res.status(400).json({ error: error.message || 'Failed to accept invite' });
-    }
+  fastify.get('/api/crews/search', {
+    preHandler: [authenticate],
+  }, async (request: FastifyRequest<{
+    Querystring: { q?: string; limit?: string };
+  }>, reply: FastifyReply) => {
+    const query = request.query.q || '';
+    const limit = parseInt(request.query.limit || '20', 10);
+    const crews = await crewsService.searchCrews(query, limit);
+    return { data: crews };
   });
 
   // Leave crew
-  router.post('/leave', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      crewsService.leaveCrew(userId);
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('Failed to leave crew:', error);
-      res.status(400).json({ error: error.message || 'Failed to leave crew' });
+  fastify.post('/api/crews/leave', {
+    preHandler: [authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const userId = request.user!.userId;
+    await crewsService.leaveCrew(userId);
+    return { success: true };
+  });
+
+  // Create a new crew
+  fastify.post<{
+    Body: { name?: string; tag?: string; description?: string; color?: string };
+  }>('/api/crews', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { name, tag, description, color } = request.body;
+
+    if (!name || !tag) {
+      return reply.status(400).send({ error: 'Name and tag are required' });
     }
+
+    const crew = await crewsService.createCrew(userId, name, tag, description, color);
+    reply.status(201);
+    return { data: crew };
+  });
+
+  // Get crew by ID
+  fastify.get<{
+    Params: { id: string };
+  }>('/api/crews/:id', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const crew = await crewsService.getCrew(request.params.id);
+    if (!crew) {
+      return reply.status(404).send({ error: 'Crew not found' });
+    }
+
+    const [members, stats] = await Promise.all([
+      crewsService.getCrewMembers(crew.id),
+      crewsService.getCrewStats(crew.id),
+    ]);
+
+    return { data: { crew, members, stats } };
+  });
+
+  // Invite user to crew
+  fastify.post<{
+    Params: { id: string };
+    Body: { inviteeId?: string };
+  }>('/api/crews/:id/invite', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { inviteeId } = request.body;
+
+    if (!inviteeId) {
+      return reply.status(400).send({ error: 'inviteeId is required' });
+    }
+
+    const invite = await crewsService.inviteToCrew(request.params.id, userId, inviteeId);
+    reply.status(201);
+    return { data: invite };
+  });
+
+  // Accept invite
+  fastify.post<{
+    Params: { id: string };
+  }>('/api/crews/invites/:id/accept', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const member = await crewsService.acceptInvite(request.params.id, userId);
+    return { data: member };
   });
 
   // Start crew war
-  router.post('/:id/war', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user.id;
-      const { defendingCrewId, durationDays } = req.body;
+  fastify.post<{
+    Params: { id: string };
+    Body: { defendingCrewId?: string; durationDays?: number };
+  }>('/api/crews/:id/war', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { defendingCrewId, durationDays } = request.body;
 
-      // Verify user is owner/captain of the crew
-      const userCrew = crewsService.getUserCrew(userId);
-      if (!userCrew || userCrew.crew.id !== req.params.id) {
-        return res.status(403).json({ error: 'You are not in this crew' });
-      }
-
-      if (userCrew.membership.role === 'member') {
-        return res.status(403).json({ error: 'Only owners and captains can start wars' });
-      }
-
-      if (!defendingCrewId) {
-        return res.status(400).json({ error: 'defendingCrewId is required' });
-      }
-
-      const war = crewsService.startCrewWar(req.params.id, defendingCrewId, durationDays || 7);
-      res.status(201).json({ data: war });
-    } catch (error: any) {
-      console.error('Failed to start war:', error);
-      res.status(400).json({ error: error.message || 'Failed to start war' });
+    // Verify user is owner/captain of the crew
+    const userCrew = await crewsService.getUserCrew(userId);
+    if (!userCrew || userCrew.crew.id !== request.params.id) {
+      return reply.status(403).send({ error: 'You are not in this crew' });
     }
+
+    if (userCrew.membership.role === 'member') {
+      return reply.status(403).send({ error: 'Only owners and captains can start wars' });
+    }
+
+    if (!defendingCrewId) {
+      return reply.status(400).send({ error: 'defendingCrewId is required' });
+    }
+
+    const war = await crewsService.startCrewWar(request.params.id, defendingCrewId, durationDays || 7);
+    reply.status(201);
+    return { data: war };
   });
 
   // Get crew wars
-  router.get('/:id/wars', requireAuth, async (req: Request, res: Response) => {
-    try {
-      const wars = crewsService.getCrewWars(req.params.id);
-      res.json({ data: wars });
-    } catch (error) {
-      console.error('Failed to get wars:', error);
-      res.status(500).json({ error: 'Failed to get wars' });
-    }
+  fastify.get<{
+    Params: { id: string };
+  }>('/api/crews/:id/wars', {
+    preHandler: [authenticate],
+  }, async (request, reply) => {
+    const wars = await crewsService.getCrewWars(request.params.id);
+    return { data: wars };
   });
-
-  return router;
 }
 
 export * from './types';

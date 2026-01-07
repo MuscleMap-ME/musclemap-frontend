@@ -3,7 +3,7 @@
  *
  * Business logic for the rivalry system.
  */
-import { db } from '../../db';
+import { queryOne, queryAll, execute } from '../../db/client';
 import type {
   Rival,
   RivalWithUser,
@@ -11,13 +11,28 @@ import type {
   RivalStatus,
 } from './types';
 
+// DB row types
+interface RivalRow {
+  id: string;
+  challenger_id: string;
+  challenged_id: string;
+  status: string;
+  created_at: string;
+  started_at: string | null;
+  ended_at: string | null;
+  challenger_tu: string;
+  challenged_tu: string;
+  last_challenger_workout: string | null;
+  last_challenged_workout: string | null;
+}
+
 // Map DB rows to Rival type
-function mapRival(row: any): Rival {
+function mapRival(row: RivalRow): Rival {
   return {
     id: row.id,
     challengerId: row.challenger_id,
     challengedId: row.challenged_id,
-    status: row.status,
+    status: row.status as RivalStatus,
     createdAt: new Date(row.created_at),
     startedAt: row.started_at ? new Date(row.started_at) : null,
     endedAt: row.ended_at ? new Date(row.ended_at) : null,
@@ -38,14 +53,19 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
   const opponentId = isChallenger ? rival.challengedId : rival.challengerId;
 
   // Get opponent info
-  const opponent = await db.get<any>(
-    `SELECT id, username, avatar, archetype FROM users WHERE id = ?`,
+  const opponent = await queryOne<{
+    id: string;
+    username: string | null;
+    avatar: string | null;
+    archetype: string | null;
+  }>(
+    `SELECT id, username, avatar, archetype FROM users WHERE id = $1`,
     [opponentId]
   );
 
   // Get opponent's level from journey data
-  const levelData = await db.get<any>(
-    `SELECT current_level FROM user_journey WHERE user_id = ?`,
+  const levelData = await queryOne<{ current_level: number }>(
+    `SELECT current_level FROM user_journey WHERE user_id = $1`,
     [opponentId]
   );
 
@@ -57,8 +77,8 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
     opponent: {
       id: opponent?.id || opponentId,
       username: opponent?.username || 'Unknown',
-      avatar: opponent?.avatar,
-      archetype: opponent?.archetype,
+      avatar: opponent?.avatar ?? undefined,
+      archetype: opponent?.archetype ?? undefined,
       level: levelData?.current_level || 1,
     },
     isChallenger,
@@ -77,37 +97,6 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
 
 export const rivalsService = {
   /**
-   * Initialize the rivals table
-   */
-  async initTable(): Promise<void> {
-    await db.run(`
-      CREATE TABLE IF NOT EXISTS rivals (
-        id TEXT PRIMARY KEY,
-        challenger_id TEXT NOT NULL,
-        challenged_id TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        started_at TEXT,
-        ended_at TEXT,
-        challenger_tu REAL NOT NULL DEFAULT 0,
-        challenged_tu REAL NOT NULL DEFAULT 0,
-        last_challenger_workout TEXT,
-        last_challenged_workout TEXT,
-        FOREIGN KEY (challenger_id) REFERENCES users(id),
-        FOREIGN KEY (challenged_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create indexes
-    await db.run(
-      `CREATE INDEX IF NOT EXISTS idx_rivals_challenger ON rivals(challenger_id, status)`
-    );
-    await db.run(
-      `CREATE INDEX IF NOT EXISTS idx_rivals_challenged ON rivals(challenged_id, status)`
-    );
-  },
-
-  /**
    * Create a new rivalry request
    */
   async createRivalry(
@@ -115,12 +104,12 @@ export const rivalsService = {
     challengedId: string
   ): Promise<RivalWithUser> {
     // Check if rivalry already exists
-    const existing = await db.get<any>(
+    const existing = await queryOne<RivalRow>(
       `SELECT * FROM rivals
-       WHERE ((challenger_id = ? AND challenged_id = ?)
-              OR (challenger_id = ? AND challenged_id = ?))
+       WHERE ((challenger_id = $1 AND challenged_id = $2)
+              OR (challenger_id = $2 AND challenged_id = $1))
          AND status IN ('pending', 'active')`,
-      [challengerId, challengedId, challengedId, challengerId]
+      [challengerId, challengedId]
     );
 
     if (existing) {
@@ -128,8 +117,8 @@ export const rivalsService = {
     }
 
     // Check if users exist
-    const challenged = await db.get<any>(
-      `SELECT id FROM users WHERE id = ?`,
+    const challenged = await queryOne<{ id: string }>(
+      `SELECT id FROM users WHERE id = $1`,
       [challengedId]
     );
     if (!challenged) {
@@ -137,9 +126,9 @@ export const rivalsService = {
     }
 
     const id = crypto.randomUUID();
-    await db.run(
+    await execute(
       `INSERT INTO rivals (id, challenger_id, challenged_id, status, created_at)
-       VALUES (?, ?, ?, 'pending', datetime('now'))`,
+       VALUES ($1, $2, $3, 'pending', NOW())`,
       [id, challengerId, challengedId]
     );
 
@@ -153,7 +142,7 @@ export const rivalsService = {
    * Get a rivalry by ID
    */
   async getRivalry(id: string): Promise<Rival | null> {
-    const row = await db.get<any>(`SELECT * FROM rivals WHERE id = ?`, [id]);
+    const row = await queryOne<RivalRow>(`SELECT * FROM rivals WHERE id = $1`, [id]);
     return row ? mapRival(row) : null;
   },
 
@@ -179,8 +168,8 @@ export const rivalsService = {
     if (rival.challengedId !== userId)
       throw new Error('Only the challenged user can accept');
 
-    await db.run(
-      `UPDATE rivals SET status = 'active', started_at = datetime('now') WHERE id = ?`,
+    await execute(
+      `UPDATE rivals SET status = 'active', started_at = NOW() WHERE id = $1`,
       [id]
     );
 
@@ -198,7 +187,7 @@ export const rivalsService = {
     if (rival.challengedId !== userId)
       throw new Error('Only the challenged user can decline');
 
-    await db.run(`UPDATE rivals SET status = 'declined' WHERE id = ?`, [id]);
+    await execute(`UPDATE rivals SET status = 'declined' WHERE id = $1`, [id]);
   },
 
   /**
@@ -211,8 +200,8 @@ export const rivalsService = {
     if (rival.challengerId !== userId && rival.challengedId !== userId)
       throw new Error('Only participants can end rivalry');
 
-    await db.run(
-      `UPDATE rivals SET status = 'ended', ended_at = datetime('now') WHERE id = ?`,
+    await execute(
+      `UPDATE rivals SET status = 'ended', ended_at = NOW() WHERE id = $1`,
       [id]
     );
   },
@@ -224,23 +213,35 @@ export const rivalsService = {
     userId: string,
     status?: RivalStatus
   ): Promise<RivalWithUser[]> {
-    const statusFilter = status ? `AND status = ?` : `AND status != 'declined'`;
-    const params = status
-      ? [userId, userId, status]
-      : [userId, userId];
+    let rows: RivalRow[];
 
-    const rows = await db.all<any[]>(
-      `SELECT * FROM rivals
-       WHERE (challenger_id = ? OR challenged_id = ?) ${statusFilter}
-       ORDER BY
-         CASE status
-           WHEN 'active' THEN 1
-           WHEN 'pending' THEN 2
-           ELSE 3
-         END,
-         created_at DESC`,
-      params
-    );
+    if (status) {
+      rows = await queryAll<RivalRow>(
+        `SELECT * FROM rivals
+         WHERE (challenger_id = $1 OR challenged_id = $1) AND status = $2
+         ORDER BY
+           CASE status
+             WHEN 'active' THEN 1
+             WHEN 'pending' THEN 2
+             ELSE 3
+           END,
+           created_at DESC`,
+        [userId, status]
+      );
+    } else {
+      rows = await queryAll<RivalRow>(
+        `SELECT * FROM rivals
+         WHERE (challenger_id = $1 OR challenged_id = $1) AND status != 'declined'
+         ORDER BY
+           CASE status
+             WHEN 'active' THEN 1
+             WHEN 'pending' THEN 2
+             ELSE 3
+           END,
+           created_at DESC`,
+        [userId]
+      );
+    }
 
     return Promise.all(rows.map((row) => enrichRival(mapRival(row), userId)));
   },
@@ -249,9 +250,9 @@ export const rivalsService = {
    * Get pending rivalry requests for a user
    */
   async getPendingRequests(userId: string): Promise<RivalWithUser[]> {
-    const rows = await db.all<any[]>(
+    const rows = await queryAll<RivalRow>(
       `SELECT * FROM rivals
-       WHERE challenged_id = ? AND status = 'pending'
+       WHERE challenged_id = $1 AND status = 'pending'
        ORDER BY created_at DESC`,
       [userId]
     );
@@ -264,17 +265,17 @@ export const rivalsService = {
    */
   async getUserStats(userId: string): Promise<RivalStats> {
     // Count active rivalries
-    const active = await db.get<any>(
+    const active = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM rivals
-       WHERE (challenger_id = ? OR challenged_id = ?) AND status = 'active'`,
-      [userId, userId]
+       WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'active'`,
+      [userId]
     );
 
     // Count wins/losses/ties
-    const results = await db.all<any[]>(
+    const results = await queryAll<{ result: string }>(
       `SELECT
          CASE
-           WHEN challenger_id = ? THEN
+           WHEN challenger_id = $1 THEN
              CASE
                WHEN challenger_tu > challenged_tu THEN 'win'
                WHEN challenger_tu < challenged_tu THEN 'loss'
@@ -288,8 +289,8 @@ export const rivalsService = {
              END
          END as result
        FROM rivals
-       WHERE (challenger_id = ? OR challenged_id = ?) AND status = 'ended'`,
-      [userId, userId, userId]
+       WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'ended'`,
+      [userId]
     );
 
     const wins = results.filter((r) => r.result === 'win').length;
@@ -297,12 +298,12 @@ export const rivalsService = {
     const ties = results.filter((r) => r.result === 'tie').length;
 
     // Total TU earned in rivalries
-    const tuData = await db.get<any>(
+    const tuData = await queryOne<{ total_tu: string | null }>(
       `SELECT
-         SUM(CASE WHEN challenger_id = ? THEN challenger_tu ELSE challenged_tu END) as total_tu
+         SUM(CASE WHEN challenger_id = $1 THEN challenger_tu ELSE challenged_tu END) as total_tu
        FROM rivals
-       WHERE (challenger_id = ? OR challenged_id = ?) AND status IN ('active', 'ended')`,
-      [userId, userId, userId]
+       WHERE (challenger_id = $1 OR challenged_id = $1) AND status IN ('active', 'ended')`,
+      [userId]
     );
 
     // TODO: Calculate streaks from historical data
@@ -310,11 +311,11 @@ export const rivalsService = {
     const longestStreak = 0;
 
     return {
-      activeRivals: active?.count || 0,
+      activeRivals: parseInt(active?.count || '0', 10),
       wins,
       losses,
       ties,
-      totalTUEarned: parseFloat(tuData?.total_tu) || 0,
+      totalTUEarned: parseFloat(tuData?.total_tu || '0'),
       currentStreak,
       longestStreak,
     };
@@ -329,24 +330,21 @@ export const rivalsService = {
     tuEarned: number,
     topMuscles: string[]
   ): Promise<RivalWithUser[]> {
-    const isChallenger = `challenger_id = ?`;
-    const isChallenged = `challenged_id = ?`;
-
     // Update all active rivalries where user is challenger
-    await db.run(
+    await execute(
       `UPDATE rivals
-       SET challenger_tu = challenger_tu + ?,
-           last_challenger_workout = datetime('now')
-       WHERE ${isChallenger} AND status = 'active'`,
+       SET challenger_tu = challenger_tu + $1,
+           last_challenger_workout = NOW()
+       WHERE challenger_id = $2 AND status = 'active'`,
       [tuEarned, userId]
     );
 
     // Update all active rivalries where user is challenged
-    await db.run(
+    await execute(
       `UPDATE rivals
-       SET challenged_tu = challenged_tu + ?,
-           last_challenged_workout = datetime('now')
-       WHERE ${isChallenged} AND status = 'active'`,
+       SET challenged_tu = challenged_tu + $1,
+           last_challenged_workout = NOW()
+       WHERE challenged_id = $2 AND status = 'active'`,
       [tuEarned, userId]
     );
 
@@ -365,22 +363,32 @@ export const rivalsService = {
     Array<{ id: string; username: string; avatar?: string; archetype?: string }>
   > {
     // Get users matching query, excluding self and existing rivals
-    const rows = await db.all<any[]>(
+    const rows = await queryAll<{
+      id: string;
+      username: string;
+      avatar: string | null;
+      archetype: string | null;
+    }>(
       `SELECT u.id, u.username, u.avatar, u.archetype
        FROM users u
-       WHERE u.id != ?
-         AND u.username LIKE ?
+       WHERE u.id != $1
+         AND u.username ILIKE $2
          AND u.id NOT IN (
            SELECT challenger_id FROM rivals
-           WHERE challenged_id = ? AND status IN ('pending', 'active')
+           WHERE challenged_id = $1 AND status IN ('pending', 'active')
            UNION
            SELECT challenged_id FROM rivals
-           WHERE challenger_id = ? AND status IN ('pending', 'active')
+           WHERE challenger_id = $1 AND status IN ('pending', 'active')
          )
-       LIMIT ?`,
-      [userId, `%${query}%`, userId, userId, limit]
+       LIMIT $3`,
+      [userId, `%${query}%`, limit]
     );
 
-    return rows;
+    return rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      avatar: r.avatar ?? undefined,
+      archetype: r.archetype ?? undefined,
+    }));
   },
 };
