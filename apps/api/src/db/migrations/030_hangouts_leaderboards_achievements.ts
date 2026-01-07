@@ -236,7 +236,7 @@ export async function up(): Promise<void> {
       ) WHERE hangout_id IS NULL AND virtual_hangout_id IS NULL
     `);
 
-    await db.query('CREATE INDEX idx_leaderboard_user ON leaderboard_entries(user_id, period_type)');
+    await db.query('CREATE INDEX idx_leaderboard_entries_user ON leaderboard_entries(user_id, period_type)');
   }
 
   // ============================================
