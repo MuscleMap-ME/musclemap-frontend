@@ -75,6 +75,10 @@ export async function up(): Promise<void> {
       log.info('Adding institution to archetypes table...');
       await db.query(`ALTER TABLE archetypes ADD COLUMN institution TEXT`);
     }
+    if (!(await columnExists('archetypes', 'recommended_equipment'))) {
+      log.info('Adding recommended_equipment to archetypes table...');
+      await db.query(`ALTER TABLE archetypes ADD COLUMN recommended_equipment JSONB DEFAULT '[]'`);
+    }
   }
 
   // Create pt_tests table
