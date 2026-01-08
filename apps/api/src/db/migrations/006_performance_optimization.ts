@@ -218,14 +218,20 @@ export async function migrate(): Promise<void> {
   );
 
   // ============================================
-  // JOURNEY PROGRESS OPTIMIZATIONS
+  // USER JOURNEYS OPTIMIZATIONS
   // ============================================
 
-  // Index for active journeys
+  // Index for active user journeys
   await createIndexIfNotExists(
-    'idx_journey_progress_active',
-    `CREATE INDEX idx_journey_progress_active ON journey_progress(user_id, status)
+    'idx_user_journeys_active',
+    `CREATE INDEX idx_user_journeys_active ON user_journeys(user_id, status)
      WHERE status = 'active'`
+  );
+
+  // Index for journey progress date queries
+  await createIndexIfNotExists(
+    'idx_journey_progress_user_date',
+    `CREATE INDEX idx_journey_progress_user_date ON journey_progress(user_id, journey_id, date DESC)`
   );
 
   // ============================================
