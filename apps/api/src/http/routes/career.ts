@@ -19,6 +19,14 @@ import {
   TeamReadinessSummary,
 } from '../../modules/career';
 
+// Role levels from hangout.service.ts
+const HangoutRole = {
+  MEMBER: 0,
+  MODERATOR: 1,
+  ADMIN: 2,
+  OWNER: 3,
+} as const;
+
 const log = loggers.core;
 
 // Validation schemas
@@ -369,8 +377,8 @@ export async function registerCareerRoutes(app: FastifyInstance) {
     const { hangoutId } = request.params as { hangoutId: string };
 
     // Check user is member of hangout
-    const membership = await db.queryOne<{ role: string }>(
-      `SELECT role FROM hangout_members WHERE hangout_id = $1 AND user_id = $2`,
+    const membership = await db.queryOne<{ role: number }>(
+      `SELECT role FROM hangout_memberships WHERE hangout_id = $1 AND user_id = $2`,
       [hangoutId, userId]
     );
 
@@ -392,10 +400,11 @@ export async function registerCareerRoutes(app: FastifyInstance) {
     }
 
     // Check visibility permissions
+    const roleNames = ['member', 'moderator', 'admin', 'owner'];
+    const roleName = roleNames[membership.role] || 'member';
     const canView = config.visibleTo.includes('all') ||
-      config.visibleTo.includes(membership.role) ||
-      membership.role === 'admin' ||
-      membership.role === 'owner';
+      config.visibleTo.includes(roleName) ||
+      membership.role >= HangoutRole.ADMIN;
 
     if (!canView) {
       return reply.status(403).send({
@@ -434,12 +443,12 @@ export async function registerCareerRoutes(app: FastifyInstance) {
     }
 
     // Check user is admin/owner
-    const membership = await db.queryOne<{ role: string }>(
-      `SELECT role FROM hangout_members WHERE hangout_id = $1 AND user_id = $2`,
+    const membership = await db.queryOne<{ role: number }>(
+      `SELECT role FROM hangout_memberships WHERE hangout_id = $1 AND user_id = $2`,
       [hangoutId, userId]
     );
 
-    if (!membership || !['admin', 'owner'].includes(membership.role)) {
+    if (!membership || membership.role < HangoutRole.ADMIN) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Only admins can enable team readiness', statusCode: 403 },
       });
@@ -480,8 +489,8 @@ export async function registerCareerRoutes(app: FastifyInstance) {
     }
 
     // Check user is member
-    const membership = await db.queryOne<{ role: string }>(
-      `SELECT role FROM hangout_members WHERE hangout_id = $1 AND user_id = $2`,
+    const membership = await db.queryOne<{ role: number }>(
+      `SELECT role FROM hangout_memberships WHERE hangout_id = $1 AND user_id = $2`,
       [hangoutId, userId]
     );
 

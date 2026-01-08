@@ -780,7 +780,7 @@ export async function getTeamReadiness(hangoutId: string): Promise<TeamReadiness
 
   // Get all hangout members
   const members = await queryAll<{ user_id: string }>(
-    `SELECT user_id FROM hangout_members WHERE hangout_id = $1`,
+    `SELECT user_id FROM hangout_memberships WHERE hangout_id = $1`,
     [hangoutId]
   );
 

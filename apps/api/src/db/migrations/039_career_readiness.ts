@@ -155,7 +155,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE team_readiness_config (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
 
         -- Configuration
         enabled BOOLEAN DEFAULT false,
@@ -187,7 +187,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE team_readiness_permissions (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
         -- Permission Type
@@ -225,7 +225,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE team_member_readiness (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         pt_test_id TEXT REFERENCES pt_tests(id),
 
@@ -255,7 +255,7 @@ export async function up(): Promise<void> {
     await db.query(`
       CREATE TABLE team_readiness_snapshots (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-        hangout_id TEXT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
+        hangout_id BIGINT NOT NULL REFERENCES hangouts(id) ON DELETE CASCADE,
         pt_test_id TEXT REFERENCES pt_tests(id),
 
         -- Snapshot Data
