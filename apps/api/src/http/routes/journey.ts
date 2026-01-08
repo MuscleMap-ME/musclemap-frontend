@@ -15,10 +15,10 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
 
     // Get user's archetype and level
     const user = await queryOne<{
-      current_archetype_id: string;
+      current_identity_id: string;
       current_level: number;
     }>(
-      'SELECT current_archetype_id, current_level FROM users WHERE id = $1',
+      'SELECT current_identity_id, current_level FROM users WHERE id = $1',
       [userId]
     );
 
@@ -39,15 +39,15 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     // Get archetype info if set
     let archetype = null;
     let level = null;
-    if (user?.current_archetype_id) {
+    if (user?.current_identity_id) {
       archetype = await queryOne<{ id: string; name: string; philosophy: string }>(
         'SELECT id, name, philosophy FROM archetypes WHERE id = $1',
-        [user.current_archetype_id]
+        [user.current_identity_id]
       );
 
       level = await queryOne<{ name: string; total_tu: number; description: string }>(
         'SELECT name, total_tu, description FROM archetype_levels WHERE archetype_id = $1 AND level = $2',
-        [user.current_archetype_id, user.current_level || 1]
+        [user.current_identity_id, user.current_level || 1]
       );
     }
 
@@ -171,7 +171,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     }
 
     await query(
-      'UPDATE users SET current_archetype_id = $1, current_level = 1, updated_at = NOW() WHERE id = $2',
+      'UPDATE users SET current_identity_id = $1, current_level = 1, updated_at = NOW() WHERE id = $2',
       [archetypeId, userId]
     );
 
