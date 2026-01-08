@@ -169,12 +169,22 @@ export default function Workout() {
     setCompleting(true);
     try {
       // Format exercises for the workouts API
-      const exercises = logged.map(e => ({
-        exerciseId: e.id || e.exerciseId,
-        sets: e.sets || 3,
-        reps: e.reps || 10,
-        weight: e.weight || undefined,
-      }));
+      // Filter out warmup/cooldown activities that don't have real exercise IDs
+      const exercises = logged
+        .filter(e => !e.isActivity && e.id && !e.id.startsWith('activity-'))
+        .map(e => ({
+          exerciseId: e.id || e.exerciseId,
+          sets: e.sets || 3,
+          reps: e.reps || 10,
+          weight: e.weight || undefined,
+        }));
+
+      // If no actual exercises (only activities), show message
+      if (exercises.length === 0) {
+        alert('No exercises to log. Complete at least one exercise to save your workout.');
+        setCompleting(false);
+        return;
+      }
 
       const idempotencyKey = `workout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -233,7 +243,28 @@ export default function Workout() {
   // Log an exercise from prescription mode
   const logPrescribedExercise = async (exercise) => {
     // Prescription API returns `id`, not `exerciseId`
+    // Warmup/cooldown items don't have IDs - they're just activities
     const exerciseId = exercise.id || exercise.exerciseId;
+
+    // For warmup/cooldown without exercise IDs, just mark as done and move on
+    if (!exerciseId) {
+      setLogged([...logged, {
+        id: `activity-${Date.now()}`,
+        name: exercise.name || exercise.description || 'Activity',
+        sets: 1,
+        reps: 1,
+        weight: 0,
+        isActivity: true, // Flag to exclude from workout submission
+      }]);
+      setSuccess(exercise.name || exercise.description);
+      setTimeout(() => setSuccess(null), 2000);
+      const allExercises = getAllPrescribedExercises();
+      if (currentExerciseIndex < allExercises.length - 1) {
+        setCurrentExerciseIndex(currentExerciseIndex + 1);
+      }
+      return;
+    }
+
     try {
       await fetch('/api/workouts/exercise', {
         method: 'POST',
