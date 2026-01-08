@@ -470,6 +470,7 @@ export default function Landing() {
                   src="/landing-decal-1024w.png"
                   alt="MuscleMap - Visualize Every Muscle. Track Every Rep."
                   className="max-w-full h-auto rounded-xl"
+                  style={{ filter: 'saturate(1.15) contrast(1.05)' }}
                   loading="lazy"
                 />
               </picture>

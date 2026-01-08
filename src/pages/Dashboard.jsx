@@ -21,7 +21,6 @@ import {
   GlassProgressBar,
   GlassCircularProgress,
   GlassNav,
-  AnimatedLogo,
   GlassSidebar,
   GlassSidebarSection,
   GlassSidebarItem,
@@ -828,7 +827,7 @@ export default function Dashboard() {
       <GlassNav
         brandSlot={
           <Link to="/dashboard" className="flex items-center gap-3">
-            <AnimatedLogo size={32} breathing />
+            <img src="/logo.png" alt="MuscleMap" className="w-8 h-8 rounded-lg" />
             <span className="font-bold text-lg text-[var(--text-primary)] hidden sm:block">MuscleMap</span>
           </Link>
         }
