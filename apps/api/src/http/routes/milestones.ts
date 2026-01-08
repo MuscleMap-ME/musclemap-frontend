@@ -26,10 +26,10 @@ const MILESTONE_CATEGORIES = [
 
 export async function registerMilestonesRoutes(app: FastifyInstance) {
   /**
-   * GET /milestones/categories
+   * GET /skill-milestones/categories
    * List all milestone categories
    */
-  app.get('/milestones/categories', async (request, reply) => {
+  app.get('/skill-milestones/categories', async (request, reply) => {
     // Get count per category
     const counts = await db.queryAll<{ category: string; count: string }>(
       `SELECT category, COUNT(*) as count FROM skill_milestones WHERE is_active = TRUE GROUP BY category`
@@ -46,10 +46,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /milestones
+   * GET /skill-milestones
    * List all milestones with optional filters
    */
-  app.get('/milestones', async (request, reply) => {
+  app.get('/skill-milestones', async (request, reply) => {
     const { category, difficulty, apparatus, featured } = request.query as {
       category?: string;
       difficulty?: string;
@@ -134,10 +134,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /milestones/featured
+   * GET /skill-milestones/featured
    * Get featured milestones for showcase
    */
-  app.get('/milestones/featured', async (request, reply) => {
+  app.get('/skill-milestones/featured', async (request, reply) => {
     const rows = await db.queryAll<{
       id: string;
       name: string;
@@ -170,10 +170,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /milestones/:id
+   * GET /skill-milestones/:id
    * Get milestone details with progression tree
    */
-  app.get('/milestones/:id', async (request, reply) => {
+  app.get('/skill-milestones/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const milestone = await db.queryOne<{
@@ -279,10 +279,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /milestones/categories/:category
+   * GET /skill-milestones/categories/:category
    * Get milestones in a specific category
    */
-  app.get('/milestones/categories/:category', async (request, reply) => {
+  app.get('/skill-milestones/categories/:category', async (request, reply) => {
     const { category } = request.params as { category: string };
 
     const rows = await db.queryAll<{
@@ -341,10 +341,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   // ============================================
 
   /**
-   * GET /milestones/me
+   * GET /skill-milestones/me
    * Get user's active milestones
    */
-  app.get('/milestones/me', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/skill-milestones/me', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
 
     const rows = await db.queryAll<{
@@ -393,10 +393,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /milestones/start
+   * POST /skill-milestones/start
    * Start pursuing a milestone
    */
-  app.post('/milestones/start', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/skill-milestones/start', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { milestoneId } = request.body as { milestoneId: string };
 
@@ -447,10 +447,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /milestones/me/:userMilestoneId/log
+   * POST /skill-milestones/me/:userMilestoneId/log
    * Log an attempt for a milestone
    */
-  app.post('/milestones/me/:userMilestoneId/log', { preHandler: authenticate }, async (request, reply) => {
+  app.post('/skill-milestones/me/:userMilestoneId/log', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { userMilestoneId } = request.params as { userMilestoneId: string };
     const { holdSeconds, repsCompleted, formRating, success, notes, videoUrl } = request.body as {
@@ -553,10 +553,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * PUT /milestones/me/:userMilestoneId/progress
+   * PUT /skill-milestones/me/:userMilestoneId/progress
    * Update progression step
    */
-  app.put('/milestones/me/:userMilestoneId/progress', { preHandler: authenticate }, async (request, reply) => {
+  app.put('/skill-milestones/me/:userMilestoneId/progress', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { userMilestoneId } = request.params as { userMilestoneId: string };
     const { progressionStep } = request.body as { progressionStep: number };
@@ -577,10 +577,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * PUT /milestones/me/:userMilestoneId/pause
+   * PUT /skill-milestones/me/:userMilestoneId/pause
    * Pause a milestone
    */
-  app.put('/milestones/me/:userMilestoneId/pause', { preHandler: authenticate }, async (request, reply) => {
+  app.put('/skill-milestones/me/:userMilestoneId/pause', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { userMilestoneId } = request.params as { userMilestoneId: string };
 
@@ -594,10 +594,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * DELETE /milestones/me/:userMilestoneId
+   * DELETE /skill-milestones/me/:userMilestoneId
    * Abandon a milestone
    */
-  app.delete('/milestones/me/:userMilestoneId', { preHandler: authenticate }, async (request, reply) => {
+  app.delete('/skill-milestones/me/:userMilestoneId', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { userMilestoneId } = request.params as { userMilestoneId: string };
 
@@ -611,10 +611,10 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /milestones/me/:userMilestoneId/attempts
+   * GET /skill-milestones/me/:userMilestoneId/attempts
    * Get attempt history for a milestone
    */
-  app.get('/milestones/me/:userMilestoneId/attempts', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/skill-milestones/me/:userMilestoneId/attempts', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { userMilestoneId } = request.params as { userMilestoneId: string };
 
