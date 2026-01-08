@@ -339,38 +339,37 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="h-full rounded-2xl p-6 bg-gradient-to-br from-[var(--glass-white-5)] to-[var(--glass-white-10)] backdrop-blur-xl border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors flex flex-col"
+      className="h-full rounded-2xl p-4 lg:p-5 bg-gradient-to-br from-[var(--glass-white-5)] to-[var(--glass-white-10)] backdrop-blur-xl border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-[var(--brand-blue-500)]/20 to-purple-500/20 rounded-xl border border-[var(--border-subtle)]">
-            <Icons.Target className="w-5 h-5 text-[var(--brand-blue-400)]" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-gradient-to-br from-[var(--brand-blue-500)]/20 to-purple-500/20 rounded-lg border border-[var(--border-subtle)]">
+            <Icons.Target className="w-4 h-4 text-[var(--brand-blue-400)]" />
           </div>
           <div>
-            <h3 className="font-bold text-[var(--text-primary)]">Your Stats</h3>
-            <p className="text-xs text-[var(--text-tertiary)]">Fitness attributes</p>
+            <h3 className="font-bold text-sm text-[var(--text-primary)]">Character Stats</h3>
           </div>
         </div>
         <Link
           to="/stats"
-          className="text-sm text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-1"
+          className="text-xs text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-0.5"
         >
-          View all
-          <Icons.ChevronRight className="w-4 h-4" />
+          Details
+          <Icons.ChevronRight className="w-3 h-3" />
         </Link>
       </div>
 
       {/* Compact Radar Visualization */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-6">
-        {/* Mini Radar Chart */}
-        <div className="flex-shrink-0 flex justify-center">
-          <svg width={160} height={160} className="mx-auto">
+      <div className="flex-1 flex flex-col gap-4">
+        {/* Mini Radar Chart - hidden on small containers */}
+        <div className="hidden xl:flex flex-shrink-0 justify-center">
+          <svg width={140} height={140} className="mx-auto">
             {/* Background hexagon rings */}
             {[0.33, 0.66, 1].map((level, idx) => {
               const pts = [];
-              const center = 80;
-              const maxRadius = 60;
+              const center = 70;
+              const maxRadius = 55;
               const angleStep = (2 * Math.PI) / 6;
               for (let i = 0; i < 6; i++) {
                 const angle = angleStep * i - Math.PI / 2;
@@ -390,8 +389,8 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
 
             {/* Axis lines */}
             {STAT_ORDER.map((_, i) => {
-              const center = 80;
-              const maxRadius = 60;
+              const center = 70;
+              const maxRadius = 55;
               const angleStep = (2 * Math.PI) / 6;
               const angle = angleStep * i - Math.PI / 2;
               return (
@@ -409,8 +408,8 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
 
             {/* Stats polygon */}
             {(() => {
-              const center = 80;
-              const maxRadius = 60;
+              const center = 70;
+              const maxRadius = 55;
               const angleStep = (2 * Math.PI) / 6;
               const pts = STAT_ORDER.map((key, i) => {
                 const angle = angleStep * i - Math.PI / 2;
@@ -433,8 +432,8 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
 
             {/* Stat points only (labels shown in stat bars) */}
             {STAT_ORDER.map((key, i) => {
-              const center = 80;
-              const maxRadius = 60;
+              const center = 70;
+              const maxRadius = 55;
               const angleStep = (2 * Math.PI) / 6;
               const angle = angleStep * i - Math.PI / 2;
               const value = (stats[key] || 0) / maxStat;
@@ -459,7 +458,7 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
         </div>
 
         {/* Stat Bars */}
-        <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-3">
+        <div className="flex-1 grid grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-2">
           {STAT_ORDER.map((key) => {
             const value = stats[key] || 0;
             const percentage = Math.min((value / maxStat) * 100, 100);
@@ -501,9 +500,9 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
       </div>
 
       {/* Total Score */}
-      <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
-        <span className="text-sm text-[var(--text-tertiary)]">Total Power Level</span>
-        <span className="text-xl font-bold bg-gradient-to-r from-[var(--brand-blue-400)] to-purple-400 bg-clip-text text-transparent">
+      <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <span className="text-xs text-[var(--text-tertiary)]">Power Level</span>
+        <span className="text-lg font-bold bg-gradient-to-r from-[var(--brand-blue-400)] to-purple-400 bg-clip-text text-transparent">
           {total.toFixed(0)}
         </span>
       </div>
