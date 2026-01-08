@@ -39,6 +39,7 @@ import { registerOnboardingRoutes } from './routes/onboarding';
 import { registerEquipmentRoutes } from './routes/equipment';
 import { registerWearablesRoutes } from '../modules/wearables';
 import { registerGoalsRoutes } from './routes/goals';
+import { registerJourneysRoutes } from './routes/journeys';
 import { registerLimitationsRoutes } from './routes/limitations';
 import { registerPTTestsRoutes } from './routes/pt-tests';
 import { registerPersonalizationRoutes } from './routes/personalization';
@@ -56,6 +57,7 @@ import communityAnalyticsRoutes from './routes/community-analytics';
 import communityResourcesRoutes from './routes/community-resources';
 import contentReportsRoutes from './routes/content-reports';
 import archetypeCommunitiesRoutes from './routes/archetype-communities';
+import identitiesRoutes from './routes/identities';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -283,6 +285,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerEquipmentRoutes(api);
     registerWearablesRoutes(api);
     await registerGoalsRoutes(api);
+    await registerJourneysRoutes(api);
     await registerLimitationsRoutes(api);
     await registerPTTestsRoutes(api);
     await registerPersonalizationRoutes(api);
@@ -302,6 +305,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await api.register(communityResourcesRoutes);
     await api.register(contentReportsRoutes);
     await api.register(archetypeCommunitiesRoutes);
+    await api.register(identitiesRoutes);
   }, { prefix: '/api' });
 
   return app;
