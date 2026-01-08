@@ -22,10 +22,10 @@ export async function up(): Promise<void> {
   log.info('Adding specific rehabilitation journey templates...');
 
   const rehabTemplates = [
-    // Shoulder-specific
+    // Shoulder-specific (category: shoulder_rehab)
     {
       id: 'rehab_rotator_cuff',
-      category_id: 'rehabilitation',
+      category_id: 'shoulder_rehab',
       name: 'Rotator Cuff Recovery',
       description: 'Progressive strengthening and mobility program for rotator cuff injuries including tears, strains, and impingement.',
       journey_type: 'rehabilitation',
@@ -40,7 +40,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_frozen_shoulder',
-      category_id: 'rehabilitation',
+      category_id: 'shoulder_rehab',
       name: 'Frozen Shoulder Protocol',
       description: 'Structured mobility and stretching program for adhesive capsulitis (frozen shoulder).',
       journey_type: 'rehabilitation',
@@ -55,7 +55,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_labrum_shoulder',
-      category_id: 'rehabilitation',
+      category_id: 'shoulder_rehab',
       name: 'Shoulder Labrum Recovery',
       description: 'Post-operative or conservative management program for labral tears (SLAP, Bankart).',
       journey_type: 'rehabilitation',
@@ -69,10 +69,10 @@ export async function up(): Promise<void> {
       exercise_filter: { body_region: 'shoulder', avoid_movements: ['extreme rotation', 'high impact'] },
     },
 
-    // Back-specific
+    // Back-specific (category: back_rehab)
     {
       id: 'rehab_herniated_disc',
-      category_id: 'rehabilitation',
+      category_id: 'back_rehab',
       name: 'Herniated Disc Recovery',
       description: 'Core stabilization and posture program for lumbar or cervical disc herniation.',
       journey_type: 'rehabilitation',
@@ -87,7 +87,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_sciatica',
-      category_id: 'rehabilitation',
+      category_id: 'back_rehab',
       name: 'Sciatica Relief Program',
       description: 'Nerve flossing and core strengthening program for sciatic nerve pain.',
       journey_type: 'rehabilitation',
@@ -102,7 +102,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_spinal_stenosis',
-      category_id: 'rehabilitation',
+      category_id: 'back_rehab',
       name: 'Spinal Stenosis Management',
       description: 'Flexion-based exercise program for lumbar spinal stenosis.',
       journey_type: 'rehabilitation',
@@ -116,10 +116,10 @@ export async function up(): Promise<void> {
       exercise_filter: { body_region: 'spine', prefer: ['flexion_exercises'], avoid: ['extension'] },
     },
 
-    // Knee-specific
+    // Knee-specific (category: knee_rehab)
     {
       id: 'rehab_acl_recovery',
-      category_id: 'rehabilitation',
+      category_id: 'knee_rehab',
       name: 'ACL Recovery Program',
       description: 'Comprehensive rehabilitation for ACL reconstruction or conservative management.',
       journey_type: 'rehabilitation',
@@ -134,7 +134,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_meniscus',
-      category_id: 'rehabilitation',
+      category_id: 'knee_rehab',
       name: 'Meniscus Recovery',
       description: 'Post-meniscectomy or meniscus repair rehabilitation program.',
       journey_type: 'rehabilitation',
@@ -149,7 +149,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_patellofemoral',
-      category_id: 'rehabilitation',
+      category_id: 'knee_rehab',
       name: 'Patellofemoral Pain Syndrome',
       description: 'VMO strengthening and patellar tracking program for runner\'s knee.',
       journey_type: 'rehabilitation',
@@ -163,10 +163,10 @@ export async function up(): Promise<void> {
       exercise_filter: { body_region: 'knee', focus: ['vmo', 'hip_stability'] },
     },
 
-    // Hip-specific
+    // Hip-specific (category: hip_rehab)
     {
       id: 'rehab_hip_labrum',
-      category_id: 'rehabilitation',
+      category_id: 'hip_rehab',
       name: 'Hip Labrum Recovery',
       description: 'Pre or post-operative program for hip labral tears and FAI.',
       journey_type: 'rehabilitation',
@@ -181,7 +181,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_hip_bursitis',
-      category_id: 'rehabilitation',
+      category_id: 'hip_rehab',
       name: 'Hip Bursitis Recovery',
       description: 'Glute strengthening and IT band management for trochanteric bursitis.',
       journey_type: 'rehabilitation',
@@ -196,7 +196,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_hip_replacement',
-      category_id: 'rehabilitation',
+      category_id: 'hip_rehab',
       name: 'Hip Replacement Recovery',
       description: 'Post total hip arthroplasty rehabilitation with precautions.',
       journey_type: 'rehabilitation',
@@ -210,10 +210,10 @@ export async function up(): Promise<void> {
       exercise_filter: { body_region: 'hip', precautions: ['posterior_precautions'] },
     },
 
-    // Ankle-specific
+    // Ankle-specific (category: ankle_rehab)
     {
       id: 'rehab_ankle_sprain',
-      category_id: 'rehabilitation',
+      category_id: 'ankle_rehab',
       name: 'Ankle Sprain Recovery',
       description: 'Progressive balance and strengthening for lateral ankle sprains.',
       journey_type: 'rehabilitation',
@@ -228,7 +228,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_plantar_fasciitis',
-      category_id: 'rehabilitation',
+      category_id: 'ankle_rehab',
       name: 'Plantar Fasciitis Protocol',
       description: 'Calf stretching and intrinsic foot strengthening for heel pain.',
       journey_type: 'rehabilitation',
@@ -243,7 +243,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_achilles',
-      category_id: 'rehabilitation',
+      category_id: 'ankle_rehab',
       name: 'Achilles Tendinopathy Program',
       description: 'Eccentric loading protocol for Achilles tendon issues.',
       journey_type: 'rehabilitation',
@@ -257,10 +257,10 @@ export async function up(): Promise<void> {
       exercise_filter: { body_region: 'ankle', focus: ['eccentric_heel_drops'] },
     },
 
-    // Wrist/Hand-specific
+    // Wrist/Hand-specific (category: wrist_rehab)
     {
       id: 'rehab_carpal_tunnel',
-      category_id: 'rehabilitation',
+      category_id: 'wrist_rehab',
       name: 'Carpal Tunnel Syndrome',
       description: 'Nerve gliding and wrist mobility program for median nerve compression.',
       journey_type: 'rehabilitation',
@@ -275,7 +275,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_tennis_elbow',
-      category_id: 'rehabilitation',
+      category_id: 'wrist_rehab',
       name: 'Tennis Elbow Recovery',
       description: 'Eccentric wrist extensor strengthening for lateral epicondylitis.',
       journey_type: 'rehabilitation',
@@ -290,7 +290,7 @@ export async function up(): Promise<void> {
     },
     {
       id: 'rehab_golfers_elbow',
-      category_id: 'rehabilitation',
+      category_id: 'wrist_rehab',
       name: 'Golfer\'s Elbow Recovery',
       description: 'Eccentric wrist flexor strengthening for medial epicondylitis.',
       journey_type: 'rehabilitation',
