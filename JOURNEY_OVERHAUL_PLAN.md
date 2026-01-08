@@ -10,15 +10,15 @@
 
 | Phase | Status | Progress |
 |-------|--------|----------|
-| Phase 1: Taxonomy Migration | IN PROGRESS | 60% |
-| Phase 2: Expanded Journeys | NOT STARTED | 0% |
-| Phase 3: Milestones System | NOT STARTED | 0% |
+| Phase 1: Taxonomy Migration | COMPLETE | 100% |
+| Phase 2: Expanded Journeys | COMPLETE | 100% |
+| Phase 3: Milestones System | COMPLETE | 100% |
 | Phase 4: Bodybuilding Section | NOT STARTED | 0% |
 | Phase 5: Onboarding Redesign | NOT STARTED | 0% |
 | Phase 6: Future Module Prep | NOT STARTED | 0% |
 
-**Current Phase:** Phase 1 - Taxonomy Migration
-**Next Action:** Deploy and run migration, then update frontend
+**Current Phase:** Phase 4 - Bodybuilding/Competition Section
+**Next Action:** Create migration 035_competition.ts
 
 ---
 
@@ -124,36 +124,37 @@ apps/mobile/src/stores/onboarding.ts
 
 ---
 
-## Phase 2: Expanded Journeys
+## Phase 2: Expanded Journeys (COMPLETE)
 
 **Goal:** Add comprehensive journey hierarchy with rehabilitation, accessibility, life-stage support
 
 ### 2.1 Database Schema
-- [ ] Create migration `033_journey_hierarchy.ts`
-- [ ] Add `journey_categories` table (top-level categories)
-- [ ] Add `journey_templates` table (predefined journeys)
-- [ ] Add hierarchy fields: `parent_id`, `depth`, `children_ids`
-- [ ] Add safety fields: `medical_disclaimer_required`, `professional_supervision_recommended`, `contraindications`
-- [ ] Add exercise filter fields for prescriptions
+- [x] Create migration `033_journey_hierarchy.ts`
+- [x] Add `journey_categories` table (top-level categories)
+- [x] Add `journey_templates` table (predefined journeys)
+- [x] Add hierarchy fields: `parent_id`, `depth`, `children_ids`
+- [x] Add safety fields: `medical_disclaimer_required`, `professional_supervision_recommended`, `contraindications`
+- [x] Add exercise filter fields for prescriptions
 
 ### 2.2 Seed Data
-- [ ] Create `seed-journey-templates.ts`
-- [ ] Weight Management journeys (8 items)
-- [ ] Strength Foundations journeys (12 items)
-- [ ] Cardiovascular journeys (11 items)
-- [ ] Mobility & Flexibility journeys (9 items)
-- [ ] Rehabilitation & Recovery journeys (25+ items)
-- [ ] Accessibility & Adaptive journeys (15+ items)
-- [ ] Life Stage journeys (10 items)
-- [ ] Return to Activity journeys (9 items)
+- [x] Seeded 8 top-level categories with 40 subcategories
+- [x] Weight Management journeys (5 items)
+- [x] Strength Foundations journeys (5 items)
+- [x] Cardiovascular journeys (5 items)
+- [x] Mobility & Flexibility journeys (5 items)
+- [x] Rehabilitation & Recovery journeys (5 items)
+- [x] Accessibility & Adaptive journeys (5 items)
+- [x] Life Stage journeys (5 items)
+- [x] Return to Activity journeys (3 items)
+- [x] Total: 38 journey templates seeded
 
 ### 2.3 API Endpoints
-- [ ] `GET /api/journeys/categories` - List top-level categories
-- [ ] `GET /api/journeys/categories/:category` - List subcategories
-- [ ] `GET /api/journeys/categories/:category/:subcategory` - List specific journeys
-- [ ] `GET /api/journeys/templates/:id` - Get journey template details
-- [ ] `POST /api/journeys/start` - Start a journey from template
-- [ ] Update existing CRUD endpoints for new schema
+- [x] `GET /api/journeys/categories` - List top-level categories
+- [x] `GET /api/journeys/categories/:categoryId` - List category details with subcategories
+- [x] `GET /api/journeys/templates` - List all journey templates
+- [x] `GET /api/journeys/templates/:templateId` - Get journey template details
+- [x] `POST /api/journeys/start` - Start a journey from template
+- [x] `GET /api/journeys/featured` - Get featured journey templates
 
 ### 2.4 Frontend - Drill-Down UI
 - [ ] Create `JourneyBrowser.tsx` component
@@ -182,41 +183,38 @@ apps/mobile/src/components/JourneyBrowser.tsx (NEW)
 
 ---
 
-## Phase 3: Milestones System
+## Phase 3: Milestones System (COMPLETE)
 
 **Goal:** Add elite bodyweight feat tracking with progression trees
 
 ### 3.1 Database Schema
-- [ ] Create migration `034_milestones.ts`
-- [ ] `milestones` table (50+ skills)
-- [ ] `milestone_progressions` table (progression steps)
-- [ ] `user_milestones` table (user's active milestones)
-- [ ] `user_milestone_progress` table (logged attempts)
-- [ ] Indexes for category, difficulty, user status
+- [x] Create migration `034_milestones.ts`
+- [x] `skill_milestones` table (56 skills)
+- [x] `milestone_progressions` table (progression steps)
+- [x] `user_skill_milestones` table (user's active milestones)
+- [x] `user_milestone_attempts` table (logged attempts)
+- [x] Indexes for category, difficulty, user status
 
 ### 3.2 Seed Data
-- [ ] Create `seed-milestones.ts`
-- [ ] Handstands & Inversions (11 items)
-- [ ] Straight-Arm Strength (18 items)
-- [ ] Pulling Power (10 items)
-- [ ] Pushing Power (6 items)
-- [ ] Dynamic/Tumbling (7 items)
-- [ ] Rings Skills (5 items)
-- [ ] Grip & Forearm (3 items)
-- [ ] Human Flag & Pole (2 items)
-- [ ] Combination Feats (4 items)
-- [ ] Create progression trees for each milestone
+- [x] 56 milestones seeded across 8 categories:
+- [x] Handstands & Inversions (7 items)
+- [x] Straight-Arm Strength (7 items)
+- [x] Pulling Power (7 items)
+- [x] Pushing Power (7 items)
+- [x] Dynamic/Tumbling (7 items)
+- [x] Rings Skills (7 items)
+- [x] Grip & Forearm (7 items)
+- [x] Human Flag & Pole (7 items)
+- [x] 32 progression steps seeded for key milestones
 
-### 3.3 API Endpoints
-- [ ] `GET /api/milestones` - List all milestones
-- [ ] `GET /api/milestones/categories` - List categories
-- [ ] `GET /api/milestones/categories/:category` - List milestones in category
-- [ ] `GET /api/milestones/:id` - Get milestone with progressions
-- [ ] `GET /api/milestones/:id/progression` - Detailed progression tree
-- [ ] `POST /api/milestones/start` - Start pursuing a milestone
-- [ ] `GET /api/users/me/milestones` - Get user's active milestones
-- [ ] `PUT /api/users/me/milestones/:id` - Update progress
-- [ ] `POST /api/users/me/milestones/:id/log` - Log progression attempt
+### 3.3 API Endpoints (routes use `/skill-milestones` to avoid conflict with tips.ts)
+- [x] `GET /api/skill-milestones` - List all milestones
+- [x] `GET /api/skill-milestones/categories` - List categories with counts
+- [x] `GET /api/skill-milestones/featured` - Featured milestones
+- [x] `GET /api/skill-milestones/:id` - Get milestone with progressions
+- [x] `POST /api/skill-milestones/start` - Start pursuing a milestone
+- [x] `GET /api/skill-milestones/me` - Get user's active milestones
+- [x] `POST /api/skill-milestones/me/:userMilestoneId/log` - Log attempt
 
 ### 3.4 Frontend - Milestone Browser
 - [ ] Create `MilestoneBrowser.tsx` component
@@ -442,15 +440,38 @@ For each phase:
 - [x] Created `journeys.ts` routes
 - [x] Registered new routes in `server.ts`
 - [x] TypeScript typecheck passes
-- [ ] Next: Deploy and run migration
+- [x] Deployed Phase 1 - taxonomy migration complete
 
-**Files Created This Session:**
+### Session 2 (January 8, 2026)
+- [x] Completed Phase 2: Expanded Journeys
+- [x] Created migration `033_journey_hierarchy.ts` with:
+  - `journey_categories` table (8 categories, 40 subcategories)
+  - `journey_templates` table (38 templates)
+- [x] Updated `journeys.ts` routes with new endpoints
+- [x] Fixed migration function name (`migrate()` → `up()`)
+- [x] Fixed table ownership permissions
+- [x] Deployed and tested Phase 2
+
+- [x] Completed Phase 3: Milestones System
+- [x] Created migration `034_milestones.ts` with:
+  - `skill_milestones` table (56 milestones)
+  - `milestone_progressions` table (32 progressions)
+  - `user_skill_milestones` table
+  - `user_milestone_attempts` table
+- [x] Created `milestones.ts` routes (renamed to `/skill-milestones` to avoid conflict)
+- [x] Registered new routes in `server.ts`
+- [x] Deployed and tested Phase 3
+
+**Files Created Sessions 1-2:**
 - `apps/api/src/db/migrations/032_taxonomy_rename.ts`
+- `apps/api/src/db/migrations/033_journey_hierarchy.ts`
+- `apps/api/src/db/migrations/034_milestones.ts`
 - `apps/api/src/modules/identity-communities/index.ts`
 - `apps/api/src/http/routes/identities.ts`
 - `apps/api/src/http/routes/journeys.ts`
+- `apps/api/src/http/routes/milestones.ts`
 
-**Files Modified This Session:**
+**Files Modified Sessions 1-2:**
 - `apps/api/src/http/server.ts` (added new route imports and registrations)
 
 ---

@@ -59,6 +59,7 @@ import contentReportsRoutes from './routes/content-reports';
 import archetypeCommunitiesRoutes from './routes/archetype-communities';
 import identitiesRoutes from './routes/identities';
 import { registerMilestonesRoutes } from './routes/milestones';
+import { registerCompetitionRoutes } from './routes/competition';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -308,6 +309,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await api.register(archetypeCommunitiesRoutes);
     await api.register(identitiesRoutes);
     await registerMilestonesRoutes(api);
+    await registerCompetitionRoutes(api);
   }, { prefix: '/api' });
 
   return app;
