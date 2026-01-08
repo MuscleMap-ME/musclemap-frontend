@@ -290,8 +290,15 @@ describe('Credit Service', () => {
 });
 
 describe('Geohash', () => {
-  // Import the geohash utilities
-  const { geohash, distance } = await import('../../../native');
+  // Import the geohash utilities dynamically
+  let geohash: any;
+  let distance: any;
+
+  beforeAll(async () => {
+    const native = await import('../../../native');
+    geohash = native.geohash;
+    distance = native.distance;
+  });
 
   it('should encode coordinates to geohash', () => {
     const hash = geohash.encode(40.7128, -74.006, 9);
@@ -338,7 +345,12 @@ describe('Geohash', () => {
 });
 
 describe('Rate Limiter', () => {
-  const { createRateLimiter } = await import('../../../native');
+  let createRateLimiter: any;
+
+  beforeAll(async () => {
+    const native = await import('../../../native');
+    createRateLimiter = native.createRateLimiter;
+  });
 
   it('should allow requests within limit', () => {
     const limiter = createRateLimiter(10, 60);
@@ -392,9 +404,16 @@ describe('Rate Limiter', () => {
 });
 
 describe('i18n', () => {
-  const { isLanguageSupported, normalizeLanguageCode, isRTL } = await import(
-    '../src/services/i18n.service'
-  );
+  let isLanguageSupported: any;
+  let normalizeLanguageCode: any;
+  let isRTL: any;
+
+  beforeAll(async () => {
+    const i18n = await import('../src/services/i18n.service');
+    isLanguageSupported = i18n.isLanguageSupported;
+    normalizeLanguageCode = i18n.normalizeLanguageCode;
+    isRTL = i18n.isRTL;
+  });
 
   it('should recognize supported languages', () => {
     expect(isLanguageSupported('en')).toBe(true);
