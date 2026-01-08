@@ -300,4 +300,484 @@ export async function registerOnboardingRoutes(app: FastifyInstance) {
       },
     });
   });
+
+  // ============================================
+  // V2 INTENT-BASED ONBOARDING ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /onboarding/intents
+   * Get all available onboarding intents
+   */
+  app.get('/onboarding/intents', async (request, reply) => {
+    const intents = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      icon: string | null;
+      tagline: string | null;
+      flow_steps: string[];
+      estimated_time_minutes: number;
+      requires_medical_disclaimer: boolean;
+    }>(
+      `SELECT id, name, description, icon, tagline, flow_steps, estimated_time_minutes, requires_medical_disclaimer
+       FROM onboarding_intents
+       WHERE is_active = TRUE
+       ORDER BY display_order ASC`
+    );
+
+    return reply.send({
+      data: {
+        intents: intents.map(i => ({
+          id: i.id,
+          name: i.name,
+          description: i.description,
+          icon: i.icon,
+          tagline: i.tagline,
+          flowSteps: i.flow_steps,
+          estimatedTimeMinutes: i.estimated_time_minutes,
+          requiresMedicalDisclaimer: i.requires_medical_disclaimer,
+        })),
+      },
+    });
+  });
+
+  /**
+   * GET /onboarding/steps
+   * Get all onboarding steps (for reference)
+   */
+  app.get('/onboarding/steps', async (request, reply) => {
+    const steps = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      step_type: string;
+      component_name: string;
+      is_skippable: boolean;
+    }>(
+      `SELECT id, name, description, step_type, component_name, is_skippable
+       FROM onboarding_steps
+       WHERE is_active = TRUE
+       ORDER BY display_order ASC`
+    );
+
+    return reply.send({
+      data: {
+        steps: steps.map(s => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          stepType: s.step_type,
+          componentName: s.component_name,
+          isSkippable: s.is_skippable,
+        })),
+      },
+    });
+  });
+
+  /**
+   * GET /onboarding/state
+   * Get user's current onboarding state
+   */
+  app.get('/onboarding/state', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const state = await db.queryOne<{
+      id: string;
+      selected_intent: string | null;
+      current_step: string | null;
+      current_step_index: number;
+      collected_data: Record<string, unknown>;
+      status: string;
+      started_at: string;
+      last_activity_at: string;
+      completed_at: string | null;
+    }>(
+      `SELECT id, selected_intent, current_step, current_step_index, collected_data, status, started_at, last_activity_at, completed_at
+       FROM user_onboarding_state
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (!state) {
+      return reply.send({
+        data: {
+          state: null,
+          hasStarted: false,
+        },
+      });
+    }
+
+    // Get intent details if selected
+    let intent = null;
+    if (state.selected_intent) {
+      intent = await db.queryOne<{
+        id: string;
+        name: string;
+        flow_steps: string[];
+      }>(
+        `SELECT id, name, flow_steps FROM onboarding_intents WHERE id = $1`,
+        [state.selected_intent]
+      );
+    }
+
+    // Get current step details
+    let currentStepDetails = null;
+    if (state.current_step) {
+      currentStepDetails = await db.queryOne<{
+        id: string;
+        name: string;
+        step_type: string;
+        component_name: string;
+        is_skippable: boolean;
+      }>(
+        `SELECT id, name, step_type, component_name, is_skippable FROM onboarding_steps WHERE id = $1`,
+        [state.current_step]
+      );
+    }
+
+    return reply.send({
+      data: {
+        state: {
+          id: state.id,
+          selectedIntent: state.selected_intent,
+          currentStep: state.current_step,
+          currentStepIndex: state.current_step_index,
+          collectedData: state.collected_data,
+          status: state.status,
+          startedAt: state.started_at,
+          lastActivityAt: state.last_activity_at,
+          completedAt: state.completed_at,
+        },
+        intent: intent ? {
+          id: intent.id,
+          name: intent.name,
+          flowSteps: intent.flow_steps,
+          totalSteps: intent.flow_steps.length,
+        } : null,
+        currentStepDetails: currentStepDetails ? {
+          id: currentStepDetails.id,
+          name: currentStepDetails.name,
+          stepType: currentStepDetails.step_type,
+          componentName: currentStepDetails.component_name,
+          isSkippable: currentStepDetails.is_skippable,
+        } : null,
+        hasStarted: true,
+      },
+    });
+  });
+
+  /**
+   * POST /onboarding/start
+   * Start onboarding with a selected intent
+   */
+  app.post('/onboarding/start', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { intentId } = request.body as { intentId: string };
+
+    // Validate intent
+    const intent = await db.queryOne<{
+      id: string;
+      name: string;
+      flow_steps: string[];
+    }>(
+      `SELECT id, name, flow_steps FROM onboarding_intents WHERE id = $1 AND is_active = TRUE`,
+      [intentId]
+    );
+
+    if (!intent) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Intent not found', statusCode: 404 },
+      });
+    }
+
+    const firstStep = intent.flow_steps[0];
+
+    // Upsert onboarding state
+    const result = await db.queryOne<{ id: string }>(
+      `INSERT INTO user_onboarding_state (user_id, selected_intent, current_step, current_step_index, status, collected_data)
+       VALUES ($1, $2, $3, 0, 'in_progress', '{}')
+       ON CONFLICT (user_id)
+       DO UPDATE SET
+         selected_intent = $2,
+         current_step = $3,
+         current_step_index = 0,
+         status = 'in_progress',
+         collected_data = '{}',
+         last_activity_at = NOW(),
+         updated_at = NOW()
+       RETURNING id`,
+      [userId, intentId, firstStep]
+    );
+
+    // Update user profile with intent
+    await db.query(
+      `INSERT INTO user_profile_extended (user_id, primary_intent, onboarding_version, updated_at)
+       VALUES ($1, $2, 2, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET primary_intent = $2, onboarding_version = 2, updated_at = NOW()`,
+      [userId, intentId]
+    );
+
+    log.info({ userId, intentId }, 'User started onboarding v2');
+
+    return reply.status(201).send({
+      data: {
+        stateId: result?.id,
+        intentId,
+        intentName: intent.name,
+        currentStep: firstStep,
+        totalSteps: intent.flow_steps.length,
+      },
+      message: 'Onboarding started',
+    });
+  });
+
+  /**
+   * POST /onboarding/step
+   * Complete a step and advance to next
+   */
+  app.post('/onboarding/step', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { stepId, data: stepData, skipped } = request.body as {
+      stepId: string;
+      data?: Record<string, unknown>;
+      skipped?: boolean;
+    };
+
+    // Get current state
+    const state = await db.queryOne<{
+      id: string;
+      selected_intent: string;
+      current_step: string;
+      current_step_index: number;
+      collected_data: Record<string, unknown>;
+    }>(
+      `SELECT id, selected_intent, current_step, current_step_index, collected_data
+       FROM user_onboarding_state
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (!state) {
+      return reply.status(400).send({
+        error: { code: 'NO_STATE', message: 'Onboarding not started', statusCode: 400 },
+      });
+    }
+
+    // Verify step matches current
+    if (state.current_step !== stepId) {
+      return reply.status(400).send({
+        error: { code: 'STEP_MISMATCH', message: 'Step does not match current step', statusCode: 400 },
+      });
+    }
+
+    // Get intent to find next step
+    const intent = await db.queryOne<{ flow_steps: string[] }>(
+      `SELECT flow_steps FROM onboarding_intents WHERE id = $1`,
+      [state.selected_intent]
+    );
+
+    if (!intent) {
+      return reply.status(400).send({
+        error: { code: 'INVALID_INTENT', message: 'Invalid intent', statusCode: 400 },
+      });
+    }
+
+    // Record step completion
+    await db.query(
+      `INSERT INTO onboarding_step_completions (user_id, state_id, step_id, input_data, skipped)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, state.id, stepId, JSON.stringify(stepData || {}), skipped || false]
+    );
+
+    // Merge step data into collected_data
+    const updatedCollectedData = {
+      ...state.collected_data,
+      [stepId]: stepData || {},
+    };
+
+    const nextStepIndex = state.current_step_index + 1;
+    const isComplete = nextStepIndex >= intent.flow_steps.length;
+    const nextStep = isComplete ? null : intent.flow_steps[nextStepIndex];
+
+    // Update state
+    if (isComplete) {
+      await db.query(
+        `UPDATE user_onboarding_state
+         SET current_step = NULL, current_step_index = $1, collected_data = $2,
+             status = 'completed', completed_at = NOW(), last_activity_at = NOW(), updated_at = NOW()
+         WHERE id = $3`,
+        [nextStepIndex, JSON.stringify(updatedCollectedData), state.id]
+      );
+
+      // Mark profile onboarding as complete
+      await db.query(
+        `UPDATE user_profile_extended SET onboarding_completed_at = NOW(), updated_at = NOW()
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      log.info({ userId }, 'User completed onboarding v2');
+    } else {
+      await db.query(
+        `UPDATE user_onboarding_state
+         SET current_step = $1, current_step_index = $2, collected_data = $3,
+             last_activity_at = NOW(), updated_at = NOW()
+         WHERE id = $4`,
+        [nextStep, nextStepIndex, JSON.stringify(updatedCollectedData), state.id]
+      );
+    }
+
+    // Get next step details if not complete
+    let nextStepDetails = null;
+    if (nextStep) {
+      nextStepDetails = await db.queryOne<{
+        id: string;
+        name: string;
+        step_type: string;
+        component_name: string;
+        is_skippable: boolean;
+      }>(
+        `SELECT id, name, step_type, component_name, is_skippable FROM onboarding_steps WHERE id = $1`,
+        [nextStep]
+      );
+    }
+
+    return reply.send({
+      data: {
+        completed: isComplete,
+        nextStep,
+        nextStepIndex,
+        totalSteps: intent.flow_steps.length,
+        progress: Math.round((nextStepIndex / intent.flow_steps.length) * 100),
+        nextStepDetails: nextStepDetails ? {
+          id: nextStepDetails.id,
+          name: nextStepDetails.name,
+          stepType: nextStepDetails.step_type,
+          componentName: nextStepDetails.component_name,
+          isSkippable: nextStepDetails.is_skippable,
+        } : null,
+      },
+    });
+  });
+
+  /**
+   * POST /onboarding/back
+   * Go back to previous step
+   */
+  app.post('/onboarding/back', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const state = await db.queryOne<{
+      id: string;
+      selected_intent: string;
+      current_step_index: number;
+    }>(
+      `SELECT id, selected_intent, current_step_index
+       FROM user_onboarding_state
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (!state || state.current_step_index <= 0) {
+      return reply.status(400).send({
+        error: { code: 'CANNOT_GO_BACK', message: 'Cannot go back further', statusCode: 400 },
+      });
+    }
+
+    const intent = await db.queryOne<{ flow_steps: string[] }>(
+      `SELECT flow_steps FROM onboarding_intents WHERE id = $1`,
+      [state.selected_intent]
+    );
+
+    const prevStepIndex = state.current_step_index - 1;
+    const prevStep = intent!.flow_steps[prevStepIndex];
+
+    await db.query(
+      `UPDATE user_onboarding_state
+       SET current_step = $1, current_step_index = $2, last_activity_at = NOW(), updated_at = NOW()
+       WHERE id = $3`,
+      [prevStep, prevStepIndex, state.id]
+    );
+
+    const stepDetails = await db.queryOne<{
+      id: string;
+      name: string;
+      step_type: string;
+      component_name: string;
+      is_skippable: boolean;
+    }>(
+      `SELECT id, name, step_type, component_name, is_skippable FROM onboarding_steps WHERE id = $1`,
+      [prevStep]
+    );
+
+    return reply.send({
+      data: {
+        currentStep: prevStep,
+        currentStepIndex: prevStepIndex,
+        stepDetails: stepDetails ? {
+          id: stepDetails.id,
+          name: stepDetails.name,
+          stepType: stepDetails.step_type,
+          componentName: stepDetails.component_name,
+          isSkippable: stepDetails.is_skippable,
+        } : null,
+      },
+    });
+  });
+
+  /**
+   * GET /onboarding/injury-regions
+   * Get injury regions for recovery flow
+   */
+  app.get('/onboarding/injury-regions', async (request, reply) => {
+    const regions = await db.queryAll<{
+      id: string;
+      name: string;
+      body_area: string;
+      common_conditions: string[];
+    }>(
+      `SELECT id, name, body_area, common_conditions
+       FROM injury_regions
+       WHERE is_active = TRUE
+       ORDER BY display_order ASC`
+    );
+
+    // Group by body area
+    const grouped: Record<string, typeof regions> = {};
+    for (const region of regions) {
+      if (!grouped[region.body_area]) {
+        grouped[region.body_area] = [];
+      }
+      grouped[region.body_area].push(region);
+    }
+
+    return reply.send({
+      data: {
+        bodyAreas: Object.keys(grouped).map(area => ({
+          area,
+          regions: grouped[area].map(r => ({
+            id: r.id,
+            name: r.name,
+            commonConditions: r.common_conditions,
+          })),
+        })),
+      },
+    });
+  });
+
+  /**
+   * DELETE /onboarding/state
+   * Reset onboarding state (start over)
+   */
+  app.delete('/onboarding/state', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    await db.query(`DELETE FROM user_onboarding_state WHERE user_id = $1`, [userId]);
+
+    log.info({ userId }, 'User reset onboarding state');
+
+    return reply.send({ message: 'Onboarding state reset' });
+  });
 }

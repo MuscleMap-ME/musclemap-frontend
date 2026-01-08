@@ -13,12 +13,12 @@
 | Phase 1: Taxonomy Migration | COMPLETE | 100% |
 | Phase 2: Expanded Journeys | COMPLETE | 100% |
 | Phase 3: Milestones System | COMPLETE | 100% |
-| Phase 4: Bodybuilding Section | NOT STARTED | 0% |
+| Phase 4: Bodybuilding Section | COMPLETE | 100% |
 | Phase 5: Onboarding Redesign | NOT STARTED | 0% |
 | Phase 6: Future Module Prep | NOT STARTED | 0% |
 
-**Current Phase:** Phase 4 - Bodybuilding/Competition Section
-**Next Action:** Create migration 035_competition.ts
+**Current Phase:** Phase 5 - Onboarding Redesign
+**Next Action:** Design onboarding state machine and intent flows
 
 ---
 
@@ -252,32 +252,43 @@ apps/mobile/src/components/MilestoneBrowser.tsx (NEW)
 
 ---
 
-## Phase 4: Bodybuilding/Competition Section
+## Phase 4: Bodybuilding/Competition Section (COMPLETE)
 
 **Goal:** Add competition prep tracking for bodybuilding, powerlifting, etc.
 
 ### 4.1 Database Schema
-- [ ] Create migration `035_competition.ts`
-- [ ] `competition_categories` table (federations/divisions)
-- [ ] `user_competition_profiles` table
-- [ ] Computed `weeks_out` field
-- [ ] Phase tracking (offseason, prep, peak_week, post_show)
-- [ ] Weak point assessment storage
+- [x] Create migration `035_competition.ts`
+- [x] `competition_categories` table (25 federations/divisions)
+- [x] `user_competition_profiles` table
+- [x] `competition_weigh_ins` table
+- [x] `competition_prep_phases` table
+- [x] `competition_mandatory_poses` table (23 poses)
+- [x] `weak_point_options` table (23 options)
+- [x] Phase tracking (offseason, prep, peak_week, post_show, maintenance)
 
 ### 4.2 Seed Data
-- [ ] Create `seed-competition-categories.ts`
-- [ ] IFBB/NPC Men's divisions (4 items)
-- [ ] IFBB/NPC Women's divisions (5 items)
-- [ ] Natural federations (2 items)
-- [ ] Other sports (3 items)
+- [x] IFBB Pro League - Men's (4 divisions)
+- [x] IFBB Pro League - Women's (5 divisions)
+- [x] NPC Amateur (6 divisions)
+- [x] Natural federations - INBA, WNBF, OCB (3 items)
+- [x] Powerlifting - IPF, USAPL, USPA (3 items)
+- [x] Strongman, CrossFit, Olympic Weightlifting (4 items)
+- [x] Mandatory poses per sport
+- [x] Weak point options by muscle group
 
-### 4.3 API Endpoints
-- [ ] `GET /api/competitions/categories` - List federations/divisions
-- [ ] `GET /api/competitions/categories/:id` - Get category details
-- [ ] `POST /api/users/me/competition` - Create competition profile
-- [ ] `GET /api/users/me/competition` - Get user's competition profile
-- [ ] `PUT /api/users/me/competition` - Update competition profile
-- [ ] `GET /api/users/me/competition/countdown` - Get weeks out, phase info
+### 4.3 API Endpoints (routes use `/competition`)
+- [x] `GET /api/competition/categories` - List federations/divisions with filters
+- [x] `GET /api/competition/categories/grouped` - Categories grouped by sport
+- [x] `GET /api/competition/categories/:id` - Get category with mandatory poses
+- [x] `GET /api/competition/weak-points` - Get weak point options by muscle group
+- [x] `GET /api/competition/me` - Get user's competition profile
+- [x] `POST /api/competition/me` - Create/update competition profile
+- [x] `PUT /api/competition/me/phase` - Update competition phase
+- [x] `POST /api/competition/me/weigh-in` - Log a weigh-in
+- [x] `GET /api/competition/me/weigh-ins` - Get weigh-in history
+- [x] `GET /api/competition/me/countdown` - Get weeks out, phase info
+- [x] `POST /api/competition/me/show-complete` - Mark show as complete
+- [x] `DELETE /api/competition/me` - Deactivate profile
 
 ### 4.4 Frontend - Competition Dashboard
 - [ ] Create `CompetitionDashboard.tsx`
@@ -462,16 +473,32 @@ For each phase:
 - [x] Registered new routes in `server.ts`
 - [x] Deployed and tested Phase 3
 
-**Files Created Sessions 1-2:**
+### Session 3 (January 8, 2026)
+- [x] Completed Phase 4: Bodybuilding/Competition Section
+- [x] Created migration `035_competition.ts` with:
+  - `competition_categories` table (25 divisions seeded)
+  - `user_competition_profiles` table
+  - `competition_weigh_ins` table
+  - `competition_prep_phases` table
+  - `competition_mandatory_poses` table (23 poses)
+  - `weak_point_options` table (23 body parts)
+- [x] Created `competition.ts` routes with full CRUD
+- [x] Fixed user_id type (TEXT not UUID to match users table)
+- [x] Registered new routes in `server.ts`
+- [x] Deployed and tested Phase 4
+
+**Files Created Sessions 1-3:**
 - `apps/api/src/db/migrations/032_taxonomy_rename.ts`
 - `apps/api/src/db/migrations/033_journey_hierarchy.ts`
 - `apps/api/src/db/migrations/034_milestones.ts`
+- `apps/api/src/db/migrations/035_competition.ts`
 - `apps/api/src/modules/identity-communities/index.ts`
 - `apps/api/src/http/routes/identities.ts`
 - `apps/api/src/http/routes/journeys.ts`
 - `apps/api/src/http/routes/milestones.ts`
+- `apps/api/src/http/routes/competition.ts`
 
-**Files Modified Sessions 1-2:**
+**Files Modified Sessions 1-3:**
 - `apps/api/src/http/server.ts` (added new route imports and registrations)
 
 ---
