@@ -61,6 +61,7 @@ import identitiesRoutes from './routes/identities';
 import { registerMilestonesRoutes } from './routes/milestones';
 import { registerCompetitionRoutes } from './routes/competition';
 import { registerModulesRoutes } from './routes/modules';
+import { registerCareerRoutes } from './routes/career';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -312,6 +313,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerMilestonesRoutes(api);
     await registerCompetitionRoutes(api);
     await registerModulesRoutes(api);
+    await registerCareerRoutes(api);
   }, { prefix: '/api' });
 
   return app;
