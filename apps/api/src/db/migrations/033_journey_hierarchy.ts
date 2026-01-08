@@ -13,7 +13,7 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
 
-export async function migrate(): Promise<void> {
+export async function up(): Promise<void> {
   log.info('Running migration: 033_journey_hierarchy');
 
   // ============================================
