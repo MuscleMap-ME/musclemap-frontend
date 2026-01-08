@@ -14,11 +14,11 @@
 | Phase 2: Expanded Journeys | COMPLETE | 100% |
 | Phase 3: Milestones System | COMPLETE | 100% |
 | Phase 4: Bodybuilding Section | COMPLETE | 100% |
-| Phase 5: Onboarding Redesign | NOT STARTED | 0% |
+| Phase 5: Onboarding Redesign | COMPLETE | 100% |
 | Phase 6: Future Module Prep | NOT STARTED | 0% |
 
-**Current Phase:** Phase 5 - Onboarding Redesign
-**Next Action:** Design onboarding state machine and intent flows
+**Current Phase:** Phase 6 - Future Module Preparation
+**Next Action:** Create placeholder schemas for Nutrition & Supplementation
 
 ---
 
@@ -318,27 +318,38 @@ apps/mobile/src/components/CompetitionDashboard.tsx (NEW)
 
 ---
 
-## Phase 5: Onboarding Redesign
+## Phase 5: Onboarding Redesign (COMPLETE)
 
 **Goal:** Implement progressive disclosure with 5 user intents
 
-### 5.1 State Machine
-- [ ] Define onboarding states and transitions
-- [ ] Create `OnboardingContext` interface
-- [ ] Implement state persistence
+### 5.1 Database Schema
+- [x] Create migration `036_onboarding_intents.ts`
+- [x] `onboarding_intents` table (5 intents seeded)
+- [x] `onboarding_steps` table (21 steps seeded)
+- [x] `user_onboarding_state` table (state machine)
+- [x] `onboarding_step_completions` table (step tracking)
+- [x] `injury_regions` table (10 regions seeded)
+- [x] Added `primary_intent` and `onboarding_version` columns to user_profile_extended
 
-### 5.2 API Updates
-- [ ] `POST /api/onboarding/start` - Initialize onboarding state
-- [ ] `PUT /api/onboarding/progress` - Update onboarding step
-- [ ] `POST /api/onboarding/complete` - Finalize onboarding
-- [ ] `GET /api/onboarding/state` - Get current onboarding state
+### 5.2 Seed Data
+- [x] 5 onboarding intents:
+  - `general` - Just Train Smarter
+  - `goal` - Achieve a Specific Goal
+  - `competition` - Train for Competition
+  - `milestone` - Master a Skill
+  - `recovery` - Recover from Injury
+- [x] 21 onboarding steps with component names
+- [x] 10 injury regions by body area
 
-### 5.3 Intent Flows
-- [ ] "Just want to work out smarter" → Equipment → Time → Identity → Dashboard
-- [ ] "I have a specific goal" → Journey drill-down → Baseline → Plan
-- [ ] "Training for competition" → Federation → Show date → Phase → Weak points
-- [ ] "I want to unlock a skill" → Milestone browser → Prerequisites → Plan
-- [ ] "Recovering from injury" → Body region → Condition → Disclaimer → Safe plan
+### 5.3 API Endpoints (V2 intent-based)
+- [x] `GET /api/onboarding/intents` - Get 5 available intents
+- [x] `GET /api/onboarding/steps` - Get all step definitions
+- [x] `GET /api/onboarding/state` - Get current onboarding state
+- [x] `POST /api/onboarding/start` - Start with selected intent
+- [x] `POST /api/onboarding/step` - Complete a step with data
+- [x] `POST /api/onboarding/back` - Go back one step
+- [x] `GET /api/onboarding/injury-regions` - Get injury regions for recovery flow
+- [x] `DELETE /api/onboarding/state` - Reset onboarding
 
 ### 5.4 Frontend Components
 - [ ] Create `OnboardingFlow.tsx` (new architecture)
@@ -352,20 +363,10 @@ apps/mobile/src/components/CompetitionDashboard.tsx (NEW)
 - [ ] Add intent and state tracking
 - [ ] Create new onboarding screens
 
-**Files to Create/Modify:**
+**Files Created/Modified:**
 ```
-apps/api/src/http/routes/onboarding.ts (MODIFY)
-apps/api/src/modules/onboarding/index.ts (NEW or MODIFY)
-src/pages/Onboarding.jsx → OnboardingFlow.tsx (REWRITE)
-src/components/onboarding/IntentSelection.tsx (NEW)
-src/components/onboarding/ProgressIndicator.tsx (NEW)
-src/components/onboarding/GeneralFlow.tsx (NEW)
-src/components/onboarding/GoalFlow.tsx (NEW)
-src/components/onboarding/CompetitionFlow.tsx (NEW)
-src/components/onboarding/MilestoneFlow.tsx (NEW)
-src/components/onboarding/RecoveryFlow.tsx (NEW)
-apps/mobile/src/stores/onboarding.ts (MODIFY)
-apps/mobile/app/onboarding/*.tsx (NEW screens)
+apps/api/src/db/migrations/036_onboarding_intents.ts (NEW)
+apps/api/src/http/routes/onboarding.ts (MODIFIED - added V2 endpoints)
 ```
 
 ---
@@ -375,19 +376,27 @@ apps/mobile/app/onboarding/*.tsx (NEW screens)
 **Goal:** Add placeholder schemas and UI for Nutrition & Supplementation
 
 ### 6.1 Database Schema
-- [ ] Create migration `036_future_modules.ts`
+- [ ] Create migration `037_future_modules.ts`
 - [ ] `nutrition_plans` table (placeholder)
 - [ ] `food_logs` table (placeholder)
 - [ ] `supplement_stacks` table (placeholder)
 - [ ] `supplement_logs` table (placeholder)
 - [ ] `navigation_modules` table for dynamic nav
+- [ ] `module_waitlist` table for user interest tracking
 
-### 6.2 Navigation Module System
-- [ ] Seed navigation modules
+### 6.2 Seed Data
+- [ ] Seed navigation modules (Training, Nutrition, Supplements, Recovery, Social)
 - [ ] Add enabled/disabled flags
 - [ ] Add coming soon messages
+- [ ] Set release phase priorities
 
-### 6.3 Frontend
+### 6.3 API Endpoints
+- [ ] `GET /api/modules` - Get all navigation modules
+- [ ] `GET /api/modules/:id` - Get module details
+- [ ] `POST /api/modules/:id/waitlist` - Join waitlist for coming soon module
+- [ ] `GET /api/modules/waitlist/me` - Get user's waitlist subscriptions
+
+### 6.4 Frontend
 - [ ] Create `ComingSoonModule.tsx` component
 - [ ] Add nutrition tab (coming soon)
 - [ ] Add supplements tab (coming soon)
@@ -395,8 +404,8 @@ apps/mobile/app/onboarding/*.tsx (NEW screens)
 
 **Files to Create/Modify:**
 ```
-apps/api/src/db/migrations/036_future_modules.ts (NEW)
-apps/api/src/db/seed-navigation-modules.ts (NEW)
+apps/api/src/db/migrations/037_future_modules.ts (NEW)
+apps/api/src/http/routes/modules.ts (NEW)
 src/components/ComingSoonModule.tsx (NEW)
 src/components/Navigation.tsx (MODIFY)
 apps/mobile/app/(tabs)/_layout.tsx (MODIFY)
@@ -500,6 +509,23 @@ For each phase:
 
 **Files Modified Sessions 1-3:**
 - `apps/api/src/http/server.ts` (added new route imports and registrations)
+
+### Session 4 (January 8, 2026) - Continued
+- [x] Completed Phase 5: Onboarding Redesign
+- [x] Created migration `036_onboarding_intents.ts` with:
+  - `onboarding_intents` table (5 intents seeded)
+  - `onboarding_steps` table (21 steps seeded)
+  - `user_onboarding_state` table (state machine)
+  - `onboarding_step_completions` table
+  - `injury_regions` table (10 regions seeded)
+- [x] Updated `onboarding.ts` routes with V2 intent-based endpoints
+- [x] Deployed and tested Phase 5
+
+**Files Created Session 4:**
+- `apps/api/src/db/migrations/036_onboarding_intents.ts`
+
+**Files Modified Session 4:**
+- `apps/api/src/http/routes/onboarding.ts` (added V2 endpoints)
 
 ---
 
