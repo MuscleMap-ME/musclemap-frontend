@@ -73,8 +73,28 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4">
+    <div
+      className="min-h-screen text-white p-4"
+      style={{
+        backgroundColor: '#0a0a0f',
+        backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 50%), radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.1), transparent 50%)',
+      }}
+    >
       <div className="max-w-2xl mx-auto pt-8">
+        {/* Logo Header */}
+        <div className="text-center mb-8">
+          <img
+            src="/logo.png"
+            alt="MuscleMap"
+            className="w-16 h-16 mx-auto mb-3 rounded-xl shadow-lg shadow-purple-500/20"
+          />
+          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            Welcome to MuscleMap
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">Let's personalize your experience</p>
+        </div>
+
+        {/* Progress Bar */}
         <div className="flex gap-2 mb-8">
           <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-blue-500' : 'bg-gray-700'}`} />
           <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-blue-500' : 'bg-gray-700'}`} />

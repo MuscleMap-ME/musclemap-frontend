@@ -53,13 +53,26 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        backgroundColor: '#0a0a0f',
+        backgroundImage: 'radial-gradient(circle at 30% 20%, rgba(99, 102, 241, 0.12), transparent 40%), radial-gradient(circle at 70% 80%, rgba(168, 85, 247, 0.12), transparent 40%)',
+      }}
+    >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/"><h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">MuscleMap</h1></Link>
+          <Link to="/" className="inline-block">
+            <img
+              src="/logo.png"
+              alt="MuscleMap"
+              className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-shadow duration-300"
+            />
+            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">MuscleMap</h1>
+          </Link>
           <p className="text-gray-400 mt-2">Welcome back</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-gray-800/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 space-y-4">
           {error && <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-300 text-sm">{error}</div>}
           <div>
             <label className="block text-gray-300 text-sm mb-1">Email</label>

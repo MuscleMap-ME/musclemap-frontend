@@ -276,9 +276,12 @@ export default function Workout() {
   // Render constraint selection screen
   const renderConstraintSelection = () => (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white pb-24">
-      <header className="bg-gray-900/80 backdrop-blur-lg p-4 sticky top-0 z-10">
+      <header className="bg-gray-900/80 backdrop-blur-lg p-4 sticky top-0 z-10 border-b border-gray-700/30">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link to="/dashboard" className="text-blue-400">← Back</Link>
+          <Link to="/dashboard" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
+            <span>←</span>
+            <img src="/logo.png" alt="MuscleMap" className="w-6 h-6 rounded-md" />
+          </Link>
           <h1 className="text-xl font-bold">Start Workout</h1>
           <div></div>
         </div>
@@ -613,9 +616,12 @@ export default function Workout() {
         </div>
       )}
 
-      <header className="bg-gray-900/80 backdrop-blur-lg p-4 sticky top-0 z-10">
+      <header className="bg-gray-900/80 backdrop-blur-lg p-4 sticky top-0 z-10 border-b border-gray-700/30">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <button onClick={() => setMode('select')} className="text-blue-400">← Back</button>
+          <button onClick={() => setMode('select')} className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
+            <span>←</span>
+            <img src="/logo.png" alt="MuscleMap" className="w-6 h-6 rounded-md" />
+          </button>
           <h1 className="text-xl font-bold">Browse Exercises</h1>
           <div className="bg-green-600 px-3 py-1 rounded-full text-sm font-bold">{logged.length} logged</div>
         </div>

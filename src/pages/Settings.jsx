@@ -57,9 +57,12 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pb-24">
-      <header className="bg-gray-800 p-4 sticky top-0 z-10">
+      <header className="bg-gray-800/90 backdrop-blur-lg p-4 sticky top-0 z-10 border-b border-gray-700/50">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link to="/dashboard" className="text-blue-400">← Back</Link>
+          <Link to="/dashboard" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors">
+            <span>←</span>
+            <img src="/logo.png" alt="MuscleMap" className="w-6 h-6 rounded-md" />
+          </Link>
           <h1 className="text-xl font-bold">⚙️ Settings</h1>
           <div className="w-16">{saving && <span className="text-xs text-gray-400">Saving...</span>}</div>
         </div>
