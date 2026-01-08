@@ -232,19 +232,21 @@ export default function Workout() {
 
   // Log an exercise from prescription mode
   const logPrescribedExercise = async (exercise) => {
+    // Prescription API returns `id`, not `exerciseId`
+    const exerciseId = exercise.id || exercise.exerciseId;
     try {
       await fetch('/api/workouts/exercise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify({
-          exerciseId: exercise.exerciseId,
+          exerciseId: exerciseId,
           sets: exercise.sets,
           reps: typeof exercise.reps === 'number' ? exercise.reps : 10,
           weight: 0
         })
       });
       setLogged([...logged, {
-        id: exercise.exerciseId,
+        id: exerciseId,
         name: exercise.name,
         sets: exercise.sets,
         reps: exercise.reps,
