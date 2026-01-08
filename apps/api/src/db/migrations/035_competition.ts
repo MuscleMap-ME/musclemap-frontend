@@ -47,7 +47,7 @@ export async function up(): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS user_competition_profiles (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       category_id TEXT REFERENCES competition_categories(id),
 
       -- Show details
@@ -108,7 +108,7 @@ export async function up(): Promise<void> {
   await db.query(`
     CREATE TABLE IF NOT EXISTS competition_weigh_ins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       profile_id UUID REFERENCES user_competition_profiles(id) ON DELETE CASCADE,
 
       weigh_in_date DATE NOT NULL,
