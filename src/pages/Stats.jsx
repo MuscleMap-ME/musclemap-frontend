@@ -72,7 +72,7 @@ const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance
 // ============================================
 function RadarChart({ stats, size = 300 }) {
   const center = size / 2;
-  const maxRadius = size * 0.4;
+  const maxRadius = size * 0.32; // Reduced to leave room for labels
   const levels = [0.25, 0.5, 0.75, 1.0];
 
   // Calculate max stat for normalization
@@ -117,8 +117,8 @@ function RadarChart({ stats, size = 300 }) {
         y1: center,
         x2: center + maxRadius * Math.cos(angle),
         y2: center + maxRadius * Math.sin(angle),
-        labelX: center + (maxRadius + 25) * Math.cos(angle),
-        labelY: center + (maxRadius + 25) * Math.sin(angle),
+        labelX: center + (maxRadius + 35) * Math.cos(angle),
+        labelY: center + (maxRadius + 35) * Math.sin(angle),
         key: STAT_ORDER[i],
       });
     }
