@@ -240,11 +240,25 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         [workoutId]
       );
 
+      // Safely parse JSON fields
+      let exerciseData = [];
+      let muscleActivationsData = {};
+      try {
+        exerciseData = JSON.parse((workout as any)?.exercise_data || '[]');
+      } catch (parseError) {
+        log.error({ parseError, workoutId }, 'Failed to parse exercise_data');
+      }
+      try {
+        muscleActivationsData = JSON.parse((workout as any)?.muscle_activations || '{}');
+      } catch (parseError) {
+        log.error({ parseError, workoutId }, 'Failed to parse muscle_activations');
+      }
+
       return reply.status(201).send({
         data: {
           ...workout,
-          exerciseData: JSON.parse((workout as any).exercise_data || '[]'),
-          muscleActivations: JSON.parse((workout as any).muscle_activations || '{}'),
+          exerciseData,
+          muscleActivations: muscleActivationsData,
           characterStats: updatedStats ? {
             strength: Number(updatedStats.strength),
             constitution: Number(updatedStats.constitution),
@@ -255,8 +269,8 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
           } : undefined,
         },
       });
-    } catch (error) {
-      log.error({ error, userId }, 'Unexpected error during workout creation');
+    } catch (error: any) {
+      log.error({ error: error?.message || error, stack: error?.stack, userId }, 'Unexpected error during workout creation');
       return reply.status(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred. Please try again.', statusCode: 500 },
       });
