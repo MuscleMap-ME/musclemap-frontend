@@ -114,72 +114,413 @@ export interface Journey {
 export async function registerJourneysRoutes(app: FastifyInstance) {
   /**
    * GET /journeys/categories
-   * Get all journey categories for hierarchical navigation
+   * Get all journey categories from database
    */
   app.get('/journeys/categories', async (request, reply) => {
-    const categories = [
-      {
-        id: 'weight_management',
-        name: 'Weight Management',
-        description: 'Lose weight, gain weight, or maintain your current weight',
-        icon: 'scale',
-        subcategories: ['lose_weight', 'gain_weight'],
-      },
-      {
-        id: 'strength_foundations',
-        name: 'Strength Foundations',
-        description: 'Build fundamental strength in pushing, pulling, squatting, and core',
-        icon: 'dumbbell',
-        subcategories: ['push', 'pull', 'squat', 'core'],
-      },
-      {
-        id: 'cardiovascular',
-        name: 'Cardiovascular',
-        description: 'Improve endurance through running, swimming, or cycling',
-        icon: 'heart',
-        subcategories: ['running', 'swimming', 'cycling'],
-      },
-      {
-        id: 'mobility_flexibility',
-        name: 'Mobility & Flexibility',
-        description: 'Increase range of motion and flexibility',
-        icon: 'stretch',
-        subcategories: ['general', 'splits', 'backbend'],
-      },
-      {
-        id: 'rehabilitation_recovery',
-        name: 'Rehabilitation & Recovery',
-        description: 'Recover from injury or surgery with guided rehabilitation',
-        icon: 'medical',
-        subcategories: ['shoulder', 'back', 'knee', 'hip', 'ankle', 'wrist', 'general'],
-        requiresMedicalDisclaimer: true,
-      },
-      {
-        id: 'accessibility_adaptive',
-        name: 'Accessibility & Adaptive',
-        description: 'Training programs adapted for various abilities and conditions',
-        icon: 'accessibility',
-        subcategories: ['limited_mobility', 'chronic_conditions', 'neurological', 'age_related'],
-        requiresMedicalDisclaimer: true,
-      },
-      {
-        id: 'life_stage',
-        name: 'Life Stage',
-        description: 'Programs tailored for specific life stages',
-        icon: 'lifecycle',
-        subcategories: ['prenatal', 'postnatal', 'aging_well'],
-        requiresMedicalDisclaimer: true,
-      },
-      {
-        id: 'return_to_activity',
-        name: 'Return to Activity',
-        description: 'Get back into fitness after time away',
-        icon: 'refresh',
-        subcategories: ['from_sedentary', 'sport_specific', 'mental_barriers'],
-      },
-    ];
+    // Get top-level categories
+    const topLevel = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      icon: string | null;
+      display_order: number;
+      requires_medical_disclaimer: boolean;
+    }>(
+      `SELECT id, name, description, icon, display_order, requires_medical_disclaimer
+       FROM journey_categories
+       WHERE parent_category_id IS NULL AND is_active = TRUE
+       ORDER BY display_order ASC`
+    );
+
+    // Get all subcategories
+    const subcats = await db.queryAll<{
+      id: string;
+      name: string;
+      parent_category_id: string;
+      display_order: number;
+      requires_medical_disclaimer: boolean;
+    }>(
+      `SELECT id, name, parent_category_id, display_order, requires_medical_disclaimer
+       FROM journey_categories
+       WHERE parent_category_id IS NOT NULL AND is_active = TRUE
+       ORDER BY display_order ASC`
+    );
+
+    // Build category tree
+    const categories = topLevel.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      icon: cat.icon,
+      requiresMedicalDisclaimer: cat.requires_medical_disclaimer,
+      subcategories: subcats
+        .filter(s => s.parent_category_id === cat.id)
+        .map(s => ({
+          id: s.id,
+          name: s.name,
+          requiresMedicalDisclaimer: s.requires_medical_disclaimer,
+        })),
+    }));
 
     return reply.send({ data: { categories } });
+  });
+
+  /**
+   * GET /journeys/categories/:categoryId
+   * Get subcategories for a category
+   */
+  app.get('/journeys/categories/:categoryId', async (request, reply) => {
+    const { categoryId } = request.params as { categoryId: string };
+
+    const subcategories = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      display_order: number;
+      requires_medical_disclaimer: boolean;
+    }>(
+      `SELECT id, name, description, display_order, requires_medical_disclaimer
+       FROM journey_categories
+       WHERE parent_category_id = $1 AND is_active = TRUE
+       ORDER BY display_order ASC`,
+      [categoryId]
+    );
+
+    return reply.send({
+      data: {
+        subcategories: subcategories.map(s => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          requiresMedicalDisclaimer: s.requires_medical_disclaimer,
+        })),
+      },
+    });
+  });
+
+  /**
+   * GET /journeys/templates
+   * Get all journey templates, optionally filtered
+   */
+  app.get('/journeys/templates', async (request, reply) => {
+    const { category, subcategory, featured } = request.query as {
+      category?: string;
+      subcategory?: string;
+      featured?: string;
+    };
+
+    let query = `
+      SELECT
+        t.id, t.name, t.description, t.category_id, t.subcategory, t.journey_type,
+        t.default_target_value, t.default_target_unit, t.suggested_duration_days,
+        t.suggested_weekly_target, t.requires_medical_disclaimer,
+        t.requires_professional_supervision, t.difficulty_level, t.icon,
+        t.is_featured, t.default_milestones,
+        c.name as category_name
+      FROM journey_templates t
+      LEFT JOIN journey_categories c ON t.category_id = c.id
+      WHERE t.is_active = TRUE
+    `;
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (category) {
+      query += ` AND t.category_id = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+
+    if (subcategory) {
+      query += ` AND t.subcategory = $${paramIndex}`;
+      params.push(subcategory);
+      paramIndex++;
+    }
+
+    if (featured === 'true') {
+      query += ` AND t.is_featured = TRUE`;
+    }
+
+    query += ` ORDER BY t.display_order ASC, t.name ASC`;
+
+    const rows = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      category_id: string;
+      subcategory: string | null;
+      journey_type: string;
+      default_target_value: number | null;
+      default_target_unit: string | null;
+      suggested_duration_days: number | null;
+      suggested_weekly_target: number | null;
+      requires_medical_disclaimer: boolean;
+      requires_professional_supervision: boolean;
+      difficulty_level: number;
+      icon: string | null;
+      is_featured: boolean;
+      default_milestones: unknown;
+      category_name: string | null;
+    }>(query, params);
+
+    const templates = rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      categoryId: t.category_id,
+      categoryName: t.category_name,
+      subcategory: t.subcategory,
+      journeyType: t.journey_type,
+      defaultTargetValue: t.default_target_value,
+      defaultTargetUnit: t.default_target_unit,
+      suggestedDurationDays: t.suggested_duration_days,
+      suggestedWeeklyTarget: t.suggested_weekly_target,
+      requiresMedicalDisclaimer: t.requires_medical_disclaimer,
+      requiresProfessionalSupervision: t.requires_professional_supervision,
+      difficultyLevel: t.difficulty_level,
+      icon: t.icon,
+      isFeatured: t.is_featured,
+      defaultMilestones: t.default_milestones,
+    }));
+
+    return reply.send({ data: { templates } });
+  });
+
+  /**
+   * GET /journeys/templates/:templateId
+   * Get a specific journey template with full details
+   */
+  app.get('/journeys/templates/:templateId', async (request, reply) => {
+    const { templateId } = request.params as { templateId: string };
+
+    const template = await db.queryOne<{
+      id: string;
+      name: string;
+      description: string | null;
+      category_id: string;
+      subcategory: string | null;
+      journey_type: string;
+      default_target_value: number | null;
+      default_target_unit: string | null;
+      suggested_duration_days: number | null;
+      suggested_weekly_target: number | null;
+      requires_medical_disclaimer: boolean;
+      requires_professional_supervision: boolean;
+      contraindications: string[] | null;
+      precautions: string[] | null;
+      medical_disclaimer_text: string | null;
+      exercise_filter: unknown;
+      difficulty_level: number;
+      prerequisite_template_ids: string[] | null;
+      icon: string | null;
+      color: string | null;
+      is_featured: boolean;
+      default_milestones: unknown;
+    }>(
+      `SELECT * FROM journey_templates WHERE id = $1 AND is_active = TRUE`,
+      [templateId]
+    );
+
+    if (!template) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Journey template not found', statusCode: 404 },
+      });
+    }
+
+    return reply.send({
+      data: {
+        template: {
+          id: template.id,
+          name: template.name,
+          description: template.description,
+          categoryId: template.category_id,
+          subcategory: template.subcategory,
+          journeyType: template.journey_type,
+          defaultTargetValue: template.default_target_value,
+          defaultTargetUnit: template.default_target_unit,
+          suggestedDurationDays: template.suggested_duration_days,
+          suggestedWeeklyTarget: template.suggested_weekly_target,
+          requiresMedicalDisclaimer: template.requires_medical_disclaimer,
+          requiresProfessionalSupervision: template.requires_professional_supervision,
+          contraindications: template.contraindications,
+          precautions: template.precautions,
+          medicalDisclaimerText: template.medical_disclaimer_text,
+          exerciseFilter: template.exercise_filter,
+          difficultyLevel: template.difficulty_level,
+          prerequisiteTemplateIds: template.prerequisite_template_ids,
+          icon: template.icon,
+          color: template.color,
+          isFeatured: template.is_featured,
+          defaultMilestones: template.default_milestones,
+        },
+      },
+    });
+  });
+
+  /**
+   * POST /journeys/start
+   * Start a new journey from a template
+   */
+  app.post('/journeys/start', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { templateId, customizations } = request.body as {
+      templateId: string;
+      customizations?: {
+        targetValue?: number;
+        targetDate?: string;
+        isPrimary?: boolean;
+        notes?: string;
+      };
+    };
+
+    // Get template
+    const template = await db.queryOne<{
+      id: string;
+      name: string;
+      category_id: string;
+      subcategory: string | null;
+      journey_type: string;
+      default_target_value: number | null;
+      default_target_unit: string | null;
+      suggested_duration_days: number | null;
+      suggested_weekly_target: number | null;
+      requires_medical_disclaimer: boolean;
+      default_milestones: unknown;
+    }>(
+      `SELECT * FROM journey_templates WHERE id = $1 AND is_active = TRUE`,
+      [templateId]
+    );
+
+    if (!template) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Journey template not found', statusCode: 404 },
+      });
+    }
+
+    // Check medical disclaimer if required
+    if (template.requires_medical_disclaimer) {
+      const { medicalDisclaimerAccepted } = request.body as { medicalDisclaimerAccepted?: boolean };
+      if (!medicalDisclaimerAccepted) {
+        return reply.status(400).send({
+          error: {
+            code: 'DISCLAIMER_REQUIRED',
+            message: 'Medical disclaimer acknowledgment is required for this journey',
+            statusCode: 400,
+          },
+        });
+      }
+    }
+
+    // Calculate target date if not provided
+    let targetDate = customizations?.targetDate;
+    if (!targetDate && template.suggested_duration_days) {
+      const date = new Date();
+      date.setDate(date.getDate() + template.suggested_duration_days);
+      targetDate = date.toISOString().split('T')[0];
+    }
+
+    // If marking as primary, unset other primary journeys
+    if (customizations?.isPrimary) {
+      await db.query(`UPDATE user_journeys SET is_primary = FALSE WHERE user_id = $1`, [userId]);
+    }
+
+    // Create the journey
+    const result = await db.queryOne<{ id: string }>(
+      `INSERT INTO user_journeys (
+        user_id, journey_type, category, subcategory, template_id,
+        target_value, target_unit, starting_value, current_value, target_date,
+        priority, is_primary, weekly_target,
+        reminder_enabled, reminder_frequency, notes,
+        medical_disclaimer_accepted, medical_disclaimer_accepted_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      RETURNING id`,
+      [
+        userId,
+        template.journey_type,
+        template.category_id,
+        template.subcategory,
+        template.id,
+        customizations?.targetValue ?? template.default_target_value,
+        template.default_target_unit,
+        null, // starting_value - can be set by user
+        targetDate,
+        1, // priority
+        customizations?.isPrimary ?? false,
+        template.suggested_weekly_target,
+        true, // reminder_enabled
+        'daily',
+        customizations?.notes ?? null,
+        template.requires_medical_disclaimer,
+        template.requires_medical_disclaimer ? new Date().toISOString() : null,
+      ]
+    );
+
+    const journeyId = result?.id;
+
+    // Create default milestones from template
+    if (template.default_milestones && Array.isArray(template.default_milestones)) {
+      for (const milestone of template.default_milestones as Array<{
+        title: string;
+        description?: string;
+        target_value: number;
+        xp_reward?: number;
+      }>) {
+        await db.query(
+          `INSERT INTO journey_milestones (journey_id, user_id, title, description, target_value, xp_reward)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            journeyId,
+            userId,
+            milestone.title,
+            milestone.description ?? null,
+            milestone.target_value,
+            milestone.xp_reward ?? 50,
+          ]
+        );
+      }
+    }
+
+    log.info({ userId, journeyId, templateId }, 'Journey started from template');
+
+    return reply.status(201).send({
+      data: { id: journeyId, templateName: template.name },
+      message: 'Journey started successfully',
+    });
+  });
+
+  /**
+   * GET /journeys/featured
+   * Get featured journey templates
+   */
+  app.get('/journeys/featured', async (request, reply) => {
+    const templates = await db.queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      category_id: string;
+      journey_type: string;
+      difficulty_level: number;
+      suggested_duration_days: number | null;
+    }>(
+      `SELECT id, name, description, category_id, journey_type, difficulty_level, suggested_duration_days
+       FROM journey_templates
+       WHERE is_featured = TRUE AND is_active = TRUE
+       ORDER BY display_order ASC
+       LIMIT 6`
+    );
+
+    return reply.send({
+      data: {
+        featured: templates.map(t => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          categoryId: t.category_id,
+          journeyType: t.journey_type,
+          difficultyLevel: t.difficulty_level,
+          suggestedDurationDays: t.suggested_duration_days,
+        })),
+      },
+    });
   });
 
   /**
