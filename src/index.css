@@ -843,4 +843,99 @@
   contain: paint;
 }
 
+/* ============================================
+   TOUCHSCREEN-FIRST UTILITIES
+   ============================================
+
+   These utilities ensure optimal touch interaction:
+   - Minimum touch targets (48px)
+   - Proper touch-action handling
+   - Tap highlight removal
+   - Press feedback
+   ============================================ */
+
+/* Disable tap highlight (Safari) */
+.touch-none-highlight {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection on touch */
+.touch-no-select,
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Optimal touch handling - prevents double-tap zoom */
+.touch-action-manipulation {
+  touch-action: manipulation;
+}
+
+/* Allow only vertical scrolling (for horizontal swipe gestures) */
+.touch-action-pan-y {
+  touch-action: pan-y;
+}
+
+/* Allow only horizontal scrolling (for vertical swipe gestures) */
+.touch-action-pan-x {
+  touch-action: pan-x;
+}
+
+/* Touch-friendly minimum sizes (48dp Material Design standard) */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.touch-target-lg {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+.touch-target-sm {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Full-width action button */
+.touch-action-full {
+  width: 100%;
+  min-height: 56px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Pressable feedback without JavaScript */
+.touch-feedback {
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+/* Card as action target */
+.action-card {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.action-card:active {
+  transform: scale(0.99);
+}
+
+/* Swipeable element base */
+.swipeable {
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+}
+
+.swipeable:active {
+  cursor: grabbing;
+}
+
 } /* End of @layer components */

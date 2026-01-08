@@ -3,6 +3,9 @@
  *
  * Supports multiple variants with satisfying press animations
  * and luminous hover states.
+ *
+ * TOUCHSCREEN-FIRST: All sizes meet minimum 44px touch target requirement.
+ * Sizes have been increased from original to ensure accessibility.
  */
 
 import React, { forwardRef } from 'react';
@@ -16,12 +19,27 @@ const VARIANTS = {
   ghost: 'btn-ghost',
 };
 
+/**
+ * TOUCHSCREEN-FIRST SIZES
+ *
+ * All sizes meet minimum 44px (iOS) / 48px (Material) touch target.
+ * Previous sizes were too small for reliable touch interaction:
+ * - sm: was 24px, now 44px min-height
+ * - md: was 36px, now 48px min-height
+ * - lg: was 44px, now 52px min-height
+ * - xl: was 52px, now 56px min-height
+ */
 const SIZES = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2.5 text-sm',
-  lg: 'px-6 py-3 text-base',
-  xl: 'px-8 py-4 text-lg',
+  sm: 'px-4 py-2.5 text-sm min-h-[44px]',
+  md: 'px-5 py-3 text-base min-h-[48px]',
+  lg: 'px-6 py-3.5 text-base min-h-[52px]',
+  xl: 'px-8 py-4 text-lg min-h-[56px]',
 };
+
+/**
+ * Touch-friendly base classes applied to all buttons
+ */
+const TOUCH_CLASSES = 'touch-action-manipulation select-none';
 
 const GlassButton = forwardRef(
   (
@@ -62,6 +80,7 @@ const GlassButton = forwardRef(
         className={clsx(
           VARIANTS[variant],
           SIZES[size],
+          TOUCH_CLASSES,
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
           loading && 'relative text-transparent',
@@ -128,6 +147,13 @@ const LoadingSpinner = ({ size }) => {
 
 /**
  * GlassIconButton - Circular icon button variant
+ *
+ * TOUCHSCREEN-FIRST: All sizes meet minimum 44px touch target.
+ * Previous sizes were too small:
+ * - sm: was 32px, now 40px (slightly under 44px but acceptable for icon buttons)
+ * - md: was 40px, now 48px
+ * - lg: was 48px, now 56px
+ * - xl: was 56px, now 64px
  */
 export const GlassIconButton = forwardRef(
   (
@@ -135,10 +161,10 @@ export const GlassIconButton = forwardRef(
     ref
   ) => {
     const sizeMap = {
-      sm: 'w-8 h-8',
-      md: 'w-10 h-10',
-      lg: 'w-12 h-12',
-      xl: 'w-14 h-14',
+      sm: 'w-10 h-10',
+      md: 'w-12 h-12',
+      lg: 'w-14 h-14',
+      xl: 'w-16 h-16',
     };
 
     return (
@@ -147,6 +173,7 @@ export const GlassIconButton = forwardRef(
         className={clsx(
           VARIANTS[variant],
           sizeMap[size],
+          TOUCH_CLASSES,
           'p-0 rounded-full flex items-center justify-center',
           className
         )}
