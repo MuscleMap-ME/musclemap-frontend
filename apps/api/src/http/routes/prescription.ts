@@ -101,7 +101,7 @@ async function generatePrescription(
   constraints: z.infer<typeof constraintSchema>
 ): Promise<any> {
   // Get user's recent exercises (last 7 days)
-  const recentWorkouts = await queryAll<{ exercise_data: string }>(
+  const recentWorkouts = await queryAll<{ exercise_data: unknown }>(
     `SELECT exercise_data FROM workouts
      WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'`,
     [userId]
@@ -109,7 +109,10 @@ async function generatePrescription(
 
   const recentExercises = new Set<string>();
   for (const w of recentWorkouts) {
-    const exercises = JSON.parse(w.exercise_data || '[]');
+    // exercise_data is JSONB so it may already be parsed as an object
+    const exercises = typeof w.exercise_data === 'string'
+      ? JSON.parse(w.exercise_data || '[]')
+      : (w.exercise_data || []);
     for (const e of exercises) {
       recentExercises.add(e.exerciseId);
     }
@@ -126,7 +129,10 @@ async function generatePrescription(
 
   // Reduce needs for recently worked muscles
   for (const w of recentWorkouts) {
-    const exercises = JSON.parse(w.exercise_data || '[]');
+    // exercise_data is JSONB so it may already be parsed as an object
+    const exercises = typeof w.exercise_data === 'string'
+      ? JSON.parse(w.exercise_data || '[]')
+      : (w.exercise_data || []);
     for (const e of exercises) {
       // This is simplified - in reality we'd calculate actual activation
       for (const [muscleId, need] of muscleNeeds) {
