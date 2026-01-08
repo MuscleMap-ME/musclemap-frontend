@@ -168,20 +168,31 @@ export default function Workout() {
     if (logged.length === 0) return;
     setCompleting(true);
     try {
+      // Debug: log what we have
+      console.log('Logged items:', logged);
+
       // Format exercises for the workouts API
       // Filter out warmup/cooldown activities that don't have real exercise IDs
       const exercises = logged
-        .filter(e => !e.isActivity && e.id && !e.id.startsWith('activity-'))
+        .filter(e => {
+          // Keep items that have a valid exercise ID (not activity placeholders)
+          const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
+          const isNotActivity = !e.isActivity;
+          console.log('Filter check:', e.name, { id: e.id, isActivity: e.isActivity, hasValidId, isNotActivity });
+          return hasValidId && isNotActivity;
+        })
         .map(e => ({
-          exerciseId: e.id || e.exerciseId,
+          exerciseId: e.id,
           sets: e.sets || 3,
           reps: e.reps || 10,
           weight: e.weight || undefined,
         }));
 
+      console.log('Exercises to submit:', exercises);
+
       // If no actual exercises (only activities), show message
       if (exercises.length === 0) {
-        alert('No exercises to log. Complete at least one exercise to save your workout.');
+        alert('No exercises to log. Complete at least one exercise (not just warmup/cooldown) to save your workout.');
         setCompleting(false);
         return;
       }
@@ -242,9 +253,13 @@ export default function Workout() {
 
   // Log an exercise from prescription mode
   const logPrescribedExercise = async (exercise) => {
+    // Debug: log what exercise we're trying to log
+    console.log('Logging exercise:', exercise);
+
     // Prescription API returns `id`, not `exerciseId`
     // Warmup/cooldown items don't have IDs - they're just activities
     const exerciseId = exercise.id || exercise.exerciseId;
+    console.log('Exercise ID resolved to:', exerciseId);
 
     // For warmup/cooldown without exercise IDs, just mark as done and move on
     if (!exerciseId) {
