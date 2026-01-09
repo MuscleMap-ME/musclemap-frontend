@@ -64,6 +64,14 @@ Top performers on daily, weekly, and monthly leaderboards receive credits:
 
 Leaderboard rewards are processed automatically at the end of each period.
 
+### Skill Achievements
+
+| Action | Credits | XP | Description |
+|--------|---------|-----|-------------|
+| `skill_unlock` | 50 | 100 | Achieve a gymnastics/calisthenics skill |
+
+Skills have individual credit/XP rewards defined per-skill, with harder skills rewarding more (25-200 credits, 50-500 XP).
+
 ### Other Actions
 
 | Action | Credits | Description |

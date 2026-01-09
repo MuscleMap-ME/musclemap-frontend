@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Auto-generated on 2026-01-06
+> Updated: 2026-01-09
 
 ## Overview
 
@@ -150,7 +150,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (34 total)
+## Frontend Pages (35+ total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|

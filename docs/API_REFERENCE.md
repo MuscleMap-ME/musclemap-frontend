@@ -1,6 +1,6 @@
 # MuscleMap API Reference
 
-> Auto-generated on 2026-01-06
+> Updated: 2026-01-09
 
 ## Base URL
 
@@ -200,6 +200,22 @@ Authorization: Bearer <token>
 | `GET` | `/workouts/me/muscles` | Yes |
 | `GET` | `/workouts/me/stats` | Yes |
 | `POST` | `/workouts/preview` | Yes |
+
+
+### Skills (Gymnastics/Calisthenics)
+
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|---------------|-------------|
+| `GET` | `/skills/trees` | No | List all skill trees |
+| `GET` | `/skills/trees/:id` | No | Get tree with all nodes |
+| `GET` | `/skills/trees/:id/progress` | Yes | Get user progress for tree |
+| `GET` | `/skills/nodes/:id` | No | Get specific skill node |
+| `GET` | `/skills/nodes/:id/leaderboard` | No | Get skill leaderboard |
+| `GET` | `/skills/progress` | Yes | Get user's overall skill summary |
+| `POST` | `/skills/practice` | Yes | Log a practice session |
+| `POST` | `/skills/achieve` | Yes | Mark skill as achieved |
+| `GET` | `/skills/history` | Yes | Get practice history |
+| `PUT` | `/skills/nodes/:id/notes` | Yes | Update notes for a skill |
 
 
 ## Common Response Format

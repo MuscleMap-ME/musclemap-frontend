@@ -1,10 +1,10 @@
 # MuscleMap Features
 
-> Auto-generated on 2026-01-06
+> Updated: 2026-01-09
 
 ## Overview
 
-MuscleMap is a comprehensive fitness platform with 34 pages/features across multiple categories.
+MuscleMap is a comprehensive fitness platform with 35+ pages/features across multiple categories.
 
 ## Core Features
 
@@ -32,6 +32,18 @@ Progression page
 Workout page
 - **Route**: `/workout`
 - **Protected**: No (public)
+
+### Skills (NEW)
+Gymnastics/Calisthenics Skill Progression Trees - Master bodyweight skills from beginner to elite with 7 skill trees and 45+ skills including handstands, planche, front lever, muscle-ups, and more.
+- **Route**: `/skills`, `/skills/:treeId`
+- **Protected**: No (public), progress tracking requires login
+- **Features**:
+  - 7 skill tree categories (Handstands, Straight-Arm, Pulling, Pushing, Core, Rings, Dynamic)
+  - 45+ individual skills with prerequisites
+  - Practice session logging
+  - Progress tracking with tier-based visualization
+  - Skill leaderboards
+  - XP and credit rewards for skill achievements
 
 ## Community
 
@@ -204,6 +216,14 @@ Signup page
 - Achievements and badges
 - Character stats (RPG-style)
 - Skins and customization
+- Skill progression trees (gymnastics/calisthenics)
+
+### Credits Economy
+- Virtual currency earned through workouts and achievements
+- Store for cosmetics and buddy items
+- Training Buddy companion that evolves with your progress
+- Leaderboard rewards (daily/weekly/monthly)
+- Anti-abuse fraud detection
 
 ### AI Integration
 - Personalized workout recommendations

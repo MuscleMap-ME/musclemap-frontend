@@ -1,5 +1,7 @@
 # MuscleMap Remaining Features Implementation Plan
 
+> Last updated: 2026-01-09
+
 ## Executive Summary
 
 Based on a thorough review of the codebase and user requirements, MuscleMap has **most major features fully implemented**. This document outlines what remains to be built.
@@ -23,128 +25,86 @@ Based on a thorough review of the codebase and user requirements, MuscleMap has 
 - Dual Mascot (global + per-user companions)
 - Admin Dashboard (fraud review, wallet management)
 
----
-
-## Phase 1: Quick Wins (1-2 days each)
-
-### 1.1 Homepage Engagement Stats
-**Priority: HIGH** - Kickstart community engagement
-
-Add real-time counters showing:
-- Total registered users
-- Users currently exercising (active workout sessions)
-- Workouts completed today
-- Community members online
-
-**Implementation:**
-```
-- Create stats endpoint: GET /api/stats/engagement
-- Add Redis-cached counters for real-time data
-- Frontend component showing animated counters
-- Placement: Hero section or dedicated stats bar
-```
-
-### 1.2 "Under Development" Banner
-**Priority: HIGH** - Set user expectations
-
-Add a dismissible banner:
-```
-"MuscleMap is under active development. New features are added daily!
-Join the community and start your journey. [Learn More] [Dismiss]"
-```
-
-**Implementation:**
-- LocalStorage to remember dismissal
-- Subtle but visible placement
-- Link to roadmap/changelog
-
-### 1.3 TripToMean Mascot Link
-**Priority: MEDIUM** - Creator attribution
-
-Update global mascot to link to triptomean.com/about when clicked.
-
-**Implementation:**
-- Add click handler to mascot component
-- Open in new tab
-- Subtle tooltip: "Meet the creator"
+### Recently Completed (January 2026)
+- Homepage Live Community Stats (WebSocket real-time counters)
+- "Under Development" Banner with dismiss functionality
+- TripToMean Mascot link to creator's about page
+- **Gymnastics/Calisthenics Skill Progression Trees** (7 trees, 45+ skills)
 
 ---
 
-## Phase 2: Skill Progression System (1 week)
+## ~~Phase 1: Quick Wins~~ COMPLETED
 
-### 2.1 Gymnastics/Calisthenics Skill Trees
-**Priority: HIGH** - Major user engagement feature
+### ~~1.1 Homepage Engagement Stats~~ ✅ DONE
+Live community stats with WebSocket real-time updates showing:
+- Users browsing the site
+- Active workout sessions
+- Total registered accounts
+- Total workouts completed
 
-Create progression trees for advanced bodyweight skills:
+See: `src/components/landing/LiveCommunityStats.jsx`, `src/hooks/useLiveCommunityStats.js`
 
-**Skill Categories:**
-1. **Handstands & Inversions**
-   - Wall Handstand → Freestanding → One-Arm → HSPU → Press to Handstand
+### ~~1.2 "Under Development" Banner~~ ✅ DONE
+Dismissible banner on landing page with localStorage persistence.
+See: `src/pages/Landing.jsx` (lines 53-81)
 
-2. **Straight-Arm Strength**
-   - L-Sit → V-Sit → Manna
+### ~~1.3 TripToMean Mascot Link~~ ✅ DONE
+Global mascot links to triptomean.com/about when clicked.
+See: `src/pages/Landing.jsx` footer section
+
+---
+
+## ~~Phase 2: Skill Progression System~~ COMPLETED
+
+### ~~2.1 Gymnastics/Calisthenics Skill Trees~~ ✅ DONE
+
+**Implemented 7 skill tree categories with 45+ skills:**
+
+1. **Handstands & Inversions** 🤸
+   - Wall Handstand → Freestanding → HSPU → Press to HS → One-Arm HS
+
+2. **Straight-Arm Strength** 💪
    - Tuck Planche → Straddle → Full Planche
-   - Tuck Front Lever → Straddle → Full Front Lever
-   - Back Lever progression
+   - Tuck Front Lever → Straddle → Full Lever
+   - L-Sit → V-Sit → Manna
 
-3. **Pulling Power**
-   - Pull-up → Chest-to-bar → Muscle-up → One-arm pull-up
+3. **Pulling Power** 🧗
+   - Pull-ups → Muscle-up → One-arm Pull-up
 
-4. **Pushing Power**
+4. **Pushing Power** 🏋️
    - Dips → Ring Dips → Korean Dips
-   - Ring Push-ups → Maltese progression
 
-5. **Dynamic Skills**
-   - Kip-up, Back Handspring, Aerial
+5. **Core & Compression** 🎯
+   - Hollow Body → L-sit → V-sit → Manna
 
-6. **Rings Specialty**
-   - Iron Cross, Ring Handstand
+6. **Rings Mastery** ⭕
+   - Support Hold → Ring Dips → Iron Cross
 
-**Database Schema:**
-```sql
-CREATE TABLE skill_trees (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  category TEXT NOT NULL, -- handstands, straight_arm, pulling, pushing, dynamic, rings
-  description TEXT,
-  icon TEXT,
-  order_index INT
-);
+7. **Dynamic Skills** 🔄
+   - Kip-up → Back Handspring → Aerial
 
-CREATE TABLE skill_nodes (
-  id SERIAL PRIMARY KEY,
-  tree_id INT REFERENCES skill_trees(id),
-  name TEXT NOT NULL,
-  description TEXT,
-  prerequisites JSONB DEFAULT '[]', -- array of skill_node_ids
-  difficulty INT CHECK (difficulty BETWEEN 1 AND 5),
-  xp_reward INT DEFAULT 100,
-  credit_reward INT DEFAULT 50,
-  criteria JSONB, -- { "hold_seconds": 30, "reps": 5, etc. }
-  video_url TEXT,
-  tips TEXT[]
-);
+**Implementation Details:**
+- Migration: `apps/api/src/db/migrations/043_skill_progression_trees.ts`
+- Service: `apps/api/src/modules/skills/index.ts`
+- Routes: `apps/api/src/http/routes/skills.ts`
+- Frontend: `src/pages/Skills.jsx`
+- Public routes: `/skills`, `/skills/:treeId`
 
-CREATE TABLE user_skill_progress (
-  user_id UUID REFERENCES users(id),
-  skill_node_id INT REFERENCES skill_nodes(id),
-  status TEXT DEFAULT 'locked', -- locked, in_progress, achieved
-  best_attempt JSONB,
-  achieved_at TIMESTAMPTZ,
-  PRIMARY KEY (user_id, skill_node_id)
-);
-```
+**API Endpoints:**
+- `GET /api/skills/trees` - List all skill trees
+- `GET /api/skills/trees/:id` - Get tree with nodes
+- `GET /api/skills/trees/:id/progress` - User progress (auth)
+- `GET /api/skills/progress` - User skill summary (auth)
+- `POST /api/skills/practice` - Log practice session (auth)
+- `POST /api/skills/achieve` - Mark skill achieved (auth)
+- `GET /api/skills/history` - Practice history (auth)
+- `GET /api/skills/nodes/:id/leaderboard` - Skill leaderboard
 
-**Frontend:**
-- Visual tree diagram (like a talent tree in games)
-- Unlocked/locked visual states
-- Progress indicators
-- Video demonstrations
-- Achievement celebrations
+**Earning Rule:** `skill_unlock` - 50 credits, 100 XP per skill achieved
 
 ---
 
-## Phase 3: Martial Arts Module (1-2 weeks)
+## Phase 3: Martial Arts Module (Remaining)
 
 ### 3.1 Martial Arts Training System
 **Priority: MEDIUM** - Appeals to military/first responder users
@@ -270,19 +230,19 @@ Systematic review and update of:
 
 ---
 
-## Implementation Order
+## Implementation Status
 
-| Phase | Feature | Est. Time | Priority |
-|-------|---------|-----------|----------|
-| 1.1 | Homepage Engagement Stats | 4-6 hours | HIGH |
-| 1.2 | Under Development Banner | 1-2 hours | HIGH |
-| 1.3 | TripToMean Mascot Link | 30 min | MEDIUM |
-| 2.1 | Skill Progression Trees | 5-7 days | HIGH |
-| 3.1 | Martial Arts Module | 7-10 days | MEDIUM |
-| 4.1 | Nutrition Structure | 2-3 days | LOW |
-| 4.2 | Supplementation Structure | 2-3 days | LOW |
-| 5.1 | Touchscreen UX | Ongoing | MEDIUM |
-| 6.1 | 3D Models | TBD | LOW |
+| Phase | Feature | Status | Priority |
+|-------|---------|--------|----------|
+| 1.1 | Homepage Engagement Stats | ✅ COMPLETE | HIGH |
+| 1.2 | Under Development Banner | ✅ COMPLETE | HIGH |
+| 1.3 | TripToMean Mascot Link | ✅ COMPLETE | MEDIUM |
+| 2.1 | Skill Progression Trees | ✅ COMPLETE | HIGH |
+| 3.1 | Martial Arts Module | 🔲 PENDING | MEDIUM |
+| 4.1 | Nutrition Structure | 🔲 PENDING | LOW |
+| 4.2 | Supplementation Structure | 🔲 PENDING | LOW |
+| 5.1 | Touchscreen UX | 🔲 PENDING | MEDIUM |
+| 6.1 | 3D Models | 🔲 PENDING | LOW |
 
 ---
 
