@@ -97,7 +97,7 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE user_technique_progress (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         technique_id TEXT NOT NULL REFERENCES martial_arts_techniques(id) ON DELETE CASCADE,
 
         status TEXT NOT NULL DEFAULT 'locked', -- locked, available, learning, proficient, mastered
@@ -125,7 +125,7 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE technique_practice_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         technique_id TEXT NOT NULL REFERENCES martial_arts_techniques(id) ON DELETE CASCADE,
 
         practice_date DATE NOT NULL DEFAULT CURRENT_DATE,
