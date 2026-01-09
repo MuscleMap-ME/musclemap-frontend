@@ -51,6 +51,7 @@ import Goals from './pages/Goals';
 import Limitations from './pages/Limitations';
 import PTTests from './pages/PTTests';
 import Skills from './pages/Skills';
+import MartialArts from './pages/MartialArts';
 
 // Page view tracker
 function PageTracker() {
@@ -125,6 +126,8 @@ function AppRoutes() {
         <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
         <Route path="/skills" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />
         <Route path="/skills/:treeId" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />
+        <Route path="/martial-arts" element={<ErrorBoundary name="MartialArts"><MartialArts /></ErrorBoundary>} />
+        <Route path="/martial-arts/:disciplineId" element={<ErrorBoundary name="MartialArts"><MartialArts /></ErrorBoundary>} />
 
         {/* Issue Tracker - Public */}
         <Route path="/issues" element={<ErrorBoundary name="Issues"><Issues /></ErrorBoundary>} />

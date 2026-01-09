@@ -51,6 +51,19 @@ Gymnastics/Calisthenics Skill Progression Trees - Master bodyweight skills from 
   - Boys and Girls / Men and Women divisions
   - 500+ official USAG skills with difficulty values
 
+### Martial Arts (NEW)
+Combat technique training with multiple disciplines and military combatives.
+- **Route**: `/martial-arts`, `/martial-arts/:disciplineId`
+- **Protected**: No (public), progress tracking requires login
+- **Features**:
+  - 10 disciplines: Boxing, Kickboxing, Muay Thai, BJJ, Wrestling, Judo, Self-Defense, MCMAP, Army Combatives, Krav Maga
+  - 60+ techniques across all disciplines
+  - Proficiency-based progression (0-100%)
+  - Military/tactical toggle for service members
+  - Practice logging with reps, rounds, partner drills
+  - Category grouping (stances, strikes, submissions, etc.)
+  - XP and credit rewards for technique mastery
+
 ## Community
 
 ### CommunityDashboard

@@ -164,60 +164,52 @@ The current skill trees focus on calisthenics/street workout skills. This expans
 
 ---
 
-## Phase 3: Martial Arts Module (Remaining)
+## ~~Phase 3: Martial Arts Module~~ COMPLETED
 
-### 3.1 Martial Arts Training System
-**Priority: MEDIUM** - Appeals to military/first responder users
+### ~~3.1 Martial Arts Training System~~ ✅ DONE
 
-**Supported Disciplines:**
-- Boxing fundamentals
-- Kickboxing basics
-- Brazilian Jiu-Jitsu positions
-- Wrestling takedowns
-- Self-defense techniques
-- Military combatives (MCMAP, Army Combatives)
+**Implemented 10 disciplines with 60+ techniques:**
+
+**Civilian Disciplines:**
+1. **Boxing** 🥊 - Stances, punches, defense, combinations
+2. **Kickboxing** 🦵 - Punches, kicks, defense
+3. **Muay Thai** 🇹🇭 - Punches, kicks, elbows, knees, clinch
+4. **Brazilian Jiu-Jitsu** 🥋 - Positions, guards, sweeps, submissions, escapes
+5. **Wrestling** 🤼 - Stances, takedowns, defense, pins
+6. **Judo** 🥋 - Throws, pins, submissions
+7. **Self-Defense** 🛡️ - Awareness, strikes, escapes, defense
+
+**Military Combatives:**
+8. **MCMAP** ⚔️ - Marine Corps Martial Arts Program (Tan through Black belt)
+9. **Army Combatives** 🪖 - Modern Army Combatives Program levels 1-3
+10. **Krav Maga** 🇮🇱 - Israeli military self-defense system
+
+**Implementation Details:**
+- Migration: `apps/api/src/db/migrations/044_martial_arts.ts`
+- Service: `apps/api/src/modules/martial-arts/index.ts`
+- Routes: `apps/api/src/http/routes/martial-arts.ts`
+- Frontend: `src/pages/MartialArts.jsx`
+- Public routes: `/martial-arts`, `/martial-arts/:disciplineId`
+
+**API Endpoints:**
+- `GET /api/martial-arts/disciplines` - List all disciplines (filter by ?military=true)
+- `GET /api/martial-arts/disciplines/:id` - Get discipline with categories
+- `GET /api/martial-arts/disciplines/:id/techniques` - Get techniques
+- `GET /api/martial-arts/disciplines/:id/progress` - User progress (auth)
+- `GET /api/martial-arts/disciplines/:id/leaderboard` - Discipline leaderboard
+- `GET /api/martial-arts/progress` - User summary (auth)
+- `POST /api/martial-arts/practice` - Log practice session (auth)
+- `POST /api/martial-arts/master` - Mark technique mastered (auth)
+- `GET /api/martial-arts/history` - Practice history (auth)
+
+**Earning Rule:** `technique_master` - 50 credits, 100 XP per technique mastered
 
 **Features:**
-- Technique library with descriptions
-- Visual diagrams/illustrations
-- Progression from basics to advanced
-- Integration with existing archetype system
-- Drill timers and round counters
-
-**Database Schema:**
-```sql
-CREATE TABLE martial_arts_disciplines (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  origin_country TEXT,
-  focus_areas TEXT[], -- striking, grappling, throws, etc.
-  icon TEXT
-);
-
-CREATE TABLE martial_arts_techniques (
-  id TEXT PRIMARY KEY,
-  discipline_id TEXT REFERENCES martial_arts_disciplines(id),
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT, -- stance, strike, block, submission, takedown, escape
-  difficulty INT CHECK (difficulty BETWEEN 1 AND 5),
-  prerequisites TEXT[],
-  muscle_groups TEXT[],
-  illustration_url TEXT,
-  video_url TEXT,
-  tips TEXT[]
-);
-
-CREATE TABLE user_technique_progress (
-  user_id UUID REFERENCES users(id),
-  technique_id TEXT REFERENCES martial_arts_techniques(id),
-  proficiency INT DEFAULT 0, -- 0-100
-  practice_count INT DEFAULT 0,
-  last_practiced TIMESTAMPTZ,
-  PRIMARY KEY (user_id, technique_id)
-);
-```
+- Proficiency-based progression (0-100%)
+- Practice logging with reps, rounds, partner drills
+- Category grouping (stances, strikes, submissions, etc.)
+- Military/tactical toggle for service members
+- Tier-based technique organization
 
 ---
 
@@ -299,7 +291,7 @@ Systematic review and update of:
 | 1.3 | TripToMean Mascot Link | ✅ COMPLETE | MEDIUM |
 | 2.1 | Skill Progression Trees | ✅ COMPLETE | HIGH |
 | 2.5 | USA Gymnastics Program (USAG) | 🔲 PENDING | HIGH |
-| 3.1 | Martial Arts Module | 🔲 PENDING | MEDIUM |
+| 3.1 | Martial Arts Module | ✅ COMPLETE | MEDIUM |
 | 4.1 | Nutrition Structure | 🔲 PENDING | LOW |
 | 4.2 | Supplementation Structure | 🔲 PENDING | LOW |
 | 5.1 | Touchscreen UX | 🔲 PENDING | MEDIUM |

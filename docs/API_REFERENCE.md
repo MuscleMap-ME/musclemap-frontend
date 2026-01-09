@@ -218,6 +218,23 @@ Authorization: Bearer <token>
 | `PUT` | `/skills/nodes/:id/notes` | Yes | Update notes for a skill |
 
 
+### Martial Arts
+
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|---------------|-------------|
+| `GET` | `/martial-arts/disciplines` | No | List all disciplines (optionally filter by ?military=true) |
+| `GET` | `/martial-arts/disciplines/:id` | No | Get discipline with categories |
+| `GET` | `/martial-arts/disciplines/:id/techniques` | No | Get techniques for a discipline |
+| `GET` | `/martial-arts/disciplines/:id/progress` | Yes | Get user progress for discipline |
+| `GET` | `/martial-arts/disciplines/:id/leaderboard` | No | Get discipline leaderboard |
+| `GET` | `/martial-arts/techniques/:id` | No | Get specific technique |
+| `GET` | `/martial-arts/progress` | Yes | Get user's overall martial arts summary |
+| `POST` | `/martial-arts/practice` | Yes | Log a practice session |
+| `POST` | `/martial-arts/master` | Yes | Mark technique as mastered |
+| `GET` | `/martial-arts/history` | Yes | Get practice history |
+| `PUT` | `/martial-arts/techniques/:id/notes` | Yes | Update notes for a technique |
+
+
 ## Common Response Format
 
 ### Success Response
