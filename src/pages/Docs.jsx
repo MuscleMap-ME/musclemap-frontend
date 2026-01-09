@@ -35,15 +35,6 @@ const PUBLIC_DOCS = [
     category: 'user'
   },
   {
-    id: 'guides',
-    title: 'User Guides',
-    description: 'Step-by-step tutorials and how-tos',
-    icon: 'book',
-    color: 'blue',
-    path: '/docs/public/guides/README.md',
-    category: 'user'
-  },
-  {
     id: 'api',
     title: 'API Reference',
     description: 'Developer documentation for integrations',
@@ -51,6 +42,91 @@ const PUBLIC_DOCS = [
     color: 'cyan',
     path: '/docs/public/api/README.md',
     category: 'developer'
+  },
+  {
+    id: 'guides',
+    title: 'User Guides',
+    description: 'Step-by-step tutorials for all MuscleMap features',
+    icon: 'book',
+    color: 'violet',
+    path: '/docs/public/guides/README.md',
+    category: 'user'
+  },
+];
+
+// Individual User Guides (broken out from single page)
+const USER_GUIDES = [
+  {
+    id: 'guide-first-week',
+    title: 'Your First Week',
+    description: 'Day-by-day guide to getting started',
+    icon: 'rocket',
+    color: 'green',
+    path: '/docs/public/guides/first-week.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-dashboard',
+    title: 'Understanding the Dashboard',
+    description: 'Navigate your home base effectively',
+    icon: 'cube',
+    color: 'blue',
+    path: '/docs/public/guides/dashboard.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-logging-workouts',
+    title: 'Logging Workouts',
+    description: 'Track every set, rep, and exercise',
+    icon: 'heart',
+    color: 'red',
+    path: '/docs/public/guides/logging-workouts.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-tracking-progress',
+    title: 'Tracking Progress',
+    description: 'Stats, goals, and muscle balance',
+    icon: 'flow',
+    color: 'indigo',
+    path: '/docs/public/guides/tracking-progress.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-rivalries',
+    title: 'Rivalries & Competitions',
+    description: 'Challenge others and compete',
+    icon: 'shield',
+    color: 'orange',
+    path: '/docs/public/guides/rivalries.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-crews',
+    title: 'Creating Crews',
+    description: 'Build and manage your fitness squad',
+    icon: 'users',
+    color: 'violet',
+    path: '/docs/public/guides/crews.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-advanced',
+    title: 'Advanced Features',
+    description: 'Wearables, journeys, and companions',
+    icon: 'star',
+    color: 'yellow',
+    path: '/docs/public/guides/advanced-features.md',
+    category: 'guide'
+  },
+  {
+    id: 'guide-troubleshooting',
+    title: 'Troubleshooting',
+    description: 'Common issues and FAQ',
+    icon: 'wrench',
+    color: 'teal',
+    path: '/docs/public/guides/troubleshooting.md',
+    category: 'guide'
   },
 ];
 
@@ -398,6 +474,15 @@ function resolveDocLink(href, currentDocId, isPublic) {
       // Sub-pages
       './onboarding-flow.md': { id: 'onboarding-flow', isPublic: true },
       './muscle-system.md': { id: 'muscle-system', isPublic: true },
+      // Individual guides
+      './first-week.md': { id: 'guide-first-week', isPublic: true },
+      './dashboard.md': { id: 'guide-dashboard', isPublic: true },
+      './logging-workouts.md': { id: 'guide-logging-workouts', isPublic: true },
+      './tracking-progress.md': { id: 'guide-tracking-progress', isPublic: true },
+      './rivalries.md': { id: 'guide-rivalries', isPublic: true },
+      './crews.md': { id: 'guide-crews', isPublic: true },
+      './advanced-features.md': { id: 'guide-advanced', isPublic: true },
+      './troubleshooting.md': { id: 'guide-troubleshooting', isPublic: true },
     };
 
     const mapping = pathMappings[path];
@@ -423,7 +508,7 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
   const navigate = useNavigate();
 
   const doc = isPublic
-    ? PUBLIC_DOCS.find(d => d.id === docId)
+    ? PUBLIC_DOCS.find(d => d.id === docId) || USER_GUIDES.find(d => d.id === docId)
     : TECH_DOCS.find(d => d.id === docId);
 
   const colors = doc ? COLOR_CLASSES[doc.color] : COLOR_CLASSES.blue;
@@ -454,7 +539,25 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
   const handleLinkClick = (e, href) => {
     const resolved = resolveDocLink(href, docId, isPublic);
 
-    if (!resolved) return; // Let default behavior handle it
+    // Always prevent default for .md links to avoid broken navigation
+    const isMdLink = href?.endsWith('.md') || href?.includes('.md#');
+    if (isMdLink) {
+      e.preventDefault();
+    }
+
+    if (!resolved) {
+      // For unresolved .md links, try to extract ID from filename
+      if (isMdLink) {
+        const [path] = href.split('#');
+        const filename = path.split('/').pop().replace('.md', '');
+        if (filename && filename !== 'README' && filename !== 'index' && onNavigate) {
+          // Try to find a matching guide by filename
+          const guideId = `guide-${filename}`;
+          onNavigate(guideId, true);
+        }
+      }
+      return;
+    }
 
     e.preventDefault();
 
@@ -563,16 +666,18 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
                     const resolved = resolveDocLink(href, docId, isPublic);
                     const isExternal = resolved?.type === 'external';
                     const isInternal = resolved?.type === 'doc' || resolved?.type === 'route' || resolved?.type === 'anchor';
+                    // Treat .md links as internal even if not in pathMappings
+                    const isMdLink = href?.endsWith('.md') || href?.includes('.md#');
 
                     return (
                       <a
                         href={href}
-                        onClick={(e) => isInternal ? handleLinkClick(e, href) : undefined}
+                        onClick={(e) => (isInternal || isMdLink) ? handleLinkClick(e, href) : undefined}
                         target={isExternal ? '_blank' : undefined}
                         rel={isExternal ? 'noopener noreferrer' : undefined}
                         className={clsx(
                           'underline transition-colors',
-                          isInternal ? 'text-violet-400 hover:text-violet-300 cursor-pointer' : 'text-blue-400 hover:text-blue-300'
+                          (isInternal || isMdLink) ? 'text-violet-400 hover:text-violet-300 cursor-pointer' : 'text-blue-400 hover:text-blue-300'
                         )}
                       >
                         {children}
@@ -616,7 +721,7 @@ export default function Docs() {
 
   useEffect(() => {
     if (docId) {
-      const isPublic = PUBLIC_DOCS.some(d => d.id === docId);
+      const isPublic = PUBLIC_DOCS.some(d => d.id === docId) || USER_GUIDES.some(d => d.id === docId);
       setSelectedDoc(docId);
       setIsPublicDoc(isPublic);
     }
@@ -735,12 +840,12 @@ export default function Docs() {
           </div>
         </motion.div>
 
-        {/* User Guides Section */}
+        {/* Overview Guides Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="mb-16"
+          className="mb-12"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -749,8 +854,8 @@ export default function Docs() {
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">User Guides</h2>
-              <p className="text-sm text-gray-400">Learn how to use MuscleMap effectively</p>
+              <h2 className="text-2xl font-bold text-white">Overview Guides</h2>
+              <p className="text-sm text-gray-400">High-level guides for key areas of MuscleMap</p>
             </div>
           </div>
 
@@ -763,6 +868,39 @@ export default function Docs() {
                 transition={{ delay: 0.2 + index * 0.05 }}
               >
                 <HeroDocCard doc={doc} onClick={(id) => handleDocClick(id, true)} />
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Step-by-Step User Guides Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-16"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Step-by-Step Tutorials</h2>
+              <p className="text-sm text-gray-400">Detailed guides for specific tasks and features</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {USER_GUIDES.map((doc, index) => (
+              <motion.div
+                key={doc.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 + index * 0.03 }}
+              >
+                <DocCard doc={doc} onClick={(id) => handleDocClick(id, true)} isPublic={true} />
               </motion.div>
             ))}
           </div>
