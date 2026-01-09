@@ -44,6 +44,12 @@ Gymnastics/Calisthenics Skill Progression Trees - Master bodyweight skills from 
   - Progress tracking with tier-based visualization
   - Skill leaderboards
   - XP and credit rewards for skill achievements
+- **Planned Expansion**: Full USA Gymnastics (USAG) program coverage
+  - Women's Artistic Gymnastics (Vault, Uneven Bars, Balance Beam, Floor)
+  - Men's Artistic Gymnastics (Floor, Pommel Horse, Rings, Vault, P-Bars, High Bar)
+  - Junior Olympic levels 1-10 + Elite
+  - Boys and Girls / Men and Women divisions
+  - 500+ official USAG skills with difficulty values
 
 ## Community
 

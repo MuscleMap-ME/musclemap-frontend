@@ -104,6 +104,66 @@ See: `src/pages/Landing.jsx` footer section
 
 ---
 
+## Phase 2.5: USA Gymnastics Program Expansion (Planned)
+
+### 2.5.1 Full USAG Skill Progressions
+**Priority: HIGH** - Comprehensive gymnastics training resource
+
+The current skill trees focus on calisthenics/street workout skills. This expansion will add the **complete USA Gymnastics (USAG) program and syllabus** to support competitive gymnasts at all levels.
+
+**Target Audience:**
+- Boys gymnastics (Junior Olympic levels 4-10 + Elite)
+- Girls gymnastics (Junior Olympic levels 1-10 + Elite)
+- Men's Artistic Gymnastics (MAG)
+- Women's Artistic Gymnastics (WAG)
+- Recreational gymnasts following USAG progressions
+
+**Women's Artistic Gymnastics (WAG) Apparatus:**
+1. **Vault** - Handspring, Tsukahara, Yurchenko progressions
+2. **Uneven Bars** - Kip, cast handstand, giants, release moves, dismounts
+3. **Balance Beam** - Mounts, leaps, turns, acro series, dismounts
+4. **Floor Exercise** - Tumbling passes, leaps, turns, dance elements
+
+**Men's Artistic Gymnastics (MAG) Apparatus:**
+1. **Floor Exercise** - Tumbling, strength holds, press handstands
+2. **Pommel Horse** - Circles, flairs, scissors, dismounts
+3. **Still Rings** - Strength holds (cross, lever), swings, dismounts
+4. **Vault** - Handspring, Tsukahara, Kasamatsu progressions
+5. **Parallel Bars** - Swings, handstands, releases, dismounts
+6. **High Bar** - Giants, releases, pirouettes, dismounts
+
+**USAG Level Structure:**
+| Level | Description | Age Range |
+|-------|-------------|-----------|
+| 1-3 | Compulsory (set routines) | 5-8 years |
+| 4-5 | Compulsory with options | 7-10 years |
+| 6-7 | Optional (custom routines) | 8-12 years |
+| 8-10 | Advanced Optional | 10-16 years |
+| Elite | National/International | 14+ years |
+
+**Implementation Approach:**
+1. Create new skill trees per apparatus (4 for WAG, 6 for MAG)
+2. Map USAG Code of Points skills to tree nodes
+3. Include difficulty values (A, B, C, D, E, F, G)
+4. Add level requirements for each skill
+5. Support both boys/men and girls/women progressions
+6. Include skill videos/animations where available
+
+**Database Additions:**
+- `apparatus` field on skill trees (vault, bars, beam, floor, pommel, rings, pbars, hbar)
+- `usag_level` field on skill nodes (1-10, elite)
+- `difficulty_value` field (A=0.1, B=0.2, ... G=0.7)
+- `gender` field on skill trees (male, female, unisex)
+- `code_of_points_id` for official USAG skill references
+
+**Estimated Scope:**
+- 10 new apparatus-specific skill trees
+- 500+ individual skills from USAG syllabi
+- Level-appropriate progressions for each apparatus
+- Integration with existing XP/credit rewards
+
+---
+
 ## Phase 3: Martial Arts Module (Remaining)
 
 ### 3.1 Martial Arts Training System
@@ -238,6 +298,7 @@ Systematic review and update of:
 | 1.2 | Under Development Banner | ✅ COMPLETE | HIGH |
 | 1.3 | TripToMean Mascot Link | ✅ COMPLETE | MEDIUM |
 | 2.1 | Skill Progression Trees | ✅ COMPLETE | HIGH |
+| 2.5 | USA Gymnastics Program (USAG) | 🔲 PENDING | HIGH |
 | 3.1 | Martial Arts Module | 🔲 PENDING | MEDIUM |
 | 4.1 | Nutrition Structure | 🔲 PENDING | LOW |
 | 4.2 | Supplementation Structure | 🔲 PENDING | LOW |
