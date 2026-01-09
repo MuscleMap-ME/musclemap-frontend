@@ -634,4 +634,27 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
 
     return reply.send({ data: statuses });
   });
+
+  // Admin: Trigger leaderboard rewards (for manual processing)
+  app.post('/admin/leaderboard-rewards/trigger', { preHandler: [authenticate, requireRole('admin')] }, async (request, reply) => {
+    const data = z.object({
+      periodType: z.enum(['daily', 'weekly', 'monthly']),
+    }).parse(request.body);
+
+    // Import dynamically to avoid circular deps
+    const { triggerLeaderboardRewards } = await import('../../lib/scheduler');
+
+    await triggerLeaderboardRewards(data.periodType);
+
+    // Log admin action
+    await antiabuseService.logAdminAction({
+      adminId: request.user!.userId,
+      action: 'trigger_leaderboard_rewards',
+      targetType: 'system',
+      targetId: data.periodType,
+      details: { periodType: data.periodType },
+    });
+
+    return reply.send({ data: { success: true, message: `${data.periodType} leaderboard rewards processing triggered` } });
+  });
 }

@@ -17,6 +17,7 @@ import { loadAllPlugins, invokePluginHook } from './plugins/plugin-loader';
 import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
 import { config } from './config';
+import { startScheduler, stopScheduler } from './lib/scheduler';
 
 async function main(): Promise<void> {
   logger.info('🚀 Starting MuscleMap API server...');
@@ -60,9 +61,16 @@ async function main(): Promise<void> {
   // Notify plugins
   await invokePluginHook('onServerStart');
 
+  // Start scheduled jobs (leaderboard rewards, mute expiry, etc.)
+  startScheduler();
+
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
+
+    // Stop scheduler first
+    stopScheduler();
+
     try {
       await invokePluginHook('onShutdown');
     } catch (error) {
