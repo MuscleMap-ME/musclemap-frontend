@@ -43,6 +43,10 @@ const envSchema = z.object({
   REDIS_CLUSTER_NODES: z.string().optional(), // Comma-separated list: "host1:port1,host2:port2"
   // Native modules configuration
   USE_NATIVE: z.coerce.boolean().default(true),
+  // Translation API configuration (LibreTranslate)
+  TRANSLATION_API_URL: z.string().optional(),
+  TRANSLATION_API_KEY: z.string().optional(),
+  TRANSLATION_ENABLED: z.coerce.boolean().default(false),
 });
 
 type EnvConfig = z.infer<typeof envSchema>;
@@ -90,6 +94,9 @@ function loadConfig(): EnvConfig {
       REDIS_CLUSTER_ENABLED: false,
       REDIS_CLUSTER_NODES: undefined,
       USE_NATIVE: true,
+      TRANSLATION_API_URL: undefined,
+      TRANSLATION_API_KEY: undefined,
+      TRANSLATION_ENABLED: false,
     };
   }
   

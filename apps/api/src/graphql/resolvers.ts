@@ -13,6 +13,15 @@ import { config } from '../config';
 import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { loggers } from '../lib/logger';
+import {
+  subscribe,
+  subscribeForConversation,
+  PUBSUB_CHANNELS,
+  CommunityStatsEvent,
+  ActivityEvent,
+  MessageEvent,
+  ConversationEvent,
+} from '../lib/pubsub';
 
 const log = loggers.core;
 
@@ -916,29 +925,47 @@ export const resolvers = {
   },
 
   // ============================================
-  // SUBSCRIPTIONS (placeholder)
+  // SUBSCRIPTIONS
   // ============================================
   Subscription: {
     communityStatsUpdated: {
       subscribe: () => {
-        // Would use pubsub here
-        throw new GraphQLError('Subscriptions not yet implemented');
+        return subscribe<CommunityStatsEvent>(PUBSUB_CHANNELS.COMMUNITY_STATS);
       },
+      resolve: (payload: CommunityStatsEvent) => payload,
     },
     communityActivity: {
       subscribe: () => {
-        throw new GraphQLError('Subscriptions not yet implemented');
+        return subscribe<ActivityEvent>(PUBSUB_CHANNELS.COMMUNITY_ACTIVITY);
       },
+      resolve: (payload: ActivityEvent) => payload,
     },
     messageReceived: {
-      subscribe: () => {
-        throw new GraphQLError('Subscriptions not yet implemented');
+      subscribe: (_: unknown, args: { conversationId?: string }, context: Context) => {
+        // Optional: require auth for message subscriptions
+        if (!context.user) {
+          throw new GraphQLError('Authentication required for message subscriptions', {
+            extensions: { code: 'UNAUTHENTICATED' },
+          });
+        }
+        return subscribeForConversation<MessageEvent>(
+          PUBSUB_CHANNELS.MESSAGE_RECEIVED,
+          args.conversationId
+        );
       },
+      resolve: (payload: MessageEvent) => payload,
     },
     conversationUpdated: {
-      subscribe: () => {
-        throw new GraphQLError('Subscriptions not yet implemented');
+      subscribe: (_: unknown, __: unknown, context: Context) => {
+        // Require auth for conversation subscriptions
+        if (!context.user) {
+          throw new GraphQLError('Authentication required for conversation subscriptions', {
+            extensions: { code: 'UNAUTHENTICATED' },
+          });
+        }
+        return subscribe<ConversationEvent>(PUBSUB_CHANNELS.CONVERSATION_UPDATED);
       },
+      resolve: (payload: ConversationEvent) => payload,
     },
   },
 };

@@ -271,7 +271,7 @@ export const rivalsService = {
       [userId]
     );
 
-    // Count wins/losses/ties
+    // Count wins/losses/ties - ordered by end date for streak calculation
     const results = await queryAll<{ result: string }>(
       `SELECT
          CASE
@@ -289,7 +289,8 @@ export const rivalsService = {
              END
          END as result
        FROM rivals
-       WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'ended'`,
+       WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'ended'
+       ORDER BY ended_at DESC NULLS LAST`,
       [userId]
     );
 
@@ -306,9 +307,33 @@ export const rivalsService = {
       [userId]
     );
 
-    // TODO: Calculate streaks from historical data
-    const currentStreak = 0;
-    const longestStreak = 0;
+    // Calculate streaks from historical data (ordered most recent first)
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (const r of results) {
+      if (r.result === 'win') {
+        tempStreak++;
+        // Current streak only counts from the most recent
+        if (tempStreak === results.indexOf(r) + 1) {
+          currentStreak = tempStreak;
+        }
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    // Simpler current streak: count consecutive wins from start
+    currentStreak = 0;
+    for (const r of results) {
+      if (r.result === 'win') {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
 
     return {
       activeRivals: parseInt(active?.count || '0', 10),

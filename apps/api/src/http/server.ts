@@ -20,6 +20,7 @@ import { config, isProduction } from '../config';
 import { logger, loggers } from '../lib/logger';
 import { closeDatabase, healthCheck as dbHealthCheck, getPoolStats } from '../db/client';
 import { closeRedis, isRedisAvailable } from '../lib/redis';
+import { initializePubSub, cleanupPubSub } from '../lib/pubsub';
 
 // Route modules
 import { registerAuthRoutes } from './routes/auth';
@@ -267,6 +268,9 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register security middleware
   registerSecurityMiddleware(app);
 
+  // Initialize PubSub for GraphQL subscriptions
+  await initializePubSub();
+
   // GraphQL endpoint (at /api/graphql)
   await app.register(async (gql) => {
     await registerGraphQLRoutes(gql);
@@ -341,6 +345,9 @@ export async function startServer(app: FastifyInstance): Promise<void> {
 
       // Close Redis connections
       await closeRedis();
+
+      // Cleanup PubSub subscriptions
+      cleanupPubSub();
 
       log.info('Graceful shutdown completed');
       process.exit(0);

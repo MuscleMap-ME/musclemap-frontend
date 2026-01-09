@@ -335,6 +335,78 @@ export const moderationService = {
   },
 
   /**
+   * Mute a user with optional duration
+   */
+  async muteUser(params: {
+    hangoutId?: number;
+    virtualHangoutId?: number;
+    moderatorId: string;
+    targetUserId: string;
+    reason: string;
+    durationMinutes?: number; // null = permanent
+  }): Promise<ModerationAction> {
+    const { hangoutId, virtualHangoutId, moderatorId, targetUserId, reason, durationMinutes } = params;
+
+    // Check permission
+    const { hasPermission } = await this.checkPermission(moderatorId, hangoutId, virtualHangoutId, 'mute_user');
+    if (!hasPermission) {
+      throw new ForbiddenError('Insufficient permissions to mute users');
+    }
+
+    if (!reason) {
+      throw new ValidationError('Reason is required for muting');
+    }
+
+    // Calculate mute expiry
+    const muteUntil = durationMinutes
+      ? new Date(Date.now() + durationMinutes * 60 * 1000)
+      : null;
+
+    // Log action with expiry in metadata
+    return this.logAction({
+      hangoutId,
+      virtualHangoutId,
+      moderatorId,
+      targetUserId,
+      actionType: 'mute_user',
+      reason,
+      metadata: {
+        durationMinutes,
+        muteUntil: muteUntil?.toISOString() ?? null,
+      },
+    });
+  },
+
+  /**
+   * Unmute a user
+   */
+  async unmuteUser(params: {
+    hangoutId?: number;
+    virtualHangoutId?: number;
+    moderatorId: string;
+    targetUserId: string;
+    reason?: string;
+  }): Promise<ModerationAction> {
+    const { hangoutId, virtualHangoutId, moderatorId, targetUserId, reason } = params;
+
+    // Check permission
+    const { hasPermission } = await this.checkPermission(moderatorId, hangoutId, virtualHangoutId, 'unmute_user');
+    if (!hasPermission) {
+      throw new ForbiddenError('Insufficient permissions to unmute users');
+    }
+
+    // Log action
+    return this.logAction({
+      hangoutId,
+      virtualHangoutId,
+      moderatorId,
+      targetUserId,
+      actionType: 'unmute_user',
+      reason,
+    });
+  },
+
+  /**
    * Get moderation action history for a hangout
    */
   async getHangoutActions(
@@ -500,10 +572,46 @@ export const moderationService = {
       [userId, hangoutId, virtualHangoutId]
     );
 
+    // Check for active mute (most recent mute_user action not followed by unmute_user)
+    // and verify mute hasn't expired
+    const lastMuteAction = await queryOne<{
+      action_type: string;
+      metadata: string;
+      created_at: Date;
+    }>(
+      `SELECT action_type, metadata, created_at
+       FROM moderation_actions
+       WHERE target_user_id = $1
+         AND action_type IN ('mute_user', 'unmute_user')
+         AND (hangout_id = $2 OR virtual_hangout_id = $3)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId, hangoutId, virtualHangoutId]
+    );
+
+    let isMuted = false;
+    let mutedUntil: Date | undefined;
+
+    if (lastMuteAction && lastMuteAction.action_type === 'mute_user') {
+      const metadata = JSON.parse(lastMuteAction.metadata || '{}');
+      if (metadata.muteUntil) {
+        const expiry = new Date(metadata.muteUntil);
+        if (expiry > new Date()) {
+          // Mute is still active
+          isMuted = true;
+          mutedUntil = expiry;
+        }
+      } else {
+        // Permanent mute (no expiry)
+        isMuted = true;
+      }
+    }
+
     return {
       userId,
       isBanned,
-      isMuted: false, // TODO: implement muting with expiry
+      isMuted,
+      mutedUntil,
       warningCount: parseInt(warnings?.count || '0'),
       lastWarningAt: warnings?.last_warning ?? undefined,
     };

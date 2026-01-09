@@ -10,6 +10,7 @@
 import { queryOne, queryAll, query } from '../db/client';
 import { getRedis, isRedisAvailable } from '../lib/redis';
 import { loggers } from '../lib/logger';
+import { config } from '../config';
 
 const log = loggers.core;
 
@@ -28,6 +29,83 @@ export const RTL_LANGUAGES = ['he', 'ar'] as const;
 // Cache settings
 const TRANSLATION_CACHE_TTL = 3600; // 1 hour
 const TRANSLATION_CACHE_PREFIX = 'i18n:';
+
+/**
+ * Map our language codes to LibreTranslate/standard codes
+ */
+function mapLanguageCode(lang: string): string {
+  const mapping: Record<string, string> = {
+    'pt-BR': 'pt',
+    'zh-Hans': 'zh',
+  };
+  return mapping[lang] || lang;
+}
+
+/**
+ * Call external translation API (LibreTranslate compatible)
+ */
+async function callTranslationAPI(
+  text: string,
+  sourceLang: string,
+  targetLang: string
+): Promise<string | null> {
+  if (!config.TRANSLATION_ENABLED || !config.TRANSLATION_API_URL) {
+    return null;
+  }
+
+  try {
+    const body: Record<string, string> = {
+      q: text,
+      source: mapLanguageCode(sourceLang),
+      target: mapLanguageCode(targetLang),
+      format: 'text',
+    };
+
+    // Add API key if configured
+    if (config.TRANSLATION_API_KEY) {
+      body.api_key = config.TRANSLATION_API_KEY;
+    }
+
+    const response = await fetch(config.TRANSLATION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      log.warn({ status: response.status, sourceLang, targetLang }, 'Translation API returned error');
+      return null;
+    }
+
+    const result = await response.json() as { translatedText?: string };
+    return result.translatedText ?? null;
+  } catch (error) {
+    log.error({ error, sourceLang, targetLang }, 'Translation API call failed');
+    return null;
+  }
+}
+
+/**
+ * Call translation API for batch of texts
+ */
+async function callBatchTranslationAPI(
+  texts: string[],
+  sourceLang: string,
+  targetLang: string
+): Promise<(string | null)[]> {
+  if (!config.TRANSLATION_ENABLED || !config.TRANSLATION_API_URL) {
+    return texts.map(() => null);
+  }
+
+  // LibreTranslate doesn't support batch, so translate in parallel
+  const results = await Promise.all(
+    texts.map(text => callTranslationAPI(text, sourceLang, targetLang))
+  );
+
+  return results;
+}
 
 interface TranslationRequest {
   contentType: string;
@@ -269,15 +347,29 @@ export const i18nService = {
       return null;
     }
 
-    // TODO: Integrate with translation API (Google Cloud Translation, DeepL, etc.)
-    // For now, return a placeholder that indicates translation is needed
-    const placeholderTranslation: Translation = {
-      translatedText: originalText, // Return original as fallback
+    // Call translation API
+    const translatedText = await callTranslationAPI(originalText, sourceLang, targetLang);
+
+    if (translatedText) {
+      // Cache the successful translation
+      const translation: Translation = {
+        translatedText,
+        isMachineTranslated: true,
+        isHumanCorrected: false,
+      };
+
+      // Store in database for persistence
+      await this.storeTranslation(contentType, contentId, fieldName, targetLang, translation);
+
+      return translation;
+    }
+
+    // Fallback to original text if API is unavailable
+    return {
+      translatedText: originalText,
       isMachineTranslated: false,
       isHumanCorrected: false,
     };
-
-    return placeholderTranslation;
   },
 
   /**
@@ -313,14 +405,34 @@ export const i18nService = {
       }
     });
 
-    // For missing translations, use original as fallback for now
-    // TODO: Batch translate with external API
-    for (const field of missing) {
-      result[field.fieldName] = {
-        translatedText: field.text,
-        isMachineTranslated: false,
-        isHumanCorrected: false,
-      };
+    // Batch translate missing fields
+    if (missing.length > 0) {
+      const textsToTranslate = missing.map(m => m.text);
+      const translatedTexts = await callBatchTranslationAPI(textsToTranslate, sourceLang, targetLang);
+
+      for (let i = 0; i < missing.length; i++) {
+        const field = missing[i];
+        const translatedText = translatedTexts[i];
+
+        if (translatedText) {
+          const translation: Translation = {
+            translatedText,
+            isMachineTranslated: true,
+            isHumanCorrected: false,
+          };
+
+          // Store for caching
+          await this.storeTranslation(contentType, contentId, field.fieldName, targetLang, translation);
+          result[field.fieldName] = translation;
+        } else {
+          // Fallback to original
+          result[field.fieldName] = {
+            translatedText: field.text,
+            isMachineTranslated: false,
+            isHumanCorrected: false,
+          };
+        }
+      }
     }
 
     return result;

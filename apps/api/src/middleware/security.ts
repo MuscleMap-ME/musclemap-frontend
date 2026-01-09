@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import { getRedis, isRedisAvailable } from '../lib/redis';
 import { loggers } from '../lib/logger';
 import { createRateLimiter } from '@musclemap/native';
+import { queryOne } from '../db/client';
 
 const log = loggers.core;
 
@@ -221,7 +222,6 @@ export async function validateRequestSignature(
   }
 
   // Get user's secret (stored when they enable signed requests)
-  // For now, we'll use a simplified check - in production, fetch from DB
   const userId = request.user?.userId;
   if (!userId) {
     return reply.status(401).send({
@@ -233,8 +233,114 @@ export async function validateRequestSignature(
     });
   }
 
-  // TODO: Fetch user's signing secret from database
-  // For demonstration, we skip actual validation
+  // Fetch user's signing secret from database
+  const user = await queryOne<{
+    signing_secret: string | null;
+    signing_enabled: boolean;
+  }>('SELECT signing_secret, signing_enabled FROM users WHERE id = $1', [userId]);
+
+  if (!user) {
+    return reply.status(401).send({
+      error: {
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+        statusCode: 401,
+      },
+    });
+  }
+
+  // If signing is not enabled for this user, skip validation
+  if (!user.signing_enabled || !user.signing_secret) {
+    log.debug({ userId }, 'Request signing not enabled for user, skipping validation');
+    return;
+  }
+
+  // Compute expected signature: HMAC-SHA256(timestamp + method + path + body)
+  const body = typeof request.body === 'string'
+    ? request.body
+    : JSON.stringify(request.body || {});
+
+  const payload = `${timestamp}${request.method}${request.url}${body}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', user.signing_secret)
+    .update(payload)
+    .digest('hex');
+
+  // Constant-time comparison to prevent timing attacks
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (signatureBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+    log.warn({ userId, url: request.url }, 'Invalid request signature');
+    return reply.status(401).send({
+      error: {
+        code: 'INVALID_SIGNATURE',
+        message: 'Request signature is invalid',
+        statusCode: 401,
+      },
+    });
+  }
+
+  log.debug({ userId }, 'Request signature validated successfully');
+}
+
+/**
+ * Generate a new signing secret for a user
+ */
+export function generateSigningSecret(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Enable request signing for a user
+ * Returns the new signing secret (only returned once, not stored in plaintext)
+ */
+export async function enableUserSigning(userId: string): Promise<string> {
+  const secret = generateSigningSecret();
+
+  await queryOne(
+    `UPDATE users
+     SET signing_secret = $1,
+         signing_enabled = TRUE,
+         signing_enabled_at = NOW()
+     WHERE id = $2`,
+    [secret, userId]
+  );
+
+  log.info({ userId }, 'Request signing enabled for user');
+
+  // Return the secret - client must store this securely
+  // It's stored in plaintext in DB since we need it for HMAC verification
+  return secret;
+}
+
+/**
+ * Disable request signing for a user
+ */
+export async function disableUserSigning(userId: string): Promise<void> {
+  await queryOne(
+    `UPDATE users
+     SET signing_secret = NULL,
+         signing_enabled = FALSE,
+         signing_enabled_at = NULL
+     WHERE id = $1`,
+    [userId]
+  );
+
+  log.info({ userId }, 'Request signing disabled for user');
+}
+
+/**
+ * Check if request signing is enabled for a user
+ */
+export async function isSigningEnabled(userId: string): Promise<boolean> {
+  const result = await queryOne<{ signing_enabled: boolean }>(
+    'SELECT signing_enabled FROM users WHERE id = $1',
+    [userId]
+  );
+
+  return result?.signing_enabled ?? false;
 }
 
 /**

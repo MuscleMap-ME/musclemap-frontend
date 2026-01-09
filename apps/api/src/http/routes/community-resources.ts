@@ -4,12 +4,20 @@
  * Endpoints for knowledge base and shared artifacts
  */
 
-import { FastifyPluginAsync } from 'fastify';
+import { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { communityResourcesService, CommunityResource } from '../../modules/community-resources';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http.child({ module: 'community-resources-routes' });
+
+/**
+ * Check if user has admin role
+ */
+function isAdmin(request: FastifyRequest): boolean {
+  const roles = (request.user as any)?.roles || [];
+  return roles.includes('admin') || (request.user as any)?.role === 'admin';
+}
 
 const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
   // All routes require authentication
@@ -139,9 +147,9 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId', async (request, reply) => {
     const { resourceId } = request.params;
     const userId = request.user!.userId;
+    const userIsAdmin = isAdmin(request);
 
-    // TODO: Check if user is admin for isAdmin flag
-    await communityResourcesService.deleteResource(resourceId, userId, false);
+    await communityResourcesService.deleteResource(resourceId, userId, userIsAdmin);
     return { success: true };
   });
 

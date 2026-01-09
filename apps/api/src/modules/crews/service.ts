@@ -549,13 +549,32 @@ export async function getCrewStats(crewId: string): Promise<CrewStats> {
     [crewId]
   );
 
+  // Calculate current win streak from completed wars
+  const warResults = await queryAll<{ winner_id: string | null }>(
+    `SELECT winner_id FROM crew_wars
+     WHERE (challenger_crew_id = $1 OR defending_crew_id = $1)
+     AND status = 'completed'
+     ORDER BY end_date DESC
+     LIMIT 20`,
+    [crewId]
+  );
+
+  let currentStreak = 0;
+  for (const war of warResults) {
+    if (war.winner_id === crewId) {
+      currentStreak++;
+    } else {
+      break; // Streak broken
+    }
+  }
+
   return {
     totalMembers: crew.memberCount,
     totalTU: crew.totalTU,
     weeklyTU: crew.weeklyTU,
     warsWon: crew.wins,
     warsLost: crew.losses,
-    currentStreak: 0, // TODO: Calculate streak
+    currentStreak,
     topContributors: topContributors.map((c) => ({
       userId: c.user_id,
       username: c.username ?? undefined,

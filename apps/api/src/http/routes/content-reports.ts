@@ -4,7 +4,7 @@
  * Endpoints for reporting and moderation
  */
 
-import { FastifyPluginAsync } from 'fastify';
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import {
   contentReportsService,
   ContentType,
@@ -16,6 +16,32 @@ import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http.child({ module: 'content-reports-routes' });
+
+/**
+ * Check if user has admin or moderator role
+ */
+function isAdminOrMod(request: FastifyRequest): boolean {
+  const roles = (request.user as any)?.roles || [];
+  const role = (request.user as any)?.role;
+  return roles.includes('admin') || roles.includes('moderator') ||
+         role === 'admin' || role === 'moderator';
+}
+
+/**
+ * Middleware to require admin/mod access
+ */
+async function requireModAccess(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  if (!isAdminOrMod(request)) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Admin or moderator access required',
+        statusCode: 403,
+      },
+    });
+  }
+}
 
 const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
   // All routes require authentication
@@ -51,8 +77,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
   // MODERATION (Admin/Mod only)
   // ===========================================
 
-  fastify.get('/reports', async (request, reply) => {
-    // TODO: Add admin/mod check
+  fastify.get('/reports', { preHandler: requireModAccess }, async (request, reply) => {
     const { communityId, status, reason, limit = '20', offset = '0' } = request.query as any;
 
     const result = await contentReportsService.getPendingReports({
