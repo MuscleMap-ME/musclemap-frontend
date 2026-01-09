@@ -19,6 +19,16 @@ import { walletService } from './wallet.service';
 
 const log = loggers.economy;
 
+// Safe JSON parse helper
+function safeJsonParse<T>(str: string | null | undefined, defaultValue: T): T {
+  if (!str || str.trim() === '') return defaultValue;
+  try {
+    return JSON.parse(str) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 export interface StoreItem {
   sku: string;
   name: string;
@@ -130,8 +140,8 @@ export const storeService = {
         limitedQuantity: r.limited_quantity ?? undefined,
         soldCount: r.sold_count,
         requiresLevel: r.requires_level,
-        requiresItems: JSON.parse(r.requires_items || '[]'),
-        metadata: JSON.parse(r.metadata || '{}'),
+        requiresItems: safeJsonParse<string[]>(r.requires_items, []),
+        metadata: safeJsonParse<Record<string, unknown>>(r.metadata, {}),
         enabled: r.enabled,
         featured: r.featured,
         sortOrder: r.sort_order,
@@ -175,8 +185,8 @@ export const storeService = {
       limitedQuantity: row.limited_quantity ?? undefined,
       soldCount: row.sold_count,
       requiresLevel: row.requires_level,
-      requiresItems: JSON.parse(row.requires_items || '[]'),
-      metadata: JSON.parse(row.metadata || '{}'),
+      requiresItems: safeJsonParse<string[]>(row.requires_items, []),
+      metadata: safeJsonParse<Record<string, unknown>>(row.metadata, {}),
       enabled: row.enabled,
       featured: row.featured,
       sortOrder: row.sort_order,
@@ -411,7 +421,7 @@ export const storeService = {
           soldCount: 0,
           requiresLevel: 1,
           requiresItems: [],
-          metadata: JSON.parse(r.item_metadata || '{}'),
+          metadata: safeJsonParse<Record<string, unknown>>(r.item_metadata, {}),
           enabled: true,
           featured: false,
           sortOrder: 0,
