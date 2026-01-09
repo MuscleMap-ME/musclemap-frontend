@@ -19,14 +19,21 @@ import { walletService } from './wallet.service';
 
 const log = loggers.economy;
 
-// Safe JSON parse helper
-function safeJsonParse<T>(str: string | null | undefined, defaultValue: T): T {
-  if (!str || str.trim() === '') return defaultValue;
-  try {
-    return JSON.parse(str) as T;
-  } catch {
-    return defaultValue;
+// Safe JSON parse helper - handles both strings and already-parsed JSONB values
+function safeJsonParse<T>(value: unknown, defaultValue: T): T {
+  if (value === null || value === undefined) return defaultValue;
+  // If it's already an object/array (from JSONB), return it directly
+  if (typeof value === 'object') return value as T;
+  // If it's a string, try to parse it
+  if (typeof value === 'string') {
+    if (value.trim() === '') return defaultValue;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return defaultValue;
+    }
   }
+  return defaultValue;
 }
 
 export interface StoreItem {
@@ -110,8 +117,8 @@ export const storeService = {
       limited_quantity: number | null;
       sold_count: number;
       requires_level: number;
-      requires_items: string;
-      metadata: string;
+      requires_items: unknown;
+      metadata: unknown;
       enabled: boolean;
       featured: boolean;
       sort_order: number;
@@ -165,8 +172,8 @@ export const storeService = {
       limited_quantity: number | null;
       sold_count: number;
       requires_level: number;
-      requires_items: string;
-      metadata: string;
+      requires_items: unknown;
+      metadata: unknown;
       enabled: boolean;
       featured: boolean;
       sort_order: number;
@@ -384,7 +391,7 @@ export const storeService = {
       item_subcategory: string | null;
       item_price: number;
       item_rarity: string;
-      item_metadata: string;
+      item_metadata: unknown;
     }>(
       `SELECT ui.id, ui.user_id, ui.sku, ui.quantity, ui.purchased_at, ui.expires_at,
               si.name as item_name, si.description as item_description, si.category as item_category,
