@@ -18,6 +18,23 @@ import { storeService } from './store.service';
 
 const log = loggers.economy;
 
+// Safe JSON parse helper - handles both strings and already-parsed JSONB values
+function safeJsonParse<T>(value: unknown, defaultValue: T): T {
+  if (value === null || value === undefined) return defaultValue;
+  // If it's already an object/array (from JSONB), return it directly
+  if (typeof value === 'object') return value as T;
+  // If it's a string, try to parse it
+  if (typeof value === 'string') {
+    if (value.trim() === '') return defaultValue;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return defaultValue;
+    }
+  }
+  return defaultValue;
+}
+
 // Species options
 export const BUDDY_SPECIES = ['wolf', 'bear', 'eagle', 'phoenix', 'dragon', 'tiger', 'ox', 'shark'] as const;
 export type BuddySpecies = typeof BUDDY_SPECIES[number];
@@ -96,7 +113,7 @@ export const buddyService = {
       equipped_skin: string | null;
       equipped_emote_pack: string | null;
       equipped_voice_pack: string | null;
-      unlocked_abilities: string;
+      unlocked_abilities: unknown;
       visible: boolean;
       show_on_profile: boolean;
       show_in_workouts: boolean;
@@ -130,7 +147,7 @@ export const buddyService = {
       equippedSkin: row.equipped_skin ?? undefined,
       equippedEmotePack: row.equipped_emote_pack ?? undefined,
       equippedVoicePack: row.equipped_voice_pack ?? undefined,
-      unlockedAbilities: JSON.parse(row.unlocked_abilities || '[]'),
+      unlockedAbilities: safeJsonParse<string[]>(row.unlocked_abilities, []),
       visible: row.visible,
       showOnProfile: row.show_on_profile,
       showInWorkouts: row.show_in_workouts,
@@ -404,7 +421,7 @@ export const buddyService = {
       min_level: number;
       stage_name: string;
       description: string | null;
-      unlocked_features: string;
+      unlocked_features: unknown;
     }>(
       'SELECT * FROM buddy_evolution_thresholds WHERE species = $1 AND stage = $2',
       [species, stage]
@@ -418,7 +435,7 @@ export const buddyService = {
       minLevel: row.min_level,
       stageName: row.stage_name,
       description: row.description ?? undefined,
-      unlockedFeatures: JSON.parse(row.unlocked_features || '[]'),
+      unlockedFeatures: safeJsonParse<string[]>(row.unlocked_features, []),
     };
   },
 
@@ -432,7 +449,7 @@ export const buddyService = {
       min_level: number;
       stage_name: string;
       description: string | null;
-      unlocked_features: string;
+      unlocked_features: unknown;
     }>(
       'SELECT * FROM buddy_evolution_thresholds WHERE species = $1 ORDER BY stage',
       [species]
@@ -444,7 +461,7 @@ export const buddyService = {
       minLevel: r.min_level,
       stageName: r.stage_name,
       description: r.description ?? undefined,
-      unlockedFeatures: JSON.parse(r.unlocked_features || '[]'),
+      unlockedFeatures: safeJsonParse<string[]>(r.unlocked_features, []),
     }));
   },
 
