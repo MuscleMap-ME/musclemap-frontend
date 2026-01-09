@@ -76,20 +76,22 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
       );
 
       // Get unread count
-      const participantInfo = await queryOne<{ last_read_at: Date }>(
-        `SELECT last_read_at FROM conversation_participants
+      const participantInfo = await queryOne<{ last_read_at: Date | null; joined_at: Date }>(
+        `SELECT last_read_at, joined_at FROM conversation_participants
          WHERE conversation_id = $1 AND user_id = $2`,
         [conv.id, userId]
       );
 
       let unreadCount = 0;
-      if (participantInfo?.last_read_at) {
+      // Use last_read_at if available, otherwise use joined_at as the baseline
+      const readBaseline = participantInfo?.last_read_at || participantInfo?.joined_at;
+      if (readBaseline) {
         const unread = await queryOne<{ count: string }>(
           `SELECT COUNT(*)::int as count FROM messages
            WHERE conversation_id = $1 AND created_at > $2 AND sender_id != $3 AND deleted_at IS NULL`,
-          [conv.id, participantInfo.last_read_at, userId]
+          [conv.id, readBaseline, userId]
         );
-        unreadCount = parseInt(unread?.count || '0');
+        unreadCount = parseInt(unread?.count || '0', 10);
       }
 
       result.push({

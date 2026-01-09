@@ -123,7 +123,14 @@ export async function registerMiscRoutes(app: FastifyInstance) {
 
   // High fives
   app.get('/highfives/stats', { preHandler: authenticate }, async (request, reply) => {
-    return reply.send({ data: {} });
+    // Return explicit zeroes to prevent client from interpreting as truthy unread count
+    return reply.send({
+      data: {
+        sent: 0,
+        received: 0,
+        unread: 0,
+      },
+    });
   });
 
   app.get('/highfives/users', { preHandler: authenticate }, async (request, reply) => {

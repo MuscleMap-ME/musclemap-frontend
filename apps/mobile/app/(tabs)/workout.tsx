@@ -352,10 +352,12 @@ export default function Workout() {
                         <Input
                           size="$3"
                           keyboardType="number-pad"
-                          value={String(entry.reps || '')}
-                          onChangeText={((text: string) =>
-                            updateEntry(index, { reps: parseInt(text) || undefined })
-                          ) as any}
+                          value={entry.reps != null ? String(entry.reps) : ''}
+                          placeholder="10"
+                          onChangeText={((text: string) => {
+                            const parsed = parseInt(text, 10);
+                            updateEntry(index, { reps: isNaN(parsed) ? undefined : parsed });
+                          }) as any}
                         />
                       </YStack>
                       <YStack flex={1}>

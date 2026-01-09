@@ -22,7 +22,7 @@ import {
   Separator,
   Tabs,
 } from 'tamagui';
-import { ScrollView, RefreshControl, Pressable } from 'react-native';
+import { ScrollView, RefreshControl, Pressable, Alert } from 'react-native';
 import {
   Award,
   Trophy,
@@ -143,6 +143,40 @@ export default function AchievementsScreen() {
     setRefreshing(true);
     loadData();
   }, [loadData]);
+
+  // Show achievement details in an alert
+  const showAchievementDetail = useCallback((achievement: AchievementEvent | AchievementDefinition, isEarned: boolean) => {
+    const name = 'achievementName' in achievement ? achievement.achievementName : achievement.name;
+    const description = 'achievementDescription' in achievement
+      ? achievement.achievementDescription
+      : achievement.description;
+    const earnedAt = 'earnedAt' in achievement ? achievement.earnedAt : null;
+    const categoryLabel = achievement.category.charAt(0).toUpperCase() + achievement.category.slice(1).replace('_', ' ');
+
+    const details = [
+      `Category: ${categoryLabel}`,
+      `Rarity: ${RARITY_LABELS[achievement.rarity] || achievement.rarity}`,
+      `Points: ${achievement.points}`,
+    ];
+
+    if (description) {
+      details.unshift(description);
+    }
+
+    if (isEarned && earnedAt) {
+      details.push(`Earned: ${new Date(earnedAt).toLocaleDateString()}`);
+    }
+
+    if ('value' in achievement && achievement.value) {
+      details.push(`Value: ${achievement.value}`);
+    }
+
+    Alert.alert(
+      isEarned ? `${name}` : `${name} (Locked)`,
+      details.join('\n\n'),
+      [{ text: 'OK' }]
+    );
+  }, []);
 
   // Filter achievements by category
   const filteredEarned = selectedCategory
@@ -304,6 +338,7 @@ export default function AchievementsScreen() {
                   key={achievement.id}
                   achievement={achievement}
                   isEarned
+                  onPress={() => showAchievementDetail(achievement, true)}
                 />
               ))
             )
@@ -321,6 +356,7 @@ export default function AchievementsScreen() {
                   key={achievement.id}
                   achievement={achievement}
                   isEarned={false}
+                  onPress={() => showAchievementDetail(achievement, false)}
                 />
               ))
             )
@@ -335,9 +371,11 @@ export default function AchievementsScreen() {
 function AchievementCard({
   achievement,
   isEarned,
+  onPress,
 }: {
   achievement: AchievementEvent | AchievementDefinition;
   isEarned: boolean;
+  onPress?: () => void;
 }) {
   const categoryConfig = CATEGORY_CONFIG[achievement.category] || CATEGORY_CONFIG.special;
   const Icon = categoryConfig.icon;
@@ -351,13 +389,14 @@ function AchievementCard({
   const earnedAt = 'earnedAt' in achievement ? achievement.earnedAt : null;
 
   return (
-    <Card
-      padding="$3"
-      backgroundColor={isEarned ? '$gray2' : '$gray1'}
-      borderWidth={2}
-      borderColor={isEarned ? rarityColor : '$gray4'}
-      opacity={isEarned ? 1 : 0.7}
-    >
+    <Pressable onPress={onPress} disabled={!onPress}>
+      <Card
+        padding="$3"
+        backgroundColor={isEarned ? '$gray2' : '$gray1'}
+        borderWidth={2}
+        borderColor={isEarned ? rarityColor : '$gray4'}
+        opacity={isEarned ? 1 : 0.7}
+      >
       <XStack alignItems="center" gap="$3">
         {/* Icon */}
         <YStack
@@ -435,6 +474,7 @@ function AchievementCard({
           </YStack>
         )}
       </XStack>
-    </Card>
+      </Card>
+    </Pressable>
   );
 }
