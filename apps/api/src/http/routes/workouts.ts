@@ -10,7 +10,9 @@ import crypto from 'crypto';
 import { authenticate, optionalAuth } from './auth';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { economyService } from '../../modules/economy';
+import { earningService } from '../../modules/economy/earning.service';
 import { statsService } from '../../modules/stats';
+import { companionEventsService } from '../../modules/mascot';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -233,6 +235,40 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         log.error({ snapshotError, userId }, 'Failed to create daily snapshot');
       }
 
+      // Emit companion event for workout - non-critical
+      try {
+        await companionEventsService.emit(userId, 'workout_logged', {
+          workoutId,
+          exerciseCount: data.exercises.length,
+          totalTU,
+        });
+      } catch (companionError) {
+        log.error({ companionError, userId, workoutId }, 'Failed to emit companion event');
+      }
+
+      // Award credits and XP for workout completion - non-critical
+      let earnedCredits = 0;
+      let earnedXp = 0;
+      try {
+        const earningResults = await earningService.onWorkoutComplete({
+          userId,
+          workoutId,
+          exerciseCount: data.exercises.length,
+          totalVolume: totalTU,
+          durationMinutes: 0, // Duration not tracked in this flow
+        });
+        // Sum up all credits and XP from all results
+        for (const result of earningResults) {
+          if (result.success) {
+            earnedCredits += result.creditsAwarded || 0;
+            earnedXp += result.xpAwarded || 0;
+          }
+        }
+        log.info({ userId, workoutId, earnedCredits, earnedXp }, 'Workout earnings processed');
+      } catch (earningError) {
+        log.error({ earningError, userId, workoutId }, 'Failed to process workout earnings');
+      }
+
       const workout = await queryOne(
         `SELECT id, user_id as "userId", date, total_tu as "totalTU", credits_used as "creditsUsed",
                 notes, is_public as "isPublic", exercise_data, muscle_activations, created_at as "createdAt"
@@ -266,6 +302,10 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
             power: Number(updatedStats.power),
             endurance: Number(updatedStats.endurance),
             vitality: Number(updatedStats.vitality),
+          } : undefined,
+          rewards: earnedCredits > 0 || earnedXp > 0 ? {
+            creditsEarned: earnedCredits,
+            xpEarned: earnedXp,
           } : undefined,
         },
       });

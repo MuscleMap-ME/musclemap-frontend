@@ -437,3 +437,484 @@ describe('i18n', () => {
     expect(isRTL('ja')).toBe(false);
   });
 });
+
+// ============================================
+// CREDITS ECONOMY SYSTEM TESTS
+// ============================================
+
+describe('Credits Economy - Store Service (Mock)', () => {
+  // Mock store for testing
+  const mockStore = {
+    items: new Map<string, { sku: string; price: number; category: string; enabled: boolean }>(),
+    inventory: new Map<string, Set<string>>(),
+
+    reset() {
+      this.items.clear();
+      this.inventory.clear();
+      // Seed some items
+      this.items.set('buddy_aura_flame', { sku: 'buddy_aura_flame', price: 500, category: 'buddy_cosmetic', enabled: true });
+      this.items.set('profile_frame_gold', { sku: 'profile_frame_gold', price: 200, category: 'profile', enabled: true });
+      this.items.set('disabled_item', { sku: 'disabled_item', price: 100, category: 'test', enabled: false });
+    },
+
+    getItem(sku: string) {
+      return this.items.get(sku) || null;
+    },
+
+    purchase(userId: string, sku: string, balance: number): { success: boolean; error?: string; newBalance?: number } {
+      const item = this.items.get(sku);
+      if (!item) return { success: false, error: 'Item not found' };
+      if (!item.enabled) return { success: false, error: 'Item not available' };
+      if (balance < item.price) return { success: false, error: 'Insufficient credits' };
+
+      // Add to inventory
+      if (!this.inventory.has(userId)) {
+        this.inventory.set(userId, new Set());
+      }
+      this.inventory.get(userId)!.add(sku);
+
+      return { success: true, newBalance: balance - item.price };
+    },
+
+    ownsItem(userId: string, sku: string): boolean {
+      return this.inventory.get(userId)?.has(sku) || false;
+    },
+  };
+
+  beforeEach(() => {
+    mockStore.reset();
+  });
+
+  it('should return item details', () => {
+    const item = mockStore.getItem('buddy_aura_flame');
+    expect(item).toBeTruthy();
+    expect(item!.price).toBe(500);
+    expect(item!.category).toBe('buddy_cosmetic');
+  });
+
+  it('should return null for non-existent items', () => {
+    const item = mockStore.getItem('non_existent_item');
+    expect(item).toBeNull();
+  });
+
+  it('should allow purchase with sufficient balance', () => {
+    const result = mockStore.purchase('user_1', 'profile_frame_gold', 500);
+    expect(result.success).toBe(true);
+    expect(result.newBalance).toBe(300);
+    expect(mockStore.ownsItem('user_1', 'profile_frame_gold')).toBe(true);
+  });
+
+  it('should reject purchase with insufficient balance', () => {
+    const result = mockStore.purchase('user_1', 'buddy_aura_flame', 100);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Insufficient credits');
+    expect(mockStore.ownsItem('user_1', 'buddy_aura_flame')).toBe(false);
+  });
+
+  it('should reject purchase of disabled items', () => {
+    const result = mockStore.purchase('user_1', 'disabled_item', 1000);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Item not available');
+  });
+
+  it('should track inventory per user', () => {
+    mockStore.purchase('user_1', 'profile_frame_gold', 500);
+    mockStore.purchase('user_2', 'buddy_aura_flame', 1000);
+
+    expect(mockStore.ownsItem('user_1', 'profile_frame_gold')).toBe(true);
+    expect(mockStore.ownsItem('user_1', 'buddy_aura_flame')).toBe(false);
+    expect(mockStore.ownsItem('user_2', 'buddy_aura_flame')).toBe(true);
+    expect(mockStore.ownsItem('user_2', 'profile_frame_gold')).toBe(false);
+  });
+});
+
+describe('Credits Economy - Buddy Service (Mock)', () => {
+  // Mock buddy system
+  const mockBuddy = {
+    buddies: new Map<string, { species: string; level: number; xp: number; evolutionStage: number }>(),
+    xpThresholds: [0, 100, 300, 600, 1000],
+
+    reset() {
+      this.buddies.clear();
+    },
+
+    createBuddy(userId: string, species: string): { success: boolean; buddy?: any } {
+      if (this.buddies.has(userId)) {
+        return { success: false };
+      }
+      const buddy = { species, level: 1, xp: 0, evolutionStage: 1 };
+      this.buddies.set(userId, buddy);
+      return { success: true, buddy };
+    },
+
+    getBuddy(userId: string) {
+      return this.buddies.get(userId) || null;
+    },
+
+    addXp(userId: string, amount: number): { leveledUp: boolean; evolved: boolean; newLevel: number } {
+      const buddy = this.buddies.get(userId);
+      if (!buddy) throw new Error('No buddy');
+
+      buddy.xp += amount;
+      let leveledUp = false;
+      let evolved = false;
+
+      // Check level ups
+      while (buddy.level < this.xpThresholds.length && buddy.xp >= this.xpThresholds[buddy.level]) {
+        buddy.level++;
+        leveledUp = true;
+
+        // Evolution at levels 10, 20, 30
+        if (buddy.level % 10 === 0 && buddy.evolutionStage < 4) {
+          buddy.evolutionStage++;
+          evolved = true;
+        }
+      }
+
+      return { leveledUp, evolved, newLevel: buddy.level };
+    },
+  };
+
+  beforeEach(() => {
+    mockBuddy.reset();
+  });
+
+  it('should create a new buddy', () => {
+    const result = mockBuddy.createBuddy('user_1', 'wolf');
+    expect(result.success).toBe(true);
+    expect(result.buddy?.species).toBe('wolf');
+    expect(result.buddy?.level).toBe(1);
+  });
+
+  it('should prevent duplicate buddy creation', () => {
+    mockBuddy.createBuddy('user_1', 'wolf');
+    const result = mockBuddy.createBuddy('user_1', 'bear');
+    expect(result.success).toBe(false);
+  });
+
+  it('should add XP to buddy', () => {
+    mockBuddy.createBuddy('user_1', 'wolf');
+    mockBuddy.addXp('user_1', 50);
+    const buddy = mockBuddy.getBuddy('user_1');
+    expect(buddy?.xp).toBe(50);
+  });
+
+  it('should level up buddy when XP threshold reached', () => {
+    mockBuddy.createBuddy('user_1', 'wolf');
+    const result = mockBuddy.addXp('user_1', 150);
+    expect(result.leveledUp).toBe(true);
+    expect(result.newLevel).toBe(2);
+  });
+
+  it('should track separate buddies per user', () => {
+    mockBuddy.createBuddy('user_1', 'wolf');
+    mockBuddy.createBuddy('user_2', 'bear');
+    mockBuddy.addXp('user_1', 200);
+
+    expect(mockBuddy.getBuddy('user_1')?.xp).toBe(200);
+    expect(mockBuddy.getBuddy('user_2')?.xp).toBe(0);
+  });
+});
+
+describe('Credits Economy - Earning Service (Mock)', () => {
+  // Mock earning rules
+  const mockEarning = {
+    rules: new Map<string, { code: string; creditsBase: number; xpBase: number; maxPerDay: number }>(),
+    awards: new Map<string, { userId: string; ruleCode: string; credits: number; xp: number }>(),
+    dailyCounts: new Map<string, number>(),
+
+    reset() {
+      this.rules.clear();
+      this.awards.clear();
+      this.dailyCounts.clear();
+      // Seed rules
+      this.rules.set('workout_complete', { code: 'workout_complete', creditsBase: 25, xpBase: 50, maxPerDay: 5 });
+      this.rules.set('pr_set', { code: 'pr_set', creditsBase: 50, xpBase: 100, maxPerDay: 10 });
+      this.rules.set('streak_7', { code: 'streak_7', creditsBase: 100, xpBase: 200, maxPerDay: 1 });
+    },
+
+    processEarning(userId: string, ruleCode: string, sourceId: string): { success: boolean; credits?: number; xp?: number; error?: string } {
+      const rule = this.rules.get(ruleCode);
+      if (!rule) return { success: false, error: 'Unknown rule' };
+
+      const idempotencyKey = `${ruleCode}:${sourceId}`;
+      if (this.awards.has(idempotencyKey)) {
+        return { success: true, credits: 0, xp: 0 }; // Already awarded
+      }
+
+      // Check daily limit
+      const dailyKey = `${userId}:${ruleCode}:${new Date().toISOString().split('T')[0]}`;
+      const dailyCount = this.dailyCounts.get(dailyKey) || 0;
+      if (dailyCount >= rule.maxPerDay) {
+        return { success: false, error: 'Daily limit reached' };
+      }
+
+      // Award
+      this.awards.set(idempotencyKey, { userId, ruleCode, credits: rule.creditsBase, xp: rule.xpBase });
+      this.dailyCounts.set(dailyKey, dailyCount + 1);
+
+      return { success: true, credits: rule.creditsBase, xp: rule.xpBase };
+    },
+  };
+
+  beforeEach(() => {
+    mockEarning.reset();
+  });
+
+  it('should award credits for known rule', () => {
+    const result = mockEarning.processEarning('user_1', 'workout_complete', 'workout_1');
+    expect(result.success).toBe(true);
+    expect(result.credits).toBe(25);
+    expect(result.xp).toBe(50);
+  });
+
+  it('should reject unknown rules', () => {
+    const result = mockEarning.processEarning('user_1', 'unknown_rule', 'source_1');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Unknown rule');
+  });
+
+  it('should be idempotent', () => {
+    mockEarning.processEarning('user_1', 'workout_complete', 'workout_1');
+    const result = mockEarning.processEarning('user_1', 'workout_complete', 'workout_1');
+    expect(result.credits).toBe(0); // Already awarded
+  });
+
+  it('should enforce daily limits', () => {
+    // Award up to limit
+    for (let i = 0; i < 5; i++) {
+      const result = mockEarning.processEarning('user_1', 'workout_complete', `workout_${i}`);
+      expect(result.success).toBe(true);
+    }
+
+    // Next should fail
+    const result = mockEarning.processEarning('user_1', 'workout_complete', 'workout_5');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Daily limit reached');
+  });
+
+  it('should track separate limits per user', () => {
+    for (let i = 0; i < 5; i++) {
+      mockEarning.processEarning('user_1', 'workout_complete', `workout_u1_${i}`);
+    }
+
+    // User 2 should still be able to earn
+    const result = mockEarning.processEarning('user_2', 'workout_complete', 'workout_u2_0');
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('Credits Economy - Anti-Abuse (Mock)', () => {
+  // Mock anti-abuse system
+  const mockAntiAbuse = {
+    transferCounts: new Map<string, { hourly: number; daily: number }>(),
+    flags: new Map<string, { userId: string; type: string; severity: string }>(),
+
+    reset() {
+      this.transferCounts.clear();
+      this.flags.clear();
+    },
+
+    checkRateLimit(userId: string): { allowed: boolean; reason?: string } {
+      const counts = this.transferCounts.get(userId) || { hourly: 0, daily: 0 };
+
+      if (counts.hourly >= 10) {
+        return { allowed: false, reason: 'Hourly limit exceeded' };
+      }
+      if (counts.daily >= 50) {
+        return { allowed: false, reason: 'Daily limit exceeded' };
+      }
+
+      return { allowed: true };
+    },
+
+    recordTransfer(userId: string) {
+      const counts = this.transferCounts.get(userId) || { hourly: 0, daily: 0 };
+      counts.hourly++;
+      counts.daily++;
+      this.transferCounts.set(userId, counts);
+    },
+
+    checkTransferPatterns(fromUser: string, toUser: string): { suspicious: boolean; reasons: string[] } {
+      const reasons: string[] = [];
+
+      // Check for self-transfer (would be blocked elsewhere, but check pattern)
+      if (fromUser === toUser) {
+        reasons.push('Self-transfer attempt');
+      }
+
+      // Check for circular pattern (simplified)
+      const fromToKey = `${fromUser}:${toUser}`;
+      const toFromKey = `${toUser}:${fromUser}`;
+      if (this.transferCounts.has(toFromKey)) {
+        reasons.push('Circular transfer pattern');
+      }
+
+      return { suspicious: reasons.length > 0, reasons };
+    },
+
+    createFlag(userId: string, type: string, severity: string): string {
+      const flagId = `flag_${Date.now()}`;
+      this.flags.set(flagId, { userId, type, severity });
+      return flagId;
+    },
+  };
+
+  beforeEach(() => {
+    mockAntiAbuse.reset();
+  });
+
+  it('should allow transfers within rate limit', () => {
+    const result = mockAntiAbuse.checkRateLimit('user_1');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should block transfers exceeding hourly limit', () => {
+    for (let i = 0; i < 10; i++) {
+      mockAntiAbuse.recordTransfer('user_1');
+    }
+
+    const result = mockAntiAbuse.checkRateLimit('user_1');
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe('Hourly limit exceeded');
+  });
+
+  it('should detect circular transfer patterns', () => {
+    mockAntiAbuse.transferCounts.set('user_2:user_1', { hourly: 1, daily: 1 });
+
+    const result = mockAntiAbuse.checkTransferPatterns('user_1', 'user_2');
+    expect(result.suspicious).toBe(true);
+    expect(result.reasons).toContain('Circular transfer pattern');
+  });
+
+  it('should create fraud flags', () => {
+    const flagId = mockAntiAbuse.createFlag('user_1', 'velocity', 'high');
+    expect(flagId).toBeTruthy();
+    expect(mockAntiAbuse.flags.has(flagId)).toBe(true);
+  });
+
+  it('should track separate limits per user', () => {
+    for (let i = 0; i < 10; i++) {
+      mockAntiAbuse.recordTransfer('user_1');
+    }
+
+    expect(mockAntiAbuse.checkRateLimit('user_1').allowed).toBe(false);
+    expect(mockAntiAbuse.checkRateLimit('user_2').allowed).toBe(true);
+  });
+});
+
+describe('Credits Economy - Integration Patterns', () => {
+  // Combined mock for integration testing
+  const mockEconomy = {
+    balances: new Map<string, number>(),
+    inventory: new Map<string, Set<string>>(),
+    buddies: new Map<string, { xp: number; level: number }>(),
+
+    reset() {
+      this.balances.clear();
+      this.inventory.clear();
+      this.buddies.clear();
+    },
+
+    setBalance(userId: string, balance: number) {
+      this.balances.set(userId, balance);
+    },
+
+    getBalance(userId: string): number {
+      return this.balances.get(userId) || 0;
+    },
+
+    earn(userId: string, amount: number, xp: number) {
+      const current = this.getBalance(userId);
+      this.balances.set(userId, current + amount);
+
+      // Add XP to buddy if exists
+      const buddy = this.buddies.get(userId);
+      if (buddy) {
+        buddy.xp += xp;
+        if (buddy.xp >= 100 * buddy.level) {
+          buddy.level++;
+        }
+      }
+
+      return { newBalance: current + amount, buddyXp: buddy?.xp };
+    },
+
+    purchase(userId: string, sku: string, price: number): boolean {
+      const balance = this.getBalance(userId);
+      if (balance < price) return false;
+
+      this.balances.set(userId, balance - price);
+      if (!this.inventory.has(userId)) {
+        this.inventory.set(userId, new Set());
+      }
+      this.inventory.get(userId)!.add(sku);
+      return true;
+    },
+
+    createBuddy(userId: string) {
+      if (!this.buddies.has(userId)) {
+        this.buddies.set(userId, { xp: 0, level: 1 });
+      }
+    },
+  };
+
+  beforeEach(() => {
+    mockEconomy.reset();
+  });
+
+  it('should support earn -> purchase flow', () => {
+    mockEconomy.setBalance('user_1', 0);
+
+    // Earn from workout
+    mockEconomy.earn('user_1', 50, 0);
+    expect(mockEconomy.getBalance('user_1')).toBe(50);
+
+    // Earn from PR
+    mockEconomy.earn('user_1', 100, 0);
+    expect(mockEconomy.getBalance('user_1')).toBe(150);
+
+    // Purchase item
+    const purchased = mockEconomy.purchase('user_1', 'profile_frame', 100);
+    expect(purchased).toBe(true);
+    expect(mockEconomy.getBalance('user_1')).toBe(50);
+    expect(mockEconomy.inventory.get('user_1')?.has('profile_frame')).toBe(true);
+  });
+
+  it('should accumulate buddy XP from earnings', () => {
+    mockEconomy.setBalance('user_1', 0);
+    mockEconomy.createBuddy('user_1');
+
+    mockEconomy.earn('user_1', 25, 50);
+    mockEconomy.earn('user_1', 25, 50);
+
+    const buddy = mockEconomy.buddies.get('user_1');
+    expect(buddy?.xp).toBe(100);
+    expect(buddy?.level).toBe(2); // Leveled up
+  });
+
+  it('should handle full user journey', () => {
+    const userId = 'new_user';
+
+    // Start with initial balance
+    mockEconomy.setBalance(userId, 100);
+    mockEconomy.createBuddy(userId);
+
+    // Complete some workouts
+    mockEconomy.earn(userId, 25, 50);
+    mockEconomy.earn(userId, 25, 50);
+    mockEconomy.earn(userId, 25, 50);
+
+    expect(mockEconomy.getBalance(userId)).toBe(175);
+    expect(mockEconomy.buddies.get(userId)?.xp).toBe(150);
+
+    // Buy a cosmetic
+    mockEconomy.purchase(userId, 'buddy_hat', 50);
+    expect(mockEconomy.getBalance(userId)).toBe(125);
+    expect(mockEconomy.inventory.get(userId)?.has('buddy_hat')).toBe(true);
+
+    // Continue earning
+    mockEconomy.earn(userId, 100, 100); // Big achievement
+    expect(mockEconomy.getBalance(userId)).toBe(225);
+  });
+});

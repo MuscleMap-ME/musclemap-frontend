@@ -168,9 +168,6 @@ export default function Workout() {
     if (logged.length === 0) return;
     setCompleting(true);
     try {
-      // Debug: log what we have
-      console.log('Logged items:', logged);
-
       // Format exercises for the workouts API
       // Filter out warmup/cooldown activities that don't have real exercise IDs
       const exercises = logged
@@ -178,17 +175,14 @@ export default function Workout() {
           // Keep items that have a valid exercise ID (not activity placeholders)
           const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
           const isNotActivity = !e.isActivity;
-          console.log('Filter check:', e.name, { id: e.id, isActivity: e.isActivity, hasValidId, isNotActivity });
           return hasValidId && isNotActivity;
         })
         .map(e => ({
           exerciseId: e.id,
           sets: e.sets || 3,
-          reps: e.reps || 10,
+          reps: typeof e.reps === 'number' ? e.reps : 10,
           weight: e.weight || undefined,
         }));
-
-      console.log('Exercises to submit:', exercises);
 
       // If no actual exercises (only activities), show message
       if (exercises.length === 0) {
@@ -253,21 +247,17 @@ export default function Workout() {
 
   // Log an exercise from prescription mode
   const logPrescribedExercise = async (exercise) => {
-    // Debug: log what exercise we're trying to log
-    console.log('Logging exercise:', exercise);
-
-    // Prescription API returns `id`, not `exerciseId`
-    // Warmup/cooldown items don't have IDs - they're just activities
+    // Prescription API returns `id` for exercises, `isActivity` for warmup/cooldown
     const exerciseId = exercise.id || exercise.exerciseId;
-    console.log('Exercise ID resolved to:', exerciseId);
+    const isActivityItem = exercise.isActivity || !exerciseId;
 
-    // For warmup/cooldown without exercise IDs, just mark as done and move on
-    if (!exerciseId) {
+    // For warmup/cooldown activities, just mark as done and move on (no API call needed)
+    if (isActivityItem) {
       setLogged([...logged, {
         id: `activity-${Date.now()}`,
         name: exercise.name || exercise.description || 'Activity',
-        sets: 1,
-        reps: 1,
+        sets: exercise.sets || 1,
+        reps: exercise.reps || 1,
         weight: 0,
         isActivity: true, // Flag to exclude from workout submission
       }]);

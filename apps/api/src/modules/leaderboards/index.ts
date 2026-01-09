@@ -13,6 +13,7 @@ import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { getRedis, isRedisAvailable } from '../../lib/redis';
 import { loggers } from '../../lib/logger';
 import { achievementService } from '../achievements';
+import { earningService } from '../economy/earning.service';
 
 const log = loggers.core;
 
@@ -334,6 +335,21 @@ export const leaderboardService = {
           value
         );
 
+        // Award credits for personal record (non-blocking)
+        if (isPersonalBest) {
+          try {
+            await earningService.onPersonalRecord({
+              userId,
+              exerciseId,
+              metricKey,
+              value,
+              previousValue,
+            });
+          } catch (earningError) {
+            log.error({ earningError, userId, exerciseId }, 'Failed to process personal record earning');
+          }
+        }
+
         // Check rank achievements
         const rank = await this.getUserRank(userId, {
           exerciseId,
@@ -351,6 +367,18 @@ export const leaderboardService = {
             exerciseId,
             metricKey
           );
+
+          // Award credits for leaderboard placement (non-blocking)
+          try {
+            await earningService.onLeaderboardPlacement({
+              userId,
+              leaderboardId: `${exerciseId}-${metricKey}-${hangoutId || virtualHangoutId || 'global'}`,
+              rank: rank.rank,
+              periodType: 'all_time',
+            });
+          } catch (earningError) {
+            log.error({ earningError, userId, rank: rank.rank }, 'Failed to process leaderboard earning');
+          }
         }
 
         return { isNewRecord: isHangoutRecord || isGlobalRecord, isPersonalBest, previousValue };

@@ -205,11 +205,11 @@ async function generatePrescription(
   return {
     exercises: selectedExercises,
     warmup: [
-      { type: 'cardio', duration: 120, description: 'Light cardio (jumping jacks, jogging)' },
-      { type: 'dynamic_stretch', duration: 180, description: 'Dynamic stretches' },
+      { name: 'Light Cardio', type: 'cardio', duration: 120, description: 'Jumping jacks, jogging in place', sets: 1, reps: '2 min', restSeconds: 0, isActivity: true },
+      { name: 'Dynamic Stretches', type: 'dynamic_stretch', duration: 180, description: 'Arm circles, leg swings, hip rotations', sets: 1, reps: '3 min', restSeconds: 0, isActivity: true },
     ],
     cooldown: [
-      { type: 'static_stretch', duration: 300, description: 'Static stretches' },
+      { name: 'Static Stretches', type: 'static_stretch', duration: 300, description: 'Hold each stretch for 30 seconds', sets: 1, reps: '5 min', restSeconds: 0, isActivity: true },
     ],
     muscleCoverage,
     estimatedDuration: Math.ceil(totalTime / 60) + 10, // Include warmup/cooldown

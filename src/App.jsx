@@ -4,6 +4,7 @@ import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { CompanionProvider, CompanionDock } from './components/mascot';
 import logger from './utils/logger';
 
 // Pages
@@ -192,7 +193,10 @@ export default function App() {
       <ApolloProvider client={apolloClient}>
         <BrowserRouter>
           <UserProvider>
-            <AppRoutes />
+            <CompanionProvider>
+              <AppRoutes />
+              <CompanionDock />
+            </CompanionProvider>
           </UserProvider>
         </BrowserRouter>
       </ApolloProvider>

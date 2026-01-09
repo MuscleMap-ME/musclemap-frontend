@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { ValidationError, NotFoundError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
+import { earningService } from '../economy/earning.service';
 
 const log = loggers.core;
 
@@ -224,6 +225,24 @@ export const achievementService = {
     });
 
     log.info({ userId, achievementKey, points: definition.points }, 'Achievement granted');
+
+    // Award credits for achievement (non-blocking)
+    try {
+      await earningService.processEarning({
+        userId,
+        ruleCode: 'achievement_unlock',
+        sourceType: 'achievement',
+        sourceId: definition.key,
+        metadata: {
+          achievementKey: definition.key,
+          category: definition.category,
+          rarity: definition.rarity,
+          points: definition.points,
+        },
+      });
+    } catch (earningError) {
+      log.error({ earningError, userId, achievementKey }, 'Failed to process achievement earning');
+    }
 
     return {
       id: eventId,
