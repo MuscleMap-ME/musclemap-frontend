@@ -442,7 +442,19 @@ function resolveDocLink(href, currentDocId, isPublic) {
   }
 
   // Absolute app routes (e.g., /roadmap, /signup)
+  // But treat /docs/* paths as internal doc links
   if (href.startsWith('/') && !href.includes('.md')) {
+    // Check if this is a /docs/docId link (with optional anchor)
+    const docsMatch = href.match(/^\/docs\/([^#]+)(#.*)?$/);
+    if (docsMatch) {
+      const [, docIdFromPath, anchor] = docsMatch;
+      // Check if this docId exists in our docs
+      const isPublicDoc = PUBLIC_DOCS.some(d => d.id === docIdFromPath) || USER_GUIDES.some(d => d.id === docIdFromPath);
+      const isTechDoc = TECH_DOCS.some(d => d.id === docIdFromPath);
+      if (isPublicDoc || isTechDoc) {
+        return { type: 'doc', id: docIdFromPath, isPublic: isPublicDoc, anchor: anchor?.slice(1) };
+      }
+    }
     return { type: 'route', href };
   }
 
@@ -501,11 +513,12 @@ function resolveDocLink(href, currentDocId, isPublic) {
 }
 
 // Document viewer component
-function DocViewer({ docId, isPublic, onClose, onNavigate }) {
+function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnchorScrolled }) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const contentRef = React.useRef(null);
 
   const doc = isPublic
     ? PUBLIC_DOCS.find(d => d.id === docId) || USER_GUIDES.find(d => d.id === docId)
@@ -534,6 +547,25 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
     }
     if (doc) loadDoc();
   }, [docId, isPublic, doc]);
+
+  // Scroll to anchor after content loads
+  useEffect(() => {
+    if (!loading && content && initialAnchor && contentRef.current) {
+      // Small delay to ensure content is rendered
+      const timeoutId = setTimeout(() => {
+        const anchor = initialAnchor.startsWith('#') ? initialAnchor : `#${initialAnchor}`;
+        // Try to find the element by id (ReactMarkdown generates ids from headings)
+        const targetId = anchor.slice(1).toLowerCase().replace(/\s+/g, '-');
+        const element = contentRef.current.querySelector(`#${CSS.escape(targetId)}`) ||
+                       contentRef.current.querySelector(`[id="${targetId}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (onAnchorScrolled) onAnchorScrolled();
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading, content, initialAnchor, onAnchorScrolled]);
 
   // Handle link clicks within markdown
   const handleLinkClick = (e, href) => {
@@ -579,7 +611,7 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
           // Navigate back to docs home
           onClose();
         } else if (onNavigate) {
-          onNavigate(resolved.id, resolved.isPublic);
+          onNavigate(resolved.id, resolved.isPublic, resolved.anchor);
         }
         break;
     }
@@ -628,7 +660,7 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -642,10 +674,26 @@ function DocViewer({ docId, isPublic, onClose, onNavigate }) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ children }) => <h1 className="text-3xl font-bold text-white mb-6 pb-3 border-b border-white/10">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-2xl font-bold text-white mt-8 mb-4">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-xl font-semibold text-gray-200 mt-6 mb-3">{children}</h3>,
-                  h4: ({ children }) => <h4 className="text-lg font-semibold text-gray-300 mt-4 mb-2">{children}</h4>,
+                  h1: ({ children, node }) => {
+                    const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+                    const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+                    return <h1 id={id} className="text-3xl font-bold text-white mb-6 pb-3 border-b border-white/10">{children}</h1>;
+                  },
+                  h2: ({ children, node }) => {
+                    const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+                    const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+                    return <h2 id={id} className="text-2xl font-bold text-white mt-8 mb-4">{children}</h2>;
+                  },
+                  h3: ({ children, node }) => {
+                    const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+                    const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+                    return <h3 id={id} className="text-xl font-semibold text-gray-200 mt-6 mb-3">{children}</h3>;
+                  },
+                  h4: ({ children, node }) => {
+                    const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
+                    const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+                    return <h4 id={id} className="text-lg font-semibold text-gray-300 mt-4 mb-2">{children}</h4>;
+                  },
                   p: ({ children }) => <p className="text-gray-300 mb-4 leading-relaxed">{children}</p>,
                   ul: ({ children }) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-300">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-300">{children}</ol>,
@@ -718,24 +766,31 @@ export default function Docs() {
   const [selectedDoc, setSelectedDoc] = useState(docId || null);
   const [isPublicDoc, setIsPublicDoc] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+  const [pendingAnchor, setPendingAnchor] = useState(null);
 
   useEffect(() => {
     if (docId) {
       const isPublic = PUBLIC_DOCS.some(d => d.id === docId) || USER_GUIDES.some(d => d.id === docId);
       setSelectedDoc(docId);
       setIsPublicDoc(isPublic);
+      // Capture anchor from URL hash for scrolling after content loads
+      if (location.hash) {
+        setPendingAnchor(location.hash);
+      }
     }
-  }, [docId]);
+  }, [docId, location.hash]);
 
-  const handleDocClick = (id, isPublic = false) => {
+  const handleDocClick = (id, isPublic = false, anchor = null) => {
     setSelectedDoc(id);
     setIsPublicDoc(isPublic);
-    navigate(`/docs/${id}`, { replace: true });
+    setPendingAnchor(anchor ? `#${anchor}` : null);
+    navigate(`/docs/${id}${anchor ? `#${anchor}` : ''}`, { replace: true });
   };
 
   const handleClose = () => {
     setSelectedDoc(null);
     setIsPublicDoc(false);
+    setPendingAnchor(null);
     navigate('/docs', { replace: true });
   };
 
@@ -1055,6 +1110,8 @@ export default function Docs() {
             isPublic={isPublicDoc}
             onClose={handleClose}
             onNavigate={handleDocClick}
+            initialAnchor={pendingAnchor}
+            onAnchorScrolled={() => setPendingAnchor(null)}
           />
         )}
       </AnimatePresence>
