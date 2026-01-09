@@ -50,6 +50,7 @@ import Health from './pages/Health';
 import Goals from './pages/Goals';
 import Limitations from './pages/Limitations';
 import PTTests from './pages/PTTests';
+import Skills from './pages/Skills';
 
 // Page view tracker
 function PageTracker() {
@@ -122,6 +123,8 @@ function AppRoutes() {
         <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
         <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
         <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
+        <Route path="/skills" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />
+        <Route path="/skills/:treeId" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />
 
         {/* Issue Tracker - Public */}
         <Route path="/issues" element={<ErrorBoundary name="Issues"><Issues /></ErrorBoundary>} />

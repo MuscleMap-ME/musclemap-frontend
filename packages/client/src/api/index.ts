@@ -1430,6 +1430,95 @@ const StatsSchema = Type.Object(
 );
 
 // =====================
+// Skills Types (Gymnastics/Calisthenics Progression)
+// =====================
+export interface SkillTree {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  icon?: string;
+  color?: string;
+  orderIndex: number;
+}
+
+export interface SkillNode {
+  id: string;
+  treeId: string;
+  name: string;
+  description?: string;
+  difficulty: number;
+  prerequisites: string[];
+  criteriaType: 'hold' | 'reps' | 'time' | 'form_check';
+  criteriaValue?: number;
+  criteriaDescription?: string;
+  xpReward: number;
+  creditReward: number;
+  achievementId?: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  tips: string[];
+  commonMistakes: string[];
+  tier: number;
+  position: number;
+}
+
+export interface SkillTreeWithNodes extends SkillTree {
+  nodes: SkillNode[];
+}
+
+export interface UserSkillProgress {
+  id: string;
+  userId: string;
+  skillNodeId: string;
+  status: 'locked' | 'available' | 'in_progress' | 'achieved';
+  bestValue?: number;
+  attemptCount: number;
+  practiceMinutes: number;
+  achievedAt?: string;
+  verified: boolean;
+  verificationVideoUrl?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkillNodeWithProgress extends SkillNode {
+  progress?: UserSkillProgress;
+}
+
+export interface SkillProgressSummary {
+  totalSkills: number;
+  achievedSkills: number;
+  inProgressSkills: number;
+  availableSkills: number;
+  totalPracticeMinutes: number;
+  recentProgress: { skillName: string; achievedAt: string }[];
+}
+
+export interface SkillPracticeLog {
+  id: string;
+  userId: string;
+  skillNodeId: string;
+  practiceDate: string;
+  durationMinutes: number;
+  valueAchieved?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface SkillPracticeLogWithName extends SkillPracticeLog {
+  skillName: string;
+}
+
+export interface SkillLeaderboardEntry {
+  userId: string;
+  username: string;
+  bestValue: number;
+  achievedAt: string;
+}
+
+// =====================
 // Helper to unwrap API responses
 // =====================
 interface DataResponse<T> {
@@ -3550,6 +3639,70 @@ export const apiClient = {
       request<{ success: boolean }>(`/archetypes/${archetypeId}/communities/${communityId}`, { method: 'DELETE' }),
     getAllArchetypesWithCommunities: () =>
       request<{ success: boolean; data: unknown[] }>('/archetypes/communities'),
+  },
+
+  // =====================
+  // Skills (Gymnastics/Calisthenics Progression)
+  // =====================
+  skills: {
+    /** Get all skill trees */
+    getTrees: () =>
+      request<{ trees: SkillTree[] }>('/skills/trees', { cacheTtl: 300_000 }),
+
+    /** Get a specific skill tree with all nodes */
+    getTree: (treeId: string) =>
+      request<{ tree: SkillTreeWithNodes }>(`/skills/trees/${treeId}`, { cacheTtl: 300_000 }),
+
+    /** Get user's progress for a skill tree */
+    getTreeProgress: (treeId: string) =>
+      request<{ nodes: SkillNodeWithProgress[] }>(`/skills/trees/${treeId}/progress`),
+
+    /** Get a specific skill node */
+    getNode: (nodeId: string) =>
+      request<{ node: SkillNode }>(`/skills/nodes/${nodeId}`, { cacheTtl: 300_000 }),
+
+    /** Get leaderboard for a skill */
+    getNodeLeaderboard: (nodeId: string, limit = 10) =>
+      request<{ leaderboard: SkillLeaderboardEntry[] }>(`/skills/nodes/${nodeId}/leaderboard?limit=${limit}`),
+
+    /** Get user's overall skill progress summary */
+    getProgress: () =>
+      request<SkillProgressSummary>('/skills/progress'),
+
+    /** Log a practice session */
+    logPractice: (data: {
+      skillNodeId: string;
+      durationMinutes: number;
+      valueAchieved?: number;
+      notes?: string;
+    }) =>
+      request<{ practiceLog: SkillPracticeLog }>('/skills/practice', {
+        method: 'POST',
+        body: data,
+      }),
+
+    /** Mark a skill as achieved */
+    achieveSkill: (data: {
+      skillNodeId: string;
+      verificationVideoUrl?: string;
+    }) =>
+      request<{ success: boolean; creditsAwarded?: number; xpAwarded?: number; error?: string }>('/skills/achieve', {
+        method: 'POST',
+        body: data,
+      }),
+
+    /** Get practice history */
+    getHistory: (options?: { limit?: number; offset?: number; skillNodeId?: string }) =>
+      request<{ logs: SkillPracticeLogWithName[]; total: number }>(
+        `/skills/history?limit=${options?.limit ?? 20}&offset=${options?.offset ?? 0}${options?.skillNodeId ? `&skillNodeId=${options.skillNodeId}` : ''}`
+      ),
+
+    /** Update notes for a skill */
+    updateNotes: (nodeId: string, notes: string) =>
+      request<{ success: boolean }>(`/skills/nodes/${nodeId}/notes`, {
+        method: 'PUT',
+        body: { notes },
+      }),
   },
 };
 

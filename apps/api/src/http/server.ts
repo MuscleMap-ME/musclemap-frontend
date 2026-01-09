@@ -66,6 +66,7 @@ import { registerCareerRoutes } from './routes/career';
 import { registerMascotRoutes } from './routes/mascot';
 import { registerCreditsRoutes } from './routes/credits';
 import { registerTrainerRoutes } from './routes/trainers';
+import { registerSkillsRoutes } from './routes/skills';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -324,6 +325,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerMascotRoutes(api);
     await registerCreditsRoutes(api);
     await registerTrainerRoutes(api);
+    await registerSkillsRoutes(api);
   }, { prefix: '/api' });
 
   return app;

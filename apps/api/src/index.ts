@@ -13,6 +13,7 @@ import { migrate as migrateMessaging } from './db/migrations/003_messaging';
 import { migrate as migrateExerciseEquipmentLocations } from './db/migrations/004_exercise_equipment_locations';
 import { migrate as migrateTipsAndMilestones } from './db/migrations/005_tips_and_milestones';
 import { migrate as migratePerformanceOptimization } from './db/migrations/006_performance_optimization';
+import { migrate as migrateSkillProgressionTrees } from './db/migrations/043_skill_progression_trees';
 import { loadAllPlugins, invokePluginHook } from './plugins/plugin-loader';
 import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   await migrateExerciseEquipmentLocations();
   await migrateTipsAndMilestones();
   await migratePerformanceOptimization();
+  await migrateSkillProgressionTrees();
   logger.info('✅ Database initialized');
 
   // Initialize Redis if enabled
