@@ -661,81 +661,9 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: { success: true, message: `${data.periodType} leaderboard rewards processing triggered` } });
   });
 
-  // ============================================
-  // TRAINER ROUTES (Public Browse)
-  // ============================================
-
-  // Get trainer profiles (public browse)
-  app.get('/trainers', async (request, reply) => {
-    const query = request.query as {
-      specialty?: string;
-      verified?: string;
-      limit?: string;
-      offset?: string;
-    };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
-
-    const { trainerService } = await import('../../modules/economy/trainer.service');
-
-    const result = await trainerService.listProfiles({
-      specialty: query.specialty,
-      verified: query.verified === 'true' ? true : undefined,
-      status: 'active',
-      limit,
-      offset,
-    });
-
-    return reply.send({
-      data: result.trainers,
-      meta: { limit, offset, total: result.total },
-    });
-  });
-
-  // Get single trainer profile
-  app.get('/trainers/:userId', async (request, reply) => {
-    const { userId } = request.params as { userId: string };
-
-    const { trainerService } = await import('../../modules/economy/trainer.service');
-
-    const profile = await trainerService.getProfile(userId);
-    if (!profile) {
-      return reply.status(404).send({
-        error: { code: 'NOT_FOUND', message: 'Trainer not found', statusCode: 404 },
-      });
-    }
-
-    return reply.send({ data: profile });
-  });
-
-  // Get trainer's classes
-  app.get('/trainers/:userId/classes', async (request, reply) => {
-    const { userId } = request.params as { userId: string };
-    const query = request.query as {
-      upcoming?: string;
-      limit?: string;
-      offset?: string;
-    };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
-
-    const { trainerService } = await import('../../modules/economy/trainer.service');
-
-    const result = await trainerService.listClasses({
-      trainerUserId: userId,
-      upcoming: query.upcoming === 'true',
-      limit,
-      offset,
-    });
-
-    return reply.send({
-      data: result.classes,
-      meta: { limit, offset, total: result.total },
-    });
-  });
-
-  // Browse all classes
-  app.get('/classes', async (request, reply) => {
+  // NOTE: Trainer routes are registered in trainers.ts
+  // Browse all classes (added here since classes route may not exist in trainers.ts)
+  app.get('/classes/browse', async (request, reply) => {
     const query = request.query as {
       category?: string;
       upcoming?: string;
