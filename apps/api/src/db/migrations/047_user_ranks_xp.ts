@@ -257,9 +257,9 @@ export async function up(): Promise<void> {
       { code: 'xp_streak_7day', name: '7-Day Streak Bonus', category: 'streak', credits: 0, xp: 50, desc: 'Bonus XP for 7-day streak' },
       { code: 'xp_streak_30day', name: '30-Day Streak Bonus', category: 'streak', credits: 0, xp: 200, desc: 'Bonus XP for 30-day streak' },
       { code: 'xp_first_workout', name: 'First Workout XP', category: 'special', credits: 0, xp: 100, desc: 'One-time XP for first workout' },
-      { code: 'xp_achievement_common', name: 'Common Achievement XP', category: 'achievement', credits: 0, xp: 25, desc: 'XP for common achievements' },
-      { code: 'xp_achievement_rare', name: 'Rare Achievement XP', category: 'achievement', credits: 0, xp: 100, desc: 'XP for rare achievements' },
-      { code: 'xp_achievement_legendary', name: 'Legendary Achievement XP', category: 'achievement', credits: 0, xp: 500, desc: 'XP for legendary achievements' },
+      { code: 'xp_achievement_common', name: 'Common Achievement XP', category: 'special', credits: 0, xp: 25, desc: 'XP for common achievements' },
+      { code: 'xp_achievement_rare', name: 'Rare Achievement XP', category: 'special', credits: 0, xp: 100, desc: 'XP for rare achievements' },
+      { code: 'xp_achievement_legendary', name: 'Legendary Achievement XP', category: 'special', credits: 0, xp: 500, desc: 'XP for legendary achievements' },
     ];
 
     for (const rule of xpRules) {
