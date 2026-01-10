@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Updated: 2026-01-09
+> Auto-generated on 2026-01-10
 
 ## Overview
 
@@ -25,26 +25,40 @@ musclemap.me/
 │   ├── api/
 │   └── mobile/
 ├── data/
+│   ├── reference/
 │   ├── musclemap.db
 │   ├── musclemap.db-shm
 │   └── musclemap.db-wal
 ├── docs/
+│   ├── analysis/
+│   ├── business/
+│   ├── images/
 │   ├── latex/
+│   ├── legacy-system/
+│   ├── public/
+│   ├── specs/
 │   ├── API_REFERENCE.md
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
 │   ├── CONTRIBUTING.md
+│   ├── CREDITS_ECONOMY.md
 │   ├── DATA_FLOW.md
 │   ├── DATA_MODEL.md
 │   ├── EXTENSIBILITY.md
 │   ├── FEATURES.md
 │   ├── ICONS.md
+│   ├── IMPLEMENTATION_PLAN_REMAINING.md
+│   ├── IMPLEMENTATION_PLANS.md
+│   ├── mascot_system.md
 │   ├── NATIVE_EXTENSIONS.md
 │   ├── PLUGINS.md
 │   ├── PRIVACY_POLICY.md
 │   ├── REFACTOR_PLAN.md
 │   ├── SECURITY.md
 │   ├── texput.log
+│   ├── TOUCHSCREEN_UX_AUDIT.md
+│   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
+│   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
 │   └── USER_GUIDE.md
 ├── e2e/
 │   └── login.spec.ts
@@ -54,7 +68,10 @@ musclemap.me/
 │   ├── README.md
 │   └── ROADMAP.md
 ├── native/
+│   ├── lib/
 │   ├── src/
+│   ├── index.js
+│   ├── index.js.map
 │   ├── index.ts
 │   ├── Makefile
 │   ├── package.json
@@ -71,6 +88,7 @@ musclemap.me/
 ├── public/
 │   ├── docs/
 │   ├── docs-files/
+│   ├── mascot/
 │   ├── founding.html
 │   ├── index.html
 │   ├── landing-decal-1024w.png
@@ -111,6 +129,7 @@ musclemap.me/
 ├── src/
 │   ├── components/
 │   ├── contexts/
+│   ├── graphql/
 │   ├── hooks/
 │   ├── pages/
 │   ├── store/
@@ -121,11 +140,13 @@ musclemap.me/
 │   ├── index.css
 │   └── main.jsx
 ├── audit_legacy_posix.sh
+├── CLAUDE.md
 ├── cron-jobs.js
 ├── deploy.sh
 ├── ecosystem.config.cjs
 ├── eslint.config.js
 ├── index.html
+├── JOURNEY_OVERHAUL_PLAN.md
 ├── LICENSE
 ├── musclemap_exercises.json
 ├── new-path-exercises.json
@@ -150,15 +171,20 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (35+ total)
+## Frontend Pages (50 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
+| Achievements | No | Achievements page |
 | AdminControl | No | AdminControl page |
+| AdminFraud | No | AdminFraud page |
 | AdminIssues | Yes | Admin Issues Page  Admin dashboard for managing issues: - View all issues (including private) - Change status, priority, assignee - Bulk actions - Create dev updates - Manage roadmap / |
+| AdminMonitoring | Yes | Admin Monitoring Dashboard  Comprehensive system monitoring with: - Live API test runner - User journey viewer - Error tracking - System health metrics / |
+| Buddy | No | Buddy page |
 | CommunityDashboard | Yes | CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings / |
 | Competitions | No | Competitions page |
 | Credits | No | Credits page |
+| Crews | Yes | Crews Page  Crew management and Crew Wars tournament system for web |
 | Dashboard | Yes | Dashboard - MuscleMap Liquid Glass Design  A comprehensive, modern dashboard using the liquid glass design system inspired by visionOS and iOS 18 spatial computing aesthetics |
 | Design | No | Design Page  Showcases MuscleMap's design system with links to the interactive design system page |
 | DesignSystem | No | Design System Showcase  Demonstrates the MuscleMap Liquid Glass design system components |
@@ -166,13 +192,18 @@ musclemap.me/
 | Docs | No | Docs page |
 | Exercises | No | Exercises page |
 | Features | No | Features Page  Showcases MuscleMap features with VGA-style graphics, charts, and bars |
+| Goals | Yes | Goals Page - MuscleMap Liquid Glass Design  Goal-based training with targets, progress tracking, and milestones |
+| Health | Yes | Health Page  Wearables integration and health data dashboard for web |
 | HighFives | No | HighFives page |
 | IssueDetail | Yes | Issue Detail Page  Single issue view with: - Full issue details - Comments thread - Voting and subscription - Status history / |
 | Issues | Yes | Issues Page  Bug and issue tracker with: - Issue listing with filters - Search functionality - Voting system - Status badges / |
 | Journey | Yes | Journey page |
 | Landing | No | Landing page |
+| Leaderboard | No | Leaderboard page |
+| Limitations | Yes | Limitations Page - MuscleMap Liquid Glass Design  Manage physical limitations, disabilities, and exercise modifications |
 | Locations | No | Locations page |
 | Login | Yes | Login page |
+| MartialArts | No | MartialArts page |
 | Messages | No | Messages page |
 | MyIssues | Yes | My Issues Page  User's submitted issues: - View status of reported issues - Track responses / |
 | NewIssue | Yes | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
@@ -180,21 +211,30 @@ musclemap.me/
 | Privacy | No | Privacy Policy Page  Required for App Store submission |
 | Profile | Yes | Profile page |
 | Progression | No | Progression page |
+| PTTests | Yes | PT Tests Page - MuscleMap Liquid Glass Design  Physical fitness tests for military, first responders, and occupational training |
+| Rivals | Yes | Rivals Page  1v1 rivalry competition system for web |
 | Roadmap | No | Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities / |
 | Science | No | Science Page  Explains the science behind MuscleMap's Training Units and muscle activation system |
 | Settings | No | Settings page |
 | Signup | Yes | Signup page |
+| Skills | No | Skills page |
 | SkinsStore | No | SkinsStore page |
+| Stats | Yes | Stats Page  Character stats display with radar chart visualization and leaderboards |
+| Store | No | Store page |
 | Technology | No | Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics |
+| TrainerDashboard | No | TrainerDashboard page |
 | Wallet | No | Wallet page |
 | Workout | No | Workout page |
 
-## Components (25 total)
+## Components (41 total)
 
 Components are organized by feature:
 
 ### ErrorBoundary.jsx
 - `ErrorBoundary`
+
+### Toast
+- `ToastProvider`
 
 ### community
 - `ActivityFeed`
@@ -204,17 +244,38 @@ Components are organized by feature:
 - `StatsDashboard`
 
 ### glass
+- `ActionCard`
 - `GlassButton`
 - `GlassNav`
 - `GlassProgress`
 - `GlassSurface`
 - `MeshBackground`
 - `MuscleActivationCard`
+- `SwipeableCard`
 
 ### icons
 - `Avatar`
 - `FitnessIcons`
 - `Icon`
+
+### inputs
+- `Stepper`
+
+### landing
+- `LiveCommunityStats`
+
+### mascot
+- `CompanionCharacter`
+- `CompanionContext`
+- `CompanionDock`
+- `CompanionPanel`
+- `CompanionProgress`
+- `CompanionReaction`
+- `GlobalMascot2D`
+- `GlobalMascot3D`
+- `GlobalMascotAbout`
+- `GlobalMascotHero`
+- `GlobalMascotLoader`
 
 ### messaging
 - `ConversationList`
@@ -232,32 +293,152 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (112 total)
+## API Endpoints (447 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | `/__routes` | misc |
+| GET | `/achievements/categories` | achievements |
+| GET | `/achievements/definitions` | achievements |
+| GET | `/achievements/definitions/:key` | achievements |
+| POST | `/admin/abuse-check/:userId` | credits |
+| POST | `/admin/credits/adjust` | credits |
+| GET | `/admin/credits/audit` | credits |
+| POST | `/admin/credits/reverse` | credits |
+| GET | `/admin/disputes` | credits |
+| POST | `/admin/disputes/:disputeId/messages` | credits |
+| POST | `/admin/disputes/:disputeId/resolve` | credits |
+| PATCH | `/admin/disputes/:disputeId/status` | credits |
+| GET | `/admin/economy/metrics` | credits |
+| GET | `/admin/escrow` | credits |
+| POST | `/admin/escrow/:escrowId/refund` | credits |
+| POST | `/admin/escrow/:escrowId/release` | credits |
+| GET | `/admin/fraud-flags` | credits |
+| POST | `/admin/fraud-flags` | credits |
+| POST | `/admin/fraud-flags/:flagId/review` | credits |
 | GET | `/admin/issues` | issues |
 | POST | `/admin/issues/bulk` | issues |
+| POST | `/admin/leaderboard-rewards/trigger` | credits |
+| GET | `/admin/rate-limit-status/:userId` | credits |
+| GET | `/admin/rate-limits` | credits |
+| PUT | `/admin/rate-limits/:action` | credits |
+| POST | `/admin/store/grant` | credits |
+| POST | `/admin/store/revoke` | credits |
+| PUT | `/admin/trainers/:userId/status` | trainers |
+| GET | `/admin/trust/:userId` | credits |
+| POST | `/admin/trust/:userId/override` | credits |
+| DELETE | `/admin/trust/:userId/override` | credits |
+| GET | `/admin/wallet/:userId` | credits |
+| POST | `/admin/wallet/freeze` | credits |
+| POST | `/admin/wallet/unfreeze` | credits |
 | GET | `/alternatives/low-impact` | misc |
 | GET | `/alternatives/seated` | misc |
+| GET | `/archetype/suggested-communities` | archetype-communities |
 | GET | `/archetypes` | journey |
 | GET | `/archetypes/:id/levels` | journey |
+| GET | `/archetypes/by-category/:categoryId` | pt-tests |
+| GET | `/archetypes/categories` | pt-tests |
+| GET | `/archetypes/communities` | archetype-communities |
 | POST | `/archetypes/select` | journey |
 | POST | `/auth/login` | auth |
 | GET | `/auth/me` | auth |
 | GET | `/auth/me/capabilities` | auth |
 | POST | `/auth/register` | auth |
+| GET | `/buddy` | credits |
+| POST | `/buddy` | credits |
+| POST | `/buddy/equip` | credits |
+| GET | `/buddy/evolution/:species` | credits |
+| GET | `/buddy/leaderboard` | credits |
+| GET | `/buddy/matches` | social |
+| PUT | `/buddy/nickname` | credits |
+| GET | `/buddy/pairs` | social |
+| GET | `/buddy/preferences` | social |
+| PUT | `/buddy/preferences` | social |
+| GET | `/buddy/requests` | social |
+| PUT | `/buddy/settings` | credits |
+| PUT | `/buddy/species` | credits |
+| POST | `/buddy/unequip` | credits |
+| POST | `/bulletin/comments/:commentId/vote` | bulletin |
+| GET | `/bulletin/posts/:postId` | bulletin |
+| GET | `/bulletin/posts/:postId/comments` | bulletin |
+| POST | `/bulletin/posts/:postId/comments` | bulletin |
+| POST | `/bulletin/posts/:postId/hide` | bulletin |
+| POST | `/bulletin/posts/:postId/pin` | bulletin |
+| POST | `/bulletin/posts/:postId/unhide` | bulletin |
+| POST | `/bulletin/posts/:postId/unpin` | bulletin |
+| POST | `/bulletin/posts/:postId/vote` | bulletin |
+| GET | `/career/goals` | career |
+| POST | `/career/goals` | career |
+| GET | `/career/goals/:goalId/exercises` | career |
+| PUT | `/career/goals/:id` | career |
+| DELETE | `/career/goals/:id` | career |
+| GET | `/career/readiness` | career |
+| GET | `/career/readiness/:goalId` | career |
+| POST | `/career/readiness/:goalId/refresh` | career |
+| GET | `/career/recertifications` | career |
+| POST | `/career/recertifications` | career |
+| GET | `/career/standards` | career |
+| GET | `/career/standards/:id` | career |
+| GET | `/career/standards/categories` | career |
+| GET | `/career/team/:hangoutId` | career |
+| POST | `/career/team/:hangoutId/enable` | career |
+| POST | `/career/team/:hangoutId/opt-in` | career |
+| POST | `/classes` | trainers |
+| GET | `/classes` | trainers |
+| GET | `/classes/:classId` | trainers |
+| PUT | `/classes/:classId` | trainers |
+| POST | `/classes/:classId/attendance` | trainers |
+| GET | `/classes/:classId/attendance` | trainers |
+| POST | `/classes/:classId/cancel` | trainers |
+| POST | `/classes/:classId/enroll` | trainers |
+| GET | `/classes/:classId/enrollments` | trainers |
+| POST | `/classes/:classId/unenroll` | trainers |
+| GET | `/classes/browse` | credits |
+| GET | `/cohort-options` | cohort-preferences |
+| POST | `/communities` | communities |
+| GET | `/communities` | communities |
+| POST | `/communities/:id/events` | communities |
+| GET | `/communities/:id/events` | communities |
+| POST | `/communities/:id/join` | communities |
+| POST | `/communities/:id/leave` | communities |
+| GET | `/communities/:id/members` | communities |
+| POST | `/communities/:id/members/:userId/approve` | communities |
+| POST | `/communities/:id/members/:userId/reject` | communities |
+| PATCH | `/communities/:id/members/:userId/role` | communities |
+| GET | `/communities/:id/posts` | communities |
+| POST | `/communities/:id/posts` | communities |
+| GET | `/communities/:idOrSlug` | communities |
+| GET | `/communities/my` | communities |
 | GET | `/community/feed` | community |
 | GET | `/community/monitor` | community |
 | GET | `/community/percentile` | community |
 | GET | `/community/presence` | community |
 | POST | `/community/presence` | community |
 | GET | `/community/stats` | community |
+| GET | `/community/stats/public` | community |
 | GET | `/community/ws` | community |
+| GET | `/community/ws/public` | community |
+| GET | `/competition/categories` | competition |
+| GET | `/competition/categories/:id` | competition |
+| GET | `/competition/categories/grouped` | competition |
+| GET | `/competition/me` | competition |
+| POST | `/competition/me` | competition |
+| DELETE | `/competition/me` | competition |
+| GET | `/competition/me/countdown` | competition |
+| PUT | `/competition/me/phase` | competition |
+| POST | `/competition/me/show-complete` | competition |
+| POST | `/competition/me/weigh-in` | competition |
+| GET | `/competition/me/weigh-ins` | competition |
+| GET | `/competition/weak-points` | competition |
 | GET | `/competitions` | misc |
 | GET | `/competitions/:id` | misc |
 | GET | `/credits/balance` | economy |
+| GET | `/disputes` | credits |
+| POST | `/disputes` | credits |
+| GET | `/disputes/:disputeId` | credits |
+| GET | `/disputes/:disputeId/messages` | credits |
+| POST | `/disputes/:disputeId/messages` | credits |
+| GET | `/earning/rules` | credits |
 | GET | `/economy/actions` | economy |
 | GET | `/economy/balance` | economy |
 | POST | `/economy/charge` | economy |
@@ -266,11 +447,38 @@ Components are organized by feature:
 | GET | `/economy/transactions` | economy |
 | GET | `/economy/wallet` | economy |
 | GET | `/entitlements` | misc |
+| GET | `/equipment/categories` | equipment |
+| GET | `/equipment/home` | equipment |
+| PUT | `/equipment/home` | equipment |
+| POST | `/equipment/home` | equipment |
+| DELETE | `/equipment/home/:equipmentId` | equipment |
+| GET | `/equipment/home/ids` | equipment |
+| GET | `/equipment/types` | equipment |
+| GET | `/equipment/types/:category` | equipment |
+| GET | `/escrow` | credits |
+| GET | `/escrow/:escrowId` | credits |
 | GET | `/exercises` | misc |
 | GET | `/exercises/:id/activations` | misc |
+| GET | `/exercises/:id/metrics` | leaderboards |
+| GET | `/friend-requests` | social |
+| GET | `/friends` | social |
+| GET | `/goals` | goals |
+| POST | `/goals` | goals |
+| GET | `/goals/:id` | goals |
+| PUT | `/goals/:id` | goals |
+| DELETE | `/goals/:id` | goals |
+| POST | `/goals/:id/milestones` | goals |
+| POST | `/goals/:id/progress` | goals |
+| GET | `/goals/suggestions` | goals |
 | POST | `/hangouts` | hangouts |
 | GET | `/hangouts/:id` | hangouts |
+| GET | `/hangouts/:id/achievements` | achievements |
+| POST | `/hangouts/:id/check-in` | checkins |
+| POST | `/hangouts/:id/check-in/link-workout` | checkins |
+| GET | `/hangouts/:id/check-ins/active` | checkins |
+| POST | `/hangouts/:id/check-out` | checkins |
 | POST | `/hangouts/:id/join` | hangouts |
+| GET | `/hangouts/:id/leaderboard` | leaderboards |
 | POST | `/hangouts/:id/leave` | hangouts |
 | GET | `/hangouts/:id/members` | hangouts |
 | POST | `/hangouts/:id/posts` | hangouts |
@@ -278,10 +486,19 @@ Components are organized by feature:
 | GET | `/hangouts/nearby` | hangouts |
 | GET | `/hangouts/stats` | hangouts |
 | GET | `/hangouts/types` | hangouts |
+| GET | `/health` | health |
+| GET | `/health/detailed` | health |
+| GET | `/health/live` | health |
+| GET | `/health/ready` | health |
 | POST | `/highfives/send` | misc |
 | GET | `/highfives/stats` | misc |
 | GET | `/highfives/users` | misc |
 | GET | `/i18n/languages` | misc |
+| GET | `/identities` | identities |
+| GET | `/identities/all-with-communities` | identities |
+| GET | `/identities/categories` | identities |
+| GET | `/identities/me` | identities |
+| GET | `/identities/suggested-communities` | identities |
 | GET | `/issues` | issues |
 | POST | `/issues` | issues |
 | GET | `/issues/:id` | issues |
@@ -295,10 +512,75 @@ Components are organized by feature:
 | GET | `/issues/stats` | issues |
 | GET | `/journey` | journey |
 | GET | `/journey/progress` | journey |
+| GET | `/journeys` | journeys |
+| POST | `/journeys` | journeys |
+| GET | `/journeys/:id` | journeys |
+| PUT | `/journeys/:id` | journeys |
+| DELETE | `/journeys/:id` | journeys |
+| POST | `/journeys/:id/milestones` | journeys |
+| POST | `/journeys/:id/progress` | journeys |
+| GET | `/journeys/categories` | journeys |
+| GET | `/journeys/categories/:categoryId` | journeys |
+| GET | `/journeys/featured` | journeys |
+| POST | `/journeys/start` | journeys |
+| GET | `/journeys/suggestions` | journeys |
+| GET | `/journeys/templates` | journeys |
+| GET | `/journeys/templates/:templateId` | journeys |
+| GET | `/leaderboards` | leaderboards |
+| GET | `/leaderboards/global` | leaderboards |
+| GET | `/leaderboards/metrics` | leaderboards |
+| GET | `/limitations` | limitations |
+| POST | `/limitations` | limitations |
+| PUT | `/limitations/:id` | limitations |
+| DELETE | `/limitations/:id` | limitations |
+| GET | `/limitations/body-regions` | limitations |
+| POST | `/limitations/check-workout` | limitations |
+| GET | `/limitations/substitutions/:exerciseId` | limitations |
+| GET | `/locations/:id/equipment` | equipment |
+| POST | `/locations/:id/equipment` | equipment |
+| GET | `/locations/:id/equipment/my-reports` | equipment |
+| GET | `/locations/:id/equipment/verified` | equipment |
 | GET | `/locations/nearby` | misc |
+| GET | `/martial-arts/disciplines` | martial-arts |
+| GET | `/martial-arts/disciplines/:disciplineId` | martial-arts |
+| GET | `/martial-arts/disciplines/:disciplineId/leaderboard` | martial-arts |
+| GET | `/martial-arts/disciplines/:disciplineId/progress` | martial-arts |
+| GET | `/martial-arts/disciplines/:disciplineId/techniques` | martial-arts |
+| GET | `/martial-arts/history` | martial-arts |
+| POST | `/martial-arts/master` | martial-arts |
+| POST | `/martial-arts/practice` | martial-arts |
+| GET | `/martial-arts/progress` | martial-arts |
+| GET | `/martial-arts/techniques/:techniqueId` | martial-arts |
+| PUT | `/martial-arts/techniques/:techniqueId/notes` | martial-arts |
+| POST | `/mascot/companion/cosmetics/equip` | mascot |
+| POST | `/mascot/companion/events/mark-reacted` | mascot |
+| GET | `/mascot/companion/events/recent` | mascot |
+| PATCH | `/mascot/companion/nickname` | mascot |
+| PATCH | `/mascot/companion/settings` | mascot |
+| GET | `/mascot/companion/state` | mascot |
+| GET | `/mascot/companion/tips/next` | mascot |
+| GET | `/mascot/companion/upgrades` | mascot |
+| POST | `/mascot/companion/upgrades/:upgradeId/purchase` | mascot |
+| GET | `/mascot/global/config` | mascot |
+| GET | `/mascot/global/placements` | mascot |
+| GET | `/me/achievements` | achievements |
+| GET | `/me/achievements/summary` | achievements |
+| GET | `/me/check-in` | checkins |
+| GET | `/me/check-ins` | checkins |
+| GET | `/me/cohort-preferences` | cohort-preferences |
+| PATCH | `/me/cohort-preferences` | cohort-preferences |
+| GET | `/me/enrollments` | trainers |
 | GET | `/me/entitlements` | misc |
 | GET | `/me/hangouts` | hangouts |
 | GET | `/me/issues` | issues |
+| POST | `/me/leaderboard-opt-in` | cohort-preferences |
+| POST | `/me/leaderboard-opt-out` | cohort-preferences |
+| GET | `/me/rank` | leaderboards |
+| PUT | `/mentor/profile` | mentorship |
+| GET | `/mentors` | mentorship |
+| GET | `/mentorship/requests` | mentorship |
+| GET | `/mentorships/active` | mentorship |
+| GET | `/mentorships/history` | mentorship |
 | POST | `/messaging/block/:userId` | messaging |
 | DELETE | `/messaging/block/:userId` | messaging |
 | GET | `/messaging/conversations` | messaging |
@@ -311,21 +593,98 @@ Components are organized by feature:
 | GET | `/milestones` | tips |
 | POST | `/milestones/:id/claim` | tips |
 | POST | `/milestones/:id/progress` | tips |
+| GET | `/modules` | modules |
+| GET | `/modules/:id` | modules |
+| POST | `/modules/:id/waitlist` | modules |
+| DELETE | `/modules/:id/waitlist` | modules |
+| GET | `/modules/coming-soon` | modules |
+| GET | `/modules/waitlist/me` | modules |
+| GET | `/monitoring/dashboard` | monitoring |
+| GET | `/monitoring/errors` | monitoring |
+| POST | `/monitoring/errors/:id/resolve` | monitoring |
+| POST | `/monitoring/errors/track` | monitoring |
+| GET | `/monitoring/health` | monitoring |
+| POST | `/monitoring/journey/end` | monitoring |
+| POST | `/monitoring/journey/error` | monitoring |
+| POST | `/monitoring/journey/start` | monitoring |
+| POST | `/monitoring/journey/step` | monitoring |
+| GET | `/monitoring/journeys` | monitoring |
+| GET | `/monitoring/ping` | monitoring |
+| GET | `/monitoring/tests/definitions` | monitoring |
+| GET | `/monitoring/tests/history` | monitoring |
+| POST | `/monitoring/tests/run` | monitoring |
 | GET | `/muscles` | misc |
+| POST | `/onboarding/back` | onboarding |
+| POST | `/onboarding/complete` | onboarding |
+| POST | `/onboarding/home-equipment` | onboarding |
+| GET | `/onboarding/injury-regions` | onboarding |
+| GET | `/onboarding/intents` | onboarding |
+| GET | `/onboarding/profile` | onboarding |
+| POST | `/onboarding/profile` | onboarding |
+| POST | `/onboarding/skip` | onboarding |
+| POST | `/onboarding/start` | onboarding |
+| GET | `/onboarding/state` | onboarding |
+| DELETE | `/onboarding/state` | onboarding |
+| GET | `/onboarding/status` | onboarding |
+| POST | `/onboarding/step` | onboarding |
+| GET | `/onboarding/steps` | onboarding |
+| GET | `/personalization/context` | personalization |
+| POST | `/personalization/exercise-check` | personalization |
+| GET | `/personalization/plan` | personalization |
+| GET | `/personalization/recommendations` | personalization |
+| GET | `/personalization/summary` | personalization |
 | GET | `/prescription/:id` | prescription |
 | POST | `/prescription/generate` | prescription |
+| GET | `/privacy` | privacy |
+| PUT | `/privacy` | privacy |
+| POST | `/privacy/disable-minimalist` | privacy |
+| POST | `/privacy/enable-minimalist` | privacy |
+| GET | `/privacy/summary` | privacy |
 | GET | `/profile` | auth |
 | PUT | `/profile` | auth |
 | GET | `/progress/stats` | misc |
 | GET | `/progression/achievements` | misc |
 | GET | `/progression/leaderboard` | misc |
 | GET | `/progression/mastery-levels` | misc |
+| GET | `/pt-tests` | pt-tests |
+| GET | `/pt-tests/:id` | pt-tests |
+| GET | `/pt-tests/leaderboard/:testId` | pt-tests |
+| GET | `/pt-tests/my-archetype` | pt-tests |
+| POST | `/pt-tests/results` | pt-tests |
+| GET | `/pt-tests/results` | pt-tests |
+| GET | `/pt-tests/results/:id` | pt-tests |
+| GET | `/reports` | content-reports |
+| GET | `/reports/my` | content-reports |
+| GET | `/reports/stats` | content-reports |
+| GET | `/resources/most-helpful` | community-resources |
 | GET | `/roadmap` | issues |
 | POST | `/roadmap` | issues |
 | POST | `/roadmap/:id/vote` | issues |
 | GET | `/settings` | misc |
 | PATCH | `/settings` | misc |
 | GET | `/settings/themes` | misc |
+| GET | `/skill-milestones` | milestones |
+| GET | `/skill-milestones/:id` | milestones |
+| GET | `/skill-milestones/categories` | milestones |
+| GET | `/skill-milestones/categories/:category` | milestones |
+| GET | `/skill-milestones/featured` | milestones |
+| GET | `/skill-milestones/me` | milestones |
+| DELETE | `/skill-milestones/me/:userMilestoneId` | milestones |
+| GET | `/skill-milestones/me/:userMilestoneId/attempts` | milestones |
+| POST | `/skill-milestones/me/:userMilestoneId/log` | milestones |
+| PUT | `/skill-milestones/me/:userMilestoneId/pause` | milestones |
+| PUT | `/skill-milestones/me/:userMilestoneId/progress` | milestones |
+| POST | `/skill-milestones/start` | milestones |
+| POST | `/skills/achieve` | skills |
+| GET | `/skills/history` | skills |
+| GET | `/skills/nodes/:nodeId` | skills |
+| GET | `/skills/nodes/:nodeId/leaderboard` | skills |
+| PUT | `/skills/nodes/:nodeId/notes` | skills |
+| POST | `/skills/practice` | skills |
+| GET | `/skills/progress` | skills |
+| GET | `/skills/trees` | skills |
+| GET | `/skills/trees/:treeId` | skills |
+| GET | `/skills/trees/:treeId/progress` | skills |
 | GET | `/stats/history` | stats |
 | GET | `/stats/info` | stats |
 | GET | `/stats/leaderboards` | stats |
@@ -335,13 +694,50 @@ Components are organized by feature:
 | PUT | `/stats/profile/extended` | stats |
 | POST | `/stats/recalculate` | stats |
 | GET | `/stats/user/:userId` | stats |
+| GET | `/store/categories` | credits |
+| GET | `/store/featured` | credits |
+| GET | `/store/inventory` | credits |
+| GET | `/store/items` | credits |
+| GET | `/store/items/:sku` | credits |
+| GET | `/store/owns/:sku` | credits |
+| POST | `/store/purchase` | credits |
 | GET | `/tips` | tips |
 | POST | `/tips/:id/seen` | tips |
 | POST | `/trace/frontend-log` | misc |
+| GET | `/trainers` | trainers |
+| GET | `/trainers/:userId` | trainers |
+| GET | `/trainers/me` | trainers |
+| GET | `/trainers/me/classes` | trainers |
+| PUT | `/trainers/me/status` | trainers |
+| POST | `/trainers/profile` | trainers |
+| GET | `/trust` | credits |
+| GET | `/trust/tiers` | credits |
 | GET | `/updates` | issues |
 | POST | `/updates` | issues |
+| GET | `/users/:id/achievements` | achievements |
+| GET | `/users/:id/achievements/summary` | achievements |
+| GET | `/users/:id/rank` | leaderboards |
 | POST | `/v1/prescription/generate` | prescription |
-| POST | `/workout/complete` | workouts |
+| GET | `/virtual-hangouts` | virtual-hangouts |
+| GET | `/virtual-hangouts/:id` | virtual-hangouts |
+| GET | `/virtual-hangouts/:id/activity` | virtual-hangouts |
+| POST | `/virtual-hangouts/:id/heartbeat` | virtual-hangouts |
+| POST | `/virtual-hangouts/:id/join` | virtual-hangouts |
+| GET | `/virtual-hangouts/:id/leaderboard` | leaderboards |
+| POST | `/virtual-hangouts/:id/leave` | virtual-hangouts |
+| GET | `/virtual-hangouts/:id/members` | virtual-hangouts |
+| PATCH | `/virtual-hangouts/:id/membership` | virtual-hangouts |
+| GET | `/virtual-hangouts/:id/posts` | virtual-hangouts |
+| POST | `/virtual-hangouts/:id/posts` | virtual-hangouts |
+| POST | `/virtual-hangouts/:id/share-workout` | virtual-hangouts |
+| GET | `/virtual-hangouts/my` | virtual-hangouts |
+| GET | `/virtual-hangouts/recommended` | virtual-hangouts |
+| GET | `/virtual-hangouts/themes` | virtual-hangouts |
+| GET | `/wallet` | credits |
+| GET | `/wallet/earnings` | credits |
+| GET | `/wallet/transactions` | credits |
+| POST | `/wallet/transfer` | credits |
+| GET | `/wallet/transfers` | credits |
 | POST | `/workouts` | workouts |
 | GET | `/workouts/:id` | workouts |
 | GET | `/workouts/me` | workouts |

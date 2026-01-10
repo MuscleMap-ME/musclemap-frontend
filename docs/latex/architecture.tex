@@ -81,7 +81,7 @@
     \textcolor{textsecondary}{\Large Architecture Documentation}
 }
 \author{Auto-generated}
-\date{2026-01-06}
+\date{2026-01-10}
 
 \begin{document}
 
@@ -151,18 +151,23 @@ The monorepo contains 5 packages:
 \section{Frontend Pages}
 % ============================================
 
-The application contains 34 pages:
+The application contains 50 pages:
 
 \begin{longtable}{@{}lcc@{}}
 \toprule
 \textbf{Page} & \textbf{Protected} & \textbf{Description} \\
 \midrule
 \endhead
+Achievements & No & Achievements page \\
 AdminControl & No & AdminControl page \\
+AdminFraud & No & AdminFraud page \\
 AdminIssues & Yes & Admin Issues Page  Admin dashboard for m \\
+AdminMonitoring & Yes & Admin Monitoring Dashboard  Comprehensiv \\
+Buddy & No & Buddy page \\
 CommunityDashboard & Yes & CommunityDashboard Page  Comprehensive c \\
 Competitions & No & Competitions page \\
 Credits & No & Credits page \\
+Crews & Yes & Crews Page  Crew management and Crew War \\
 Dashboard & Yes & Dashboard - MuscleMap Liquid Glass Desig \\
 Design & No & Design Page  Showcases MuscleMap's desig \\
 DesignSystem & No & Design System Showcase  Demonstrates the \\
@@ -170,13 +175,18 @@ DevUpdates & No & Dev Updates Page  Development updates, a \\
 Docs & No & Docs page \\
 Exercises & No & Exercises page \\
 Features & No & Features Page  Showcases MuscleMap featu \\
+Goals & Yes & Goals Page - MuscleMap Liquid Glass Desi \\
+Health & Yes & Health Page  Wearables integration and h \\
 HighFives & No & HighFives page \\
 IssueDetail & Yes & Issue Detail Page  Single issue view wit \\
 Issues & Yes & Issues Page  Bug and issue tracker with: \\
 Journey & Yes & Journey page \\
 Landing & No & Landing page \\
+Leaderboard & No & Leaderboard page \\
+Limitations & Yes & Limitations Page - MuscleMap Liquid Glas \\
 Locations & No & Locations page \\
 Login & Yes & Login page \\
+MartialArts & No & MartialArts page \\
 Messages & No & Messages page \\
 MyIssues & Yes & My Issues Page  User's submitted issues: \\
 NewIssue & Yes & New Issue Page  Create a new bug report, \\
@@ -184,12 +194,18 @@ Onboarding & Yes & Onboarding page \\
 Privacy & No & Privacy Policy Page  Required for App St \\
 Profile & Yes & Profile page \\
 Progression & No & Progression page \\
+PTTests & Yes & PT Tests Page - MuscleMap Liquid Glass D \\
+Rivals & Yes & Rivals Page  1v1 rivalry competition sys \\
 Roadmap & No & Roadmap Page  Public roadmap showing: -  \\
 Science & No & Science Page  Explains the science behin \\
 Settings & No & Settings page \\
 Signup & Yes & Signup page \\
+Skills & No & Skills page \\
 SkinsStore & No & SkinsStore page \\
+Stats & Yes & Stats Page  Character stats display with \\
+Store & No & Store page \\
 Technology & No & Technology Stack Page  Showcases MuscleM \\
+TrainerDashboard & No & TrainerDashboard page \\
 Wallet & No & Wallet page \\
 Workout & No & Workout page \\
 \bottomrule
@@ -200,7 +216,7 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 112 endpoints:
+The API exposes 447 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
@@ -208,35 +224,35 @@ The API exposes 112 endpoints:
 \midrule
 \endhead
 \texttt{GET} & \texttt{/\_\_routes} & misc \\
+\texttt{GET} & \texttt{/achievements/categories} & achievements \\
+\texttt{GET} & \texttt{/achievements/definitions} & achievements \\
+\texttt{GET} & \texttt{/achievements/definitions/:key} & achievements \\
+\texttt{POST} & \texttt{/admin/abuse-check/:userId} & credits \\
+\texttt{POST} & \texttt{/admin/credits/adjust} & credits \\
+\texttt{GET} & \texttt{/admin/credits/audit} & credits \\
+\texttt{POST} & \texttt{/admin/credits/reverse} & credits \\
+\texttt{GET} & \texttt{/admin/disputes} & credits \\
+\texttt{POST} & \texttt{/admin/disputes/:disputeId/messages} & credits \\
+\texttt{POST} & \texttt{/admin/disputes/:disputeId/resolve} & credits \\
+\texttt{PATCH} & \texttt{/admin/disputes/:disputeId/status} & credits \\
+\texttt{GET} & \texttt{/admin/economy/metrics} & credits \\
+\texttt{GET} & \texttt{/admin/escrow} & credits \\
+\texttt{POST} & \texttt{/admin/escrow/:escrowId/refund} & credits \\
+\texttt{POST} & \texttt{/admin/escrow/:escrowId/release} & credits \\
+\texttt{GET} & \texttt{/admin/fraud-flags} & credits \\
+\texttt{POST} & \texttt{/admin/fraud-flags} & credits \\
+\texttt{POST} & \texttt{/admin/fraud-flags/:flagId/review} & credits \\
 \texttt{GET} & \texttt{/admin/issues} & issues \\
 \texttt{POST} & \texttt{/admin/issues/bulk} & issues \\
-\texttt{GET} & \texttt{/alternatives/low-impact} & misc \\
-\texttt{GET} & \texttt{/alternatives/seated} & misc \\
-\texttt{GET} & \texttt{/archetypes} & journey \\
-\texttt{GET} & \texttt{/archetypes/:id/levels} & journey \\
-\texttt{POST} & \texttt{/archetypes/select} & journey \\
-\texttt{POST} & \texttt{/auth/login} & auth \\
-\texttt{GET} & \texttt{/auth/me} & auth \\
-\texttt{GET} & \texttt{/auth/me/capabilities} & auth \\
-\texttt{POST} & \texttt{/auth/register} & auth \\
-\texttt{GET} & \texttt{/community/feed} & community \\
-\texttt{GET} & \texttt{/community/monitor} & community \\
-\texttt{GET} & \texttt{/community/percentile} & community \\
-\texttt{GET} & \texttt{/community/presence} & community \\
-\texttt{POST} & \texttt{/community/presence} & community \\
-\texttt{GET} & \texttt{/community/stats} & community \\
-\texttt{GET} & \texttt{/community/ws} & community \\
-\texttt{GET} & \texttt{/competitions} & misc \\
-\texttt{GET} & \texttt{/competitions/:id} & misc \\
-\texttt{GET} & \texttt{/credits/balance} & economy \\
-\texttt{GET} & \texttt{/economy/actions} & economy \\
-\texttt{GET} & \texttt{/economy/balance} & economy \\
-\texttt{POST} & \texttt{/economy/charge} & economy \\
-\texttt{GET} & \texttt{/economy/history} & economy \\
-\texttt{GET} & \texttt{/economy/pricing} & economy \\
-\texttt{GET} & \texttt{/economy/transactions} & economy \\
-\texttt{GET} & \texttt{/economy/wallet} & economy \\
-\texttt{GET} & \texttt{/entitlements} & misc \\
+\texttt{POST} & \texttt{/admin/leaderboard-rewards/trigger} & credits \\
+\texttt{GET} & \texttt{/admin/rate-limit-status/:userId} & credits \\
+\texttt{GET} & \texttt{/admin/rate-limits} & credits \\
+\texttt{PUT} & \texttt{/admin/rate-limits/:action} & credits \\
+\texttt{POST} & \texttt{/admin/store/grant} & credits \\
+\texttt{POST} & \texttt{/admin/store/revoke} & credits \\
+\texttt{PUT} & \texttt{/admin/trainers/:userId/status} & trainers \\
+\texttt{GET} & \texttt{/admin/trust/:userId} & credits \\
+\texttt{POST} & \texttt{/admin/trust/:userId/override} & credits \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}

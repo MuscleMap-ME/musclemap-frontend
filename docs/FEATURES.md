@@ -1,10 +1,10 @@
 # MuscleMap Features
 
-> Updated: 2026-01-09
+> Auto-generated on 2026-01-10
 
 ## Overview
 
-MuscleMap is a comprehensive fitness platform with 35+ pages/features across multiple categories.
+MuscleMap is a comprehensive fitness platform with 50 pages/features across multiple categories.
 
 ## Core Features
 
@@ -32,37 +32,6 @@ Progression page
 Workout page
 - **Route**: `/workout`
 - **Protected**: No (public)
-
-### Skills (NEW)
-Gymnastics/Calisthenics Skill Progression Trees - Master bodyweight skills from beginner to elite with 7 skill trees and 45+ skills including handstands, planche, front lever, muscle-ups, and more.
-- **Route**: `/skills`, `/skills/:treeId`
-- **Protected**: No (public), progress tracking requires login
-- **Features**:
-  - 7 skill tree categories (Handstands, Straight-Arm, Pulling, Pushing, Core, Rings, Dynamic)
-  - 45+ individual skills with prerequisites
-  - Practice session logging
-  - Progress tracking with tier-based visualization
-  - Skill leaderboards
-  - XP and credit rewards for skill achievements
-- **Planned Expansion**: Full USA Gymnastics (USAG) program coverage
-  - Women's Artistic Gymnastics (Vault, Uneven Bars, Balance Beam, Floor)
-  - Men's Artistic Gymnastics (Floor, Pommel Horse, Rings, Vault, P-Bars, High Bar)
-  - Junior Olympic levels 1-10 + Elite
-  - Boys and Girls / Men and Women divisions
-  - 500+ official USAG skills with difficulty values
-
-### Martial Arts (NEW)
-Combat technique training with multiple disciplines and military combatives.
-- **Route**: `/martial-arts`, `/martial-arts/:disciplineId`
-- **Protected**: No (public), progress tracking requires login
-- **Features**:
-  - 10 disciplines: Boxing, Kickboxing, Muay Thai, BJJ, Wrestling, Judo, Self-Defense, MCMAP, Army Combatives, Krav Maga
-  - 60+ techniques across all disciplines
-  - Proficiency-based progression (0-100%)
-  - Military/tactical toggle for service members
-  - Practice logging with reps, rounds, partner drills
-  - Category grouping (stances, strikes, submissions, etc.)
-  - XP and credit rewards for technique mastery
 
 ## Community
 
@@ -235,14 +204,6 @@ Signup page
 - Achievements and badges
 - Character stats (RPG-style)
 - Skins and customization
-- Skill progression trees (gymnastics/calisthenics)
-
-### Credits Economy
-- Virtual currency earned through workouts and achievements
-- Store for cosmetics and buddy items
-- Training Buddy companion that evolves with your progress
-- Leaderboard rewards (daily/weekly/monthly)
-- Anti-abuse fraud detection
 
 ### AI Integration
 - Personalized workout recommendations

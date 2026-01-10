@@ -1,6 +1,6 @@
 # MuscleMap API Reference
 
-> Updated: 2026-01-09
+> Auto-generated on 2026-01-10
 
 ## Base URL
 
@@ -47,6 +47,85 @@ Authorization: Bearer <token>
 | `POST` | `/trace/frontend-log` | Yes |
 
 
+### Achievements
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/achievements/categories` | Yes |
+| `GET` | `/achievements/definitions` | Yes |
+| `GET` | `/achievements/definitions/:key` | Yes |
+| `GET` | `/hangouts/:id/achievements` | Yes |
+| `GET` | `/me/achievements` | Yes |
+| `GET` | `/me/achievements/summary` | Yes |
+| `GET` | `/users/:id/achievements` | Yes |
+| `GET` | `/users/:id/achievements/summary` | Yes |
+
+
+### Credits
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/admin/abuse-check/:userId` | Yes |
+| `POST` | `/admin/credits/adjust` | Yes |
+| `GET` | `/admin/credits/audit` | Yes |
+| `POST` | `/admin/credits/reverse` | Yes |
+| `GET` | `/admin/disputes` | Yes |
+| `POST` | `/admin/disputes/:disputeId/messages` | Yes |
+| `POST` | `/admin/disputes/:disputeId/resolve` | Yes |
+| `PATCH` | `/admin/disputes/:disputeId/status` | Yes |
+| `GET` | `/admin/economy/metrics` | Yes |
+| `GET` | `/admin/escrow` | Yes |
+| `POST` | `/admin/escrow/:escrowId/refund` | Yes |
+| `POST` | `/admin/escrow/:escrowId/release` | Yes |
+| `GET` | `/admin/fraud-flags` | Yes |
+| `POST` | `/admin/fraud-flags` | Yes |
+| `POST` | `/admin/fraud-flags/:flagId/review` | Yes |
+| `POST` | `/admin/leaderboard-rewards/trigger` | Yes |
+| `GET` | `/admin/rate-limit-status/:userId` | Yes |
+| `GET` | `/admin/rate-limits` | Yes |
+| `PUT` | `/admin/rate-limits/:action` | Yes |
+| `POST` | `/admin/store/grant` | Yes |
+| `POST` | `/admin/store/revoke` | Yes |
+| `GET` | `/admin/trust/:userId` | Yes |
+| `POST` | `/admin/trust/:userId/override` | Yes |
+| `DELETE` | `/admin/trust/:userId/override` | Yes |
+| `GET` | `/admin/wallet/:userId` | Yes |
+| `POST` | `/admin/wallet/freeze` | Yes |
+| `POST` | `/admin/wallet/unfreeze` | Yes |
+| `GET` | `/buddy` | Yes |
+| `POST` | `/buddy` | Yes |
+| `POST` | `/buddy/equip` | Yes |
+| `GET` | `/buddy/evolution/:species` | Yes |
+| `GET` | `/buddy/leaderboard` | Yes |
+| `PUT` | `/buddy/nickname` | Yes |
+| `PUT` | `/buddy/settings` | Yes |
+| `PUT` | `/buddy/species` | Yes |
+| `POST` | `/buddy/unequip` | Yes |
+| `GET` | `/classes/browse` | Yes |
+| `GET` | `/disputes` | Yes |
+| `POST` | `/disputes` | Yes |
+| `GET` | `/disputes/:disputeId` | Yes |
+| `GET` | `/disputes/:disputeId/messages` | Yes |
+| `POST` | `/disputes/:disputeId/messages` | Yes |
+| `GET` | `/earning/rules` | Yes |
+| `GET` | `/escrow` | Yes |
+| `GET` | `/escrow/:escrowId` | Yes |
+| `GET` | `/store/categories` | Yes |
+| `GET` | `/store/featured` | Yes |
+| `GET` | `/store/inventory` | Yes |
+| `GET` | `/store/items` | Yes |
+| `GET` | `/store/items/:sku` | Yes |
+| `GET` | `/store/owns/:sku` | Yes |
+| `POST` | `/store/purchase` | Yes |
+| `GET` | `/trust` | Yes |
+| `GET` | `/trust/tiers` | Yes |
+| `GET` | `/wallet` | Yes |
+| `GET` | `/wallet/earnings` | Yes |
+| `GET` | `/wallet/transactions` | Yes |
+| `POST` | `/wallet/transfer` | Yes |
+| `GET` | `/wallet/transfers` | Yes |
+
+
 ### Issues
 
 | Method | Endpoint | Auth Required |
@@ -72,6 +151,38 @@ Authorization: Bearer <token>
 | `POST` | `/updates` | Yes |
 
 
+### Trainers
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `PUT` | `/admin/trainers/:userId/status` | Yes |
+| `POST` | `/classes` | Yes |
+| `GET` | `/classes` | Yes |
+| `GET` | `/classes/:classId` | Yes |
+| `PUT` | `/classes/:classId` | Yes |
+| `POST` | `/classes/:classId/attendance` | Yes |
+| `GET` | `/classes/:classId/attendance` | Yes |
+| `POST` | `/classes/:classId/cancel` | Yes |
+| `POST` | `/classes/:classId/enroll` | Yes |
+| `GET` | `/classes/:classId/enrollments` | Yes |
+| `POST` | `/classes/:classId/unenroll` | Yes |
+| `GET` | `/me/enrollments` | Yes |
+| `GET` | `/trainers` | Yes |
+| `GET` | `/trainers/:userId` | Yes |
+| `GET` | `/trainers/me` | Yes |
+| `GET` | `/trainers/me/classes` | Yes |
+| `PUT` | `/trainers/me/status` | Yes |
+| `POST` | `/trainers/profile` | Yes |
+
+
+### Archetype-communities
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/archetype/suggested-communities` | Yes |
+| `GET` | `/archetypes/communities` | Yes |
+
+
 ### Journey
 
 | Method | Endpoint | Auth Required |
@@ -81,6 +192,21 @@ Authorization: Bearer <token>
 | `POST` | `/archetypes/select` | Yes |
 | `GET` | `/journey` | Yes |
 | `GET` | `/journey/progress` | Yes |
+
+
+### Pt-tests
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/archetypes/by-category/:categoryId` | Yes |
+| `GET` | `/archetypes/categories` | Yes |
+| `GET` | `/pt-tests` | Yes |
+| `GET` | `/pt-tests/:id` | Yes |
+| `GET` | `/pt-tests/leaderboard/:testId` | Yes |
+| `GET` | `/pt-tests/my-archetype` | Yes |
+| `POST` | `/pt-tests/results` | Yes |
+| `GET` | `/pt-tests/results` | Yes |
+| `GET` | `/pt-tests/results/:id` | Yes |
 
 
 ### Auth
@@ -95,6 +221,87 @@ Authorization: Bearer <token>
 | `PUT` | `/profile` | Yes |
 
 
+### Social
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/buddy/matches` | Yes |
+| `GET` | `/buddy/pairs` | Yes |
+| `GET` | `/buddy/preferences` | Yes |
+| `PUT` | `/buddy/preferences` | Yes |
+| `GET` | `/buddy/requests` | Yes |
+| `GET` | `/friend-requests` | Yes |
+| `GET` | `/friends` | Yes |
+
+
+### Bulletin
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/bulletin/comments/:commentId/vote` | Yes |
+| `GET` | `/bulletin/posts/:postId` | Yes |
+| `GET` | `/bulletin/posts/:postId/comments` | Yes |
+| `POST` | `/bulletin/posts/:postId/comments` | Yes |
+| `POST` | `/bulletin/posts/:postId/hide` | Yes |
+| `POST` | `/bulletin/posts/:postId/pin` | Yes |
+| `POST` | `/bulletin/posts/:postId/unhide` | Yes |
+| `POST` | `/bulletin/posts/:postId/unpin` | Yes |
+| `POST` | `/bulletin/posts/:postId/vote` | Yes |
+
+
+### Career
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/career/goals` | Yes |
+| `POST` | `/career/goals` | Yes |
+| `GET` | `/career/goals/:goalId/exercises` | Yes |
+| `PUT` | `/career/goals/:id` | Yes |
+| `DELETE` | `/career/goals/:id` | Yes |
+| `GET` | `/career/readiness` | Yes |
+| `GET` | `/career/readiness/:goalId` | Yes |
+| `POST` | `/career/readiness/:goalId/refresh` | Yes |
+| `GET` | `/career/recertifications` | Yes |
+| `POST` | `/career/recertifications` | Yes |
+| `GET` | `/career/standards` | Yes |
+| `GET` | `/career/standards/:id` | Yes |
+| `GET` | `/career/standards/categories` | Yes |
+| `GET` | `/career/team/:hangoutId` | Yes |
+| `POST` | `/career/team/:hangoutId/enable` | Yes |
+| `POST` | `/career/team/:hangoutId/opt-in` | Yes |
+
+
+### Cohort-preferences
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/cohort-options` | Yes |
+| `GET` | `/me/cohort-preferences` | Yes |
+| `PATCH` | `/me/cohort-preferences` | Yes |
+| `POST` | `/me/leaderboard-opt-in` | Yes |
+| `POST` | `/me/leaderboard-opt-out` | Yes |
+
+
+### Communities
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/communities` | Yes |
+| `GET` | `/communities` | Yes |
+| `POST` | `/communities/:id/events` | Yes |
+| `GET` | `/communities/:id/events` | Yes |
+| `POST` | `/communities/:id/join` | Yes |
+| `POST` | `/communities/:id/leave` | Yes |
+| `GET` | `/communities/:id/members` | Yes |
+| `POST` | `/communities/:id/members/:userId/approve` | Yes |
+| `POST` | `/communities/:id/members/:userId/reject` | Yes |
+| `PATCH` | `/communities/:id/members/:userId/role` | Yes |
+| `GET` | `/communities/:id/posts` | Yes |
+| `POST` | `/communities/:id/posts` | Yes |
+| `GET` | `/communities/:idOrSlug` | Yes |
+| `GET` | `/communities/my` | Yes |
+
+
 ### Community
 
 | Method | Endpoint | Auth Required |
@@ -105,7 +312,27 @@ Authorization: Bearer <token>
 | `GET` | `/community/presence` | Yes |
 | `POST` | `/community/presence` | Yes |
 | `GET` | `/community/stats` | Yes |
+| `GET` | `/community/stats/public` | Yes |
 | `GET` | `/community/ws` | Yes |
+| `GET` | `/community/ws/public` | Yes |
+
+
+### Competition
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/competition/categories` | Yes |
+| `GET` | `/competition/categories/:id` | Yes |
+| `GET` | `/competition/categories/grouped` | Yes |
+| `GET` | `/competition/me` | Yes |
+| `POST` | `/competition/me` | Yes |
+| `DELETE` | `/competition/me` | Yes |
+| `GET` | `/competition/me/countdown` | Yes |
+| `PUT` | `/competition/me/phase` | Yes |
+| `POST` | `/competition/me/show-complete` | Yes |
+| `POST` | `/competition/me/weigh-in` | Yes |
+| `GET` | `/competition/me/weigh-ins` | Yes |
+| `GET` | `/competition/weak-points` | Yes |
 
 
 ### Economy
@@ -120,6 +347,52 @@ Authorization: Bearer <token>
 | `GET` | `/economy/pricing` | Yes |
 | `GET` | `/economy/transactions` | Yes |
 | `GET` | `/economy/wallet` | Yes |
+
+
+### Equipment
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/equipment/categories` | Yes |
+| `GET` | `/equipment/home` | Yes |
+| `PUT` | `/equipment/home` | Yes |
+| `POST` | `/equipment/home` | Yes |
+| `DELETE` | `/equipment/home/:equipmentId` | Yes |
+| `GET` | `/equipment/home/ids` | Yes |
+| `GET` | `/equipment/types` | Yes |
+| `GET` | `/equipment/types/:category` | Yes |
+| `GET` | `/locations/:id/equipment` | Yes |
+| `POST` | `/locations/:id/equipment` | Yes |
+| `GET` | `/locations/:id/equipment/my-reports` | Yes |
+| `GET` | `/locations/:id/equipment/verified` | Yes |
+
+
+### Leaderboards
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/exercises/:id/metrics` | Yes |
+| `GET` | `/hangouts/:id/leaderboard` | Yes |
+| `GET` | `/leaderboards` | Yes |
+| `GET` | `/leaderboards/global` | Yes |
+| `GET` | `/leaderboards/metrics` | Yes |
+| `GET` | `/me/rank` | Yes |
+| `GET` | `/users/:id/rank` | Yes |
+| `GET` | `/virtual-hangouts/:id/leaderboard` | Yes |
+
+
+### Goals
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/goals` | Yes |
+| `POST` | `/goals` | Yes |
+| `GET` | `/goals/:id` | Yes |
+| `PUT` | `/goals/:id` | Yes |
+| `DELETE` | `/goals/:id` | Yes |
+| `POST` | `/goals/:id/milestones` | Yes |
+| `POST` | `/goals/:id/progress` | Yes |
+| `GET` | `/goals/suggestions` | Yes |
 
 
 ### Hangouts
@@ -137,6 +410,117 @@ Authorization: Bearer <token>
 | `GET` | `/hangouts/stats` | Yes |
 | `GET` | `/hangouts/types` | Yes |
 | `GET` | `/me/hangouts` | Yes |
+
+
+### Checkins
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/hangouts/:id/check-in` | Yes |
+| `POST` | `/hangouts/:id/check-in/link-workout` | Yes |
+| `GET` | `/hangouts/:id/check-ins/active` | Yes |
+| `POST` | `/hangouts/:id/check-out` | Yes |
+| `GET` | `/me/check-in` | Yes |
+| `GET` | `/me/check-ins` | Yes |
+
+
+### Health
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/health` | Yes |
+| `GET` | `/health/detailed` | Yes |
+| `GET` | `/health/live` | Yes |
+| `GET` | `/health/ready` | Yes |
+
+
+### Identities
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/identities` | Yes |
+| `GET` | `/identities/all-with-communities` | Yes |
+| `GET` | `/identities/categories` | Yes |
+| `GET` | `/identities/me` | Yes |
+| `GET` | `/identities/suggested-communities` | Yes |
+
+
+### Journeys
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/journeys` | Yes |
+| `POST` | `/journeys` | Yes |
+| `GET` | `/journeys/:id` | Yes |
+| `PUT` | `/journeys/:id` | Yes |
+| `DELETE` | `/journeys/:id` | Yes |
+| `POST` | `/journeys/:id/milestones` | Yes |
+| `POST` | `/journeys/:id/progress` | Yes |
+| `GET` | `/journeys/categories` | Yes |
+| `GET` | `/journeys/categories/:categoryId` | Yes |
+| `GET` | `/journeys/featured` | Yes |
+| `POST` | `/journeys/start` | Yes |
+| `GET` | `/journeys/suggestions` | Yes |
+| `GET` | `/journeys/templates` | Yes |
+| `GET` | `/journeys/templates/:templateId` | Yes |
+
+
+### Limitations
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/limitations` | Yes |
+| `POST` | `/limitations` | Yes |
+| `PUT` | `/limitations/:id` | Yes |
+| `DELETE` | `/limitations/:id` | Yes |
+| `GET` | `/limitations/body-regions` | Yes |
+| `POST` | `/limitations/check-workout` | Yes |
+| `GET` | `/limitations/substitutions/:exerciseId` | Yes |
+
+
+### Martial-arts
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/martial-arts/disciplines` | Yes |
+| `GET` | `/martial-arts/disciplines/:disciplineId` | Yes |
+| `GET` | `/martial-arts/disciplines/:disciplineId/leaderboard` | Yes |
+| `GET` | `/martial-arts/disciplines/:disciplineId/progress` | Yes |
+| `GET` | `/martial-arts/disciplines/:disciplineId/techniques` | Yes |
+| `GET` | `/martial-arts/history` | Yes |
+| `POST` | `/martial-arts/master` | Yes |
+| `POST` | `/martial-arts/practice` | Yes |
+| `GET` | `/martial-arts/progress` | Yes |
+| `GET` | `/martial-arts/techniques/:techniqueId` | Yes |
+| `PUT` | `/martial-arts/techniques/:techniqueId/notes` | Yes |
+
+
+### Mascot
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/mascot/companion/cosmetics/equip` | Yes |
+| `POST` | `/mascot/companion/events/mark-reacted` | Yes |
+| `GET` | `/mascot/companion/events/recent` | Yes |
+| `PATCH` | `/mascot/companion/nickname` | Yes |
+| `PATCH` | `/mascot/companion/settings` | Yes |
+| `GET` | `/mascot/companion/state` | Yes |
+| `GET` | `/mascot/companion/tips/next` | Yes |
+| `GET` | `/mascot/companion/upgrades` | Yes |
+| `POST` | `/mascot/companion/upgrades/:upgradeId/purchase` | Yes |
+| `GET` | `/mascot/global/config` | Yes |
+| `GET` | `/mascot/global/placements` | Yes |
+
+
+### Mentorship
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `PUT` | `/mentor/profile` | Yes |
+| `GET` | `/mentors` | Yes |
+| `GET` | `/mentorship/requests` | Yes |
+| `GET` | `/mentorships/active` | Yes |
+| `GET` | `/mentorships/history` | Yes |
 
 
 ### Messaging
@@ -165,6 +549,69 @@ Authorization: Bearer <token>
 | `POST` | `/tips/:id/seen` | Yes |
 
 
+### Modules
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/modules` | Yes |
+| `GET` | `/modules/:id` | Yes |
+| `POST` | `/modules/:id/waitlist` | Yes |
+| `DELETE` | `/modules/:id/waitlist` | Yes |
+| `GET` | `/modules/coming-soon` | Yes |
+| `GET` | `/modules/waitlist/me` | Yes |
+
+
+### Monitoring
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/monitoring/dashboard` | Yes |
+| `GET` | `/monitoring/errors` | Yes |
+| `POST` | `/monitoring/errors/:id/resolve` | Yes |
+| `POST` | `/monitoring/errors/track` | Yes |
+| `GET` | `/monitoring/health` | Yes |
+| `POST` | `/monitoring/journey/end` | Yes |
+| `POST` | `/monitoring/journey/error` | Yes |
+| `POST` | `/monitoring/journey/start` | Yes |
+| `POST` | `/monitoring/journey/step` | Yes |
+| `GET` | `/monitoring/journeys` | Yes |
+| `GET` | `/monitoring/ping` | Yes |
+| `GET` | `/monitoring/tests/definitions` | Yes |
+| `GET` | `/monitoring/tests/history` | Yes |
+| `POST` | `/monitoring/tests/run` | Yes |
+
+
+### Onboarding
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/onboarding/back` | Yes |
+| `POST` | `/onboarding/complete` | Yes |
+| `POST` | `/onboarding/home-equipment` | Yes |
+| `GET` | `/onboarding/injury-regions` | Yes |
+| `GET` | `/onboarding/intents` | Yes |
+| `GET` | `/onboarding/profile` | Yes |
+| `POST` | `/onboarding/profile` | Yes |
+| `POST` | `/onboarding/skip` | Yes |
+| `POST` | `/onboarding/start` | Yes |
+| `GET` | `/onboarding/state` | Yes |
+| `DELETE` | `/onboarding/state` | Yes |
+| `GET` | `/onboarding/status` | Yes |
+| `POST` | `/onboarding/step` | Yes |
+| `GET` | `/onboarding/steps` | Yes |
+
+
+### Personalization
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/personalization/context` | Yes |
+| `POST` | `/personalization/exercise-check` | Yes |
+| `GET` | `/personalization/plan` | Yes |
+| `GET` | `/personalization/recommendations` | Yes |
+| `GET` | `/personalization/summary` | Yes |
+
+
 ### Prescription
 
 | Method | Endpoint | Auth Required |
@@ -172,6 +619,67 @@ Authorization: Bearer <token>
 | `GET` | `/prescription/:id` | Yes |
 | `POST` | `/prescription/generate` | Yes |
 | `POST` | `/v1/prescription/generate` | Yes |
+
+
+### Privacy
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/privacy` | Yes |
+| `PUT` | `/privacy` | Yes |
+| `POST` | `/privacy/disable-minimalist` | Yes |
+| `POST` | `/privacy/enable-minimalist` | Yes |
+| `GET` | `/privacy/summary` | Yes |
+
+
+### Content-reports
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/reports` | Yes |
+| `GET` | `/reports/my` | Yes |
+| `GET` | `/reports/stats` | Yes |
+
+
+### Community-resources
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/resources/most-helpful` | Yes |
+
+
+### Milestones
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/skill-milestones` | Yes |
+| `GET` | `/skill-milestones/:id` | Yes |
+| `GET` | `/skill-milestones/categories` | Yes |
+| `GET` | `/skill-milestones/categories/:category` | Yes |
+| `GET` | `/skill-milestones/featured` | Yes |
+| `GET` | `/skill-milestones/me` | Yes |
+| `DELETE` | `/skill-milestones/me/:userMilestoneId` | Yes |
+| `GET` | `/skill-milestones/me/:userMilestoneId/attempts` | Yes |
+| `POST` | `/skill-milestones/me/:userMilestoneId/log` | Yes |
+| `PUT` | `/skill-milestones/me/:userMilestoneId/pause` | Yes |
+| `PUT` | `/skill-milestones/me/:userMilestoneId/progress` | Yes |
+| `POST` | `/skill-milestones/start` | Yes |
+
+
+### Skills
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/skills/achieve` | Yes |
+| `GET` | `/skills/history` | Yes |
+| `GET` | `/skills/nodes/:nodeId` | Yes |
+| `GET` | `/skills/nodes/:nodeId/leaderboard` | Yes |
+| `PUT` | `/skills/nodes/:nodeId/notes` | Yes |
+| `POST` | `/skills/practice` | Yes |
+| `GET` | `/skills/progress` | Yes |
+| `GET` | `/skills/trees` | Yes |
+| `GET` | `/skills/trees/:treeId` | Yes |
+| `GET` | `/skills/trees/:treeId/progress` | Yes |
 
 
 ### Stats
@@ -189,50 +697,36 @@ Authorization: Bearer <token>
 | `GET` | `/stats/user/:userId` | Yes |
 
 
+### Virtual-hangouts
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/virtual-hangouts` | Yes |
+| `GET` | `/virtual-hangouts/:id` | Yes |
+| `GET` | `/virtual-hangouts/:id/activity` | Yes |
+| `POST` | `/virtual-hangouts/:id/heartbeat` | Yes |
+| `POST` | `/virtual-hangouts/:id/join` | Yes |
+| `POST` | `/virtual-hangouts/:id/leave` | Yes |
+| `GET` | `/virtual-hangouts/:id/members` | Yes |
+| `PATCH` | `/virtual-hangouts/:id/membership` | Yes |
+| `GET` | `/virtual-hangouts/:id/posts` | Yes |
+| `POST` | `/virtual-hangouts/:id/posts` | Yes |
+| `POST` | `/virtual-hangouts/:id/share-workout` | Yes |
+| `GET` | `/virtual-hangouts/my` | Yes |
+| `GET` | `/virtual-hangouts/recommended` | Yes |
+| `GET` | `/virtual-hangouts/themes` | Yes |
+
+
 ### Workouts
 
 | Method | Endpoint | Auth Required |
 |--------|----------|---------------|
-| `POST` | `/workout/complete` | Yes |
 | `POST` | `/workouts` | Yes |
 | `GET` | `/workouts/:id` | Yes |
 | `GET` | `/workouts/me` | Yes |
 | `GET` | `/workouts/me/muscles` | Yes |
 | `GET` | `/workouts/me/stats` | Yes |
 | `POST` | `/workouts/preview` | Yes |
-
-
-### Skills (Gymnastics/Calisthenics)
-
-| Method | Endpoint | Auth Required | Description |
-|--------|----------|---------------|-------------|
-| `GET` | `/skills/trees` | No | List all skill trees |
-| `GET` | `/skills/trees/:id` | No | Get tree with all nodes |
-| `GET` | `/skills/trees/:id/progress` | Yes | Get user progress for tree |
-| `GET` | `/skills/nodes/:id` | No | Get specific skill node |
-| `GET` | `/skills/nodes/:id/leaderboard` | No | Get skill leaderboard |
-| `GET` | `/skills/progress` | Yes | Get user's overall skill summary |
-| `POST` | `/skills/practice` | Yes | Log a practice session |
-| `POST` | `/skills/achieve` | Yes | Mark skill as achieved |
-| `GET` | `/skills/history` | Yes | Get practice history |
-| `PUT` | `/skills/nodes/:id/notes` | Yes | Update notes for a skill |
-
-
-### Martial Arts
-
-| Method | Endpoint | Auth Required | Description |
-|--------|----------|---------------|-------------|
-| `GET` | `/martial-arts/disciplines` | No | List all disciplines (optionally filter by ?military=true) |
-| `GET` | `/martial-arts/disciplines/:id` | No | Get discipline with categories |
-| `GET` | `/martial-arts/disciplines/:id/techniques` | No | Get techniques for a discipline |
-| `GET` | `/martial-arts/disciplines/:id/progress` | Yes | Get user progress for discipline |
-| `GET` | `/martial-arts/disciplines/:id/leaderboard` | No | Get discipline leaderboard |
-| `GET` | `/martial-arts/techniques/:id` | No | Get specific technique |
-| `GET` | `/martial-arts/progress` | Yes | Get user's overall martial arts summary |
-| `POST` | `/martial-arts/practice` | Yes | Log a practice session |
-| `POST` | `/martial-arts/master` | Yes | Mark technique as mastered |
-| `GET` | `/martial-arts/history` | Yes | Get practice history |
-| `PUT` | `/martial-arts/techniques/:id/notes` | Yes | Update notes for a technique |
 
 
 ## Common Response Format
