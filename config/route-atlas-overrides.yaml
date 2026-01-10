@@ -1,0 +1,47 @@
+# Route Atlas Override Configuration
+# This file allows manual customization of route metadata for the Visual Architecture Maps
+
+# Route metadata overrides
+routes:
+  dashboard:
+    description: "Your personal training hub with daily tips, stats, and quick actions"
+    badge: null
+
+  workout:
+    description: "Log exercises, sets, reps, and track muscle activation in real-time"
+
+  skills:
+    description: "7 skill trees with 45+ skills across strength, endurance, flexibility, and more"
+
+  martial-arts:
+    description: "10 martial arts disciplines with 60+ techniques and progression tracking"
+
+  community:
+    description: "Real-time activity feed, geographic map view, and community statistics"
+
+  credits:
+    description: "Earn and spend credits - V2 features include trust tiers, escrow, and disputes"
+
+# Category display order (optional - overrides default)
+categoryOrder:
+  - core
+  - community
+  - account
+  - health
+  - docs
+  - issues
+  - auth
+  - admin
+
+# Hidden routes (won't appear in public atlas)
+hiddenRoutes:
+  - admin-control
+  - admin-issues
+  - admin-monitoring
+
+# Routes to highlight as "recommended" for new users
+recommendedForNewUsers:
+  - dashboard
+  - journey
+  - skills
+  - docs

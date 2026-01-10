@@ -2,6 +2,8 @@ import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import LiveCommunityStats from '../components/landing/LiveCommunityStats';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { RouteAtlas } from '../components/atlas';
 
 export default function Landing() {
   return (
@@ -172,6 +174,43 @@ export default function Landing() {
 
       {/* Live Community Stats */}
       <LiveCommunityStats />
+
+      {/* Visual Architecture Map - Feature Flagged */}
+      {FEATURE_FLAGS.ATLAS_ENABLED && (
+        <section className="py-20 px-6 border-t border-white/5">
+          <div className="max-w-5xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-center mb-8"
+            >
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                <span
+                  style={{
+                    background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Explore MuscleMap
+                </span>
+              </h2>
+              <p className="text-gray-400 max-w-2xl mx-auto">
+                Navigate every feature with our interactive site map. Click any node to explore.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <RouteAtlas height={480} />
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* How It Works - Visual Architecture */}
       <section className="py-20 px-6 border-t border-white/5">

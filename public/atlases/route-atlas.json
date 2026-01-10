@@ -1,0 +1,111 @@
+{
+  "version": "1.0.0",
+  "generated": "static",
+  "categories": [
+    {
+      "id": "core",
+      "label": "Core",
+      "color": "#3b82f6",
+      "icon": "activity",
+      "routes": [
+        { "id": "dashboard", "path": "/dashboard", "label": "Dashboard", "description": "Your personal training hub", "protection": "protected" },
+        { "id": "workout", "path": "/workout", "label": "Workout", "description": "Log training sessions", "protection": "protected" },
+        { "id": "exercises", "path": "/exercises", "label": "Exercises", "description": "65+ exercises with muscle data", "protection": "protected" },
+        { "id": "journey", "path": "/journey", "label": "Journey", "description": "Personalized training path", "protection": "protected" },
+        { "id": "progression", "path": "/progression", "label": "Progression", "description": "Track strength gains", "protection": "protected" },
+        { "id": "skills", "path": "/skills", "label": "Skills", "description": "7 skill trees with 45+ skills", "protection": "public" },
+        { "id": "martial-arts", "path": "/martial-arts", "label": "Martial Arts", "description": "10 disciplines, 60+ techniques", "protection": "public" }
+      ]
+    },
+    {
+      "id": "community",
+      "label": "Community",
+      "color": "#22c55e",
+      "icon": "users",
+      "routes": [
+        { "id": "community", "path": "/community", "label": "Community Hub", "description": "Feed, map, and stats", "protection": "protected" },
+        { "id": "crews", "path": "/crews", "label": "Crews", "description": "Team up with others", "protection": "protected" },
+        { "id": "rivals", "path": "/rivals", "label": "Rivals", "description": "Friendly competition", "protection": "protected" },
+        { "id": "competitions", "path": "/competitions", "label": "Competitions", "description": "Compete for rewards", "protection": "protected" },
+        { "id": "highfives", "path": "/highfives", "label": "High Fives", "description": "Celebrate achievements", "protection": "protected" },
+        { "id": "locations", "path": "/locations", "label": "Locations", "description": "Find training spots", "protection": "protected" },
+        { "id": "messages", "path": "/messages", "label": "Messages", "description": "Connect with others", "protection": "protected" }
+      ]
+    },
+    {
+      "id": "account",
+      "label": "Account",
+      "color": "#f59e0b",
+      "icon": "wallet",
+      "routes": [
+        { "id": "profile", "path": "/profile", "label": "Profile", "description": "Your public profile", "protection": "protected" },
+        { "id": "settings", "path": "/settings", "label": "Settings", "description": "App preferences", "protection": "protected" },
+        { "id": "credits", "path": "/credits", "label": "Credits", "description": "Credit balance and history", "protection": "protected" },
+        { "id": "wallet", "path": "/wallet", "label": "Wallet", "description": "Manage payments", "protection": "protected" },
+        { "id": "skins", "path": "/skins", "label": "Skins Store", "description": "Customize your look", "protection": "protected" },
+        { "id": "stats", "path": "/stats", "label": "Stats", "description": "Character stats", "protection": "protected" }
+      ]
+    },
+    {
+      "id": "health",
+      "label": "Health & Goals",
+      "color": "#ec4899",
+      "icon": "heart",
+      "routes": [
+        { "id": "health", "path": "/health", "label": "Health", "description": "Wearable integrations", "protection": "protected" },
+        { "id": "goals", "path": "/goals", "label": "Goals", "description": "Set and track goals", "protection": "protected" },
+        { "id": "limitations", "path": "/limitations", "label": "Limitations", "description": "Injury accommodations", "protection": "protected" },
+        { "id": "pt-tests", "path": "/pt-tests", "label": "PT Tests", "description": "Military fitness tests", "protection": "protected" }
+      ]
+    },
+    {
+      "id": "docs",
+      "label": "Documentation",
+      "color": "#8b5cf6",
+      "icon": "book-open",
+      "routes": [
+        { "id": "landing", "path": "/", "label": "Home", "description": "Welcome to MuscleMap", "protection": "public" },
+        { "id": "features", "path": "/features", "label": "Features", "description": "Feature overview", "protection": "public" },
+        { "id": "technology", "path": "/technology", "label": "Technology", "description": "Tech stack", "protection": "public" },
+        { "id": "science", "path": "/science", "label": "Science", "description": "The methodology", "protection": "public" },
+        { "id": "design", "path": "/design", "label": "Design", "description": "Design system", "protection": "public" },
+        { "id": "docs", "path": "/docs", "label": "Docs", "description": "Full documentation", "protection": "public" }
+      ]
+    },
+    {
+      "id": "issues",
+      "label": "Issue Tracker",
+      "color": "#ef4444",
+      "icon": "bug",
+      "routes": [
+        { "id": "issues", "path": "/issues", "label": "Issues", "description": "Report and track bugs", "protection": "public" },
+        { "id": "updates", "path": "/updates", "label": "Dev Updates", "description": "Latest changes", "protection": "public" },
+        { "id": "roadmap", "path": "/roadmap", "label": "Roadmap", "description": "Feature roadmap", "protection": "public" },
+        { "id": "new-issue", "path": "/issues/new", "label": "New Issue", "description": "Submit a bug report", "protection": "protected" },
+        { "id": "my-issues", "path": "/my-issues", "label": "My Issues", "description": "Your submissions", "protection": "protected" }
+      ]
+    },
+    {
+      "id": "auth",
+      "label": "Auth",
+      "color": "#6b7280",
+      "icon": "log-in",
+      "routes": [
+        { "id": "login", "path": "/login", "label": "Login", "description": "Sign in to your account", "protection": "public" },
+        { "id": "signup", "path": "/signup", "label": "Sign Up", "description": "Create an account", "protection": "public" },
+        { "id": "onboarding", "path": "/onboarding", "label": "Onboarding", "description": "Get started", "protection": "protected" }
+      ]
+    },
+    {
+      "id": "admin",
+      "label": "Admin",
+      "color": "#991b1b",
+      "icon": "shield",
+      "routes": [
+        { "id": "admin-control", "path": "/admin-control", "label": "Admin Control", "description": "Admin dashboard", "protection": "admin" },
+        { "id": "admin-issues", "path": "/admin/issues", "label": "Manage Issues", "description": "Issue administration", "protection": "admin" },
+        { "id": "admin-monitoring", "path": "/admin/monitoring", "label": "Monitoring", "description": "System monitoring", "protection": "admin" }
+      ]
+    }
+  ]
+}

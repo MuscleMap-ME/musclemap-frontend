@@ -13,6 +13,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { useAuth } from '../store/authStore';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { RoadmapAtlas } from '../components/atlas';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -273,6 +275,22 @@ export default function Roadmap() {
           </p>
         </div>
       </div>
+
+      {/* Visual Roadmap Atlas */}
+      {FEATURE_FLAGS.ATLAS_ENABLED && (
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-2xl">🗺️</span>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Feature Timeline</h2>
+                <p className="text-sm text-gray-400">Visual overview of completed and upcoming features</p>
+              </div>
+            </div>
+            <RoadmapAtlas />
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">

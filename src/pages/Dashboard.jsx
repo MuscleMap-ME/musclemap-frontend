@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import { DailyTip, MilestoneProgress } from '../components/tips';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { DashboardAtlas } from '../components/atlas';
 
 // Glass components
 import {
@@ -1003,6 +1005,13 @@ export default function Dashboard() {
                 <MilestoneProgress limit={4} />
               </GlassSurface>
             </div>
+
+            {/* Site Navigation Atlas */}
+            {FEATURE_FLAGS.ATLAS_ENABLED && (
+              <div className="mb-8">
+                <DashboardAtlas />
+              </div>
+            )}
 
             {/* Recent Activity */}
             <div className="mb-8">

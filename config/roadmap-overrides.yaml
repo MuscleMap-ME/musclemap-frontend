@@ -1,0 +1,130 @@
+# Roadmap Atlas Override Configuration
+# Maps git commit patterns to feature clusters and assigns phases
+
+# Phase definitions (no dates - just labels)
+phaseLabels:
+  1: "Foundation"
+  2: "Core Features"
+  3: "Community & Social"
+  4: "Economy & Progression"
+  5: "Polish & Scale"
+
+# Feature cluster definitions
+clusters:
+  - id: "foundation"
+    label: "Foundation"
+    description: "Core infrastructure, authentication, and basic workout tracking"
+    mergePatterns:
+      - "auth/*"
+      - "infrastructure/*"
+    phase: 1
+    status: completed
+
+  - id: "muscle-system"
+    label: "Muscle Visualization"
+    description: "65+ exercises with real-time muscle activation tracking"
+    mergePatterns:
+      - "exercises/*"
+      - "muscles/*"
+    phase: 1
+    status: completed
+
+  - id: "workout-logging"
+    label: "Workout Logging"
+    description: "Log sets, reps, weight with automatic progress tracking"
+    mergePatterns:
+      - "workouts/*"
+      - "progression/*"
+    phase: 1
+    status: completed
+
+  - id: "journey-system"
+    label: "Journey System"
+    description: "Personalized training paths with archetype selection and phases"
+    mergePatterns:
+      - "journey/*"
+      - "onboarding/*"
+    phase: 2
+    status: completed
+
+  - id: "skills-system"
+    label: "Skills & Progression"
+    description: "7 skill trees with 45+ skills, XP, and mastery tracking"
+    mergePatterns:
+      - "skills/*"
+      - "skill-trees/*"
+    phase: 2
+    status: completed
+    relatedRoutes:
+      - skills
+
+  - id: "martial-arts"
+    label: "Martial Arts Training"
+    description: "10 disciplines with techniques, kata, and rank progression"
+    mergePatterns:
+      - "martial-arts/*"
+    phase: 2
+    status: completed
+    relatedRoutes:
+      - martial-arts
+
+  - id: "community-v1"
+    label: "Community Foundation"
+    description: "Crews, rivalries, competitions, and social features"
+    mergePatterns:
+      - "community/*"
+      - "crews/*"
+      - "social/*"
+      - "rivals/*"
+    phase: 3
+    status: completed
+
+  - id: "messaging"
+    label: "Messaging System"
+    description: "Direct messaging, conversations, and notifications"
+    mergePatterns:
+      - "messaging/*"
+      - "notifications/*"
+    phase: 3
+    status: completed
+
+  - id: "credits-economy"
+    label: "Credits Economy V1"
+    description: "Virtual currency system with earning, spending, and transfers"
+    mergePatterns:
+      - "credits/*"
+      - "economy/*"
+    phase: 4
+    status: completed
+
+  - id: "credits-v2"
+    label: "Credits Economy V2"
+    description: "Trust tiers, escrow system, dispute resolution"
+    mergePatterns:
+      - "credits-v2/*"
+      - "trust/*"
+      - "escrow/*"
+    phase: 4
+    status: completed
+    highlights:
+      - Trust tiers for reputation
+      - Escrow for trainer payments
+      - Dispute resolution system
+
+  - id: "visual-atlas"
+    label: "Visual Architecture Maps"
+    description: "Interactive site navigation and architecture visualization"
+    mergePatterns:
+      - "atlas/*"
+    phase: 5
+    status: in-progress
+    relatedDocs:
+      - VISUAL_ARCHITECTURE_MAPS.md
+
+  - id: "mobile-app"
+    label: "Mobile App"
+    description: "Native iOS and Android apps via Expo"
+    mergePatterns:
+      - "mobile/*"
+    phase: 5
+    status: planned

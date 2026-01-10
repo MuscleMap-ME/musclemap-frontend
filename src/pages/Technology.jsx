@@ -14,6 +14,8 @@ import {
   GlassProgressBar,
   MeshBackground,
 } from '../components/glass';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { ArchitectureAtlas } from '../components/atlas';
 
 // VGA-style color palette
 const VGA_COLORS = {
@@ -326,6 +328,21 @@ export default function Technology() {
           </VGATerminal>
         </div>
       </section>
+
+      {/* Interactive Architecture Atlas */}
+      {FEATURE_FLAGS.ATLAS_ENABLED && (
+        <section className="px-6 pb-16">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-3xl font-bold text-center mb-8 font-mono">
+              <span style={{ color: VGA_COLORS.brightCyan }}>INTERACTIVE</span>
+              <span className="text-white"> ARCHITECTURE</span>
+            </h2>
+            <GlassSurface className="p-6">
+              <ArchitectureAtlas defaultDiagram="backend" />
+            </GlassSurface>
+          </div>
+        </section>
+      )}
 
       {/* Tech Stack Cards */}
       <section className="px-6 pb-16">

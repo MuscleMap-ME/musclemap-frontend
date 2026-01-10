@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
+import { FEATURE_FLAGS } from '../config/featureFlags';
+import { DocsAtlas } from '../components/atlas';
 
 // Public User Documentation (new!)
 const PUBLIC_DOCS = [
@@ -860,6 +862,31 @@ export default function Docs() {
             Everything you need to know about MuscleMap - from getting started to advanced features.
           </p>
         </motion.div>
+
+        {/* Visual Docs Atlas */}
+        {FEATURE_FLAGS.ATLAS_ENABLED && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-12"
+          >
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Visual Documentation Map</h2>
+                  <p className="text-sm text-gray-400">Navigate documentation visually</p>
+                </div>
+              </div>
+              <DocsAtlas height={320} showSearch={true} />
+            </div>
+          </motion.div>
+        )}
 
         {/* Quick Start CTA */}
         <motion.div
