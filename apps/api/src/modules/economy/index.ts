@@ -314,3 +314,15 @@ export const economyService = {
   },
 };
 
+// Re-export all economy services
+export { walletService } from './wallet.service';
+export { earningService } from './earning.service';
+export { storeService } from './store.service';
+export { buddyService, BUDDY_SPECIES } from './buddy.service';
+export { antiabuseService } from './antiabuse.service';
+export { trainerService } from './trainer.service';
+export { creditService, CreditReason, RefType } from './credit.service';
+export { trustService } from './trust.service';
+export { escrowService } from './escrow.service';
+export { disputeService } from './dispute.service';
+
