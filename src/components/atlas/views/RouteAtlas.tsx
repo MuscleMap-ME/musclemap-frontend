@@ -15,7 +15,6 @@ import ReactFlow, {
   useReactFlow,
   Node,
   Edge,
-  NodeMouseHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -236,13 +235,6 @@ function RouteAtlasInner({
     navigate(path);
   }, [navigate]);
 
-  // Node click handler (backup for direct node clicks)
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-    if (node.type === 'routeNode' && node.data?.route?.path) {
-      navigate(node.data.route.path);
-    }
-  }, [navigate]);
-
   // Generate layout
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => generateLayout(
@@ -271,7 +263,7 @@ function RouteAtlasInner({
     setEdges(newEdges);
 
     // Fit view after layout change
-    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+    setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 100);
   }, [manifest, location.pathname, highlightedIds, activeCategories, handleNavigate, setNodes, setEdges, fitView]);
 
   // Toggle category filter
@@ -314,23 +306,20 @@ function RouteAtlasInner({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2, minZoom: 0.5, maxZoom: 1.2 }}
-        minZoom={0.4}
-        maxZoom={1.5}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        fitViewOptions={{ padding: 0.15, includeHiddenNodes: false }}
+        minZoom={0.3}
+        maxZoom={2}
         proOptions={{ hideAttribution: true }}
         style={{ background: 'transparent' }}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={true}
-        selectNodesOnDrag={false}
+        elementsSelectable={false}
         panOnDrag={true}
         zoomOnScroll={true}
         zoomOnPinch={true}
-        zoomOnDoubleClick={true}
+        zoomOnDoubleClick={false}
       >
         <Background
           variant={BackgroundVariant.Dots}

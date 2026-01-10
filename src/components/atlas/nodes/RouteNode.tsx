@@ -2,9 +2,10 @@
  * RouteNode - Custom React Flow node for route visualization
  *
  * Displays a route as a glass-styled node with protection indicators.
+ * Click to show tooltip with description and Go button.
  */
 
-import React, { memo } from 'react';
+import React, { memo, useState, useRef, useEffect } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import type { RouteNodeData } from '../atlasTypes';
 
@@ -22,10 +23,47 @@ const protectionIcons = {
   ),
 };
 
+const protectionLabels = {
+  public: 'Public',
+  protected: 'Login required',
+  admin: 'Admin only',
+};
+
 function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
   const { route, category, isHighlighted, isCurrentRoute, onNavigate } = data;
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
-  const handleClick = (e: React.MouseEvent) => {
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    if (!showTooltip) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node) &&
+          nodeRef.current && !nodeRef.current.contains(e.target as Node)) {
+        setShowTooltip(false);
+      }
+    };
+
+    // Use timeout to avoid immediate close from the click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showTooltip]);
+
+  const handleNodeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowTooltip(!showTooltip);
+  };
+
+  const handleNavigate = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     onNavigate(route.path);
@@ -36,13 +74,14 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
       <Handle type="target" position={Position.Top} className="!bg-white/20 !border-white/30 !pointer-events-none" />
 
       <div
-        onClick={handleClick}
+        ref={nodeRef}
+        onClick={handleNodeClick}
         onMouseDown={(e) => e.stopPropagation()}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(e as any); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNodeClick(e as any); }}
         className={`
-          atlas-route-node group cursor-pointer
+          atlas-route-node group cursor-pointer relative
           px-3 py-2 rounded-lg min-w-[120px]
           bg-white/5 backdrop-blur-md
           border border-white/10
@@ -51,6 +90,7 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
           select-none
           ${isHighlighted ? 'ring-2 ring-blue-400/50' : ''}
           ${isCurrentRoute ? 'ring-2 ring-pink-500/50 animate-pulse' : ''}
+          ${showTooltip ? 'ring-2 ring-white/30' : ''}
         `}
         style={{
           borderLeftColor: category.color,
@@ -79,6 +119,56 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
         <div className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[150px] opacity-70 group-hover:opacity-100">
           {route.description}
         </div>
+
+        {/* Tooltip popup */}
+        {showTooltip && (
+          <div
+            ref={tooltipRef}
+            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 w-56"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gray-900/95 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center gap-2 mb-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: category.color }}
+                />
+                <span className="text-xs text-gray-400">{category.label}</span>
+              </div>
+
+              {/* Title */}
+              <h4 className="font-semibold text-white text-base mb-1">{route.label}</h4>
+
+              {/* Description */}
+              <p className="text-sm text-gray-300 mb-3">{route.description}</p>
+
+              {/* Path */}
+              <div className="text-xs text-gray-500 font-mono mb-3">{route.path}</div>
+
+              {/* Protection badge */}
+              <div className="flex items-center gap-2 mb-4">
+                {protectionIcons[route.protection]}
+                <span className={`text-xs ${route.protection === 'public' ? 'text-green-400' : 'text-amber-400'}`}>
+                  {protectionLabels[route.protection]}
+                </span>
+              </div>
+
+              {/* Go button */}
+              <button
+                onClick={handleNavigate}
+                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                Go to {route.label}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            </div>
+            {/* Arrow */}
+            <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-4 h-4 bg-gray-900/95 border-b border-r border-white/20 transform rotate-45" />
+          </div>
+        )}
       </div>
 
       <Handle type="source" position={Position.Bottom} className="!bg-white/20 !border-white/30 !pointer-events-none" />
