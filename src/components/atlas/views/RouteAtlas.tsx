@@ -5,7 +5,7 @@
  * Uses React Flow with glass-styled custom nodes.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -15,6 +15,7 @@ import ReactFlow, {
   useReactFlow,
   Node,
   Edge,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -219,6 +220,8 @@ function RouteAtlasInner({
   const navigate = useNavigate();
   const location = useLocation();
   const { fitView } = useReactFlow();
+  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const hasInitialized = useRef(false);
 
   // Try to load from API, fall back to static
   const { routeAtlas: fetchedAtlas, loading } = useAtlasData();
@@ -234,6 +237,16 @@ function RouteAtlasInner({
   const handleNavigate = useCallback((path: string) => {
     navigate(path);
   }, [navigate]);
+
+  // Handle React Flow initialization
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    reactFlowInstance.current = instance;
+    // Delay fitView to ensure nodes are rendered
+    setTimeout(() => {
+      instance.fitView({ padding: 0.1, duration: 0 });
+      hasInitialized.current = true;
+    }, 50);
+  }, []);
 
   // Generate layout
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
@@ -262,9 +275,13 @@ function RouteAtlasInner({
     setNodes(newNodes);
     setEdges(newEdges);
 
-    // Fit view after layout change
-    setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 100);
-  }, [manifest, location.pathname, highlightedIds, activeCategories, handleNavigate, setNodes, setEdges, fitView]);
+    // Only fitView after initial load (when filters change)
+    if (hasInitialized.current && reactFlowInstance.current) {
+      setTimeout(() => {
+        reactFlowInstance.current?.fitView({ padding: 0.1, duration: 300 });
+      }, 50);
+    }
+  }, [manifest, location.pathname, highlightedIds, activeCategories, handleNavigate, setNodes, setEdges]);
 
   // Toggle category filter
   const handleToggleCategory = useCallback((categoryId: string) => {
@@ -306,10 +323,11 @@ function RouteAtlasInner({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onInit={onInit}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.15, includeHiddenNodes: false }}
-        minZoom={0.3}
+        fitViewOptions={{ padding: 0.1, includeHiddenNodes: false }}
+        minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
         style={{ background: 'transparent' }}
