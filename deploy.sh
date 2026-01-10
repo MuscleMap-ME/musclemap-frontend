@@ -104,8 +104,12 @@ ssh root@musclemap.me "cd /var/www/musclemap.me && \
   pnpm -C packages/core build && \
   pnpm -C packages/plugin-sdk build && \
   pnpm -C packages/client build && \
-  echo '🏗️ Building app...' && \
-  pnpm build"
+  echo '🏗️ Building API...' && \
+  pnpm -C apps/api build && \
+  echo '🏗️ Building frontend...' && \
+  pnpm build && \
+  echo '🔄 Restarting API...' && \
+  pm2 restart musclemap-api"
 
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
