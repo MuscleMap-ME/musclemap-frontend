@@ -16,6 +16,7 @@ import { queryOne, queryAll, query, serializableTransaction } from '../../db/cli
 import { loggers } from '../../lib/logger';
 import { creditService } from './credit.service';
 import { walletService } from './wallet.service';
+import { xpService } from '../ranks/xp.service';
 
 const log = loggers.economy;
 
@@ -241,9 +242,9 @@ export const earningService = {
         ledgerEntryId = creditResult.ledgerEntryId;
       }
 
-      // Award XP (to buddy if exists)
+      // Award XP (to buddy and user ranking system)
       if (xp > 0) {
-        await this.awardXp(userId, xp);
+        await this.awardXp(userId, xp, sourceType, sourceId, `${ruleCode}: ${rule.name}`);
       }
 
       // Record the award
@@ -387,10 +388,10 @@ export const earningService = {
   },
 
   /**
-   * Award XP to user's buddy
+   * Award XP to user's buddy and user's ranking XP
    */
-  async awardXp(userId: string, xp: number): Promise<void> {
-    // Check if user has a buddy
+  async awardXp(userId: string, xp: number, sourceType?: string, sourceId?: string, reason?: string): Promise<void> {
+    // Award XP to training buddy (if exists)
     const buddy = await queryOne<{ user_id: string; xp: number; level: number }>(
       'SELECT user_id, xp, level FROM training_buddies WHERE user_id = $1',
       [userId]
@@ -406,11 +407,25 @@ export const earningService = {
       );
     }
 
-    // Also track on user
+    // Also track on user (legacy field)
     await query(
       `UPDATE users SET buddy_xp_total = COALESCE(buddy_xp_total, 0) + $1 WHERE id = $2`,
       [xp, userId]
     );
+
+    // Award XP to user's ranking system
+    try {
+      await xpService.awardXp({
+        userId,
+        amount: xp,
+        sourceType: (sourceType as any) || 'workout',
+        sourceId,
+        reason: reason || 'Earning reward',
+        bypassLimits: false, // Respect velocity limits
+      });
+    } catch (error) {
+      log.warn({ userId, xp, error }, 'Failed to award ranking XP (non-fatal)');
+    }
   },
 
   /**

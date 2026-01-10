@@ -1207,6 +1207,114 @@ const AuthResponseSchema = Type.Object(
 );
 
 // =====================
+// Rank Types (API Response Types)
+// =====================
+export type RankName =
+  | 'novice'
+  | 'trainee'
+  | 'apprentice'
+  | 'practitioner'
+  | 'journeyperson'
+  | 'expert'
+  | 'master'
+  | 'grandmaster';
+
+export interface RankDefinitionResponse {
+  id: string;
+  tier: number;
+  name: RankName;
+  displayName: string;
+  xpThreshold: number;
+  badgeIcon: string;
+  badgeColor: string;
+  perks: string[];
+}
+
+export interface UserRankResponse {
+  userId: string;
+  currentRank: RankName;
+  currentTier: number;
+  displayName: string;
+  totalXp: number;
+  xpToNextRank: number | null;
+  progressPercent: number;
+  badgeIcon: string;
+  badgeColor: string;
+  perks?: string[];
+  nextRank?: {
+    name: RankName;
+    displayName: string;
+    xpThreshold: number;
+    badgeIcon?: string;
+    badgeColor?: string;
+  } | null;
+  veteranTier: number;
+  veteranLabel: string | null;
+  rankUpdatedAt: string | null;
+  xpToday?: number;
+  xpThisWeek?: number;
+}
+
+export interface XpHistoryEntryResponse {
+  id: string;
+  amount: number;
+  sourceType: string;
+  sourceId?: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface VeteranBadgeResponse {
+  tier: 0 | 1 | 2 | 3;
+  label: string | null;
+  icon: string;
+  color: string;
+  monthsActive: number;
+  nextTier?: {
+    tier: number;
+    monthsRequired: number;
+    monthsRemaining: number;
+  } | null;
+}
+
+export interface RankLeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  totalXp: number;
+  currentRank: RankName;
+  badgeIcon: string;
+  badgeColor: string;
+  veteranTier: number;
+  country?: string;
+}
+
+export interface RankLeaderboardResponse {
+  data: {
+    entries: RankLeaderboardEntry[];
+    userRank: number | null;
+  };
+  pagination: PaginationMeta;
+  meta: {
+    scope: 'global' | 'country' | 'state' | 'city';
+    filters: {
+      country?: string;
+      state?: string;
+      city?: string;
+    };
+  };
+}
+
+export interface PaginationMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+// =====================
 // Wallet Types & Schemas
 // =====================
 export interface Wallet {
@@ -3703,6 +3811,59 @@ export const apiClient = {
         method: 'PUT',
         body: { notes },
       }),
+  },
+
+  // Ranks & XP System
+  ranks: {
+    /** Get all rank definitions */
+    definitions: () =>
+      request<DataResponse<RankDefinitionResponse[]>>('/ranks/definitions', {
+        cacheTtl: 300_000, // Cache for 5 minutes
+      }),
+
+    /** Get current user's rank info */
+    me: () =>
+      request<DataResponse<UserRankResponse>>('/ranks/me'),
+
+    /** Get another user's rank info */
+    getUser: (userId: string) =>
+      request<DataResponse<UserRankResponse>>(`/ranks/user/${userId}`),
+
+    /** Get XP history */
+    history: (options?: { limit?: number; offset?: number; sourceType?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      if (options?.sourceType) params.set('sourceType', options.sourceType);
+      const query = params.toString();
+      return request<DataResponse<XpHistoryEntryResponse[]> & { pagination: PaginationMeta }>(
+        `/ranks/history${query ? `?${query}` : ''}`
+      );
+    },
+
+    /** Get XP-based leaderboard */
+    leaderboard: (options?: {
+      scope?: 'global' | 'country' | 'state' | 'city';
+      country?: string;
+      state?: string;
+      city?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.scope) params.set('scope', options.scope);
+      if (options?.country) params.set('country', options.country);
+      if (options?.state) params.set('state', options.state);
+      if (options?.city) params.set('city', options.city);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+      return request<RankLeaderboardResponse>(`/ranks/leaderboard${query ? `?${query}` : ''}`);
+    },
+
+    /** Get veteran badge info */
+    veteranBadge: () =>
+      request<DataResponse<VeteranBadgeResponse>>('/ranks/veteran-badge'),
   },
 };
 
