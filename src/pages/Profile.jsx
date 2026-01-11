@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../store/authStore';
 import { api } from '../utils/api';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
@@ -28,8 +27,7 @@ const EQUIPMENT = [
 ];
 
 export default function Profile() {
-  const { user, login } = useUser();
-  const { token } = useAuth();
+  const { token, user, login } = useAuth();
   const [profile, setProfile] = useState(null);
   const [avatars, setAvatars] = useState([]);
   const [themes, setThemes] = useState([]);
@@ -38,18 +36,30 @@ export default function Profile() {
   const [tab, setTab] = useState('profile');
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      api.profile.get(),
-      api.profile.avatars().catch(() => ({ avatars: [] })),
-      api.profile.themes().catch(() => ({ themes: [] })),
-    ]).then(([p, a, t]) => {
+  const loadProfile = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const [p, a, t] = await Promise.all([
+        api.profile.get(),
+        api.profile.avatars().catch(() => ({ avatars: [] })),
+        api.profile.themes().catch(() => ({ themes: [] })),
+      ]);
       setProfile({ ...p, limitations: JSON.parse(p.limitations || '[]'), equipment_inventory: JSON.parse(p.equipment_inventory || '[]') });
       setAvatars(a.avatars || []);
       setThemes(t.themes || []);
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+    } finally {
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   async function save() {
     setSaving(true);
@@ -67,7 +77,9 @@ export default function Profile() {
       login({ ...user, ...profile }, token);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
-    } catch(e) {}
+    } catch(e) {
+      console.error('Failed to save profile:', e);
+    }
     setSaving(false);
   }
 

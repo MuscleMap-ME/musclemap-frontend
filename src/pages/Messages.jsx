@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -39,19 +39,8 @@ export default function Messages() {
   const [userResults, setUserResults] = useState([]);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    fetchConversations();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeConversation) fetchMessages(activeConversation.id);
-  }, [activeConversation]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
+    if (!token) return;
     try {
       const res = await fetch(`/api/messaging/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -81,9 +70,10 @@ export default function Messages() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, activeTab]);
 
-  const fetchMessages = async (conversationId) => {
+  const fetchMessages = useCallback(async (conversationId) => {
+    if (!token) return;
     try {
       const res = await fetch(`/api/messaging/conversations/${conversationId}/messages`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -106,7 +96,19 @@ export default function Messages() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (activeConversation) fetchMessages(activeConversation.id);
+  }, [activeConversation, fetchMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = async (e) => {
     e.preventDefault();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
@@ -164,13 +164,22 @@ export default function Workout() {
     });
   };
 
+  // Ref to prevent race conditions during workout completion
+  const completingRef = useRef(false);
+
   const completeWorkout = async () => {
-    if (logged.length === 0) return;
+    // Prevent double-submission with ref (handles rapid clicks before state updates)
+    if (completingRef.current || logged.length === 0) return;
+    completingRef.current = true;
     setCompleting(true);
+
+    // Capture logged state at submission time to prevent race conditions
+    const loggedSnapshot = [...logged];
+
     try {
       // Format exercises for the workouts API
       // Filter out warmup/cooldown activities that don't have real exercise IDs
-      const exercises = logged
+      const exercises = loggedSnapshot
         .filter(e => {
           // Keep items that have a valid exercise ID (not activity placeholders)
           const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
@@ -187,6 +196,7 @@ export default function Workout() {
       // If no actual exercises (only activities), show message
       if (exercises.length === 0) {
         alert('No exercises to log. Complete at least one exercise (not just warmup/cooldown) to save your workout.');
+        completingRef.current = false;
         setCompleting(false);
         return;
       }
@@ -215,8 +225,10 @@ export default function Workout() {
     } catch(e) {
       console.error('Workout completion error:', e);
       alert('Error completing workout. Please try again.');
+    } finally {
+      completingRef.current = false;
+      setCompleting(false);
     }
-    setCompleting(false);
   };
 
   const filtered = exercises.filter(e => {

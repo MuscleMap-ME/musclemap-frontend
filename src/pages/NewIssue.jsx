@@ -12,7 +12,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../store/authStore';
-import { useUser } from '../contexts/UserContext';
 import { sanitizeText, sanitizeHtml } from '../utils/sanitize';
 
 const Icons = {
@@ -89,8 +88,7 @@ function getDeviceInfo() {
 }
 
 export default function NewIssue() {
-  const { token } = useAuth();
-  const { user } = useUser();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
 
   const [labels, setLabels] = useState([]);

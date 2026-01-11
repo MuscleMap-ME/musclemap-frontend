@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { useUser } from "../contexts/UserContext";
 import { useAuth } from "../store/authStore";
 
 // Archetype icons and colors
@@ -36,17 +35,14 @@ const MUSCLE_COLORS = {
 };
 
 export default function Journey() {
-  const { user, login } = useUser();
-  const { token } = useAuth();
+  const { token, user, login } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => { load(); }, [token]);
-
-  async function load() {
+  const load = useCallback(async () => {
     if (!token) { setLoading(false); return; }
     try {
       const res = await fetch("/api/journey", { headers: { Authorization: "Bearer " + token } });
@@ -58,7 +54,9 @@ export default function Journey() {
       console.error("Failed to load journey data:", e);
     }
     setLoading(false);
-  }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function switchPath(id) {
     setSwitching(id);
