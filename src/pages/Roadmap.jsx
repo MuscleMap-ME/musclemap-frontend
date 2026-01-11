@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../store/authStore';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { RoadmapAtlas } from '../components/atlas';
+import SEO, { getBreadcrumbSchema } from '../components/SEO';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -226,7 +227,19 @@ export default function Roadmap() {
   const inProgress = items.filter(i => i.status === 1).sort((a, b) => b.progress - a.progress);
   const completed = items.filter(i => i.status === 2).sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
+  // Breadcrumb structured data
+  const breadcrumbs = getBreadcrumbSchema([
+    { name: 'Home', path: '/' },
+    { name: 'Roadmap', path: '/roadmap' },
+  ]);
+
   return (
+    <>
+      <SEO
+        title="Roadmap"
+        description="MuscleMap development roadmap. Upcoming features, planned improvements, and long-term vision for the fitness tracking platform."
+        structuredData={breadcrumbs}
+      />
     <div className="min-h-screen bg-gray-900 text-white pb-24">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-20">
@@ -396,5 +409,6 @@ export default function Roadmap() {
         )}
       </main>
     </div>
+    </>
   );
 }

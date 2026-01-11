@@ -54,6 +54,11 @@ export default function Login() {
   };
 
   return (
+    <>
+      <SEO
+        title="Log In"
+        description="Log in to your MuscleMap account. Access your workouts, progress, and community features."
+      />
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
@@ -90,5 +95,6 @@ export default function Login() {
         </form>
       </div>
     </div>
+    </>
   );
 }

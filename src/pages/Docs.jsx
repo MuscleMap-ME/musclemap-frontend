@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { DocsAtlas } from '../components/atlas';
+import SEO, { getBreadcrumbSchema } from '../components/SEO';
 
 // Public User Documentation (new!)
 const PUBLIC_DOCS = [
@@ -796,7 +797,22 @@ export default function Docs() {
     navigate('/docs', { replace: true });
   };
 
+  // Dynamic SEO based on selected doc
+  const seoTitle = selectedDoc
+    ? `${selectedDoc.charAt(0).toUpperCase() + selectedDoc.slice(1).replace(/-/g, ' ')} - Documentation`
+    : 'Documentation';
+  const seoDescription = selectedDoc
+    ? `MuscleMap documentation for ${selectedDoc.replace(/-/g, ' ')}. User guides, API reference, and feature documentation.`
+    : 'Complete MuscleMap documentation. User guides, API reference, getting started tutorials, and feature documentation.';
+  const breadcrumbs = getBreadcrumbSchema(
+    selectedDoc
+      ? [{ name: 'Home', path: '/' }, { name: 'Docs', path: '/docs' }, { name: selectedDoc, path: `/docs/${selectedDoc}` }]
+      : [{ name: 'Home', path: '/' }, { name: 'Docs', path: '/docs' }]
+  );
+
   return (
+    <>
+      <SEO title={seoTitle} description={seoDescription} structuredData={breadcrumbs} />
     <div
       className="min-h-screen"
       style={{
@@ -1143,5 +1159,6 @@ export default function Docs() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
