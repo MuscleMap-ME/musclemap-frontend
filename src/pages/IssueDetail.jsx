@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../store/authStore';
 import { useUser } from '../contexts/UserContext';
+import { sanitizeText } from '../utils/sanitize';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -221,13 +222,14 @@ export default function IssueDetail() {
 
     setSubmitting(true);
     try {
+      // Sanitize comment content before sending
       const res = await fetch(`/api/issues/${issue.id}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: newComment }),
+        body: JSON.stringify({ content: sanitizeText(newComment) }),
       });
       const data = await res.json();
       if (data.data) {

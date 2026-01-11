@@ -4,7 +4,7 @@
  * Character stats display with radar chart visualization and leaderboards.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
@@ -14,7 +14,11 @@ import {
   GlassButton,
   GlassProgressBar,
 } from '../components/glass';
-import { RadarChartD3 } from '../components/d3';
+
+// Lazy load heavy D3 chart component
+const RadarChartD3 = lazy(() =>
+  import('../components/d3').then(m => ({ default: m.RadarChartD3 }))
+);
 
 
 // ============================================

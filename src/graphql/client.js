@@ -7,6 +7,7 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { RetryLink } from '@apollo/client/link/retry';
 
 /**
  * HTTP Link - connects to our GraphQL endpoint
@@ -42,6 +43,25 @@ const authLink = setContext((_, { headers }) => {
 });
 
 /**
+ * Retry Link - automatically retry failed requests
+ * Useful for handling transient network errors
+ */
+const retryLink = new RetryLink({
+  delay: {
+    initial: 300,
+    max: 5000,
+    jitter: true,
+  },
+  attempts: {
+    max: 3,
+    retryIf: (error, _operation) => {
+      // Only retry on network errors, not GraphQL errors
+      return !!error && !error.result;
+    },
+  },
+});
+
+/**
  * Error Link - handles GraphQL and network errors
  */
 const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
@@ -69,6 +89,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
 
 /**
  * Apollo Client Cache Configuration
+ * Optimized for SPA performance with intelligent caching strategies
  */
 const cache = new InMemoryCache({
   typePolicies: {
@@ -76,22 +97,99 @@ const cache = new InMemoryCache({
       fields: {
         // Merge paginated workout lists
         myWorkouts: {
-          keyArgs: false,
-          merge(existing = [], incoming) {
+          keyArgs: ['filter', 'sortBy'],
+          merge(existing = [], incoming, { args }) {
+            // Reset on new search/filter
+            if (args?.offset === 0 || !args?.offset) {
+              return incoming;
+            }
+            // Append for pagination
             return [...existing, ...incoming];
           },
         },
-        // Cache user by ID
+        // Cache exercises by filter
+        exercises: {
+          keyArgs: ['filter', 'muscleGroup', 'category'],
+          merge(existing = [], incoming, { args }) {
+            if (args?.offset === 0 || !args?.offset) {
+              return incoming;
+            }
+            return [...existing, ...incoming];
+          },
+        },
+        // Leaderboard caching with time-based key
+        leaderboard: {
+          keyArgs: ['type', 'timeframe'],
+        },
+        // Stats caching
+        stats: {
+          keyArgs: ['userId', 'period'],
+        },
+        // Community stats
+        communityStats: {
+          keyArgs: false,
+          // Keep for 5 minutes
+          read(existing, { canRead, toReference }) {
+            return existing;
+          },
+        },
+        // Cache user profile by ID
         me: {
           keyArgs: false,
+        },
+        user: {
+          keyArgs: ['id'],
+        },
+        // Goals listing
+        goals: {
+          keyArgs: ['userId', 'status'],
+          merge(existing = [], incoming, { args }) {
+            if (args?.offset === 0 || !args?.offset) {
+              return incoming;
+            }
+            return [...existing, ...incoming];
+          },
+        },
+        // Messages with cursor pagination
+        messages: {
+          keyArgs: ['conversationId'],
+          merge(existing, incoming, { args }) {
+            if (!existing) return incoming;
+            // Prepend new messages (newer first)
+            if (args?.before) {
+              return { ...incoming, messages: [...incoming.messages, ...existing.messages] };
+            }
+            // Append old messages (pagination)
+            return { ...existing, messages: [...existing.messages, ...incoming.messages] };
+          },
+        },
+        // Notifications
+        notifications: {
+          keyArgs: ['unreadOnly'],
+          merge(existing = [], incoming, { args }) {
+            if (args?.offset === 0 || !args?.offset) {
+              return incoming;
+            }
+            return [...existing, ...incoming];
+          },
         },
       },
     },
     User: {
       keyFields: ['id'],
+      fields: {
+        workouts: {
+          merge: false, // Replace, don't merge
+        },
+      },
     },
     Workout: {
       keyFields: ['id'],
+      fields: {
+        exercises: {
+          merge: false,
+        },
+      },
     },
     Exercise: {
       keyFields: ['id'],
@@ -102,6 +200,29 @@ const cache = new InMemoryCache({
     CharacterStats: {
       keyFields: ['userId'],
     },
+    Achievement: {
+      keyFields: ['id'],
+    },
+    Notification: {
+      keyFields: ['id'],
+    },
+    Message: {
+      keyFields: ['id'],
+    },
+    Conversation: {
+      keyFields: ['id'],
+      fields: {
+        messages: {
+          merge: false,
+        },
+      },
+    },
+    Issue: {
+      keyFields: ['id'],
+    },
+    Comment: {
+      keyFields: ['id'],
+    },
   },
 });
 
@@ -109,11 +230,12 @@ const cache = new InMemoryCache({
  * Create Apollo Client instance
  */
 export const apolloClient = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: from([retryLink, errorLink, authLink, httpLink]),
   cache,
   defaultOptions: {
     watchQuery: {
       fetchPolicy: 'cache-and-network',
+      nextFetchPolicy: 'cache-first', // Use cache after initial network fetch
       errorPolicy: 'all',
     },
     query: {

@@ -4,6 +4,7 @@ import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
 import { fetchWithLogging } from '../utils/logger';
 import SEO from '../components/SEO';
+import { sanitizeEmail } from '../utils/sanitize';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,10 +19,11 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Sanitize email before sending to API
       const res = await fetchWithLogging('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, password: form.password }),
+        body: JSON.stringify({ email: sanitizeEmail(form.email), password: form.password }),
       });
 
       let data = null;

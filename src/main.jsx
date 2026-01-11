@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { setStorageAdapter, configureHttpClient } from '@musclemap/client'
 import App from './App'
 import './styles/index.css'
+import { reportWebVitals, logWebVitals } from './utils/webVitals'
+import { registerServiceWorker, setupControllerChangeHandler } from './utils/registerSW'
 
 /**
  * Storage adapter that syncs with Zustand auth store
@@ -62,3 +64,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// Report Web Vitals - send to analytics in production, log to console in development
+if (import.meta.env.PROD) {
+  reportWebVitals()
+} else {
+  logWebVitals()
+}
+
+// Register Service Worker for PWA functionality (production only)
+if (import.meta.env.PROD) {
+  registerServiceWorker()
+  setupControllerChangeHandler()
+}

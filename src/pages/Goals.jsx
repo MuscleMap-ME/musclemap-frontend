@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
+import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
 import {
   GlassSurface,
   GlassCard,
@@ -226,10 +227,14 @@ function CreateGoalModal({ isOpen, onClose, onSubmit, suggestions }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Sanitize form data before submitting
     onSubmit({
       ...formData,
-      targetValue: formData.targetValue ? parseFloat(formData.targetValue) : null,
-      startingValue: formData.startingValue ? parseFloat(formData.startingValue) : null,
+      goalType: sanitizeText(formData.goalType),
+      targetUnit: sanitizeText(formData.targetUnit),
+      notes: sanitizeText(formData.notes),
+      targetValue: formData.targetValue ? sanitizeNumber(formData.targetValue, { min: 0 }) : null,
+      startingValue: formData.startingValue ? sanitizeNumber(formData.startingValue, { min: 0 }) : null,
     });
     setFormData({
       goalType: '',

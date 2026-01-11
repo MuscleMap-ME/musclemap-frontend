@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../store/authStore';
 import { api } from '../utils/api';
+import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
 
 const LIMITATIONS = [
   { id: 'back_pain', name: 'Back Pain', icon: '🤴' },
@@ -53,7 +54,16 @@ export default function Profile() {
   async function save() {
     setSaving(true);
     try {
-      await api.profile.update({ ...profile, limitations: JSON.stringify(profile.limitations), equipment_inventory: JSON.stringify(profile.equipment_inventory) });
+      // Sanitize profile data before sending to API
+      const sanitizedProfile = {
+        ...profile,
+        username: sanitizeText(profile.username || ''),
+        age: sanitizeNumber(profile.age, { min: 1, max: 150, defaultValue: null }),
+        gender: sanitizeText(profile.gender || ''),
+        limitations: JSON.stringify(profile.limitations),
+        equipment_inventory: JSON.stringify(profile.equipment_inventory),
+      };
+      await api.profile.update(sanitizedProfile);
       login({ ...user, ...profile }, token);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);

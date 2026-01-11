@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import SEO from '../components/SEO';
+import { sanitizeText, sanitizeEmail } from '../utils/sanitize';
 
 export default function Signup() {
   // SEO structured data for signup
@@ -26,7 +27,13 @@ export default function Signup() {
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true);
     try {
-      const data = await api.auth.register({ username: form.username, email: form.email, password: form.password });
+      // Sanitize user input before sending to API
+      const sanitizedData = {
+        username: sanitizeText(form.username),
+        email: sanitizeEmail(form.email),
+        password: form.password, // Don't sanitize password - it may contain special chars
+      };
+      const data = await api.auth.register(sanitizedData);
       login(data.user, data.token);
       navigate('/onboarding');
     } catch (err) {

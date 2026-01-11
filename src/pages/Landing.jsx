@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import LiveCommunityStats from '../components/landing/LiveCommunityStats';
 import { FEATURE_FLAGS } from '../config/featureFlags';
-import { RouteAtlas } from '../components/atlas';
-import { RouteAtlasD3, MuscleMapD3, ParticleField } from '../components/d3';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
+
+// Lazy load heavy visualization components (D3/Three.js)
+const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
+const RouteAtlas = lazy(() => import('../components/atlas').then(m => ({ default: m.RouteAtlas })));
+const RouteAtlasD3 = lazy(() => import('../components/d3').then(m => ({ default: m.RouteAtlasD3 })));
+const MuscleMapD3 = lazy(() => import('../components/d3').then(m => ({ default: m.MuscleMapD3 })));
+const ParticleField = lazy(() => import('../components/d3').then(m => ({ default: m.ParticleField })));
+
+// Simple loading placeholder for lazy components
+const ComponentPlaceholder = ({ height = 200 }) => (
+  <div
+    className="animate-pulse bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl"
+    style={{ height }}
+  />
+);
 
 export default function Landing() {
   // Combined structured data for the landing page
@@ -48,15 +60,17 @@ export default function Landing() {
     >
       {/* Particle Background - subtle, non-interactive to allow clicks through */}
       <div className="pointer-events-none">
-        <ParticleField
-          particleCount={25}
-          connectionDistance={80}
-          speed={0.15}
-          showConnections
-          glowIntensity={0.3}
-          colorScheme={['#3b82f6', '#8b5cf6', '#6366f1']}
-          interactive={false}
-        />
+        <Suspense fallback={null}>
+          <ParticleField
+            particleCount={25}
+            connectionDistance={80}
+            speed={0.15}
+            showConnections
+            glowIntensity={0.3}
+            colorScheme={['#3b82f6', '#8b5cf6', '#6366f1']}
+            interactive={false}
+          />
+        </Suspense>
       </div>
       <header className="relative z-10 w-full border-b border-white/5">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">

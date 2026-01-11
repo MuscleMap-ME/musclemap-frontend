@@ -81,6 +81,17 @@ export { useSwipeGesture } from './useSwipeGesture';
 export { default as useScrollRestoration } from './useScrollRestoration';
 
 // ============================================
+// NETWORK STATUS HOOKS
+// ============================================
+
+export {
+  useNetworkStatus,
+  useImageQuality,
+  useShouldLoadHeavyContent,
+  useAnimationSettings,
+} from './useNetworkStatus';
+
+// ============================================
 // PERFORMANCE HOOKS
 // ============================================
 

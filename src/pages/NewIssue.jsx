@@ -13,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../store/authStore';
 import { useUser } from '../contexts/UserContext';
+import { sanitizeText, sanitizeHtml } from '../utils/sanitize';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -137,11 +138,12 @@ export default function NewIssue() {
     setLoading(true);
 
     try {
+      // Sanitize user input before sending to API
       const body = {
         type: form.type,
         priority: form.priority,
-        title: form.title,
-        description: form.description,
+        title: sanitizeText(form.title),
+        description: sanitizeHtml(form.description), // Allow safe HTML for formatting
         labelIds: form.labelIds,
         pageUrl: window.location.origin + window.location.pathname,
       };

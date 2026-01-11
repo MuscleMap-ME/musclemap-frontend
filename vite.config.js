@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Bundle visualizer - generates stats.html when ANALYZE=true
+    process.env.ANALYZE && visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+      template: 'treemap', // 'sunburst', 'treemap', 'network'
+    }),
+  ].filter(Boolean),
   publicDir: 'public',
   server: {
     port: 5173,

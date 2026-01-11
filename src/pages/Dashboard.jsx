@@ -5,14 +5,18 @@
  * inspired by visionOS and iOS 18 spatial computing aesthetics.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import { DailyTip, MilestoneProgress } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
-import { DashboardAtlas } from '../components/atlas';
+
+// Lazy load heavy Atlas component (3D visualization)
+const DashboardAtlas = lazy(() =>
+  import('../components/atlas').then(m => ({ default: m.DashboardAtlas }))
+);
 
 // Glass components
 import {

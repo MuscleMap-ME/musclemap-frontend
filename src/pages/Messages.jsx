@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../store/authStore';
+import { sanitizeText } from '../utils/sanitize';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -112,10 +113,11 @@ export default function Messages() {
     if (!newMessage.trim() || !activeConversation) return;
 
     try {
+      // Sanitize message content before sending
       const res = await fetch(`/api/messaging/conversations/${activeConversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: newMessage })
+        body: JSON.stringify({ content: sanitizeText(newMessage) })
       });
       const data = await res.json();
       if (data.data) {

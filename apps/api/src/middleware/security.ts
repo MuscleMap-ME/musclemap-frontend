@@ -384,29 +384,58 @@ export async function revokeToken(jti: string, expiresInSeconds: number): Promis
 
 /**
  * Security headers middleware
+ * Implements comprehensive security headers following OWASP recommendations
  */
 export function securityHeaders(request: FastifyRequest, reply: FastifyReply): void {
-  // Content Security Policy
+  // Content Security Policy - comprehensive but allowing necessary functionality
+  // Keep 'unsafe-inline' for now for Tailwind/styled-components compatibility
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'", // Required for Vite/React hydration
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Required for Tailwind + Google Fonts
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: https: blob:",
+    "media-src 'self' blob:",
+    "connect-src 'self' https://api.musclemap.me wss://api.musclemap.me https://musclemap.me",
+    "frame-ancestors 'none'", // Prevent framing (clickjacking protection)
+    "base-uri 'self'", // Prevent base tag injection
+    "form-action 'self'", // Restrict form submissions
+    "upgrade-insecure-requests", // Force HTTPS for all subresources
+    "object-src 'none'", // Prevent plugins (Flash, Java, etc.)
+    "worker-src 'self' blob:", // Allow service workers
+  ];
+  reply.header('Content-Security-Policy', cspDirectives.join('; '));
+
+  // HTTP Strict Transport Security (HSTS)
+  // Force HTTPS for 1 year, include subdomains, allow preload list
   reply.header(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.musclemap.me wss://api.musclemap.me"
+    'Strict-Transport-Security',
+    'max-age=31536000; includeSubDomains; preload'
   );
 
   // Prevent clickjacking
   reply.header('X-Frame-Options', 'DENY');
 
-  // XSS protection
+  // Prevent MIME type sniffing
   reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-XSS-Protection', '1; mode=block');
 
-  // Referrer policy
+  // XSS protection - disabled as modern browsers handle this via CSP
+  // Setting to '0' as recommended by OWASP to avoid issues in older browsers
+  reply.header('X-XSS-Protection', '0');
+
+  // Referrer policy - only send origin on cross-origin requests
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-  // Permissions policy
+  // Permissions policy - restrict browser features
   reply.header(
     'Permissions-Policy',
-    'geolocation=(self), camera=(), microphone=(), payment=()'
+    'accelerometer=(), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
   );
+
+  // Cross-Origin policies for additional security
+  reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+  reply.header('Cross-Origin-Embedder-Policy', 'credentialless');
+  reply.header('Cross-Origin-Resource-Policy', 'same-origin');
 }
 
 /**
