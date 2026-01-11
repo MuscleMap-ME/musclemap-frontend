@@ -8,9 +8,9 @@
  */
 
 import { queryOne, queryAll, query } from '../db/client';
-import { getRedis, isRedisAvailable } from '../lib/redis';
 import { loggers } from '../lib/logger';
 import { config } from '../config';
+import cacheService, { CACHE_TTL, CACHE_PREFIX } from '../lib/cache.service';
 
 const log = loggers.core;
 
@@ -25,10 +25,6 @@ export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
 // RTL languages
 export const RTL_LANGUAGES = ['he', 'ar'] as const;
-
-// Cache settings
-const TRANSLATION_CACHE_TTL = 3600; // 1 hour
-const TRANSLATION_CACHE_PREFIX = 'i18n:';
 
 /**
  * Map our language codes to LibreTranslate/standard codes
@@ -178,35 +174,41 @@ export function normalizeLanguageCode(lang: string): SupportedLanguage {
 
 export const i18nService = {
   /**
-   * Get all supported languages
+   * Get all supported languages (cached)
    */
   async getLanguages(): Promise<LanguageInfo[]> {
-    const rows = await queryAll<{
-      code: string;
-      name: string;
-      native_name: string;
-      rtl: boolean;
-      enabled: boolean;
-    }>('SELECT code, name, native_name, rtl, enabled FROM supported_languages ORDER BY name');
+    return cacheService.getOrSet(
+      CACHE_PREFIX.LANGUAGES,
+      CACHE_TTL.LANGUAGES,
+      async () => {
+        const rows = await queryAll<{
+          code: string;
+          name: string;
+          native_name: string;
+          rtl: boolean;
+          enabled: boolean;
+        }>('SELECT code, name, native_name, rtl, enabled FROM supported_languages ORDER BY name');
 
-    // If table doesn't exist or is empty, return default list
-    if (rows.length === 0) {
-      return SUPPORTED_LANGUAGES.map((code) => ({
-        code,
-        name: code,
-        nativeName: code,
-        rtl: isRTL(code),
-        enabled: true,
-      }));
-    }
+        // If table doesn't exist or is empty, return default list
+        if (rows.length === 0) {
+          return SUPPORTED_LANGUAGES.map((code) => ({
+            code,
+            name: code,
+            nativeName: code,
+            rtl: isRTL(code),
+            enabled: true,
+          }));
+        }
 
-    return rows.map((r) => ({
-      code: r.code,
-      name: r.name,
-      nativeName: r.native_name,
-      rtl: r.rtl,
-      enabled: r.enabled,
-    }));
+        return rows.map((r) => ({
+          code: r.code,
+          name: r.name,
+          nativeName: r.native_name,
+          rtl: r.rtl,
+          enabled: r.enabled,
+        }));
+      }
+    );
   },
 
   /**
@@ -218,20 +220,12 @@ export const i18nService = {
     fieldName: string,
     targetLang: SupportedLanguage
   ): Promise<Translation | null> {
-    // Try Redis cache first
-    if (isRedisAvailable()) {
-      const redis = getRedis();
-      if (redis) {
-        const cacheKey = `${TRANSLATION_CACHE_PREFIX}${contentType}:${contentId}:${fieldName}:${targetLang}`;
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-          try {
-            return JSON.parse(cached);
-          } catch {
-            // Invalid cache, continue to DB
-          }
-        }
-      }
+    const cacheKey = `${CACHE_PREFIX.TRANSLATION}${contentType}:${contentId}:${fieldName}:${targetLang}`;
+
+    // Try cache first
+    const cached = await cacheService.get<Translation>(cacheKey);
+    if (cached !== null) {
+      return cached;
     }
 
     // Query database
@@ -257,13 +251,7 @@ export const i18nService = {
     };
 
     // Cache the result
-    if (isRedisAvailable()) {
-      const redis = getRedis();
-      if (redis) {
-        const cacheKey = `${TRANSLATION_CACHE_PREFIX}${contentType}:${contentId}:${fieldName}:${targetLang}`;
-        await redis.set(cacheKey, JSON.stringify(translation), 'EX', TRANSLATION_CACHE_TTL);
-      }
-    }
+    await cacheService.set(cacheKey, translation, CACHE_TTL.TRANSLATION);
 
     return translation;
   },
@@ -304,13 +292,8 @@ export const i18nService = {
     );
 
     // Invalidate cache
-    if (isRedisAvailable()) {
-      const redis = getRedis();
-      if (redis) {
-        const cacheKey = `${TRANSLATION_CACHE_PREFIX}${contentType}:${contentId}:${fieldName}:${targetLang}`;
-        await redis.del(cacheKey);
-      }
-    }
+    const cacheKey = `${CACHE_PREFIX.TRANSLATION}${contentType}:${contentId}:${fieldName}:${targetLang}`;
+    await cacheService.del(cacheKey);
   },
 
   /**
@@ -448,16 +431,7 @@ export const i18nService = {
     );
 
     // Invalidate all caches for this content
-    if (isRedisAvailable()) {
-      const redis = getRedis();
-      if (redis) {
-        const pattern = `${TRANSLATION_CACHE_PREFIX}${contentType}:${contentId}:*`;
-        const keys = await redis.keys(pattern);
-        if (keys.length > 0) {
-          await redis.del(...keys);
-        }
-      }
-    }
+    await cacheService.delPattern(`${CACHE_PREFIX.TRANSLATION}${contentType}:${contentId}:*`);
   },
 
   /**

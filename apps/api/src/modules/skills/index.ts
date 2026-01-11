@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { earningService } from '../economy/earning.service';
+import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../../lib/cache.service';
 
 const log = loggers.core;
 
@@ -85,34 +86,47 @@ export interface SkillNodeWithProgress extends SkillNode {
 // Service
 export const skillService = {
   /**
-   * Get all skill trees
+   * Get all skill trees (cached)
    */
   async getSkillTrees(): Promise<SkillTree[]> {
-    const rows = await queryAll<{
-      id: string;
-      name: string;
-      description: string | null;
-      category: string;
-      icon: string | null;
-      color: string | null;
-      order_index: number;
-    }>(`SELECT * FROM skill_trees ORDER BY order_index`);
+    return cache.getOrSet(
+      CACHE_PREFIX.SKILL_TREES,
+      CACHE_TTL.SKILL_TREES,
+      async () => {
+        const rows = await queryAll<{
+          id: string;
+          name: string;
+          description: string | null;
+          category: string;
+          icon: string | null;
+          color: string | null;
+          order_index: number;
+        }>(`SELECT * FROM skill_trees ORDER BY order_index`);
 
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      description: r.description ?? undefined,
-      category: r.category,
-      icon: r.icon ?? undefined,
-      color: r.color ?? undefined,
-      orderIndex: r.order_index,
-    }));
+        return rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description ?? undefined,
+          category: r.category,
+          icon: r.icon ?? undefined,
+          color: r.color ?? undefined,
+          orderIndex: r.order_index,
+        }));
+      }
+    );
   },
 
   /**
-   * Get a skill tree by ID with all its nodes
+   * Get a skill tree by ID with all its nodes (cached)
    */
   async getSkillTree(treeId: string): Promise<SkillTreeWithNodes | null> {
+    const cacheKey = `${CACHE_PREFIX.SKILL_TREE}${treeId}`;
+
+    const cached = await cache.get<SkillTreeWithNodes | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const tree = await queryOne<{
       id: string;
       name: string;
@@ -123,7 +137,10 @@ export const skillService = {
       order_index: number;
     }>(`SELECT * FROM skill_trees WHERE id = $1`, [treeId]);
 
-    if (!tree) return null;
+    if (!tree) {
+      await cache.set(cacheKey, null, 60);
+      return null;
+    }
 
     const nodes = await queryAll<{
       id: string;
@@ -146,7 +163,7 @@ export const skillService = {
       position: number;
     }>(`SELECT * FROM skill_nodes WHERE tree_id = $1 ORDER BY tier, position`, [treeId]);
 
-    return {
+    const result = {
       id: tree.id,
       name: tree.name,
       description: tree.description ?? undefined,
@@ -175,6 +192,9 @@ export const skillService = {
         position: n.position,
       })),
     };
+
+    await cache.set(cacheKey, result, CACHE_TTL.SKILL_TREES);
+    return result;
   },
 
   /**

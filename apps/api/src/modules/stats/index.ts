@@ -13,6 +13,7 @@
 import crypto from 'crypto';
 import { db, queryOne, queryAll, query, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../../lib/cache.service';
 
 const log = loggers.db;
 
@@ -289,39 +290,48 @@ export async function updateStatsFromWorkout(
       [userId]
     );
 
+    // Invalidate user stats cache
+    await CacheInvalidation.onUserStatsUpdated(userId);
+
     return result.rows[0] as CharacterStats;
   });
 }
 
 /**
- * Get user's current stats
+ * Get user's current stats (cached)
  */
 export async function getUserStats(userId: string): Promise<CharacterStats> {
-  let stats = await queryOne<CharacterStats>(
-    `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
-            last_calculated_at as "lastCalculatedAt", version
-     FROM character_stats WHERE user_id = $1`,
-    [userId]
+  return cache.getOrSet(
+    `${CACHE_PREFIX.USER_STATS}${userId}`,
+    CACHE_TTL.USER_STATS,
+    async () => {
+      let stats = await queryOne<CharacterStats>(
+        `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
+                last_calculated_at as "lastCalculatedAt", version
+         FROM character_stats WHERE user_id = $1`,
+        [userId]
+      );
+
+      if (!stats) {
+        // Initialize empty stats for new user
+        await query(
+          `INSERT INTO character_stats (user_id, strength, constitution, dexterity, power, endurance, vitality)
+           VALUES ($1, 0, 0, 0, 0, 0, 0)
+           ON CONFLICT (user_id) DO NOTHING`,
+          [userId]
+        );
+
+        stats = await queryOne<CharacterStats>(
+          `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
+                  last_calculated_at as "lastCalculatedAt", version
+           FROM character_stats WHERE user_id = $1`,
+          [userId]
+        );
+      }
+
+      return stats!;
+    }
   );
-
-  if (!stats) {
-    // Initialize empty stats for new user
-    await query(
-      `INSERT INTO character_stats (user_id, strength, constitution, dexterity, power, endurance, vitality)
-       VALUES ($1, 0, 0, 0, 0, 0, 0)
-       ON CONFLICT (user_id) DO NOTHING`,
-      [userId]
-    );
-
-    stats = await queryOne<CharacterStats>(
-      `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
-              last_calculated_at as "lastCalculatedAt", version
-       FROM character_stats WHERE user_id = $1`,
-      [userId]
-    );
-  }
-
-  return stats!;
 }
 
 /**
@@ -492,7 +502,7 @@ export async function updateExtendedProfile(
 }
 
 /**
- * Get leaderboard rankings
+ * Get leaderboard rankings (cached)
  */
 export async function getLeaderboard(options: {
   statType?: StatType;
@@ -522,6 +532,11 @@ export async function getLeaderboard(options: {
     limit = 50,
     offset = 0,
   } = options;
+
+  // Generate cache key based on query parameters
+  const cacheKey = `${CACHE_PREFIX.LEADERBOARD}${cache.hashKey({ statType, scope, scopeValue, gender, limit, offset })}`;
+
+  return cache.getOrSet(cacheKey, CACHE_TTL.LEADERBOARD, async () => {
 
   let whereConditions = ['1=1'];
   const params: unknown[] = [];
@@ -602,6 +617,7 @@ export async function getLeaderboard(options: {
     state: r.state || undefined,
     city: r.city || undefined,
   }));
+  });
 }
 
 /**

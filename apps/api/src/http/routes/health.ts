@@ -14,6 +14,8 @@ import { isRedisAvailable, getRedis } from '../../lib/redis';
 import { getConnectionStats } from '../../modules/rivals/websocket';
 import { getNativeStatus } from '@musclemap/native';
 import { loggers } from '../../lib/logger';
+import { getCacheStats } from '../../lib/cache.service';
+import { cacheManager } from '../../graphql/cache';
 
 const log = loggers.core;
 
@@ -46,6 +48,21 @@ interface DetailedHealthStatus extends ReadinessStatus {
     redis?: {
       latencyMs: number;
       connected: boolean;
+    };
+    cache: {
+      hits: number;
+      misses: number;
+      hitRate: number;
+      sets: number;
+      deletes: number;
+      errors: number;
+    };
+    graphqlCache: {
+      hits: number;
+      misses: number;
+      hitRate: number;
+      size: number;
+      evictions: number;
     };
     websocket: {
       users: number;
@@ -279,6 +296,10 @@ export function registerHealthRoutes(fastify: FastifyInstance): void {
       }
     }
 
+    // Get cache statistics
+    const serviceCacheStats = getCacheStats();
+    const gqlCacheStats = cacheManager.getStats();
+
     const status: DetailedHealthStatus = {
       status: overallStatus,
       timestamp: new Date().toISOString(),
@@ -289,6 +310,21 @@ export function registerHealthRoutes(fastify: FastifyInstance): void {
       metrics: {
         database: poolMetrics,
         redis: redisMetrics,
+        cache: {
+          hits: serviceCacheStats.hits,
+          misses: serviceCacheStats.misses,
+          hitRate: Math.round(serviceCacheStats.hitRate * 100 * 10) / 10,
+          sets: serviceCacheStats.sets,
+          deletes: serviceCacheStats.deletes,
+          errors: serviceCacheStats.errors,
+        },
+        graphqlCache: {
+          hits: gqlCacheStats.hits,
+          misses: gqlCacheStats.misses,
+          hitRate: Math.round(gqlCacheStats.hitRate * 100 * 10) / 10,
+          size: gqlCacheStats.size,
+          evictions: gqlCacheStats.evictions,
+        },
         websocket: wsStats,
         memory: {
           heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),

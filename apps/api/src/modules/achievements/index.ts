@@ -16,6 +16,7 @@ import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { ValidationError, NotFoundError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import { earningService } from '../economy/earning.service';
+import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../../lib/cache.service';
 
 const log = loggers.core;
 
@@ -88,48 +89,59 @@ export interface UserAchievementSummary {
 // Service
 export const achievementService = {
   /**
-   * Get all achievement definitions
+   * Get all achievement definitions (cached)
    */
   async getDefinitions(options: { category?: AchievementCategory; enabledOnly?: boolean } = {}): Promise<AchievementDefinition[]> {
     const { category, enabledOnly = true } = options;
 
-    let whereClause = enabledOnly ? 'enabled = TRUE' : '1=1';
-    const params: unknown[] = [];
+    const cacheKey = `${CACHE_PREFIX.ACHIEVEMENT_DEFS}:${category || 'all'}:${enabledOnly}`;
 
-    if (category) {
-      whereClause += ` AND category = $${params.length + 1}`;
-      params.push(category);
-    }
+    return cache.getOrSet(cacheKey, CACHE_TTL.ACHIEVEMENT_DEFINITIONS, async () => {
+      let whereClause = enabledOnly ? 'enabled = TRUE' : '1=1';
+      const params: unknown[] = [];
 
-    const rows = await queryAll<{
-      id: string;
-      key: string;
-      name: string;
-      description: string | null;
-      icon: string | null;
-      category: string;
-      points: number;
-      rarity: string;
-      enabled: boolean;
-    }>(`SELECT * FROM achievement_definitions WHERE ${whereClause} ORDER BY category, points DESC`, params);
+      if (category) {
+        whereClause += ` AND category = $${params.length + 1}`;
+        params.push(category);
+      }
 
-    return rows.map((r) => ({
-      id: r.id,
-      key: r.key,
-      name: r.name,
-      description: r.description ?? undefined,
-      icon: r.icon ?? undefined,
-      category: r.category as AchievementCategory,
-      points: r.points,
-      rarity: r.rarity as AchievementRarity,
-      enabled: r.enabled,
-    }));
+      const rows = await queryAll<{
+        id: string;
+        key: string;
+        name: string;
+        description: string | null;
+        icon: string | null;
+        category: string;
+        points: number;
+        rarity: string;
+        enabled: boolean;
+      }>(`SELECT * FROM achievement_definitions WHERE ${whereClause} ORDER BY category, points DESC`, params);
+
+      return rows.map((r) => ({
+        id: r.id,
+        key: r.key,
+        name: r.name,
+        description: r.description ?? undefined,
+        icon: r.icon ?? undefined,
+        category: r.category as AchievementCategory,
+        points: r.points,
+        rarity: r.rarity as AchievementRarity,
+        enabled: r.enabled,
+      }));
+    });
   },
 
   /**
-   * Get a specific achievement definition by key
+   * Get a specific achievement definition by key (cached)
    */
   async getDefinitionByKey(key: string): Promise<AchievementDefinition | null> {
+    const cacheKey = `${CACHE_PREFIX.ACHIEVEMENT_DEF}${key}`;
+
+    const cached = await cache.get<AchievementDefinition | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const row = await queryOne<{
       id: string;
       key: string;
@@ -142,9 +154,13 @@ export const achievementService = {
       enabled: boolean;
     }>('SELECT * FROM achievement_definitions WHERE key = $1', [key]);
 
-    if (!row) return null;
+    if (!row) {
+      // Cache null result for a short time to prevent repeated lookups
+      await cache.set(cacheKey, null, 60);
+      return null;
+    }
 
-    return {
+    const result = {
       id: row.id,
       key: row.key,
       name: row.name,
@@ -155,6 +171,9 @@ export const achievementService = {
       rarity: row.rarity as AchievementRarity,
       enabled: row.enabled,
     };
+
+    await cache.set(cacheKey, result, CACHE_TTL.ACHIEVEMENT_DEFINITIONS);
+    return result;
   },
 
   /**

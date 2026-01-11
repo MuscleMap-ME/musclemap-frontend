@@ -7,6 +7,7 @@
 
 import { db } from '../db/client';
 import { loggers } from '../lib/logger';
+import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../lib/cache.service';
 
 const log = loggers.core;
 
@@ -61,73 +62,91 @@ export interface UserHomeEquipment {
 // =====================
 
 /**
- * Get all equipment types
+ * Get all equipment types (cached)
  */
 export async function getEquipmentTypes(): Promise<EquipmentType[]> {
-  const rows = await db.queryAll<{
-    id: string;
-    name: string;
-    category: string;
-    description: string | null;
-    icon_url: string | null;
-    display_order: number;
-  }>(`
-    SELECT id, name, category, description, icon_url, display_order
-    FROM equipment_types
-    ORDER BY display_order, name
-  `);
+  return cache.getOrSet(
+    CACHE_PREFIX.EQUIPMENT_TYPES,
+    CACHE_TTL.EQUIPMENT_TYPES,
+    async () => {
+      const rows = await db.queryAll<{
+        id: string;
+        name: string;
+        category: string;
+        description: string | null;
+        icon_url: string | null;
+        display_order: number;
+      }>(`
+        SELECT id, name, category, description, icon_url, display_order
+        FROM equipment_types
+        ORDER BY display_order, name
+      `);
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    category: row.category,
-    description: row.description,
-    iconUrl: row.icon_url,
-    displayOrder: row.display_order,
-  }));
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        description: row.description,
+        iconUrl: row.icon_url,
+        displayOrder: row.display_order,
+      }));
+    }
+  );
 }
 
 /**
- * Get equipment types by category
+ * Get equipment types by category (cached)
  */
 export async function getEquipmentTypesByCategory(
   category: string
 ): Promise<EquipmentType[]> {
-  const rows = await db.queryAll<{
-    id: string;
-    name: string;
-    category: string;
-    description: string | null;
-    icon_url: string | null;
-    display_order: number;
-  }>(
-    `
-    SELECT id, name, category, description, icon_url, display_order
-    FROM equipment_types
-    WHERE category = $1
-    ORDER BY display_order, name
-  `,
-    [category]
-  );
+  return cache.getOrSet(
+    `${CACHE_PREFIX.EQUIPMENT_TYPES}:cat:${category}`,
+    CACHE_TTL.EQUIPMENT_TYPES,
+    async () => {
+      const rows = await db.queryAll<{
+        id: string;
+        name: string;
+        category: string;
+        description: string | null;
+        icon_url: string | null;
+        display_order: number;
+      }>(
+        `
+        SELECT id, name, category, description, icon_url, display_order
+        FROM equipment_types
+        WHERE category = $1
+        ORDER BY display_order, name
+      `,
+        [category]
+      );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    category: row.category,
-    description: row.description,
-    iconUrl: row.icon_url,
-    displayOrder: row.display_order,
-  }));
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        category: row.category,
+        description: row.description,
+        iconUrl: row.icon_url,
+        displayOrder: row.display_order,
+      }));
+    }
+  );
 }
 
 /**
- * Get equipment categories
+ * Get equipment categories (cached)
  */
 export async function getEquipmentCategories(): Promise<string[]> {
-  const rows = await db.queryAll<{ category: string }>(`
-    SELECT DISTINCT category FROM equipment_types ORDER BY category
-  `);
-  return rows.map((r) => r.category);
+  return cache.getOrSet(
+    CACHE_PREFIX.EQUIPMENT_CATEGORIES,
+    CACHE_TTL.EQUIPMENT_CATEGORIES,
+    async () => {
+      const rows = await db.queryAll<{ category: string }>(`
+        SELECT DISTINCT category FROM equipment_types ORDER BY category
+      `);
+      return rows.map((r) => r.category);
+    }
+  );
 }
 
 // =====================

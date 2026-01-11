@@ -3,10 +3,12 @@
  *
  * Batches and caches database queries to solve the N+1 problem.
  * Each loader is created per-request to avoid cache leakage between users.
+ * L2 cache provides cross-request caching for static/semi-static data.
  */
 
 import DataLoader from 'dataloader';
 import { queryAll } from '../db/client';
+import cache, { CACHE_TTL, CACHE_PREFIX } from '../lib/cache.service';
 
 // ============================================
 // TYPES
@@ -74,24 +76,83 @@ function generatePlaceholders(count: number, startIndex: number = 1): string {
 // ============================================
 
 /**
+ * L2 cache helper - check cache before database query
+ */
+async function getFromL2Cache<T>(
+  prefix: string,
+  ids: readonly string[],
+  ttl: number,
+  fetchMissing: (missingIds: string[]) => Promise<Map<string, T>>
+): Promise<(T | null)[]> {
+  // Try L2 cache first
+  const cacheKeys = ids.map((id) => `${prefix}${id}`);
+  const cached = await cache.getMany<T>(cacheKeys);
+
+  const results: (T | null)[] = [];
+  const missingIds: string[] = [];
+  const missingIndices: number[] = [];
+
+  for (let i = 0; i < ids.length; i++) {
+    if (cached[i] !== null) {
+      results[i] = cached[i];
+    } else {
+      missingIds.push(ids[i] as string);
+      missingIndices.push(i);
+      results[i] = null;
+    }
+  }
+
+  // Fetch missing from database
+  if (missingIds.length > 0) {
+    const fetchedMap = await fetchMissing(missingIds);
+
+    // Update results and cache
+    const toCache: Array<{ key: string; value: T | null; ttl: number }> = [];
+
+    for (let i = 0; i < missingIds.length; i++) {
+      const id = missingIds[i];
+      const idx = missingIndices[i];
+      const value = fetchedMap.get(id) ?? null;
+      results[idx] = value;
+
+      if (value !== null) {
+        toCache.push({ key: `${prefix}${id}`, value, ttl });
+      }
+    }
+
+    // Cache fetched values (non-blocking)
+    if (toCache.length > 0) {
+      cache.setMany(toCache).catch(() => {});
+    }
+  }
+
+  return results;
+}
+
+/**
  * Create all DataLoaders for a request.
  * Each request should get fresh loaders to ensure cache isolation.
+ * L2 cache provides cross-request caching for frequently accessed static data.
  */
 export function createLoaders() {
   return {
     /**
-     * Load users by ID.
+     * Load users by ID (with L2 cache).
      */
     user: new DataLoader<string, User | null>(async (ids) => {
-      const placeholders = generatePlaceholders(ids.length);
-      const rows = await queryAll<User>(
-        `SELECT * FROM users WHERE id IN (${placeholders})`,
-        [...ids]
+      return getFromL2Cache<User>(
+        CACHE_PREFIX.DATALOADER_USER,
+        ids,
+        CACHE_TTL.DATALOADER_L2,
+        async (missingIds) => {
+          const placeholders = generatePlaceholders(missingIds.length);
+          const rows = await queryAll<User>(
+            `SELECT * FROM users WHERE id IN (${placeholders})`,
+            [...missingIds]
+          );
+          return new Map(rows.map((u) => [u.id, u]));
+        }
       );
-
-      // Map results back to input order
-      const userMap = new Map(rows.map((u) => [u.id, u]));
-      return ids.map((id) => userMap.get(id) ?? null);
     }),
 
     /**
@@ -109,31 +170,41 @@ export function createLoaders() {
     }),
 
     /**
-     * Load exercises by ID.
+     * Load exercises by ID (with L2 cache - longer TTL for static data).
      */
     exercise: new DataLoader<string, Exercise | null>(async (ids) => {
-      const placeholders = generatePlaceholders(ids.length);
-      const rows = await queryAll<Exercise>(
-        `SELECT * FROM exercises WHERE id IN (${placeholders})`,
-        [...ids]
+      return getFromL2Cache<Exercise>(
+        CACHE_PREFIX.DATALOADER_EXERCISE,
+        ids,
+        CACHE_TTL.EXERCISES, // Static data - cache longer
+        async (missingIds) => {
+          const placeholders = generatePlaceholders(missingIds.length);
+          const rows = await queryAll<Exercise>(
+            `SELECT * FROM exercises WHERE id IN (${placeholders})`,
+            [...missingIds]
+          );
+          return new Map(rows.map((e) => [e.id, e]));
+        }
       );
-
-      const exerciseMap = new Map(rows.map((e) => [e.id, e]));
-      return ids.map((id) => exerciseMap.get(id) ?? null);
     }),
 
     /**
-     * Load muscles by ID.
+     * Load muscles by ID (with L2 cache - longer TTL for static data).
      */
     muscle: new DataLoader<string, Muscle | null>(async (ids) => {
-      const placeholders = generatePlaceholders(ids.length);
-      const rows = await queryAll<Muscle>(
-        `SELECT * FROM muscles WHERE id IN (${placeholders})`,
-        [...ids]
+      return getFromL2Cache<Muscle>(
+        CACHE_PREFIX.DATALOADER_MUSCLE,
+        ids,
+        CACHE_TTL.MUSCLES, // Static data - cache longer
+        async (missingIds) => {
+          const placeholders = generatePlaceholders(missingIds.length);
+          const rows = await queryAll<Muscle>(
+            `SELECT * FROM muscles WHERE id IN (${placeholders})`,
+            [...missingIds]
+          );
+          return new Map(rows.map((m) => [m.id, m]));
+        }
       );
-
-      const muscleMap = new Map(rows.map((m) => [m.id, m]));
-      return ids.map((id) => muscleMap.get(id) ?? null);
     }),
 
     /**

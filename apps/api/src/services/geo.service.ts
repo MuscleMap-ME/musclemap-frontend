@@ -9,17 +9,13 @@
  */
 
 import { queryOne, queryAll, query } from '../db/client';
-import { getRedis, isRedisAvailable } from '../lib/redis';
 import { loggers } from '../lib/logger';
+import cacheService, { CACHE_TTL, CACHE_PREFIX } from '../lib/cache.service';
 
 const log = loggers.core;
 
 // Import geohash utilities (pure JS fallback)
 import { geohash, distance } from '@musclemap/native';
-
-// Cache settings
-const GEO_CACHE_TTL = 300; // 5 minutes
-const NEARBY_CACHE_PREFIX = 'nearby:';
 
 interface NearbyQuery {
   lat: number;
@@ -387,7 +383,7 @@ export const geoService = {
   },
 
   /**
-   * Get all hangout types
+   * Get all hangout types (cached)
    */
   async getTypes(): Promise<
     Array<{
@@ -398,21 +394,27 @@ export const geoService = {
       iconUrl?: string;
     }>
   > {
-    const rows = await queryAll<{
-      id: number;
-      slug: string;
-      name: string;
-      description: string | null;
-      icon_url: string | null;
-    }>('SELECT id, slug, name, description, icon_url FROM hangout_types ORDER BY name');
+    return cacheService.getOrSet(
+      CACHE_PREFIX.HANGOUT_TYPES,
+      CACHE_TTL.HANGOUT_TYPES,
+      async () => {
+        const rows = await queryAll<{
+          id: number;
+          slug: string;
+          name: string;
+          description: string | null;
+          icon_url: string | null;
+        }>('SELECT id, slug, name, description, icon_url FROM hangout_types ORDER BY name');
 
-    return rows.map((r) => ({
-      id: r.id,
-      slug: r.slug,
-      name: r.name,
-      description: r.description ?? undefined,
-      iconUrl: r.icon_url ?? undefined,
-    }));
+        return rows.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          name: r.name,
+          description: r.description ?? undefined,
+          iconUrl: r.icon_url ?? undefined,
+        }));
+      }
+    );
   },
 
   /**
