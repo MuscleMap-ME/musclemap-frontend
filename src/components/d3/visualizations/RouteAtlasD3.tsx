@@ -15,6 +15,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ForceGraph, ForceGraphNode, ForceGraphEdge } from './ForceGraph';
 import { D3Container } from '../core/D3Container';
+import { useUser } from '../../../contexts/UserContext';
 
 // ============================================
 // TYPES
@@ -155,8 +156,12 @@ export function RouteAtlasD3({
 }: RouteAtlasD3Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
+
+  // Check if user is logged in
+  const isLoggedIn = !!user;
 
   // Convert manifest to ForceGraph data
   const { nodes, edges, categoryColors } = useMemo(() => {
@@ -175,6 +180,11 @@ export function RouteAtlasD3({
 
       // Add route nodes
       category.routes.forEach((route) => {
+        // Skip protected routes for non-logged-in users
+        if (!isLoggedIn && route.protection === 'protected') {
+          return;
+        }
+
         // Filter by search
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
@@ -220,7 +230,22 @@ export function RouteAtlasD3({
     });
 
     return { nodes, edges, categoryColors: colors };
-  }, [manifest, location.pathname, searchQuery, activeCategories]);
+  }, [manifest, location.pathname, searchQuery, activeCategories, isLoggedIn]);
+
+  // Get categories that have visible routes (for legend filtering)
+  const visibleCategoryIds = useMemo(() => {
+    return manifest.categories
+      .filter((category) => {
+        // Check if category has any visible routes for current user
+        return category.routes.some((route) => {
+          if (!isLoggedIn && route.protection === 'protected') {
+            return false;
+          }
+          return true;
+        });
+      })
+      .map((c) => c.id);
+  }, [manifest, isLoggedIn]);
 
   // Handle node click
   const handleNodeClick = useCallback(
@@ -287,28 +312,30 @@ export function RouteAtlasD3({
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend - only show categories with visible routes */}
       {showLegend && (
         <div className="absolute bottom-4 left-4 z-20 flex flex-wrap gap-2">
-          {manifest.categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => handleToggleCategory(category.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeCategories.length === 0 || activeCategories.includes(category.id)
-                  ? 'opacity-100'
-                  : 'opacity-40'
-              }`}
-              style={{
-                backgroundColor: `${category.color}20`,
-                borderColor: `${category.color}40`,
-                borderWidth: 1,
-                color: category.color,
-              }}
-            >
-              {category.label}
-            </button>
-          ))}
+          {manifest.categories
+            .filter((category) => visibleCategoryIds.includes(category.id))
+            .map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleToggleCategory(category.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeCategories.length === 0 || activeCategories.includes(category.id)
+                    ? 'opacity-100'
+                    : 'opacity-40'
+                }`}
+                style={{
+                  backgroundColor: `${category.color}20`,
+                  borderColor: `${category.color}40`,
+                  borderWidth: 1,
+                  color: category.color,
+                }}
+              >
+                {category.label}
+              </button>
+            ))}
 
           {activeCategories.length > 0 && (
             <button
