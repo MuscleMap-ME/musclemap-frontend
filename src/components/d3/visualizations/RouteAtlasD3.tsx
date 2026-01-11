@@ -207,26 +207,38 @@ export function RouteAtlasD3({
           data: { route, category, isCurrentRoute },
         });
 
-        // Create edges between related routes in same category
-        category.routes.forEach((otherRoute) => {
-          if (otherRoute.id !== route.id && Math.random() < 0.3) {
-            // Only create some edges for visual effect
+      });
+    });
+
+    // Create edges between related routes in same category
+    // Only create edges between nodes that actually exist
+    const nodeIds = new Set(nodes.map(n => n.id));
+
+    visibleCategories.forEach((category) => {
+      const categoryNodeIds = category.routes
+        .filter(r => nodeIds.has(r.id))
+        .map(r => r.id);
+
+      // Create some edges between nodes in the same category
+      for (let i = 0; i < categoryNodeIds.length; i++) {
+        for (let j = i + 1; j < categoryNodeIds.length; j++) {
+          if (Math.random() < 0.3) {
             const existingEdge = edges.find(
               (e) =>
-                (e.source === route.id && e.target === otherRoute.id) ||
-                (e.source === otherRoute.id && e.target === route.id)
+                (e.source === categoryNodeIds[i] && e.target === categoryNodeIds[j]) ||
+                (e.source === categoryNodeIds[j] && e.target === categoryNodeIds[i])
             );
             if (!existingEdge) {
               edges.push({
-                source: route.id,
-                target: otherRoute.id,
+                source: categoryNodeIds[i],
+                target: categoryNodeIds[j],
                 weight: 0.5,
                 style: 'dashed' as const,
               });
             }
           }
-        });
-      });
+        }
+      }
     });
 
     return { nodes, edges, categoryColors: colors };

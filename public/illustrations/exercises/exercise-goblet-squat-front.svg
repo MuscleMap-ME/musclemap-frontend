@@ -1,0 +1,189 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Goblet Squat (Dumbbell/Kettlebell) - Bottom Position
+    View: Front
+    Primary Muscles: Quadriceps (92%), Gluteus Maximus (85%), Core (55%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Left Quadriceps - PRIMARY (92%) -->
+    <path id="muscle-quad-left" data-muscle="quadriceps-left" data-activation="92"
+      d="M 130 365 Q 100 385 90 440 Q 85 505 105 565 Q 145 590 180 560 Q 200 505 190 445 Q 175 385 130 365"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Right Quadriceps - PRIMARY (92%) -->
+    <path id="muscle-quad-right" data-muscle="quadriceps-right" data-activation="92"
+      d="M 270 365 Q 300 385 310 440 Q 315 505 295 565 Q 255 590 220 560 Q 200 505 210 445 Q 225 385 270 365"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Gluteus Maximus - PRIMARY (85%) -->
+    <path id="muscle-glutes" data-muscle="gluteus-maximus" data-activation="85"
+      d="M 155 345 Q 200 328 245 345 Q 275 380 260 430 Q 200 455 140 430 Q 125 380 155 345"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.78;0.92;0.78" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </path>
+
+    <!-- Core - SECONDARY (55%) -->
+    <path id="muscle-core" data-muscle="rectus-abdominis" data-activation="55"
+      d="M 180 220 Q 200 212 220 220 Q 230 275 220 330 Q 200 345 180 330 Q 170 275 180 220"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" opacity="0.65"/>
+
+    <!-- Left Adductors -->
+    <ellipse id="muscle-adductor-left" data-muscle="adductors-left" data-activation="50"
+      cx="160" cy="420" rx="18" ry="40"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-15 160 420)" opacity="0.55"/>
+
+    <!-- Right Adductors -->
+    <ellipse id="muscle-adductor-right" data-muscle="adductors-right" data-activation="50"
+      cx="240" cy="420" rx="18" ry="40"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(15 240 420)" opacity="0.55"/>
+
+    <!-- Calves -->
+    <ellipse id="muscle-calf-left" data-muscle="gastrocnemius-left" data-activation="40"
+      cx="130" cy="600" rx="15" ry="38"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.45"/>
+    <ellipse id="muscle-calf-right" data-muscle="gastrocnemius-right" data-activation="40"
+      cx="270" cy="600" rx="15" ry="38"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.45"/>
+
+    <!-- Forearms (gripping) -->
+    <ellipse id="muscle-forearm-left" data-muscle="forearm-left" data-activation="35"
+      cx="155" cy="265" rx="10" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(25 155 265)" opacity="0.4"/>
+    <ellipse id="muscle-forearm-right" data-muscle="forearm-right" data-activation="35"
+      cx="245" cy="265" rx="10" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-25 245 265)" opacity="0.4"/>
+  </g>
+
+  <!-- FIGURE LAYER - Front View Goblet Squat (bottom position) -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head -->
+    <ellipse cx="200" cy="80" rx="32" ry="38"/>
+
+    <!-- Neck -->
+    <rect x="186" y="115" width="28" height="20" rx="7"/>
+
+    <!-- Trapezius/Shoulders -->
+    <path d="M 130 145 Q 165 132 200 138 Q 235 132 270 145 Q 288 175 282 205 L 118 205 Q 112 175 130 145"/>
+
+    <!-- Shoulders -->
+    <ellipse cx="125" cy="195" rx="26" ry="22"/>
+    <ellipse cx="275" cy="195" rx="26" ry="22"/>
+
+    <!-- Torso (upright even in deep squat) -->
+    <path d="M 130 210 Q 115 245 120 310 Q 145 380 175 420 Q 195 435 200 435 Q 205 435 225 420 Q 255 380 280 310 Q 285 245 270 210 Q 200 190 130 210"/>
+
+    <!-- Left Upper Arm (elbows tucked, holding weight) -->
+    <ellipse cx="145" cy="235" rx="16" ry="38" transform="rotate(-30 145 235)"/>
+
+    <!-- Right Upper Arm -->
+    <ellipse cx="255" cy="235" rx="16" ry="38" transform="rotate(30 255 235)"/>
+
+    <!-- Left Forearm (pointing up to hold weight) -->
+    <ellipse cx="165" cy="270" rx="12" ry="32" transform="rotate(40 165 270)"/>
+
+    <!-- Right Forearm -->
+    <ellipse cx="235" cy="270" rx="12" ry="32" transform="rotate(-40 235 270)"/>
+
+    <!-- Hands (cupping weight at chest) -->
+    <ellipse cx="185" cy="290" rx="12" ry="10"/>
+    <ellipse cx="215" cy="290" rx="12" ry="10"/>
+
+    <!-- Pelvis (deep squat position) -->
+    <path d="M 155 420 Q 200 445 245 420 Q 268 470 250 520 Q 200 545 150 520 Q 132 470 155 420"/>
+
+    <!-- Left Thigh (deep squat - nearly horizontal) -->
+    <path d="M 115 390 Q 80 420 70 485 Q 68 550 95 605 Q 145 638 190 610 Q 210 555 195 490 Q 170 425 115 390"/>
+
+    <!-- Right Thigh -->
+    <path d="M 285 390 Q 320 420 330 485 Q 332 550 305 605 Q 255 638 210 610 Q 190 555 205 490 Q 230 425 285 390"/>
+
+    <!-- Left Lower Leg -->
+    <path d="M 100 590 Q 75 620 72 680 Q 70 740 90 795 Q 130 820 170 800 Q 185 745 180 685 Q 168 625 125 595"/>
+
+    <!-- Right Lower Leg -->
+    <path d="M 300 590 Q 325 620 328 680 Q 330 740 310 795 Q 270 820 230 800 Q 215 745 220 685 Q 232 625 275 595"/>
+
+    <!-- Feet (flat, slightly turned out) -->
+    <path d="M 60 785 Q 35 798 28 825 Q 26 855 60 870 Q 135 882 185 868 Q 205 848 195 820 Q 175 800 60 785"/>
+    <path d="M 340 785 Q 365 798 372 825 Q 374 855 340 870 Q 265 882 215 868 Q 195 848 205 820 Q 225 800 340 785"/>
+  </g>
+
+  <!-- KETTLEBELL/DUMBBELL (goblet position) -->
+  <g id="equipment-weight" filter="url(#softShadow)">
+    <!-- Kettlebell body -->
+    <ellipse cx="200" cy="310" rx="25" ry="30" fill="#3F3F46"/>
+    <!-- Kettlebell handle -->
+    <path d="M 175 280 Q 175 260 200 260 Q 225 260 225 280" fill="none" stroke="#52525B" stroke-width="8"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="200" cy="135" r="4"/> <!-- Neck -->
+    <circle cx="125" cy="195" r="4"/> <!-- Left shoulder -->
+    <circle cx="275" cy="195" r="4"/> <!-- Right shoulder -->
+    <circle cx="200" cy="450" r="5"/> <!-- Hip center -->
+    <circle cx="115" cy="595" r="4"/> <!-- Left knee -->
+    <circle cx="285" cy="595" r="4"/> <!-- Right knee -->
+    <circle cx="95" cy="790" r="4"/> <!-- Left ankle -->
+    <circle cx="305" cy="790" r="4"/> <!-- Right ankle -->
+  </g>
+
+  <!-- DEPTH INDICATOR -->
+  <g id="depth-indicator" opacity="0.4">
+    <line x1="115" y1="595" x2="115" y2="450" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="285" y1="595" x2="285" y2="450" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="175" y="525" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">below parallel</text>
+  </g>
+
+  <!-- MOVEMENT INDICATOR -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 200 380 L 200 320 L 190 350 Z" fill="#14B8A6"/>
+    <text x="210" y="350" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">STAND</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="200" cy="450" rx="85" ry="70" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="rx" values="80;90;80" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+</svg>

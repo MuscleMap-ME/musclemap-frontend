@@ -1,0 +1,198 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Cable Bicep Curl (Low Pulley) - Top Position
+    View: Front
+    Primary Muscles: Biceps Brachii (95%), Brachialis (80%), Brachioradialis (65%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- CABLE MACHINE -->
+  <g id="equipment" fill="#3F3F46" stroke="#52525B" stroke-width="2">
+    <!-- Weight stack frame -->
+    <rect x="165" y="480" width="70" height="100" rx="5"/>
+
+    <!-- Weight stack (visible from front) -->
+    <g transform="translate(175, 490)">
+      <rect x="0" y="0" width="50" height="12" fill="#1F1F23"/>
+      <rect x="0" y="15" width="50" height="12" fill="#1F1F23"/>
+      <rect x="0" y="30" width="50" height="12" fill="#3F3F46"/>
+      <rect x="0" y="45" width="50" height="12" fill="#3F3F46"/>
+      <rect x="0" y="60" width="50" height="12" fill="#3F3F46"/>
+    </g>
+
+    <!-- Low pulley housing -->
+    <rect x="175" y="565" width="50" height="20" rx="4"/>
+    <circle cx="200" cy="575" r="8" fill="#52525B" stroke="#71717A"/>
+
+    <!-- Cable -->
+    <line x1="200" y1="575" x2="200" y2="500" stroke="#71717A" stroke-width="3"/>
+    <path d="M 200 500 Q 200 400 200 350" fill="none" stroke="#71717A" stroke-width="3"/>
+  </g>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Left Biceps - PRIMARY (95%) -->
+    <ellipse id="muscle-biceps-left" data-muscle="biceps-left" data-activation="95"
+      cx="148" cy="235" rx="18" ry="42"
+      fill="url(#activationMax)" filter="url(#muscleGlow)" transform="rotate(-10 148 235)">
+      <animate attributeName="opacity" values="0.88;1;0.88" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Right Biceps - PRIMARY (95%) -->
+    <ellipse id="muscle-biceps-right" data-muscle="biceps-right" data-activation="95"
+      cx="252" cy="235" rx="18" ry="42"
+      fill="url(#activationMax)" filter="url(#muscleGlow)" transform="rotate(10 252 235)">
+      <animate attributeName="opacity" values="0.88;1;0.88" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Left Brachialis - PRIMARY (80%) -->
+    <ellipse id="muscle-brachialis-left" data-muscle="brachialis-left" data-activation="80"
+      cx="158" cy="250" rx="14" ry="35"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(-8 158 250)">
+      <animate attributeName="opacity" values="0.75;0.9;0.75" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </ellipse>
+
+    <!-- Right Brachialis -->
+    <ellipse id="muscle-brachialis-right" data-muscle="brachialis-right" data-activation="80"
+      cx="242" cy="250" rx="14" ry="35"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(8 242 250)">
+      <animate attributeName="opacity" values="0.75;0.9;0.75" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </ellipse>
+
+    <!-- Forearms - Brachioradialis -->
+    <ellipse id="muscle-forearm-left" data-muscle="brachioradialis-left" data-activation="65"
+      cx="165" cy="300" rx="12" ry="32"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" transform="rotate(-25 165 300)"/>
+    <ellipse id="muscle-forearm-right" data-muscle="brachioradialis-right" data-activation="65"
+      cx="235" cy="300" rx="12" ry="32"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" transform="rotate(25 235 300)"/>
+
+    <!-- Anterior Deltoids (stabilization) -->
+    <ellipse id="muscle-front-delt-left" data-muscle="anterior-deltoid-left" data-activation="30"
+      cx="145" cy="185" rx="16" ry="18"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.4"/>
+    <ellipse id="muscle-front-delt-right" data-muscle="anterior-deltoid-right" data-activation="30"
+      cx="255" cy="185" rx="16" ry="18"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.4"/>
+  </g>
+
+  <!-- FIGURE LAYER - Front View Cable Curl -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head -->
+    <ellipse cx="200" cy="85" rx="32" ry="38"/>
+
+    <!-- Neck -->
+    <rect x="186" y="120" width="28" height="22" rx="7"/>
+
+    <!-- Trapezius/Shoulders -->
+    <path d="M 135" y="150" Q 165 138 200 145 Q 235 138 265 150 Q 285 180 278 210 L 122 210 Q 115 180 135 150"/>
+
+    <!-- Shoulders -->
+    <ellipse cx="135" cy="200" rx="26" ry="22"/>
+    <ellipse cx="265" cy="200" rx="26" ry="22"/>
+
+    <!-- Torso -->
+    <path d="M 135 215 Q 118 250 125 320 Q 148 410 178 465 Q 195 482 200 482 Q 205 482 222 465 Q 252 410 275 320 Q 282 250 265 215 Q 200 195 135 215"/>
+
+    <!-- Left Upper Arm (at sides, elbows tucked) -->
+    <ellipse cx="145" cy="235" rx="18" ry="45"/>
+
+    <!-- Right Upper Arm -->
+    <ellipse cx="255" cy="235" rx="18" ry="45"/>
+
+    <!-- Left Forearm (curled up) -->
+    <ellipse cx="168" cy="305" rx="14" ry="40" transform="rotate(-35 168 305)"/>
+
+    <!-- Right Forearm (curled up) -->
+    <ellipse cx="232" cy="305" rx="14" ry="40" transform="rotate(35 232 305)"/>
+
+    <!-- Hands (gripping bar) -->
+    <ellipse cx="185" cy="345" rx="12" ry="10"/>
+    <ellipse cx="215" cy="345" rx="12" ry="10"/>
+
+    <!-- Pelvis -->
+    <path d="M 165" y="465" Q 200 490 235 465 Q 255 510 238 555 Q 200 578 162 555 Q 145 510 165 465"/>
+
+    <!-- Legs -->
+    <ellipse cx="178" cy="595" rx="28" ry="55"/>
+    <ellipse cx="222" cy="595" rx="28" ry="55"/>
+
+    <!-- Lower Legs -->
+    <ellipse cx="175" cy="675" rx="18" ry="50"/>
+    <ellipse cx="225" cy="675" rx="18" ry="50"/>
+  </g>
+
+  <!-- STRAIGHT BAR ATTACHMENT -->
+  <g id="equipment-bar" filter="url(#softShadow)">
+    <rect x="155" y="340" width="90" height="10" fill="#71717A" rx="5"/>
+    <!-- Connection to cable -->
+    <rect x="196" y="348" width="8" height="8" fill="#52525B"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="200" cy="140" r="4"/> <!-- Neck -->
+    <circle cx="135" cy="200" r="4"/> <!-- Left shoulder -->
+    <circle cx="265" cy="200" r="4"/> <!-- Right shoulder -->
+    <circle cx="145" cy="275" r="3"/> <!-- Left elbow -->
+    <circle cx="255" cy="275" r="3"/> <!-- Right elbow -->
+    <circle cx="185" cy="345" r="3"/> <!-- Left wrist -->
+    <circle cx="215" cy="345" r="3"/> <!-- Right wrist -->
+  </g>
+
+  <!-- CONSTANT TENSION INDICATOR -->
+  <g id="tension-indicator" opacity="0.4">
+    <text x="210" y="420" fill="#14B8A6" font-family="Inter, sans-serif" font-size="9">constant</text>
+    <text x="210" y="432" fill="#14B8A6" font-family="Inter, sans-serif" font-size="9">tension</text>
+  </g>
+
+  <!-- MOVEMENT INDICATOR -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 200 420 L 200 360 L 190 390 Z" fill="#14B8A6"/>
+    <text x="210" y="375" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">CURL</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="150" cy="250" rx="28" ry="50" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="45;55;45" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="250" cy="250" rx="28" ry="50" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="45;55;45" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="130" y1="725" x2="270" y2="725" stroke="#334155" stroke-width="2"/>
+</svg>
