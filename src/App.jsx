@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType 
 import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { LocaleProvider } from './contexts/LocaleContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { CompanionProvider, CompanionDock } from './components/mascot';
 import { usePrefetchRoutes } from './components/PrefetchLink';
@@ -432,16 +434,20 @@ export default function App() {
   return (
     <ErrorBoundary name="App">
       <ApolloProvider client={apolloClient}>
-        <BrowserRouter>
-          <UserProvider>
-            <CompanionProvider>
-              <div id="main-content" role="main">
-                <AppRoutes />
-              </div>
-              <CompanionDock />
-            </CompanionProvider>
-          </UserProvider>
-        </BrowserRouter>
+        <ThemeProvider>
+          <LocaleProvider>
+            <BrowserRouter>
+              <UserProvider>
+                <CompanionProvider>
+                  <div id="main-content" role="main">
+                    <AppRoutes />
+                  </div>
+                  <CompanionDock />
+                </CompanionProvider>
+              </UserProvider>
+            </BrowserRouter>
+          </LocaleProvider>
+        </ThemeProvider>
       </ApolloProvider>
     </ErrorBoundary>
   );
