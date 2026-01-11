@@ -50,6 +50,7 @@ import { registerCommunitiesRoutes } from './routes/communities';
 import { registerBulletinRoutes } from './routes/bulletin';
 import { registerLeaderboardRoutes } from './routes/leaderboards';
 import { registerAchievementRoutes } from './routes/achievements';
+import { registerVerificationRoutes } from './routes/verifications';
 import { registerCohortPreferencesRoutes } from './routes/cohort-preferences';
 import { registerCheckInRoutes } from './routes/checkins';
 import socialRoutes from './routes/social';
@@ -309,6 +310,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerBulletinRoutes(api);
     await registerLeaderboardRoutes(api);
     await registerAchievementRoutes(api);
+    await registerVerificationRoutes(api);
     await registerCohortPreferencesRoutes(api);
     await registerCheckInRoutes(api);
 

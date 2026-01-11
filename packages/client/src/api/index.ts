@@ -3168,6 +3168,196 @@ export const apiClient = {
     },
   },
 
+  // Achievement Verification
+  verifications: {
+    /**
+     * Get achievements that require verification
+     */
+    getRequired: () =>
+      request<DataResponse<Array<{
+        id: string;
+        key: string;
+        name: string;
+        description?: string;
+        tier: string;
+        rarity: string;
+        points: number;
+      }>>>('/achievements/verification-required', {
+        schema: wrapInData(Type.Array(Type.Object({
+          id: Type.String(),
+          key: Type.String(),
+          name: Type.String(),
+          description: Type.Optional(Type.String()),
+          tier: Type.String(),
+          rarity: Type.String(),
+          points: Type.Number(),
+        }))),
+        cacheTtl: 300_000,
+      }),
+
+    /**
+     * Check if user can submit verification for an achievement
+     */
+    canVerify: (achievementId: string) =>
+      request<DataResponse<{ canSubmit: boolean; reason?: string }>>(`/achievements/${achievementId}/can-verify`),
+
+    /**
+     * Submit verification with video
+     */
+    submit: (achievementId: string, data: { witnessUserId: string; notes?: string; video?: File }) => {
+      const formData = new FormData();
+      formData.append('witness_user_id', data.witnessUserId);
+      if (data.notes) formData.append('notes', data.notes);
+      if (data.video) formData.append('video', data.video);
+
+      return request<DataResponse<{
+        id: string;
+        status: string;
+        videoUrl?: string;
+        thumbnailUrl?: string;
+        expiresAt: string;
+        witness: {
+          witnessUserId: string;
+          witnessUsername?: string;
+          status: string;
+        };
+      }>>(`/achievements/${achievementId}/verify`, {
+        method: 'POST',
+        body: formData,
+        headers: {}, // Let browser set content-type with boundary
+      });
+    },
+
+    /**
+     * Get current user's verifications
+     */
+    my: (options?: { status?: string; limit?: number; offset?: number }) => {
+      const params = new URLSearchParams();
+      if (options?.status) params.set('status', options.status);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+
+      return request<DataResponse<Array<{
+        id: string;
+        achievementId: string;
+        achievementKey: string;
+        achievementName: string;
+        achievementTier: string;
+        videoUrl?: string;
+        thumbnailUrl?: string;
+        status: string;
+        notes?: string;
+        submittedAt: string;
+        verifiedAt?: string;
+        expiresAt: string;
+        witness?: {
+          witnessUserId: string;
+          witnessUsername?: string;
+          attestationText?: string;
+          status: string;
+          isPublic: boolean;
+        };
+      }>>>(`/me/verifications${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Get a specific verification
+     */
+    get: (verificationId: string) =>
+      request<DataResponse<{
+        id: string;
+        userId: string;
+        achievementId: string;
+        achievementKey: string;
+        achievementName: string;
+        achievementTier: string;
+        videoUrl?: string;
+        thumbnailUrl?: string;
+        status: string;
+        notes?: string;
+        submittedAt: string;
+        verifiedAt?: string;
+        expiresAt: string;
+        username?: string;
+        displayName?: string;
+        avatarUrl?: string;
+        witness?: {
+          witnessUserId: string;
+          witnessUsername?: string;
+          witnessDisplayName?: string;
+          attestationText?: string;
+          relationship?: string;
+          locationDescription?: string;
+          status: string;
+          isPublic: boolean;
+          requestedAt: string;
+          respondedAt?: string;
+        };
+      }>>(`/verifications/${verificationId}`),
+
+    /**
+     * Cancel a pending verification
+     */
+    cancel: (verificationId: string) =>
+      request<void>(`/verifications/${verificationId}`, { method: 'DELETE' }),
+
+    /**
+     * Get pending witness requests
+     */
+    witnessRequests: (options?: { status?: string; limit?: number; offset?: number }) => {
+      const params = new URLSearchParams();
+      if (options?.status) params.set('status', options.status);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.offset) params.set('offset', String(options.offset));
+      const query = params.toString();
+
+      return request<DataResponse<Array<{
+        id: string;
+        userId: string;
+        achievementId: string;
+        achievementKey: string;
+        achievementName: string;
+        achievementTier: string;
+        videoUrl?: string;
+        thumbnailUrl?: string;
+        status: string;
+        notes?: string;
+        submittedAt: string;
+        expiresAt: string;
+        username?: string;
+        displayName?: string;
+        avatarUrl?: string;
+      }>>>(`/me/witness-requests${query ? `?${query}` : ''}`);
+    },
+
+    /**
+     * Submit witness attestation
+     */
+    attest: (verificationId: string, data: {
+      confirm: boolean;
+      attestationText?: string;
+      relationship?: string;
+      locationDescription?: string;
+      isPublic?: boolean;
+    }) =>
+      request<DataResponse<{
+        id: string;
+        status: string;
+        verifiedAt?: string;
+        message: string;
+      }>>(`/verifications/${verificationId}/witness`, {
+        method: 'POST',
+        body: {
+          confirm: data.confirm,
+          attestation_text: data.attestationText,
+          relationship: data.relationship,
+          location_description: data.locationDescription,
+          is_public: data.isPublic,
+        },
+      }),
+  },
+
   // Cohort Preferences (for leaderboard filtering)
   cohortPreferences: {
     /**

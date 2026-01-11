@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
@@ -11,6 +11,8 @@ const Icons = {
   Trophy: () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3a1 1 0 011-1h12a1 1 0 011 1v2h2a1 1 0 011 1v3a4 4 0 01-4 4h-.535c-.578 1.74-2.032 3.034-3.798 3.465A3.99 3.99 0 0113 19.17V21h2a1 1 0 110 2H9a1 1 0 110-2h2v-1.83c-.796-.137-1.531-.471-2.167-.965C7.032 13.034 5.578 11.74 5 10H4.535A4 4 0 01.535 6V3a1 1 0 011-1h2V3zm14 3v3a2 2 0 002-2V6h-2zM4 6v3a2 2 0 002 2V6H4z"/></svg>,
   Sparkle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
   Close: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12"/></svg>,
+  Shield: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>,
+  Video: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>,
 };
 
 const CATEGORY_CONFIG = {
@@ -46,6 +48,7 @@ const formatDate = (dateStr) => {
 
 export default function Achievements() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [definitions, setDefinitions] = useState([]);
   const [userAchievements, setUserAchievements] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -132,6 +135,13 @@ export default function Achievements() {
             <h1 className="text-xl font-semibold">Achievements</h1>
           </div>
           <div className="flex items-center gap-2 text-sm">
+            <Link
+              to="/achievements/my-verifications"
+              className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-gray-300 transition-colors"
+            >
+              <Icons.Video />
+              <span className="hidden sm:inline">Verifications</span>
+            </Link>
             <span className="px-3 py-1 bg-violet-600/20 rounded-full text-violet-400 font-medium">
               {earnedSet.size}/{definitions.length}
             </span>
@@ -380,20 +390,52 @@ export default function Achievements() {
                     <div className="flex items-center gap-2 text-green-400 mb-2">
                       <Icons.Check />
                       <span className="font-medium">Achievement Unlocked!</span>
+                      {selectedAchievement.earnedData.isVerified && (
+                        <span className="flex items-center gap-1 ml-2 px-2 py-0.5 bg-violet-500/20 rounded-full text-xs text-violet-400">
+                          <Icons.Shield /> Verified
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-400">
                       Earned on {formatDate(selectedAchievement.earnedData.earnedAt || selectedAchievement.earnedData.earned_at)}
                     </p>
+                    {selectedAchievement.earnedData.witnessUsername && (
+                      <p className="text-sm text-violet-400 mt-1">
+                        Witnessed by @{selectedAchievement.earnedData.witnessUsername}
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* How to Unlock */}
+                {/* How to Unlock / Verification */}
                 {!selectedAchievement.earned && (
-                  <div className="p-4 bg-white/5 rounded-xl">
-                    <h4 className="text-sm text-gray-400 mb-2">How to Unlock</h4>
-                    <p className="text-sm">
-                      {selectedAchievement.unlockHint || selectedAchievement.description || 'Keep training to unlock this achievement!'}
-                    </p>
+                  <div className="space-y-4">
+                    {selectedAchievement.requiresVerification && (
+                      <div className="p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl">
+                        <div className="flex items-center gap-2 text-violet-400 mb-2">
+                          <Icons.Shield />
+                          <span className="font-medium">Verification Required</span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-3">
+                          This elite achievement requires video proof and a witness to verify you've completed it.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setSelectedAchievement(null);
+                            navigate(`/achievements/verify/${selectedAchievement.id}`);
+                          }}
+                          className="w-full py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Submit Verification
+                        </button>
+                      </div>
+                    )}
+                    <div className="p-4 bg-white/5 rounded-xl">
+                      <h4 className="text-sm text-gray-400 mb-2">How to Unlock</h4>
+                      <p className="text-sm">
+                        {selectedAchievement.unlockHint || selectedAchievement.description || 'Keep training to unlock this achievement!'}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

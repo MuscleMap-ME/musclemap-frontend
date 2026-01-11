@@ -62,6 +62,12 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Skills = lazy(() => import('./pages/Skills'));
 const MartialArts = lazy(() => import('./pages/MartialArts'));
 
+// Achievement pages
+const Achievements = lazy(() => import('./pages/Achievements'));
+const AchievementVerification = lazy(() => import('./pages/AchievementVerification'));
+const MyVerifications = lazy(() => import('./pages/MyVerifications'));
+const WitnessAttestation = lazy(() => import('./pages/WitnessAttestation'));
+
 // Issue tracker pages
 const Issues = lazy(() => import('./pages/Issues'));
 const IssueDetail = lazy(() => import('./pages/IssueDetail'));
@@ -393,6 +399,12 @@ function AppRoutes() {
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
           <Route path="/issues/new" element={<ProtectedRoute name="NewIssue"><NewIssue /></ProtectedRoute>} />
           <Route path="/my-issues" element={<ProtectedRoute name="MyIssues"><MyIssues /></ProtectedRoute>} />
+
+          {/* Achievement routes */}
+          <Route path="/achievements" element={<ProtectedRoute name="Achievements"><Achievements /></ProtectedRoute>} />
+          <Route path="/achievements/verify/:achievementId" element={<ProtectedRoute name="AchievementVerification"><AchievementVerification /></ProtectedRoute>} />
+          <Route path="/achievements/my-verifications" element={<ProtectedRoute name="MyVerifications"><MyVerifications /></ProtectedRoute>} />
+          <Route path="/verifications/:verificationId/witness" element={<ProtectedRoute name="WitnessAttestation"><WitnessAttestation /></ProtectedRoute>} />
 
           {/* Admin routes */}
           <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />

@@ -43,7 +43,7 @@ export function clearRequestCache(): void {
 
 export interface RequestOptions<T = unknown> {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  body?: Record<string, unknown>;
+  body?: Record<string, unknown> | FormData;
   headers?: Record<string, string>;
   schema?: AnyValidationSchema;
   auth?: boolean;
@@ -141,10 +141,14 @@ export async function request<T = unknown>(
 
   while (attempt <= retries) {
     try {
+      // Check if body is FormData
+      const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
       // Build headers
       const requestHeaders: Record<string, string> = {
         ...clientConfig.defaultHeaders,
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        // Don't set Content-Type for FormData - browser will set it with boundary
+        ...(body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       };
 
@@ -159,7 +163,7 @@ export async function request<T = unknown>(
       const response = await fetch(url, {
         method: normalizedMethod,
         headers: requestHeaders,
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
       });
 
       // Handle unauthorized
