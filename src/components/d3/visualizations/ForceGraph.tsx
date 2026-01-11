@@ -496,16 +496,31 @@ export function ForceGraph({
       }
     }
 
-    // Drag behavior
+    // Drag behavior with click detection for mobile
     if (interactive) {
+      // Track drag state to distinguish tap from drag on touch devices
+      let dragStartPos: { x: number; y: number } | null = null;
+      let hasDragged = false;
+      const DRAG_THRESHOLD = 5; // pixels - movement below this is considered a tap
+
       const drag = d3
         .drag<SVGGElement, SimulationNode>()
         .on('start', (event, d) => {
+          dragStartPos = { x: event.x, y: event.y };
+          hasDragged = false;
           if (!event.active) simulation.alphaTarget(0.3).restart();
           d.fx = d.x;
           d.fy = d.y;
         })
         .on('drag', (event, d) => {
+          // Check if we've moved enough to count as a drag
+          if (dragStartPos) {
+            const dx = event.x - dragStartPos.x;
+            const dy = event.y - dragStartPos.y;
+            if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+              hasDragged = true;
+            }
+          }
           d.fx = event.x;
           d.fy = event.y;
         })
@@ -513,6 +528,14 @@ export function ForceGraph({
           if (!event.active) simulation.alphaTarget(0);
           d.fx = null;
           d.fy = null;
+
+          // If this was a tap (not a drag), trigger the click handler
+          if (!hasDragged && onNodeClick) {
+            onNodeClick(d);
+          }
+
+          dragStartPos = null;
+          hasDragged = false;
         });
 
       nodeContainers.call(drag);
@@ -595,6 +618,11 @@ export function ForceGraph({
           onNodeHover?.(null);
         })
         .on('click', (event, d) => {
+          // Only handle click on desktop (touch is handled via drag end)
+          // Check if this is a touch event - if so, ignore (drag handles it)
+          if (event.sourceEvent?.type?.startsWith('touch')) {
+            return;
+          }
           event.stopPropagation();
           onNodeClick?.(d);
         });
