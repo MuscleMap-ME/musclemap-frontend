@@ -272,7 +272,11 @@ export function ParticleField({
     <div
       ref={containerRef}
       className={`absolute inset-0 overflow-hidden ${className}`}
-      style={style}
+      style={{
+        ...style,
+        zIndex: 0,
+        pointerEvents: interactive ? 'auto' : 'none',
+      }}
     >
       <canvas
         ref={canvasRef}

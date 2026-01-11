@@ -30,17 +30,19 @@ export default function Landing() {
         color: '#e5e7eb',
       }}
     >
-      {/* Particle Background */}
-      <ParticleField
-        particleCount={60}
-        connectionDistance={100}
-        speed={0.3}
-        showConnections
-        glowIntensity={0.8}
-        colorScheme={['#3b82f6', '#8b5cf6', '#ec4899']}
-        interactive
-      />
-      <header className="w-full border-b border-white/5">
+      {/* Particle Background - subtle, non-interactive to allow clicks through */}
+      <div className="pointer-events-none">
+        <ParticleField
+          particleCount={25}
+          connectionDistance={80}
+          speed={0.15}
+          showConnections
+          glowIntensity={0.3}
+          colorScheme={['#3b82f6', '#8b5cf6', '#6366f1']}
+          interactive={false}
+        />
+      </div>
+      <header className="relative z-10 w-full border-b border-white/5">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <RouterLink
             to="/"
@@ -81,7 +83,7 @@ export default function Landing() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10"
+        className="relative z-10 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10"
       >
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 text-center">
@@ -106,7 +108,7 @@ export default function Landing() {
         </div>
       </motion.div>
 
-      <main className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:py-24">
+      <main className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:py-24">
         {/* CTA Button at top */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -201,7 +203,7 @@ export default function Landing() {
 
       {/* Visual Architecture Map - Feature Flagged */}
       {FEATURE_FLAGS.ATLAS_ENABLED && (
-        <section className="py-20 px-6 border-t border-white/5">
+        <section className="relative z-10 py-20 px-6 border-t border-white/5">
           <div className="max-w-5xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -251,7 +253,7 @@ export default function Landing() {
       )}
 
       {/* Interactive Muscle Map Demo */}
-      <section className="py-20 px-6 border-t border-white/5">
+      <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -334,7 +336,7 @@ export default function Landing() {
       </section>
 
       {/* How It Works - Visual Architecture */}
-      <section className="py-20 px-6 border-t border-white/5">
+      <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -533,7 +535,7 @@ export default function Landing() {
       </section>
 
       {/* Explore Section with Navigation Icons */}
-      <section className="pb-20 px-6">
+      <section className="relative z-10 pb-20 px-6">
         <div className="max-w-4xl mx-auto">
           {/* Navigation Icons */}
           <motion.div

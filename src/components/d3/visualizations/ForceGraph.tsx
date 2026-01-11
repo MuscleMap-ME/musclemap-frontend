@@ -88,6 +88,35 @@ const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
   default: '#64748b',
 };
 
+// Category-specific SVG icon paths for visual variety
+const CATEGORY_ICONS: Record<string, string> = {
+  core: 'M13 10V3L4 14h7v7l9-11h-7z', // lightning bolt - activity
+  community: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75', // users
+  account: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', // user/profile
+  health: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z', // heart
+  docs: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z', // book
+  issues: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', // alert/bug
+  admin: 'M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z', // lock/shield
+  default: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5', // layers
+};
+
+// Unique node shapes for different route types within categories
+const getNodeShape = (routeId: string): 'circle' | 'hexagon' | 'rounded-square' | 'diamond' => {
+  // Map specific routes to different shapes
+  const shapeMap: Record<string, 'circle' | 'hexagon' | 'rounded-square' | 'diamond'> = {
+    dashboard: 'hexagon',
+    workout: 'rounded-square',
+    profile: 'hexagon',
+    settings: 'diamond',
+    community: 'hexagon',
+    docs: 'rounded-square',
+    landing: 'hexagon',
+    issues: 'diamond',
+    roadmap: 'rounded-square',
+  };
+  return shapeMap[routeId] || 'circle';
+};
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -332,26 +361,114 @@ export function ForceGraph({
       .attr('class', 'node')
       .style('cursor', interactive ? 'pointer' : 'default');
 
-    // Node circles
-    const circles = nodeContainers
-      .append('circle')
-      .attr('r', (d) => d.size || nodeRadius)
-      .attr('fill', (d) => getNodeColor(d))
-      .attr('stroke', (d) => d3.color(getNodeColor(d))?.brighter(0.5)?.formatHex() || '#fff')
-      .attr('stroke-width', 2)
-      .attr('opacity', 0);
+    // Helper function to create different node shapes
+    const createNodeShape = (selection: d3.Selection<SVGGElement, SimulationNode, SVGGElement, unknown>) => {
+      selection.each(function (d) {
+        const g = d3.select(this);
+        const size = d.size || nodeRadius;
+        const color = getNodeColor(d);
+        const brighterColor = d3.color(color)?.brighter(0.5)?.formatHex() || '#fff';
+        const shape = getNodeShape(d.id);
+
+        // Add glow background
+        g.append('circle')
+          .attr('r', size * 1.3)
+          .attr('fill', color)
+          .attr('opacity', 0.15)
+          .attr('class', 'node-glow');
+
+        // Create different shapes based on route
+        switch (shape) {
+          case 'hexagon': {
+            const points = [];
+            for (let i = 0; i < 6; i++) {
+              const angle = (i * 60 - 30) * Math.PI / 180;
+              points.push([size * Math.cos(angle), size * Math.sin(angle)]);
+            }
+            g.append('polygon')
+              .attr('points', points.map(p => p.join(',')).join(' '))
+              .attr('fill', color)
+              .attr('stroke', brighterColor)
+              .attr('stroke-width', 2)
+              .attr('class', 'node-shape')
+              .attr('opacity', 0);
+            break;
+          }
+          case 'rounded-square': {
+            g.append('rect')
+              .attr('x', -size * 0.8)
+              .attr('y', -size * 0.8)
+              .attr('width', size * 1.6)
+              .attr('height', size * 1.6)
+              .attr('rx', size * 0.3)
+              .attr('ry', size * 0.3)
+              .attr('fill', color)
+              .attr('stroke', brighterColor)
+              .attr('stroke-width', 2)
+              .attr('class', 'node-shape')
+              .attr('opacity', 0);
+            break;
+          }
+          case 'diamond': {
+            const diamondSize = size * 1.1;
+            g.append('polygon')
+              .attr('points', `0,${-diamondSize} ${diamondSize},0 0,${diamondSize} ${-diamondSize},0`)
+              .attr('fill', color)
+              .attr('stroke', brighterColor)
+              .attr('stroke-width', 2)
+              .attr('class', 'node-shape')
+              .attr('opacity', 0);
+            break;
+          }
+          default: // circle
+            g.append('circle')
+              .attr('r', size)
+              .attr('fill', color)
+              .attr('stroke', brighterColor)
+              .attr('stroke-width', 2)
+              .attr('class', 'node-shape')
+              .attr('opacity', 0);
+        }
+
+        // Add category icon in the center
+        const iconPath = CATEGORY_ICONS[d.category || 'default'] || CATEGORY_ICONS.default;
+        const iconSize = size * 0.8;
+        g.append('g')
+          .attr('class', 'node-icon')
+          .attr('transform', `translate(${-iconSize/2}, ${-iconSize/2}) scale(${iconSize/24})`)
+          .append('path')
+          .attr('d', iconPath)
+          .attr('fill', 'none')
+          .attr('stroke', 'white')
+          .attr('stroke-width', 2)
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+          .attr('opacity', 0);
+      });
+    };
+
+    // Apply node shapes
+    createNodeShape(nodeContainers);
 
     // Animate nodes in
     if (animated) {
-      circles
+      nodeContainers
+        .select('.node-shape')
         .transition()
         .duration(500)
         .delay((_, i) => i * 20)
         .ease(easings.back)
-        .attr('opacity', 1)
-        .attr('r', (d) => d.size || nodeRadius);
+        .attr('opacity', 1);
+
+      nodeContainers
+        .select('.node-icon path')
+        .transition()
+        .duration(400)
+        .delay((_, i) => 150 + i * 20)
+        .attr('opacity', 0.9);
     } else {
-      circles.attr('opacity', 1);
+      nodeContainers.select('.node-shape').attr('opacity', 1);
+      nodeContainers.select('.node-icon path').attr('opacity', 0.9);
     }
 
     // Node labels
@@ -404,13 +521,32 @@ export function ForceGraph({
       nodeContainers
         .on('mouseenter', function (event, d) {
           const colorName = getColorName(getNodeColor(d));
+          const size = d.size || nodeRadius;
 
+          // Scale up the whole node group
           d3.select(this)
-            .select('circle')
             .transition()
             .duration(200)
-            .attr('r', (d.size || nodeRadius) * 1.2)
+            .attr('transform', function() {
+              const currentTransform = d3.select(this).attr('transform');
+              const match = currentTransform?.match(/translate\(([^,]+),\s*([^)]+)\)/);
+              if (match) {
+                return `translate(${match[1]}, ${match[2]}) scale(1.15)`;
+              }
+              return currentTransform;
+            });
+
+          // Add glow filter to node shape
+          d3.select(this)
+            .select('.node-shape')
             .style('filter', `url(#node-glow-${colorName})`);
+
+          // Brighten the glow background
+          d3.select(this)
+            .select('.node-glow')
+            .transition()
+            .duration(200)
+            .attr('opacity', 0.3);
 
           // Highlight connected edges
           edgePaths
@@ -431,12 +567,23 @@ export function ForceGraph({
           onNodeHover?.(d);
         })
         .on('mouseleave', function (event, d) {
+          // Reset scale
           d3.select(this)
-            .select('circle')
             .transition()
             .duration(200)
-            .attr('r', d.size || nodeRadius)
+            .attr('transform', `translate(${d.x || 0}, ${d.y || 0})`);
+
+          // Remove glow filter
+          d3.select(this)
+            .select('.node-shape')
             .style('filter', 'none');
+
+          // Dim the glow background
+          d3.select(this)
+            .select('.node-glow')
+            .transition()
+            .duration(200)
+            .attr('opacity', 0.15);
 
           edgePaths
             .transition()
