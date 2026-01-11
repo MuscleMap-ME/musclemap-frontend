@@ -2,8 +2,17 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
+import SEO from '../components/SEO';
 
 export default function Signup() {
+  // SEO structured data for signup
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: 'Sign Up for MuscleMap',
+    description: 'Create your free MuscleMap account. Start tracking your fitness journey with real-time muscle visualization.',
+    url: 'https://musclemap.me/signup',
+  };
   const navigate = useNavigate();
   const { login } = useUser();
   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
@@ -41,6 +50,12 @@ export default function Signup() {
   };
 
   return (
+    <>
+      <SEO
+        title="Sign Up"
+        description="Create your free MuscleMap account. Start tracking your fitness journey with real-time muscle visualization."
+        structuredData={structuredData}
+      />
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{

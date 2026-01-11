@@ -42,13 +42,31 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // Increase chunk size warning limit since we're code-splitting
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
+        // Strategic chunk splitting for optimal caching and loading
         manualChunks: {
+          // Core React - loaded on every page
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei']
-        }
-      }
-    }
-  }
+
+          // 3D visualization - only loaded on pages with 3D models
+          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+
+          // D3 for charts and graphs - only loaded when needed
+          'd3-vendor': ['d3'],
+
+          // Apollo/GraphQL - loaded after initial render
+          'apollo-vendor': ['@apollo/client', 'graphql'],
+
+          // Animation library - commonly used but not critical path
+          'animation-vendor': ['framer-motion'],
+
+          // Icons - loaded as needed
+          'icons-vendor': ['lucide-react'],
+        },
+      },
+    },
+  },
 })

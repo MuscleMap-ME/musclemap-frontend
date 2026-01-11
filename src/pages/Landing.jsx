@@ -5,8 +5,18 @@ import LiveCommunityStats from '../components/landing/LiveCommunityStats';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { RouteAtlas } from '../components/atlas';
 import { RouteAtlasD3, MuscleMapD3, ParticleField } from '../components/d3';
+import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 
 export default function Landing() {
+  // Combined structured data for the landing page
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      getOrganizationSchema(),
+      getWebsiteSchema(),
+      getSoftwareAppSchema(),
+    ],
+  };
   const [useD3Atlas, setUseD3Atlas] = useState(true);
 
   // Demo muscle activations for the interactive body map
@@ -21,6 +31,12 @@ export default function Landing() {
   ];
 
   return (
+    <>
+      <SEO
+        title={null}
+        description="See every rep. Know every muscle. Own your progress. MuscleMap visualizes muscle activation in real-time for effective fitness tracking."
+        structuredData={structuredData}
+      />
     <div
       className="min-h-screen relative"
       style={{
@@ -946,5 +962,6 @@ export default function Landing() {
         </div>
       </section>
     </div>
+    </>
   );
 }

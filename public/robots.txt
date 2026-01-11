@@ -1,0 +1,69 @@
+# robots.txt for MuscleMap
+# https://musclemap.me
+
+# Allow all search engines
+User-agent: *
+
+# Allow everything public
+Allow: /
+Allow: /features
+Allow: /technology
+Allow: /science
+Allow: /design
+Allow: /design-system
+Allow: /docs
+Allow: /docs/
+Allow: /skills
+Allow: /skills/
+Allow: /martial-arts
+Allow: /martial-arts/
+Allow: /issues
+Allow: /updates
+Allow: /roadmap
+Allow: /login
+Allow: /signup
+Allow: /privacy
+
+# Block protected/authenticated pages
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /workout
+Disallow: /journey
+Disallow: /profile
+Disallow: /settings
+Disallow: /progression
+Disallow: /community
+Disallow: /competitions
+Disallow: /locations
+Disallow: /highfives
+Disallow: /credits
+Disallow: /messages
+Disallow: /wallet
+Disallow: /skins
+Disallow: /exercises
+Disallow: /stats
+Disallow: /crews
+Disallow: /rivals
+Disallow: /health
+Disallow: /goals
+Disallow: /limitations
+Disallow: /pt-tests
+Disallow: /issues/new
+Disallow: /my-issues
+
+# Block admin pages
+Disallow: /admin-control
+Disallow: /admin/
+
+# Block API endpoints
+Disallow: /api/
+
+# Block common dev/staging patterns
+Disallow: /*.json$
+Disallow: /manifest.json
+
+# Crawl delay to be polite
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://musclemap.me/sitemap.xml

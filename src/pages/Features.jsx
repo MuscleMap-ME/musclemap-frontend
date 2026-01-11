@@ -15,6 +15,7 @@ import {
   MeshBackground,
   MuscleIndicator,
 } from '../components/glass';
+import SEO, { getBreadcrumbSchema } from '../components/SEO';
 
 // VGA-style color palette
 const VGA_COLORS = {
@@ -255,7 +256,18 @@ const FeatureCard = ({ category, index }) => (
 );
 
 export default function Features() {
+  const breadcrumbs = getBreadcrumbSchema([
+    { name: 'Home', path: '/' },
+    { name: 'Features', path: '/features' },
+  ]);
+
   return (
+    <>
+      <SEO
+        title="Features"
+        description="Explore MuscleMap features: real-time muscle visualization, AI workout generation, cross-platform sync, RPG progression, and community features."
+        structuredData={breadcrumbs}
+      />
     <div className="min-h-screen relative">
       <MeshBackground intensity="medium" />
 
@@ -513,5 +525,6 @@ export default function Features() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
