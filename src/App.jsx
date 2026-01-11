@@ -53,14 +53,30 @@ import PTTests from './pages/PTTests';
 import Skills from './pages/Skills';
 import MartialArts from './pages/MartialArts';
 
+// Scroll to top on route change - ensures users always start at top of page
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    // Scroll to top immediately on route change
+    window.scrollTo(0, 0);
+
+    // Also reset any scrollable containers and ensure focus is at top
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0; // For Safari
+  }, [pathname]);
+
+  return null;
+}
+
 // Page view tracker
 function PageTracker() {
   const location = useLocation();
-  
+
   useEffect(() => {
     logger.pageView(location.pathname, { search: location.search });
   }, [location]);
-  
+
   return null;
 }
 
@@ -110,6 +126,7 @@ const AdminRoute = ({ children, name }) => {
 function AppRoutes() {
   return (
     <>
+      <ScrollToTop />
       <PageTracker />
       <Routes>
         {/* Public routes */}
