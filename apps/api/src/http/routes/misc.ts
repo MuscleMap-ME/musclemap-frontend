@@ -8,6 +8,14 @@ import { FastifyInstance } from 'fastify';
 import { authenticate, optionalAuth } from './auth';
 import { queryAll, queryOne, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import {
+  getExerciseIllustration,
+  hasExerciseIllustration,
+  getBodyIllustrationPath,
+  MUSCLE_GROUP_COLORS,
+  ACTIVATION_COLORS,
+  getMuscleIllustrationIds,
+} from '@musclemap/shared';
 
 const log = loggers.http;
 
@@ -35,22 +43,33 @@ export async function registerMiscRoutes(app: FastifyInstance) {
     const exercises = await queryAll(sql, queryParams);
 
     return reply.send({
-      data: exercises.map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        type: e.type,
-        difficulty: e.difficulty,
-        description: e.description,
-        cues: e.cues,
-        primaryMuscles: e.primary_muscles,
-        equipmentRequired: e.equipment_required,
-        equipmentOptional: e.equipment_optional,
-        locations: e.locations,
-        isCompound: e.is_compound,
-        estimatedSeconds: e.estimated_seconds,
-        restSeconds: e.rest_seconds,
-        movementPattern: e.movement_pattern,
-      })),
+      data: exercises.map((e: any) => {
+        const illustration = getExerciseIllustration(e.id);
+        return {
+          id: e.id,
+          name: e.name,
+          type: e.type,
+          difficulty: e.difficulty,
+          description: e.description,
+          cues: e.cues,
+          primaryMuscles: e.primary_muscles,
+          equipmentRequired: e.equipment_required,
+          equipmentOptional: e.equipment_optional,
+          locations: e.locations,
+          isCompound: e.is_compound,
+          estimatedSeconds: e.estimated_seconds,
+          restSeconds: e.rest_seconds,
+          movementPattern: e.movement_pattern,
+          // Illustration data
+          illustration: illustration ? {
+            url: illustration.file,
+            view: illustration.view,
+            primaryMuscles: illustration.primaryMuscles,
+            secondaryMuscles: illustration.secondaryMuscles,
+          } : null,
+          hasIllustration: hasExerciseIllustration(e.id),
+        };
+      }),
     });
   });
 
@@ -64,6 +83,147 @@ export async function registerMiscRoutes(app: FastifyInstance) {
     );
 
     return reply.send({ data: activations });
+  });
+
+  // Exercise illustration with activation data
+  app.get('/exercises/:id/illustration', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const exercise = await queryOne<{ id: string; name: string }>(
+      'SELECT id, name FROM exercises WHERE id = $1',
+      [id]
+    );
+
+    if (!exercise) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Exercise not found', statusCode: 404 },
+      });
+    }
+
+    const illustration = getExerciseIllustration(id);
+    if (!illustration) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'No illustration available for this exercise', statusCode: 404 },
+      });
+    }
+
+    // Get muscle activations for highlighting
+    const activations = await queryAll<{ muscle_id: string; activation: number }>(
+      'SELECT muscle_id, activation FROM exercise_activations WHERE exercise_id = $1 ORDER BY activation DESC',
+      [id]
+    );
+
+    // Map database muscle IDs to illustration IDs
+    const muscleHighlights = activations.map(a => ({
+      dbMuscleId: a.muscle_id,
+      illustrationIds: getMuscleIllustrationIds(a.muscle_id),
+      activation: a.activation,
+    }));
+
+    return reply.send({
+      data: {
+        exerciseId: id,
+        exerciseName: exercise.name,
+        illustration: {
+          url: illustration.file,
+          view: illustration.view,
+          primaryMuscles: illustration.primaryMuscles,
+          secondaryMuscles: illustration.secondaryMuscles,
+        },
+        muscleHighlights,
+        activationColors: ACTIVATION_COLORS,
+      },
+    });
+  });
+
+  // Body illustrations
+  app.get('/illustrations/bodies', async (request, reply) => {
+    const params = request.query as { type?: string; view?: string };
+
+    const types = ['male', 'female', 'youth'] as const;
+    const views = ['front', 'back', 'side'] as const;
+
+    const illustrations: Array<{ type: string; view: string; url: string }> = [];
+
+    for (const type of types) {
+      if (params.type && params.type !== type) continue;
+      for (const view of views) {
+        if (params.view && params.view !== view) continue;
+        illustrations.push({
+          type,
+          view,
+          url: getBodyIllustrationPath(type, view),
+        });
+      }
+    }
+
+    return reply.send({ data: illustrations });
+  });
+
+  // Muscle detail with exercises targeting it
+  app.get('/muscles/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const muscle = await queryOne<{
+      id: string;
+      name: string;
+      anatomical_name: string;
+      muscle_group: string;
+      bias_weight: number;
+      optimal_weekly_volume: number;
+      recovery_time: number;
+    }>(
+      'SELECT * FROM muscles WHERE id = $1',
+      [id]
+    );
+
+    if (!muscle) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Muscle not found', statusCode: 404 },
+      });
+    }
+
+    // Get exercises that target this muscle
+    const exercises = await queryAll<{
+      exercise_id: string;
+      exercise_name: string;
+      activation: number;
+    }>(
+      `SELECT ea.exercise_id, e.name as exercise_name, ea.activation
+       FROM exercise_activations ea
+       JOIN exercises e ON ea.exercise_id = e.id
+       WHERE ea.muscle_id = $1
+       ORDER BY ea.activation DESC
+       LIMIT 20`,
+      [id]
+    );
+
+    // Get color for muscle group
+    const groupColor = MUSCLE_GROUP_COLORS[muscle.muscle_group] || { color: '#64748B', glow: 'rgba(100, 116, 139, 0.5)' };
+
+    return reply.send({
+      data: {
+        id: muscle.id,
+        name: muscle.name,
+        anatomicalName: muscle.anatomical_name,
+        muscleGroup: muscle.muscle_group,
+        biasWeight: muscle.bias_weight,
+        optimalWeeklyVolume: muscle.optimal_weekly_volume,
+        recoveryTime: muscle.recovery_time,
+        illustrationIds: getMuscleIllustrationIds(id),
+        color: groupColor.color,
+        glow: groupColor.glow,
+        exercises: exercises.map(e => {
+          const illustration = getExerciseIllustration(e.exercise_id);
+          return {
+            id: e.exercise_id,
+            name: e.exercise_name,
+            activation: e.activation,
+            illustrationUrl: illustration?.file || null,
+          };
+        }),
+      },
+    });
   });
 
   // Settings

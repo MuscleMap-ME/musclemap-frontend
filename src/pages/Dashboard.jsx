@@ -18,6 +18,11 @@ const DashboardAtlas = lazy(() =>
   import('../components/atlas').then(m => ({ default: m.DashboardAtlas }))
 );
 
+// Lazy load 2D body muscle map
+const BodyMuscleMap = lazy(() =>
+  import('../components/illustrations').then(m => ({ default: m.BodyMuscleMap }))
+);
+
 // Glass components
 import {
   GlassSurface,
@@ -687,6 +692,84 @@ const TodaysWorkoutCard = ({ stats }) => {
 };
 
 // ============================================
+// MUSCLE MAP CARD (2D Body Visualization)
+// ============================================
+const MuscleMapCard = ({ muscleActivations }) => {
+  const [selectedMuscle, setSelectedMuscle] = useState(null);
+  const navigate = useNavigate();
+
+  const handleMuscleClick = (muscleId, data, event) => {
+    setSelectedMuscle({ muscleId, ...data });
+  };
+
+  const handleViewExercises = (muscleId) => {
+    navigate(`/exercises?muscle=${muscleId}`);
+  };
+
+  return (
+    <GlassSurface className="p-6" depth="medium">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-bold text-[var(--text-primary)]">Muscle Activation</h3>
+          <p className="text-sm text-[var(--text-tertiary)]">Click muscles for details</p>
+        </div>
+        <Link to="/exercises" className="text-sm text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-1">
+          All exercises
+          <Icons.ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      <div className="h-64">
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center bg-[var(--glass-white-5)] rounded-xl">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-[var(--brand-blue-500)] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <span className="text-sm text-[var(--text-tertiary)]">Loading body map...</span>
+            </div>
+          </div>
+        }>
+          <BodyMuscleMap
+            muscleActivations={muscleActivations}
+            view="front"
+            size="md"
+            showLabels={false}
+            interactive={true}
+            onMuscleClick={handleMuscleClick}
+            className="w-full h-full"
+          />
+        </Suspense>
+      </div>
+
+      {selectedMuscle && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 p-3 bg-[var(--glass-white-5)] rounded-xl border border-[var(--border-subtle)]"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-[var(--text-primary)]">
+                {selectedMuscle.muscleId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </p>
+              <p className="text-xs text-[var(--text-tertiary)]">
+                {selectedMuscle.activation || 0}% activated recently
+              </p>
+            </div>
+            <GlassButton
+              size="sm"
+              variant="secondary"
+              onClick={() => handleViewExercises(selectedMuscle.muscleId)}
+            >
+              View Exercises
+            </GlassButton>
+          </div>
+        </motion.div>
+      )}
+    </GlassSurface>
+  );
+};
+
+// ============================================
 // WEEKLY PROGRESS CARD
 // ============================================
 const WeeklyProgressCard = ({ stats }) => {
@@ -800,6 +883,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [characterStats, setCharacterStats] = useState(null);
+  const [muscleActivations, setMuscleActivations] = useState({});
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -821,6 +905,30 @@ export default function Dashboard() {
       })
       .catch(() => {
         setStatsLoading(false);
+      });
+
+    // Fetch muscle activations for the body map
+    fetch('/api/muscles/activations')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          // Convert array to object keyed by muscle ID
+          const activations = {};
+          data.data.forEach(m => {
+            activations[m.muscleId] = m.activation;
+          });
+          setMuscleActivations(activations);
+        }
+      })
+      .catch(() => {
+        // Fallback to mock data if API fails
+        setMuscleActivations({
+          'pectoralis-major': 65,
+          'deltoid-anterior': 45,
+          'biceps-brachii': 30,
+          'rectus-abdominis': 20,
+          'quadriceps': 50,
+        });
       });
   }, []);
 
@@ -990,6 +1098,11 @@ export default function Dashboard() {
 
               {/* Weekly Progress */}
               <WeeklyProgressCard stats={stats} />
+            </div>
+
+            {/* Muscle Activation Map */}
+            <div className="mb-8">
+              <MuscleMapCard muscleActivations={muscleActivations} />
             </div>
 
             {/* Daily Tip */}

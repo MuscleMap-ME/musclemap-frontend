@@ -25,6 +25,8 @@ import {
   type WorkoutExercise,
   type MuscleActivation,
 } from '@musclemap/client';
+import { ExerciseIllustration } from '../../src/components/ExerciseIllustration';
+import { hasExerciseIllustration } from '@musclemap/shared';
 
 interface WorkoutEntry extends WorkoutExercise {
   exercise: Exercise;
@@ -303,7 +305,19 @@ export default function Workout() {
                   opacity={entry.completed ? 0.6 : 1}
                 >
                   <YStack space="$3">
-                    <XStack justifyContent="space-between" alignItems="flex-start">
+                    <XStack justifyContent="space-between" alignItems="flex-start" space="$3">
+                      {/* Exercise Illustration */}
+                      {hasExerciseIllustration(entry.exerciseId) && (
+                        <ExerciseIllustration
+                          exerciseId={entry.exerciseId}
+                          exerciseName={entry.exercise.name}
+                          primaryMuscles={entry.exercise.primaryMuscles}
+                          size="sm"
+                          showMuscleLabels={false}
+                          interactive={false}
+                          style={{ borderRadius: 8 }}
+                        />
+                      )}
                       <YStack flex={1}>
                         <Text
                           fontWeight="bold"

@@ -1,7 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
+import { hasExerciseIllustration } from '@musclemap/shared';
+
+// Lazy load illustration component
+const ExerciseIllustration = lazy(() =>
+  import('../components/illustrations').then(m => ({ default: m.ExerciseIllustration }))
+);
 
 // Constraint options
 const TIME_OPTIONS = [
@@ -494,32 +500,51 @@ export default function Workout() {
 
           {/* Current Exercise Card */}
           {currentExercise && (
-            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl p-6 mb-6 shadow-2xl">
-              <div className="text-xs uppercase tracking-wide opacity-70 mb-2">
-                {currentExercise.phase === 'warmup' ? 'Warm-up' : currentExercise.phase === 'cooldown' ? 'Cool-down' : `Exercise ${currentExerciseIndex + 1 - (prescription?.warmup?.length || 0)}`}
-              </div>
-              <h2 className="text-2xl font-bold mb-4">{currentExercise.name}</h2>
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="bg-white/20 rounded-xl p-3 text-center">
-                  <div className="text-3xl font-bold">{currentExercise.sets}</div>
-                  <div className="text-xs opacity-80">Sets</div>
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl overflow-hidden mb-6 shadow-2xl">
+              {/* Exercise Illustration */}
+              {currentExercise.id && hasExerciseIllustration(currentExercise.id) && (
+                <div className="h-40 bg-black/20">
+                  <Suspense fallback={<div className="w-full h-full bg-gradient-to-br from-white/5 to-white/10 animate-pulse" />}>
+                    <ExerciseIllustration
+                      exerciseId={currentExercise.id}
+                      exerciseName={currentExercise.name}
+                      primaryMuscles={currentExercise.primaryMuscles}
+                      size="md"
+                      showMuscleLabels={false}
+                      interactive={false}
+                      className="w-full h-full"
+                    />
+                  </Suspense>
                 </div>
-                <div className="bg-white/20 rounded-xl p-3 text-center">
-                  <div className="text-3xl font-bold">{currentExercise.reps}</div>
-                  <div className="text-xs opacity-80">Reps</div>
-                </div>
-                <div className="bg-white/20 rounded-xl p-3 text-center">
-                  <div className="text-3xl font-bold">{currentExercise.restSeconds}s</div>
-                  <div className="text-xs opacity-80">Rest</div>
-                </div>
-              </div>
-              {currentExercise.notes && (
-                <p className="text-sm opacity-80 mb-4">{currentExercise.notes}</p>
               )}
-              <div className="flex gap-2 text-xs opacity-70 flex-wrap">
-                {currentExercise.primaryMuscles?.map(m => (
-                  <span key={m} className="bg-white/10 px-2 py-1 rounded">{m}</span>
-                ))}
+
+              <div className="p-6">
+                <div className="text-xs uppercase tracking-wide opacity-70 mb-2">
+                  {currentExercise.phase === 'warmup' ? 'Warm-up' : currentExercise.phase === 'cooldown' ? 'Cool-down' : `Exercise ${currentExerciseIndex + 1 - (prescription?.warmup?.length || 0)}`}
+                </div>
+                <h2 className="text-2xl font-bold mb-4">{currentExercise.name}</h2>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="bg-white/20 rounded-xl p-3 text-center">
+                    <div className="text-3xl font-bold">{currentExercise.sets}</div>
+                    <div className="text-xs opacity-80">Sets</div>
+                  </div>
+                  <div className="bg-white/20 rounded-xl p-3 text-center">
+                    <div className="text-3xl font-bold">{currentExercise.reps}</div>
+                    <div className="text-xs opacity-80">Reps</div>
+                  </div>
+                  <div className="bg-white/20 rounded-xl p-3 text-center">
+                    <div className="text-3xl font-bold">{currentExercise.restSeconds}s</div>
+                    <div className="text-xs opacity-80">Rest</div>
+                  </div>
+                </div>
+                {currentExercise.notes && (
+                  <p className="text-sm opacity-80 mb-4">{currentExercise.notes}</p>
+                )}
+                <div className="flex gap-2 text-xs opacity-70 flex-wrap">
+                  {currentExercise.primaryMuscles?.map(m => (
+                    <span key={m} className="bg-white/10 px-2 py-1 rounded">{m}</span>
+                  ))}
+                </div>
               </div>
             </div>
           )}

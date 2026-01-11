@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { hasExerciseIllustration } from '@musclemap/shared';
+
+// Lazy load illustration component
+const ExerciseIllustration = lazy(() =>
+  import('../components/illustrations').then(m => ({ default: m.ExerciseIllustration }))
+);
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -27,8 +33,13 @@ const EXERCISE_TYPES = [
   { id: 'freeweight', label: 'Free Weights' },
 ];
 
+const IllustrationFallback = () => (
+  <div className="w-full h-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 animate-pulse rounded-lg" />
+);
+
 const ExerciseCard = ({ exercise, onClick }) => {
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
+  const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
 
   return (
     <motion.div
@@ -37,35 +48,54 @@ const ExerciseCard = ({ exercise, onClick }) => {
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={() => onClick(exercise)}
-      className="bg-white/5 border border-white/10 rounded-xl p-4 cursor-pointer hover:bg-white/10 transition-all"
+      className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:bg-white/10 transition-all"
     >
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-semibold text-white">{exercise.name}</h3>
-        <span className={clsx('text-xs px-2 py-0.5 rounded-full', difficulty.color)}>
-          {difficulty.label}
-        </span>
-      </div>
-
-      <p className="text-sm text-gray-400 line-clamp-2 mb-3">
-        {exercise.description || 'No description available'}
-      </p>
-
-      <div className="flex items-center gap-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1">
-          <Icons.Clock />
-          <span>{exercise.estimatedSeconds || 45}s</span>
+      {/* Illustration thumbnail */}
+      {hasIllustration && (
+        <div className="relative h-32 bg-[#0d0d12] border-b border-white/5">
+          <Suspense fallback={<IllustrationFallback />}>
+            <ExerciseIllustration
+              exerciseId={exercise.id}
+              exerciseName={exercise.name}
+              primaryMuscles={exercise.primaryMuscles}
+              size="sm"
+              showMuscleLabels={false}
+              interactive={false}
+              className="w-full h-full"
+            />
+          </Suspense>
         </div>
-        {exercise.isCompound && (
+      )}
+
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-semibold text-white">{exercise.name}</h3>
+          <span className={clsx('text-xs px-2 py-0.5 rounded-full', difficulty.color)}>
+            {difficulty.label}
+          </span>
+        </div>
+
+        <p className="text-sm text-gray-400 line-clamp-2 mb-3">
+          {exercise.description || 'No description available'}
+        </p>
+
+        <div className="flex items-center gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1">
-            <Icons.Target />
-            <span>Compound</span>
+            <Icons.Clock />
+            <span>{exercise.estimatedSeconds || 45}s</span>
           </div>
-        )}
-        {exercise.primaryMuscles?.length > 0 && (
-          <div className="text-gray-400">
-            {exercise.primaryMuscles.slice(0, 2).join(', ')}
-          </div>
-        )}
+          {exercise.isCompound && (
+            <div className="flex items-center gap-1">
+              <Icons.Target />
+              <span>Compound</span>
+            </div>
+          )}
+          {exercise.primaryMuscles?.length > 0 && (
+            <div className="text-gray-400">
+              {exercise.primaryMuscles.slice(0, 2).join(', ')}
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -75,6 +105,7 @@ const ExerciseModal = ({ exercise, onClose }) => {
   if (!exercise) return null;
 
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
+  const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
 
   return (
     <motion.div
@@ -91,6 +122,23 @@ const ExerciseModal = ({ exercise, onClose }) => {
         onClick={e => e.stopPropagation()}
         className="bg-gray-900 border border-white/10 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
       >
+        {/* Large illustration at top of modal */}
+        {hasIllustration && (
+          <div className="relative h-48 bg-[#0d0d12] border-b border-white/10 rounded-t-2xl overflow-hidden">
+            <Suspense fallback={<IllustrationFallback />}>
+              <ExerciseIllustration
+                exerciseId={exercise.id}
+                exerciseName={exercise.name}
+                primaryMuscles={exercise.primaryMuscles}
+                size="md"
+                showMuscleLabels={true}
+                interactive={true}
+                className="w-full h-full"
+              />
+            </Suspense>
+          </div>
+        )}
+
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>

@@ -17,9 +17,10 @@ import {
   Select,
 } from 'tamagui';
 import { ScrollView } from 'react-native';
-import { Check, ChevronDown } from '@tamagui/lucide-icons';
+import { Check, ChevronDown, Cube, LayoutGrid } from '@tamagui/lucide-icons';
 import { apiClient, type MuscleActivation } from '@musclemap/client';
 import { MuscleModel } from '../../src/components/MuscleModel';
+import { BodyMuscleMap } from '../../src/components/BodyMuscleMap';
 
 type TimeRange = 7 | 14 | 30 | 90;
 
@@ -28,6 +29,7 @@ export default function MusclesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d'); // Default to 2D for better performance
 
   useEffect(() => {
     async function loadActivations() {
@@ -126,10 +128,50 @@ export default function MusclesScreen() {
           </Card>
         )}
 
-        {/* 3D Muscle Model */}
+        {/* View Mode Toggle */}
+        <XStack space="$2" justifyContent="center">
+          <Button
+            size="$3"
+            icon={<LayoutGrid size={16} />}
+            chromeless={viewMode !== '2d'}
+            backgroundColor={viewMode === '2d' ? '$blue8' : '$gray4'}
+            onPress={() => setViewMode('2d')}
+          >
+            <Text fontSize={12} color={viewMode === '2d' ? 'white' : '$gray11'}>2D Map</Text>
+          </Button>
+          <Button
+            size="$3"
+            icon={<Cube size={16} />}
+            chromeless={viewMode !== '3d'}
+            backgroundColor={viewMode === '3d' ? '$blue8' : '$gray4'}
+            onPress={() => setViewMode('3d')}
+          >
+            <Text fontSize={12} color={viewMode === '3d' ? 'white' : '$gray11'}>3D Model</Text>
+          </Button>
+        </XStack>
+
+        {/* Muscle Visualization */}
         <Card elevate backgroundColor="$background" overflow="hidden">
           {activations.length > 0 ? (
-            <MuscleModel activations={activations} height={350} />
+            viewMode === '2d' ? (
+              <YStack padding="$4" alignItems="center">
+                <BodyMuscleMap
+                  muscleActivations={activations.reduce((acc, a) => {
+                    acc[a.muscleId] = a.normalizedActivation * 10; // Convert to 0-100 scale
+                    return acc;
+                  }, {} as Record<string, number>)}
+                  view="front"
+                  size="lg"
+                  showLabels={true}
+                  interactive={true}
+                  onMusclePress={(muscleId, data) => {
+                    console.log('Muscle pressed:', muscleId, data);
+                  }}
+                />
+              </YStack>
+            ) : (
+              <MuscleModel activations={activations} height={350} />
+            )
           ) : (
             <YStack height={350} justifyContent="center" alignItems="center" padding="$4">
               <Paragraph color="$gray11" textAlign="center">
