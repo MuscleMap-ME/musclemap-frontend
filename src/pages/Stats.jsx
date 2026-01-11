@@ -14,6 +14,7 @@ import {
   GlassButton,
   GlassProgressBar,
 } from '../components/glass';
+import { RadarChartD3 } from '../components/d3';
 
 
 // ============================================
@@ -511,13 +512,30 @@ export default function Stats() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Radar Chart */}
+          {/* D3 Radar Chart - Hyper-realistic with animations */}
           <GlassCard className="p-6">
             <h2 className="text-xl font-bold text-white mb-4 text-center">Stat Overview</h2>
             {stats && (
-              <div className="flex justify-center">
-                <RadarChart stats={stats} size={280} />
-              </div>
+              <RadarChartD3
+                axes={STAT_ORDER.map((key) => ({
+                  key,
+                  label: STAT_META[key].abbr,
+                  color: STAT_META[key].color,
+                }))}
+                series={[
+                  {
+                    name: 'Your Stats',
+                    data: stats,
+                    color: '#8b5cf6',
+                    fillOpacity: 0.4,
+                  },
+                ]}
+                height={320}
+                showValues
+                animated
+                pulsing
+                interactive
+              />
             )}
           </GlassCard>
 

@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import LiveCommunityStats from '../components/landing/LiveCommunityStats';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { RouteAtlas } from '../components/atlas';
+import { RouteAtlasD3, MuscleMapD3, ParticleField } from '../components/d3';
 
 export default function Landing() {
+  const [useD3Atlas, setUseD3Atlas] = useState(true);
+
+  // Demo muscle activations for the interactive body map
+  const demoActivations = [
+    { muscleId: 'pectoralis-major-left', name: 'Pectoralis Major', activation: 0.85, isPrimary: true },
+    { muscleId: 'pectoralis-major-right', name: 'Pectoralis Major', activation: 0.85, isPrimary: true },
+    { muscleId: 'deltoid-anterior-left', name: 'Deltoid', activation: 0.7 },
+    { muscleId: 'deltoid-anterior-right', name: 'Deltoid', activation: 0.7 },
+    { muscleId: 'biceps-brachii-left', name: 'Biceps', activation: 0.5 },
+    { muscleId: 'biceps-brachii-right', name: 'Biceps', activation: 0.5 },
+    { muscleId: 'rectus-abdominis', name: 'Abs', activation: 0.4 },
+  ];
+
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen relative"
       style={{
         backgroundColor: '#0a0a0f',
         backgroundImage:
@@ -16,6 +30,16 @@ export default function Landing() {
         color: '#e5e7eb',
       }}
     >
+      {/* Particle Background */}
+      <ParticleField
+        particleCount={60}
+        connectionDistance={100}
+        speed={0.3}
+        showConnections
+        glowIntensity={0.8}
+        colorScheme={['#3b82f6', '#8b5cf6', '#ec4899']}
+        interactive
+      />
       <header className="w-full border-b border-white/5">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <RouterLink
@@ -206,11 +230,108 @@ export default function Landing() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4 }}
             >
-              <RouteAtlas height={480} />
+              {/* Toggle between D3 and React Flow versions */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setUseD3Atlas(!useD3Atlas)}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-white/10 border border-white/20 text-gray-400 hover:text-white transition-colors"
+                >
+                  {useD3Atlas ? 'Switch to Grid View' : 'Switch to Force Graph'}
+                </button>
+              </div>
+
+              {useD3Atlas ? (
+                <RouteAtlasD3 height={550} showSearch showLegend />
+              ) : (
+                <RouteAtlas height={480} />
+              )}
             </motion.div>
           </div>
         </section>
       )}
+
+      {/* Interactive Muscle Map Demo */}
+      <section className="py-20 px-6 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-8"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <span
+                style={{
+                  background: 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                See Your Muscles Fire
+              </span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Real-time muscle activation visualization. Every rep, every set — watch your body work.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col lg:flex-row gap-8 items-center justify-center"
+          >
+            {/* Front View */}
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-br from-red-500/20 via-transparent to-orange-500/20 rounded-3xl blur-xl" />
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
+                <div className="text-center text-sm text-gray-500 mb-2">Front View</div>
+                <MuscleMapD3
+                  activations={demoActivations}
+                  view="front"
+                  height={450}
+                  interactive
+                  animated
+                  showLabels={false}
+                />
+              </div>
+            </div>
+
+            {/* Exercise Info */}
+            <div className="max-w-xs space-y-4">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-gray-400 mb-1">Exercise</div>
+                <div className="text-xl font-bold text-white">Bench Press</div>
+                <div className="text-sm text-gray-500">Compound Movement</div>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-gray-400 mb-2">Primary Muscles</div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-red-500/20 border border-red-500/30 text-red-400 rounded text-xs font-medium">
+                    Chest 85%
+                  </span>
+                  <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded text-xs font-medium">
+                    Shoulders 70%
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                <div className="text-sm text-gray-400 mb-2">Secondary Muscles</div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded text-xs font-medium">
+                    Triceps 50%
+                  </span>
+                  <span className="px-2 py-1 bg-green-500/20 border border-green-500/30 text-green-400 rounded text-xs font-medium">
+                    Core 40%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
       {/* How It Works - Visual Architecture */}
       <section className="py-20 px-6 border-t border-white/5">
