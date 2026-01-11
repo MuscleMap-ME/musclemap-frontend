@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
 import { fetchWithLogging } from '../utils/logger';
+import SEO from '../components/SEO';
 
 export default function Login() {
   const navigate = useNavigate();
