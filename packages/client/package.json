@@ -1,5 +1,5 @@
 {
-  "name": "@musclemap.me/client",
+  "name": "@musclemap/client",
   "version": "1.0.0",
   "description": "Shared client-side business logic for MuscleMap",
   "main": "dist/index.js",
