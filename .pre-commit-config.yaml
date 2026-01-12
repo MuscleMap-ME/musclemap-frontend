@@ -1,0 +1,46 @@
+# Pre-commit hooks for MuscleMap
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Secret detection - prevents accidental secret commits
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.1
+    hooks:
+      - id: gitleaks
+
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'production']
+
+  # TypeScript/JavaScript linting
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: TypeScript Check
+        entry: pnpm typecheck
+        language: system
+        types: [ts, tsx]
+        pass_filenames: false
+
+      - id: lint
+        name: ESLint
+        entry: pnpm lint
+        language: system
+        types: [ts, tsx, js, jsx]
+        pass_filenames: false
+
+# Configuration for gitleaks
+# Create .gitleaks.toml in repo root for custom rules

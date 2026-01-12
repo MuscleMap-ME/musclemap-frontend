@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/musclemap/musclemap-frontend/discussions
+    about: For questions, ideas, and general conversation
+  - name: 📖 Documentation
+    url: https://musclemap.me/docs
+    about: Check out our documentation before asking
+  - name: 🔒 Security Issues
+    url: https://github.com/musclemap/musclemap-frontend/security/advisories/new
+    about: Report security vulnerabilities privately

@@ -1,0 +1,53 @@
+# Gitleaks configuration for MuscleMap
+# https://github.com/gitleaks/gitleaks
+
+title = "MuscleMap Gitleaks Config"
+
+[extend]
+# Use the default gitleaks rules as a base
+useDefault = true
+
+# Paths to ignore (node_modules, build artifacts, etc.)
+[allowlist]
+paths = [
+    '''node_modules''',
+    '''dist''',
+    '''build''',
+    '''\.pnpm''',
+    '''pnpm-lock\.yaml''',
+    '''package-lock\.json''',
+    '''yarn\.lock''',
+    '''\.git''',
+]
+
+# Regex patterns to ignore (false positives)
+regexes = [
+    # Example test/mock secrets that are intentional
+    '''test-secret-for-ci-only-32-chars!''',
+    '''demo123''',
+    # JWT example tokens in docs
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.[A-Za-z0-9_-]+''',
+]
+
+# Custom rules for MuscleMap-specific patterns
+[[rules]]
+id = "musclemap-api-key"
+description = "MuscleMap API Key"
+regex = '''(?i)musclemap[_-]?api[_-]?key\s*[=:]\s*['"]?([a-zA-Z0-9_-]{32,})['"]?'''
+secretGroup = 1
+
+[[rules]]
+id = "database-url"
+description = "Database Connection String"
+regex = '''(?i)(postgres|postgresql|mysql|mongodb):\/\/[^:]+:[^@]+@[^\/]+\/\w+'''
+
+[[rules]]
+id = "stripe-key"
+description = "Stripe API Key"
+regex = '''(?i)sk_(live|test)_[a-zA-Z0-9]{24,}'''
+
+[[rules]]
+id = "jwt-secret-hardcoded"
+description = "Hardcoded JWT Secret"
+regex = '''(?i)jwt[_-]?secret\s*[=:]\s*['"]([^'"]{20,})['"]'''
+secretGroup = 1

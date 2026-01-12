@@ -1,0 +1,501 @@
+# MuscleMap GraphQL Schema
+# This is the public contract for the MuscleMap API
+
+# ============================================
+# SCALARS
+# ============================================
+scalar DateTime
+scalar JSON
+
+# ============================================
+# ROOT TYPES
+# ============================================
+type Query {
+  # Auth
+  me: User
+  myCapabilities: Capabilities
+
+  # Profile
+  profile: Profile
+
+  # Exercises & Muscles
+  exercises(search: String, muscleGroup: String, equipment: String, limit: Int): [Exercise!]!
+  exercise(id: ID!): Exercise
+  muscles: [Muscle!]!
+
+  # Workouts
+  myWorkouts(limit: Int, offset: Int): [Workout!]!
+  myWorkoutStats: WorkoutStats
+  myMuscleStats: MuscleStats
+  workout(id: ID!): Workout
+
+  # Goals
+  goals: [Goal!]!
+  goal(id: ID!): Goal
+  goalSuggestions: [GoalSuggestion!]!
+
+  # Journey & Archetypes
+  journey: JourneyProgress
+  archetypes: [Archetype!]!
+  archetype(id: ID!): Archetype
+  archetypeCategories: [ArchetypeCategory!]!
+
+  # Equipment
+  equipmentTypes: [EquipmentType!]!
+  equipmentCategories: [EquipmentCategory!]!
+  homeEquipment: [HomeEquipment!]!
+
+  # Stats
+  myStats: CharacterStats
+  leaderboards(type: String): [LeaderboardEntry!]!
+
+  # Community
+  communityFeed(limit: Int, offset: Int): [FeedItem!]!
+  communityStats: CommunityStats
+  publicCommunityStats: PublicCommunityStats
+
+  # Issues & Roadmap
+  issues(status: String, label: String, limit: Int, offset: Int): [Issue!]!
+  issue(id: ID!): Issue
+  roadmap: [RoadmapItem!]!
+}
+
+type Mutation {
+  # Auth
+  register(input: RegisterInput!): AuthPayload!
+  login(input: LoginInput!): AuthPayload!
+
+  # Profile
+  updateProfile(input: ProfileInput!): Profile!
+
+  # Workouts
+  createWorkout(input: WorkoutInput!): WorkoutResult!
+
+  # Goals
+  createGoal(input: GoalInput!): Goal!
+  updateGoal(id: ID!, input: GoalInput!): Goal!
+  deleteGoal(id: ID!): Boolean!
+
+  # Archetypes
+  selectArchetype(archetypeId: ID!): ArchetypeSelection!
+
+  # Equipment
+  updateHomeEquipment(equipmentIds: [ID!]!): [HomeEquipment!]!
+
+  # Issues
+  createIssue(input: IssueInput!): Issue!
+  voteOnIssue(issueId: ID!, vote: Int!): Issue!
+}
+
+type Subscription {
+  communityStatsUpdated: PublicCommunityStats!
+  communityActivity: ActivityEvent!
+}
+
+# ============================================
+# AUTH TYPES
+# ============================================
+type User {
+  id: ID!
+  email: String!
+  username: String!
+  displayName: String
+  avatar: String
+  archetype: Archetype
+  level: Int!
+  xp: Int!
+  createdAt: DateTime!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type Capabilities {
+  canCreateWorkout: Boolean!
+  canJoinHangouts: Boolean!
+  canMessage: Boolean!
+  canVote: Boolean!
+  isPremium: Boolean!
+  dailyWorkoutLimit: Int!
+  remainingWorkouts: Int!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+  username: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+# ============================================
+# PROFILE TYPES
+# ============================================
+type Profile {
+  id: ID!
+  userId: ID!
+  displayName: String
+  bio: String
+  avatar: String
+  location: String
+  website: String
+  fitnessGoals: [String!]
+  experienceLevel: String
+  visibility: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input ProfileInput {
+  displayName: String
+  bio: String
+  avatar: String
+  location: String
+  website: String
+  fitnessGoals: [String!]
+  experienceLevel: String
+  visibility: String
+}
+
+# ============================================
+# EXERCISE & MUSCLE TYPES
+# ============================================
+type Exercise {
+  id: ID!
+  name: String!
+  description: String
+  type: String!
+  primaryMuscles: [String!]!
+  secondaryMuscles: [String!]
+  equipment: [String!]
+  difficulty: String
+  instructions: [String!]
+  tips: [String!]
+  imageUrl: String
+  videoUrl: String
+}
+
+type Muscle {
+  id: ID!
+  name: String!
+  group: String!
+  subGroup: String
+  description: String
+}
+
+# ============================================
+# WORKOUT TYPES
+# ============================================
+type Workout {
+  id: ID!
+  userId: ID!
+  exercises: [WorkoutExercise!]!
+  duration: Int
+  notes: String
+  totalTU: Int!
+  createdAt: DateTime!
+}
+
+type WorkoutExercise {
+  exerciseId: ID!
+  name: String!
+  sets: Int!
+  reps: Int!
+  weight: Float
+  notes: String
+}
+
+type WorkoutStats {
+  totalWorkouts: Int!
+  totalExercises: Int!
+  totalSets: Int!
+  totalReps: Int!
+  totalWeight: Float!
+  currentStreak: Int!
+  longestStreak: Int!
+  thisWeek: Int!
+  thisMonth: Int!
+}
+
+type MuscleStats {
+  muscleGroups: [MuscleGroupStat!]!
+  lastTrained: JSON
+  weeklyVolume: JSON
+}
+
+type MuscleGroupStat {
+  muscle: String!
+  totalSets: Int!
+  totalReps: Int!
+  lastTrained: DateTime
+}
+
+type WorkoutResult {
+  workout: Workout!
+  tuEarned: Int!
+  characterStats: CharacterStats
+  levelUp: Boolean!
+  newLevel: Int
+  achievements: [Achievement!]
+}
+
+input WorkoutInput {
+  exercises: [WorkoutExerciseInput!]!
+  notes: String
+  idempotencyKey: String
+}
+
+input WorkoutExerciseInput {
+  exerciseId: ID!
+  sets: Int!
+  reps: Int!
+  weight: Float
+  notes: String
+}
+
+# ============================================
+# GOAL TYPES
+# ============================================
+type Goal {
+  id: ID!
+  userId: ID!
+  type: String!
+  title: String!
+  description: String
+  target: Float!
+  current: Float!
+  unit: String!
+  deadline: DateTime
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type GoalSuggestion {
+  type: String!
+  title: String!
+  description: String!
+  target: Float!
+  unit: String!
+  reasoning: String!
+}
+
+input GoalInput {
+  type: String!
+  title: String!
+  description: String
+  target: Float!
+  unit: String!
+  deadline: DateTime
+}
+
+# ============================================
+# JOURNEY & ARCHETYPE TYPES
+# ============================================
+type JourneyProgress {
+  userId: ID!
+  archetype: Archetype
+  currentLevel: Int!
+  currentXP: Int!
+  xpToNextLevel: Int!
+  totalXP: Int!
+  completedMilestones: [String!]!
+  unlockedAbilities: [String!]!
+  stats: CharacterStats
+}
+
+type Archetype {
+  id: ID!
+  name: String!
+  description: String!
+  philosophy: String
+  icon: String
+  color: String
+  levels: [ArchetypeLevel!]
+  primaryStats: [String!]
+}
+
+type ArchetypeLevel {
+  level: Int!
+  title: String!
+  xpRequired: Int!
+  abilities: [String!]!
+}
+
+type ArchetypeCategory {
+  id: ID!
+  name: String!
+  description: String
+  archetypes: [Archetype!]!
+}
+
+type ArchetypeSelection {
+  success: Boolean!
+  archetype: Archetype!
+  journey: JourneyProgress!
+}
+
+# ============================================
+# EQUIPMENT TYPES
+# ============================================
+type EquipmentType {
+  id: ID!
+  name: String!
+  category: String!
+  description: String
+  icon: String
+}
+
+type EquipmentCategory {
+  id: ID!
+  name: String!
+  description: String
+}
+
+type HomeEquipment {
+  id: ID!
+  userId: ID!
+  equipmentId: ID!
+  equipment: EquipmentType!
+  addedAt: DateTime!
+}
+
+# ============================================
+# STATS TYPES
+# ============================================
+type CharacterStats {
+  userId: ID!
+  level: Int!
+  xp: Int!
+  xpToNextLevel: Int!
+  strength: Int!
+  endurance: Int!
+  agility: Int!
+  flexibility: Int!
+  balance: Int!
+  mentalFocus: Int!
+  totalWorkouts: Int!
+  totalExercises: Int!
+  currentStreak: Int!
+  longestStreak: Int!
+  lastWorkoutAt: DateTime
+}
+
+type LeaderboardEntry {
+  rank: Int!
+  userId: ID!
+  username: String!
+  avatar: String
+  level: Int!
+  xp: Int!
+  stat: String!
+  value: Int!
+}
+
+type Achievement {
+  id: ID!
+  name: String!
+  description: String!
+  icon: String
+  rarity: String!
+  unlockedAt: DateTime!
+}
+
+# ============================================
+# COMMUNITY TYPES
+# ============================================
+type FeedItem {
+  id: ID!
+  type: String!
+  userId: ID!
+  username: String!
+  avatar: String
+  content: JSON!
+  createdAt: DateTime!
+  likes: Int!
+  comments: Int!
+  liked: Boolean!
+}
+
+type CommunityStats {
+  activeUsers: Int!
+  activeWorkouts: Int!
+  totalWorkoutsToday: Int!
+  totalWorkoutsWeek: Int!
+  topArchetype: String
+}
+
+type PublicCommunityStats {
+  activeNow: StatDisplay!
+  activeWorkouts: StatDisplay!
+  totalUsers: StatDisplay!
+  totalWorkouts: StatDisplay!
+  recentActivity: [ActivityEvent!]
+  milestone: CommunityMilestone
+}
+
+type StatDisplay {
+  value: Int!
+  display: String!
+}
+
+type ActivityEvent {
+  id: ID!
+  type: String!
+  message: String!
+  timestamp: DateTime!
+}
+
+type CommunityMilestone {
+  type: String!
+  value: Int!
+  reached: Boolean!
+}
+
+# ============================================
+# ISSUES & ROADMAP TYPES
+# ============================================
+type Issue {
+  id: ID!
+  title: String!
+  description: String!
+  status: String!
+  priority: String!
+  labels: [IssueLabel!]!
+  authorId: ID!
+  author: User!
+  votes: Int!
+  userVote: Int
+  subscribed: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type IssueLabel {
+  id: ID!
+  name: String!
+  color: String!
+  description: String
+}
+
+type RoadmapItem {
+  id: ID!
+  title: String!
+  description: String!
+  status: String!
+  quarter: String
+  votes: Int!
+  userVoted: Boolean!
+  createdAt: DateTime!
+}
+
+input IssueInput {
+  title: String!
+  description: String!
+  labels: [ID!]
+}
