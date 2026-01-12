@@ -1,5 +1,5 @@
 {
-  "name": "@musclemap.me/contracts",
+  "name": "@musclemap/contracts",
   "version": "1.0.0",
   "description": "Shared GraphQL schema and types for MuscleMap",
   "type": "module",

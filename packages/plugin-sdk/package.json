@@ -1,5 +1,5 @@
 {
-  "name": "@musclemap.me/plugin-sdk",
+  "name": "@musclemap/plugin-sdk",
   "version": "2.0.0",
   "description": "SDK for building MuscleMap plugins",
   "main": "dist/index.js",
