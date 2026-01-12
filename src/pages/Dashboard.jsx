@@ -358,7 +358,7 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
             <Icons.Target className="w-4 h-4 text-[var(--brand-blue-400)]" />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-[var(--text-primary)]">Character Stats</h3>
+            <h3 className="font-bold text-sm text-[var(--text-primary)]">Your Stats</h3>
           </div>
         </div>
         <Link
