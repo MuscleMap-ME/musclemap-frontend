@@ -88,6 +88,11 @@ const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
 const PluginSettings = lazy(() => import('./pages/PluginSettings'));
 
+// Community & Developer pages
+const CommunityBulletinBoard = lazy(() => import('./pages/CommunityBulletinBoard'));
+const PluginGuide = lazy(() => import('./pages/PluginGuide'));
+const ContributeIdeas = lazy(() => import('./pages/ContributeIdeas'));
+
 // ============================================
 // LOADING COMPONENTS
 // ============================================
@@ -441,6 +446,11 @@ function AppRoutes() {
           {/* Plugin routes */}
           <Route path="/plugins" element={<ProtectedRoute name="PluginMarketplace"><PluginMarketplace /></ProtectedRoute>} />
           <Route path="/plugins/settings" element={<ProtectedRoute name="PluginSettings"><PluginSettings /></ProtectedRoute>} />
+
+          {/* Community & Developer routes - Public */}
+          <Route path="/community/bulletin" element={<ErrorBoundary name="CommunityBulletinBoard"><CommunityBulletinBoard /></ErrorBoundary>} />
+          <Route path="/docs/plugins" element={<ErrorBoundary name="PluginGuide"><PluginGuide /></ErrorBoundary>} />
+          <Route path="/contribute" element={<ErrorBoundary name="ContributeIdeas"><ContributeIdeas /></ErrorBoundary>} />
 
           {/* Dynamic plugin-contributed routes */}
           {pluginRoutes.map((route) => (
