@@ -13,6 +13,9 @@ import { api } from '../utils/api';
 import { DailyTip, MilestoneProgress } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 
+// Plugin System - Widget Slots
+import { WidgetSlot, useHasWidgets } from '../plugins';
+
 // Lazy load heavy Atlas component (3D visualization)
 const DashboardAtlas = lazy(() =>
   import('../components/atlas').then(m => ({ default: m.DashboardAtlas }))
@@ -1056,6 +1059,15 @@ export default function Dashboard() {
               />
             </div>
 
+            {/* Plugin Widget Slot: Dashboard Stats Area */}
+            <WidgetSlot
+              name="dashboard.stats"
+              context={{ user, stats, wallet }}
+              className="mb-8"
+              layout="grid"
+              gap={4}
+            />
+
             {/* Quick Actions */}
             <div className="mb-8">
               <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Quick Actions</h2>
@@ -1152,6 +1164,15 @@ export default function Dashboard() {
                 />
               </div>
             </div>
+
+            {/* Plugin Widget Slot: Main Dashboard Area */}
+            <WidgetSlot
+              name="dashboard.main"
+              context={{ user, stats, wallet, characterStats }}
+              className="mb-8"
+              layout="vertical"
+              gap={6}
+            />
           </div>
         </main>
       </div>

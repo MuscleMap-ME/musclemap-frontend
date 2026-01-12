@@ -10,6 +10,9 @@ import { CompanionProvider, CompanionDock } from './components/mascot';
 import { usePrefetchRoutes } from './components/PrefetchLink';
 import logger from './utils/logger';
 
+// Plugin System
+import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins';
+
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
 // Each page loads only when needed, reducing initial bundle by ~85%
@@ -80,6 +83,10 @@ const Roadmap = lazy(() => import('./pages/Roadmap'));
 const AdminControl = lazy(() => import('./pages/AdminControl'));
 const AdminIssues = lazy(() => import('./pages/AdminIssues'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
+
+// Plugin pages
+const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
+const PluginSettings = lazy(() => import('./pages/PluginSettings'));
 
 // ============================================
 // LOADING COMPONENTS
@@ -337,8 +344,28 @@ const AdminRoute = ({ children, name }) => {
 // MAIN APP ROUTES
 // ============================================
 
+// Dynamic plugin route component
+function PluginRouteWrapper({ route }) {
+  const Component = route.component;
+
+  if (!Component) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center text-white">
+        <p>Plugin component not found</p>
+      </div>
+    );
+  }
+
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      {typeof Component === 'function' ? <Component /> : Component}
+    </Suspense>
+  );
+}
+
 function AppRoutes() {
   const isNavigating = useNavigationState();
+  const pluginRoutes = usePluginRoutes();
 
   return (
     <>
@@ -411,6 +438,33 @@ function AppRoutes() {
           <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
 
+          {/* Plugin routes */}
+          <Route path="/plugins" element={<ProtectedRoute name="PluginMarketplace"><PluginMarketplace /></ProtectedRoute>} />
+          <Route path="/plugins/settings" element={<ProtectedRoute name="PluginSettings"><PluginSettings /></ProtectedRoute>} />
+
+          {/* Dynamic plugin-contributed routes */}
+          {pluginRoutes.map((route) => (
+            <Route
+              key={route.id}
+              path={route.path}
+              element={
+                route.admin ? (
+                  <AdminRoute name={`Plugin:${route.pluginId}`}>
+                    <PluginRouteWrapper route={route} />
+                  </AdminRoute>
+                ) : route.protected !== false ? (
+                  <ProtectedRoute name={`Plugin:${route.pluginId}`}>
+                    <PluginRouteWrapper route={route} />
+                  </ProtectedRoute>
+                ) : (
+                  <ErrorBoundary name={`Plugin:${route.pluginId}`}>
+                    <PluginRouteWrapper route={route} />
+                  </ErrorBoundary>
+                )
+              }
+            />
+          ))}
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
@@ -450,12 +504,16 @@ export default function App() {
           <LocaleProvider>
             <BrowserRouter>
               <UserProvider>
-                <CompanionProvider>
-                  <div id="main-content" role="main">
-                    <AppRoutes />
-                  </div>
-                  <CompanionDock />
-                </CompanionProvider>
+                <PluginProvider>
+                  <PluginThemeProvider>
+                    <CompanionProvider>
+                      <div id="main-content" role="main">
+                        <AppRoutes />
+                      </div>
+                      <CompanionDock />
+                    </CompanionProvider>
+                  </PluginThemeProvider>
+                </PluginProvider>
               </UserProvider>
             </BrowserRouter>
           </LocaleProvider>

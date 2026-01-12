@@ -1,0 +1,46 @@
+{
+  "id": "hello-world",
+  "name": "Hello World",
+  "version": "1.0.0",
+  "description": "A minimal example plugin demonstrating the MuscleMap plugin system",
+  "author": "MuscleMap Team",
+  "repository": "https://github.com/MuscleMap-ME/musclemap-plugin-hello-world",
+  "icon": "👋",
+
+  "entry": {
+    "frontend": "./frontend/index.jsx"
+  },
+
+  "contributes": {
+    "widgets": [
+      {
+        "slot": "dashboard.main",
+        "component": "HelloWidget",
+        "defaultProps": {
+          "greeting": "Hello from the plugin system!"
+        }
+      }
+    ],
+    "routes": [
+      {
+        "path": "/plugins/hello",
+        "title": "Hello World",
+        "icon": "Smile"
+      }
+    ],
+    "navItems": [
+      {
+        "label": "Hello World",
+        "path": "/plugins/hello",
+        "icon": "Smile",
+        "section": "plugins"
+      }
+    ]
+  },
+
+  "permissions": [
+    "widgets:dashboard"
+  ],
+
+  "capabilities": ["widgets", "routes"]
+}
