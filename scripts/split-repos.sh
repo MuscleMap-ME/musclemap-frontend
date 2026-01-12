@@ -25,7 +25,7 @@ DRY_RUN=false
 # Repository names
 PUBLIC_REPO="musclemap-frontend"
 PRIVATE_REPO="musclemap-backend"
-GITHUB_ORG="musclemap"
+GITHUB_ORG="MuscleMap-ME"
 
 # Colors for output
 RED='\033[0;31m'

@@ -1,5 +1,5 @@
 {
-  "name": "@musclemap/contracts",
+  "name": "@musclemap.me/contracts",
   "version": "1.0.0",
   "description": "Shared GraphQL schema and types for MuscleMap",
   "type": "module",
@@ -32,6 +32,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/node": "^25.0.6",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
@@ -41,7 +42,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/musclemap/contracts.git"
+    "url": "https://github.com/jeanpaulniko/musclemap.git",
+    "directory": "packages/contracts"
   },
   "keywords": [
     "musclemap",
@@ -49,6 +51,6 @@
     "schema",
     "types"
   ],
-  "author": "MuscleMap Team",
+  "author": "Jean Paul Niko",
   "license": "MIT"
 }
