@@ -883,7 +883,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [characterStats, setCharacterStats] = useState(null);
-  const [muscleActivations, setMuscleActivations] = useState({});
+  const [muscleActivations, setMuscleActivations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -911,24 +911,20 @@ export default function Dashboard() {
     fetch('/api/muscles/activations')
       .then(res => res.json())
       .then(data => {
-        if (data.data) {
-          // Convert array to object keyed by muscle ID
-          const activations = {};
-          data.data.forEach(m => {
-            activations[m.muscleId] = m.activation;
-          });
-          setMuscleActivations(activations);
+        if (data.data && Array.isArray(data.data)) {
+          // Keep as array format for BodyMuscleMap component
+          setMuscleActivations(data.data);
         }
       })
       .catch(() => {
-        // Fallback to mock data if API fails
-        setMuscleActivations({
-          'pectoralis-major': 65,
-          'deltoid-anterior': 45,
-          'biceps-brachii': 30,
-          'rectus-abdominis': 20,
-          'quadriceps': 50,
-        });
+        // Fallback to mock data if API fails - must be array format
+        setMuscleActivations([
+          { muscleId: 'pectoralis-major', activation: 65 },
+          { muscleId: 'deltoid-anterior', activation: 45 },
+          { muscleId: 'biceps-brachii', activation: 30 },
+          { muscleId: 'rectus-abdominis', activation: 20 },
+          { muscleId: 'quadriceps', activation: 50 },
+        ]);
       });
   }, []);
 
