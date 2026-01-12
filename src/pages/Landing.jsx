@@ -926,7 +926,6 @@ export default function Landing() {
             <RouterLink to="/science" className="hover:text-gray-300 transition">Science</RouterLink>
             <RouterLink to="/design" className="hover:text-gray-300 transition">Design</RouterLink>
             <RouterLink to="/docs" className="hover:text-violet-400 transition font-medium">Documentation</RouterLink>
-            <a href="https://triptomean.com/about" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition">About the Creator</a>
           </motion.div>
         </div>
       </section>

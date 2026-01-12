@@ -92,7 +92,35 @@ if [[ -d "$WORKTREE_BASE" ]]; then
     done
 fi
 
-# Step 5: Deploy to VPS
+# Step 5: Publish packages to npm (if versions changed)
+cd "$MAIN_REPO"
+echo -e "${BLUE}📦 Checking for npm package updates...${NC}"
+
+publish_if_needed() {
+    local pkg_dir=$1
+    local pkg_name=$2
+    local local_version=$(node -p "require('./$pkg_dir/package.json').version")
+    local npm_version=$(npm view "$pkg_name" version 2>/dev/null || echo "0.0.0")
+
+    if [[ "$local_version" != "$npm_version" ]]; then
+        echo -e "  ${YELLOW}→ Publishing $pkg_name@$local_version (was $npm_version)${NC}"
+        cd "$MAIN_REPO/$pkg_dir"
+        npm publish --access public 2>/dev/null && echo -e "  ${GREEN}✓ Published $pkg_name@$local_version${NC}" || echo -e "  ${RED}✗ Failed to publish $pkg_name${NC}"
+        cd "$MAIN_REPO"
+    else
+        echo -e "  ${GREEN}✓ $pkg_name@$local_version (up to date)${NC}"
+    fi
+}
+
+# Publish in dependency order
+publish_if_needed "packages/shared" "@musclemap.me/shared"
+publish_if_needed "packages/core" "@musclemap.me/core"
+publish_if_needed "packages/client" "@musclemap.me/client"
+publish_if_needed "packages/plugin-sdk" "@musclemap.me/plugin-sdk"
+publish_if_needed "packages/ui" "@musclemap.me/ui"
+publish_if_needed "packages/contracts" "@musclemap.me/contracts"
+
+# Step 6: Deploy to VPS
 cd "$MAIN_REPO"
 echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
 ssh root@musclemap.me "cd /var/www/musclemap.me && \
@@ -114,4 +142,5 @@ ssh root@musclemap.me "cd /var/www/musclemap.me && \
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
 echo -e "${GREEN}   → GitHub: https://github.com/jeanpaulniko/musclemap${NC}"
+echo -e "${GREEN}   → npm:    https://www.npmjs.com/org/musclemap.me${NC}"
 echo -e "${GREEN}   → Live:   https://musclemap.me${NC}"
