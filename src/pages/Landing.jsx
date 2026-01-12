@@ -1,22 +1,11 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { lazy } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FEATURE_FLAGS } from '../config/featureFlags';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
-const RouteAtlas = lazy(() => import('../components/atlas').then(m => ({ default: m.RouteAtlas })));
-const RouteAtlasD3 = lazy(() => import('../components/d3').then(m => ({ default: m.RouteAtlasD3 })));
 const MuscleMapD3 = lazy(() => import('../components/d3').then(m => ({ default: m.MuscleMapD3 })));
-
-// Simple loading placeholder for lazy components
-const ComponentPlaceholder = ({ height = 200 }) => (
-  <div
-    className="animate-pulse bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl"
-    style={{ height }}
-  />
-);
 
 export default function Landing() {
   // Combined structured data for the landing page
@@ -28,7 +17,6 @@ export default function Landing() {
       getSoftwareAppSchema(),
     ],
   };
-  const [useD3Atlas, setUseD3Atlas] = useState(true);
 
   // Demo muscle activations for the interactive body map
   const demoActivations = [
@@ -216,56 +204,235 @@ export default function Landing() {
       {/* Live Community Stats */}
       <LiveCommunityStats />
 
-      {/* Visual Architecture Map - Feature Flagged */}
-      {FEATURE_FLAGS.ATLAS_ENABLED && (
-        <section className="relative z-10 py-20 px-6 border-t border-white/5">
-          <div className="max-w-5xl mx-auto">
+      {/* Feature Compass - Visual Navigation */}
+      <section className="relative z-10 py-20 px-6 border-t border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <span
+                style={{
+                  background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Your Fitness Universe
+              </span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Everything you need for your fitness journey. Click any card to explore.
+            </p>
+          </motion.div>
+
+          {/* Feature Compass Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {/* Train */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-center mb-8"
+              transition={{ delay: 0.35 }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                <span
-                  style={{
-                    background: 'linear-gradient(90deg, #60a5fa 0%, #a855f7 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  Explore MuscleMap
-                </span>
-              </h2>
-              <p className="text-gray-400 max-w-2xl mx-auto">
-                Navigate every feature with our interactive site map. Click any node to explore.
-              </p>
+              <RouterLink
+                to="/workout"
+                className="group block p-6 rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-orange-500/5 hover:border-red-500/40 hover:from-red-500/20 hover:to-orange-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">💪</div>
+                <h3 className="font-bold text-white text-lg mb-1">Train</h3>
+                <p className="text-sm text-gray-400">Log workouts & track sets</p>
+                <div className="mt-3 flex items-center gap-1 text-red-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Start workout</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
             </motion.div>
 
+            {/* Progress */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              {/* Toggle between D3 and React Flow versions */}
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setUseD3Atlas(!useD3Atlas)}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-white/10 border border-white/20 text-gray-400 hover:text-white transition-colors"
-                >
-                  {useD3Atlas ? 'Switch to Grid View' : 'Switch to Force Graph'}
-                </button>
-              </div>
+              <RouterLink
+                to="/stats"
+                className="group block p-6 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-cyan-500/5 hover:border-blue-500/40 hover:from-blue-500/20 hover:to-cyan-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">📊</div>
+                <h3 className="font-bold text-white text-lg mb-1">Progress</h3>
+                <p className="text-sm text-gray-400">Stats, charts & PRs</p>
+                <div className="mt-3 flex items-center gap-1 text-blue-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>View stats</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
 
-              {useD3Atlas ? (
-                <RouteAtlasD3 height={550} showSearch showLegend />
-              ) : (
-                <RouteAtlas height={480} />
-              )}
+            {/* Exercises */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+            >
+              <RouterLink
+                to="/exercises"
+                className="group block p-6 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/10 to-emerald-500/5 hover:border-green-500/40 hover:from-green-500/20 hover:to-emerald-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏋️</div>
+                <h3 className="font-bold text-white text-lg mb-1">Exercises</h3>
+                <p className="text-sm text-gray-400">500+ movements</p>
+                <div className="mt-3 flex items-center gap-1 text-green-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Browse library</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
+
+            {/* Achievements */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <RouterLink
+                to="/achievements"
+                className="group block p-6 rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-amber-500/5 hover:border-yellow-500/40 hover:from-yellow-500/20 hover:to-amber-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🏆</div>
+                <h3 className="font-bold text-white text-lg mb-1">Achievements</h3>
+                <p className="text-sm text-gray-400">Badges & milestones</p>
+                <div className="mt-3 flex items-center gap-1 text-yellow-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>View trophies</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
+
+            {/* Goals */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+            >
+              <RouterLink
+                to="/goals"
+                className="group block p-6 rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-violet-500/5 hover:border-purple-500/40 hover:from-purple-500/20 hover:to-violet-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🎯</div>
+                <h3 className="font-bold text-white text-lg mb-1">Goals</h3>
+                <p className="text-sm text-gray-400">Set & crush targets</p>
+                <div className="mt-3 flex items-center gap-1 text-purple-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Set goals</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
+
+            {/* Skills */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <RouterLink
+                to="/skills"
+                className="group block p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-teal-500/5 hover:border-cyan-500/40 hover:from-cyan-500/20 hover:to-teal-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">⚡</div>
+                <h3 className="font-bold text-white text-lg mb-1">Skills</h3>
+                <p className="text-sm text-gray-400">RPG-style progression</p>
+                <div className="mt-3 flex items-center gap-1 text-cyan-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Level up</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
+
+            {/* Community */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.65 }}
+            >
+              <RouterLink
+                to="/community"
+                className="group block p-6 rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-rose-500/5 hover:border-pink-500/40 hover:from-pink-500/20 hover:to-rose-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">👥</div>
+                <h3 className="font-bold text-white text-lg mb-1">Community</h3>
+                <p className="text-sm text-gray-400">Find your tribe</p>
+                <div className="mt-3 flex items-center gap-1 text-pink-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Join now</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
+            </motion.div>
+
+            {/* Plugins */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <RouterLink
+                to="/plugins"
+                className="group block p-6 rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-violet-500/5 hover:border-indigo-500/40 hover:from-indigo-500/20 hover:to-violet-500/10 transition-all duration-300"
+              >
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">🧩</div>
+                <h3 className="font-bold text-white text-lg mb-1">Plugins</h3>
+                <p className="text-sm text-gray-400">Extend & customize</p>
+                <div className="mt-3 flex items-center gap-1 text-indigo-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span>Browse plugins</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </RouterLink>
             </motion.div>
           </div>
-        </section>
-      )}
+
+          {/* Secondary Features Row */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.75 }}
+            className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3"
+          >
+            {[
+              { to: '/rivals', icon: '⚔️', label: 'Rivals', color: 'red' },
+              { to: '/crews', icon: '🛡️', label: 'Crews', color: 'blue' },
+              { to: '/martial-arts', icon: '🥋', label: 'Martial Arts', color: 'orange' },
+              { to: '/wallet', icon: '💎', label: 'Wallet', color: 'emerald' },
+            ].map((item, i) => (
+              <RouterLink
+                key={item.to}
+                to={item.to}
+                className={`group flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-${item.color}-500/30 transition-all`}
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
+                <span className="font-medium text-white text-sm">{item.label}</span>
+              </RouterLink>
+            ))}
+          </motion.div>
+        </div>
+      </section>
 
       {/* Interactive Muscle Map Demo */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
