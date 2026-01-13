@@ -761,34 +761,57 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
   );
 }
 
+// Helper to find a document by ID across all doc arrays
+function findDocById(id) {
+  const publicDoc = PUBLIC_DOCS.find(d => d.id === id);
+  if (publicDoc) return { doc: publicDoc, isPublic: true };
+
+  const userGuide = USER_GUIDES.find(d => d.id === id);
+  if (userGuide) return { doc: userGuide, isPublic: true };
+
+  const techDoc = TECH_DOCS.find(d => d.id === id);
+  if (techDoc) return { doc: techDoc, isPublic: false };
+
+  return null;
+}
+
 // Main Docs page component
 export default function Docs() {
   const { docId, '*': splatPath } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Combine docId and splat path to get full document path
-  // This handles routes like /docs/plugins/getting-started
-  const fullDocPath = splatPath
-    ? (docId ? `${docId}/${splatPath}` : splatPath)
-    : docId;
+  // Use docId directly - the splat path is only for catching unknown routes
+  // If we have a splat path, it means the URL didn't match a known doc route
+  // In that case, show the docs index page
+  const requestedDocId = splatPath ? null : docId;
 
-  const [selectedDoc, setSelectedDoc] = useState(fullDocPath || null);
+  const [selectedDoc, setSelectedDoc] = useState(null);
   const [isPublicDoc, setIsPublicDoc] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [pendingAnchor, setPendingAnchor] = useState(null);
 
   useEffect(() => {
-    if (fullDocPath) {
-      const isPublic = PUBLIC_DOCS.some(d => d.id === fullDocPath) || USER_GUIDES.some(d => d.id === fullDocPath);
-      setSelectedDoc(fullDocPath);
-      setIsPublicDoc(isPublic);
-      // Capture anchor from URL hash for scrolling after content loads
-      if (location.hash) {
-        setPendingAnchor(location.hash);
+    if (requestedDocId) {
+      const found = findDocById(requestedDocId);
+      if (found) {
+        setSelectedDoc(requestedDocId);
+        setIsPublicDoc(found.isPublic);
+        // Capture anchor from URL hash for scrolling after content loads
+        if (location.hash) {
+          setPendingAnchor(location.hash);
+        }
+      } else {
+        // Unknown doc ID - show index page
+        setSelectedDoc(null);
+        setIsPublicDoc(false);
       }
+    } else {
+      // No doc ID or splat path - show index page
+      setSelectedDoc(null);
+      setIsPublicDoc(false);
     }
-  }, [fullDocPath, location.hash]);
+  }, [requestedDocId, location.hash]);
 
   const handleDocClick = (id, isPublic = false, anchor = null) => {
     setSelectedDoc(id);

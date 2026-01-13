@@ -392,6 +392,7 @@ function AppRoutes() {
           <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />
           <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
           <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+          <Route path="/docs/plugins" element={<ErrorBoundary name="PluginGuide"><PluginGuide /></ErrorBoundary>} />
           <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
           <Route path="/docs/*" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
           <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
@@ -450,7 +451,6 @@ function AppRoutes() {
 
           {/* Community & Developer routes - Public */}
           <Route path="/community/bulletin" element={<ErrorBoundary name="CommunityBulletinBoard"><CommunityBulletinBoard /></ErrorBoundary>} />
-          <Route path="/docs/plugins" element={<ErrorBoundary name="PluginGuide"><PluginGuide /></ErrorBoundary>} />
           <Route path="/contribute" element={<ErrorBoundary name="ContributeIdeas"><ContributeIdeas /></ErrorBoundary>} />
 
           {/* Dynamic plugin-contributed routes */}
