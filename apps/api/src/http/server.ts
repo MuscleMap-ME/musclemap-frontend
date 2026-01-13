@@ -269,6 +269,15 @@ export async function createServer(): Promise<FastifyInstance> {
     return { status: 'ready' };
   });
 
+  // Web Vitals endpoint - receives Core Web Vitals metrics from frontend
+  app.post('/api/vitals', async (request, reply) => {
+    // Log vitals in development, silently accept in production
+    if (!isProduction) {
+      log.debug({ vitals: request.body }, 'Web Vitals received');
+    }
+    return reply.status(204).send();
+  });
+
   // Register security middleware
   registerSecurityMiddleware(app);
 

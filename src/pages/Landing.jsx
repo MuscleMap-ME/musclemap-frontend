@@ -1,4 +1,4 @@
-import React, { lazy } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
@@ -7,7 +7,42 @@ import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } fr
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
 const MuscleMapD3 = lazy(() => import('../components/d3').then(m => ({ default: m.MuscleMapD3 })));
 
+// Hook to only load component when it enters viewport
+function useInView(options = {}) {
+  const ref = useRef(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsInView(true);
+        observer.disconnect(); // Only need to trigger once
+      }
+    }, { rootMargin: '200px', ...options });
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, isInView];
+}
+
+// Placeholder skeleton for the muscle map
+function MuscleMapSkeleton() {
+  return (
+    <div className="w-[300px] h-[450px] bg-white/5 rounded-xl animate-pulse flex items-center justify-center">
+      <div className="text-gray-500 text-sm">Loading visualization...</div>
+    </div>
+  );
+}
+
 export default function Landing() {
+  // Only load the heavy D3 visualization when it's in view
+  const [muscleMapRef, isMuscleMapInView] = useInView();
+
   // Combined structured data for the landing page
   const structuredData = {
     '@context': 'https://schema.org',
@@ -51,7 +86,16 @@ export default function Landing() {
             to="/"
             className="flex items-center gap-3"
           >
-            <img src="/logo.png" alt="MuscleMap" className="w-10 h-10 rounded-lg" />
+            <picture>
+              <source srcSet="/logo.webp" type="image/webp" />
+              <img
+                src="/logo.png"
+                alt="MuscleMap"
+                width={40}
+                height={40}
+                className="w-10 h-10 rounded-lg"
+              />
+            </picture>
             <span
               className="text-xl font-extrabold"
               style={{
@@ -465,19 +509,25 @@ export default function Landing() {
             transition={{ delay: 0.4 }}
             className="flex flex-col lg:flex-row gap-8 items-center justify-center"
           >
-            {/* Front View */}
-            <div className="relative">
+            {/* Front View - Only load D3 when section is in viewport */}
+            <div className="relative" ref={muscleMapRef}>
               <div className="absolute -inset-4 bg-gradient-to-br from-red-500/20 via-transparent to-orange-500/20 rounded-3xl blur-xl" />
               <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
                 <div className="text-center text-sm text-gray-500 mb-2">Front View</div>
-                <MuscleMapD3
-                  activations={demoActivations}
-                  view="front"
-                  height={450}
-                  interactive
-                  animated
-                  showLabels={false}
-                />
+                {isMuscleMapInView ? (
+                  <Suspense fallback={<MuscleMapSkeleton />}>
+                    <MuscleMapD3
+                      activations={demoActivations}
+                      view="front"
+                      height={450}
+                      interactive
+                      animated
+                      showLabels={false}
+                    />
+                  </Suspense>
+                ) : (
+                  <MuscleMapSkeleton />
+                )}
               </div>
             </div>
 
