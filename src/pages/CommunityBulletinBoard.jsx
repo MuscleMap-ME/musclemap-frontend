@@ -708,18 +708,18 @@ export default function CommunityBulletinBoard() {
                   </Link>
 
                   <a
-                    href="https://github.com/MuscleMap-ME/musclemap-frontend/tree/main/plugins/examples"
+                    href="https://github.com/MuscleMap-ME/musclemap-frontend"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-6 rounded-2xl border border-white/10 bg-white/5 hover:border-green-500/30 transition-colors group"
                   >
                     <Icons.GitHub className="w-10 h-10 text-green-400 mb-4" />
-                    <h3 className="font-bold text-white mb-2">Example Plugins</h3>
+                    <h3 className="font-bold text-white mb-2">Source Code</h3>
                     <p className="text-gray-400 text-sm mb-4">
-                      Full working plugin examples on GitHub that you can clone and modify.
+                      Explore the MuscleMap frontend repository on GitHub.
                     </p>
                     <span className="inline-flex items-center gap-1 text-green-400 text-sm font-medium group-hover:gap-2 transition-all">
-                      View Examples
+                      View on GitHub
                       <Icons.ExternalLink className="w-4 h-4" />
                     </span>
                   </a>
@@ -843,7 +843,7 @@ export default function CommunityBulletinBoard() {
                       </li>
                     </ol>
                     <Link
-                      to="/docs/plugins/first-widget"
+                      to="/docs/plugins"
                       className="inline-flex items-center gap-1 text-green-400 text-sm font-medium"
                     >
                       Full Guide <Icons.ArrowRight className="w-4 h-4" />
@@ -880,7 +880,7 @@ export default function CommunityBulletinBoard() {
                       </li>
                     </ol>
                     <Link
-                      to="/docs/plugins/themes"
+                      to="/docs/plugins"
                       className="inline-flex items-center gap-1 text-purple-400 text-sm font-medium"
                     >
                       Full Guide <Icons.ArrowRight className="w-4 h-4" />
@@ -917,7 +917,7 @@ export default function CommunityBulletinBoard() {
                       </li>
                     </ol>
                     <Link
-                      to="/docs/plugins/routes"
+                      to="/docs/plugins"
                       className="inline-flex items-center gap-1 text-blue-400 text-sm font-medium"
                     >
                       Full Guide <Icons.ArrowRight className="w-4 h-4" />
@@ -954,7 +954,7 @@ export default function CommunityBulletinBoard() {
                       </li>
                     </ol>
                     <Link
-                      to="/docs/plugins/backend"
+                      to="/docs/plugins"
                       className="inline-flex items-center gap-1 text-cyan-400 text-sm font-medium"
                     >
                       Full Guide <Icons.ArrowRight className="w-4 h-4" />

@@ -676,15 +676,15 @@ git push -u origin main
               </Link>
 
               <a
-                href="https://github.com/MuscleMap-ME/musclemap-frontend/tree/main/plugins/examples"
+                href="https://github.com/MuscleMap-ME/musclemap-frontend"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-6 rounded-2xl border border-white/10 bg-white/5 hover:border-green-500/30 transition-colors group"
               >
                 <div className="text-3xl mb-4">🔧</div>
-                <h4 className="font-bold text-white mb-2">Example Plugins</h4>
+                <h4 className="font-bold text-white mb-2">Source Code</h4>
                 <p className="text-sm text-gray-400 mb-4">
-                  Clone and modify working plugin examples.
+                  Explore the MuscleMap frontend repository on GitHub.
                 </p>
                 <span className="inline-flex items-center gap-1 text-green-400 text-sm font-medium group-hover:gap-2 transition-all">
                   View on GitHub
