@@ -58,12 +58,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Strategic chunk splitting for optimal caching and loading
+        // Note: Three.js is NOT in manualChunks - Vite will auto-split it
+        // based on actual usage, preventing it from being preloaded on pages
+        // that don't use 3D features (important for slow connections)
         manualChunks: {
           // Core React - loaded on every page
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-
-          // 3D visualization - only loaded on pages with 3D models
-          'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
 
           // D3 for charts and graphs - only loaded when needed
           'd3-vendor': ['d3'],

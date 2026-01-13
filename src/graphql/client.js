@@ -4,17 +4,22 @@
  * Sets up Apollo Client with authentication, error handling, and caching.
  */
 
-import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache, from } from '@apollo/client/core';
+import { BatchHttpLink } from '@apollo/client/link/batch-http';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 
 /**
- * HTTP Link - connects to our GraphQL endpoint
+ * Batch HTTP Link - batches multiple GraphQL requests into one HTTP request
+ * This reduces round trips which is critical for high-latency connections
  */
-const httpLink = createHttpLink({
+const httpLink = new BatchHttpLink({
   uri: '/api/graphql',
   credentials: 'include',
+  batchMax: 10, // Max 10 queries per batch
+  batchInterval: 20, // Wait 20ms to collect queries before sending
+  batchDebounce: true, // Debounce batches for even better grouping
 });
 
 /**
@@ -237,10 +242,13 @@ export const apolloClient = new ApolloClient({
       fetchPolicy: 'cache-and-network',
       nextFetchPolicy: 'cache-first', // Use cache after initial network fetch
       errorPolicy: 'all',
+      notifyOnNetworkStatusChange: true, // Show loading states on refetch
+      returnPartialData: true, // Show cached data immediately while fetching
     },
     query: {
       fetchPolicy: 'cache-first',
       errorPolicy: 'all',
+      returnPartialData: true, // Return what we have in cache immediately
     },
     mutate: {
       errorPolicy: 'all',

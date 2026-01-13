@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
+import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
@@ -39,9 +40,45 @@ function MuscleMapSkeleton() {
   );
 }
 
+// Static fallback for slow connections - shows muscle groups without D3
+function MuscleMapStaticFallback() {
+  return (
+    <div className="w-[300px] h-[450px] bg-gradient-to-b from-red-500/10 via-orange-500/5 to-yellow-500/10 rounded-xl flex flex-col items-center justify-center p-6 border border-white/10">
+      <div className="text-6xl mb-4">💪</div>
+      <div className="text-center">
+        <div className="text-white font-semibold mb-2">Muscle Visualization</div>
+        <div className="text-gray-400 text-sm mb-4">
+          Interactive 3D body map showing real-time muscle activation
+        </div>
+        <div className="flex flex-wrap gap-2 justify-center">
+          <span className="px-2 py-1 bg-red-500/20 border border-red-500/30 text-red-400 rounded text-xs">
+            Chest
+          </span>
+          <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded text-xs">
+            Shoulders
+          </span>
+          <span className="px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded text-xs">
+            Arms
+          </span>
+          <span className="px-2 py-1 bg-green-500/20 border border-green-500/30 text-green-400 rounded text-xs">
+            Core
+          </span>
+        </div>
+        <div className="text-gray-500 text-xs mt-4">
+          Full visualization on faster connections
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   // Only load the heavy D3 visualization when it's in view
   const [muscleMapRef, isMuscleMapInView] = useInView();
+
+  // Check network conditions for adaptive loading
+  const shouldLoadHeavyContent = useShouldLoadHeavyContent();
+  const { enabled: animationsEnabled } = useAnimationSettings();
 
   // Combined structured data for the landing page
   const structuredData = {
@@ -515,16 +552,20 @@ export default function Landing() {
               <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
                 <div className="text-center text-sm text-gray-500 mb-2">Front View</div>
                 {isMuscleMapInView ? (
-                  <Suspense fallback={<MuscleMapSkeleton />}>
-                    <MuscleMapD3
-                      activations={demoActivations}
-                      view="front"
-                      height={450}
-                      interactive
-                      animated
-                      showLabels={false}
-                    />
-                  </Suspense>
+                  shouldLoadHeavyContent ? (
+                    <Suspense fallback={<MuscleMapSkeleton />}>
+                      <MuscleMapD3
+                        activations={demoActivations}
+                        view="front"
+                        height={450}
+                        interactive
+                        animated={animationsEnabled}
+                        showLabels={false}
+                      />
+                    </Suspense>
+                  ) : (
+                    <MuscleMapStaticFallback />
+                  )
                 ) : (
                   <MuscleMapSkeleton />
                 )}

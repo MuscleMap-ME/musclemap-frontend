@@ -16,8 +16,10 @@ const API_CACHE = `musclemap-api-${CACHE_VERSION}`;
 // Assets to precache on install
 const PRECACHE_ASSETS = [
   '/',
+  '/offline.html',
   '/manifest.json',
   '/logo.png',
+  '/logo.webp',
 ];
 
 // Cache duration limits (in milliseconds)
