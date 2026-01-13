@@ -393,6 +393,7 @@ function AppRoutes() {
           <Route path="/design" element={<ErrorBoundary name="Design"><Design /></ErrorBoundary>} />
           <Route path="/docs" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
           <Route path="/docs/:docId" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
+          <Route path="/docs/*" element={<ErrorBoundary name="Docs"><Docs /></ErrorBoundary>} />
           <Route path="/privacy" element={<ErrorBoundary name="Privacy"><Privacy /></ErrorBoundary>} />
           <Route path="/skills" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />
           <Route path="/skills/:treeId" element={<ErrorBoundary name="Skills"><Skills /></ErrorBoundary>} />

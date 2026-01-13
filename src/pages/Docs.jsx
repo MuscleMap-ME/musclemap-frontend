@@ -763,25 +763,32 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
 
 // Main Docs page component
 export default function Docs() {
-  const { docId } = useParams();
+  const { docId, '*': splatPath } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedDoc, setSelectedDoc] = useState(docId || null);
+
+  // Combine docId and splat path to get full document path
+  // This handles routes like /docs/plugins/getting-started
+  const fullDocPath = splatPath
+    ? (docId ? `${docId}/${splatPath}` : splatPath)
+    : docId;
+
+  const [selectedDoc, setSelectedDoc] = useState(fullDocPath || null);
   const [isPublicDoc, setIsPublicDoc] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [pendingAnchor, setPendingAnchor] = useState(null);
 
   useEffect(() => {
-    if (docId) {
-      const isPublic = PUBLIC_DOCS.some(d => d.id === docId) || USER_GUIDES.some(d => d.id === docId);
-      setSelectedDoc(docId);
+    if (fullDocPath) {
+      const isPublic = PUBLIC_DOCS.some(d => d.id === fullDocPath) || USER_GUIDES.some(d => d.id === fullDocPath);
+      setSelectedDoc(fullDocPath);
       setIsPublicDoc(isPublic);
       // Capture anchor from URL hash for scrolling after content loads
       if (location.hash) {
         setPendingAnchor(location.hash);
       }
     }
-  }, [docId, location.hash]);
+  }, [fullDocPath, location.hash]);
 
   const handleDocClick = (id, isPublic = false, anchor = null) => {
     setSelectedDoc(id);
