@@ -159,11 +159,11 @@ export async function up(): Promise<void> {
   // 4. CREW INVITES INDEXES
   // ============================================
   if (await tableExists('crew_invites')) {
-    // Pending invites for user
+    // Pending invites for user (invitee)
     await createIndexIfNotExists(
       'idx_crew_invites_user_pending',
       `CREATE INDEX idx_crew_invites_user_pending
-       ON crew_invites(user_id, created_at DESC)
+       ON crew_invites(invitee_id, created_at DESC)
        WHERE status = 'pending'`
     );
 
