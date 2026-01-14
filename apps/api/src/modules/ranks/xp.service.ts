@@ -197,6 +197,7 @@ export const xpService = {
 
   /**
    * Check velocity limits for XP award
+   * Note: Owner accounts bypass all velocity limits for testing purposes
    */
   async checkVelocityLimits(
     userId: string,
@@ -204,6 +205,16 @@ export const xpService = {
     sourceType: XpSourceType,
     sourceId?: string
   ): Promise<{ allowed: boolean; reason?: string }> {
+    // Check if user is owner - owners bypass all velocity limits
+    const user = await queryOne<{ roles: string[] }>(
+      'SELECT roles FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (user?.roles?.includes('owner')) {
+      return { allowed: true };
+    }
+
     // Check daily limit
     const dailyResult = await queryOne<{ total: string }>(
       `SELECT COALESCE(SUM(amount), 0) as total

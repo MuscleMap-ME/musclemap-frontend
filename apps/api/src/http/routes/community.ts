@@ -459,6 +459,231 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     return reply.send({ data: { percentile: 50 } });
   });
 
+  // Community now stats endpoint (for CommunityDashboard)
+  app.get('/community/now', async (request, reply) => {
+    const [activeCount, topExercises] = await Promise.all([
+      getActiveUserCount(),
+      queryAll<{ exercise_id: string; name: string; count: string }>(
+        `SELECT w.exercise_data::jsonb->>0 as exercise_id, e.name, COUNT(*) as count
+         FROM workouts w
+         LEFT JOIN exercises e ON (w.exercise_data::jsonb->>0) = e.id
+         WHERE w.created_at > NOW() - INTERVAL '15 minutes'
+         AND w.exercise_data IS NOT NULL
+         GROUP BY w.exercise_data::jsonb->>0, e.name
+         ORDER BY count DESC
+         LIMIT 10`
+      ),
+    ]);
+
+    return reply.send({
+      data: {
+        activeUsers: activeCount,
+        topExercises: topExercises.map((ex) => ({
+          exerciseId: ex.exercise_id,
+          name: ex.name || 'Unknown',
+          count: parseInt(ex.count || '0'),
+        })),
+      },
+    });
+  });
+
+  // Community stats summary endpoint
+  app.get('/community/stats/summary', async (request, reply) => {
+    const params = request.query as { window?: string };
+    const window = params.window || '24h';
+
+    const [totalUsers, activeUsers, workoutsCount, totalWorkoutVolume] = await Promise.all([
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
+      getActiveUserCount(),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*)::int as count FROM workouts
+         WHERE created_at > NOW() - INTERVAL '${window === '7d' ? '7 days' : '24 hours'}'`
+      ),
+      queryOne<{ total: string }>(
+        `SELECT COALESCE(SUM(total_tu), 0) as total FROM workouts
+         WHERE created_at > NOW() - INTERVAL '${window === '7d' ? '7 days' : '24 hours'}'`
+      ),
+    ]);
+
+    return reply.send({
+      data: {
+        totalUsers: parseInt(totalUsers?.count || '0'),
+        activeUsers,
+        workoutsCount: parseInt(workoutsCount?.count || '0'),
+        totalWorkoutVolume: parseInt(totalWorkoutVolume?.total || '0'),
+        window,
+      },
+    });
+  });
+
+  // Community stats archetypes endpoint
+  app.get('/community/stats/archetypes', async (request, reply) => {
+    const archetypes = await queryAll<{ archetype_id: string; name: string; count: string }>(
+      `SELECT ua.archetype_id, a.name, COUNT(*)::int as count
+       FROM user_archetypes ua
+       JOIN archetypes a ON ua.archetype_id = a.id
+       GROUP BY ua.archetype_id, a.name
+       ORDER BY count DESC
+       LIMIT 10`
+    );
+
+    return reply.send({
+      data: archetypes.map((a) => ({
+        id: a.archetype_id,
+        name: a.name,
+        count: parseInt(a.count || '0'),
+      })),
+    });
+  });
+
+  // Community stats exercises endpoint
+  app.get('/community/stats/exercises', async (request, reply) => {
+    const params = request.query as { window?: string; limit?: string };
+    const window = params.window || '7d';
+    const limit = Math.min(parseInt(params.limit || '20'), 50);
+
+    const exercises = await queryAll<{ exercise_id: string; name: string; count: string }>(
+      `SELECT ea.exercise_id, e.name, COUNT(*)::int as count
+       FROM workout_exercises we
+       JOIN exercise_activations ea ON we.exercise_id = ea.exercise_id
+       JOIN exercises e ON ea.exercise_id = e.id
+       WHERE we.created_at > NOW() - INTERVAL '${window === '30d' ? '30 days' : '7 days'}'
+       GROUP BY ea.exercise_id, e.name
+       ORDER BY count DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    return reply.send({
+      data: exercises.map((ex) => ({
+        id: ex.exercise_id,
+        name: ex.name,
+        count: parseInt(ex.count || '0'),
+      })),
+    });
+  });
+
+  // Community stats funnel endpoint
+  app.get('/community/stats/funnel', async (request, reply) => {
+    const [registered, onboarded, firstWorkout, active] = await Promise.all([
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users WHERE onboarding_completed = true'),
+      queryOne<{ count: string }>(
+        'SELECT COUNT(DISTINCT user_id)::int as count FROM workouts'
+      ),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(DISTINCT user_id)::int as count FROM workouts WHERE created_at > NOW() - INTERVAL '7 days'`
+      ),
+    ]);
+
+    return reply.send({
+      data: {
+        registered: parseInt(registered?.count || '0'),
+        onboarded: parseInt(onboarded?.count || '0'),
+        firstWorkout: parseInt(firstWorkout?.count || '0'),
+        activeLastWeek: parseInt(active?.count || '0'),
+      },
+    });
+  });
+
+  // Community stats credits endpoint
+  app.get('/community/stats/credits', async (request, reply) => {
+    const [totalCredits, totalSpent, avgBalance] = await Promise.all([
+      queryOne<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM wallets'),
+      queryOne<{ total: string }>(
+        `SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM wallet_transactions WHERE amount < 0`
+      ),
+      queryOne<{ avg: string }>('SELECT COALESCE(AVG(balance), 0) as avg FROM wallets'),
+    ]);
+
+    return reply.send({
+      data: {
+        totalCredits: parseInt(totalCredits?.total || '0'),
+        totalSpent: parseInt(totalSpent?.total || '0'),
+        avgBalance: parseFloat(avgBalance?.avg || '0'),
+      },
+    });
+  });
+
+  // Community stats geographic endpoint
+  app.get('/community/stats/geographic', async (request, reply) => {
+    const byGeoBucket = await getPresenceByGeoBucket();
+
+    return reply.send({
+      data: {
+        byGeoBucket,
+      },
+    });
+  });
+
+  // Admin control users endpoint (for EmpireControl)
+  app.get('/admin-control/users', { preHandler: authenticate }, async (request, reply) => {
+    const roles = request.user!.roles || [];
+    if (!roles.includes('admin') && !roles.includes('owner')) {
+      return reply.status(403).send({
+        error: { code: 'FORBIDDEN', message: 'Admin or owner role required', statusCode: 403 },
+      });
+    }
+
+    const params = request.query as { limit?: string };
+    const limit = Math.min(parseInt(params.limit || '50'), 100);
+
+    const users = await queryAll<{
+      id: string;
+      username: string;
+      email: string;
+      display_name: string;
+      avatar_url: string;
+      roles: string[];
+      created_at: Date;
+      total_xp: number;
+      current_rank: string;
+    }>(
+      `SELECT id, username, email, display_name, avatar_url, roles, created_at, total_xp, current_rank
+       FROM users
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    return reply.send({
+      data: users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        displayName: u.display_name,
+        avatarUrl: u.avatar_url,
+        roles: u.roles || [],
+        createdAt: u.created_at,
+        totalXp: u.total_xp || 0,
+        currentRank: u.current_rank || 'novice',
+      })),
+      total: users.length,
+    });
+  });
+
+  // Admin audit credits endpoint
+  app.get('/admin-control/audit/credits', { preHandler: authenticate }, async (request, reply) => {
+    const roles = request.user!.roles || [];
+    if (!roles.includes('admin') && !roles.includes('owner')) {
+      return reply.status(403).send({
+        error: { code: 'FORBIDDEN', message: 'Admin or owner role required', statusCode: 403 },
+      });
+    }
+
+    const [totalGifted, totalTransactions] = await Promise.all([
+      queryOne<{ total: string }>(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM wallet_transactions WHERE action LIKE '%gift%' OR action LIKE '%grant%'`
+      ),
+      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM wallet_transactions'),
+    ]);
+
+    return reply.send({
+      totalGifted: parseInt(totalGifted?.total || '0'),
+      totalTransactions: parseInt(totalTransactions?.count || '0'),
+    });
+  });
+
   // WebSocket for real-time updates
   app.get('/community/ws', { websocket: true }, (socket, request) => {
     const token = (request.query as { token?: string }).token;
