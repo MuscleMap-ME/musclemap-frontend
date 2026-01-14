@@ -312,4 +312,7 @@ export const GlassSidebarItem = ({
   );
 };
 
+// Named exports for compatibility
+export { GlassNavBar as GlassNav };
+export { GlassNavBar };
 export default GlassNavBar;

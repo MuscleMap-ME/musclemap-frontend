@@ -265,4 +265,5 @@ export const MeshBackgroundCanvas = ({ className, intensity = 'medium' }) => {
  * Default export - use CSS animation version (best balance of quality/performance)
  */
 const MeshBackground = MeshBackgroundAnimated;
+export { MeshBackground };
 export default MeshBackground;
