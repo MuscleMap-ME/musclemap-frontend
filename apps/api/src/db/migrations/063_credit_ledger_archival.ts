@@ -58,17 +58,21 @@ export async function up(): Promise<void> {
   // ============================================
   if (!(await tableExists('credit_ledger_archive'))) {
     log.info('Creating credit_ledger_archive table...');
+    // Match credit_ledger schema exactly (id and user_id are TEXT, not UUID)
     await db.query(`
       CREATE TABLE credit_ledger_archive (
-        id UUID NOT NULL,
-        user_id UUID NOT NULL,
+        id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
         action TEXT NOT NULL,
         amount INTEGER NOT NULL,
         balance_after INTEGER NOT NULL,
-        reference_type TEXT,
-        reference_id UUID,
+        reason SMALLINT,
+        ref_type SMALLINT,
+        ref_id TEXT,
         idempotency_key TEXT,
         metadata JSONB,
+        ip_address INET,
+        user_agent_hash BYTEA,
         created_at TIMESTAMPTZ NOT NULL,
         archived_at TIMESTAMPTZ DEFAULT NOW(),
         PRIMARY KEY (id, created_at)
@@ -138,8 +142,8 @@ export async function up(): Promise<void> {
       LOOP
         WITH to_archive AS (
           SELECT id, user_id, action, amount, balance_after,
-                 reference_type, reference_id, idempotency_key,
-                 metadata, created_at
+                 reason, ref_type, ref_id, idempotency_key,
+                 metadata, ip_address, user_agent_hash, created_at
           FROM credit_ledger
           WHERE created_at < v_cutoff
             AND archived = FALSE
@@ -214,14 +218,12 @@ export async function up(): Promise<void> {
   // 5. CREATE USER TRANSACTION HISTORY VIEW
   // ============================================
   log.info('Creating user_credit_history_full view...');
-  // Note: Types differ between credit_ledger (SMALLINT ref_type, TEXT ref_id)
-  // and credit_ledger_archive (TEXT reference_type, UUID reference_id)
-  // Cast to common types (TEXT) for the union
+  // Both tables now have same schema - simple union
   await db.query(`
     CREATE OR REPLACE VIEW user_credit_history_full AS
     SELECT
       id, user_id, action, amount, balance_after,
-      ref_type::TEXT as ref_type, ref_id, created_at,
+      ref_type, ref_id, created_at,
       'active' as storage_tier
     FROM credit_ledger
     WHERE archived = FALSE
@@ -229,8 +231,8 @@ export async function up(): Promise<void> {
     UNION ALL
 
     SELECT
-      id::TEXT, user_id::TEXT, action, amount, balance_after,
-      reference_type as ref_type, reference_id::TEXT as ref_id, created_at,
+      id, user_id, action, amount, balance_after,
+      ref_type, ref_id, created_at,
       'archived' as storage_tier
     FROM credit_ledger_archive
   `);
