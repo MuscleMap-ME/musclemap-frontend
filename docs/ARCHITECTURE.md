@@ -41,6 +41,7 @@ musclemap.me/
 │   ├── public/
 │   ├── specs/
 │   ├── API_REFERENCE.md
+│   ├── ARCHETYPE-GRAPHICS-UPGRADE-PLAN.md
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
 │   ├── CONTRIBUTING.md
