@@ -505,6 +505,8 @@ export const typeDefs = `#graphql
     description: String!
     philosophy: String
     icon: String
+    imageUrl: String
+    categoryId: String
     color: String
     levels: [ArchetypeLevel!]
     primaryStats: [String!]
@@ -523,6 +525,8 @@ export const typeDefs = `#graphql
     id: ID!
     name: String!
     description: String
+    icon: String
+    displayOrder: Int
     archetypes: [Archetype!]!
   }
 

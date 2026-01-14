@@ -140,6 +140,7 @@ import {
   Target as PhTarget,
   ChartLineUp as PhChartLineUp,
   Timer as PhTimer,
+  Stopwatch as PhStopwatch,
   Clock as PhClock,
   CalendarBlank as PhCalendar,
   Scales as PhScales,
@@ -150,6 +151,7 @@ import {
   BatteryFull as PhBattery,
   Pulse as PhPulse,
   FirstAid as PhFirstAid,
+  FirstAidKit as PhFirstAidKit,
   Stethoscope as PhStethoscope,
   Pill as PhPill,
   Apple as PhApple,
@@ -224,6 +226,37 @@ import {
   Sparkle as PhSparkle,
   Lightning as PhZap,
   Flame as PhFlame,
+
+  // Archetype/Category icons - Movement
+  PersonSimple as PhPersonSimple,
+  PersonArmsSpread as PhPersonArmsSpread,
+
+  // Archetype/Category icons - Combat
+  HandFist as PhHandFist,
+  BoxingGlove as PhBoxingGlove,
+
+  // Archetype/Category icons - Adventure
+  Mountains as PhMountains,
+
+  // Archetype/Category icons - Military
+  ShieldStar as PhShieldStar,
+
+  // Archetype/Category icons - First Responders
+  Siren as PhSiren,
+  Ambulance as PhAmbulance,
+
+  // Archetype/Category icons - Team Sports
+  SoccerBall as PhSoccerBall,
+  Basketball as PhBasketball,
+  Football as PhFootball,
+
+  // Archetype/Category icons - Rehabilitation
+  Bandaids as PhBandaids,
+
+  // General fitness icons
+  Crosshair as PhCrosshair,
+  Sword as PhSword,
+  Shield as PhShield,
 } from '@phosphor-icons/react';
 
 /**
@@ -649,6 +682,80 @@ const phosphorIcons = {
   light: PhSun,
   moon: PhMoon,
   dark: PhMoon,
+
+  // Archetype/Category icons - Strength
+  strength: PhBarbell,
+
+  // Archetype/Category icons - Movement
+  personSimple: PhPersonSimple,
+  person: PhPersonSimple,
+  movement: PhPersonSimple,
+  personArmsSpread: PhPersonArmsSpread,
+  mobility: PhPersonArmsSpread,
+  flexibility: PhPersonArmsSpread,
+
+  // Archetype/Category icons - Combat
+  handFist: PhHandFist,
+  fist: PhHandFist,
+  combat: PhHandFist,
+  martialArts: PhHandFist,
+  boxingGlove: PhBoxingGlove,
+  boxing: PhBoxingGlove,
+  fighter: PhBoxingGlove,
+
+  // Archetype/Category icons - Endurance
+  endurance: PhHeartbeat,
+  cardio: PhRun,
+
+  // Archetype/Category icons - Adventure
+  mountains: PhMountains,
+  adventure: PhMountains,
+  hiking: PhMountains,
+  outdoor: PhMountains,
+
+  // Archetype/Category icons - Military
+  shieldStar: PhShieldStar,
+  military: PhShieldStar,
+  tactical: PhShieldStar,
+
+  // Archetype/Category icons - First Responders
+  siren: PhSiren,
+  emergency: PhSiren,
+  ambulance: PhAmbulance,
+  paramedic: PhAmbulance,
+  firstResponder: PhSiren,
+  firstAidKit: PhFirstAidKit,
+  medkit: PhFirstAidKit,
+
+  // Archetype/Category icons - Team Sports
+  soccerBall: PhSoccerBall,
+  soccer: PhSoccerBall,
+  football: PhFootball,
+  americanFootball: PhFootball,
+  basketball: PhBasketball,
+  teamSports: PhSoccerBall,
+
+  // Archetype/Category icons - Functional
+  functional: PhLightning,
+
+  // Archetype/Category icons - Rehabilitation
+  bandaids: PhBandaids,
+  bandaid: PhBandaids,
+  rehabilitation: PhBandaids,
+  recovery: PhBandaids,
+  rehab: PhBandaids,
+
+  // General fitness icons
+  stopwatchAlt: PhStopwatch,
+  crosshair: PhCrosshair,
+  aim: PhCrosshair,
+  precision: PhCrosshair,
+  sword: PhSword,
+  blade: PhSword,
+  weapon: PhSword,
+  shield: PhShield,
+  defense: PhShield,
+  protection: PhShield,
 };
 
 // Export individual icons for direct use

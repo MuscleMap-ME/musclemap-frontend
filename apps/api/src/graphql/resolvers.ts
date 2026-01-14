@@ -391,7 +391,7 @@ export const resolvers = {
     // Archetypes
     archetypes: async () => {
       const archetypes = await queryAll(
-        `SELECT id, name, description, philosophy, icon_url, category_id, focus_areas
+        `SELECT id, name, description, philosophy, icon_url, image_url, category_id, focus_areas
          FROM archetypes ORDER BY name`
       );
       return archetypes.map((a: any) => ({
@@ -400,11 +400,70 @@ export const resolvers = {
         description: a.description,
         philosophy: a.philosophy,
         icon: a.icon_url,
+        imageUrl: a.image_url,
+        categoryId: a.category_id,
         color: null, // Column doesn't exist in schema
         primaryStats: [],
         bonuses: null,
         focusAreas: a.focus_areas || [],
       }));
+    },
+
+    archetypeCategories: async () => {
+      const categories = await queryAll(
+        `SELECT id, name, description, icon, display_order
+         FROM archetype_categories ORDER BY display_order, name`
+      );
+      return categories.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        icon: c.icon,
+        displayOrder: c.display_order,
+      }));
+    },
+
+    archetypesByCategory: async (_: unknown, args: { categoryId: string }) => {
+      const archetypes = await queryAll(
+        `SELECT id, name, description, philosophy, icon_url, image_url, category_id, focus_areas
+         FROM archetypes WHERE category_id = $1 ORDER BY name`,
+        [args.categoryId]
+      );
+      return archetypes.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        philosophy: a.philosophy,
+        icon: a.icon_url,
+        imageUrl: a.image_url,
+        categoryId: a.category_id,
+        color: null,
+        primaryStats: [],
+        bonuses: null,
+        focusAreas: a.focus_areas || [],
+      }));
+    },
+
+    archetype: async (_: unknown, args: { id: string }) => {
+      const a = await queryOne<any>(
+        `SELECT id, name, description, philosophy, icon_url, image_url, category_id, focus_areas
+         FROM archetypes WHERE id = $1`,
+        [args.id]
+      );
+      if (!a) return null;
+      return {
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        philosophy: a.philosophy,
+        icon: a.icon_url,
+        imageUrl: a.image_url,
+        categoryId: a.category_id,
+        color: null,
+        primaryStats: [],
+        bonuses: null,
+        focusAreas: a.focus_areas || [],
+      };
     },
 
     // Journey
@@ -972,6 +1031,32 @@ export const resolvers = {
         return subscribe<ConversationEvent>(PUBSUB_CHANNELS.CONVERSATION_UPDATED);
       },
       resolve: (payload: ConversationEvent) => payload,
+    },
+  },
+
+  // ============================================
+  // TYPE RESOLVERS
+  // ============================================
+  ArchetypeCategory: {
+    archetypes: async (parent: { id: string }) => {
+      const archetypes = await queryAll(
+        `SELECT id, name, description, philosophy, icon_url, image_url, category_id, focus_areas
+         FROM archetypes WHERE category_id = $1 ORDER BY name`,
+        [parent.id]
+      );
+      return archetypes.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        philosophy: a.philosophy,
+        icon: a.icon_url,
+        imageUrl: a.image_url,
+        categoryId: a.category_id,
+        color: null,
+        primaryStats: [],
+        bonuses: null,
+        focusAreas: a.focus_areas || [],
+      }));
     },
   },
 };
