@@ -58,6 +58,10 @@ interface TestContext {
     workoutId?: string;
     conversationId?: string;
     issueId?: string;
+    careerGoalId?: string;
+    templateId?: string;
+    clonedTemplateId?: string;
+    progressionTargetId?: string;
   };
 }
 
@@ -1043,6 +1047,514 @@ async function testMascot(ctx: TestContext) {
   });
 }
 
+async function testCareerReadiness(ctx: TestContext) {
+  logSection('CAREER READINESS');
+
+  // Get career standards categories
+  await runTest('Career', 'Get career categories', async () => {
+    const res = await request('GET', '/career/standards/categories', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get career categories');
+    assert(res.body?.data?.categories, 'Should have categories array');
+  });
+
+  // Get all career standards
+  await runTest('Career', 'Get career standards', async () => {
+    const res = await request('GET', '/career/standards', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get career standards');
+    assert(res.body?.data?.standards, 'Should have standards array');
+    // Save a standard ID for later tests
+    if (res.body?.data?.standards?.length > 0) {
+      ctx.createdResources.ptTestId = res.body.data.standards[0].id;
+    }
+  });
+
+  // Get single career standard
+  await runTest('Career', 'Get single career standard', async () => {
+    if (!ctx.createdResources.ptTestId) {
+      return; // Skip if no standard available
+    }
+    const res = await request('GET', `/career/standards/${ctx.createdResources.ptTestId}`, {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should get or not find standard');
+  });
+
+  // Get user's career goals (should be empty initially)
+  await runTest('Career', 'Get career goals', async () => {
+    const res = await request('GET', '/career/goals', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get career goals');
+    assert(Array.isArray(res.body?.data?.goals), 'Should have goals array');
+  });
+
+  // Create a career goal
+  await runTest('Career', 'Create career goal', async () => {
+    if (!ctx.createdResources.ptTestId) {
+      return; // Skip if no standard available
+    }
+    const res = await request('POST', '/career/goals', {
+      token: ctx.token,
+      body: {
+        ptTestId: ctx.createdResources.ptTestId,
+        targetDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days from now
+        priority: 'primary',
+        agencyName: 'Test Agency',
+        notes: 'E2E Test Goal',
+      },
+      expectedStatus: [201, 400], // 400 if goal already exists
+    });
+    assert([201, 400].includes(res.status), 'Should create goal or report it exists');
+    if (res.status === 201 && res.body?.data?.goal?.id) {
+      ctx.createdResources.careerGoalId = res.body.data.goal.id;
+    }
+  });
+
+  // Get readiness for all goals
+  await runTest('Career', 'Get career readiness', async () => {
+    const res = await request('GET', '/career/readiness', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get career readiness');
+    assert(res.body?.data?.readiness !== undefined, 'Should have readiness data');
+  });
+
+  // Get readiness for specific goal
+  await runTest('Career', 'Get goal readiness', async () => {
+    if (!ctx.createdResources.careerGoalId) {
+      return; // Skip if no goal created
+    }
+    const res = await request('GET', `/career/readiness/${ctx.createdResources.careerGoalId}`, {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should get goal readiness');
+  });
+
+  // Get exercises for weak events
+  await runTest('Career', 'Get exercises for goal', async () => {
+    if (!ctx.createdResources.careerGoalId) {
+      return; // Skip if no goal created
+    }
+    const res = await request('GET', `/career/goals/${ctx.createdResources.careerGoalId}/exercises`, {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should get exercises');
+  });
+
+  // Update career goal
+  await runTest('Career', 'Update career goal', async () => {
+    if (!ctx.createdResources.careerGoalId) {
+      return; // Skip if no goal created
+    }
+    const res = await request('PUT', `/career/goals/${ctx.createdResources.careerGoalId}`, {
+      token: ctx.token,
+      body: {
+        notes: 'Updated E2E Test Goal',
+        priority: 'secondary',
+      },
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should update goal');
+  });
+
+  // Get recertification schedules
+  await runTest('Career', 'Get recertifications', async () => {
+    const res = await request('GET', '/career/recertifications', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get recertifications');
+  });
+
+  // Delete career goal (cleanup)
+  await runTest('Career', 'Delete career goal', async () => {
+    if (!ctx.createdResources.careerGoalId) {
+      return; // Skip if no goal created
+    }
+    const res = await request('DELETE', `/career/goals/${ctx.createdResources.careerGoalId}`, {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should delete goal');
+  });
+}
+
+async function testNotifications(ctx: TestContext) {
+  logSection('NOTIFICATIONS');
+
+  // Get notifications
+  await runTest('Notifications', 'List notifications', async () => {
+    const res = await request('GET', '/notifications', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should list notifications');
+    const data = res.body as { data: unknown[]; meta: { unreadCount: number } };
+    assert(Array.isArray(data.data), 'Should return notifications array');
+    assert(typeof data.meta.unreadCount === 'number', 'Should include unread count');
+  });
+
+  // Get unread count
+  await runTest('Notifications', 'Get unread count', async () => {
+    const res = await request('GET', '/notifications/unread-count', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get unread count');
+    const data = res.body as { data: { count: number } };
+    assert(typeof data.data.count === 'number', 'Should return count');
+  });
+
+  // Get notifications with filtering
+  await runTest('Notifications', 'Filter by category', async () => {
+    const res = await request('GET', '/notifications?category=verification', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should filter by category');
+  });
+
+  // Get notifications unread only
+  await runTest('Notifications', 'Filter unread only', async () => {
+    const res = await request('GET', '/notifications?unreadOnly=true', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should filter unread only');
+  });
+
+  // Mark all as read
+  await runTest('Notifications', 'Mark all as read', async () => {
+    const res = await request('POST', '/notifications/mark-all-read', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should mark all as read');
+    const data = res.body as { data: { markedCount: number } };
+    assert(typeof data.data.markedCount === 'number', 'Should return marked count');
+  });
+
+  // Get all preferences
+  await runTest('Notifications', 'Get all preferences', async () => {
+    const res = await request('GET', '/notifications/preferences', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get all preferences');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return preferences array');
+  });
+
+  // Get preferences for category
+  await runTest('Notifications', 'Get verification preferences', async () => {
+    const res = await request('GET', '/notifications/preferences/verification', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get verification preferences');
+    const data = res.body as { data: { category: string; inAppEnabled: boolean } };
+    assert(data.data.category === 'verification', 'Should return correct category');
+  });
+
+  // Update preferences
+  await runTest('Notifications', 'Update preferences', async () => {
+    const res = await request('PUT', '/notifications/preferences/social', {
+      token: ctx.token,
+      body: {
+        inAppEnabled: true,
+        pushEnabled: false,
+        emailEnabled: false,
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update preferences');
+    const data = res.body as { data: { category: string; pushEnabled: boolean } };
+    assert(data.data.pushEnabled === false, 'Should reflect updated value');
+  });
+
+  // Invalid category should return 400
+  await runTest('Notifications', 'Invalid category returns 400', async () => {
+    const res = await request('GET', '/notifications?category=invalid', {
+      token: ctx.token,
+      expectedStatus: [400],
+    });
+    assert(res.status === 400, 'Should return 400 for invalid category');
+  });
+}
+
+async function testWorkoutTemplates(ctx: TestContext) {
+  logSection('WORKOUT TEMPLATES');
+
+  // Create a template
+  await runTest('Templates', 'Create workout template', async () => {
+    const res = await request('POST', '/templates', {
+      token: ctx.token,
+      body: {
+        name: 'E2E Test Upper Body',
+        description: 'Test template for E2E testing',
+        exercises: [
+          { exerciseId: 'bench_press', sets: 4, reps: 10 },
+          { exerciseId: 'overhead_press', sets: 3, reps: 8 },
+          { exerciseId: 'dumbbell_row', sets: 3, reps: 12 },
+        ],
+        difficulty: 'intermediate',
+        durationMinutes: 45,
+        category: 'strength',
+        tags: ['upper', 'push', 'pull'],
+        isPublic: true,
+      },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should create template');
+    const data = res.body as { data: { id: string } };
+    assert(data.data.id, 'Should return template ID');
+    ctx.createdResources.templateId = data.data.id;
+  });
+
+  // Get user's templates
+  await runTest('Templates', 'Get my templates', async () => {
+    const res = await request('GET', '/templates/me', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get user templates');
+    const data = res.body as { data: unknown[]; meta: { total: number } };
+    assert(Array.isArray(data.data), 'Should return templates array');
+    assert(data.meta.total >= 1, 'Should have at least one template');
+  });
+
+  // Get template by ID
+  await runTest('Templates', 'Get template by ID', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('GET', `/templates/${ctx.createdResources.templateId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get template');
+    const data = res.body as { data: { name: string } };
+    assert(data.data.name === 'E2E Test Upper Body', 'Should return correct template');
+  });
+
+  // Search templates
+  await runTest('Templates', 'Search public templates', async () => {
+    const res = await request('GET', '/templates?category=strength', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should search templates');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return templates array');
+  });
+
+  // Get featured templates
+  await runTest('Templates', 'Get featured templates', async () => {
+    const res = await request('GET', '/templates/featured', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get featured templates');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return templates array');
+  });
+
+  // Save template (bookmark)
+  await runTest('Templates', 'Save template', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('POST', `/templates/${ctx.createdResources.templateId}/save`, {
+      token: ctx.token,
+      body: { folder: 'favorites' },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should save template');
+  });
+
+  // Get saved templates
+  await runTest('Templates', 'Get saved templates', async () => {
+    const res = await request('GET', '/templates/saved', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get saved templates');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return templates array');
+  });
+
+  // Update template
+  await runTest('Templates', 'Update template', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('PUT', `/templates/${ctx.createdResources.templateId}`, {
+      token: ctx.token,
+      body: {
+        name: 'E2E Test Upper Body (Updated)',
+        durationMinutes: 50,
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update template');
+    const data = res.body as { data: { name: string } };
+    assert(data.data.name.includes('Updated'), 'Should reflect update');
+  });
+
+  // Clone template
+  await runTest('Templates', 'Clone template', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('POST', `/templates/${ctx.createdResources.templateId}/clone`, {
+      token: ctx.token,
+      body: { newName: 'E2E Cloned Template' },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should clone template');
+    const data = res.body as { data: { id: string; name: string } };
+    assert(data.data.name === 'E2E Cloned Template', 'Should have new name');
+    // Clean up the clone
+    ctx.createdResources.clonedTemplateId = data.data.id;
+  });
+
+  // Unsave template
+  await runTest('Templates', 'Unsave template', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('DELETE', `/templates/${ctx.createdResources.templateId}/save`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should unsave template');
+  });
+
+  // Delete cloned template
+  await runTest('Templates', 'Delete cloned template', async () => {
+    if (!ctx.createdResources.clonedTemplateId) return;
+    const res = await request('DELETE', `/templates/${ctx.createdResources.clonedTemplateId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should delete template');
+  });
+
+  // Delete original template
+  await runTest('Templates', 'Delete template', async () => {
+    if (!ctx.createdResources.templateId) return;
+    const res = await request('DELETE', `/templates/${ctx.createdResources.templateId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should delete template');
+  });
+}
+
+async function testProgressiveOverload(ctx: TestContext) {
+  logSection('PROGRESSIVE OVERLOAD');
+
+  // Get personal records (initially empty)
+  await runTest('Progression', 'Get personal records', async () => {
+    const res = await request('GET', '/progression/records', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get records');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return records array');
+  });
+
+  // Get recommendations (may be empty without workout history)
+  await runTest('Progression', 'Get all recommendations', async () => {
+    const res = await request('GET', '/progression/recommendations', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get recommendations');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return recommendations array');
+  });
+
+  // Create a progression target
+  await runTest('Progression', 'Create progression target', async () => {
+    const res = await request('POST', '/progression/targets', {
+      token: ctx.token,
+      body: {
+        exerciseId: 'bench_press',
+        targetType: 'weight',
+        currentValue: 135,
+        targetValue: 185,
+        incrementValue: 5,
+        incrementFrequency: 'week',
+      },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should create target');
+    const data = res.body as { data: { id: string } };
+    assert(data.data.id, 'Should return target ID');
+    ctx.createdResources.progressionTargetId = data.data.id;
+  });
+
+  // Get targets
+  await runTest('Progression', 'Get progression targets', async () => {
+    const res = await request('GET', '/progression/targets', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get targets');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return targets array');
+    assert(data.data.length >= 1, 'Should have at least one target');
+  });
+
+  // Update target progress
+  await runTest('Progression', 'Update target progress', async () => {
+    if (!ctx.createdResources.progressionTargetId) return;
+    const res = await request('PUT', `/progression/targets/${ctx.createdResources.progressionTargetId}`, {
+      token: ctx.token,
+      body: {
+        currentValue: 155,
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update target');
+    const data = res.body as { data: { currentValue: number; progressPercent: number } };
+    assert(data.data.currentValue === 155, 'Should update current value');
+    assert(data.data.progressPercent > 0, 'Should calculate progress percent');
+  });
+
+  // Get exercise stats (may return 404 without history)
+  await runTest('Progression', 'Get exercise stats', async () => {
+    const res = await request('GET', '/progression/stats/bench_press', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should respond to stats request');
+  });
+
+  // Get recommendation for specific exercise (may return 404 without enough data)
+  await runTest('Progression', 'Get exercise recommendation', async () => {
+    const res = await request('GET', '/progression/recommendations/bench_press', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should respond to recommendation request');
+  });
+
+  // Get records for specific exercise
+  await runTest('Progression', 'Get exercise records', async () => {
+    const res = await request('GET', '/progression/records/bench_press', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get exercise records');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return records array');
+  });
+}
+
 // ============================================
 // CLEANUP
 // ============================================
@@ -1126,6 +1638,10 @@ async function main() {
     await testCheckins(ctx);
     await testTips(ctx);
     await testMascot(ctx);
+    await testCareerReadiness(ctx);
+    await testNotifications(ctx);
+    await testWorkoutTemplates(ctx);
+    await testProgressiveOverload(ctx);
 
     await cleanup(ctx);
   } catch (error) {

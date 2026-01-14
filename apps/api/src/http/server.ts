@@ -71,6 +71,9 @@ import { registerSkillsRoutes } from './routes/skills';
 import { registerMartialArtsRoutes } from './routes/martial-arts';
 import { registerRanksRoutes } from './routes/ranks';
 import { registerLiveActivityRoutes } from './routes/live-activity';
+import { registerNotificationRoutes } from './routes/notifications';
+import { registerTemplateRoutes } from './routes/templates';
+import { registerProgressionRoutes } from './routes/progression';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -349,6 +352,9 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerMartialArtsRoutes(api);
     await registerRanksRoutes(api);
     await registerLiveActivityRoutes(api);
+    await registerNotificationRoutes(api);
+    await registerTemplateRoutes(api);
+    await registerProgressionRoutes(api);
   }, { prefix: '/api' });
 
   return app;

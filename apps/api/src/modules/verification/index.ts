@@ -18,6 +18,8 @@ import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors
 import { loggers } from '../../lib/logger';
 import { achievementService } from '../achievements';
 import cache, { CACHE_TTL, CACHE_PREFIX } from '../../lib/cache.service';
+import { VideoProcessingService } from '../../services/video-processing.service';
+import { NotificationService } from '../../services/notification.service';
 
 const log = loggers.core;
 
@@ -232,8 +234,21 @@ export const verificationService = {
       videoUrl = `/uploads/${VERIFICATION_DIR}/${userId}/${verificationId}/video.mp4`;
       thumbnailUrl = `/uploads/${VERIFICATION_DIR}/${userId}/${verificationId}/thumbnail.jpg`;
 
-      // TODO: Generate thumbnail with ffmpeg
-      // For now, thumbnail will be generated separately or by a background job
+      // Generate thumbnail with ffmpeg
+      const thumbnailPath = path.join(uploadDir, 'thumbnail.jpg');
+      const thumbnailResult = await VideoProcessingService.generateThumbnail(
+        videoPath,
+        thumbnailPath,
+        { quality: 5, timestamp: 1, scale: { width: 640 } }
+      );
+
+      if (!thumbnailResult.success) {
+        log.warn(`Failed to generate thumbnail for verification ${verificationId}: ${thumbnailResult.error}`);
+        // Continue without thumbnail - it's not critical
+        thumbnailUrl = undefined;
+      } else {
+        log.info(`Thumbnail generated for verification ${verificationId}`);
+      }
     }
 
     // Create verification record
@@ -260,7 +275,19 @@ export const verificationService = {
 
     log.info(`Verification ${verificationId} created for user ${userId}, achievement ${achievementId}`);
 
-    // TODO: Send notification to witness
+    // Send notification to witness
+    try {
+      await NotificationService.sendVerificationWitnessRequest(
+        witnessUserId,
+        userId,
+        verificationId,
+        achievement.name
+      );
+      log.info(`Witness notification sent for verification ${verificationId}`);
+    } catch (err) {
+      log.warn(`Failed to send witness notification for ${verificationId}: ${err}`);
+      // Don't fail the verification submission if notification fails
+    }
 
     return this.getVerification(verificationId);
   },
@@ -541,8 +568,11 @@ export const verificationService = {
     }
 
     // Get verification to check status
-    const verification = await queryOne<{ status: string; user_id: string; achievement_id: string }>(
-      'SELECT status, user_id, achievement_id FROM achievement_verifications WHERE id = $1',
+    const verification = await queryOne<{ status: string; user_id: string; achievement_id: string; achievement_name: string }>(
+      `SELECT v.status, v.user_id, v.achievement_id, a.name as achievement_name
+       FROM achievement_verifications v
+       JOIN achievement_definitions a ON a.id = v.achievement_id
+       WHERE v.id = $1`,
       [verificationId]
     );
 
@@ -629,7 +659,28 @@ export const verificationService = {
       }
     });
 
-    // TODO: Send notification to user about result
+    // Send notification to user about result
+    try {
+      if (confirm) {
+        await NotificationService.sendVerificationConfirmed(
+          verification.user_id,
+          witnessUserId,
+          verificationId,
+          verification.achievement_name
+        );
+      } else {
+        await NotificationService.sendVerificationRejected(
+          verification.user_id,
+          witnessUserId,
+          verificationId,
+          verification.achievement_name
+        );
+      }
+      log.info(`Result notification sent for verification ${verificationId}`);
+    } catch (err) {
+      log.warn(`Failed to send result notification for ${verificationId}: ${err}`);
+      // Don't fail the attestation if notification fails
+    }
 
     return this.getVerification(verificationId);
   },

@@ -54,6 +54,7 @@ const Health = lazy(() => import('./pages/Health'));
 const Goals = lazy(() => import('./pages/Goals'));
 const Limitations = lazy(() => import('./pages/Limitations'));
 const PTTests = lazy(() => import('./pages/PTTests'));
+const CareerReadiness = lazy(() => import('./pages/CareerReadiness'));
 
 // Public documentation pages
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
@@ -440,6 +441,7 @@ function AppRoutes() {
           <Route path="/goals" element={<ProtectedRoute name="Goals"><Goals /></ProtectedRoute>} />
           <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
+          <Route path="/career-readiness" element={<ProtectedRoute name="CareerReadiness"><CareerReadiness /></ProtectedRoute>} />
           <Route path="/issues/new" element={<ProtectedRoute name="NewIssue"><NewIssue /></ProtectedRoute>} />
           <Route path="/my-issues" element={<ProtectedRoute name="MyIssues"><MyIssues /></ProtectedRoute>} />
 

@@ -52,6 +52,7 @@ musclemap.me/
 │   ├── ICONS.md
 │   ├── IMPLEMENTATION_PLAN_REMAINING.md
 │   ├── IMPLEMENTATION_PLANS.md
+│   ├── IMPLEMENTATION-PLAN-4-FEATURES.md
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
 │   ├── NATIVE_EXTENSIONS.md
@@ -197,7 +198,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (61 total)
+## Frontend Pages (62 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -209,6 +210,7 @@ musclemap.me/
 | AdminMetrics | Yes | Admin Metrics Dashboard  Beautiful visual dashboard for Prometheus metrics with: - Real-time gauges for connections and health - Time-series charts for request latency - Status indicators with animations - Auto-refresh every 10 seconds / |
 | AdminMonitoring | Yes | Admin Monitoring Dashboard  Comprehensive system monitoring with: - Live API test runner - User journey viewer - Error tracking - System health metrics / |
 | Buddy | No | Buddy page |
+| CareerReadiness | Yes | Career Readiness Page - MuscleMap Liquid Glass Design  Career physical standards tracking for military, first responders, and law enforcement |
 | CommunityBulletinBoard | No | Community Bulletin Board  A central hub for community contributions, plugin showcases, code snippets, ideas, and collaboration |
 | CommunityDashboard | Yes | CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings / |
 | Competitions | No | Competitions page |
@@ -399,7 +401,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (484 total)
+## API Endpoints (512 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -745,6 +747,14 @@ Components are organized by feature:
 | POST | `/monitoring/tests/run` | monitoring |
 | GET | `/muscles` | misc |
 | GET | `/muscles/:id` | misc |
+| GET | `/notifications` | notifications |
+| DELETE | `/notifications/:id` | notifications |
+| POST | `/notifications/mark-all-read` | notifications |
+| POST | `/notifications/mark-read` | notifications |
+| GET | `/notifications/preferences` | notifications |
+| GET | `/notifications/preferences/:category` | notifications |
+| PUT | `/notifications/preferences/:category` | notifications |
+| GET | `/notifications/unread-count` | notifications |
 | POST | `/onboarding/back` | onboarding |
 | POST | `/onboarding/complete` | onboarding |
 | POST | `/onboarding/home-equipment` | onboarding |
@@ -777,6 +787,14 @@ Components are organized by feature:
 | GET | `/progression/achievements` | misc |
 | GET | `/progression/leaderboard` | misc |
 | GET | `/progression/mastery-levels` | misc |
+| GET | `/progression/recommendations` | progression |
+| GET | `/progression/recommendations/:exerciseId` | progression |
+| GET | `/progression/records` | progression |
+| GET | `/progression/records/:exerciseId` | progression |
+| GET | `/progression/stats/:exerciseId` | progression |
+| GET | `/progression/targets` | progression |
+| POST | `/progression/targets` | progression |
+| PUT | `/progression/targets/:id` | progression |
 | GET | `/pt-tests` | pt-tests |
 | GET | `/pt-tests/:id` | pt-tests |
 | GET | `/pt-tests/leaderboard/:testId` | pt-tests |
@@ -840,6 +858,18 @@ Components are organized by feature:
 | GET | `/store/items/:sku` | credits |
 | GET | `/store/owns/:sku` | credits |
 | POST | `/store/purchase` | credits |
+| POST | `/templates` | templates |
+| GET | `/templates` | templates |
+| GET | `/templates/:id` | templates |
+| PUT | `/templates/:id` | templates |
+| DELETE | `/templates/:id` | templates |
+| POST | `/templates/:id/clone` | templates |
+| POST | `/templates/:id/rate` | templates |
+| POST | `/templates/:id/save` | templates |
+| DELETE | `/templates/:id/save` | templates |
+| GET | `/templates/featured` | templates |
+| GET | `/templates/me` | templates |
+| GET | `/templates/saved` | templates |
 | GET | `/tips` | tips |
 | POST | `/tips/:id/seen` | tips |
 | POST | `/trace/frontend-log` | misc |

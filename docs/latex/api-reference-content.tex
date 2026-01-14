@@ -893,6 +893,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Notifications}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/notifications} \\
+\texttt{DELETE} & \texttt{/notifications/:id} \\
+\texttt{POST} & \texttt{/notifications/mark-all-read} \\
+\texttt{POST} & \texttt{/notifications/mark-read} \\
+\texttt{GET} & \texttt{/notifications/preferences} \\
+\texttt{GET} & \texttt{/notifications/preferences/:category} \\
+\texttt{PUT} & \texttt{/notifications/preferences/:category} \\
+\texttt{GET} & \texttt{/notifications/unread-count} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Onboarding}
 
 \begin{table}[h]
@@ -967,6 +988,27 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/privacy/disable-minimalist} \\
 \texttt{POST} & \texttt{/privacy/enable-minimalist} \\
 \texttt{GET} & \texttt{/privacy/summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Progression}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/progression/recommendations} \\
+\texttt{GET} & \texttt{/progression/recommendations/:exerciseId} \\
+\texttt{GET} & \texttt{/progression/records} \\
+\texttt{GET} & \texttt{/progression/records/:exerciseId} \\
+\texttt{GET} & \texttt{/progression/stats/:exerciseId} \\
+\texttt{GET} & \texttt{/progression/targets} \\
+\texttt{POST} & \texttt{/progression/targets} \\
+\texttt{PUT} & \texttt{/progression/targets/:id} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1088,6 +1130,31 @@ Authorization: Bearer <token>
 \texttt{PUT} & \texttt{/stats/profile/extended} \\
 \texttt{POST} & \texttt{/stats/recalculate} \\
 \texttt{GET} & \texttt{/stats/user/:userId} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Templates}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/templates} \\
+\texttt{GET} & \texttt{/templates} \\
+\texttt{GET} & \texttt{/templates/:id} \\
+\texttt{PUT} & \texttt{/templates/:id} \\
+\texttt{DELETE} & \texttt{/templates/:id} \\
+\texttt{POST} & \texttt{/templates/:id/clone} \\
+\texttt{POST} & \texttt{/templates/:id/rate} \\
+\texttt{POST} & \texttt{/templates/:id/save} \\
+\texttt{DELETE} & \texttt{/templates/:id/save} \\
+\texttt{GET} & \texttt{/templates/featured} \\
+\texttt{GET} & \texttt{/templates/me} \\
+\texttt{GET} & \texttt{/templates/saved} \\
 \bottomrule
 \end{tabular}
 \end{table}

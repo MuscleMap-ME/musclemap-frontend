@@ -622,6 +622,20 @@ Authorization: Bearer <token>
 | `POST` | `/monitoring/tests/run` | Yes |
 
 
+### Notifications
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/notifications` | Yes |
+| `DELETE` | `/notifications/:id` | Yes |
+| `POST` | `/notifications/mark-all-read` | Yes |
+| `POST` | `/notifications/mark-read` | Yes |
+| `GET` | `/notifications/preferences` | Yes |
+| `GET` | `/notifications/preferences/:category` | Yes |
+| `PUT` | `/notifications/preferences/:category` | Yes |
+| `GET` | `/notifications/unread-count` | Yes |
+
+
 ### Onboarding
 
 | Method | Endpoint | Auth Required |
@@ -671,6 +685,20 @@ Authorization: Bearer <token>
 | `POST` | `/privacy/disable-minimalist` | Yes |
 | `POST` | `/privacy/enable-minimalist` | Yes |
 | `GET` | `/privacy/summary` | Yes |
+
+
+### Progression
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/progression/recommendations` | Yes |
+| `GET` | `/progression/recommendations/:exerciseId` | Yes |
+| `GET` | `/progression/records` | Yes |
+| `GET` | `/progression/records/:exerciseId` | Yes |
+| `GET` | `/progression/stats/:exerciseId` | Yes |
+| `GET` | `/progression/targets` | Yes |
+| `POST` | `/progression/targets` | Yes |
+| `PUT` | `/progression/targets/:id` | Yes |
 
 
 ### Ranks
@@ -750,6 +778,24 @@ Authorization: Bearer <token>
 | `PUT` | `/stats/profile/extended` | Yes |
 | `POST` | `/stats/recalculate` | Yes |
 | `GET` | `/stats/user/:userId` | Yes |
+
+
+### Templates
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/templates` | Yes |
+| `GET` | `/templates` | Yes |
+| `GET` | `/templates/:id` | Yes |
+| `PUT` | `/templates/:id` | Yes |
+| `DELETE` | `/templates/:id` | Yes |
+| `POST` | `/templates/:id/clone` | Yes |
+| `POST` | `/templates/:id/rate` | Yes |
+| `POST` | `/templates/:id/save` | Yes |
+| `DELETE` | `/templates/:id/save` | Yes |
+| `GET` | `/templates/featured` | Yes |
+| `GET` | `/templates/me` | Yes |
+| `GET` | `/templates/saved` | Yes |
 
 
 ### Virtual-hangouts
