@@ -248,20 +248,6 @@ Authorization: Bearer <token>
 | `GET` | `/journey/progress` | Yes |
 
 
-### Pt-tests
-
-| Method | Endpoint | Auth Required |
-|--------|----------|---------------|
-| `GET` | `/archetypes/by-category/:categoryId` | Yes |
-| `GET` | `/pt-tests` | Yes |
-| `GET` | `/pt-tests/:id` | Yes |
-| `GET` | `/pt-tests/leaderboard/:testId` | Yes |
-| `GET` | `/pt-tests/my-archetype` | Yes |
-| `POST` | `/pt-tests/results` | Yes |
-| `GET` | `/pt-tests/results` | Yes |
-| `GET` | `/pt-tests/results/:id` | Yes |
-
-
 ### Auth
 
 | Method | Endpoint | Auth Required |
@@ -710,6 +696,19 @@ Authorization: Bearer <token>
 | `GET` | `/progression/targets` | Yes |
 | `POST` | `/progression/targets` | Yes |
 | `PUT` | `/progression/targets/:id` | Yes |
+
+
+### Pt-tests
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/pt-tests` | Yes |
+| `GET` | `/pt-tests/:id` | Yes |
+| `GET` | `/pt-tests/leaderboard/:testId` | Yes |
+| `GET` | `/pt-tests/my-archetype` | Yes |
+| `POST` | `/pt-tests/results` | Yes |
+| `GET` | `/pt-tests/results` | Yes |
+| `GET` | `/pt-tests/results/:id` | Yes |
 
 
 ### Ranks

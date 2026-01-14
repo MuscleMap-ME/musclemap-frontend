@@ -344,27 +344,6 @@ Authorization: Bearer <token>
 \end{table}
 
 
-\subsection{Pt-tests}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{GET} & \texttt{/archetypes/by-category/:categoryId} \\
-\texttt{GET} & \texttt{/pt-tests} \\
-\texttt{GET} & \texttt{/pt-tests/:id} \\
-\texttt{GET} & \texttt{/pt-tests/leaderboard/:testId} \\
-\texttt{GET} & \texttt{/pt-tests/my-archetype} \\
-\texttt{POST} & \texttt{/pt-tests/results} \\
-\texttt{GET} & \texttt{/pt-tests/results} \\
-\texttt{GET} & \texttt{/pt-tests/results/:id} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
 \subsection{Auth}
 
 \begin{table}[h]
@@ -1027,6 +1006,26 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/progression/targets} \\
 \texttt{POST} & \texttt{/progression/targets} \\
 \texttt{PUT} & \texttt{/progression/targets/:id} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Pt-tests}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/pt-tests} \\
+\texttt{GET} & \texttt{/pt-tests/:id} \\
+\texttt{GET} & \texttt{/pt-tests/leaderboard/:testId} \\
+\texttt{GET} & \texttt{/pt-tests/my-archetype} \\
+\texttt{POST} & \texttt{/pt-tests/results} \\
+\texttt{GET} & \texttt{/pt-tests/results} \\
+\texttt{GET} & \texttt{/pt-tests/results/:id} \\
 \bottomrule
 \end{tabular}
 \end{table}

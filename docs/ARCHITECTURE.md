@@ -52,11 +52,13 @@ musclemap.me/
 │   ├── DATA_MODEL.md
 │   ├── DATABASE-OPTIMIZATION-PLAN.md
 │   ├── EXTENSIBILITY.md
+│   ├── FEATURE-GAP-ANALYSIS.md
 │   ├── FEATURES.md
 │   ├── ICONS.md
 │   ├── IMPLEMENTATION_PLAN_REMAINING.md
 │   ├── IMPLEMENTATION_PLANS.md
 │   ├── IMPLEMENTATION-PLAN-4-FEATURES.md
+│   ├── INTELLIGENT-EXERCISE-PRESCRIPTION-PLAN.md
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
 │   ├── MASTER-IMPLEMENTATION-PLAN.md
@@ -137,6 +139,7 @@ musclemap.me/
 │   ├── test-harness/
 │   ├── utils/
 │   ├── backfill-ranks.ts
+│   ├── competitive-analysis.sh
 │   ├── deploy-branch.sh
 │   ├── deploy.sh
 │   ├── e2e-user-journey.ts
@@ -421,7 +424,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (526 total)
+## API Endpoints (525 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -474,7 +477,6 @@ Components are organized by feature:
 | GET | `/archetypes` | journey |
 | GET | `/archetypes/:id/levels` | journey |
 | GET | `/archetypes/by-category/:categoryId` | journey |
-| GET | `/archetypes/by-category/:categoryId` | pt-tests |
 | GET | `/archetypes/categories` | journey |
 | GET | `/archetypes/communities` | archetype-communities |
 | POST | `/archetypes/select` | journey |
@@ -956,6 +958,7 @@ Components are organized by feature:
 
 | Script | Description |
 |--------|-------------|
+| `competitive-analysis.sh` | # competitive-analysis.sh - Automated Competitive Analysis for MuscleMap |
 | `deploy-branch.sh` | # deploy-branch.sh - Full deployment: commit, push, PR, merge, and deploy to production |
 | `deploy.sh` | Deployment helper for MuscleMap |
 | `errors.sh` | errors.sh |
