@@ -137,7 +137,7 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 467 endpoints:
+The API exposes 476 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
@@ -151,6 +151,8 @@ The API exposes 467 endpoints:
 \texttt{GET} & \texttt{/achievements/definitions} & achievements \\
 \texttt{GET} & \texttt{/achievements/definitions/:key} & achievements \\
 \texttt{GET} & \texttt{/achievements/verification-required} & verifications \\
+\texttt{GET} & \texttt{/admin-control/audit/credits} & community \\
+\texttt{GET} & \texttt{/admin-control/users} & community \\
 \texttt{POST} & \texttt{/admin/abuse-check/:userId} & credits \\
 \texttt{POST} & \texttt{/admin/credits/adjust} & credits \\
 \texttt{GET} & \texttt{/admin/credits/audit} & credits \\
@@ -172,8 +174,6 @@ The API exposes 467 endpoints:
 \texttt{GET} & \texttt{/admin/rate-limit-status/:userId} & credits \\
 \texttt{GET} & \texttt{/admin/rate-limits} & credits \\
 \texttt{PUT} & \texttt{/admin/rate-limits/:action} & credits \\
-\texttt{POST} & \texttt{/admin/store/grant} & credits \\
-\texttt{POST} & \texttt{/admin/store/revoke} & credits \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}

@@ -79,6 +79,30 @@ Authorization: Bearer <token>
 | `GET` | `/users/:id/achievements/summary` | Yes |
 
 
+### Community
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/admin-control/audit/credits` | Yes |
+| `GET` | `/admin-control/users` | Yes |
+| `GET` | `/community/feed` | Yes |
+| `GET` | `/community/monitor` | Yes |
+| `GET` | `/community/now` | Yes |
+| `GET` | `/community/percentile` | Yes |
+| `GET` | `/community/presence` | Yes |
+| `POST` | `/community/presence` | Yes |
+| `GET` | `/community/stats` | Yes |
+| `GET` | `/community/stats/archetypes` | Yes |
+| `GET` | `/community/stats/credits` | Yes |
+| `GET` | `/community/stats/exercises` | Yes |
+| `GET` | `/community/stats/funnel` | Yes |
+| `GET` | `/community/stats/geographic` | Yes |
+| `GET` | `/community/stats/public` | Yes |
+| `GET` | `/community/stats/summary` | Yes |
+| `GET` | `/community/ws` | Yes |
+| `GET` | `/community/ws/public` | Yes |
+
+
 ### Credits
 
 | Method | Endpoint | Auth Required |
@@ -318,21 +342,6 @@ Authorization: Bearer <token>
 | `POST` | `/communities/:id/posts` | Yes |
 | `GET` | `/communities/:idOrSlug` | Yes |
 | `GET` | `/communities/my` | Yes |
-
-
-### Community
-
-| Method | Endpoint | Auth Required |
-|--------|----------|---------------|
-| `GET` | `/community/feed` | Yes |
-| `GET` | `/community/monitor` | Yes |
-| `GET` | `/community/percentile` | Yes |
-| `GET` | `/community/presence` | Yes |
-| `POST` | `/community/presence` | Yes |
-| `GET` | `/community/stats` | Yes |
-| `GET` | `/community/stats/public` | Yes |
-| `GET` | `/community/ws` | Yes |
-| `GET` | `/community/ws/public` | Yes |
 
 
 ### Competition

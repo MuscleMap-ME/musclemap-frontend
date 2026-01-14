@@ -68,7 +68,8 @@ musclemap.me/
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
 │   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
 │   ├── USER_GUIDE.md
-│   └── VISUAL_ARCHITECTURE_MAPS.md
+│   ├── VISUAL_ARCHITECTURE_MAPS.md
+│   └── XP-VELOCITY-LIMITS.md
 ├── e2e/
 │   └── login.spec.ts
 ├── markdown/
@@ -388,7 +389,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (467 total)
+## API Endpoints (476 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -399,6 +400,8 @@ Components are organized by feature:
 | GET | `/achievements/definitions` | achievements |
 | GET | `/achievements/definitions/:key` | achievements |
 | GET | `/achievements/verification-required` | verifications |
+| GET | `/admin-control/audit/credits` | community |
+| GET | `/admin-control/users` | community |
 | POST | `/admin/abuse-check/:userId` | credits |
 | POST | `/admin/credits/adjust` | credits |
 | GET | `/admin/credits/audit` | credits |
@@ -509,11 +512,18 @@ Components are organized by feature:
 | GET | `/communities/my` | communities |
 | GET | `/community/feed` | community |
 | GET | `/community/monitor` | community |
+| GET | `/community/now` | community |
 | GET | `/community/percentile` | community |
 | GET | `/community/presence` | community |
 | POST | `/community/presence` | community |
 | GET | `/community/stats` | community |
+| GET | `/community/stats/archetypes` | community |
+| GET | `/community/stats/credits` | community |
+| GET | `/community/stats/exercises` | community |
+| GET | `/community/stats/funnel` | community |
+| GET | `/community/stats/geographic` | community |
 | GET | `/community/stats/public` | community |
+| GET | `/community/stats/summary` | community |
 | GET | `/community/ws` | community |
 | GET | `/community/ws/public` | community |
 | GET | `/competition/categories` | competition |
