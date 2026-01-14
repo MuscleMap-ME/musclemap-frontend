@@ -356,7 +356,7 @@ export async function registerTestScorecardRoutes(app: FastifyInstance): Promise
     const { targetUrl, environment, results, duration = 0 } = body;
 
     // Process results into a scorecard
-    const scorecard = processResults(results, targetUrl, environment, duration);
+    const scorecard = processResults(results as TestResult[], targetUrl, environment, duration);
 
     // Save to database
     const id = `sc_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
@@ -428,12 +428,12 @@ export async function registerTestScorecardRoutes(app: FastifyInstance): Promise
     const { id } = request.params as { id: string };
 
     try {
-      const result = await execute(
+      const deletedCount = await execute(
         'DELETE FROM test_scorecards WHERE id = $1',
         [id]
       );
 
-      if (result.rowCount === 0) {
+      if (deletedCount === 0) {
         return reply.status(404).send({
           error: {
             code: 'NOT_FOUND',
