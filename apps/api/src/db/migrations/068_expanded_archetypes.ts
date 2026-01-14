@@ -43,16 +43,25 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
 }
 
 export async function migrate(): Promise<void> {
-  log.info('Running migration: 045_expanded_archetypes');
+  log.info('Running migration: 068_expanded_archetypes');
 
   // ============================================
-  // ADD IMAGE_URL COLUMN TO ARCHETYPES
+  // ADD IMAGE_URL COLUMN TO IDENTITIES TABLE
+  // Note: archetypes is a VIEW pointing to identities
   // ============================================
 
-  if (await tableExists('archetypes')) {
-    if (!(await columnExists('archetypes', 'image_url'))) {
-      log.info('Adding image_url column to archetypes table...');
-      await db.query(`ALTER TABLE archetypes ADD COLUMN image_url TEXT`);
+  if (await tableExists('identities')) {
+    if (!(await columnExists('identities', 'image_url'))) {
+      log.info('Adding image_url column to identities table...');
+      await db.query(`ALTER TABLE identities ADD COLUMN image_url TEXT`);
+
+      // Recreate archetypes view to include image_url
+      log.info('Updating archetypes view to include image_url...');
+      await db.query(`
+        CREATE OR REPLACE VIEW archetypes AS
+        SELECT id, name, philosophy, description, focus_areas, icon_url, category_id, pt_test_id, institution, recommended_equipment, image_url
+        FROM identities
+      `);
     }
   }
 
@@ -60,7 +69,7 @@ export async function migrate(): Promise<void> {
   // ADD NEW ARCHETYPE CATEGORIES
   // ============================================
 
-  if (await tableExists('archetype_categories')) {
+  if (await tableExists('identity_categories')) {
     log.info('Adding new archetype categories...');
 
     const categories = [
@@ -78,7 +87,7 @@ export async function migrate(): Promise<void> {
 
     for (const cat of categories) {
       await db.query(`
-        INSERT INTO archetype_categories (id, name, description, icon, display_order)
+        INSERT INTO identity_categories (id, name, description, icon, display_order)
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
@@ -330,7 +339,7 @@ export async function migrate(): Promise<void> {
 
   for (const archetype of newArchetypes) {
     await db.query(`
-      INSERT INTO archetypes (id, name, philosophy, description, category_id, focus_areas)
+      INSERT INTO identities (id, name, philosophy, description, category_id, focus_areas)
       VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
@@ -380,17 +389,17 @@ export async function migrate(): Promise<void> {
 
   for (const update of existingArchetypeCategories) {
     await db.query(`
-      UPDATE archetypes SET category_id = $1 WHERE id = $2
+      UPDATE identities SET category_id = $1 WHERE id = $2
     `, [update.category_id, update.id]);
   }
 
   log.info(`Updated ${existingArchetypeCategories.length} existing archetype categories`);
 
-  log.info('Migration 045_expanded_archetypes complete');
+  log.info('Migration 068_expanded_archetypes complete');
 }
 
 export async function rollback(): Promise<void> {
-  log.info('Rolling back migration: 045_expanded_archetypes');
+  log.info('Rolling back migration: 068_expanded_archetypes');
 
   // Remove new archetypes
   const newArchetypeIds = [
