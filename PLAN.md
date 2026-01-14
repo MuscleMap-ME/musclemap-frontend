@@ -1,923 +1,348 @@
-# MuscleMap Frontend/Backend Repository Split Plan
+# Real-Time Activity Visualization System
 
-## Executive Summary
+## Overview
 
-This document provides a comprehensive implementation plan to split the MuscleMap codebase into a public frontend repository and a private backend repository, enabling community contributions while protecting proprietary business logic.
+Create an interactive, real-time activity monitoring system that shows granular user activity with drill-down capabilities from global aggregate views down to regional breakdowns. **Privacy is absolute** - users who opt out are never tracked or displayed, not even to admins.
 
----
+## Privacy-First Architecture
 
-## 1. TARGET ARCHITECTURE
+**Core Principle**: If a user has opted out of data collection or community features, their activity is NEVER logged to the activity system. This is not a filter on display - it's a gate on collection.
 
-### 1.1 Repository Strategy Decision
+### Privacy Enforcement (Absolute)
 
-**Recommendation: Polyrepo with Shared Contracts Package**
+| Setting | Effect |
+|---------|--------|
+| `minimalist_mode` | User completely invisible - activity never logged |
+| `opt_out_community_feed` | Not in activity feed - activity never logged |
+| `exclude_from_activity_feed` | Activity never logged |
+| `exclude_from_location_features` | Location data never attached to activity |
 
-The polyrepo approach (separate `musclemap-frontend` public + `musclemap-backend` private + `@musclemap/contracts` public) provides the cleanest separation of concerns and simplest mental model for contributors. It eliminates any risk of accidental backend exposure through submodule misconfiguration or selective mirroring failures. The shared contracts package published to npm creates a clear, versioned API boundary that both repositories consume independently.
+**There is no admin bypass.** Privacy choices are respected absolutely.
 
-#### Tradeoffs Table
+### What IS Shown
 
-| Approach | Pros | Cons | Best When |
-|----------|------|------|-----------|
-| **Polyrepo (Recommended)** | Cleanest separation; no risk of backend exposure; independent release cycles; familiar to OSS contributors | Coordination overhead for breaking changes; need to maintain contracts package; duplicate CI config | Security is paramount; large contributor community expected; clear API boundaries exist |
-| Monorepo + Submodules | Single source of truth; atomic commits across boundaries; easier refactoring | Complex git workflows; submodule sync issues; contributors may accidentally see private structure | Small, trusted contributor pool; frequent cross-boundary changes |
-| Monorepo + Selective Mirroring | True single source; simpler dev workflow internally | GitHub Actions complexity; risk of mirror misconfiguration exposing secrets; confusing for external contributors | Internal team only; public repo is read-only showcase |
+- **Aggregated counts**: "47 workouts completed in the last hour"
+- **Anonymous geographic data**: "12 activities in California" (only from users who opted IN)
+- **Exercise/muscle trends**: "Chest exercises are trending" (aggregated, anonymous)
+- **Heat maps**: Based only on opted-in users' locations
 
-### 1.2 Boundary Definitions
+### What is NOT Shown
 
-#### Table A: Public Frontend Repo Contents
-
-| Directory/File | Purpose | Notes |
-|----------------|---------|-------|
-| `src/` | React web application source | All components, pages, hooks, stores |
-| `src/components/` | Reusable UI components | Including 3D visualization, charts |
-| `src/pages/` | Route-level page components | All user-facing screens |
-| `src/hooks/` | Custom React hooks | State management, API integration |
-| `src/store/` | Zustand stores | UI state, workout session, etc. |
-| `src/contexts/` | React contexts | Theme, locale, auth context |
-| `src/graphql/` | GraphQL queries/mutations | Generated types, operation documents |
-| `src/styles/` | Global styles, themes | Tailwind config, CSS modules |
-| `src/utils/` | Frontend utilities | Formatting, validation helpers |
-| `src/mocks/` | MSW mock handlers | For contributor local development |
-| `src/fixtures/` | Sample data | Static test/demo data |
-| `src/assets/` | Static assets | Images, fonts, 3D models |
-| `public/` | Public static files | favicon, manifest, etc. |
-| `e2e/` | End-to-end tests | Playwright/Cypress tests |
-| `packages/ui/` | Shared UI component library | Design system components |
-| `.github/` | GitHub configuration | Actions, issue templates, CODEOWNERS |
-| `docs/` | Public documentation | API usage, component docs |
-| Configuration files | Build/dev config | vite.config, tsconfig, tailwind, etc. |
-
-#### Table B: Private Backend Repo Contents
-
-| Directory/File | Purpose | Why Private |
-|----------------|---------|-------------|
-| `apps/api/src/` | Fastify API server | Core business logic |
-| `apps/api/src/db/` | Database layer | Schema reveals data architecture |
-| `apps/api/src/db/migrations/` | Database migrations | Exposes schema evolution |
-| `apps/api/src/db/schema.ts` | Drizzle schema definitions | Critical IP - table structure |
-| `apps/api/src/modules/` | Feature modules | Proprietary algorithms |
-| `apps/api/src/modules/physiology/` | Exercise physiology engine | Core IP - prescription algorithms |
-| `apps/api/src/modules/biometrics/` | Biometrics ingestion | Provider API integrations |
-| `apps/api/src/services/` | Business logic services | Calculation engines |
-| `apps/api/src/http/routes/` | REST endpoints | Internal API structure |
-| `apps/api/src/graphql/resolvers/` | GraphQL resolvers | Data fetching logic |
-| `apps/api/src/jobs/` | Background jobs | Data processing pipelines |
-| `apps/api/src/lib/redis/` | Redis integration | Cache patterns, keyspace |
-| `packages/core/` | Core business logic | Shared proprietary code |
-| `scripts/` | Deployment scripts | Infrastructure details |
-| `native/` | C native modules | Performance-critical algorithms |
-| `ecosystem.config.cjs` | PM2 configuration | Server infrastructure |
-| `.env*` | Environment files | All secrets |
-
-#### Table C: Shared Contracts Package Contents
-
-| Item | Format | Publishing Strategy |
-|------|--------|---------------------|
-| GraphQL Schema | `.graphql` SDL files | npm package `@musclemap/contracts` |
-| TypeScript Types | Generated `.d.ts` | Included in npm package |
-| GraphQL Operations | `.graphql` query/mutation files | Included in npm package |
-| Generated Hooks | TypeScript | Optional codegen output |
-| API Response Types | TypeScript interfaces | Exported from package |
-| Shared Enums | TypeScript enums | Exported from package |
-| Validation Schemas | Zod schemas | For shared client/server validation |
-
-### 1.3 Folder Structure (Tree View)
-
-#### musclemap-frontend/ (Public)
-
-```
-musclemap-frontend/
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   ├── crash_report.md
-│   │   └── config.yml
-│   ├── workflows/
-│   │   ├── ci.yml
-│   │   ├── preview.yml
-│   │   └── schema-check.yml
-│   ├── CODEOWNERS
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   └── FUNDING.yml
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── COMPONENT_GUIDE.md
-│   └── CONTRIBUTING.md
-├── e2e/
-│   ├── fixtures/
-│   ├── pages/
-│   └── *.spec.ts
-├── packages/
-│   └── ui/
-│       ├── src/
-│       │   ├── components/
-│       │   ├── hooks/
-│       │   └── index.ts
-│       ├── package.json
-│       └── tsconfig.json
-├── public/
-│   ├── favicon.ico
-│   ├── manifest.json
-│   └── assets/
-│       └── models/
-├── src/
-│   ├── assets/
-│   │   ├── images/
-│   │   ├── fonts/
-│   │   └── models/
-│   ├── components/
-│   │   ├── common/
-│   │   ├── feedback/
-│   │   │   ├── FeedbackCenter.tsx
-│   │   │   ├── BugReportForm.tsx
-│   │   │   ├── FeatureSuggestionForm.tsx
-│   │   │   └── OpenSourceBanner.tsx
-│   │   ├── layout/
-│   │   ├── visualization/
-│   │   └── homepage/
-│   │       ├── OpenSourceHero.tsx
-│   │       └── GitHubStatsWidget.tsx
-│   ├── contexts/
-│   ├── fixtures/
-│   ├── graphql/
-│   ├── hooks/
-│   ├── mocks/
-│   ├── pages/
-│   ├── store/
-│   ├── styles/
-│   ├── utils/
-│   ├── App.tsx
-│   └── main.tsx
-├── .env.example
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── README.md
-├── SECURITY.md
-├── codegen.ts
-├── package.json
-├── tailwind.config.js
-├── tsconfig.json
-└── vite.config.ts
-```
-
-#### musclemap-backend/ (Private)
-
-```
-musclemap-backend/
-├── apps/
-│   ├── api/
-│   │   ├── src/
-│   │   │   ├── db/
-│   │   │   │   ├── migrations/
-│   │   │   │   ├── schema.ts
-│   │   │   │   └── connection.ts
-│   │   │   ├── graphql/
-│   │   │   ├── http/
-│   │   │   ├── jobs/
-│   │   │   ├── lib/
-│   │   │   ├── modules/
-│   │   │   ├── services/
-│   │   │   └── index.ts
-│   │   └── package.json
-│   └── mobile/
-├── packages/
-│   ├── core/
-│   ├── client/
-│   ├── plugin-sdk/
-│   └── shared/
-├── native/
-├── scripts/
-├── .github/
-├── ecosystem.config.cjs
-├── package.json
-└── pnpm-workspace.yaml
-```
-
-#### @musclemap/contracts/ (Public npm Package)
-
-```
-musclemap-contracts/
-├── src/
-│   ├── schema/
-│   │   ├── schema.graphql
-│   │   ├── types/
-│   │   ├── queries/
-│   │   └── mutations/
-│   ├── types/
-│   ├── validation/
-│   └── index.ts
-├── dist/
-├── .github/
-│   └── workflows/
-│       └── publish.yml
-├── CHANGELOG.md
-├── LICENSE
-├── README.md
-├── package.json
-└── tsup.config.ts
-```
-
-### 1.4 GraphQL Schema Sharing Strategy
-
-#### Canonical Schema Location
-
-The canonical GraphQL schema lives in the `@musclemap/contracts` package. This package is the single source of truth for all API type definitions.
-
-#### Publishing Strategy
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Schema Publishing Flow                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  1. Backend team updates schema in contracts repo                   │
-│                         ↓                                           │
-│  2. PR triggers schema validation CI                                │
-│                         ↓                                           │
-│  3. On merge, GitHub Action publishes to npm                        │
-│                         ↓                                           │
-│  4. Both repos receive Dependabot PR for update                     │
-│                         ↓                                           │
-│  5. Frontend runs codegen on update                                 │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-#### Versioning Approach
-
-- **Semantic Versioning**: `@musclemap/contracts` follows semver strictly
-- **Major**: Breaking changes (field removals, type changes)
-- **Minor**: Additive changes (new fields, new types)
-- **Patch**: Documentation, deprecation notices
+- Individual user activity for opted-out users (never even collected)
+- Specific user locations, usernames, or identifiable information
+- Any way to trace activity back to specific users
 
 ---
 
-## 2. MIGRATION PLAN (Phased)
+## Key Features
 
-### Phase 0: Pre-Work (Inventory & Preparation)
+1. **Interactive Map** - Clustering, heatmaps, click-to-zoom (anonymous aggregates only)
+2. **Hierarchical Drill-Down** - Global → Country → City (counts, not individuals)
+3. **Multiple View Modes** - Map, List (by region), Table (by time)
+4. **Real-Time Updates** - WebSocket for live activity pulse
+5. **Time-Based Filtering** - 5m, 15m, 1h, 24h windows
+6. **Exercise/Muscle Grouping** - See what exercises are popular now
 
-#### Checklist
+---
 
-```markdown
-## Pre-Migration Checklist
+## Implementation Plan
 
-### Dependency Analysis
-- [ ] Generate dependency graph
-  ```bash
-  npx depcruise --include-only "^src|^packages|^apps" --output-type dot . | dot -T svg > dependency-graph.svg
-  ```
-- [ ] Identify circular dependencies between frontend/backend
-  ```bash
-  npx madge --circular --extensions ts,tsx src/ apps/ packages/
-  ```
+### Phase 1: Database & Activity Logging
 
-### Secret Audit
-- [ ] Scan for secrets in git history
-  ```bash
-  # Install gitleaks
-  brew install gitleaks
+#### 1.1 Create Migration `052_live_activity_system.ts`
 
-  # Scan entire history
-  gitleaks detect --source . --verbose --report-path secrets-report.json
-  ```
-- [ ] Document all found secrets for rotation
-- [ ] Create secret rotation plan
+```sql
+-- Lightweight activity events for real-time monitoring
+-- ONLY stores opted-in user activity (privacy checked at insert time)
+CREATE TABLE IF NOT EXISTS live_activity_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL, -- 'workout.completed', 'exercise.completed'
+  exercise_id TEXT,
+  exercise_name TEXT,
+  muscle_group TEXT,
+  country_code TEXT,
+  region TEXT,           -- State/province level
+  city TEXT,
+  geo_bucket TEXT,       -- Hash for clustering (no exact coordinates stored)
+  created_at TIMESTAMP DEFAULT NOW(),
 
-### Component Audit
-- [ ] Identify backend-coupled UI components
-- [ ] Document API dependencies for each component
-- [ ] Create mock requirements list
+  -- NO user_id column - events are anonymous by design
+  -- NO latitude/longitude - only geo_bucket for clustering
+);
 
-### Documentation
-- [ ] Write Architecture Decision Record (ADR) for split
-- [ ] Document all public/private boundaries
-- [ ] Create contributor onboarding guide draft
+-- Geographic hierarchy for drill-down
+CREATE TABLE IF NOT EXISTS geo_regions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'continent', 'country', 'region', 'city'
+  parent_id TEXT REFERENCES geo_regions(id),
+  bounds JSONB,        -- Bounding box for map display
+  center_lat REAL,
+  center_lng REAL
+);
 
-### Branch Preparation
-- [ ] Create `migration/repo-split` branch
-- [ ] Set up CI to run on migration branch
-- [ ] Create backup of current repository state
+-- Indexes for time-series queries
+CREATE INDEX idx_live_activity_time ON live_activity_events(created_at DESC);
+CREATE INDEX idx_live_activity_geo ON live_activity_events(country_code, region, city);
+CREATE INDEX idx_live_activity_exercise ON live_activity_events(muscle_group, exercise_id);
+CREATE INDEX idx_live_activity_bucket ON live_activity_events(geo_bucket);
+
+-- Auto-cleanup: Events older than 24h are deleted (no long-term storage)
+-- This is handled by a scheduled job, not a DB trigger
 ```
 
-### Phase 1: Repository Extraction
+#### 1.2 Activity Logger Service
 
-#### git filter-repo Approach (Recommended)
-
-```bash
-#!/bin/bash
-# repo-split.sh
-
-set -euo pipefail
-
-ORIGINAL_REPO="/Users/jeanpaulniko/Public/musclemap.me"
-WORK_DIR="/tmp/musclemap-split-$(date +%s)"
-FRONTEND_REPO="$WORK_DIR/musclemap-frontend"
-
-echo "=== Creating Frontend Repository ==="
-
-# Clone for frontend extraction
-git clone "$ORIGINAL_REPO" "$FRONTEND_REPO"
-cd "$FRONTEND_REPO"
-git remote remove origin
-
-# Remove backend files
-git filter-repo \
-    --path apps/api --invert-paths \
-    --path apps/mobile --invert-paths \
-    --path packages/core --invert-paths \
-    --path packages/client --invert-paths \
-    --path packages/plugin-sdk --invert-paths \
-    --path native --invert-paths \
-    --path scripts/deploy.sh --invert-paths \
-    --path ecosystem.config.cjs --invert-paths \
-    --path-glob '*.env*' --invert-paths \
-    --force
-
-# Remove any .env files that slipped through
-find . -name ".env*" ! -name ".env.example" -delete 2>/dev/null || true
-
-echo "Frontend repository created at: $FRONTEND_REPO"
-
-# Secret scan
-gitleaks detect --source . --verbose
-```
-
-### Phase 2: Shared Contracts Package
-
-#### package.json
-
-```json
-{
-  "name": "@musclemap/contracts",
-  "version": "1.0.0",
-  "description": "Shared GraphQL schema and types for MuscleMap",
-  "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./schema": {
-      "import": "./dist/schema/index.js",
-      "types": "./dist/schema/index.d.ts"
-    },
-    "./schema.graphql": "./dist/schema.graphql"
-  },
-  "files": [
-    "dist",
-    "src/schema/**/*.graphql"
-  ],
-  "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean && pnpm build:schema",
-    "build:schema": "graphql-codegen && cp src/schema/schema.graphql dist/",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm build"
-  },
-  "dependencies": {
-    "graphql": "^16.8.1",
-    "zod": "^3.22.4"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "license": "MIT"
-}
-```
-
-### Phase 3: Contributor-Friendly Local Development
-
-#### MSW Mock Handlers
+**File**: `/apps/api/src/services/live-activity-logger.ts`
 
 ```typescript
-// src/mocks/handlers.ts
-import { graphql, HttpResponse } from 'msw';
-import { exercises } from '../fixtures/exercises';
-import { workouts } from '../fixtures/workouts';
-import { currentUser } from '../fixtures/users';
+// Pseudocode for key logic
 
-export const handlers = [
-  // Authentication
-  graphql.query('CurrentUser', () => {
-    return HttpResponse.json({
-      data: { currentUser },
-    });
-  }),
+async function logActivityEvent(userId: string, event: ActivityEvent) {
+  // CRITICAL: Check privacy settings BEFORE any logging
+  const privacySettings = await getPrivacySettings(userId);
 
-  graphql.mutation('Login', ({ variables }) => {
-    const { email, password } = variables;
-    if (email === 'demo@musclemap.me' && password === 'demo123') {
-      return HttpResponse.json({
-        data: {
-          login: {
-            token: 'mock-jwt-token-for-development',
-            user: currentUser,
-          },
-        },
-      });
-    }
-    return HttpResponse.json({
-      errors: [{ message: 'Invalid credentials' }],
-    });
-  }),
-
-  // Exercises
-  graphql.query('Exercises', ({ variables }) => {
-    const { limit = 20, offset = 0, muscleGroup } = variables;
-    let filtered = exercises;
-    if (muscleGroup) {
-      filtered = exercises.filter(e =>
-        e.primaryMuscles.some(m => m.group === muscleGroup)
-      );
-    }
-    return HttpResponse.json({
-      data: {
-        exercises: {
-          nodes: filtered.slice(offset, offset + limit),
-          totalCount: filtered.length,
-        },
-      },
-    });
-  }),
-
-  // Workouts
-  graphql.query('Workouts', ({ variables }) => {
-    const { limit = 10, offset = 0 } = variables;
-    return HttpResponse.json({
-      data: {
-        workouts: {
-          nodes: workouts.slice(offset, offset + limit),
-          totalCount: workouts.length,
-        },
-      },
-    });
-  }),
-
-  graphql.mutation('CreateWorkout', ({ variables }) => {
-    const newWorkout = {
-      id: `workout-${Date.now()}`,
-      ...variables.input,
-      createdAt: new Date().toISOString(),
-    };
-    return HttpResponse.json({
-      data: { createWorkout: newWorkout },
-    });
-  }),
-];
-```
-
-#### Local Dev Scripts
-
-```json
-{
-  "scripts": {
-    "dev": "vite",
-    "dev:mocked": "VITE_API_MODE=mocked vite",
-    "dev:staging": "VITE_API_MODE=staging VITE_API_URL=https://staging-api.musclemap.me/graphql vite",
-    "dev:local-backend": "VITE_API_MODE=local VITE_API_URL=http://localhost:3001/graphql vite"
+  if (
+    privacySettings.minimalist_mode ||
+    privacySettings.opt_out_community_feed ||
+    privacySettings.exclude_from_activity_feed
+  ) {
+    // User opted out - DO NOT LOG ANYTHING
+    return;
   }
+
+  // Build anonymous event (no user ID stored)
+  const anonymousEvent = {
+    id: generateId(),
+    event_type: event.type,
+    exercise_id: event.exerciseId,
+    exercise_name: event.exerciseName,
+    muscle_group: event.muscleGroup,
+    created_at: new Date(),
+  };
+
+  // Only add location if user allows it
+  if (!privacySettings.exclude_from_location_features && event.location) {
+    anonymousEvent.country_code = event.location.countryCode;
+    anonymousEvent.region = event.location.region;
+    anonymousEvent.city = event.location.city;
+    anonymousEvent.geo_bucket = hashLocation(event.location.lat, event.location.lng);
+  }
+
+  // Insert anonymous event
+  await db.insert(live_activity_events).values(anonymousEvent);
+
+  // Publish to real-time channel (also anonymous)
+  await pubsub.publish(CHANNELS.LIVE_ACTIVITY, {
+    type: event.type,
+    exerciseName: event.exerciseName,
+    muscleGroup: event.muscleGroup,
+    geoBucket: anonymousEvent.geo_bucket,
+    city: anonymousEvent.city,
+    country: anonymousEvent.country_code,
+    timestamp: anonymousEvent.created_at,
+  });
 }
 ```
 
-### Phase 4: CI/CD for Public Repository
+#### 1.3 Integration Points
 
-#### Main CI Workflow
+**File**: `/apps/api/src/http/routes/workouts.ts`
 
-```yaml
-# .github/workflows/ci.yml
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm codegen
-      - run: pnpm typecheck
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test -- --coverage
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm codegen
-      - run: pnpm build
-```
-
----
-
-## 3. SECURITY & GOVERNANCE
-
-### 3.1 Do-Not-Leak Inventory
-
-| Category | Specific Items | Risk Level | Mitigation |
-|----------|---------------|------------|------------|
-| **Database** | Schema definitions, table names, indexes, sharding keys, migrations | CRITICAL | Never in public repo |
-| **Redis** | Keyspace patterns, cache invalidation logic, TTL strategies | HIGH | Abstract behind API |
-| **Auth** | JWT signing keys, OAuth secrets, provider API keys | CRITICAL | Environment variables only |
-| **Business Logic** | Exercise physiology algorithms, prescription engine | HIGH | Keep in private `packages/core/` |
-| **Infrastructure** | Server IPs, deployment scripts, PM2 config | MEDIUM | Private repo only |
-| **User Data** | Any real user data, emails, PII | CRITICAL | Never in fixtures |
-| **Provider Integrations** | Oura/Fitbit/Garmin API details, webhooks | HIGH | Private `modules/biometrics/` |
-
-### 3.2 Secret Scanning Setup
-
-#### Pre-commit Configuration
-
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.1
-    hooks:
-      - id: gitleaks
-        name: Detect secrets with gitleaks
-        entry: gitleaks protect --staged --verbose
-        language: system
-        pass_filenames: false
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: detect-private-key
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-```
-
-#### Gitleaks Configuration
-
-```toml
-# .gitleaks.toml
-title = "MuscleMap Gitleaks Configuration"
-
-[extend]
-useDefault = true
-
-[[rules]]
-id = "musclemap-jwt-secret"
-description = "MuscleMap JWT Secret"
-regex = '''JWT_SECRET\s*=\s*['"]?([A-Za-z0-9+/=]{32,})['"]?'''
-secretGroup = 1
-tags = ["jwt", "secret"]
-
-[[rules]]
-id = "musclemap-database-url"
-description = "PostgreSQL Connection String"
-regex = '''postgres(ql)?://[^:]+:[^@]+@[^/]+/\w+'''
-tags = ["database", "credentials"]
-
-[allowlist]
-paths = [
-  '''\.env\.example$''',
-  '''docs/.*\.md$''',
-]
-```
-
-### 3.3 Security Policy
-
-```markdown
-# Security Policy
-
-## Supported Versions
-
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
-| < 1.0   | :x:                |
-
-## Reporting a Vulnerability
-
-1. **DO NOT** create a public GitHub issue for security vulnerabilities
-2. Email security@musclemap.me with:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-3. You will receive acknowledgment within 48 hours
-4. We will work with you to understand and resolve the issue
-
-### Response Times
-- Critical: 24-72 hours
-- High: 1 week
-- Medium: 2 weeks
-- Low: Next release cycle
-```
-
-### 3.4 Licensing & Contribution
-
-**Recommendation: MIT License with DCO**
-
-The MIT License provides maximum flexibility for community adoption. DCO (Developer Certificate of Origin) is less burdensome than a CLA - contributors simply sign off commits with `git commit -s`.
-
----
-
-## 4. DEVELOPER EXPERIENCE
-
-### 4.1 Zero-to-Running Workflow
-
-```bash
-# Clone the repository
-git clone https://github.com/musclemap/musclemap-frontend.git
-cd musclemap-frontend
-
-# Install dependencies
-pnpm install
-
-# Run in mocked mode (default - no backend needed)
-pnpm dev
-
-# Open browser at http://localhost:5173
-# Login with: demo@musclemap.me / demo123
-```
-
-### 4.2 API Access Modes
-
-| Mode | Use Case | Setup Steps | Limitations |
-|------|----------|-------------|-------------|
-| **Mocked (default)** | UI development, bug fixes | None - just `pnpm dev` | Static data; no persistence |
-| **Staging API** | Integration testing | Request access token; set `VITE_API_MODE=staging` | Read-only; rate limited |
-| **Local Backend** | Core contributors | Clone private repo; run docker-compose | Requires backend access |
-
-### 4.3 GraphQL Codegen Configuration
+After workout completion (around line 220), add:
 
 ```typescript
-// codegen.ts
-import type { CodegenConfig } from '@graphql-codegen/cli';
-
-const config: CodegenConfig = {
-  schema: './node_modules/@musclemap/contracts/dist/schema.graphql',
-  documents: ['src/**/*.tsx', 'src/**/*.ts'],
-  generates: {
-    './src/graphql/generated/graphql.ts': {
-      plugins: [
-        'typescript',
-        'typescript-operations',
-        'typescript-react-apollo',
-      ],
-      config: {
-        withHooks: true,
-        withHOC: false,
-        withComponent: false,
-      },
-    },
-  },
-};
-
-export default config;
+// Log anonymous activity if user allows it
+await logActivityEvent(userId, {
+  type: 'workout.completed',
+  exerciseId: workout.exercises[0]?.exerciseId,
+  exerciseName: workout.exercises[0]?.name,
+  muscleGroup: workout.primaryMuscleGroup,
+  location: userLocation, // From request headers/profile
+});
 ```
 
 ---
 
-## 5. USER-FACING FEEDBACK & OPEN SOURCE INTEGRATION
+### Phase 2: API Endpoints
 
-### 5.1 In-App Feedback Center
+**File**: `/apps/api/src/http/routes/live-activity.ts`
 
-Create a `FeedbackCenter` component in Settings that includes:
-- Bug report form with auto-detected device info
-- Feature suggestion form
-- Direct links to GitHub Issues
-- "Good First Issues" section for contributors
+| Endpoint | Purpose | Response |
+|----------|---------|----------|
+| `GET /api/live/stats` | Global aggregates | `{ total: 47, byMuscle: {...}, byCountry: {...} }` |
+| `GET /api/live/map` | Geo-clustered data | `[{ geoBucket, count, city?, country }]` |
+| `GET /api/live/hierarchy/:level` | Drill-down counts | `{ level: 'country', children: [{ name, count }] }` |
+| `GET /api/live/trending` | Trending exercises | `[{ exerciseName, count, change }]` |
+| `WS /api/live/stream` | Real-time events | Stream of anonymous events |
 
-### 5.2 Homepage Open Source Section
-
-Add an `OpenSourceHero` section with:
-- "Built in the Open" headline
-- Explanation of open frontend / proprietary backend split
-- GitHub stats widget (stars, forks, contributors)
-- CTAs: "Explore Code", "Report Bug", "Request Feature"
-
-### 5.3 GitHub Issue Templates
-
-#### Bug Report Template
-
-```markdown
----
-name: Bug Report
-about: Report something that isn't working correctly
-title: '[Bug] '
-labels: bug, needs-triage
----
-
-## Bug Description
-A clear description of what the bug is.
-
-## Steps to Reproduce
-1. Go to '...'
-2. Click on '...'
-3. See error
-
-## Expected Behavior
-What should have happened.
-
-## Environment
-- **Browser:**
-- **OS:**
-- **Screen Size:**
-
-## Severity
-- [ ] Critical - App unusable
-- [ ] High - Major feature broken
-- [ ] Medium - Feature impaired
-- [ ] Low - Minor issue
-```
+All endpoints return **aggregated, anonymous data only**.
 
 ---
 
-## 6. RELEASE & VERSION STRATEGY
+### Phase 3: WebSocket Real-Time Updates
 
-### 6.1 Version Pinning
+**Extend**: `/apps/api/src/lib/pubsub.ts`
 
-```json
-{
-  "dependencies": {
-    "@musclemap/contracts": "^1.2.0"
-  }
+```typescript
+PUBSUB_CHANNELS = {
+  // ... existing
+  LIVE_ACTIVITY: 'pubsub:live:activity',  // Public anonymous events
 }
 ```
 
-Use caret (`^`) for minor version flexibility while preventing breaking changes.
+**Event Structure**:
 
-### 6.2 Breaking Changes Policy
+```typescript
+interface LiveActivityEvent {
+  type: 'workout.completed' | 'exercise.completed';
+  timestamp: string;
 
-| Phase | Duration | Action |
-|-------|----------|--------|
-| Announcement | Day 0 | Schema field marked `@deprecated` |
-| Soft Deprecation | 2 weeks | Warning in console |
-| Hard Deprecation | 4 weeks | Field returns null |
-| Removal | 6 weeks+ | Field removed in major version |
+  // Optional - only if user allows location
+  geoBucket?: string;
+  city?: string;
+  country?: string;
+
+  // Exercise info (not user info)
+  exerciseName?: string;
+  muscleGroup?: string;
+}
+```
+
+**No user identifiers are ever included in events.**
 
 ---
 
-## 7. CHECKLISTS & DELIVERABLES
+### Phase 4: Frontend Components
 
-### 7.1 PR Sequence
+#### 4.1 New Page: `/src/pages/LiveActivityMonitor.jsx`
 
-| # | PR Title | Target Repo | Dependencies |
-|---|----------|-------------|--------------|
-| 1 | Extract shared types to contracts package | private | None |
-| 2 | Publish @musclemap/contracts to npm | contracts | PR #1 |
-| 3 | Set up MSW mock infrastructure | frontend | PR #2 |
-| 4 | Configure GraphQL codegen | frontend | PR #2 |
-| 5 | Add FeedbackCenter component | frontend | PR #3 |
-| 6 | Add BugReportForm with GitHub integration | frontend | PR #5 |
-| 7 | Add FeatureSuggestionForm | frontend | PR #5 |
-| 8 | Add OpenSourceHero homepage section | frontend | PR #3 |
-| 9 | Add GitHubStatsWidget | frontend | PR #8 |
-| 10 | Add GitHub issue templates | frontend | None |
-| 11 | Configure CI workflows | frontend | PR #3 |
-| 12 | Add preview deployment workflow | frontend | PR #11 |
-| 13 | Configure pre-commit hooks | frontend | None |
-| 14 | Add CONTRIBUTING.md and CODE_OF_CONDUCT.md | frontend | None |
-| 15 | Add SECURITY.md | frontend | None |
-| 16 | Add Contributors page | frontend | PR #9 |
-| 17 | Final repository split | both | All above |
+**Layout**:
 
-### 7.2 Repository Setup Checklist
+```
++------------------+------------------------+------------------+
+|   Filter Panel   |     Map / List View    |   Stats Panel    |
+|   (time, muscle) |   (anonymous markers)  |   (aggregates)   |
++------------------+------------------------+------------------+
+|              Live Activity Feed (anonymous events)           |
++--------------------------------------------------------------+
+```
 
-```markdown
-## musclemap-frontend Setup
+#### 4.2 Component List
 
-### Repository Settings
-- [ ] Description: "Open source frontend for MuscleMap"
-- [ ] Website: https://musclemap.me
-- [ ] Topics: react, typescript, fitness, threejs, open-source
-- [ ] Enable Discussions
-- [ ] Enable Issues
+| Component | Purpose |
+|-----------|---------|
+| `ActivityMapAnonymous.jsx` | Clustered markers showing activity density |
+| `HierarchyNavigator.jsx` | Breadcrumb: Global > USA > California (counts only) |
+| `FilterPanel.jsx` | Time window, exercise type, muscle group filters |
+| `StatsPanel.jsx` | Real-time aggregate statistics |
+| `LiveActivityFeed.jsx` | Scrolling feed of anonymous events |
+| `TrendingExercises.jsx` | What's popular right now |
 
-### Branch Protection (main)
-- [ ] Require pull request before merging
-- [ ] Require approvals: 1
-- [ ] Require status checks: lint, typecheck, test, build
+#### 4.3 Map Implementation
 
-### Security
-- [ ] Enable Dependabot alerts
-- [ ] Enable Secret scanning
-- [ ] Enable Push protection
-- [ ] Add SECURITY.md
+**File**: `/src/components/live/ActivityMapAnonymous.jsx`
 
-### Labels
-- [ ] bug, enhancement, documentation
-- [ ] good first issue, help wanted
-- [ ] severity:critical, severity:high, severity:medium, severity:low
-- [ ] category:visualization, category:workout, category:ui
+Features:
+- Cluster markers using `leaflet.markercluster`
+- Click cluster to zoom in
+- Heat map overlay option
+- Markers show count, not individuals
+- No popups with user info (there is none to show)
+
+```jsx
+// Marker shows aggregate, not individual
+<Marker position={geoBucketCenter}>
+  <Popup>
+    <strong>{count} workouts</strong>
+    <span>{city}, {country}</span>
+    <span>Last activity: {relativeTime}</span>
+  </Popup>
+</Marker>
+```
+
+#### 4.4 Live Feed
+
+**File**: `/src/components/live/LiveActivityFeed.jsx`
+
+Shows anonymous events:
+- "Chest workout completed in California" (no username)
+- "Bicep curl logged in Tokyo" (no username)
+- Grouped by time: "Just now", "1m ago", etc.
+
+---
+
+### Phase 5: Route & Navigation
+
+**Add to** `/src/App.jsx`:
+
+```jsx
+<Route path="/live" element={<LiveActivityMonitor />} />
+```
+
+**Navigation**: Add link in dashboard or community section (not owner-only since data is anonymous).
+
+---
+
+## Files to Create
+
+1. `/apps/api/src/db/migrations/052_live_activity_system.ts`
+2. `/apps/api/src/services/live-activity-logger.ts`
+3. `/apps/api/src/http/routes/live-activity.ts`
+4. `/src/pages/LiveActivityMonitor.jsx`
+5. `/src/components/live/ActivityMapAnonymous.jsx`
+6. `/src/components/live/HierarchyNavigator.jsx`
+7. `/src/components/live/FilterPanel.jsx`
+8. `/src/components/live/StatsPanel.jsx`
+9. `/src/components/live/LiveActivityFeed.jsx`
+10. `/src/components/live/TrendingExercises.jsx`
+11. `/src/hooks/useLiveActivity.js`
+
+## Files to Modify
+
+1. `/apps/api/src/http/routes/workouts.ts` - Add activity logging call
+2. `/apps/api/src/lib/pubsub.ts` - Add LIVE_ACTIVITY channel
+3. `/apps/api/src/http/server.ts` - Register live-activity routes
+4. `/src/App.jsx` - Add /live route
+
+## Dependencies to Add
+
+```bash
+pnpm add leaflet.markercluster @types/leaflet.markercluster
 ```
 
 ---
 
-## 8. RISK ANALYSIS
+## Data Retention
 
-### 8.1 Risk Register
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Secret leakage in git history | Medium | Critical | git filter-repo audit; pre-commit hooks; secret scanning |
-| Schema drift between repos | High | Medium | Automated CI schema checks; Dependabot PRs |
-| Contributor friction | Medium | Medium | MSW mocks; comprehensive docs; setup script |
-| Mobile build complexity | High | High | Keep mobile private initially |
-| Spam GitHub issues | Medium | Low | Issue templates; triage automation |
-
-### 8.2 Critical Risk Mitigations
-
-#### Secret Leakage
-
-1. Run `git filter-repo` with explicit path removal before first public commit
-2. Use `gitleaks` to scan entire history before publishing
-3. Configure pre-commit hooks to block secrets
-4. Enable GitHub push protection
-
-#### Schema Drift
-
-1. Contracts package is single source of truth
-2. CI workflow validates schema compatibility on every PR
-3. Dependabot configured for automatic contract updates
-4. Deploy frontend after backend (never before)
+- Live activity events are **ephemeral** - automatically deleted after 24 hours
+- No long-term storage of activity data
+- This is a real-time pulse, not historical analytics
 
 ---
 
-## Quick Reference
+## Verification Checklist
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                 MuscleMap Repository Split                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  PUBLIC FRONTEND                    PRIVATE BACKEND                  │
-│  github.com/musclemap/frontend      github.com/jeanpaulniko/backend │
-│                                                                      │
-│  ├── src/                           ├── apps/api/                    │
-│  ├── packages/ui/                   ├── packages/core/               │
-│  ├── e2e/                           ├── native/                      │
-│  └── public/                        └── scripts/                     │
-│                                                                      │
-│  SHARED: npm @musclemap/contracts                                   │
-│  └── GraphQL schema, types, validation                              │
-│                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
-│  NEVER IN PUBLIC REPO                                                │
-│                                                                      │
-│  ❌ Database schema/migrations                                       │
-│  ❌ Redis keyspace patterns                                          │
-│  ❌ JWT secrets, API keys                                            │
-│  ❌ Exercise physiology algorithms                                   │
-│  ❌ Provider integrations (Oura, Fitbit)                             │
-│  ❌ .env files (except .env.example)                                 │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
+1. **Privacy Gate**: Complete a workout with opted-out user → verify NO record in `live_activity_events`
+2. **Anonymous Data**: Check that `live_activity_events` has NO `user_id` column
+3. **API Aggregates**: `curl /api/live/stats` returns counts, not user lists
+4. **WebSocket**: Connect to `/api/live/stream`, verify events have no user identifiers
+5. **Map Display**: Verify markers show counts, not usernames
+6. **Location Privacy**: User with `exclude_from_location_features` → verify no geo data in their events
+7. **24h Cleanup**: Verify old events are deleted
 
 ---
 
-*Plan generated: 2026-01-11*
+## Summary
+
+This system provides real-time visibility into MuscleMap activity while **absolutely respecting user privacy**:
+
+- Users who opt out are **never tracked** (not filtered, not logged at all)
+- All displayed data is **aggregated and anonymous**
+- No admin bypass - privacy is a right, not a preference
+- Events are ephemeral (24h retention) - this is a live pulse, not surveillance
+
+---
+
+*Plan created: 2026-01-14*
 *Status: Ready for implementation*

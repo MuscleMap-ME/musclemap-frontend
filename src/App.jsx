@@ -86,6 +86,9 @@ const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
 
+// Live activity monitoring
+const LiveActivityMonitor = lazy(() => import('./pages/LiveActivityMonitor'));
+
 // Plugin pages
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
 const PluginSettings = lazy(() => import('./pages/PluginSettings'));
@@ -448,6 +451,9 @@ function AppRoutes() {
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
           <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
           <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
+
+          {/* Live activity monitoring - public anonymous data */}
+          <Route path="/live" element={<ErrorBoundary name="LiveActivityMonitor"><LiveActivityMonitor /></ErrorBoundary>} />
 
           {/* Plugin routes */}
           <Route path="/plugins" element={<ProtectedRoute name="PluginMarketplace"><PluginMarketplace /></ProtectedRoute>} />

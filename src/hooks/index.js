@@ -69,6 +69,7 @@ export { useUser } from '../contexts/UserContext';
 
 export { default as useCommunityStats } from './useCommunityStats';
 export { default as useLiveCommunityStats } from './useLiveCommunityStats';
+export { default as useLiveActivity } from './useLiveActivity';
 
 // ============================================
 // UTILITY HOOKS

@@ -17,6 +17,7 @@ export const PUBSUB_CHANNELS = {
   COMMUNITY_ACTIVITY: 'pubsub:community:activity',
   MESSAGE_RECEIVED: 'pubsub:message:received',
   CONVERSATION_UPDATED: 'pubsub:conversation:updated',
+  LIVE_ACTIVITY: 'pubsub:live:activity',  // Anonymous real-time activity events
 } as const;
 
 // Event types
@@ -59,6 +60,17 @@ export interface ConversationEvent {
   participantIds: string[];
   lastMessageId?: string;
   updatedAt: string;
+}
+
+export interface LiveActivityEvent {
+  id: string;
+  type: string;
+  timestamp: string;
+  exerciseName?: string;
+  muscleGroup?: string;
+  geoBucket?: string;
+  city?: string;
+  country?: string;
 }
 
 // In-memory fallback emitter
@@ -247,6 +259,13 @@ export async function publishMessage(message: MessageEvent): Promise<void> {
  */
 export async function publishConversationUpdate(conversation: ConversationEvent): Promise<void> {
   await publish(PUBSUB_CHANNELS.CONVERSATION_UPDATED, conversation);
+}
+
+/**
+ * Publish live activity event (anonymous)
+ */
+export async function publishLiveActivity(event: LiveActivityEvent): Promise<void> {
+  await publish(PUBSUB_CHANNELS.LIVE_ACTIVITY, event);
 }
 
 /**

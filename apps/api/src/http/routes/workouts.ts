@@ -13,6 +13,7 @@ import { economyService } from '../../modules/economy';
 import { earningService } from '../../modules/economy/earning.service';
 import { statsService } from '../../modules/stats';
 import { companionEventsService } from '../../modules/mascot';
+import { logActivityEvent } from '../../services/live-activity-logger';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -267,6 +268,26 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         log.info({ userId, workoutId, earnedCredits, earnedXp }, 'Workout earnings processed');
       } catch (earningError) {
         log.error({ earningError, userId, workoutId }, 'Failed to process workout earnings');
+      }
+
+      // Log anonymous activity event (respects privacy settings)
+      try {
+        // Get the primary muscle group from the first exercise or most activated muscle
+        const primaryMuscle = Object.entries(muscleActivations).sort(
+          ([, a], [, b]) => (b as number) - (a as number)
+        )[0]?.[0];
+
+        await logActivityEvent(userId, {
+          type: 'workout.completed',
+          exerciseId: data.exercises[0]?.exerciseId,
+          exerciseName: data.exercises[0]?.exerciseId, // Will be resolved by exercise lookup
+          muscleGroup: primaryMuscle || undefined,
+          // Location would come from user profile or request headers in a real implementation
+          // For now, we don't include location data
+        });
+      } catch (activityError) {
+        // Non-critical - don't fail the request
+        log.error({ activityError, userId, workoutId }, 'Failed to log activity event');
       }
 
       const workout = await queryOne(
