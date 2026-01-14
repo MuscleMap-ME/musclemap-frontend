@@ -198,13 +198,14 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (62 total)
+## Frontend Pages (64 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
 | Achievements | No | Achievements page |
 | AchievementVerification | No | AchievementVerification page |
 | AdminControl | No | AdminControl page |
+| AdminDisputes | Yes | Admin Disputes Dashboard  Admin interface for managing economy disputes |
 | AdminFraud | No | AdminFraud page |
 | AdminIssues | Yes | Admin Issues Page  Admin dashboard for managing issues: - View all issues (including private) - Change status, priority, assignee - Bulk actions - Create dev updates - Manage roadmap / |
 | AdminMetrics | Yes | Admin Metrics Dashboard  Beautiful visual dashboard for Prometheus metrics with: - Real-time gauges for connections and health - Time-series charts for request latency - Status indicators with animations - Auto-refresh every 10 seconds / |
@@ -261,6 +262,7 @@ musclemap.me/
 | Store | No | Store page |
 | Technology | No | Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics |
 | TrainerDashboard | No | TrainerDashboard page |
+| Trainers | Yes | Trainers Page  Browse trainers, manage trainer profile, create/manage classes |
 | Wallet | No | Wallet page |
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
@@ -401,7 +403,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (512 total)
+## API Endpoints (521 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -814,6 +816,15 @@ Components are organized by feature:
 | GET | `/reports/my` | content-reports |
 | GET | `/reports/stats` | content-reports |
 | GET | `/resources/most-helpful` | community-resources |
+| GET | `/rivals` | rivals |
+| GET | `/rivals/:id` | rivals |
+| POST | `/rivals/:id/accept` | rivals |
+| POST | `/rivals/:id/decline` | rivals |
+| POST | `/rivals/:id/end` | rivals |
+| POST | `/rivals/challenge` | rivals |
+| GET | `/rivals/pending` | rivals |
+| GET | `/rivals/search` | rivals |
+| GET | `/rivals/stats` | rivals |
 | GET | `/roadmap` | issues |
 | POST | `/roadmap` | issues |
 | POST | `/roadmap/:id/vote` | issues |

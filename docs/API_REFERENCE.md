@@ -731,6 +731,21 @@ Authorization: Bearer <token>
 | `GET` | `/resources/most-helpful` | Yes |
 
 
+### Rivals
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/rivals` | Yes |
+| `GET` | `/rivals/:id` | Yes |
+| `POST` | `/rivals/:id/accept` | Yes |
+| `POST` | `/rivals/:id/decline` | Yes |
+| `POST` | `/rivals/:id/end` | Yes |
+| `POST` | `/rivals/challenge` | Yes |
+| `GET` | `/rivals/pending` | Yes |
+| `GET` | `/rivals/search` | Yes |
+| `GET` | `/rivals/stats` | Yes |
+
+
 ### Milestones
 
 | Method | Endpoint | Auth Required |
