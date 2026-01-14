@@ -5,3 +5,5 @@
  */
 
 export { default as ArchetypeCard } from './ArchetypeCard';
+export { default as ArchetypeDetail } from './ArchetypeDetail';
+export { default as CategoryGrid } from './CategoryGrid';

@@ -871,6 +871,7 @@ export {
   PhTarget,
   PhChartLineUp,
   PhTimer,
+  PhStopwatch,
   PhClock,
   PhCalendar,
   PhScales,
@@ -878,12 +879,46 @@ export {
   PhDrop,
   PhPulse,
   PhFirstAid,
+  PhFirstAidKit,
   PhStethoscope,
   PhPill,
   PhApple,
   PhCoffee,
   PhForkKnife,
   PhFlame,
+
+  // Archetype/Category icons - Movement
+  PhPersonSimple,
+  PhPersonArmsSpread,
+
+  // Archetype/Category icons - Combat
+  PhHandFist,
+  PhBoxingGlove,
+
+  // Archetype/Category icons - Adventure
+  PhMountains,
+
+  // Archetype/Category icons - Military
+  PhShieldStar,
+
+  // Archetype/Category icons - First Responders
+  PhSiren,
+  PhAmbulance,
+
+  // Archetype/Category icons - Team Sports
+  PhSoccerBall,
+  PhBasketball,
+  PhFootball,
+
+  // Archetype/Category icons - Rehabilitation
+  PhBandaids,
+
+  // General fitness icons
+  PhCrosshair,
+  PhSword,
+  PhShield,
+  PhCrown,
+  PhStar,
 };
 
 // Export theme utilities

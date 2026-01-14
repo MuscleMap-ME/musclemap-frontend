@@ -34,6 +34,7 @@ musclemap.me/
 │   └── musclemap.db-wal
 ├── docs/
 │   ├── analysis/
+│   ├── archive/
 │   ├── business/
 │   ├── images/
 │   ├── latex/
@@ -48,6 +49,7 @@ musclemap.me/
 │   ├── CREDITS_ECONOMY.md
 │   ├── DATA_FLOW.md
 │   ├── DATA_MODEL.md
+│   ├── DATABASE-OPTIMIZATION-PLAN.md
 │   ├── EXTENSIBILITY.md
 │   ├── FEATURES.md
 │   ├── ICONS.md
@@ -65,6 +67,9 @@ musclemap.me/
 │   ├── SCALING-ARCHITECTURE-PLAN.md
 │   ├── SECURITY.md
 │   ├── SPA-UX-IMPROVEMENTS-PLAN.md
+│   ├── STAGE-1-ARCHITECTURE-ANALYSIS.md
+│   ├── STAGE-2-USER-PERSONAS.md
+│   ├── STAGE-3-TEST-HARNESS.md
 │   ├── STATE-MANAGEMENT.md
 │   ├── TOUCHSCREEN_UX_AUDIT.md
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
@@ -104,6 +109,7 @@ musclemap.me/
 │   ├── docs/
 │   ├── docs-files/
 │   ├── illustrations/
+│   ├── images/
 │   ├── mascot/
 │   ├── founding.html
 │   ├── index.html
@@ -123,7 +129,6 @@ musclemap.me/
 │   ├── robots.txt
 │   ├── sitemap.xml
 │   └── sw.js
-├── script-runs/
 ├── scripts/
 │   ├── lib/
 │   ├── utils/
@@ -137,6 +142,8 @@ musclemap.me/
 │   ├── logs.sh
 │   ├── maintain.sh
 │   ├── merge-all.sh
+│   ├── musclemap-start.sh
+│   ├── musclemap-stop.sh
 │   ├── prepare-app-store.cjs
 │   ├── production-deploy.sh
 │   ├── publish-app.sh
@@ -171,13 +178,11 @@ musclemap.me/
 ├── ecosystem.config.cjs
 ├── eslint.config.js
 ├── index.html
-├── JOURNEY_OVERHAUL_PLAN.md
 ├── LICENSE
 ├── lighthouserc.json
 ├── musclemap_exercises.json
 ├── new-path-exercises.json
 ├── package.json
-├── PLAN.md
 ├── playwright.config.ts
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
@@ -268,7 +273,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (90 total)
+## Components (94 total)
 
 Components are organized by feature:
 
@@ -286,6 +291,12 @@ Components are organized by feature:
 
 ### Toast
 - `ToastProvider`
+
+### archetypes
+- `ArchetypeCard`
+- `ArchetypeDetail`
+- `ArchetypeGrid`
+- `CategoryGrid`
 
 ### atlas
 - `AtlasCanvas`
@@ -942,6 +953,8 @@ Components are organized by feature:
 | `logs.sh` | Unified Log Viewer for MuscleMap |
 | `maintain.sh` | --- preflight --- |
 | `merge-all.sh` | # merge-all.sh - Merge all worktree branches into main |
+| `musclemap-start.sh` | # MuscleMap Local Development Services - START |
+| `musclemap-stop.sh` | # MuscleMap Local Development Services - STOP |
 | `prepare-app-store.cjs` | MuscleMap App Store Preparation Script  Automates everything needed for App Store submission: - Generates all app icons (iOS + Android) - Creates App Store metadata JSON - Generates screenshot templates - Creates store listing text  Usage: node scripts/prepare-app-store.cjs pnpm prepare:appstore / |
 | `production-deploy.sh` | # production-deploy.sh - Deploy script for MuscleMap production server |
 | `publish-app.sh` | # MuscleMap App Publishing Script |
