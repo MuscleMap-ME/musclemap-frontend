@@ -677,22 +677,22 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ children, node }) => {
+                  h1: ({ children, node: _node }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
                     return <h1 id={id} className="text-3xl font-bold text-white mb-6 pb-3 border-b border-white/10">{children}</h1>;
                   },
-                  h2: ({ children, node }) => {
+                  h2: ({ children, node: _node }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
                     return <h2 id={id} className="text-2xl font-bold text-white mt-8 mb-4">{children}</h2>;
                   },
-                  h3: ({ children, node }) => {
+                  h3: ({ children, node: _node }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
                     return <h3 id={id} className="text-xl font-semibold text-gray-200 mt-6 mb-3">{children}</h3>;
                   },
-                  h4: ({ children, node }) => {
+                  h4: ({ children, node: _node }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
                     return <h4 id={id} className="text-lg font-semibold text-gray-300 mt-4 mb-2">{children}</h4>;
@@ -788,7 +788,7 @@ export default function Docs() {
 
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [isPublicDoc, setIsPublicDoc] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [_activeTab, _setActiveTab] = useState('all');
   const [pendingAnchor, setPendingAnchor] = useState(null);
 
   useEffect(() => {
@@ -952,7 +952,7 @@ export default function Docs() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-1">New to MuscleMap?</h2>
-                  <p className="text-gray-400">Start with our Getting Started guide - you'll be tracking workouts in minutes.</p>
+                  <p className="text-gray-400">Start with our Getting Started guide - you&apos;ll be tracking workouts in minutes.</p>
                 </div>
               </div>
               <button
@@ -1122,7 +1122,7 @@ export default function Docs() {
           className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center"
         >
           <h3 className="text-xl font-bold text-white mb-2">Need more help?</h3>
-          <p className="text-gray-400 mb-6">Can't find what you're looking for? We're here to help.</p>
+          <p className="text-gray-400 mb-6">Can&apos;t find what you&apos;re looking for? We&apos;re here to help.</p>
           <div className="flex flex-wrap justify-center gap-4">
             <RouterLink
               to="/roadmap"

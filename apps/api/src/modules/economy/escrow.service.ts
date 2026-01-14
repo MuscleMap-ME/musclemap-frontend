@@ -9,7 +9,6 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { ValidationError, NotFoundError } from '../../lib/errors';
-import { walletService } from './wallet.service';
 
 const log = loggers.economy;
 

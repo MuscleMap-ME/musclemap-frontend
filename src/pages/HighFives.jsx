@@ -37,10 +37,10 @@ export default function HighFives() {
       setReceived(r.encouragements || []);
       setSent(s.encouragements || []);
       setStats(st);
-    } catch(err) {}
+    } catch(_err) {}
     setLoading(false);
   };
-  
+
   const send = async () => {
     if (!selected) return alert('Select someone to encourage!');
     setSending(true);
@@ -53,7 +53,7 @@ export default function HighFives() {
         setMessage('');
         load();
       }
-    } catch(err) {
+    } catch(_err) {
       alert('Failed to send');
     }
     setSending(false);
@@ -161,7 +161,7 @@ export default function HighFives() {
                   <span className="text-3xl">{getIcon(e.type)}</span>
                   <div className="flex-1">
                     <div className="font-bold">{e.sender_name} sent you a {e.type.replace('_', ' ')}!</div>
-                    {e.message && <div className="text-sm text-gray-400 mt-1">"{e.message}"</div>}
+                    {e.message && <div className="text-sm text-gray-400 mt-1">&quot;{e.message}&quot;</div>}
                     <div className="text-xs text-gray-500 mt-1">{new Date(e.created_at).toLocaleString()}</div>
                   </div>
                 </div>
@@ -171,14 +171,14 @@ export default function HighFives() {
         ) : (
           <div className="space-y-3">
             {sent.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">You haven't sent any encouragements yet. Spread the love! ❤️</div>
+              <div className="text-center text-gray-400 py-8">You haven&apos;t sent any encouragements yet. Spread the love!</div>
             ) : sent.map(e => (
               <div key={e.id} className="bg-gray-800 p-4 rounded-xl">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{getIcon(e.type)}</span>
                   <div className="flex-1">
                     <div className="font-bold">You sent a {e.type.replace('_', ' ')} to {e.recipient_name}</div>
-                    {e.message && <div className="text-sm text-gray-400 mt-1">"{e.message}"</div>}
+                    {e.message && <div className="text-sm text-gray-400 mt-1">&quot;{e.message}&quot;</div>}
                     <div className="text-xs text-gray-500 mt-1">{new Date(e.created_at).toLocaleString()}</div>
                   </div>
                 </div>

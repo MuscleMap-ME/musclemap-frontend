@@ -280,10 +280,10 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     }
 
     // Upsert privacy settings
-    const insertColumns = Object.values(fieldMappings).filter((_, i) =>
+    const _insertColumns = Object.values(fieldMappings).filter((_, i) =>
       Object.keys(fieldMappings)[i] in updates
     );
-    const insertValues = Object.entries(fieldMappings)
+    const _insertValues = Object.entries(fieldMappings)
       .filter(([key]) => key in updates)
       .map(([key]) => updates[key as keyof PrivacySettings]);
 

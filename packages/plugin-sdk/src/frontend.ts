@@ -3,7 +3,7 @@
  */
 
 // Use generic component type to avoid React dependency
-type ComponentType<P = any> = any;
+type ComponentType<_P = unknown> = unknown;
 
 // ============================================
 // FRONTEND PLUGIN TYPES
@@ -172,7 +172,7 @@ export function usePluginContext(): FrontendPluginContext {
   throw new Error('usePluginContext must be used within a PluginProvider');
 }
 
-export function useHasPermission(permission: string): boolean {
+export function useHasPermission(_permission: string): boolean {
   throw new Error('useHasPermission must be used within a PluginProvider');
 }
 

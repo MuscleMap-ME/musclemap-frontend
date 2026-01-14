@@ -10,7 +10,7 @@ import { authenticate, requireRole } from './auth';
 import { trainerService } from '../../modules/economy/trainer.service';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.http;
+const _log = loggers.http;
 
 // Schemas
 const createProfileSchema = z.object({

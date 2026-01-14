@@ -90,7 +90,7 @@ function IssueRow({ issue }) {
 
 export default function MyIssues() {
   const { token } = useAuth();
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const navigate = useNavigate();
 
   const [issues, setIssues] = useState([]);
@@ -106,6 +106,7 @@ export default function MyIssues() {
       return;
     }
     fetchIssues();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, filter, page]);
 
   const fetchIssues = async () => {

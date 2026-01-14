@@ -325,7 +325,7 @@ export default function Journey() {
               <h3 className="text-sm text-gray-400 uppercase mb-4">Top Trained Muscles</h3>
               {data.muscleBreakdown?.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2">
-                  {data.muscleBreakdown.slice(0, 10).map((muscle, i) => (
+                  {data.muscleBreakdown.slice(0, 10).map((muscle, _i) => (
                     <div key={muscle.id} className="bg-gray-700 rounded-xl p-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${MUSCLE_COLORS[muscle.group] || 'bg-gray-500'}`} />

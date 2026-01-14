@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import {
   getActivationColor,
-  getActivationLevel,
   ACTIVATION_COLORS,
 } from '@musclemap/shared';
 
@@ -18,7 +17,7 @@ import {
  * ExerciseIllustration - Main component
  */
 const ExerciseIllustration = ({
-  exerciseId,
+  exerciseId: _exerciseId,
   illustrationUrl,
   muscleActivations = [], // Array of { muscleId, activation }
   size = 'md', // 'sm' | 'md' | 'lg' | 'full'
@@ -130,6 +129,7 @@ const ExerciseIllustration = ({
         });
       };
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svgContent, muscleActivations, interactive]);
 
   const handleMuscleHover = useCallback((e) => {
@@ -277,10 +277,10 @@ export const ExerciseIllustrationCard = ({
   exercise,
   muscleActivations,
   onClick,
-  interactive = true,
+  interactive: _interactive = true,
   className,
 }) => {
-  const [showDetail, setShowDetail] = useState(false);
+  const [_showDetail, _setShowDetail] = useState(false);
 
   return (
     <motion.div

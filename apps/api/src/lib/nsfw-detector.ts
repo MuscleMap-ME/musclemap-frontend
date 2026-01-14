@@ -48,7 +48,7 @@ async function loadModel(): Promise<any> {
       const startTime = Date.now();
 
       // Dynamic imports to avoid loading TensorFlow at startup
-      const tf = await import('@tensorflow/tfjs-node');
+      const _tf = await import('@tensorflow/tfjs-node');
       const nsfwjs = await import('nsfwjs');
 
       // Use the default model (MobileNetV2)

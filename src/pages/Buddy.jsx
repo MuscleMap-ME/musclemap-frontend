@@ -52,7 +52,7 @@ export default function Buddy() {
   const [evolutionPath, setEvolutionPath] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [_selectedSlot, setSelectedSlot] = useState(null);
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
@@ -61,6 +61,7 @@ export default function Buddy() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -112,7 +113,7 @@ export default function Buddy() {
         showSnackbar('Training buddy created!', 'success');
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to create buddy', 'error');
     }
   };
@@ -134,7 +135,7 @@ export default function Buddy() {
         showSnackbar('Species changed!', 'success');
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to change species', 'error');
     }
   };
@@ -155,7 +156,7 @@ export default function Buddy() {
         setEditingNickname(false);
         showSnackbar('Nickname updated!', 'success');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to update nickname', 'error');
     }
   };
@@ -176,7 +177,7 @@ export default function Buddy() {
         setSelectedSlot(null);
         showSnackbar('Cosmetic equipped!', 'success');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to equip cosmetic', 'error');
     }
   };
@@ -196,7 +197,7 @@ export default function Buddy() {
         setBuddy(data.data);
         showSnackbar('Cosmetic unequipped!', 'success');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to unequip cosmetic', 'error');
     }
   };
@@ -216,7 +217,7 @@ export default function Buddy() {
         setBuddy(data.data);
         showSnackbar('Settings updated!', 'success');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to update settings', 'error');
     }
   };
@@ -556,7 +557,7 @@ export default function Buddy() {
         {activeTab === 'evolution' && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold mb-4">Evolution Path</h3>
-            {evolutionPath.map((stage, i) => {
+            {evolutionPath.map((stage, _i) => {
               const isUnlocked = buddy.level >= stage.minLevel;
               const isCurrent = buddy.stage === stage.stage;
 

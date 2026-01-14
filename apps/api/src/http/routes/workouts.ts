@@ -8,7 +8,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { authenticate, optionalAuth } from './auth';
-import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
 import { earningService } from '../../modules/economy/earning.service';
 import { statsService } from '../../modules/stats';

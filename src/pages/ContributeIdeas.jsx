@@ -355,7 +355,7 @@ export default function ContributeIdeas() {
               className="text-xl text-gray-400 max-w-2xl mx-auto"
             >
               MuscleMap is built by the community. Whether you code, design, write, or just have great ideas —
-              there's a place for you.
+              there&apos;s a place for you.
             </motion.p>
           </div>
         </section>
@@ -549,7 +549,7 @@ export default function ContributeIdeas() {
           <div className="max-w-6xl mx-auto">
             <h3 className="text-xl font-bold text-white mb-6">Polish & Embellishments</h3>
             <p className="text-gray-400 mb-8">
-              Small touches that make a big difference. These don't require major code changes.
+              Small touches that make a big difference. These don&apos;t require major code changes.
             </p>
 
             <div className="grid md:grid-cols-3 gap-6">

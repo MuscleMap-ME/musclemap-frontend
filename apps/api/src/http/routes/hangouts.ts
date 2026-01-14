@@ -11,7 +11,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
-import { hangoutService, HangoutRole } from '../../services/hangout.service';
+import { hangoutService } from '../../services/hangout.service';
 import { geoService } from '../../services/geo.service';
 import { loggers } from '../../lib/logger';
 

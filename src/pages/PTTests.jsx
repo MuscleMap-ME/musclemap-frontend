@@ -12,7 +12,6 @@ import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import {
   GlassSurface,
-  GlassCard,
   GlassButton,
   GlassNav,
   AnimatedLogo,
@@ -419,8 +418,8 @@ function ResultHistoryCard({ result }) {
 
 // Main PT Tests Page
 export default function PTTests() {
-  const { user } = useUser();
-  const [tests, setTests] = useState([]);
+  const { user: _user } = useUser();
+  const [tests, setTests] = useState([]); // eslint-disable-line no-unused-vars
   const [testsByInstitution, setTestsByInstitution] = useState({});
   const [results, setResults] = useState([]);
   const [selectedTest, setSelectedTest] = useState(null);

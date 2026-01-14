@@ -11,7 +11,6 @@ import {
   GlassSurface,
   GlassCard,
   GlassButton,
-  GlassProgressBar,
   MeshBackground,
 } from '../components/glass';
 import { FEATURE_FLAGS } from '../config/featureFlags';

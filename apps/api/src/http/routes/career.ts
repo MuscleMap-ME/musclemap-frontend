@@ -12,11 +12,7 @@ import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import {
   careerService,
-  CareerGoal,
-  CareerGoalWithTest,
-  ReadinessScore,
   PTTestWithCareer,
-  TeamReadinessSummary,
 } from '../../modules/career';
 
 // Role levels from hangout.service.ts

@@ -14,7 +14,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
-import { creditService } from './credit.service';
+import { creditService as _creditService } from './credit.service';
 import { walletService } from './wallet.service';
 
 const log = loggers.economy;

@@ -8,9 +8,7 @@
  * - Multi-resolution transcoding
  */
 
-import crypto from 'crypto';
-import { queryOne, queryAll, query, serializableTransaction } from '../db/client';
-import { getRedis, isRedisAvailable } from '../lib/redis';
+import { queryOne, queryAll, query } from '../db/client';
 import { loggers } from '../lib/logger';
 
 const log = loggers.core;

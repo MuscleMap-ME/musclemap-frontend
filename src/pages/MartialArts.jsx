@@ -465,6 +465,7 @@ export default function MartialArts() {
       .then((r) => r.json())
       .then(setSummary)
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Load discipline details when disciplineId changes
@@ -490,6 +491,7 @@ export default function MartialArts() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disciplineId, token]);
 
   // Log practice handler
@@ -516,7 +518,7 @@ export default function MartialArts() {
         const summaryRes = await fetch('/api/martial-arts/progress', { headers });
         setSummary(await summaryRes.json());
       }
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to log practice');
     }
   };
@@ -548,7 +550,7 @@ export default function MartialArts() {
       } else {
         alert(result.error || 'Failed to master technique');
       }
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to master technique');
     }
   };

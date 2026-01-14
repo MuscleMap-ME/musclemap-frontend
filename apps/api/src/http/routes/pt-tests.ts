@@ -303,7 +303,7 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
     }
 
     // Get user profile for age/gender-based scoring
-    const profile = await db.queryOne<{
+    const _profile = await db.queryOne<{
       date_of_birth: string | null;
       gender: string | null;
     }>(
@@ -536,7 +536,7 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
    */
   app.get('/pt-tests/leaderboard/:testId', { preHandler: authenticate }, async (request, reply) => {
     const { testId } = request.params as { testId: string };
-    const { limit, gender, ageGroup } = request.query as {
+    const { limit, gender: _gender, ageGroup: _ageGroup } = request.query as {
       limit?: string;
       gender?: string;
       ageGroup?: string;

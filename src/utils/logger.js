@@ -185,7 +185,7 @@ class FrontendLogger {
         if (!resp.ok && (resp.status === 429 || resp.status >= 500)) {
           this.queue.unshift(...entries);
         }
-      } catch (err) {
+      } catch (_err) {
         // Re-queue on network failure
         this.queue.unshift(...entries);
       }

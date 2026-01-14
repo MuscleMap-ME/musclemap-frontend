@@ -187,7 +187,7 @@ export const resolvers = {
     },
 
     myCapabilities: async (_: unknown, __: unknown, context: Context) => {
-      const { userId, roles } = requireAuth(context);
+      const { userId: _userId, roles } = requireAuth(context);
       return {
         canCreateWorkout: true,
         canJoinHangouts: true,
@@ -483,7 +483,7 @@ export const resolvers = {
       };
     },
 
-    leaderboards: async (_: unknown, args: { type?: string }) => {
+    leaderboards: async (_: unknown, _args: { type?: string }) => {
       const leaderboard = await queryAll(
         `SELECT u.id, u.username, u.avatar_url, cs.level, cs.xp, cs.strength
          FROM character_stats cs
@@ -566,7 +566,7 @@ export const resolvers = {
     },
 
     // Tips
-    tips: async (_: unknown, args: { context?: string; exerciseId?: string }, context: Context) => {
+    tips: async (_: unknown, args: { context?: string; exerciseId?: string }, _context: Context) => {
       let sql = `SELECT id, type, title, content, category, exercise_id, priority
                  FROM tips WHERE 1=1`;
       const params: unknown[] = [];

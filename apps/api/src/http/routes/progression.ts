@@ -31,7 +31,7 @@ const updateTargetSchema = z.object({
   currentValue: z.number().min(0),
 });
 
-const validTargetTypes: TargetType[] = ['weight', 'reps', 'volume', 'frequency'];
+const _validTargetTypes: TargetType[] = ['weight', 'reps', 'volume', 'frequency'];
 
 export async function registerProgressionRoutes(app: FastifyInstance) {
   // ============================================
@@ -167,7 +167,7 @@ export async function registerProgressionRoutes(app: FastifyInstance) {
       );
 
       return reply.send({ data: target });
-    } catch (err) {
+    } catch (_err) {
       return reply.status(404).send({ error: 'Target not found' });
     }
   });

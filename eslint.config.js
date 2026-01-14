@@ -45,10 +45,10 @@ export default [
       ...pluginReactHooks.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off', // Disabled - using runtime validation instead of PropTypes
-      'react/no-unescaped-entities': 'off', // Allow quotes in JSX text
+      'react/no-unescaped-entities': 'warn',
       'react/no-unknown-property': ['error', { ignore: threeJsProperties }],
-      'react-hooks/exhaustive-deps': 'off', // Disabled - often produces false positives with intentional patterns
-      'no-unused-vars': ['off'], // Disabled - TypeScript handles this better, and many are intentional
+      'react-hooks/exhaustive-deps': 'warn',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off',
     },
   },

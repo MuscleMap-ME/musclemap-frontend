@@ -11,8 +11,6 @@ import {
   GlassSurface,
   GlassCard,
   GlassButton,
-  GlassProgressBar,
-  GlassCircularProgress,
   MeshBackground,
   MuscleIndicator,
   AnimatedLogo,

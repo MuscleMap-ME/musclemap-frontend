@@ -9,7 +9,6 @@ import {
   contentReportsService,
   ContentType,
   ReportReason,
-  ReportStatus,
   ModerationAction,
 } from '../../modules/moderation/content-reports';
 import { authenticate } from './auth';
@@ -60,14 +59,14 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
       reason: ReportReason;
       description?: string;
     };
-  }>('/reports', async (request, reply) => {
+  }>('/reports', async (request, _reply) => {
     const reporterId = request.user!.userId;
 
     const report = await contentReportsService.submitReport(reporterId, request.body);
     return { success: true, data: report };
   });
 
-  fastify.get('/reports/my', async (request, reply) => {
+  fastify.get('/reports/my', async (request, _reply) => {
     const userId = request.user!.userId;
     const reports = await contentReportsService.getUserReports(userId, 'reporter');
     return { success: true, data: reports };
@@ -77,7 +76,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
   // MODERATION (Admin/Mod only)
   // ===========================================
 
-  fastify.get('/reports', { preHandler: requireModAccess }, async (request, reply) => {
+  fastify.get('/reports', { preHandler: requireModAccess }, async (request, _reply) => {
     const { communityId, status, reason, limit = '20', offset = '0' } = request.query as any;
 
     const result = await contentReportsService.getPendingReports({
@@ -102,7 +101,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: report };
   });
 
-  fastify.post<{ Params: { reportId: string } }>('/reports/:reportId/assign', async (request, reply) => {
+  fastify.post<{ Params: { reportId: string } }>('/reports/:reportId/assign', async (request, _reply) => {
     const { reportId } = request.params;
     const moderatorId = request.user!.userId;
 
@@ -117,7 +116,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
       resolution: string;
       actionTaken: ModerationAction;
     };
-  }>('/reports/:reportId/resolve', async (request, reply) => {
+  }>('/reports/:reportId/resolve', async (request, _reply) => {
     const { reportId } = request.params;
     const moderatorId = request.user!.userId;
 
@@ -129,14 +128,14 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
   // USER MODERATION
   // ===========================================
 
-  fastify.get<{ Params: { userId: string } }>('/users/:userId/moderation-history', async (request, reply) => {
+  fastify.get<{ Params: { userId: string } }>('/users/:userId/moderation-history', async (request, _reply) => {
     const { userId } = request.params;
 
     const history = await contentReportsService.getUserModerationHistory(userId);
     return { success: true, data: history };
   });
 
-  fastify.get<{ Params: { userId: string } }>('/users/:userId/moderation-status', async (request, reply) => {
+  fastify.get<{ Params: { userId: string } }>('/users/:userId/moderation-status', async (request, _reply) => {
     const { userId } = request.params;
 
     const activeModeration = await contentReportsService.getActiveModeration(userId);
@@ -151,7 +150,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
       durationHours?: number;
       notes?: string;
     };
-  }>('/users/:userId/moderate', async (request, reply) => {
+  }>('/users/:userId/moderate', async (request, _reply) => {
     const { userId } = request.params;
     const moderatorId = request.user!.userId;
 
@@ -163,7 +162,7 @@ const contentReportsRoutes: FastifyPluginAsync = async (fastify) => {
   // STATS
   // ===========================================
 
-  fastify.get('/reports/stats', async (request, reply) => {
+  fastify.get('/reports/stats', async (request, _reply) => {
     const { communityId } = request.query as any;
 
     const stats = await contentReportsService.getStats(communityId ? parseInt(communityId) : undefined);

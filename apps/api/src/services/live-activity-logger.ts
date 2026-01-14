@@ -122,7 +122,7 @@ function hashLocation(lat?: number, lng?: number): string | null {
  * Get approximate center coordinates for a geo bucket.
  * This is used for map display - returns center of the ~10km cell.
  */
-export function getGeoBucketCenter(geoBucket: string): { lat: number; lng: number } | null {
+export function getGeoBucketCenter(_geoBucket: string): { lat: number; lng: number } | null {
   // We can't reverse the hash, so this function needs a lookup table
   // For now, return null - the frontend will use city/country for display
   return null;

@@ -10,7 +10,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// motion is imported for potential future animations
+import { motion as _motion } from 'framer-motion';
 import { useAuth } from '../store/authStore';
 import { sanitizeText, sanitizeHtml } from '../utils/sanitize';
 
@@ -88,7 +89,7 @@ function getDeviceInfo() {
 }
 
 export default function NewIssue() {
-  const { token, user } = useAuth();
+  const { token, user: _user } = useAuth();
   const navigate = useNavigate();
 
   const [labels, setLabels] = useState([]);
@@ -397,7 +398,7 @@ export default function NewIssue() {
                   <li>Be specific and provide concrete examples</li>
                   <li>Include steps to reproduce the issue</li>
                   <li>Search existing issues first to avoid duplicates</li>
-                  <li>One issue per report - don't combine multiple problems</li>
+                  <li>One issue per report - don&apos;t combine multiple problems</li>
                 </ul>
               </div>
             </div>

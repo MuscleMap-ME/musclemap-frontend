@@ -378,6 +378,7 @@ export default function Skills() {
       .then((r) => r.json())
       .then(setSummary)
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Load tree details when treeId changes
@@ -399,8 +400,9 @@ export default function Skills() {
         setSelectedTree(treeData.tree);
         setTreeProgress(progressData.nodes || []);
       })
-      .catch((err) => setError(err.message))
+      .catch((_err) => setError(_err.message))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeId, token]);
 
   // Log practice handler
@@ -425,7 +427,7 @@ export default function Skills() {
         const summaryRes = await fetch('/api/skills/progress', { headers });
         setSummary(await summaryRes.json());
       }
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to log practice');
     }
   };
@@ -455,7 +457,7 @@ export default function Skills() {
       } else {
         alert(result.error || 'Failed to achieve skill');
       }
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to achieve skill');
     }
   };

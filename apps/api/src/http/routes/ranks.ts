@@ -15,7 +15,7 @@ import { authenticate, optionalAuth } from './auth';
 import { rankService, xpService, RankName } from '../../modules/ranks';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.economy;
+const _log = loggers.economy;
 
 // Schemas
 const leaderboardQuerySchema = z.object({

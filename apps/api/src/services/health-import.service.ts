@@ -12,8 +12,8 @@
  */
 
 import crypto from 'crypto';
-import { queryOne, queryAll, query, serializableTransaction } from '../db/client';
-import { creditService, CreditReason, RefType } from '../modules/economy/credit.service';
+import { queryOne, queryAll, serializableTransaction } from '../db/client';
+import { creditService } from '../modules/economy/credit.service';
 import { ValidationError } from '../lib/errors';
 import { loggers } from '../lib/logger';
 

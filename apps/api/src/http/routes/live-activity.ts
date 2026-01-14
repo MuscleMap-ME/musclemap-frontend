@@ -148,7 +148,7 @@ export async function registerLiveActivityRoutes(app: FastifyInstance) {
   // ============================================
   // WebSocket /live/stream - Real-time event stream
   // ============================================
-  app.get('/live/stream', { websocket: true }, async (socket, request) => {
+  app.get('/live/stream', { websocket: true }, async (socket, _request) => {
     log.info('Live activity stream connected');
 
     // Subscribe to live activity events

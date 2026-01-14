@@ -6,13 +6,12 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticate } from '../../http/routes/auth';
 import * as crewsService from './service';
-import type { CrewWarStatus } from './types';
 
 export function registerCrewsRoutes(fastify: FastifyInstance): void {
   // Get user's crew
   fastify.get('/crews/my', {
     preHandler: [authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = request.user!.userId;
     const result = await crewsService.getUserCrew(userId);
 
@@ -40,7 +39,7 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
   // Get leaderboard (public route, before :id)
   fastify.get('/crews/leaderboard', async (request: FastifyRequest<{
     Querystring: { limit?: string };
-  }>, reply: FastifyReply) => {
+  }>, _reply: FastifyReply) => {
     const limit = parseInt(request.query.limit || '50', 10);
     const leaderboard = await crewsService.getCrewLeaderboard(limit);
     return { data: leaderboard };
@@ -51,7 +50,7 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
     preHandler: [authenticate],
   }, async (request: FastifyRequest<{
     Querystring: { q?: string; limit?: string };
-  }>, reply: FastifyReply) => {
+  }>, _reply: FastifyReply) => {
     const query = request.query.q || '';
     const limit = parseInt(request.query.limit || '20', 10);
     const crews = await crewsService.searchCrews(query, limit);
@@ -61,7 +60,7 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
   // Leave crew
   fastify.post('/crews/leave', {
     preHandler: [authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = request.user!.userId;
     await crewsService.leaveCrew(userId);
     return { success: true };
@@ -128,7 +127,7 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
     Params: { id: string };
   }>('/crews/invites/:id/accept', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const userId = request.user!.userId;
     const member = await crewsService.acceptInvite(request.params.id, userId);
     return { data: member };
@@ -168,7 +167,7 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
     Params: { id: string };
   }>('/crews/:id/wars', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const wars = await crewsService.getCrewWars(request.params.id);
     return { data: wars };
   });

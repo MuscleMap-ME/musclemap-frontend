@@ -14,7 +14,7 @@ export default function NewConversation({ onCreated, onCancel }) {
   const [groupName, setGroupName] = useState('');
   const [isGroup, setIsGroup] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
+  const [_searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
 
   async function searchUsers(query) {

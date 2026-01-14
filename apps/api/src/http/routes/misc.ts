@@ -6,7 +6,7 @@
 
 import { FastifyInstance } from 'fastify';
 import { authenticate, optionalAuth } from './auth';
-import { queryAll, queryOne, query } from '../../db/client';
+import { queryAll, queryOne } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import {
   getExerciseIllustration,
@@ -477,7 +477,7 @@ export async function registerMiscRoutes(app: FastifyInstance) {
   app.get('/__routes', async (request, reply) => {
     const routes: string[] = [];
 
-    function collectRoutes(routeTable: any[], prefix = '') {
+    function _collectRoutes(routeTable: any[], prefix = '') {
       for (const route of routeTable) {
         if (route.method && route.url) {
           routes.push(`${route.method} ${prefix}${route.url}`);

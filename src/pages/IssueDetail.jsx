@@ -56,7 +56,7 @@ const PRIORITIES = {
   3: { label: 'Critical', color: 'text-red-400' },
 };
 
-function Comment({ comment, isStaff, onMarkSolution, canMarkSolution }) {
+function Comment({ comment, isStaff: _isStaff, onMarkSolution, canMarkSolution }) {
   const isAuthorStaff = comment.isStaffReply || comment.authorRoles?.includes('admin') || comment.authorRoles?.includes('moderator');
 
   return (
@@ -145,6 +145,7 @@ export default function IssueDetail() {
   useEffect(() => {
     fetchIssue();
     fetchComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchIssue = async () => {

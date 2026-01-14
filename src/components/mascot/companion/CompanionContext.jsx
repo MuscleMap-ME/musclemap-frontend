@@ -120,6 +120,7 @@ export function CompanionProvider({ children }) {
     } catch (err) {
       console.error('Failed to fetch events:', err);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getHeaders, state?.is_visible, reducedMotion]);
 
   // Show a reaction animation

@@ -48,7 +48,7 @@ export default function XRButton({
   ...props
 }) {
   const {
-    state,
+    state: _state,
     isSupported,
     isActive,
     isLoading,
@@ -178,7 +178,7 @@ export function XRIconButton({
   variant = 'glass',
   ...props
 }) {
-  const { state, isSupported, isActive, isLoading, buttonProps, error } =
+  const { state: _state, isSupported, isActive, isLoading, buttonProps, error } =
     useXRButton(props);
 
   const sizeStyles = {

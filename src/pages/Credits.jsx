@@ -15,6 +15,7 @@ export default function Credits() {
     if (params.get('success')) setMsg({ t: 'Payment successful! Credits added.', o: true });
     if (params.get('canceled')) setMsg({ t: 'Payment canceled.', o: false });
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function load() {
@@ -40,7 +41,7 @@ export default function Credits() {
       const data = await res.json();
       if (data.url) window.location.href = data.url;
       else setMsg({ t: data.error?.message || data.error || "Failed", o: false });
-    } catch (e) { setMsg({ t: "Network error", o: false }); }
+    } catch (_e) { setMsg({ t: "Network error", o: false }); }
     setLoading(null);
   }
 

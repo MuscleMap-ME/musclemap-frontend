@@ -51,7 +51,7 @@ export default function Achievements() {
   const navigate = useNavigate();
   const [definitions, setDefinitions] = useState([]);
   const [userAchievements, setUserAchievements] = useState([]);
-  const [summary, setSummary] = useState(null);
+  const [_summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedAchievement, setSelectedAchievement] = useState(null);
@@ -59,6 +59,7 @@ export default function Achievements() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -417,7 +418,7 @@ export default function Achievements() {
                           <span className="font-medium">Verification Required</span>
                         </div>
                         <p className="text-sm text-gray-400 mb-3">
-                          This elite achievement requires video proof and a witness to verify you've completed it.
+                          This elite achievement requires video proof and a witness to verify you&apos;ve completed it.
                         </p>
                         <button
                           onClick={() => {

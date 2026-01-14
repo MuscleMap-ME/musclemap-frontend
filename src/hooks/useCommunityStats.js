@@ -5,7 +5,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { authFetch } from '../utils/auth';
+// authFetch available for future expansion
+// import { authFetch } from '../utils/auth';
 
 const CACHE_TTL = 60000; // 1 minute cache
 const statsCache = new Map();

@@ -12,10 +12,9 @@
  */
 
 import crypto from 'crypto';
-import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { creditService } from './credit.service';
-import { walletService } from './wallet.service';
 import { xpService } from '../ranks/xp.service';
 
 const log = loggers.economy;

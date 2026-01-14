@@ -11,7 +11,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
-import { statsService, STAT_TYPES, StatType } from '../../modules/stats';
+import { statsService, StatType } from '../../modules/stats';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;

@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
-import { companionEventsService, STAGE_THRESHOLDS } from '../../modules/mascot';
+import { companionEventsService } from '../../modules/mascot';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;

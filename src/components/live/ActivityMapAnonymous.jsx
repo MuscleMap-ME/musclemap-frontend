@@ -170,6 +170,7 @@ function ActivityMapAnonymous({ mapData = [], onRegionClick, className = '' }) {
       ctx.font = '11px Inter';
       ctx.fillText(`${hoveredMarker.count} workouts`, tooltipX + 10, tooltipY + 35);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, zoom, offset, hoveredMarker]);
 
   // Handle mouse events

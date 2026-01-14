@@ -12,6 +12,7 @@ export default function Competitions() {
   const [newComp, setNewComp] = useState({ name: '', description: '', type: 'weekly', goal_tu: 100 });
   const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [tab]);
   const load = async () => {
     setLoading(true);
@@ -22,7 +23,7 @@ export default function Competitions() {
       ]);
       setCompetitions(c.competitions || []);
       setMyEntries(e.entries || []);
-    } catch(err) {}
+    } catch(_err) {}
     setLoading(false);
   };
   const join = async (id) => { await fetch('/api/competitions/' + id + '/join', { method: 'POST', headers }); load(); };

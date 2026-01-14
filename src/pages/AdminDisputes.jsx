@@ -165,6 +165,7 @@ function DisputeDetailModal({ dispute, onClose, onResolve, onUpdateStatus }) {
 
   useEffect(() => {
     loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispute.id]);
 
   const loadMessages = async () => {
@@ -477,7 +478,7 @@ function DisputeDetailModal({ dispute, onClose, onResolve, onUpdateStatus }) {
 // MAIN ADMIN DISPUTES PAGE
 // ============================================
 export default function AdminDisputes() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

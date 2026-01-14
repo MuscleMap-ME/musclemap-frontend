@@ -249,7 +249,7 @@ export async function migrate(): Promise<void> {
       try {
         await db.query(`ANALYZE ${table}`);
         log.debug(`Analyzed table: ${table}`);
-      } catch (e) {
+      } catch (_e) {
         log.debug(`Could not analyze ${table}`);
       }
     }

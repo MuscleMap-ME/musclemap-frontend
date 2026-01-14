@@ -15,13 +15,13 @@ import { walletService } from '../../modules/economy/wallet.service';
 import { storeService } from '../../modules/economy/store.service';
 import { buddyService, BUDDY_SPECIES } from '../../modules/economy/buddy.service';
 import { earningService } from '../../modules/economy/earning.service';
-import { antiabuseService, FLAG_STATUSES, FlagStatus } from '../../modules/economy/antiabuse.service';
+import { antiabuseService, FlagStatus } from '../../modules/economy/antiabuse.service';
 import { trustService } from '../../modules/economy/trust.service';
 import { escrowService } from '../../modules/economy/escrow.service';
 import { disputeService } from '../../modules/economy/dispute.service';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.http;
+const _log = loggers.http;
 
 // Schemas
 const transferSchema = z.object({

@@ -51,7 +51,7 @@ const Icons = {
 // CODE BLOCK COMPONENT
 // ============================================
 
-function CodeBlock({ code, language = 'javascript', filename }) {
+function CodeBlock({ code, language: _language = 'javascript', filename }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

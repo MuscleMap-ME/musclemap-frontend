@@ -13,7 +13,6 @@ import { authenticate } from './auth';
 import { queryOne, queryAll, query } from '../../db/client';
 import { geoService } from '../../services/geo.service';
 import { achievementService } from '../../modules/achievements';
-import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
 

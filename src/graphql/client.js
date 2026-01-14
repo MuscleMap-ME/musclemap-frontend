@@ -69,7 +69,7 @@ const retryLink = new RetryLink({
 /**
  * Error Link - handles GraphQL and network errors
  */
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation: _operation }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
       const { message, locations, path, extensions } = err;
@@ -134,7 +134,7 @@ const cache = new InMemoryCache({
         communityStats: {
           keyArgs: false,
           // Keep for 5 minutes
-          read(existing, { canRead, toReference }) {
+          read(existing, { canRead: _canRead, toReference: _toReference }) {
             return existing;
           },
         },

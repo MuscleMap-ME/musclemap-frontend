@@ -1077,7 +1077,7 @@ export async function registerJourneysRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
 
     // Get user profile for personalized suggestions
-    const profile = await db.queryOne<{
+    const _profile = await db.queryOne<{
       current_identity_id: string | null;
       weight_lbs: number | null;
       height_cm: number | null;

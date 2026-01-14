@@ -74,7 +74,7 @@ const Icons = {
 // MAIN RIVALS PAGE
 // ============================================
 export default function Rivals() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [rivals, setRivals] = useState([]);
   const [pendingRivals, setPendingRivals] = useState([]);
   const [stats, setStats] = useState(null);

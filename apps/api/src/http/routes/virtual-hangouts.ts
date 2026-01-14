@@ -13,12 +13,11 @@ import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import {
   virtualHangoutsService,
-  HangoutMemberRole,
 } from '../../modules/community/virtual-hangouts.service';
 import { bulletinService } from '../../modules/community/bulletin.service';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Schemas
 const joinHangoutSchema = z.object({

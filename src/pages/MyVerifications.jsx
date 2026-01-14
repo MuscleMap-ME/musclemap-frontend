@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
 
@@ -51,7 +51,7 @@ const formatDaysRemaining = (expiresAt) => {
 
 export default function MyVerifications() {
   const { token } = useAuth();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('my'); // 'my' or 'witness'
   const [verifications, setVerifications] = useState([]);
@@ -61,6 +61,7 @@ export default function MyVerifications() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -333,7 +334,7 @@ export default function MyVerifications() {
                     {/* Notes */}
                     {request.notes && (
                       <p className="text-sm text-gray-400 mb-3 bg-white/5 rounded-lg p-3">
-                        "{request.notes}"
+                        &quot;{request.notes}&quot;
                       </p>
                     )}
 

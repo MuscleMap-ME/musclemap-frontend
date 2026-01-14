@@ -21,7 +21,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/analytics/daily',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const { startDate, endDate, limit = '30' } = request.query as any;
 
@@ -36,7 +36,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { communityId: string } }>(
     '/communities/:communityId/analytics/refresh',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
 
       const analytics = await communityAnalyticsService.recordDailyAnalytics(parseInt(communityId));
@@ -50,7 +50,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/health',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
 
       let healthScore = await communityAnalyticsService.getLatestHealthScore(parseInt(communityId));
@@ -66,7 +66,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { communityId: string } }>(
     '/communities/:communityId/health/calculate',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
 
       const healthScore = await communityAnalyticsService.calculateHealthScore(parseInt(communityId));
@@ -76,7 +76,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/health/history',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const { limit = '30' } = request.query as any;
 
@@ -93,7 +93,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/analytics/growth',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const { period = 'daily', limit = '12' } = request.query as any;
 
@@ -108,7 +108,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/analytics/engagement',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const { startDate, endDate } = request.query as any;
 
@@ -122,7 +122,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/analytics/top-contributors',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const { days = '30', limit = '10' } = request.query as any;
 
@@ -140,7 +140,7 @@ const communityAnalyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Body: { communityIds: number[] } }>(
     '/analytics/compare',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityIds } = request.body;
 
       const comparison = await communityAnalyticsService.compareCommunities(communityIds);

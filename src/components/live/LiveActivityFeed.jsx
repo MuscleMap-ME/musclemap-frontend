@@ -157,7 +157,7 @@ function LiveActivityFeed({ feed = [], className = '' }) {
             <p className="text-xs text-white/30 mt-1">Events will appear here in real-time</p>
           </div>
         ) : (
-          groupedEvents.map((group, groupIndex) => (
+          groupedEvents.map((group, _groupIndex) => (
             <div key={group.label}>
               <h4 className="text-xs text-white/40 mb-2 sticky top-0 bg-[#0a0a0f] py-1">
                 {group.label}

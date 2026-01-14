@@ -11,7 +11,7 @@
  */
 
 import crypto from 'crypto';
-import { db, queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../../lib/cache.service';
 
@@ -626,7 +626,7 @@ export async function getLeaderboard(options: {
 export async function getUserRankings(
   userId: string
 ): Promise<Record<StatType, RankingsByScope>> {
-  const stats = await getUserStats(userId);
+  const _stats = await getUserStats(userId);
   const profile = await getExtendedProfile(userId);
 
   const rankings: Record<StatType, RankingsByScope> = {} as any;

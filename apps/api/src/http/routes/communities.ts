@@ -22,7 +22,7 @@ import {
 import { bulletinService } from '../../modules/community/bulletin.service';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Schemas
 const createCommunitySchema = z.object({

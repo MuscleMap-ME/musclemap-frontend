@@ -222,7 +222,7 @@ function TrainerCard({ trainer, onSelect }) {
 // MAIN TRAINERS PAGE
 // ============================================
 export default function Trainers() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [activeTab, setActiveTab] = useState('browse');
   const [trainers, setTrainers] = useState([]);
   const [classes, setClasses] = useState([]);

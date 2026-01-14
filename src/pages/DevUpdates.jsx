@@ -113,6 +113,7 @@ export default function DevUpdates() {
 
   useEffect(() => {
     fetchUpdates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, page]);
 
   const fetchUpdates = async () => {

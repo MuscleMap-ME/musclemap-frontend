@@ -42,7 +42,7 @@ export default function Settings() {
     try {
       await api.settings.update(updates);
       if (updates.theme) localStorage.setItem('musclemap_theme', updates.theme);
-    } catch(err) {}
+    } catch(_err) {}
     setSaving(false);
   };
 

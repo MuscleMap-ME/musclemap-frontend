@@ -403,7 +403,7 @@ export const disputeService = {
             // Split the escrow
             const splitRatio = resolution.splitRatio ?? 0.5;
             const reporterAmount = Math.floor(hold.amount * splitRatio);
-            const respondentAmount = hold.amount - reporterAmount;
+            const _respondentAmount = hold.amount - reporterAmount;
 
             // First refund reporter's portion
             // Note: This is simplified - in production you'd want atomic handling

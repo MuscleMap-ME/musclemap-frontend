@@ -10,9 +10,8 @@
  * - Display settings
  */
 
-import crypto from 'crypto';
 import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
-import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
+import { ValidationError, NotFoundError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import { storeService } from './store.service';
 
@@ -298,7 +297,7 @@ export const buddyService = {
       let { level, xp: currentXp, xp_to_next_level: xpToNextLevel, stage } = current.rows[0];
       currentXp += xp;
       let leveledUp = false;
-      let evolved = false;
+      let _evolved = false;
 
       // Process level ups
       while (currentXp >= xpToNextLevel && level < 100) {

@@ -117,7 +117,7 @@ export default function useXR(options = {}) {
   useEffect(() => {
     if (!session) return;
 
-    const handleInputSourcesChange = (event) => {
+    const handleInputSourcesChange = (_event) => {
       setInputSources([...session.inputSources]);
     };
 

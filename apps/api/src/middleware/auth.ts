@@ -62,7 +62,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     };
 
     next();
-  } catch (error) {
+  } catch (_error) {
     res.status(401).json({
       error: {
         code: 'INVALID_TOKEN',

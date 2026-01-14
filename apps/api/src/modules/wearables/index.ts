@@ -12,7 +12,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
   // Get wearable connections and health summary
   fastify.get('/wearables', {
     preHandler: [authenticate],
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = request.user!.userId;
     const summary = await wearablesService.getHealthSummary(userId);
     return { data: summary };
@@ -91,7 +91,7 @@ export function registerWearablesRoutes(fastify: FastifyInstance): void {
     Querystring: { limit?: string };
   }>('/wearables/workouts', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const userId = request.user!.userId;
     const limit = parseInt(request.query.limit || '10', 10);
     const workouts = await wearablesService.getRecentWearableWorkouts(userId, limit);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { useAuth } from '../store/authStore';
 import { sanitizeText } from '../utils/sanitize';
 

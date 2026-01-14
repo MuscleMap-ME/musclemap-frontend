@@ -22,7 +22,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get suggested communities based on user's archetype
    */
-  fastify.get('/archetype/suggested-communities', async (request, reply) => {
+  fastify.get('/archetype/suggested-communities', async (request, _reply) => {
     const userId = request.user!.userId;
 
     const communities = await archetypeCommunitiesService.getSuggestedCommunities(userId);
@@ -38,7 +38,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
       oldArchetypeId?: string;
       leaveOldCommunities?: boolean;
     };
-  }>('/archetype/change', async (request, reply) => {
+  }>('/archetype/change', async (request, _reply) => {
     const userId = request.user!.userId;
     const { newArchetypeId, oldArchetypeId, leaveOldCommunities = false } = request.body;
 
@@ -60,7 +60,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { archetypeId: string } }>(
     '/archetypes/:archetypeId/communities',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { archetypeId } = request.params;
 
       const communities = await archetypeCommunitiesService.getLinkedCommunities(archetypeId);
@@ -73,7 +73,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { archetypeId: string } }>(
     '/archetypes/:archetypeId/communities/default',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { archetypeId } = request.params;
 
       const communities = await archetypeCommunitiesService.getDefaultCommunities(archetypeId);
@@ -91,7 +91,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
       isDefault?: boolean;
       priority?: number;
     };
-  }>('/archetypes/:archetypeId/communities', async (request, reply) => {
+  }>('/archetypes/:archetypeId/communities', async (request, _reply) => {
     const { archetypeId } = request.params;
     const { communityId, isDefault, priority } = request.body;
 
@@ -110,7 +110,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
     Body: {
       links: Array<{ communityId: number; isDefault?: boolean; priority?: number }>;
     };
-  }>('/archetypes/:archetypeId/communities/bulk', async (request, reply) => {
+  }>('/archetypes/:archetypeId/communities/bulk', async (request, _reply) => {
     const { archetypeId } = request.params;
     const { links } = request.body;
 
@@ -123,7 +123,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{ Params: { archetypeId: string; communityId: string } }>(
     '/archetypes/:archetypeId/communities/:communityId',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { archetypeId, communityId } = request.params;
 
       await archetypeCommunitiesService.unlinkCommunity(archetypeId, parseInt(communityId));
@@ -134,7 +134,7 @@ const archetypeCommunitiesRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get all archetypes with their linked communities
    */
-  fastify.get('/archetypes/communities', async (request, reply) => {
+  fastify.get('/archetypes/communities', async (_request, _reply) => {
     const archetypes = await archetypeCommunitiesService.getAllArchetypesWithCommunities();
     return { success: true, data: archetypes };
   });

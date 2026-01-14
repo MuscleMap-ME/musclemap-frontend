@@ -5,14 +5,13 @@
  * Use this page to preview and validate design decisions.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Glass component imports
 import {
   GlassSurface,
   GlassCard,
-  GlassPanel,
   GlassModal,
   GlassButton,
   GlassIconButton,
@@ -21,7 +20,6 @@ import {
   GlassLiquidMeter,
   GlassNav,
   AnimatedLogo,
-  GlassNavLink,
   MeshBackground,
   MeshBackgroundStatic,
   MuscleActivationCard,
@@ -124,7 +122,7 @@ const SubSection = ({ title, children }) => (
   </div>
 );
 
-const ColorSwatch = ({ name, variable, hex }) => (
+const ColorSwatch = ({ name, variable, hex: _hex }) => (
   <div className="flex items-center gap-3">
     <div
       className="w-12 h-12 rounded-lg border border-[var(--border-default)]"
@@ -138,7 +136,7 @@ const ColorSwatch = ({ name, variable, hex }) => (
 );
 
 // Code block display component
-const CodeBlock = ({ code, language = 'jsx' }) => (
+const _CodeBlock = ({ code, language = 'jsx' }) => (
   <div className="relative rounded-lg overflow-hidden">
     <div className="absolute top-2 right-2 text-xs text-[var(--text-quaternary)] uppercase">{language}</div>
     <pre className="bg-[var(--void-deep)] border border-[var(--border-subtle)] rounded-lg p-4 overflow-x-auto">
@@ -563,7 +561,7 @@ export default function DesignSystem() {
             Liquid Glass
           </h1>
           <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto">
-            MuscleMap's design system inspired by visionOS, iOS 18, and spatial computing.
+            MuscleMap&apos;s design system inspired by visionOS, iOS 18, and spatial computing.
           </p>
         </motion.div>
 

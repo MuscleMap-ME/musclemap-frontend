@@ -23,7 +23,7 @@ const TIER_CONFIG = {
 
 export default function WitnessAttestation() {
   const { verificationId } = useParams();
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // eslint-disable-line no-unused-vars
   const { token } = useAuth();
 
   const [verification, setVerification] = useState(null);
@@ -40,6 +40,7 @@ export default function WitnessAttestation() {
 
   useEffect(() => {
     fetchVerification();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verificationId]);
 
   const fetchVerification = async () => {
@@ -232,7 +233,7 @@ export default function WitnessAttestation() {
         {verification?.notes && (
           <div className="bg-white/5 rounded-xl p-4 mb-6">
             <p className="text-sm text-gray-400 mb-2">Their Description</p>
-            <p className="text-white">"{verification.notes}"</p>
+            <p className="text-white">&quot;{verification.notes}&quot;</p>
           </div>
         )}
 

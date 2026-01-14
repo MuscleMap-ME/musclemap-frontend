@@ -8,7 +8,7 @@
  * - Plateau detection and deload suggestions
  */
 
-import { query, queryOne, transaction } from '../db/client';
+import { query, queryOne } from '../db/client';
 import { loggers } from '../lib/logger';
 
 const log = loggers.core.child({ service: 'progression' });
@@ -96,7 +96,7 @@ export interface ExerciseStats {
 // Constants
 // ============================================
 
-const PLATEAU_WEEKS = 3; // Consider plateau after 3 weeks of no progress
+const _PLATEAU_WEEKS = 3; // Consider plateau after 3 weeks of no progress
 const MIN_SESSIONS_FOR_RECOMMENDATION = 3;
 const WEIGHT_INCREMENT_PERCENT = 2.5; // 2.5% increase recommended
 const MIN_WEIGHT_INCREMENT = 2.5; // Minimum 2.5 lbs/kg
@@ -299,7 +299,6 @@ export const ProgressionService = {
     let maxReps = 0;
     let totalReps = 0;
     let totalSets = 0;
-    let weightedSum = 0;
 
     for (const session of sessions) {
       const weight = parseFloat(session.weight) || 0;
@@ -310,7 +309,6 @@ export const ProgressionService = {
       if (reps > maxReps) maxReps = reps;
       totalReps += reps * sets;
       totalSets += sets;
-      weightedSum += weight * reps * sets;
     }
 
     const avgRepsPerSet = totalSets > 0 ? totalReps / totalSets : 0;

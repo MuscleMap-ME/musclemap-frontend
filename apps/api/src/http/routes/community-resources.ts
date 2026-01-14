@@ -29,7 +29,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/resources',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const userId = request.user!.userId;
       const {
@@ -63,7 +63,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/resources/pinned',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
       const userId = request.user!.userId;
 
@@ -74,7 +74,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { communityId: string } }>(
     '/communities/:communityId/resources/categories',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { communityId } = request.params;
 
       const categories = await communityResourcesService.getCategories(parseInt(communityId));
@@ -113,7 +113,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
       tags?: string[];
       status?: CommunityResource['status'];
     };
-  }>('/communities/:communityId/resources', async (request, reply) => {
+  }>('/communities/:communityId/resources', async (request, _reply) => {
     const { communityId } = request.params;
     const authorId = request.user!.userId;
 
@@ -136,7 +136,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
       tags?: string[];
       status?: CommunityResource['status'];
     };
-  }>('/resources/:resourceId', async (request, reply) => {
+  }>('/resources/:resourceId', async (request, _reply) => {
     const { resourceId } = request.params;
     const authorId = request.user!.userId;
 
@@ -144,7 +144,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true };
   });
 
-  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId', async (request, reply) => {
+  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId', async (request, _reply) => {
     const { resourceId } = request.params;
     const userId = request.user!.userId;
     const userIsAdmin = isAdmin(request);
@@ -157,7 +157,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
   // PINNING
   // ===========================================
 
-  fastify.post<{ Params: { resourceId: string } }>('/resources/:resourceId/pin', async (request, reply) => {
+  fastify.post<{ Params: { resourceId: string } }>('/resources/:resourceId/pin', async (request, _reply) => {
     const { resourceId } = request.params;
     const userId = request.user!.userId;
 
@@ -165,7 +165,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true };
   });
 
-  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId/pin', async (request, reply) => {
+  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId/pin', async (request, _reply) => {
     const { resourceId } = request.params;
 
     await communityResourcesService.unpinResource(resourceId);
@@ -176,7 +176,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
   // HELPFUL VOTES
   // ===========================================
 
-  fastify.post<{ Params: { resourceId: string } }>('/resources/:resourceId/helpful', async (request, reply) => {
+  fastify.post<{ Params: { resourceId: string } }>('/resources/:resourceId/helpful', async (request, _reply) => {
     const { resourceId } = request.params;
     const userId = request.user!.userId;
 
@@ -184,7 +184,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true };
   });
 
-  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId/helpful', async (request, reply) => {
+  fastify.delete<{ Params: { resourceId: string } }>('/resources/:resourceId/helpful', async (request, _reply) => {
     const { resourceId } = request.params;
     const userId = request.user!.userId;
 
@@ -196,7 +196,7 @@ const communityResourcesRoutes: FastifyPluginAsync = async (fastify) => {
   // POPULAR/TRENDING
   // ===========================================
 
-  fastify.get('/resources/most-helpful', async (request, reply) => {
+  fastify.get('/resources/most-helpful', async (request, _reply) => {
     const { limit = '10', communityIds } = request.query as any;
 
     const resources = await communityResourcesService.getMostHelpful({

@@ -6,7 +6,7 @@
 
 import { FastifyInstance } from 'fastify';
 import { authenticate, optionalAuth, verifyToken } from './auth';
-import { queryAll, queryOne, query } from '../../db/client';
+import { queryAll, queryOne } from '../../db/client';
 import { getRedis, isRedisAvailable, REDIS_KEYS, TTL } from '../../lib/redis';
 import { loggers } from '../../lib/logger';
 
@@ -328,7 +328,7 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
   });
 
   // Public WebSocket for real-time updates (no auth required)
-  app.get('/community/ws/public', { websocket: true }, (socket, request) => {
+  app.get('/community/ws/public', { websocket: true }, (socket, _request) => {
     log.info('Public WebSocket connected');
     publicWsConnections.add(socket as unknown as WebSocket);
 

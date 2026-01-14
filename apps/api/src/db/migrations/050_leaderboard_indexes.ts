@@ -207,7 +207,7 @@ export async function up(): Promise<void> {
   try {
     await db.query('REFRESH MATERIALIZED VIEW mv_xp_rankings');
     log.info('Refreshed mv_xp_rankings');
-  } catch (e) {
+  } catch (_e) {
     log.warn('Could not refresh mv_xp_rankings - may need data first');
   }
 
@@ -216,7 +216,7 @@ export async function up(): Promise<void> {
     if (await tableExists(table)) {
       try {
         await db.query(`ANALYZE ${table}`);
-      } catch (e) {
+      } catch (_e) {
         log.debug(`Could not analyze ${table}`);
       }
     }

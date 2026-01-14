@@ -34,6 +34,7 @@ export default function Progression() {
       setLeaderboard(l.leaderboard || []);
       setLoading(false);
     }).catch(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getTier = (tu) => {

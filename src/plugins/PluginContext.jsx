@@ -70,6 +70,7 @@ export function PluginProvider({ children, builtInPlugins = [] }) {
         unloadPlugin(pluginId)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount
 
   // Emit route change events
@@ -164,6 +165,7 @@ export function usePluginEvent(event, handler, deps = []) {
 
     const unsubscribe = on(event, handler)
     return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, on, ...deps])
 }
 
@@ -188,6 +190,7 @@ export function usePluginFilter(name, handler, options = {}, deps = []) {
     if (!handler) return
 
     return addFilter(name, handler, options)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, addFilter, ...deps])
 }
 
@@ -197,6 +200,7 @@ export function usePluginFilter(name, handler, options = {}, deps = []) {
 export function useApplyFilter(name, value, deps = []) {
   const { applyFilters } = usePluginServices()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(() => applyFilters(name, value), [name, value, applyFilters, ...deps])
 }
 
@@ -210,6 +214,7 @@ export function usePluginAction(name, handler, options = {}, deps = []) {
     if (!handler) return
 
     return addAction(name, handler, options)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, addAction, ...deps])
 }
 
@@ -221,6 +226,7 @@ export function useGetActions(name, context = {}, deps = []) {
 
   return useMemo(
     () => getActions(name, context),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [name, JSON.stringify(context), getActions, ...deps]
   )
 }

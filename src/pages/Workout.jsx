@@ -256,7 +256,7 @@ export default function Workout() {
       setSuccess(adding.name);
       setTimeout(() => setSuccess(null), 2000);
       setAdding(null);
-    } catch(e) {}
+    } catch(_e) {}
   }
 
   const getCat = (e) => CATEGORY[e.type] || CATEGORY.default;
@@ -705,7 +705,7 @@ export default function Workout() {
       <main className="max-w-5xl mx-auto p-4">
         {logged.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-sm text-gray-400 mb-2 uppercase">Today's Workout</h2>
+            <h2 className="text-sm text-gray-400 mb-2 uppercase">Today&apos;s Workout</h2>
             <div className="grid grid-cols-2 gap-2">
               {logged.map((e, i) => (
                 <div key={i} className="bg-gray-800 rounded-xl p-3 flex items-center gap-2">

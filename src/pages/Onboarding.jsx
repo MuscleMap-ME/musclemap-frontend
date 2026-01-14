@@ -91,7 +91,7 @@ export default function Onboarding() {
           <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
             Welcome to MuscleMap
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Let's personalize your experience</p>
+          <p className="text-gray-400 text-sm mt-1">Let&apos;s personalize your experience</p>
         </div>
 
         {/* Progress Bar */}
@@ -178,7 +178,7 @@ export default function Onboarding() {
                 </div>
                 {equipment.extras.length === 0 && (
                   <p className="text-xs text-gray-500 mt-3">
-                    No extras? No problem! We'll work with what you have.
+                    No extras? No problem! We&apos;ll work with what you have.
                   </p>
                 )}
               </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
 
@@ -13,7 +13,7 @@ const Icons = {
   Medal: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>,
 };
 
-const RANK_COLORS = {
+const _RANK_COLORS = {
   1: 'from-amber-400 to-yellow-600',
   2: 'from-gray-300 to-gray-500',
   3: 'from-amber-600 to-amber-800',
@@ -47,11 +47,12 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [selectedType, setSelectedType] = useState('workouts');
   const [selectedWindow, setSelectedWindow] = useState('weekly');
-  const [selectedScope, setSelectedScope] = useState('global');
+  const [_selectedScope, _setSelectedScope] = useState('global');
 
   useEffect(() => {
     fetchLeaderboards();
-  }, [selectedType, selectedWindow, selectedScope]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedType, selectedWindow, _selectedScope]);
 
   const fetchLeaderboards = async () => {
     setLoading(true);

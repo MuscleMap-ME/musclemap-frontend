@@ -8,7 +8,7 @@
  * - DataLoader integration
  */
 
-import type { PluginContext, PluginLogger } from './backend';
+import type { PluginContext } from './backend';
 
 // ============================================
 // GRAPHQL TYPES (inline to avoid heavy deps)
@@ -339,7 +339,7 @@ export function withFilter<T>(
   ) => boolean | Promise<boolean>
 ): SubscriptionResolver {
   return {
-    subscribe: async (parent, args, context, info) => {
+    subscribe: async (parent, args, context, _info) => {
       const asyncIterator = asyncIteratorFn(parent, args, context);
 
       return {

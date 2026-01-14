@@ -4,7 +4,7 @@
  * Character stats display with radar chart visualization and leaderboards.
  */
 
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
@@ -12,7 +12,6 @@ import {
   GlassSurface,
   GlassCard,
   GlassButton,
-  GlassProgressBar,
 } from '../components/glass';
 
 // Lazy load heavy D3 chart component
@@ -75,7 +74,7 @@ const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance
 // ============================================
 // RADAR CHART COMPONENT
 // ============================================
-function RadarChart({ stats, size = 300 }) {
+function RadarChart({ stats, size = 300 }) { // eslint-disable-line no-unused-vars
   const center = size / 2;
   const maxRadius = size * 0.32; // Reduced to leave room for labels
   const levels = [0.25, 0.5, 0.75, 1.0];
@@ -431,7 +430,7 @@ function Leaderboard({ userLocation }) {
 // MAIN STATS PAGE
 // ============================================
 export default function Stats() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [stats, setStats] = useState(null);
   const [rankings, setRankings] = useState(null);
   const [profile, setProfile] = useState(null);

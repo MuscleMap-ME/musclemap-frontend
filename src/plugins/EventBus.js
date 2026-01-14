@@ -355,6 +355,7 @@ export function useEventBus(event, handler, deps = []) {
 
     const unsubscribe = eventBus.on(event, handler)
     return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, ...deps])
 }
 

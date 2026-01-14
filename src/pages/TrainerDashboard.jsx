@@ -78,6 +78,7 @@ export default function TrainerDashboard() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -136,7 +137,7 @@ export default function TrainerDashboard() {
         setShowCreateProfile(false);
         showSnackbar('Profile saved!', 'success');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to save profile', 'error');
     }
   };
@@ -176,7 +177,7 @@ export default function TrainerDashboard() {
       } else {
         showSnackbar(data.error?.message || 'Failed to create class', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to create class', 'error');
     }
   };
@@ -193,7 +194,7 @@ export default function TrainerDashboard() {
         (data.data || []).reduce((acc, e) => ({ ...acc, [e.userId || e.user_id]: { attended: false, rating: 5 } }), {})
       );
       setShowAttendanceModal(true);
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to load enrollments', 'error');
     }
   };
@@ -220,7 +221,7 @@ export default function TrainerDashboard() {
         showSnackbar(`Attendance marked! Earned ${data.data.wageEarned} credits`, 'success');
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to mark attendance', 'error');
     }
   };
@@ -242,7 +243,7 @@ export default function TrainerDashboard() {
         showSnackbar('Class cancelled', 'success');
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to cancel class', 'error');
     }
   };

@@ -9,7 +9,6 @@ import { authMiddleware, type AuthRequest } from '../../auth';
 import { rivalsService } from './service';
 import {
   broadcastRivalryStatusChange,
-  broadcastRivalWorkout,
 } from './websocket';
 
 export function createRivalsRouter(): Router {

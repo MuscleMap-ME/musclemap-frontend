@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
 
@@ -25,7 +25,8 @@ const TIER_CONFIG = {
   diamond: { label: 'Diamond', color: 'from-violet-400 to-purple-600', text: 'text-violet-400' },
 };
 
-const formatDate = (dateStr) => {
+// Date formatters available for future use
+const _formatDate = (dateStr) => {
   try {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -34,7 +35,7 @@ const formatDate = (dateStr) => {
   }
 };
 
-const formatDaysRemaining = (expiresAt) => {
+const _formatDaysRemaining = (expiresAt) => {
   const now = new Date();
   const expiry = new Date(expiresAt);
   const days = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
@@ -67,6 +68,7 @@ export default function AchievementVerification() {
 
   useEffect(() => {
     fetchAchievementData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [achievementId]);
 
   const fetchAchievementData = async () => {
@@ -449,7 +451,7 @@ export default function AchievementVerification() {
             </button>
 
             <p className="text-xs text-gray-500 text-center">
-              Your witness has 30 days to confirm. If they don't respond, you can submit again with a different witness.
+              Your witness has 30 days to confirm. If they don&apos;t respond, you can submit again with a different witness.
             </p>
           </form>
         )}

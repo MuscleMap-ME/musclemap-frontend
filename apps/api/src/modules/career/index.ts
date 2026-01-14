@@ -5,7 +5,7 @@
  * and team readiness dashboards for first responders, military, and law enforcement.
  */
 
-import { db, queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -709,7 +709,7 @@ export async function enableTeamReadiness(
     showIndividualScores?: boolean;
   }
 ): Promise<TeamReadinessConfig> {
-  const result = await queryOne<{ id: string }>(
+  const _result = await queryOne<{ id: string }>(
     `INSERT INTO team_readiness_config (hangout_id, pt_test_id, enabled, require_opt_in, visible_to, show_individual_scores)
      VALUES ($1, $2, true, $3, $4, $5)
      ON CONFLICT (hangout_id) DO UPDATE SET

@@ -21,7 +21,6 @@ import {
   RefreshCw,
   Server,
   XCircle,
-  Eye,
   Bug,
   Route,
   ChevronRight,
@@ -53,7 +52,7 @@ export default function AdminMonitoring() {
         const token = parsed?.state?.token;
         if (token) return { Authorization: `Bearer ${token}` };
       }
-    } catch (e) {}
+    } catch (_e) {}
     return {};
   }, []);
 

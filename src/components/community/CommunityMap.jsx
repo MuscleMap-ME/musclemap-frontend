@@ -134,6 +134,7 @@ function LeafletMap({ presenceData = [] }) {
       }
       markersRef.current = [];
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update markers when data changes

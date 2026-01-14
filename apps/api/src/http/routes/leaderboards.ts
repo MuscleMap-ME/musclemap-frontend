@@ -10,10 +10,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
-import { leaderboardService, PERIOD_TYPES, PeriodType } from '../../modules/leaderboards';
+import { leaderboardService, PeriodType } from '../../modules/leaderboards';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Schemas
 const leaderboardQuerySchema = z.object({

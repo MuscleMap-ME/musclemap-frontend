@@ -6,7 +6,7 @@
  */
 
 import crypto from 'crypto';
-import { db, queryOne, queryAll, query, serializableTransaction } from '../../db/client';
+import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { walletService } from './wallet.service';
@@ -1036,7 +1036,7 @@ export const trainerService = {
     // Update rating if provided
     const ratings = attendees.filter(a => a.rating).map(a => a.rating!);
     if (ratings.length > 0) {
-      const avgRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+      const _avgRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
       await query(
         `UPDATE trainer_profiles SET
           rating_avg = ((rating_avg * rating_count) + $1) / (rating_count + $2),

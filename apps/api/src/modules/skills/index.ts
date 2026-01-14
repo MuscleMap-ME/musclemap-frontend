@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { earningService } from '../economy/earning.service';
-import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../../lib/cache.service';
+import cache, { CACHE_TTL, CACHE_PREFIX } from '../../lib/cache.service';
 
 const log = loggers.core;
 

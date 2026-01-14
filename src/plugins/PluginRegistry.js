@@ -136,7 +136,7 @@ export const usePluginRegistryStore = create(
      * Unregister a plugin
      */
     unregisterPlugin: (pluginId) => {
-      const { plugins, routes, widgets, navItems, commands, themes } = get()
+      const { plugins } = get()
 
       if (!plugins.has(pluginId)) {
         console.warn(`Plugin "${pluginId}" is not registered`)

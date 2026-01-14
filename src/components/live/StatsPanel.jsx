@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Activity, TrendingUp, Globe, Dumbbell, Zap, Users } from 'lucide-react';
+import { Activity, TrendingUp, Globe, Dumbbell, Zap } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, subValue, color = 'blue' }) {
   const colorClasses = {

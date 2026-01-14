@@ -565,7 +565,7 @@ export async function resolveError(errorId: string): Promise<boolean> {
 // ============================================
 
 export async function getSystemHealth(): Promise<SystemHealth> {
-  const startTime = process.hrtime();
+  const _startTime = process.hrtime();
   const checks: HealthCheck[] = [];
 
   // Database check

@@ -4,9 +4,9 @@
  * Provides contextual tips, insights, and milestone tracking for users.
  */
 
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { authenticate } from '../../http/routes/auth';
-import { db, queryOne, queryAll, execute } from '../../db/client';
+import { queryOne, queryAll, execute } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { z } from 'zod';
 
@@ -476,7 +476,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
     Params: { exerciseId: string };
   }>('/api/tips/exercise/:exerciseId', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const tip = await tipsService.getExerciseTip(request.params.exerciseId, request.user!.userId);
     return { data: tip };
   });
@@ -490,7 +490,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
     Body: { goals?: string[] };
   }>('/api/tips/completion', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const { goals } = completionSchema.parse(request.body);
     const result = await tipsService.getCompletionTip(request.user!.userId, goals || []);
     return { data: result };
@@ -499,7 +499,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
   // Get daily dashboard tip
   fastify.get('/api/tips/daily', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const tip = await tipsService.getDailyTip(request.user!.userId);
     return { data: tip };
   });
@@ -509,7 +509,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
     Params: { tipId: string };
   }>('/api/tips/:tipId/like', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     await tipsService.likeTip(request.params.tipId, request.user!.userId);
     return { success: true };
   });
@@ -517,7 +517,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
   // Get user milestones
   fastify.get('/api/tips/milestones', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const milestones = await tipsService.getMilestones(request.user!.userId);
     return { data: milestones };
   });
@@ -527,7 +527,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
     Querystring: { limit?: string; offset?: string };
   }>('/api/tips/liked', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const limit = Math.min(parseInt(request.query.limit || '20', 10), 100);
     const offset = parseInt(request.query.offset || '0', 10);
     const tips = await tipsService.getLikedTips(request.user!.userId, limit, offset);
@@ -537,7 +537,7 @@ export function registerTipsRoutes(fastify: FastifyInstance): void {
   // Get user stats (for debugging/testing)
   fastify.get('/api/tips/stats', {
     preHandler: [authenticate],
-  }, async (request, reply) => {
+  }, async (request, _reply) => {
     const stats = await tipsService.getUserStats(request.user!.userId);
     const streak = await tipsService.calculateStreak(request.user!.userId);
     return { data: { ...stats, streak } };

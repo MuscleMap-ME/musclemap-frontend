@@ -699,7 +699,7 @@ export async function up(): Promise<void> {
     if (await tableExists(table)) {
       try {
         await db.query(`ANALYZE ${table}`);
-      } catch (e) {
+      } catch (_e) {
         log.debug(`Could not analyze ${table}`);
       }
     }

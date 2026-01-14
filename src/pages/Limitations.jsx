@@ -12,7 +12,6 @@ import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import {
   GlassSurface,
-  GlassCard,
   GlassButton,
   GlassNav,
   AnimatedLogo,
@@ -448,7 +447,7 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
 
 // Main Limitations Page
 export default function Limitations() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [limitations, setLimitations] = useState([]);
   const [bodyRegions, setBodyRegions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -459,6 +458,7 @@ export default function Limitations() {
   useEffect(() => {
     loadLimitations();
     loadBodyRegions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadLimitations = async () => {

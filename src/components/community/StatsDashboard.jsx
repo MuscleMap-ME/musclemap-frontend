@@ -16,11 +16,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  FunnelChart,
-  Funnel,
-  LabelList,
 } from 'recharts';
 
 const COLORS = [

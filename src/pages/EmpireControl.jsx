@@ -10,13 +10,12 @@
  * - Real-time activity feeds
  */
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import GlassSurface from '../components/glass/GlassSurface';
 import {
   Activity,
-  AlertTriangle,
   Award,
   BarChart3,
   Bell,
@@ -24,19 +23,15 @@ import {
   ChevronRight,
   Coins,
   Crown,
-  Database,
   Flame,
   Gift,
   Globe,
   Heart,
-  Home,
   Infinity,
   LayoutDashboard,
-  LineChart,
   Mail,
   MessageCircle,
   MessageSquare,
-  Monitor,
   MoreVertical,
   RefreshCw,
   Search,
@@ -45,21 +40,16 @@ import {
   Settings,
   Shield,
   Slack,
-  Sparkles,
   Star,
   Target,
   Trophy,
-  User,
   Users,
   Wallet,
-  XCircle,
   Zap,
   TrendingUp,
   ExternalLink,
 } from 'lucide-react';
 import {
-  LineChart as RechartsLineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -69,8 +59,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-// Lazy load heavy components
-const ActivityFeed = lazy(() => import('../components/community/ActivityFeed'));
+// Lazy load heavy components (available for future use)
+const _ActivityFeed = lazy(() => import('../components/community/ActivityFeed'));
 
 // ============================================
 // CONSTANTS
@@ -100,7 +90,7 @@ const NAV_SECTIONS = [
 
 // Google Analytics Configuration
 const GA_PROPERTY_ID = 'G-S4RPD5JD5L';
-const GA_DASHBOARD_URL = `https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/intelligenthome`;
+const _GA_DASHBOARD_URL = `https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/intelligenthome`;
 
 // ============================================
 // HELPER COMPONENTS
@@ -213,11 +203,11 @@ export default function EmpireControl() {
   const [metrics, setMetrics] = useState(null);
   const [metricsHistory, setMetricsHistory] = useState([]);
   const [users, setUsers] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [_recentActivity, _setRecentActivity] = useState([]);
   const [messages, setMessages] = useState([]);
   const [economyStats, setEconomyStats] = useState(null);
-  const [slackMessages, setSlackMessages] = useState([]);
-  const [slackConnected, setSlackConnected] = useState(false);
+  const [_slackMessages, _setSlackMessages] = useState([]);
+  const [_slackConnected, _setSlackConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -231,7 +221,7 @@ export default function EmpireControl() {
         const parsed = JSON.parse(authData);
         return { Authorization: `Bearer ${parsed?.state?.token}` };
       }
-    } catch (e) {}
+    } catch (_e) {}
     return {};
   }, []);
 
@@ -860,7 +850,7 @@ export default function EmpireControl() {
                     ) : (
                       <div className="space-y-4">
                         <p className="text-sm text-gray-500">
-                          To integrate Slack, you'll need to create a Slack App and add its webhook URL.
+                          To integrate Slack, you&apos;ll need to create a Slack App and add its webhook URL.
                         </p>
                         <input
                           type="text"

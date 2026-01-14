@@ -105,13 +105,13 @@ function calculateBMI(weightKg: number, heightCm: number): number {
   return weightKg / (heightM * heightM);
 }
 
-function getTrainingAge(createdAt: Date): number {
+function _getTrainingAge(createdAt: Date): number {
   const now = new Date();
   const diffMs = now.getTime() - createdAt.getTime();
   return Math.floor(diffMs / (1000 * 60 * 60 * 24 * 30)); // months
 }
 
-function estimateOneRepMax(weight: number, reps: number): number {
+function _estimateOneRepMax(weight: number, reps: number): number {
   // Brzycki formula
   return weight * (36 / (37 - reps));
 }
@@ -258,7 +258,7 @@ export async function generateRecommendations(
 
 async function getGoalBasedRecommendations(
   goal: UserGoal,
-  context: PersonalizationContext
+  _context: PersonalizationContext
 ): Promise<WorkoutRecommendation[]> {
   const recommendations: WorkoutRecommendation[] = [];
 
@@ -347,7 +347,7 @@ async function getGoalBasedRecommendations(
 
 async function getLimitationBasedRecommendations(
   limitation: UserLimitation,
-  context: PersonalizationContext
+  _context: PersonalizationContext
 ): Promise<WorkoutRecommendation[]> {
   const recommendations: WorkoutRecommendation[] = [];
 
@@ -490,7 +490,7 @@ async function getPTTestRecommendations(
 
 function getVolumeRecommendations(
   profile: UserPhysicalProfile,
-  activity: PersonalizationContext['recentActivity']
+  _activity: PersonalizationContext['recentActivity']
 ): WorkoutRecommendation[] {
   const recommendations: WorkoutRecommendation[] = [];
 
@@ -572,7 +572,7 @@ function generateWeeklySchedule(
   context: PersonalizationContext,
   daysPerWeek: number
 ): PersonalizedPlan['weeklySchedule'] {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const schedule: PersonalizedPlan['weeklySchedule'] = [];
 
   // Check primary goal

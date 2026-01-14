@@ -26,6 +26,7 @@ function useInView(options = {}) {
     }
 
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return [ref, isInView];
@@ -177,7 +178,7 @@ export default function Landing() {
             </div>
             <p className="text-gray-300 text-sm">
               MuscleMap is under heavy development with features added daily.
-              <span className="text-amber-200"> Use as-is</span> — it's experimental but functional!
+              <span className="text-amber-200"> Use as-is</span> — it&apos;s experimental but functional!
             </p>
             <RouterLink
               to="/roadmap"
@@ -501,7 +502,7 @@ export default function Landing() {
               { to: '/crews', icon: '🛡️', label: 'Crews', color: 'blue' },
               { to: '/martial-arts', icon: '🥋', label: 'Martial Arts', color: 'orange' },
               { to: '/wallet', icon: '💎', label: 'Wallet', color: 'emerald' },
-            ].map((item, i) => (
+            ].map((item, _i) => (
               <RouterLink
                 key={item.to}
                 to={item.to}
@@ -755,7 +756,7 @@ export default function Landing() {
                 <span className="text-2xl">💪</span>
               </div>
               <h3 className="font-bold text-white mb-2">Real-time Muscle Tracking</h3>
-              <p className="text-sm text-gray-400 mb-4">See exactly which muscles you're hitting with every exercise.</p>
+              <p className="text-sm text-gray-400 mb-4">See exactly which muscles you&apos;re hitting with every exercise.</p>
               <div className="flex gap-2">
                 {['Chest', 'Back', 'Legs'].map((muscle) => (
                   <span key={muscle} className="px-2 py-1 rounded bg-red-500/10 text-red-400 text-xs">
@@ -836,7 +837,7 @@ export default function Landing() {
               <span className="text-white">For the Community</span>
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-              MuscleMap's frontend is open source. Build plugins, create themes, add features —
+              MuscleMap&apos;s frontend is open source. Build plugins, create themes, add features —
               the platform grows with every contribution.
             </p>
           </motion.div>

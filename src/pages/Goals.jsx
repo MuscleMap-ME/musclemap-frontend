@@ -13,16 +13,11 @@ import { api } from '../utils/api';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
 import {
   GlassSurface,
-  GlassCard,
   GlassButton,
   GlassNav,
   AnimatedLogo,
-  GlassSidebar,
-  GlassSidebarSection,
-  GlassSidebarItem,
   GlassMobileNav,
   MeshBackground,
-  GlassProgressBar,
 } from '../components/glass';
 
 // Icons
@@ -419,7 +414,7 @@ function CreateGoalModal({ isOpen, onClose, onSubmit, suggestions }) {
 
 // Main Goals Page
 export default function Goals() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [goals, setGoals] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -429,6 +424,7 @@ export default function Goals() {
   useEffect(() => {
     loadGoals();
     loadSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadGoals = async () => {
@@ -477,7 +473,7 @@ export default function Goals() {
   };
 
   const activeGoals = goals.filter(g => g.status === 'active');
-  const completedGoals = goals.filter(g => g.status === 'completed');
+  const _completedGoals = goals.filter(g => g.status === 'completed');
   const primaryGoal = goals.find(g => g.isPrimary && g.status === 'active');
 
   return (

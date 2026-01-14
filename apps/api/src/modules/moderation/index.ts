@@ -10,7 +10,7 @@
  */
 
 import crypto from 'crypto';
-import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 

@@ -14,7 +14,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getPoolStats, healthCheck as dbHealthCheck } from '../db/client';
-import { isRedisAvailable, getRedis } from './redis';
+import { isRedisAvailable } from './redis';
 import { getGraphQLCache } from '../graphql/cache';
 import { loggers } from './logger';
 

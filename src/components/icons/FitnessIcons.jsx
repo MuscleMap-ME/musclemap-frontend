@@ -11,7 +11,7 @@
  */
 
 import { forwardRef } from 'react';
-import { getIconSize, getIconColor, getIconWeight } from './iconTheme';
+import { getIconSize, getIconColor } from './iconTheme';
 
 // Base icon wrapper
 const IconBase = forwardRef(function IconBase(

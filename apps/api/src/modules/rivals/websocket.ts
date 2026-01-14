@@ -26,7 +26,7 @@ const connectionToUser = new WeakMap<WebSocket, string>();
 
 // Redis pub/sub channels
 const RIVAL_EVENTS_CHANNEL = 'rivals:events';
-const RIVAL_USER_CHANNEL_PREFIX = 'rivals:user:';
+const _RIVAL_USER_CHANNEL_PREFIX = 'rivals:user:';
 
 // Track if Redis subscription is set up
 let redisSubscribed = false;
@@ -170,7 +170,7 @@ export function registerRivalsWebSocket(fastify: FastifyInstance): void {
       try {
         const message = JSON.parse(data.toString());
         await handleMessage(socket, userId!, message);
-      } catch (err) {
+      } catch (_err) {
         socket.send(
           JSON.stringify({ type: 'error', message: 'Invalid message format' })
         );
@@ -220,7 +220,7 @@ async function sendInitialData(socket: WebSocket, userId: string): Promise<void>
         },
       })
     );
-  } catch (err) {
+  } catch (_err) {
     socket.send(
       JSON.stringify({
         type: 'error',

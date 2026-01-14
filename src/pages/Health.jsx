@@ -96,7 +96,7 @@ function StatCard({ icon: Icon, iconColor, value, label, delay = 0 }) {
 // MAIN HEALTH PAGE
 // ============================================
 export default function Health() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [summary, setSummary] = useState(null);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);

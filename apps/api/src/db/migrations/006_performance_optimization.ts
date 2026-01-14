@@ -310,7 +310,7 @@ export async function migrate(): Promise<void> {
   for (const table of tablesToAnalyze) {
     try {
       await db.query(`ANALYZE ${table}`);
-    } catch (e) {
+    } catch (_e) {
       // Table might not exist yet, skip
       log.debug(`Could not analyze ${table}, may not exist`);
     }

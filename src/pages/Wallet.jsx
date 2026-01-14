@@ -124,7 +124,7 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({ open: true, message: 'Failed to start subscription. Please try again.', severity: 'error' });
     } finally {
       setSubscribing(false);
@@ -144,7 +144,7 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({ open: true, message: 'Failed to open billing portal.', severity: 'error' });
     }
   };
@@ -163,7 +163,7 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({ open: true, message: 'Failed to start purchase. Please try again.', severity: 'error' });
     } finally {
       setBuyingCredits(false);
@@ -186,7 +186,7 @@ export default function Wallet() {
         fetchData();
         setSnackbar({ open: true, message: 'Credits sent successfully!', severity: 'success' });
       }
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({ open: true, message: 'Failed to send credits.', severity: 'error' });
     }
   };

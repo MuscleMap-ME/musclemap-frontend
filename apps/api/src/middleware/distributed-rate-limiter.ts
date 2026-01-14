@@ -198,7 +198,7 @@ async function getRedisRateLimitInfo(
       resetTime: now + windowMs,
       limited: count >= limit,
     };
-  } catch (error) {
+  } catch (_error) {
     return { limit, remaining: limit, resetTime: now + windowMs, limited: false };
   }
 }

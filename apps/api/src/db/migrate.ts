@@ -15,7 +15,7 @@ const log = loggers.db;
 // Helper to get pool for connection testing
 const getPool = () => db.getPool();
 
-interface Migration {
+interface _Migration {
   id: number;
   name: string;
   applied_at: Date;

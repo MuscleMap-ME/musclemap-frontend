@@ -5,7 +5,7 @@
  * Displays muscle info, exercises targeting it, and workout history.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { getActivationColor, MUSCLE_GROUP_COLORS } from '@musclemap/shared';

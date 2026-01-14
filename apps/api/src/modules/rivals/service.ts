@@ -353,7 +353,7 @@ export const rivalsService = {
     userId: string,
     workoutId: string,
     tuEarned: number,
-    topMuscles: string[]
+    _topMuscles: string[]
   ): Promise<RivalWithUser[]> {
     // Update all active rivalries where user is challenger
     await execute(

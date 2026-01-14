@@ -11,7 +11,6 @@ import {
   GlassSurface,
   GlassCard,
   GlassButton,
-  GlassProgressBar,
   MeshBackground,
   MuscleIndicator,
 } from '../components/glass';
@@ -179,7 +178,7 @@ const VGABarChart = ({ data, title }) => {
 };
 
 // VGA Stat Box Component
-const VGAStatBox = ({ value, label, color, icon }) => (
+const _VGAStatBox = ({ value, label, color, icon: _icon }) => (
   <motion.div
     className="relative p-4 border-2 text-center font-mono"
     style={{ borderColor: color, backgroundColor: 'rgba(0,0,0,0.5)' }}

@@ -80,6 +80,7 @@ export default function Store() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -131,7 +132,7 @@ export default function Store() {
       } else {
         showSnackbar(data.error?.message || 'Purchase failed', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Purchase failed', 'error');
     } finally {
       setPurchasing(false);

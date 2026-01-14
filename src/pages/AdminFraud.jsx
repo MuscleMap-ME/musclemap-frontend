@@ -76,6 +76,7 @@ export default function AdminFraud() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, severityFilter]);
 
   const fetchData = async () => {
@@ -111,7 +112,7 @@ export default function AdminFraud() {
       });
       const data = await res.json();
       setWalletLookup(data.data);
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('User not found', 'error');
     }
   };
@@ -132,7 +133,7 @@ export default function AdminFraud() {
         setSelectedFlag(null);
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to update flag', 'error');
     }
   };
@@ -154,7 +155,7 @@ export default function AdminFraud() {
           setWalletLookup({ ...walletLookup, status: 'frozen' });
         }
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to freeze wallet', 'error');
     }
   };
@@ -176,7 +177,7 @@ export default function AdminFraud() {
           setWalletLookup({ ...walletLookup, status: 'active' });
         }
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to unfreeze wallet', 'error');
     }
   };
@@ -199,7 +200,7 @@ export default function AdminFraud() {
         setAdjustForm({ userId: '', amount: 0, reason: '' });
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to adjust credits', 'error');
     }
   };
@@ -215,7 +216,7 @@ export default function AdminFraud() {
         showSnackbar(`Check complete: ${data.data.flags?.length || 0} issues found`, data.data.passed ? 'success' : 'error');
         fetchData();
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to run check', 'error');
     }
   };
@@ -544,7 +545,7 @@ export default function AdminFraud() {
                       onClick={() => freezeWallet(selectedFlag.userId || selectedFlag.user_id, `Fraud flag: ${selectedFlag.flagType || selectedFlag.flag_type}`)}
                       className="w-full py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-xl text-sm font-medium transition-all"
                     >
-                      Freeze User's Wallet
+                      Freeze User&apos;s Wallet
                     </button>
                   </div>
                 </div>

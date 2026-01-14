@@ -4,7 +4,7 @@
  * Displays messages in a conversation with real-time updates.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { authFetch, getToken, getUser } from '../../utils/auth';
 
 export default function MessageThread({ conversation, onBack }) {
@@ -30,6 +30,7 @@ export default function MessageThread({ conversation, onBack }) {
         wsRef.current.close();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?.id]);
 
   // Scroll to bottom on new messages

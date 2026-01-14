@@ -22,7 +22,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /identities
    * Get all available identities
    */
-  fastify.get('/identities', async (request, reply) => {
+  fastify.get('/identities', async (_request, _reply) => {
     const identities = await identityCommunitiesService.getAllIdentities();
     return { success: true, data: identities };
   });
@@ -31,7 +31,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /identities/categories
    * Get all identity categories
    */
-  fastify.get('/identities/categories', async (request, reply) => {
+  fastify.get('/identities/categories', async (_request, _reply) => {
     const rows = await db.queryAll<{
       id: string;
       name: string;
@@ -57,7 +57,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { categoryId: string } }>(
     '/identities/categories/:categoryId',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { categoryId } = request.params;
       const identities = await identityCommunitiesService.getIdentitiesByCategory(categoryId);
       return { success: true, data: identities };
@@ -89,7 +89,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /identities/me
    * Get current user's identity
    */
-  fastify.get('/identities/me', { preHandler: authenticate }, async (request, reply) => {
+  fastify.get('/identities/me', { preHandler: authenticate }, async (request, _reply) => {
     const userId = request.user!.userId;
 
     const user = await db.queryOne<{ current_identity_id: string | null }>(
@@ -161,7 +161,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/identities/suggested-communities',
     { preHandler: authenticate },
-    async (request, reply) => {
+    async (request, _reply) => {
       const userId = request.user!.userId;
       const communities = await identityCommunitiesService.getSuggestedCommunities(userId);
       return { success: true, data: communities };
@@ -178,7 +178,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { identityId: string } }>(
     '/identities/:identityId/communities',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { identityId } = request.params;
       const communities = await identityCommunitiesService.getLinkedCommunities(identityId);
       return { success: true, data: communities };
@@ -191,7 +191,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get<{ Params: { identityId: string } }>(
     '/identities/:identityId/communities/default',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { identityId } = request.params;
       const communities = await identityCommunitiesService.getDefaultCommunities(identityId);
       return { success: true, data: communities };
@@ -212,7 +212,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     '/identities/:identityId/communities',
     { preHandler: authenticate },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { identityId } = request.params;
       const { communityId, isDefault, priority } = request.body;
 
@@ -236,7 +236,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     '/identities/:identityId/communities/bulk',
     { preHandler: authenticate },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { identityId } = request.params;
       const { links } = request.body;
 
@@ -252,7 +252,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete<{ Params: { identityId: string; communityId: string } }>(
     '/identities/:identityId/communities/:communityId',
     { preHandler: authenticate },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { identityId, communityId } = request.params;
       await identityCommunitiesService.unlinkCommunity(identityId, parseInt(communityId));
       return { success: true };
@@ -263,7 +263,7 @@ const identitiesRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /identities/all-with-communities
    * Get all identities with their linked communities
    */
-  fastify.get('/identities/all-with-communities', async (request, reply) => {
+  fastify.get('/identities/all-with-communities', async (_request, _reply) => {
     const identities = await identityCommunitiesService.getAllIdentitiesWithCommunities();
     return { success: true, data: identities };
   });

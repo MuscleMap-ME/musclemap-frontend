@@ -23,7 +23,7 @@ async function tableExists(tableName: string): Promise<boolean> {
   return parseInt(result?.count || '0') > 0;
 }
 
-async function indexExists(indexName: string): Promise<boolean> {
+async function _indexExists(indexName: string): Promise<boolean> {
   const result = await db.queryOne<{ count: string }>(
     `SELECT COUNT(*) as count FROM pg_indexes WHERE indexname = $1`,
     [indexName]
@@ -391,8 +391,8 @@ export async function migrate(): Promise<void> {
           BEFORE UPDATE ON ${table}
           FOR EACH ROW EXECUTE FUNCTION update_updated_at()
         `);
-      } catch (e: any) {
-        log.debug(`Could not create trigger for ${table}`, { error: e.message });
+      } catch (_e: unknown) {
+        log.debug(`Could not create trigger for ${table}`, { error: (_e as Error).message });
       }
     }
   }
@@ -417,7 +417,7 @@ export async function migrate(): Promise<void> {
     if (await tableExists(table)) {
       try {
         await db.query(`ANALYZE ${table}`);
-      } catch (e) {
+      } catch (_e) {
         log.debug(`Could not analyze ${table}`);
       }
     }

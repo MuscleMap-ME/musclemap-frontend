@@ -96,7 +96,7 @@ export function resetAllStores() {
   const { useUIStore } = require('./uiStore');
   const { useWorkoutSessionStore } = require('./workoutSessionStore');
   const { useMuscleVisualizationStore } = require('./muscleVisualizationStore');
-  const { useAuthStore } = require('./authStore');
+  const { useAuthStore: _useAuthStore } = require('./authStore');
 
   // Clear UI state
   useUIStore.setState({

@@ -12,7 +12,6 @@ import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import {
   GlassSurface,
-  GlassCard,
   GlassButton,
   GlassNav,
   AnimatedLogo,
@@ -586,7 +585,7 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
 // ============================================
 
 export default function CareerReadiness() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'goals';
 

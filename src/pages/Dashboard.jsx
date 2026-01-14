@@ -7,14 +7,14 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import { DailyTip, MilestoneProgress } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 
 // Plugin System - Widget Slots
-import { WidgetSlot, useHasWidgets } from '../plugins';
+import { WidgetSlot } from '../plugins';
 
 // Lazy load heavy Atlas component (3D visualization)
 const DashboardAtlas = lazy(() =>
@@ -29,10 +29,8 @@ const BodyMuscleMap = lazy(() =>
 // Glass components
 import {
   GlassSurface,
-  GlassCard,
   GlassButton,
   GlassIconButton,
-  GlassProgressBar,
   GlassCircularProgress,
   GlassNav,
   GlassSidebar,
@@ -526,7 +524,7 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
 // ============================================
 // CURRENT PATH CARD (Hero Card)
 // ============================================
-const CurrentPathCard = ({ archetype, stats, wallet }) => {
+const CurrentPathCard = ({ archetype, stats, wallet: _wallet }) => {
   const arch = getArchetype(archetype);
   const xpProgress = stats?.xp ? Math.min((stats.xp % 1000) / 10, 100) : 15;
 
@@ -637,7 +635,7 @@ const ActivityItem = ({ icon: Icon, title, subtitle, time, trailing }) => (
 // ============================================
 // TODAY'S WORKOUT CARD
 // ============================================
-const TodaysWorkoutCard = ({ stats }) => {
+const TodaysWorkoutCard = ({ stats: _stats }) => {
   const muscles = [
     { muscle: 'chest', percentage: 35 },
     { muscle: 'shoulders', percentage: 25 },
@@ -649,7 +647,7 @@ const TodaysWorkoutCard = ({ stats }) => {
     <GlassSurface className="p-6" depth="medium">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-bold text-[var(--text-primary)]">Today's Focus</h3>
+          <h3 className="text-lg font-bold text-[var(--text-primary)]">Today&apos;s Focus</h3>
           <p className="text-sm text-[var(--text-tertiary)]">Push Day - Upper Body</p>
         </div>
         <Link to="/workout">
@@ -701,7 +699,7 @@ const MuscleMapCard = ({ muscleActivations }) => {
   const [selectedMuscle, setSelectedMuscle] = useState(null);
   const navigate = useNavigate();
 
-  const handleMuscleClick = (muscleId, data, event) => {
+  const handleMuscleClick = (muscleId, data, _event) => {
     setSelectedMuscle({ muscleId, ...data });
   };
 
@@ -882,12 +880,12 @@ const mobileNavItems = [
 // ============================================
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [characterStats, setCharacterStats] = useState(null);
   const [muscleActivations, setMuscleActivations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
@@ -1005,7 +1003,7 @@ export default function Dashboard() {
                 Welcome back, {user?.username || 'Athlete'}
               </h1>
               <p className="text-[var(--text-secondary)]">
-                Continue your training journey. You're doing great!
+                Continue your training journey. You&apos;re doing great!
               </p>
             </motion.div>
 

@@ -126,6 +126,7 @@ export default function SEO({
       // We don't remove meta tags on unmount to avoid flashing,
       // they'll just be updated by the next page
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullTitle, metaDescription, canonicalUrl, ogImage, type, noindex, structuredData]);
 
   // This component doesn't render anything

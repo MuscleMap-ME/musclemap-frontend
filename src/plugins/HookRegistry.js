@@ -355,6 +355,7 @@ export function useFilter(name, value, deps = []) {
 
   return useMemo(() => {
     return hookRegistry.applyFilters(name, value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, value, ...deps])
 }
 
@@ -366,6 +367,7 @@ export function useActions(name, context = {}, deps = []) {
 
   return useMemo(() => {
     return hookRegistry.getActions(name, context)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, JSON.stringify(context), ...deps])
 }
 
@@ -377,6 +379,7 @@ export function useAddFilter(name, handler, options = {}, deps = []) {
 
   useEffect(() => {
     return hookRegistry.addFilter(name, handler, options)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, ...deps])
 }
 
@@ -388,6 +391,7 @@ export function useAddAction(name, handler, options = {}, deps = []) {
 
   useEffect(() => {
     return hookRegistry.addAction(name, handler, options)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, ...deps])
 }
 

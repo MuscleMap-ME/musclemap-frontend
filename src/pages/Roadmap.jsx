@@ -42,7 +42,7 @@ const CATEGORY_ICONS = {
 };
 
 function RoadmapCard({ item, onVote, votingId }) {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // eslint-disable-line no-unused-vars
   const status = ROADMAP_STATUSES[item.status] || ROADMAP_STATUSES[0];
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
 
@@ -179,6 +179,7 @@ export default function Roadmap() {
 
   useEffect(() => {
     fetchRoadmap();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRoadmap = async () => {

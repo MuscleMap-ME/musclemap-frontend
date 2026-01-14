@@ -133,7 +133,7 @@ async function generatePrescription(
     const exercises = typeof w.exercise_data === 'string'
       ? JSON.parse(w.exercise_data || '[]')
       : (w.exercise_data || []);
-    for (const e of exercises) {
+    for (const _e of exercises) {
       // This is simplified - in reality we'd calculate actual activation
       for (const [muscleId, need] of muscleNeeds) {
         muscleNeeds.set(muscleId, Math.max(0, need - 2));

@@ -133,7 +133,7 @@ function WarCard({ war, myCrew }) {
 // MAIN CREWS PAGE
 // ============================================
 export default function Crews() {
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const [myCrew, setMyCrew] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);

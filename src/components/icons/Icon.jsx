@@ -12,7 +12,7 @@
  */
 
 import { forwardRef } from 'react';
-import { getIconSize, getIconColor, getIconWeight, iconColors } from './iconTheme';
+import { getIconSize, getIconColor, getIconWeight } from './iconTheme';
 
 // Re-export commonly used Lucide icons
 import {

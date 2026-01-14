@@ -62,8 +62,8 @@ export async function migrate(): Promise<void> {
     log.info('Creating PostGIS extension...');
     try {
       await db.query('CREATE EXTENSION IF NOT EXISTS postgis');
-    } catch (e: any) {
-      log.warn('PostGIS extension not available - geo features will be limited', { error: e.message });
+    } catch (_e: unknown) {
+      log.warn('PostGIS extension not available - geo features will be limited', { error: (_e as Error).message });
     }
   }
 
@@ -890,7 +890,7 @@ export async function migrate(): Promise<void> {
     if (await tableExists(table)) {
       try {
         await db.query(`ANALYZE ${table}`);
-      } catch (e) {
+      } catch (_e) {
         log.debug(`Could not analyze ${table}`);
       }
     }

@@ -13,7 +13,7 @@ import { authenticate, optionalAuth } from './auth';
 import { achievementService, AchievementCategory, ACHIEVEMENT_CATEGORIES } from '../../modules/achievements';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Schemas
 const achievementsQuerySchema = z.object({

@@ -25,7 +25,7 @@
 import crypto from 'crypto';
 import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
-import { rankService, RankDefinition } from './index';
+import { rankService } from './index';
 
 const log = loggers.economy;
 

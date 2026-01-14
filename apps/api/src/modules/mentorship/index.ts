@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // ============================================
 // TYPES

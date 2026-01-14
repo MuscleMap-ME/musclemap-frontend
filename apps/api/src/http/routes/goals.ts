@@ -436,7 +436,7 @@ export async function registerGoalsRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
     const { id } = request.params as { id: string };
 
-    const result = await db.query(
+    const _result = await db.query(
       `DELETE FROM user_goals WHERE id = $1 AND user_id = $2`,
       [id, userId]
     );
@@ -588,7 +588,7 @@ export async function registerGoalsRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
 
     // Get user profile for personalized suggestions
-    const profile = await db.queryOne<{
+    const _profile = await db.queryOne<{
       archetype: string | null;
       weight_lbs: number | null;
       height_cm: number | null;

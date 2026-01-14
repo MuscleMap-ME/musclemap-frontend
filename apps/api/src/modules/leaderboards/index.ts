@@ -9,7 +9,7 @@
  */
 
 import crypto from 'crypto';
-import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { getRedis, isRedisAvailable } from '../../lib/redis';
 import { loggers } from '../../lib/logger';
 import { achievementService } from '../achievements';
@@ -692,7 +692,7 @@ export const leaderboardService = {
   /**
    * Invalidate caches for specific hangouts and exercises
    */
-  async invalidateCaches(hangoutId?: number, virtualHangoutId?: number, exerciseIds?: string[]): Promise<void> {
+  async invalidateCaches(hangoutId?: number, virtualHangoutId?: number, _exerciseIds?: string[]): Promise<void> {
     if (!isRedisAvailable()) return;
 
     const redis = getRedis();

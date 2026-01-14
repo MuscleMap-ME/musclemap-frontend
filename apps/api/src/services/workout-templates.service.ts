@@ -437,7 +437,7 @@ export const WorkoutTemplatesService = {
    */
   async search(
     options: TemplateSearchOptions = {},
-    userId?: string
+    _userId?: string
   ): Promise<{ templates: WorkoutTemplate[]; total: number }> {
     const {
       search,

@@ -15,13 +15,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings,
   Package,
-  Power,
   Trash2,
   ChevronRight,
   Shield,
-  AlertTriangle,
-  Check,
-  X,
   ExternalLink,
   RefreshCw,
   Info,
@@ -249,7 +245,7 @@ export default function PluginSettings() {
   const themes = usePluginThemes();
   const setPluginEnabled = usePluginRegistryStore((s) => s.setPluginEnabled);
   const unregisterPlugin = usePluginRegistryStore((s) => s.unregisterPlugin);
-  const { success, error } = useToast();
+  const { success, error: _error } = useToast();
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); // 'all' | 'enabled' | 'disabled'

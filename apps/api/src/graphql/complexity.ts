@@ -14,20 +14,13 @@
  */
 
 import {
-  GraphQLField,
   GraphQLObjectType,
-  GraphQLList,
-  GraphQLNonNull,
   getNamedType,
   isListType,
   isNonNullType,
   isObjectType,
   GraphQLSchema,
   DocumentNode,
-  TypeInfo,
-  visit,
-  visitWithTypeInfo,
-  getVisitFn,
   OperationDefinitionNode,
   FieldNode,
   FragmentDefinitionNode,

@@ -8,7 +8,7 @@
  * - View plugin details
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,21 +21,18 @@ import {
   Settings,
   Grid,
   List,
-  Filter,
   Puzzle,
   Palette,
   LayoutDashboard,
   Plug,
-  ChevronRight,
   AlertCircle,
   Loader2,
   Github,
   RefreshCw,
 } from 'lucide-react';
-import { usePlugins, discoverPlugins, installPlugin, uninstallPlugin } from '../plugins';
-import { GlassSurface, GlassButton, GlassNav, GlassSidebar, MeshBackground } from '../components/glass';
+import { usePlugins } from '../plugins';
+import { GlassNav, MeshBackground } from '../components/glass';
 import { useToast } from '../hooks';
-import api from '../utils/api';
 
 // ============================================
 // MOCK AVAILABLE PLUGINS (Replace with API)
@@ -250,7 +247,7 @@ export default function PluginMarketplace() {
   const installedPlugins = usePlugins();
   const { success, error } = useToast();
 
-  const [availablePlugins, setAvailablePlugins] = useState(MOCK_AVAILABLE_PLUGINS);
+  const [availablePlugins] = useState(MOCK_AVAILABLE_PLUGINS);
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState(null);
   const [search, setSearch] = useState('');
@@ -325,7 +322,7 @@ export default function PluginMarketplace() {
       // Simulate refresh
       await new Promise((resolve) => setTimeout(resolve, 1000));
       success('Plugin list refreshed');
-    } catch (err) {
+    } catch (_err) {
       error('Failed to refresh plugins');
     } finally {
       setLoading(false);

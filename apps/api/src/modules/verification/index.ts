@@ -16,7 +16,6 @@ import { createWriteStream } from 'fs';
 import { queryOne, queryAll, query, transaction } from '../../db/client';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
-import { achievementService } from '../achievements';
 import cache, { CACHE_TTL, CACHE_PREFIX } from '../../lib/cache.service';
 import { VideoProcessingService } from '../../services/video-processing.service';
 import { NotificationService } from '../../services/notification.service';
@@ -27,7 +26,7 @@ const log = loggers.core;
 const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || '/var/www/musclemap.me/uploads';
 const VERIFICATION_DIR = 'verifications';
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
-const MAX_VIDEO_DURATION_SECONDS = 60;
+const _MAX_VIDEO_DURATION_SECONDS = 60;
 const MAX_PENDING_VERIFICATIONS = 3;
 const VERIFICATION_EXPIRY_DAYS = 30;
 const MIN_WITNESS_ACCOUNT_AGE_DAYS = 30;
@@ -144,7 +143,7 @@ export const verificationService = {
    * Submit a verification request with video proof
    */
   async submitVerification(params: SubmitVerificationParams): Promise<AchievementVerification> {
-    const { userId, achievementId, witnessUserId, notes, videoBuffer, videoStream, originalFilename, fileSizeBytes } =
+    const { userId, achievementId, witnessUserId, notes, videoBuffer, videoStream, originalFilename: _originalFilename, fileSizeBytes } =
       params;
 
     // Validate achievement exists and requires verification

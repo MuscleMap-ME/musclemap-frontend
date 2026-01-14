@@ -39,6 +39,7 @@ export default function Locations() {
   useEffect(() => {
     if (tab === 'nearby' && userLoc) loadNearby();
     else if (tab === 'search') loadSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, userLoc, filterType]);
 
   const loadNearby = async () => {

@@ -8,7 +8,7 @@
  * - Status badges
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -192,7 +192,7 @@ function FilterSidebar({ filters, setFilters, labels, stats }) {
           >
             All Statuses
           </button>
-          {Object.entries(ISSUE_STATUSES).map(([value, { label, color }]) => (
+          {Object.entries(ISSUE_STATUSES).map(([value, { label, color: _color }]) => (
             <button
               key={value}
               onClick={() => setFilters({ ...filters, status: parseInt(value) })}
@@ -269,9 +269,9 @@ function FilterSidebar({ filters, setFilters, labels, stats }) {
 
 export default function Issues() {
   const { token } = useAuth();
-  const { user } = useUser();
+  const { user: _user } = useUser();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, _setSearchParams] = useSearchParams();
 
   const [issues, setIssues] = useState([]);
   const [labels, setLabels] = useState([]);
@@ -305,6 +305,7 @@ export default function Issues() {
   // Fetch issues when filters change
   useEffect(() => {
     fetchIssues();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status, filters.type, filters.labelSlug, filters.search, filters.sortBy, filters.offset]);
 
   const fetchIssues = async () => {

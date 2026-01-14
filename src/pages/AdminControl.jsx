@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+// motion available for future animations
+// import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { useAuth } from '../store/authStore';
@@ -50,6 +51,7 @@ export default function AdminControl() {
   useEffect(() => {
     fetchEmergencyStatus();
     fetchSectionData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, activeSection]);
 
   const fetchEmergencyStatus = async () => {

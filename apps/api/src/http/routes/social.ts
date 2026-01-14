@@ -19,7 +19,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
   // FOLLOWS
   // ===========================================
 
-  fastify.post<{ Params: { userId: string } }>('/users/:userId/follow', async (request, reply) => {
+  fastify.post<{ Params: { userId: string } }>('/users/:userId/follow', async (request, _reply) => {
     const { userId: targetUserId } = request.params;
     const followerId = request.user!.userId;
 
@@ -27,7 +27,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: follow };
   });
 
-  fastify.delete<{ Params: { userId: string } }>('/users/:userId/follow', async (request, reply) => {
+  fastify.delete<{ Params: { userId: string } }>('/users/:userId/follow', async (request, _reply) => {
     const { userId: targetUserId } = request.params;
     const followerId = request.user!.userId;
 
@@ -35,7 +35,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true };
   });
 
-  fastify.get<{ Params: { userId: string } }>('/users/:userId/followers', async (request, reply) => {
+  fastify.get<{ Params: { userId: string } }>('/users/:userId/followers', async (request, _reply) => {
     const { userId } = request.params;
     const { limit = '50', offset = '0' } = request.query as any;
 
@@ -46,7 +46,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: result };
   });
 
-  fastify.get<{ Params: { userId: string } }>('/users/:userId/following', async (request, reply) => {
+  fastify.get<{ Params: { userId: string } }>('/users/:userId/following', async (request, _reply) => {
     const { userId } = request.params;
     const { limit = '50', offset = '0' } = request.query as any;
 
@@ -57,7 +57,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: result };
   });
 
-  fastify.get<{ Params: { userId: string } }>('/users/:userId/is-following', async (request, reply) => {
+  fastify.get<{ Params: { userId: string } }>('/users/:userId/is-following', async (request, _reply) => {
     const { userId: targetUserId } = request.params;
     const followerId = request.user!.userId;
 
@@ -71,7 +71,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { userId: string }; Body: { hangoutId?: number; communityId?: number } }>(
     '/users/:userId/friend-request',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { userId: toUserId } = request.params;
       const fromUserId = request.user!.userId;
       const { hangoutId, communityId } = request.body || {};
@@ -86,7 +86,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { friendshipId: string } }>(
     '/friend-requests/:friendshipId/accept',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { friendshipId } = request.params;
       const userId = request.user!.userId;
 
@@ -97,7 +97,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { friendshipId: string } }>(
     '/friend-requests/:friendshipId/decline',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { friendshipId } = request.params;
       const userId = request.user!.userId;
 
@@ -106,13 +106,13 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/friend-requests', async (request, reply) => {
+  fastify.get('/friend-requests', async (request, _reply) => {
     const userId = request.user!.userId;
     const requests = await socialService.getPendingFriendRequests(userId);
     return { success: true, data: requests };
   });
 
-  fastify.get('/friends', async (request, reply) => {
+  fastify.get('/friends', async (request, _reply) => {
     const userId = request.user!.userId;
     const { limit = '50', offset = '0' } = request.query as any;
 
@@ -123,7 +123,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: result };
   });
 
-  fastify.delete<{ Params: { friendId: string } }>('/friends/:friendId', async (request, reply) => {
+  fastify.delete<{ Params: { friendId: string } }>('/friends/:friendId', async (request, _reply) => {
     const { friendId } = request.params;
     const userId = request.user!.userId;
 
@@ -131,7 +131,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true };
   });
 
-  fastify.post<{ Params: { userId: string } }>('/users/:userId/block', async (request, reply) => {
+  fastify.post<{ Params: { userId: string } }>('/users/:userId/block', async (request, _reply) => {
     const { userId: blockedUserId } = request.params;
     const userId = request.user!.userId;
 
@@ -143,19 +143,19 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
   // BUDDY MATCHING
   // ===========================================
 
-  fastify.get('/buddy/preferences', async (request, reply) => {
+  fastify.get('/buddy/preferences', async (request, _reply) => {
     const userId = request.user!.userId;
     const prefs = await socialService.getBuddyPreferences(userId);
     return { success: true, data: prefs };
   });
 
-  fastify.put('/buddy/preferences', async (request, reply) => {
+  fastify.put('/buddy/preferences', async (request, _reply) => {
     const userId = request.user!.userId;
     const prefs = await socialService.updateBuddyPreferences(userId, request.body as any);
     return { success: true, data: prefs };
   });
 
-  fastify.get('/buddy/matches', async (request, reply) => {
+  fastify.get('/buddy/matches', async (request, _reply) => {
     const userId = request.user!.userId;
     const { limit = '20' } = request.query as any;
 
@@ -165,7 +165,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { userId: string }; Body: { message?: string } }>(
     '/users/:userId/buddy-request',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { userId: receiverId } = request.params;
       const senderId = request.user!.userId;
       const { message } = request.body || {};
@@ -175,7 +175,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/buddy/requests', async (request, reply) => {
+  fastify.get('/buddy/requests', async (request, _reply) => {
     const userId = request.user!.userId;
     const requests = await socialService.getPendingBuddyRequests(userId);
     return { success: true, data: requests };
@@ -183,7 +183,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { requestId: string } }>(
     '/buddy/requests/:requestId/accept',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { requestId } = request.params;
       const userId = request.user!.userId;
 
@@ -194,7 +194,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { requestId: string } }>(
     '/buddy/requests/:requestId/decline',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { requestId } = request.params;
       const userId = request.user!.userId;
 
@@ -203,7 +203,7 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/buddy/pairs', async (request, reply) => {
+  fastify.get('/buddy/pairs', async (request, _reply) => {
     const userId = request.user!.userId;
     const pairs = await socialService.getBuddyPairs(userId);
     return { success: true, data: pairs };

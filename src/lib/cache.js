@@ -203,7 +203,7 @@ class LocalStorageCache {
     try {
       localStorage.removeItem(this._key(key));
       return true;
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -366,7 +366,7 @@ class IndexedDBCache {
         request.onsuccess = () => resolve(true);
         request.onerror = () => resolve(false);
       });
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -383,7 +383,7 @@ class IndexedDBCache {
         request.onsuccess = () => resolve(true);
         request.onerror = () => resolve(false);
       });
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }

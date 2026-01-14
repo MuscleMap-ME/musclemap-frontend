@@ -8,11 +8,11 @@
  * - Bounding box queries
  */
 
-import { queryOne, queryAll, query } from '../db/client';
+import { queryOne, queryAll } from '../db/client';
 import { loggers } from '../lib/logger';
 import cacheService, { CACHE_TTL, CACHE_PREFIX } from '../lib/cache.service';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Import geohash utilities (pure JS fallback)
 import { geohash, distance } from '@musclemap/native';

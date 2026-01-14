@@ -11,10 +11,7 @@ import {
   GlassSurface,
   GlassCard,
   GlassButton,
-  GlassProgressBar,
   MeshBackground,
-  MuscleIndicator,
-  MuscleActivationBar,
 } from '../components/glass';
 
 // VGA-style color palette

@@ -7,7 +7,7 @@
 
 import { db } from '../db/client';
 import { loggers } from '../lib/logger';
-import cache, { CACHE_TTL, CACHE_PREFIX, CacheInvalidation } from '../lib/cache.service';
+import cache, { CACHE_TTL, CACHE_PREFIX } from '../lib/cache.service';
 
 const log = loggers.core;
 

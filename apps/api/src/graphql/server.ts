@@ -16,7 +16,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
 import { createLoaders, type Loaders } from './loaders';
-import { createComplexityLimitRule, getComplexityLimit } from './complexity';
+import { createComplexityLimitRule } from './complexity';
 import { loggers } from '../lib/logger';
 
 const log = loggers.core;
@@ -124,7 +124,7 @@ export async function createGraphQLServer(
       // Limit query complexity to prevent resource exhaustion
       createComplexityLimitRule(maxComplexity),
     ],
-    formatError: (formattedError, error) => {
+    formatError: (formattedError, _error) => {
       // Log error details
       log.error({ error: formattedError }, 'GraphQL error');
 
@@ -301,11 +301,11 @@ export function createSubscriptionHandler(
   return {
     schema,
     context: contextFactory,
-    onConnect: async (ctx: any) => {
+    onConnect: async (_ctx: unknown) => {
       log.debug('Subscription connection opened');
       return true;
     },
-    onDisconnect: async (ctx: any) => {
+    onDisconnect: async (_ctx: unknown) => {
       log.debug('Subscription connection closed');
     },
     onSubscribe: async (ctx: any, message: any) => {

@@ -5,7 +5,7 @@
  * Time window, muscle group, and event type filters.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Clock, Filter, Dumbbell, Zap, ChevronDown } from 'lucide-react';
 
 const TIME_WINDOWS = [

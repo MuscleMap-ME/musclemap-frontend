@@ -10,17 +10,17 @@
  */
 
 import crypto from 'crypto';
-import { db, queryOne, queryAll, query, serializableTransaction } from '../../db/client';
+import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
 import { getRedis, isRedisAvailable } from '../../lib/redis';
 import { ValidationError, NotFoundError, ForbiddenError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
-import { creditService, CreditReason, RefType } from './credit.service';
+import { creditService } from './credit.service';
 import { antiabuseService } from './antiabuse.service';
 
 const log = loggers.economy;
 
 // Cache settings
-const BALANCE_CACHE_TTL = 60;
+const _BALANCE_CACHE_TTL = 60;
 const BALANCE_CACHE_PREFIX = 'balance:';
 
 export interface WalletDetails {

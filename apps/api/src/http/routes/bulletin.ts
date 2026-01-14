@@ -10,7 +10,7 @@ import { authenticate, optionalAuth } from './auth';
 import { bulletinService } from '../../modules/community/bulletin.service';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.core;
+const _log = loggers.core;
 
 // Schemas
 const voteSchema = z.object({

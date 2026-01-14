@@ -23,9 +23,7 @@ import {
   Gauge,
   MemoryStick,
   RefreshCw,
-  Server,
   Timer,
-  Wifi,
   XCircle,
   Zap,
 } from 'lucide-react';

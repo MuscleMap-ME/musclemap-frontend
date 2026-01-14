@@ -136,7 +136,7 @@ export function requireRole(role: 'admin' | 'moderator') {
 /**
  * Optional authentication - doesn't fail if no token
  */
-export async function optionalAuth(request: FastifyRequest, reply: FastifyReply) {
+export async function optionalAuth(request: FastifyRequest, _reply: FastifyReply) {
   const authHeader = request.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {

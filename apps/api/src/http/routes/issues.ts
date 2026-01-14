@@ -15,9 +15,6 @@ import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import {
   issuesService,
-  IssueType,
-  IssueStatus,
-  IssuePriority,
   UpdateType,
   RoadmapStatus,
 } from '../../services/issues.service';

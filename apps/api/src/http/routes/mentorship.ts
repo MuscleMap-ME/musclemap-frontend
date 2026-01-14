@@ -19,7 +19,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
   // MENTOR PROFILES
   // ===========================================
 
-  fastify.get('/mentors', async (request, reply) => {
+  fastify.get('/mentors', async (request, _reply) => {
     const { specialties, minRating, isPro, maxHourlyRate, limit = '20', offset = '0' } = request.query as any;
 
     const result = await mentorshipService.searchMentors({
@@ -44,7 +44,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, data: profile };
   });
 
-  fastify.put('/mentor/profile', async (request, reply) => {
+  fastify.put('/mentor/profile', async (request, _reply) => {
     const userId = request.user!.userId;
     const profile = await mentorshipService.upsertMentorProfile(userId, request.body as any);
     return { success: true, data: profile };
@@ -56,7 +56,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { mentorId: string }; Body: { focusAreas?: string[]; goals?: string } }>(
     '/mentors/:mentorId/request',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorId } = request.params;
       const menteeId = request.user!.userId;
       const { focusAreas, goals } = request.body || {};
@@ -69,7 +69,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/mentorship/requests', async (request, reply) => {
+  fastify.get('/mentorship/requests', async (request, _reply) => {
     const mentorId = request.user!.userId;
     const requests = await mentorshipService.getPendingRequests(mentorId);
     return { success: true, data: requests };
@@ -77,7 +77,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { mentorshipId: string } }>(
     '/mentorships/:mentorshipId/accept',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorshipId } = request.params;
       const mentorId = request.user!.userId;
 
@@ -88,7 +88,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { mentorshipId: string } }>(
     '/mentorships/:mentorshipId/decline',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorshipId } = request.params;
       const mentorId = request.user!.userId;
 
@@ -97,13 +97,13 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/mentorships/active', async (request, reply) => {
+  fastify.get('/mentorships/active', async (request, _reply) => {
     const userId = request.user!.userId;
     const mentorships = await mentorshipService.getActiveMentorships(userId);
     return { success: true, data: mentorships };
   });
 
-  fastify.get('/mentorships/history', async (request, reply) => {
+  fastify.get('/mentorships/history', async (request, _reply) => {
     const userId = request.user!.userId;
     const { limit = '20', offset = '0' } = request.query as any;
 
@@ -116,7 +116,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { mentorshipId: string }; Body: { rating: number; comment?: string } }>(
     '/mentorships/:mentorshipId/complete',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorshipId } = request.params;
       const userId = request.user!.userId;
       const { rating, comment } = request.body;
@@ -128,7 +128,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { mentorshipId: string } }>(
     '/mentorships/:mentorshipId/cancel',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorshipId } = request.params;
       const userId = request.user!.userId;
 
@@ -150,7 +150,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
       nextSteps?: string;
       scheduledFor?: string;
     };
-  }>('/mentorships/:mentorshipId/check-ins', async (request, reply) => {
+  }>('/mentorships/:mentorshipId/check-ins', async (request, _reply) => {
     const { mentorshipId } = request.params;
     const userId = request.user!.userId;
     const { notes, mood, progressUpdate, nextSteps, scheduledFor } = request.body || {};
@@ -167,7 +167,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { mentorshipId: string } }>(
     '/mentorships/:mentorshipId/check-ins',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { mentorshipId } = request.params;
       const { limit = '20', offset = '0' } = request.query as any;
 
@@ -181,7 +181,7 @@ const mentorshipRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { checkInId: string } }>(
     '/check-ins/:checkInId/complete',
-    async (request, reply) => {
+    async (request, _reply) => {
       const { checkInId } = request.params;
       const userId = request.user!.userId;
 

@@ -5,7 +5,7 @@
  * URL: https://musclemap.me/privacy
  */
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 
 const PRIVACY_POLICY = `# MuscleMap Privacy Policy
