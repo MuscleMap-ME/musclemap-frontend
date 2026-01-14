@@ -16,6 +16,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
 import { createLoaders, type Loaders } from './loaders';
+import { createComplexityLimitRule, getComplexityLimit } from './complexity';
 import { loggers } from '../lib/logger';
 
 const log = loggers.core;
@@ -58,6 +59,11 @@ interface ServerConfig {
   maxDepth?: number;
 
   /**
+   * Maximum query complexity (default: 500 for authenticated, 100 for anonymous).
+   */
+  maxComplexity?: number;
+
+  /**
    * Enable introspection (default: false in production).
    */
   introspection?: boolean;
@@ -87,6 +93,7 @@ export async function createGraphQLServer(
 ): Promise<ApolloServer<GraphQLContext>> {
   const {
     maxDepth = 10,
+    maxComplexity = 500,
     introspection = process.env.NODE_ENV !== 'production',
     debug = process.env.NODE_ENV !== 'production',
     fastify,
@@ -106,12 +113,17 @@ export async function createGraphQLServer(
     plugins.push(fastifyApolloDrainPlugin(fastify));
   }
 
-  // Create Apollo Server
+  // Create Apollo Server with depth and complexity limits
   const server = new ApolloServer<GraphQLContext>({
     schema,
     introspection,
     plugins,
-    validationRules: [depthLimit(maxDepth, { ignore: ['__schema', '__type'] })],
+    validationRules: [
+      // Limit query depth to prevent deeply nested queries
+      depthLimit(maxDepth, { ignore: ['__schema', '__type'] }),
+      // Limit query complexity to prevent resource exhaustion
+      createComplexityLimitRule(maxComplexity),
+    ],
     formatError: (formattedError, error) => {
       // Log error details
       log.error({ error: formattedError }, 'GraphQL error');
@@ -133,7 +145,7 @@ export async function createGraphQLServer(
   });
 
   await server.start();
-  log.info({ introspection, maxDepth }, 'GraphQL server started');
+  log.info({ introspection, maxDepth, maxComplexity }, 'GraphQL server started');
 
   apolloServer = server;
   return server;

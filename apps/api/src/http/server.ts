@@ -77,6 +77,9 @@ import { registerGraphQLRoutes } from '../graphql/server';
 // Security middleware
 import { registerSecurityMiddleware } from '../middleware/security';
 
+// Metrics
+import { registerMetricsRoutes } from '../lib/metrics';
+
 const log = loggers.http;
 
 /**
@@ -280,6 +283,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Register security middleware
   registerSecurityMiddleware(app);
+
+  // Register metrics routes (/metrics endpoint)
+  await registerMetricsRoutes(app);
 
   // Initialize PubSub for GraphQL subscriptions
   await initializePubSub();
