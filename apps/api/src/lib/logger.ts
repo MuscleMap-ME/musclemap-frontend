@@ -38,4 +38,7 @@ export const loggers = {
   plugins: logger.child({ module: 'plugins' }),
   core: logger.child({ module: 'core' }),
   prescription: logger.child({ module: 'prescription' }),
+  api: logger.child({ module: 'api' }),
+  social: logger.child({ module: 'social' }),
+  nutrition: logger.child({ module: 'nutrition' }),
 };

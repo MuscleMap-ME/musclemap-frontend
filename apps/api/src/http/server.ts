@@ -77,6 +77,12 @@ import { registerProgressionRoutes } from './routes/progression';
 import { registerCrewsRoutes } from '../modules/crews';
 import { registerRivalsRoutes } from './routes/rivals';
 import { registerTestScorecardRoutes } from './routes/test-scorecard';
+import bodyMeasurementsRoutes from './routes/body-measurements';
+import progressPhotosRoutes from './routes/progress-photos';
+import volumeStatsRoutes from './routes/volume-stats';
+import nutritionRoutes from './routes/nutrition';
+import economyEnhancedRoutes from './routes/economyEnhanced';
+import { registerOrganizationsRoutes } from './routes/organizations';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -361,6 +367,20 @@ export async function createServer(): Promise<FastifyInstance> {
     registerCrewsRoutes(api);
     await registerRivalsRoutes(api);
     await registerTestScorecardRoutes(api);
+
+    // Enhanced workout tracking routes (Phase A features)
+    await api.register(bodyMeasurementsRoutes);
+    await api.register(progressPhotosRoutes);
+    await api.register(volumeStatsRoutes);
+
+    // Nutrition system
+    await api.register(nutritionRoutes);
+
+    // Enhanced economy features (earn events, geo hangouts, payments, social spending)
+    await api.register(economyEnhancedRoutes, { prefix: '/economy' });
+
+    // Enterprise organizations
+    await registerOrganizationsRoutes(api);
   }, { prefix: '/api' });
 
   return app;

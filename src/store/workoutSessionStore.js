@@ -4,6 +4,13 @@
  * Manages real-time workout tracking state. Uses selector-based subscriptions
  * so timer updates don't re-render components that only display exercise info.
  *
+ * Features:
+ * - Set logging with RPE, RIR, and set tags (warmup, working, failure, drop)
+ * - 1RM estimation using multiple formulas (Epley, Brzycki, Lombardi)
+ * - Rest timer with customizable presets and per-exercise defaults
+ * - PR detection and notifications
+ * - Volume and metrics tracking
+ *
  * @example
  * // Only re-renders when rest timer changes
  * const restTimer = useWorkoutSession((s) => s.restTimer);
@@ -13,14 +20,76 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { subscribeWithSelector, persist } from 'zustand/middleware';
+
+// ============================================
+// 1RM ESTIMATION FORMULAS
+// ============================================
+
+/**
+ * Calculate estimated 1RM using multiple formulas
+ * Returns average of reliable formulas for accuracy
+ */
+export const calculate1RM = (weight, reps) => {
+  if (!weight || !reps || reps < 1 || weight <= 0) return 0;
+  if (reps === 1) return weight;
+  if (reps > 15) return null; // Too many reps for accurate estimation
+
+  // Epley formula: weight × (1 + reps/30)
+  const epley = weight * (1 + reps / 30);
+
+  // Brzycki formula: weight × (36 / (37 - reps))
+  const brzycki = weight * (36 / (37 - reps));
+
+  // Lombardi formula: weight × reps^0.10
+  const lombardi = weight * Math.pow(reps, 0.10);
+
+  // Average the formulas for more accuracy
+  const average = (epley + brzycki + lombardi) / 3;
+
+  return Math.round(average * 10) / 10; // Round to 1 decimal
+};
+
+/**
+ * Calculate percentage of 1RM
+ */
+export const get1RMPercentage = (weight, estimated1RM) => {
+  if (!estimated1RM || estimated1RM <= 0) return 0;
+  return Math.round((weight / estimated1RM) * 100);
+};
+
+// ============================================
+// SET TAG TYPES
+// ============================================
+export const SET_TAGS = {
+  WARMUP: 'warmup',
+  WORKING: 'working',
+  FAILURE: 'failure',
+  DROP: 'drop',
+  CLUSTER: 'cluster',
+  AMRAP: 'amrap',
+};
+
+// ============================================
+// REST TIMER PRESETS
+// ============================================
+export const REST_PRESETS = [
+  { label: '30s', seconds: 30, description: 'Short rest (endurance/circuits)' },
+  { label: '60s', seconds: 60, description: 'Moderate rest (hypertrophy)' },
+  { label: '90s', seconds: 90, description: 'Standard rest (general training)' },
+  { label: '2m', seconds: 120, description: 'Extended rest (strength)' },
+  { label: '3m', seconds: 180, description: 'Long rest (heavy compounds)' },
+  { label: '5m', seconds: 300, description: 'Full recovery (max strength/powerlifting)' },
+];
 
 /**
  * Workout Session Store
  * Handles active workout state with real-time updates
  */
 export const useWorkoutSessionStore = create(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector(
+    persist(
+      (set, get) => ({
     // ============================================
     // SESSION STATE
     // ============================================
@@ -52,6 +121,7 @@ export const useWorkoutSessionStore = create(
     restTimerActive: false,
     defaultRestDuration: 90, // seconds
     restTimerInterval: null,
+    exerciseRestDefaults: {}, // { exerciseId: seconds }
 
     // ============================================
     // WORKOUT METRICS
@@ -60,6 +130,12 @@ export const useWorkoutSessionStore = create(
     totalReps: 0,
     estimatedCalories: 0,
     musclesWorked: new Set(),
+
+    // ============================================
+    // PERSONAL RECORDS (in-session tracking)
+    // ============================================
+    sessionPRs: [], // PRs achieved during this session
+    exerciseHistory: {}, // { exerciseId: { best1RM, bestWeight, bestVolume } }
 
     // ============================================
     // SESSION ACTIONS
@@ -161,10 +237,13 @@ export const useWorkoutSessionStore = create(
     },
 
     // ============================================
-    // SET LOGGING
+    // SET LOGGING (Enhanced with tags, RIR, 1RM, PR detection)
     // ============================================
-    logSet: ({ weight, reps, rpe, notes }) => {
-      const { currentExercise, sets, totalVolume, totalReps, musclesWorked } = get();
+    logSet: ({ weight, reps, rpe, rir, tag, notes }) => {
+      const { currentExercise, sets, totalVolume, totalReps, musclesWorked, sessionPRs, exerciseHistory } = get();
+
+      // Calculate estimated 1RM for this set
+      const estimated1RM = calculate1RM(weight, reps);
 
       const newSet = {
         id: `set_${Date.now()}`,
@@ -172,8 +251,11 @@ export const useWorkoutSessionStore = create(
         exerciseName: currentExercise?.name,
         weight: weight || 0,
         reps: reps || 0,
-        rpe: rpe || null,
+        rpe: rpe || null, // Rate of Perceived Exertion (1-10)
+        rir: rir !== undefined ? rir : null, // Reps in Reserve (0-5+)
+        tag: tag || SET_TAGS.WORKING, // Set type tag
         notes: notes || '',
+        estimated1RM: estimated1RM,
         timestamp: Date.now(),
       };
 
@@ -187,17 +269,45 @@ export const useWorkoutSessionStore = create(
         currentExercise.secondaryMuscles.forEach((m) => newMusclesWorked.add(m));
       }
 
+      // PR Detection - check if this set beats previous bests
+      const exerciseId = currentExercise?.id;
+      const prevHistory = exerciseHistory[exerciseId] || { best1RM: 0, bestWeight: 0, bestVolume: 0 };
+      const newPRs = [];
+      const updatedHistory = { ...prevHistory };
+
+      // Check for weight PR (only for working sets, not warmups)
+      if (tag !== SET_TAGS.WARMUP && weight > prevHistory.bestWeight) {
+        newPRs.push({ type: 'weight', exerciseId, exerciseName: currentExercise?.name, value: weight, previous: prevHistory.bestWeight });
+        updatedHistory.bestWeight = weight;
+      }
+
+      // Check for 1RM PR
+      if (estimated1RM && estimated1RM > prevHistory.best1RM) {
+        newPRs.push({ type: '1rm', exerciseId, exerciseName: currentExercise?.name, value: estimated1RM, previous: prevHistory.best1RM });
+        updatedHistory.best1RM = estimated1RM;
+      }
+
+      // Check for volume PR (single set)
+      if (tag !== SET_TAGS.WARMUP && setVolume > prevHistory.bestVolume) {
+        newPRs.push({ type: 'volume', exerciseId, exerciseName: currentExercise?.name, value: setVolume, previous: prevHistory.bestVolume });
+        updatedHistory.bestVolume = setVolume;
+      }
+
       set({
         sets: [...sets, newSet],
         currentSetIndex: sets.filter((s) => s.exerciseId === currentExercise?.id).length + 1,
         totalVolume: totalVolume + setVolume,
         totalReps: totalReps + newSet.reps,
         musclesWorked: newMusclesWorked,
-        // Estimate calories: ~0.05 cal per pound lifted per rep (rough estimate)
         estimatedCalories: get().estimatedCalories + Math.round(setVolume * 0.002),
+        sessionPRs: [...sessionPRs, ...newPRs],
+        exerciseHistory: {
+          ...exerciseHistory,
+          [exerciseId]: updatedHistory,
+        },
       });
 
-      return newSet;
+      return { set: newSet, prs: newPRs };
     },
 
     updateSet: (setId, updates) => {
@@ -225,17 +335,19 @@ export const useWorkoutSessionStore = create(
     },
 
     // ============================================
-    // REST TIMER
+    // REST TIMER (Enhanced with presets and per-exercise defaults)
     // ============================================
     startRestTimer: (duration) => {
-      const { restTimerInterval, defaultRestDuration } = get();
+      const { restTimerInterval, defaultRestDuration, exerciseRestDefaults, currentExercise } = get();
 
       // Clear existing timer
       if (restTimerInterval) {
         clearInterval(restTimerInterval);
       }
 
-      const timerDuration = duration || defaultRestDuration;
+      // Priority: explicit duration > exercise default > global default
+      const exerciseDefault = currentExercise?.id ? exerciseRestDefaults[currentExercise.id] : null;
+      const timerDuration = duration || exerciseDefault || defaultRestDuration;
       set({ restTimer: timerDuration, restTimerActive: true });
 
       const interval = setInterval(() => {
@@ -250,6 +362,14 @@ export const useWorkoutSessionStore = create(
       }, 1000);
 
       set({ restTimerInterval: interval });
+    },
+
+    // Start timer with a preset
+    startRestTimerWithPreset: (presetIndex) => {
+      const preset = REST_PRESETS[presetIndex];
+      if (preset) {
+        get().startRestTimer(preset.seconds);
+      }
     },
 
     stopRestTimer: () => {
@@ -270,6 +390,22 @@ export const useWorkoutSessionStore = create(
       set({ defaultRestDuration: duration });
     },
 
+    // Set per-exercise rest duration default
+    setExerciseRestDefault: (exerciseId, duration) => {
+      set((s) => ({
+        exerciseRestDefaults: {
+          ...s.exerciseRestDefaults,
+          [exerciseId]: duration,
+        },
+      }));
+    },
+
+    // Get rest duration for an exercise (uses exercise default or global default)
+    getRestDurationForExercise: (exerciseId) => {
+      const { exerciseRestDefaults, defaultRestDuration } = get();
+      return exerciseRestDefaults[exerciseId] || defaultRestDuration;
+    },
+
     // ============================================
     // COMPUTED VALUES
     // ============================================
@@ -282,6 +418,13 @@ export const useWorkoutSessionStore = create(
 
     getSessionSummary: () => {
       const state = get();
+      // Calculate best estimated 1RM per exercise
+      const exerciseBest1RMs = {};
+      state.sets.forEach((s) => {
+        if (s.estimated1RM && (!exerciseBest1RMs[s.exerciseId] || s.estimated1RM > exerciseBest1RMs[s.exerciseId])) {
+          exerciseBest1RMs[s.exerciseId] = s.estimated1RM;
+        }
+      });
       return {
         sessionId: state.sessionId,
         duration: state.getSessionDuration(),
@@ -292,6 +435,8 @@ export const useWorkoutSessionStore = create(
         exercisesCompleted: new Set(state.sets.map((s) => s.exerciseId)).size,
         musclesWorked: Array.from(state.musclesWorked),
         sets: state.sets,
+        sessionPRs: state.sessionPRs,
+        exerciseBest1RMs,
       };
     },
 
@@ -304,7 +449,32 @@ export const useWorkoutSessionStore = create(
         percentage: Math.min(100, (exerciseSets.length / targetSets) * 100),
       };
     },
-  }))
+
+    // Get all PRs achieved in this session
+    getSessionPRs: () => {
+      return get().sessionPRs;
+    },
+
+    // Get exercise history (best lifts)
+    getExerciseHistory: (exerciseId) => {
+      return get().exerciseHistory[exerciseId] || { best1RM: 0, bestWeight: 0, bestVolume: 0 };
+    },
+
+    // Load exercise history from server (call on session start)
+    loadExerciseHistory: (history) => {
+      set({ exerciseHistory: history });
+    },
+  }),
+  {
+    name: 'musclemap-workout-session',
+    partialize: (state) => ({
+      // Only persist user preferences, not session state
+      defaultRestDuration: state.defaultRestDuration,
+      exerciseRestDefaults: state.exerciseRestDefaults,
+      exerciseHistory: state.exerciseHistory,
+    }),
+  }
+)
 );
 
 /**
@@ -313,16 +483,25 @@ export const useWorkoutSessionStore = create(
 export const useRestTimer = () => {
   const restTimer = useWorkoutSessionStore((s) => s.restTimer);
   const restTimerActive = useWorkoutSessionStore((s) => s.restTimerActive);
+  const defaultRestDuration = useWorkoutSessionStore((s) => s.defaultRestDuration);
   const startRestTimer = useWorkoutSessionStore((s) => s.startRestTimer);
+  const startRestTimerWithPreset = useWorkoutSessionStore((s) => s.startRestTimerWithPreset);
   const stopRestTimer = useWorkoutSessionStore((s) => s.stopRestTimer);
   const adjustRestTimer = useWorkoutSessionStore((s) => s.adjustRestTimer);
+  const setDefaultRestDuration = useWorkoutSessionStore((s) => s.setDefaultRestDuration);
+  const setExerciseRestDefault = useWorkoutSessionStore((s) => s.setExerciseRestDefault);
 
   return {
     time: restTimer,
     isActive: restTimerActive,
+    defaultDuration: defaultRestDuration,
+    presets: REST_PRESETS,
     start: startRestTimer,
+    startWithPreset: startRestTimerWithPreset,
     stop: stopRestTimer,
     adjust: adjustRestTimer,
+    setDefault: setDefaultRestDuration,
+    setExerciseDefault: setExerciseRestDefault,
     formatted: `${Math.floor(restTimer / 60)}:${(restTimer % 60).toString().padStart(2, '0')}`,
   };
 };
@@ -362,6 +541,83 @@ export const useCurrentExercise = () => {
     next: nextExercise,
     previous: previousExercise,
     sets: getCurrentExerciseSets(),
+  };
+};
+
+/**
+ * Hook for accessing session PRs and exercise history
+ */
+export const useSessionPRs = () => {
+  const sessionPRs = useWorkoutSessionStore((s) => s.sessionPRs);
+  const getSessionPRs = useWorkoutSessionStore((s) => s.getSessionPRs);
+  const getExerciseHistory = useWorkoutSessionStore((s) => s.getExerciseHistory);
+  const loadExerciseHistory = useWorkoutSessionStore((s) => s.loadExerciseHistory);
+
+  return {
+    prs: sessionPRs,
+    hasPRs: sessionPRs.length > 0,
+    prCount: sessionPRs.length,
+    getAll: getSessionPRs,
+    getExerciseHistory,
+    loadHistory: loadExerciseHistory,
+  };
+};
+
+/**
+ * Hook for 1RM calculations and percentage-based training
+ */
+export const use1RM = () => {
+  const exerciseHistory = useWorkoutSessionStore((s) => s.exerciseHistory);
+
+  return {
+    calculate: calculate1RM,
+    getPercentage: get1RMPercentage,
+    getBestForExercise: (exerciseId) => exerciseHistory[exerciseId]?.best1RM || 0,
+    // Get suggested weight for target reps based on 1RM
+    getSuggestedWeight: (exerciseId, targetReps, targetPercentage = null) => {
+      const best1RM = exerciseHistory[exerciseId]?.best1RM;
+      if (!best1RM) return null;
+
+      if (targetPercentage) {
+        // User wants specific percentage of 1RM
+        return Math.round(best1RM * (targetPercentage / 100));
+      }
+
+      // Calculate based on rep range (rough percentages)
+      // 1 rep = 100%, 5 reps = 87%, 8 reps = 80%, 10 reps = 75%, 12 reps = 70%
+      const repPercentages = { 1: 100, 2: 95, 3: 93, 4: 90, 5: 87, 6: 85, 8: 80, 10: 75, 12: 70, 15: 65 };
+      const percentage = repPercentages[targetReps] || (100 - (targetReps * 2.5));
+      return Math.round(best1RM * (percentage / 100));
+    },
+  };
+};
+
+/**
+ * Hook for set logging with tags
+ */
+export const useSetLogging = () => {
+  const logSet = useWorkoutSessionStore((s) => s.logSet);
+  const updateSet = useWorkoutSessionStore((s) => s.updateSet);
+  const deleteSet = useWorkoutSessionStore((s) => s.deleteSet);
+  const sets = useWorkoutSessionStore((s) => s.sets);
+
+  return {
+    log: logSet,
+    update: updateSet,
+    remove: deleteSet,
+    sets,
+    tags: SET_TAGS,
+    // Count sets by tag for current exercise
+    getTagCounts: (exerciseId) => {
+      const exerciseSets = sets.filter((s) => s.exerciseId === exerciseId);
+      return {
+        warmup: exerciseSets.filter((s) => s.tag === SET_TAGS.WARMUP).length,
+        working: exerciseSets.filter((s) => s.tag === SET_TAGS.WORKING).length,
+        failure: exerciseSets.filter((s) => s.tag === SET_TAGS.FAILURE).length,
+        drop: exerciseSets.filter((s) => s.tag === SET_TAGS.DROP).length,
+        total: exerciseSets.length,
+      };
+    },
   };
 };
 
