@@ -47,6 +47,7 @@ musclemap.me/
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
 │   ├── CODING-STYLE-GUIDE.md
+│   ├── CODING-STYLE-IMPLEMENTATION-PLAN.md
 │   ├── COMPETITOR-FEATURE-ANALYSIS.md
 │   ├── CONTRIBUTING.md
 │   ├── CREDITS_ECONOMY.md
