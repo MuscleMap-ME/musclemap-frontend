@@ -586,34 +586,7 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
     return reply.send({ data: { leaderboard } });
   });
 
-  /**
-   * GET /archetypes/categories
-   * Get archetype categories
-   */
-  app.get('/archetypes/categories', { preHandler: authenticate }, async (request, reply) => {
-    const categories = await db.queryAll<{
-      id: string;
-      name: string;
-      description: string | null;
-      icon: string | null;
-      display_order: number;
-    }>(
-      `SELECT id, name, description, icon, display_order
-       FROM archetype_categories
-       ORDER BY display_order`
-    );
-
-    return reply.send({
-      data: {
-        categories: categories.map(c => ({
-          id: c.id,
-          name: c.name,
-          description: c.description,
-          icon: c.icon,
-        })),
-      },
-    });
-  });
+  // Note: GET /archetypes/categories is already defined in journey.ts
 
   /**
    * GET /archetypes/by-category/:categoryId

@@ -421,7 +421,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (527 total)
+## API Endpoints (526 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -476,7 +476,6 @@ Components are organized by feature:
 | GET | `/archetypes/by-category/:categoryId` | journey |
 | GET | `/archetypes/by-category/:categoryId` | pt-tests |
 | GET | `/archetypes/categories` | journey |
-| GET | `/archetypes/categories` | pt-tests |
 | GET | `/archetypes/communities` | archetype-communities |
 | POST | `/archetypes/select` | journey |
 | POST | `/auth/login` | auth |

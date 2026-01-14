@@ -253,7 +253,6 @@ Authorization: Bearer <token>
 | Method | Endpoint | Auth Required |
 |--------|----------|---------------|
 | `GET` | `/archetypes/by-category/:categoryId` | Yes |
-| `GET` | `/archetypes/categories` | Yes |
 | `GET` | `/pt-tests` | Yes |
 | `GET` | `/pt-tests/:id` | Yes |
 | `GET` | `/pt-tests/leaderboard/:testId` | Yes |
