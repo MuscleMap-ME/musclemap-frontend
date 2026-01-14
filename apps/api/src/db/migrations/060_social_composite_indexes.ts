@@ -140,13 +140,19 @@ export async function up(): Promise<void> {
        INCLUDE (user_id)`
     );
 
-    // Active members only (exclude left/kicked)
-    await createIndexIfNotExists(
-      'idx_crew_members_active',
-      `CREATE INDEX idx_crew_members_active
-       ON crew_members(crew_id, user_id)
-       WHERE left_at IS NULL`
+    // Active members only (exclude left/kicked) - only if left_at column exists
+    const hasLeftAt = await db.queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM information_schema.columns
+       WHERE table_name = 'crew_members' AND column_name = 'left_at'`
     );
+    if (parseInt(hasLeftAt?.count || '0') > 0) {
+      await createIndexIfNotExists(
+        'idx_crew_members_active',
+        `CREATE INDEX idx_crew_members_active
+         ON crew_members(crew_id, user_id)
+         WHERE left_at IS NULL`
+      );
+    }
   }
 
   // ============================================
