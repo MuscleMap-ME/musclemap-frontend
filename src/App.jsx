@@ -83,6 +83,7 @@ const Roadmap = lazy(() => import('./pages/Roadmap'));
 const AdminControl = lazy(() => import('./pages/AdminControl'));
 const AdminIssues = lazy(() => import('./pages/AdminIssues'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
+const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 
 // Plugin pages
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
@@ -444,6 +445,7 @@ function AppRoutes() {
           <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
           <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
+          <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
 
           {/* Plugin routes */}
           <Route path="/plugins" element={<ProtectedRoute name="PluginMarketplace"><PluginMarketplace /></ProtectedRoute>} />

@@ -30,6 +30,8 @@ const sections = [
   { id: 'groups', label: 'Groups', icon: Icons.Group },
   { id: 'credits', label: 'Credits', icon: Icons.Credit },
   { id: 'issues', label: 'Issues', icon: Icons.Alert, link: '/admin/issues' },
+  { id: 'metrics', label: 'Metrics', icon: Icons.Chart, link: '/admin/metrics' },
+  { id: 'monitoring', label: 'Monitoring', icon: Icons.Shield, link: '/admin/monitoring' },
   { id: 'pipelines', label: 'Pipelines', icon: Icons.Pipeline },
   { id: 'scripts', label: 'Scripts', icon: Icons.Script },
   { id: 'emergency', label: 'Emergency', icon: Icons.Alert },
