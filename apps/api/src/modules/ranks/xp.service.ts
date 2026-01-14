@@ -48,12 +48,13 @@ export const XP_AMOUNTS = {
   FIRST_WORKOUT: 100,
 } as const;
 
-// Velocity limits
+// Velocity limits - generous limits to avoid frustrating legitimate users
+// The primary purpose is to prevent automated abuse, not limit normal activity
 export const XP_LIMITS = {
-  MAX_PER_DAY: 500,
-  MAX_PER_HOUR: 200,
-  MAX_PER_WORKOUT: 100,
-  COOLDOWN_MINUTES: 5,
+  MAX_PER_DAY: 2000,      // Allow heavy training days (was 500)
+  MAX_PER_HOUR: 500,      // Allow multiple workouts per hour (was 200)
+  MAX_PER_WORKOUT: 200,   // Allow longer/more intense workouts (was 100)
+  COOLDOWN_MINUTES: 1,    // Reduced cooldown for same-source awards (was 5)
 } as const;
 
 export type XpSourceType =

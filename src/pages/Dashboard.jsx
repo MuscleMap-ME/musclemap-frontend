@@ -849,7 +849,7 @@ const navSections = [
   {
     title: 'Social',
     items: [
-      { to: '/messages', icon: Icons.Message, label: 'Messages', badge: 3 },
+      { to: '/messages', icon: Icons.Message, label: 'Messages' },
       { to: '/community', icon: Icons.Community, label: 'Community' },
       { to: '/crews', icon: Icons.Community, label: 'Crews' },
       { to: '/rivals', icon: Icons.Trophy, label: 'Rivals' },
