@@ -394,7 +394,7 @@ export const rivalsService = {
       avatar_url: string | null;
       archetype: string | null;
     }>(
-      `SELECT u.id, u.username, u.avatar_url, u.archetype
+      `SELECT u.id, u.username, u.avatar_url, u.current_identity_id as archetype
        FROM users u
        WHERE u.id != $1
          AND u.username ILIKE $2

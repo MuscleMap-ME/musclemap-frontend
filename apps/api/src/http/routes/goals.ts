@@ -593,7 +593,7 @@ export async function registerGoalsRoutes(app: FastifyInstance) {
       weight_lbs: number | null;
       height_cm: number | null;
     }>(
-      `SELECT u.archetype, pe.weight_lbs, pe.height_cm
+      `SELECT u.current_identity_id as archetype, pe.weight_lbs, pe.height_cm
        FROM users u
        LEFT JOIN user_profile_extended pe ON u.id = pe.user_id
        WHERE u.id = $1`,

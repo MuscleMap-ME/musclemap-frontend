@@ -823,7 +823,7 @@ export async function migrate(): Promise<void> {
     { id: 'ai.query', name: 'AI Query', cost: 1 },
     { id: 'post.create', name: 'Create Post', cost: 1 },
     { id: 'ad.post', name: 'Post Advertisement', cost: 1 },
-    { id: 'rep.completed', name: 'Rep Completed (Award)', cost: -1 },
+    { id: 'rep.completed', name: 'Rep Completed (Award)', cost: 0 },  // Awards don't cost, they give credits
   ];
 
   for (const action of newActions) {

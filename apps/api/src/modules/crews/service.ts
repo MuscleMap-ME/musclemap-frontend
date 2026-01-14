@@ -135,7 +135,7 @@ export async function getUserCrew(userId: string): Promise<{ crew: Crew; members
     avatar_url: string | null;
     archetype: string | null;
   }>(
-    `SELECT cm.*, u.username, u.avatar_url, u.archetype
+    `SELECT cm.*, u.username, u.avatar_url, u.current_identity_id as archetype
      FROM crew_members cm
      LEFT JOIN users u ON u.id = cm.user_id
      WHERE cm.user_id = $1`,
@@ -180,7 +180,7 @@ export async function getCrewMembers(crewId: string): Promise<CrewMember[]> {
     avatar_url: string | null;
     archetype: string | null;
   }>(
-    `SELECT cm.*, u.username, u.avatar_url, u.archetype
+    `SELECT cm.*, u.username, u.avatar_url, u.current_identity_id as archetype
      FROM crew_members cm
      LEFT JOIN users u ON u.id = cm.user_id
      WHERE cm.crew_id = $1

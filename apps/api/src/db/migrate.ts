@@ -168,9 +168,14 @@ async function migrate(): Promise<void> {
         await query(sql);
       } else if (file.endsWith('.ts')) {
         // Dynamic import for TypeScript migrations
+        // Re-ensure pool is ready before each migration to handle module caching issues
+        await initializePool().catch(() => { /* Already initialized */ });
         const migration = await import(filePath);
+        // Support both 'up' and 'migrate' function names
         if (typeof migration.up === 'function') {
           await migration.up();
+        } else if (typeof migration.migrate === 'function') {
+          await migration.migrate();
         }
       }
 

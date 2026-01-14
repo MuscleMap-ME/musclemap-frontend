@@ -16,7 +16,7 @@
  * - Creates backward-compatible views for old table names
  */
 
-import { db } from '../client';
+import { db, ensurePoolReady } from '../client';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -58,6 +58,7 @@ async function constraintExists(tableName: string, constraintName: string): Prom
 }
 
 export async function up(): Promise<void> {
+  await ensurePoolReady();
   log.info('Running migration: 032_taxonomy_rename');
 
   // ============================================
@@ -275,8 +276,10 @@ export async function up(): Promise<void> {
   }
 
   // Views for goal → journey
+  // Note: user_journeys table may have been created as a monitoring table (migration 028)
+  // rather than a goals table, so check for expected columns
   if (!(await viewExists('user_goals'))) {
-    if (await tableExists('user_journeys')) {
+    if (await tableExists('user_journeys') && await columnExists('user_journeys', 'journey_type')) {
       await db.query(`CREATE VIEW user_goals AS
         SELECT id, user_id, journey_type AS goal_type, target_value, target_unit, starting_value,
                current_value, target_date, started_at, completed_at, status, priority, is_primary,
@@ -286,7 +289,8 @@ export async function up(): Promise<void> {
   }
 
   if (!(await viewExists('goal_progress'))) {
-    if (await tableExists('journey_progress')) {
+    // Check for expected columns - the table might have different schema
+    if (await tableExists('journey_progress') && await columnExists('journey_progress', 'date')) {
       await db.query(`CREATE VIEW goal_progress AS
         SELECT id, journey_id AS goal_id, user_id, date, value, delta, source, notes, created_at
         FROM journey_progress`);

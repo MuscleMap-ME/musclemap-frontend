@@ -309,6 +309,8 @@ export async function seedDatabase(): Promise<void> {
 
   // Seed exercises with descriptions and cues
   for (const e of exercises) {
+    // Convert comma-separated string to PostgreSQL array format
+    const musclesArray = e.primaryMuscles ? e.primaryMuscles.split(',').map(m => m.trim()) : [];
     await db.query(`
       INSERT INTO exercises (id, name, type, difficulty, primary_muscles, description, cues)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -319,7 +321,7 @@ export async function seedDatabase(): Promise<void> {
         primary_muscles = EXCLUDED.primary_muscles,
         description = EXCLUDED.description,
         cues = EXCLUDED.cues
-    `, [e.id, e.name, e.type, e.difficulty, e.primaryMuscles, e.description || null, e.cues || null]);
+    `, [e.id, e.name, e.type, e.difficulty, musclesArray, e.description || null, e.cues || null]);
   }
   console.log(`✓ Inserted ${exercises.length} exercises with descriptions`);
 

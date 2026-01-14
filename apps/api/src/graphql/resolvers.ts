@@ -235,7 +235,7 @@ export const resolvers = {
         name: e.name,
         description: e.description,
         type: e.type || e.movement_pattern,
-        primaryMuscles: e.primary_muscles ? e.primary_muscles.split(',') : [],
+        primaryMuscles: Array.isArray(e.primary_muscles) ? e.primary_muscles : (e.primary_muscles ? String(e.primary_muscles).split(',') : []),
         secondaryMuscles: [],
         equipment: [...(e.equipment_required || []), ...(e.equipment_optional || [])],
         difficulty: e.difficulty,
@@ -260,7 +260,7 @@ export const resolvers = {
         name: e.name,
         description: e.description,
         type: e.type || e.movement_pattern,
-        primaryMuscles: e.primary_muscles ? e.primary_muscles.split(',') : [],
+        primaryMuscles: Array.isArray(e.primary_muscles) ? e.primary_muscles : (e.primary_muscles ? String(e.primary_muscles).split(',') : []),
         secondaryMuscles: [],
         equipment: [...(e.equipment_required || []), ...(e.equipment_optional || [])],
         difficulty: e.difficulty,
@@ -391,7 +391,7 @@ export const resolvers = {
     // Archetypes
     archetypes: async () => {
       const archetypes = await queryAll(
-        `SELECT id, name, description, philosophy, icon_url, color, primary_stats, bonuses
+        `SELECT id, name, description, philosophy, icon_url, category_id, focus_areas
          FROM archetypes ORDER BY name`
       );
       return archetypes.map((a: any) => ({
@@ -400,9 +400,10 @@ export const resolvers = {
         description: a.description,
         philosophy: a.philosophy,
         icon: a.icon_url,
-        color: a.color,
-        primaryStats: a.primary_stats || [],
-        bonuses: a.bonuses,
+        color: null, // Column doesn't exist in schema
+        primaryStats: [],
+        bonuses: null,
+        focusAreas: a.focus_areas || [],
       }));
     },
 
@@ -410,8 +411,11 @@ export const resolvers = {
     journey: async (_: unknown, __: unknown, context: Context) => {
       const { userId } = requireAuth(context);
       const user = await queryOne<any>(
-        `SELECT u.id, u.archetype_id, u.level, u.xp, a.name as archetype_name
-         FROM users u LEFT JOIN archetypes a ON u.archetype_id = a.id
+        `SELECT u.id, u.current_identity_id as archetype_id, u.current_level as level,
+                COALESCE(cs.total_xp, 0) as xp, a.name as archetype_name
+         FROM users u
+         LEFT JOIN archetypes a ON u.current_identity_id = a.id
+         LEFT JOIN character_stats cs ON u.id = cs.user_id
          WHERE u.id = $1`,
         [userId]
       );
@@ -485,10 +489,12 @@ export const resolvers = {
 
     leaderboards: async (_: unknown, _args: { type?: string }) => {
       const leaderboard = await queryAll(
-        `SELECT u.id, u.username, u.avatar_url, cs.level, cs.xp, cs.strength
-         FROM character_stats cs
-         JOIN users u ON cs.user_id = u.id
-         ORDER BY cs.xp DESC
+        `SELECT u.id, u.username, u.avatar_url, u.current_level as level,
+                COALESCE(u.total_xp, 0) as xp, COALESCE(cs.strength, 0) as strength
+         FROM users u
+         LEFT JOIN character_stats cs ON cs.user_id = u.id
+         WHERE u.total_xp IS NOT NULL OR cs.strength IS NOT NULL
+         ORDER BY COALESCE(u.total_xp, 0) DESC
          LIMIT 100`
       );
       return leaderboard.map((entry: any, index: number) => ({
@@ -496,10 +502,10 @@ export const resolvers = {
         userId: entry.id,
         username: entry.username,
         avatar: entry.avatar_url,
-        level: entry.level,
-        xp: entry.xp,
+        level: entry.level || 1,
+        xp: entry.xp || 0,
         stat: 'xp',
-        value: entry.xp,
+        value: entry.xp || 0,
       }));
     },
 

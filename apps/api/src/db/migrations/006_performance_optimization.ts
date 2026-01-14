@@ -23,6 +23,24 @@ async function indexExists(indexName: string): Promise<boolean> {
   return parseInt(result?.count || '0') > 0;
 }
 
+async function tableExists(tableName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.tables
+     WHERE table_name = $1 AND table_schema = 'public'`,
+    [tableName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  const result = await db.queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM information_schema.columns
+     WHERE table_name = $1 AND column_name = $2 AND table_schema = 'public'`,
+    [tableName, columnName]
+  );
+  return parseInt(result?.count || '0') > 0;
+}
+
 async function createIndexIfNotExists(
   indexName: string,
   createStatement: string
@@ -30,6 +48,15 @@ async function createIndexIfNotExists(
   if (await indexExists(indexName)) {
     log.debug(`Index ${indexName} already exists, skipping`);
     return;
+  }
+  // Extract table name from CREATE INDEX statement
+  const tableMatch = createStatement.match(/ON\s+([a-z_]+)\s*\(/i);
+  if (tableMatch) {
+    const tableName = tableMatch[1];
+    if (!(await tableExists(tableName))) {
+      log.debug(`Table ${tableName} does not exist, skipping index ${indexName}`);
+      return;
+    }
   }
   log.info(`Creating index: ${indexName}`);
   await db.query(createStatement);
@@ -212,8 +239,8 @@ export async function migrate(): Promise<void> {
 
   // Index for user milestone progress
   await createIndexIfNotExists(
-    'idx_user_milestones_uncompleted',
-    `CREATE INDEX idx_user_milestones_uncompleted ON user_milestones(user_id)
+    'idx_user_milestone_progress_uncompleted',
+    `CREATE INDEX idx_user_milestone_progress_uncompleted ON user_milestone_progress(user_id)
      WHERE completed_at IS NULL`
   );
 
@@ -221,17 +248,22 @@ export async function migrate(): Promise<void> {
   // USER JOURNEYS OPTIMIZATIONS
   // ============================================
 
-  // Index for active user journeys
-  await createIndexIfNotExists(
-    'idx_user_journeys_active',
-    `CREATE INDEX idx_user_journeys_active ON user_journeys(user_id, status)
-     WHERE status = 'active'`
-  );
+  // Index for active user journeys (only if table has status column)
+  // Note: user_journeys table exists in two versions:
+  // - Migration 028 creates it as a monitoring table (with steps column)
+  // - Earlier code expected it as a goals table (with status column)
+  if (await tableExists('user_journeys') && await columnExists('user_journeys', 'status')) {
+    await createIndexIfNotExists(
+      'idx_user_journeys_active',
+      `CREATE INDEX idx_user_journeys_active ON user_journeys(user_id, status)
+       WHERE status = 'active'`
+    );
+  }
 
   // Index for journey progress date queries
   await createIndexIfNotExists(
-    'idx_journey_progress_user_date',
-    `CREATE INDEX idx_journey_progress_user_date ON journey_progress(user_id, journey_id, date DESC)`
+    'idx_journey_progress_user_started',
+    `CREATE INDEX idx_journey_progress_user_started ON journey_progress(user_id, journey_id, started_at DESC)`
   );
 
   // ============================================

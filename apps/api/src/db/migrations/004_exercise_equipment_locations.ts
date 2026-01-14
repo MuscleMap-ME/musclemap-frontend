@@ -4,7 +4,7 @@
  * This migration adds the necessary columns for constraint-based workout prescription.
  */
 
-import { db } from '../client';
+import { db, ensurePoolReady } from '../client';
 import { loggers } from '../../lib/logger';
 import { seedEquipmentLocations } from '../seed-equipment-locations';
 
@@ -29,6 +29,9 @@ async function tableExists(tableName: string): Promise<boolean> {
 }
 
 export async function migrate(): Promise<void> {
+  // Ensure pool is ready before any database operations
+  await ensurePoolReady();
+
   log.info('Running migration: 004_exercise_equipment_locations');
 
   // Check if columns already exist

@@ -8,16 +8,16 @@
  * - Request logging
  */
 
-import type { PoolClient } from 'pg';
+import { db } from '../client';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
 
-export async function up(client: PoolClient): Promise<void> {
+export async function migrate(): Promise<void> {
   log.info('Creating monitoring tables...');
 
   // Test suites table
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS test_suites (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -34,12 +34,12 @@ export async function up(client: PoolClient): Promise<void> {
     )
   `);
 
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_test_suites_started_at ON test_suites(started_at DESC)
   `);
 
   // User journeys table
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS user_journeys (
       id TEXT PRIMARY KEY,
       session_id TEXT NOT NULL,
@@ -53,18 +53,18 @@ export async function up(client: PoolClient): Promise<void> {
     )
   `);
 
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_user_journeys_session_id ON user_journeys(session_id)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_user_journeys_user_id ON user_journeys(user_id)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_user_journeys_started_at ON user_journeys(started_at DESC)
   `);
 
   // Tracked errors table
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS tracked_errors (
       id TEXT PRIMARY KEY,
       error_hash TEXT NOT NULL,
@@ -84,18 +84,18 @@ export async function up(client: PoolClient): Promise<void> {
     )
   `);
 
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_tracked_errors_error_hash ON tracked_errors(error_hash)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_tracked_errors_resolved ON tracked_errors(resolved)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_tracked_errors_created_at ON tracked_errors(created_at DESC)
   `);
 
   // Request logs table (for metrics)
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS request_logs (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -110,18 +110,18 @@ export async function up(client: PoolClient): Promise<void> {
     )
   `);
 
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_request_logs_created_at ON request_logs(created_at DESC)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_request_logs_user_id ON request_logs(user_id)
   `);
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_request_logs_status_code ON request_logs(status_code)
   `);
 
   // Cleanup old logs function (keeps last 7 days)
-  await client.query(`
+  await db.query(`
     CREATE OR REPLACE FUNCTION cleanup_old_logs()
     RETURNS void AS $$
     BEGIN
@@ -134,14 +134,14 @@ export async function up(client: PoolClient): Promise<void> {
   log.info('Monitoring tables created successfully');
 }
 
-export async function down(client: PoolClient): Promise<void> {
+export async function down(): Promise<void> {
   log.info('Dropping monitoring tables...');
 
-  await client.query('DROP FUNCTION IF EXISTS cleanup_old_logs()');
-  await client.query('DROP TABLE IF EXISTS request_logs');
-  await client.query('DROP TABLE IF EXISTS tracked_errors');
-  await client.query('DROP TABLE IF EXISTS user_journeys');
-  await client.query('DROP TABLE IF EXISTS test_suites');
+  await db.query('DROP FUNCTION IF EXISTS cleanup_old_logs()');
+  await db.query('DROP TABLE IF EXISTS request_logs');
+  await db.query('DROP TABLE IF EXISTS tracked_errors');
+  await db.query('DROP TABLE IF EXISTS user_journeys');
+  await db.query('DROP TABLE IF EXISTS test_suites');
 
   log.info('Monitoring tables dropped');
 }

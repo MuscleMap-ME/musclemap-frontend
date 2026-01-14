@@ -68,12 +68,15 @@ export const tipsService = {
 
     if (!tip) {
       // Fall back to muscle-specific tips
-      const exercise = await queryOne<{ primary_muscles: string | null }>(
+      const exercise = await queryOne<{ primary_muscles: string[] | null }>(
         'SELECT primary_muscles FROM exercises WHERE id = $1',
         [exerciseId]
       );
       if (exercise?.primary_muscles) {
-        const muscles = exercise.primary_muscles.split(',').map(m => m.trim());
+        // primary_muscles is now a TEXT[] array, not a comma-separated string
+        const muscles = Array.isArray(exercise.primary_muscles)
+          ? exercise.primary_muscles
+          : String(exercise.primary_muscles).split(',').map(m => m.trim());
         if (muscles.length > 0) {
           const placeholders = muscles.map((_, i) => `$${i + 2}`).join(',');
           tip = await queryOne<Tip>(`

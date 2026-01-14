@@ -106,7 +106,7 @@ export async function migrate(): Promise<void> {
   await createIndexIfNotExists(
     'idx_users_profile_covering',
     `CREATE INDEX idx_users_profile_covering ON users(id)
-     INCLUDE (username, display_name, avatar_url, bio, current_archetype_id)`
+     INCLUDE (username, display_name, avatar_url, current_archetype_id)`
   );
 
   // Username lookups with profile data
@@ -176,18 +176,18 @@ export async function migrate(): Promise<void> {
   // ============================================
 
   if (await tableExists('character_stats')) {
-    // Leaderboard queries (ordering by level/xp)
+    // Leaderboard queries (ordering by total stats)
     await createIndexIfNotExists(
       'idx_character_stats_leaderboard',
-      `CREATE INDEX idx_character_stats_leaderboard ON character_stats(level DESC, xp DESC)
-       INCLUDE (user_id, strength, endurance)`
+      `CREATE INDEX idx_character_stats_leaderboard ON character_stats(strength DESC, endurance DESC)
+       INCLUDE (user_id, constitution, dexterity)`
     );
 
     // User stats lookup
     await createIndexIfNotExists(
       'idx_character_stats_user',
       `CREATE INDEX idx_character_stats_user ON character_stats(user_id)
-       INCLUDE (level, xp, strength, endurance, agility, flexibility, balance, mental_focus)`
+       INCLUDE (strength, endurance, constitution, dexterity, power, vitality)`
     );
   }
 

@@ -192,21 +192,20 @@ export const communitiesService = {
     }
 
     // Create community
+    // Note: institution_type column doesn't exist in schema - using community_type = 'institution' instead
     const row = await queryOne<{
       id: number;
       created_at: Date;
       updated_at: Date;
     }>(
       `INSERT INTO communities (
-        slug, name, tagline, description, community_type, goal_type, institution_type,
-        archetype_id, privacy, icon_emoji, accent_color, rules,
-        requires_approval, allow_member_posts, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        slug, name, tagline, description, community_type, goal_type,
+        archetype_id, privacy, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, created_at, updated_at`,
       [
-        slug, name, tagline, description, communityType, goalType, institutionType,
-        archetypeId, privacy, iconEmoji, accentColor, rules,
-        requiresApproval, allowMemberPosts, createdBy
+        slug, name, tagline, description, communityType, goalType,
+        archetypeId, privacy, createdBy
       ]
     );
 
@@ -270,20 +269,15 @@ export const communitiesService = {
       description: string | null;
       community_type: string;
       goal_type: string | null;
-      institution_type: string | null;
       archetype_id: number | null;
       privacy: string;
-      icon_emoji: string;
-      accent_color: string;
-      banner_image_url: string | null;
-      logo_image_url: string | null;
-      rules: string | null;
+      primary_color: string | null;
+      avatar_url: string | null;
+      banner_url: string | null;
       member_count: number;
       post_count: number;
       is_verified: boolean;
       is_active: boolean;
-      requires_approval: boolean;
-      allow_member_posts: boolean;
       created_by: string;
       created_at: Date;
       updated_at: Date;
@@ -293,11 +287,10 @@ export const communitiesService = {
     }>(
       `SELECT
         c.id, c.slug, c.name, c.tagline, c.description, c.community_type,
-        c.goal_type, c.institution_type, c.archetype_id, c.privacy,
-        c.icon_emoji, c.accent_color, c.banner_image_url, c.logo_image_url,
-        c.rules, c.member_count, c.post_count, c.is_verified, c.is_active,
-        c.requires_approval, c.allow_member_posts, c.created_by,
-        c.created_at, c.updated_at
+        c.goal_type, c.archetype_id, c.privacy,
+        c.primary_color, c.avatar_url, c.banner_url,
+        c.member_count, c.post_count, c.is_verified, c.is_active,
+        c.created_by, c.created_at, c.updated_at
         ${userSelect}
        FROM communities c
        ${userJoin}
@@ -320,20 +313,20 @@ export const communitiesService = {
       description: row.description ?? undefined,
       communityType: row.community_type as CommunityType,
       goalType: row.goal_type as GoalType | undefined,
-      institutionType: row.institution_type as InstitutionType | undefined,
+      institutionType: undefined, // Column doesn't exist in schema
       archetypeId: row.archetype_id ?? undefined,
       privacy: row.privacy as CommunityPrivacy,
-      iconEmoji: row.icon_emoji,
-      accentColor: row.accent_color,
-      bannerImageUrl: row.banner_image_url ?? undefined,
-      logoImageUrl: row.logo_image_url ?? undefined,
-      rules: row.rules ?? undefined,
+      iconEmoji: undefined,
+      accentColor: row.primary_color ?? undefined,
+      bannerImageUrl: row.banner_url ?? undefined,
+      logoImageUrl: row.avatar_url ?? undefined,
+      rules: undefined,
       memberCount: row.member_count,
       postCount: row.post_count,
       isVerified: row.is_verified,
       isActive: row.is_active,
-      requiresApproval: row.requires_approval,
-      allowMemberPosts: row.allow_member_posts,
+      requiresApproval: false,
+      allowMemberPosts: true,
       createdBy: row.created_by,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -379,9 +372,10 @@ export const communitiesService = {
       params.push(goalType);
     }
 
+    // Note: institutionType filter is ignored - column doesn't exist in schema
+    // If institutionType is set, filter by community_type = 'institution' instead
     if (institutionType) {
-      conditions.push(`c.institution_type = $${paramIndex++}`);
-      params.push(institutionType);
+      conditions.push(`c.community_type = 'institution'`);
     }
 
     const whereClause = conditions.join(' AND ');
@@ -401,19 +395,15 @@ export const communitiesService = {
       description: string | null;
       community_type: string;
       goal_type: string | null;
-      institution_type: string | null;
       archetype_id: number | null;
       privacy: string;
-      icon_emoji: string;
-      accent_color: string;
-      banner_image_url: string | null;
-      logo_image_url: string | null;
+      primary_color: string | null;
+      avatar_url: string | null;
+      banner_url: string | null;
       member_count: number;
       post_count: number;
       is_verified: boolean;
       is_active: boolean;
-      requires_approval: boolean;
-      allow_member_posts: boolean;
       created_by: string;
       created_at: Date;
       updated_at: Date;
@@ -423,11 +413,10 @@ export const communitiesService = {
     }>(
       `SELECT
         c.id, c.slug, c.name, c.tagline, c.description, c.community_type,
-        c.goal_type, c.institution_type, c.archetype_id, c.privacy,
-        c.icon_emoji, c.accent_color, c.banner_image_url, c.logo_image_url,
+        c.goal_type, c.archetype_id, c.privacy,
+        c.primary_color, c.avatar_url, c.banner_url,
         c.member_count, c.post_count, c.is_verified, c.is_active,
-        c.requires_approval, c.allow_member_posts, c.created_by,
-        c.created_at, c.updated_at
+        c.created_by, c.created_at, c.updated_at
         ${userSelect}
        FROM communities c
        ${userJoin}
@@ -451,19 +440,19 @@ export const communitiesService = {
         description: r.description ?? undefined,
         communityType: r.community_type as CommunityType,
         goalType: r.goal_type as GoalType | undefined,
-        institutionType: r.institution_type as InstitutionType | undefined,
+        institutionType: undefined, // Column doesn't exist in schema
         archetypeId: r.archetype_id ?? undefined,
         privacy: r.privacy as CommunityPrivacy,
-        iconEmoji: r.icon_emoji,
-        accentColor: r.accent_color,
-        bannerImageUrl: r.banner_image_url ?? undefined,
-        logoImageUrl: r.logo_image_url ?? undefined,
+        iconEmoji: undefined,
+        accentColor: r.primary_color ?? undefined,
+        bannerImageUrl: r.banner_url ?? undefined,
+        logoImageUrl: r.avatar_url ?? undefined,
         memberCount: r.member_count,
         postCount: r.post_count,
         isVerified: r.is_verified,
         isActive: r.is_active,
-        requiresApproval: r.requires_approval,
-        allowMemberPosts: r.allow_member_posts,
+        requiresApproval: false,
+        allowMemberPosts: true,
         createdBy: r.created_by,
         createdAt: r.created_at,
         updatedAt: r.updated_at,

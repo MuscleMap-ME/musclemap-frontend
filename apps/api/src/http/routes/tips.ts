@@ -55,18 +55,19 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     }
 
     paramIndex++;
-    sql += ` ORDER BY times_shown ASC, RANDOM() LIMIT $${paramIndex}`;
+    // Note: times_shown column doesn't exist - order by priority instead
+    sql += ` ORDER BY priority DESC, RANDOM() LIMIT $${paramIndex}`;
     queryParams.push(parseInt(params.limit || '5'));
 
     const tips = await queryAll<{
       id: string;
       trigger_type: string;
-      trigger_value: string;
+      trigger_value: string | null;
       category: string;
       title: string;
       content: string;
-      times_shown: number;
-      display_context: string | null;
+      priority: number;
+      display_context: string[] | null;
     }>(sql, queryParams);
 
     return reply.send({
@@ -77,8 +78,9 @@ export async function registerTipsRoutes(app: FastifyInstance) {
         category: t.category,
         title: t.title,
         content: t.content,
-        timesShown: t.times_shown,
+        timesShown: 0, // Column doesn't exist
         displayContext: t.display_context,
+        priority: t.priority,
       })),
     });
   });
@@ -100,24 +102,25 @@ export async function registerTipsRoutes(app: FastifyInstance) {
   app.get('/milestones', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
 
+    // Note: milestones table schema has changed - uses condition_type/condition_value instead of metric/threshold
     const milestones = await queryAll<{
       id: string;
       name: string;
       description: string | null;
-      metric: string;
-      threshold: number;
-      reward_type: string | null;
-      reward_value: string | null;
-    }>('SELECT * FROM milestones ORDER BY threshold');
+      category: string;
+      condition_type: string;
+      condition_value: any;
+      reward_credits: number;
+      badge_icon: string | null;
+    }>('SELECT * FROM milestones ORDER BY name');
 
-    // Get user's progress
+    // Get user's progress from user_milestone_progress table
     const progress = await queryAll<{
       milestone_id: string;
-      current_value: number;
+      progress: number;
       completed_at: Date | null;
-      reward_claimed: boolean;
     }>(
-      'SELECT * FROM user_milestones WHERE user_id = $1',
+      'SELECT milestone_id, progress, completed_at FROM user_milestone_progress WHERE user_id = $1',
       [userId]
     );
 
@@ -126,20 +129,24 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     return reply.send({
       data: milestones.map((m) => {
         const userProgress = progressMap.get(m.id);
-        const currentValue = userProgress?.current_value || 0;
-        const progressPercent = Math.min(100, Math.round((currentValue / m.threshold) * 100));
+        const conditionValue = typeof m.condition_value === 'object' ? m.condition_value : {};
+        const threshold = conditionValue.value || conditionValue.count || 100;
+        const currentValue = userProgress?.progress || 0;
+        const progressPercent = Math.min(100, Math.round((currentValue / threshold) * 100));
         return {
           id: m.id,
           name: m.name,
           description: m.description,
-          metric: m.metric,
-          threshold: m.threshold,
-          rewardType: m.reward_type,
-          rewardValue: m.reward_value,
+          metric: m.condition_type,
+          threshold: threshold,
+          rewardType: 'credits',
+          rewardValue: String(m.reward_credits),
           currentValue,
           progress: progressPercent,
           completedAt: userProgress?.completed_at,
-          rewardClaimed: userProgress?.reward_claimed || false,
+          rewardClaimed: userProgress?.completed_at != null,
+          category: m.category,
+          badgeIcon: m.badge_icon,
         };
       }),
     });
@@ -171,9 +178,9 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       });
     }
 
-    // Get milestone reward
-    const milestone = await queryOne<{ reward_type: string | null; reward_value: string | null }>(
-      'SELECT reward_type, reward_value FROM milestones WHERE id = $1',
+    // Get milestone reward - schema uses reward_credits instead of reward_type/reward_value
+    const milestone = await queryOne<{ reward_credits: number }>(
+      'SELECT reward_credits FROM milestones WHERE id = $1',
       [id]
     );
 
@@ -183,14 +190,10 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       });
     }
 
-    // Mark as claimed
-    await query(
-      'UPDATE user_milestones SET reward_claimed = TRUE WHERE user_id = $1 AND milestone_id = $2',
-      [userId, id]
-    );
-
+    // Note: user_milestones table doesn't have reward_claimed column in this schema
+    // Marking completion is tracked via completed_at in user_milestone_progress
     return reply.send({
-      data: { rewardType: milestone.reward_type, rewardValue: milestone.reward_value },
+      data: { rewardType: 'credits', rewardValue: String(milestone.reward_credits) },
     });
   });
 
@@ -200,9 +203,9 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     const { value } = request.body as { value: number };
     const userId = request.user!.userId;
 
-    // Get milestone threshold
-    const milestone = await queryOne<{ threshold: number }>(
-      'SELECT threshold FROM milestones WHERE id = $1',
+    // Get milestone condition - schema uses condition_value instead of threshold
+    const milestone = await queryOne<{ condition_value: any }>(
+      'SELECT condition_value FROM milestones WHERE id = $1',
       [id]
     );
 
@@ -212,15 +215,19 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       });
     }
 
-    const isComplete = value >= milestone.threshold;
+    // Extract threshold from condition_value (could be {value: X} or {count: X})
+    const conditionValue = typeof milestone.condition_value === 'object' ? milestone.condition_value : {};
+    const threshold = conditionValue.value || conditionValue.count || 100;
+    const isComplete = value >= threshold;
 
+    // Use user_milestone_progress table instead of user_milestones
     await query(
-      `INSERT INTO user_milestones (user_id, milestone_id, current_value, completed_at)
+      `INSERT INTO user_milestone_progress (user_id, milestone_id, progress, completed_at)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, milestone_id)
        DO UPDATE SET
-         current_value = GREATEST(user_milestones.current_value, EXCLUDED.current_value),
-         completed_at = COALESCE(user_milestones.completed_at, EXCLUDED.completed_at)`,
+         progress = GREATEST(user_milestone_progress.progress, EXCLUDED.progress),
+         completed_at = COALESCE(user_milestone_progress.completed_at, EXCLUDED.completed_at)`,
       [userId, id, value, isComplete ? new Date() : null]
     );
 
