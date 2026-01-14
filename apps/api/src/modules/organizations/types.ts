@@ -34,9 +34,13 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
-  type: string;
-  logoUrl: string | null;
-  website: string | null;
+  type?: string;
+  logoUrl?: string | null;
+  website?: string | null;
+  // Legacy fields
+  description?: string | null;
+  logo?: string | null;
+  domain?: string | null;
   // Location
   addressLine1: string | null;
   addressLine2: string | null;
@@ -80,24 +84,30 @@ export interface OrgSettings {
 export interface OrgUnit {
   id: string;
   orgId: string;
-  parentUnitId: string | null;
+  parentUnitId?: string | null;
   name: string;
-  code: string | null;
-  type: string;
+  code?: string | null;
+  type?: string;
+  // Legacy fields
+  slug?: string | null;
+  description?: string | null;
+  parentId?: string | null;
+  sortOrder?: number | null;
+  metadata?: Record<string, unknown> | null;
   // Location
-  addressLine1: string | null;
-  city: string | null;
-  state: string | null;
+  addressLine1?: string | null;
+  city?: string | null;
+  state?: string | null;
   // Hierarchy
-  level: number;
-  path: string | null;
+  level?: number;
+  path?: string | null;
   // Settings
-  settings: Record<string, unknown>;
+  settings?: Record<string, unknown>;
   // Status
-  active: boolean;
+  active?: boolean;
   // Metadata
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   // Computed
   memberCount?: number;
 }
@@ -110,27 +120,29 @@ export interface OrgMember {
   id: string;
   orgId: string;
   userId: string;
-  unitId: string | null;
+  unitId?: string | null;
   // Role & Permissions
   role: OrgRole;
-  permissions: string[];
+  permissions?: string[] | OrgPermission[];
   // Employment details
-  badgeNumber: string | null;
-  employeeId: string | null;
-  rank: string | null;
-  title: string | null;
-  hireDate: string | null;
+  badgeNumber?: string | null;
+  employeeId?: string | null;
+  rank?: string | null;
+  title?: string | null;
+  hireDate?: string | null;
   // Readiness sharing
-  shareReadiness: boolean;
-  shareAssessments: boolean;
-  shareWeakEvents: boolean;
-  optedInAt: string | null;
+  shareReadiness?: boolean;
+  shareAssessments?: boolean;
+  shareWeakEvents?: boolean;
+  optedInAt?: string | null;
   // Status
-  status: MemberStatus;
+  status?: MemberStatus;
   // Metadata
-  createdAt: string;
-  updatedAt: string;
-  invitedBy: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  invitedBy?: string | null;
+  // Legacy fields
+  joinedAt?: string;
   // User info (populated via join)
   username?: string;
   displayName?: string | null;
@@ -171,9 +183,13 @@ export interface OrgAuditLog {
 export interface CreateOrgData {
   name: string;
   slug?: string;
-  type: string;
+  type?: string;
   logoUrl?: string;
   website?: string;
+  // Legacy fields (for backwards compatibility)
+  description?: string;
+  logo?: string;
+  domain?: string;
   // Location
   addressLine1?: string;
   addressLine2?: string;
@@ -196,6 +212,12 @@ export interface UpdateOrgData {
   type?: string;
   logoUrl?: string | null;
   website?: string | null;
+  // Legacy fields (for backwards compatibility)
+  description?: string | null;
+  logo?: string | null;
+  domain?: string | null;
+  maxMembers?: number | null;
+  tier?: SubscriptionTier;
   // Location
   addressLine1?: string | null;
   addressLine2?: string | null;
@@ -215,13 +237,22 @@ export interface UpdateOrgData {
   subscriptionStatus?: SubscriptionStatus;
   subscriptionSeats?: number | null;
   subscriptionExpiresAt?: string | null;
+  // Index signature for dynamic properties
+  [key: string]: unknown;
 }
 
 export interface CreateUnitData {
   name: string;
   code?: string;
-  type: string;
+  type?: string;
   parentUnitId?: string;
+  // Legacy fields
+  slug?: string;
+  description?: string;
+  parentId?: string;
+  sortOrder?: number;
+  metadata?: Record<string, unknown>;
+  // Location
   addressLine1?: string;
   city?: string;
   state?: string;
@@ -233,11 +264,20 @@ export interface UpdateUnitData {
   code?: string | null;
   type?: string;
   parentUnitId?: string | null;
+  // Legacy fields
+  slug?: string | null;
+  description?: string | null;
+  parentId?: string | null;
+  sortOrder?: number | null;
+  metadata?: Record<string, unknown> | null;
+  // Location
   addressLine1?: string | null;
   city?: string | null;
   state?: string | null;
   settings?: Record<string, unknown>;
   active?: boolean;
+  // Index signature for dynamic properties
+  [key: string]: unknown;
 }
 
 export interface MemberFilters {
@@ -252,6 +292,7 @@ export interface MemberFilters {
 
 export interface UnitFilters {
   parentUnitId?: string | null;
+  parentId?: string | null; // Legacy alias for parentUnitId
   type?: string;
   active?: boolean;
   includeChildren?: boolean;
