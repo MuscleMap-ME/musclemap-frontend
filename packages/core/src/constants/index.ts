@@ -134,3 +134,9 @@ export const PluginConstants = {
   MAX_PERMISSIONS: 50,
   MAX_CREDIT_ACTIONS: 20,
 } as const;
+
+// ============================================
+// WEALTH TIERS
+// ============================================
+
+export * from './wealth-tiers.js';

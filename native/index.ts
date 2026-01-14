@@ -23,16 +23,19 @@ const LIB_EXT = process.platform === 'darwin' ? '.dylib' :
 const LIB_DIR = join(__dirname, 'lib');
 const GEO_LIB_PATH = join(LIB_DIR, `libgeo${LIB_EXT}`);
 const RATELIMIT_LIB_PATH = join(LIB_DIR, `libratelimit${LIB_EXT}`);
+const TU_LIB_PATH = join(LIB_DIR, `libtu${LIB_EXT}`);
 
 // Track native availability
 let nativeGeoAvailable = false;
 let nativeRatelimitAvailable = false;
+let nativeTUAvailable = false;
 let ffiModule: any = null;
 let refModule: any = null;
 
 // Native library handles
 let geoLib: any = null;
 let ratelimitLib: any = null;
+let tuLib: any = null;
 
 // ============================================
 // FFI INITIALIZATION
@@ -98,6 +101,30 @@ function initializeNativeModules(): void {
       console.log('[native] Loaded libratelimit native module');
     } catch (err) {
       console.log('[native] Failed to load libratelimit:', (err as Error).message);
+    }
+  }
+
+  // Try to load TU calculator library
+  if (existsSync(TU_LIB_PATH)) {
+    try {
+      const ffi = ffiModule;
+
+      tuLib = ffi.Library(TU_LIB_PATH, {
+        tu_init: ['int', []],
+        tu_clear: ['void', []],
+        tu_add_exercise: ['int', ['string', 'pointer', 'int']],
+        tu_add_muscle: ['int', ['string', 'float']],
+        tu_find_exercise: ['int', ['string']],
+        tu_get_stats: ['void', ['pointer', 'pointer']],
+        tu_calculate_simple: ['float', ['pointer', 'pointer', 'pointer', 'int', 'int']],
+      });
+
+      // Initialize the TU calculator cache
+      tuLib.tu_init();
+      nativeTUAvailable = true;
+      console.log('[native] Loaded libtu native module');
+    } catch (err) {
+      console.log('[native] Failed to load libtu:', (err as Error).message);
     }
   }
 }
@@ -504,9 +531,17 @@ export function createRateLimiter(limit: number, windowSeconds: number = 60): JS
 export { JSRateLimiter };
 
 // Check native module availability
-export const isNative = nativeGeoAvailable || nativeRatelimitAvailable;
+export const isNative = {
+  geo: nativeGeoAvailable,
+  ratelimit: nativeRatelimitAvailable,
+  tu: nativeTUAvailable,
+  any: nativeGeoAvailable || nativeRatelimitAvailable || nativeTUAvailable,
+};
+
+// Legacy exports for backward compatibility
 export const isNativeGeo = nativeGeoAvailable;
 export const isNativeRatelimit = nativeRatelimitAvailable;
+export const isNativeTU = nativeTUAvailable;
 
 /**
  * Get native module status
@@ -514,11 +549,176 @@ export const isNativeRatelimit = nativeRatelimitAvailable;
 export function getNativeStatus(): {
   geo: boolean;
   ratelimit: boolean;
+  tu: boolean;
   ffi: boolean;
 } {
   return {
     geo: nativeGeoAvailable,
     ratelimit: nativeRatelimitAvailable,
+    tu: nativeTUAvailable,
     ffi: ffiModule !== null,
+  };
+}
+
+// ============================================
+// TU CALCULATOR MODULE
+// ============================================
+
+export interface TUInput {
+  /** Activation percentages per muscle (0-100) for each exercise. Flat array: [ex0_m0, ex0_m1, ..., ex1_m0, ex1_m1, ...] */
+  activations: number[];
+  /** Number of sets per exercise */
+  sets: number[];
+  /** Bias weight per muscle (typically 1.0) */
+  biasWeights: number[];
+  /** Number of exercises */
+  exerciseCount: number;
+  /** Number of muscles */
+  muscleCount: number;
+}
+
+export interface TUResult {
+  totalTU: number;
+  muscleActivations: number[];
+  durationMs: number;
+  native: boolean;
+}
+
+/**
+ * Pure TypeScript TU calculation (fallback)
+ */
+function jsCalculateTU(input: TUInput): TUResult {
+  const start = performance.now();
+  const { activations, sets, biasWeights, exerciseCount, muscleCount } = input;
+
+  const muscleTotals = new Array(muscleCount).fill(0);
+
+  // Accumulate activations
+  for (let e = 0; e < exerciseCount; e++) {
+    const s = sets[e] > 0 ? sets[e] : 1;
+    for (let m = 0; m < muscleCount; m++) {
+      const activation = activations[e * muscleCount + m];
+      if (activation > 0) {
+        muscleTotals[m] += (activation / 100) * s;
+      }
+    }
+  }
+
+  // Apply bias weights
+  let total = 0;
+  for (let m = 0; m < muscleCount; m++) {
+    if (muscleTotals[m] > 0) {
+      total += muscleTotals[m] * biasWeights[m];
+    }
+  }
+
+  const durationMs = performance.now() - start;
+  return {
+    totalTU: Math.round(total * 100) / 100,
+    muscleActivations: muscleTotals,
+    durationMs,
+    native: false,
+  };
+}
+
+/**
+ * Native TU calculation using FFI
+ */
+function nativeCalculateTU(input: TUInput): TUResult {
+  const start = performance.now();
+  const { activations, sets, biasWeights, exerciseCount, muscleCount } = input;
+
+  if (!tuLib || !refModule) {
+    return jsCalculateTU(input);
+  }
+
+  try {
+    const ref = refModule;
+
+    // Create typed arrays for C interop
+    const activationsBuffer = Buffer.alloc(exerciseCount * muscleCount * 4); // float = 4 bytes
+    const setsBuffer = Buffer.alloc(exerciseCount * 4); // int32 = 4 bytes
+    const biasBuffer = Buffer.alloc(muscleCount * 4); // float = 4 bytes
+
+    // Fill buffers
+    for (let i = 0; i < activations.length; i++) {
+      activationsBuffer.writeFloatLE(activations[i], i * 4);
+    }
+    for (let i = 0; i < sets.length; i++) {
+      setsBuffer.writeInt32LE(sets[i], i * 4);
+    }
+    for (let i = 0; i < biasWeights.length; i++) {
+      biasBuffer.writeFloatLE(biasWeights[i], i * 4);
+    }
+
+    const totalTU = tuLib.tu_calculate_simple(
+      activationsBuffer,
+      setsBuffer,
+      biasBuffer,
+      exerciseCount,
+      muscleCount
+    );
+
+    // Calculate muscle totals in JS (native returns only total)
+    const muscleTotals = new Array(muscleCount).fill(0);
+    for (let e = 0; e < exerciseCount; e++) {
+      const s = sets[e] > 0 ? sets[e] : 1;
+      for (let m = 0; m < muscleCount; m++) {
+        const activation = activations[e * muscleCount + m];
+        if (activation > 0) {
+          muscleTotals[m] += (activation / 100) * s;
+        }
+      }
+    }
+
+    const durationMs = performance.now() - start;
+    return {
+      totalTU,
+      muscleActivations: muscleTotals,
+      durationMs,
+      native: true,
+    };
+  } catch (err) {
+    console.error('[native] TU calculation failed, falling back to JS:', (err as Error).message);
+    return jsCalculateTU(input);
+  }
+}
+
+/**
+ * Calculate Training Units for a workout
+ * Uses native implementation if available, falls back to JavaScript
+ */
+export function tu_calculate(input: TUInput): TUResult {
+  if (nativeTUAvailable) {
+    return nativeCalculateTU(input);
+  }
+  return jsCalculateTU(input);
+}
+
+/**
+ * Calculate TU for a batch of workouts
+ */
+export function tu_calculate_batch(inputs: TUInput[]): TUResult[] {
+  return inputs.map(tu_calculate);
+}
+
+/**
+ * Get TU calculator status
+ */
+export function getTUStatus(): { native: boolean; exercisesCached: number; musclesCached: number } {
+  if (!nativeTUAvailable || !tuLib || !refModule) {
+    return { native: false, exercisesCached: 0, musclesCached: 0 };
+  }
+
+  const ref = refModule;
+  const exerciseCountPtr = ref.alloc('int');
+  const muscleCountPtr = ref.alloc('int');
+
+  tuLib.tu_get_stats(exerciseCountPtr, muscleCountPtr);
+
+  return {
+    native: true,
+    exercisesCached: ref.deref(exerciseCountPtr) as number,
+    musclesCached: ref.deref(muscleCountPtr) as number,
   };
 }

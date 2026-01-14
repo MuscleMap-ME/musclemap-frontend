@@ -3,7 +3,8 @@
  *
  * Business logic for crew management and Crew Wars.
  */
-import { queryOne, queryAll, execute } from '../../db/client';
+import { queryOne, queryAll, execute, transaction } from '../../db/client';
+import { ValidationError } from '../../lib/errors';
 import type {
   Crew,
   CrewMember,
@@ -37,47 +38,58 @@ export async function createCrew(
   // Validate tag (3-5 alphanumeric characters)
   const cleanTag = tag.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (cleanTag.length < 3) {
-    throw new Error('Tag must be 3-5 alphanumeric characters');
+    throw new ValidationError('Tag must be 3-5 alphanumeric characters');
   }
 
-  // Check if user is already in a crew
-  const existingMember = await queryOne<{ crew_id: string }>(
-    'SELECT crew_id FROM crew_members WHERE user_id = $1',
-    [ownerId]
-  );
-  if (existingMember) {
-    throw new Error('You are already in a crew');
-  }
+  // Use atomic transaction to prevent race condition where user could join multiple crews
+  return await transaction(async (client) => {
+    // Check if user is already in a crew (with row lock to prevent race)
+    const existingMember = await client.query<{ crew_id: string }>(
+      'SELECT crew_id FROM crew_members WHERE user_id = $1 FOR UPDATE',
+      [ownerId]
+    );
+    if (existingMember.rows.length > 0) {
+      throw new ValidationError('You are already in a crew');
+    }
 
-  await execute(
-    `INSERT INTO crews (id, name, tag, description, color, owner_id, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [id, name, cleanTag, description || null, color || '#3B82F6', ownerId, now]
-  );
+    // Create the crew
+    await client.query(
+      `INSERT INTO crews (id, name, tag, description, color, owner_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, name, cleanTag, description || null, color || '#3B82F6', ownerId, now]
+    );
 
-  // Add owner as member
-  const memberId = genId('cm');
-  await execute(
-    `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
-     VALUES ($1, $2, $3, 'owner', $4)`,
-    [memberId, id, ownerId, now]
-  );
+    // Add owner as member using ON CONFLICT DO NOTHING as final safety net
+    const memberId = genId('cm');
+    const insertResult = await client.query(
+      `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
+       VALUES ($1, $2, $3, 'owner', $4)
+       ON CONFLICT (user_id) DO NOTHING
+       RETURNING id`,
+      [memberId, id, ownerId, now]
+    );
 
-  return {
-    id,
-    name,
-    tag: cleanTag,
-    description: description || null,
-    avatar: null,
-    color: color || '#3B82F6',
-    ownerId,
-    memberCount: 1,
-    totalTU: 0,
-    weeklyTU: 0,
-    wins: 0,
-    losses: 0,
-    createdAt: now,
-  };
+    // If insert returned nothing, user was already in a crew (concurrent race)
+    if (insertResult.rows.length === 0) {
+      throw new ValidationError('You are already in a crew');
+    }
+
+    return {
+      id,
+      name,
+      tag: cleanTag,
+      description: description || null,
+      avatar: null,
+      color: color || '#3B82F6',
+      ownerId,
+      memberCount: 1,
+      totalTU: 0,
+      weeklyTU: 0,
+      wins: 0,
+      losses: 0,
+      createdAt: now,
+    };
+  });
 }
 
 /**
@@ -251,56 +263,79 @@ export async function inviteToCrew(crewId: string, inviterId: string, inviteeId:
  * Accept crew invite
  */
 export async function acceptInvite(inviteId: string, userId: string): Promise<CrewMember> {
-  const invite = await queryOne<{
-    id: string;
-    crew_id: string;
-    inviter_id: string;
-    invitee_id: string;
-    status: string;
-    expires_at: string;
-  }>(
-    'SELECT * FROM crew_invites WHERE id = $1 AND invitee_id = $2 AND status = $3',
-    [inviteId, userId, 'pending']
-  );
+  return await transaction(async (client) => {
+    // Check invite exists and is pending (with row lock)
+    const inviteResult = await client.query<{
+      id: string;
+      crew_id: string;
+      inviter_id: string;
+      invitee_id: string;
+      status: string;
+      expires_at: string;
+    }>(
+      'SELECT * FROM crew_invites WHERE id = $1 AND invitee_id = $2 AND status = $3 FOR UPDATE',
+      [inviteId, userId, 'pending']
+    );
 
-  if (!invite) {
-    throw new Error('Invite not found or already used');
-  }
+    if (inviteResult.rows.length === 0) {
+      throw new ValidationError('Invite not found or already used');
+    }
 
-  if (new Date(invite.expires_at) < new Date()) {
-    await execute('UPDATE crew_invites SET status = $1 WHERE id = $2', ['expired', inviteId]);
-    throw new Error('Invite has expired');
-  }
+    const invite = inviteResult.rows[0];
 
-  const memberId = genId('cm');
-  const now = new Date().toISOString();
+    if (new Date(invite.expires_at) < new Date()) {
+      await client.query('UPDATE crew_invites SET status = $1 WHERE id = $2', ['expired', inviteId]);
+      throw new ValidationError('Invite has expired');
+    }
 
-  await execute(
-    `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
-     VALUES ($1, $2, $3, 'member', $4)`,
-    [memberId, invite.crew_id, userId, now]
-  );
+    // Check if user is already in a crew (with row lock to prevent race)
+    const existingMember = await client.query<{ crew_id: string }>(
+      'SELECT crew_id FROM crew_members WHERE user_id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (existingMember.rows.length > 0) {
+      throw new ValidationError('You are already in a crew');
+    }
 
-  await execute('UPDATE crew_invites SET status = $1 WHERE id = $2', ['accepted', inviteId]);
-  await execute('UPDATE crews SET member_count = member_count + 1 WHERE id = $1', [invite.crew_id]);
+    const memberId = genId('cm');
+    const now = new Date().toISOString();
 
-  const user = await queryOne<{ username: string | null; avatar_url: string | null; archetype: string | null }>(
-    'SELECT username, avatar_url, archetype FROM users WHERE id = $1',
-    [userId]
-  );
+    // Insert with ON CONFLICT DO NOTHING as final safety net against race conditions
+    const insertResult = await client.query(
+      `INSERT INTO crew_members (id, crew_id, user_id, role, joined_at)
+       VALUES ($1, $2, $3, 'member', $4)
+       ON CONFLICT (user_id) DO NOTHING
+       RETURNING id`,
+      [memberId, invite.crew_id, userId, now]
+    );
 
-  return {
-    id: memberId,
-    crewId: invite.crew_id,
-    userId,
-    role: 'member',
-    joinedAt: now,
-    weeklyTU: 0,
-    totalTU: 0,
-    username: user?.username ?? undefined,
-    avatar: user?.avatar_url ?? undefined,
-    archetype: user?.archetype ?? undefined,
-  };
+    // If insert returned nothing, user was already in a crew (concurrent race)
+    if (insertResult.rows.length === 0) {
+      throw new ValidationError('You are already in a crew');
+    }
+
+    await client.query('UPDATE crew_invites SET status = $1 WHERE id = $2', ['accepted', inviteId]);
+    await client.query('UPDATE crews SET member_count = member_count + 1 WHERE id = $1', [invite.crew_id]);
+
+    const userResult = await client.query<{ username: string | null; avatar_url: string | null; archetype: string | null }>(
+      'SELECT username, avatar_url, archetype FROM users WHERE id = $1',
+      [userId]
+    );
+    const user = userResult.rows[0];
+
+    return {
+      id: memberId,
+      crewId: invite.crew_id,
+      userId,
+      role: 'member',
+      joinedAt: now,
+      weeklyTU: 0,
+      totalTU: 0,
+      username: user?.username ?? undefined,
+      avatar: user?.avatar_url ?? undefined,
+      archetype: user?.archetype ?? undefined,
+    };
+  });
 }
 
 /**
@@ -550,21 +585,40 @@ export async function getCrewStats(crewId: string): Promise<CrewStats> {
   );
 
   // Calculate current win streak from completed wars
-  const warResults = await queryAll<{ winner_id: string | null }>(
-    `SELECT winner_id FROM crew_wars
+  // Only count sequential (non-overlapping) wars for streak calculation
+  // A war is sequential if it started after the previous war ended
+  const warResults = await queryAll<{
+    winner_id: string | null;
+    start_date: string;
+    end_date: string;
+  }>(
+    `SELECT winner_id, start_date, end_date FROM crew_wars
      WHERE (challenger_crew_id = $1 OR defending_crew_id = $1)
      AND status = 'completed'
      ORDER BY end_date DESC
-     LIMIT 20`,
+     LIMIT 50`,
     [crewId]
   );
 
   let currentStreak = 0;
+  let lastWarEndDate: Date | null = null;
+
   for (const war of warResults) {
+    // Skip parallel wars - only count wars that started after the previous one ended
+    // (or the first war in the sequence)
+    if (lastWarEndDate !== null) {
+      const warStartDate = new Date(war.start_date);
+      // If this war overlapped with the previous one, skip it for streak purposes
+      if (warStartDate < lastWarEndDate) {
+        continue;
+      }
+    }
+
     if (war.winner_id === crewId) {
       currentStreak++;
+      lastWarEndDate = new Date(war.end_date);
     } else {
-      break; // Streak broken
+      break; // Streak broken by a loss (or tie if winner_id is null)
     }
   }
 

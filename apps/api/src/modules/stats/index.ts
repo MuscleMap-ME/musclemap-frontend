@@ -650,7 +650,8 @@ export async function getUserRankings(
       global: {
         rank,
         total,
-        percentile: total > 0 ? Math.round(((total - rank + 1) / total) * 100 * 10) / 10 : 100,
+        // CORRECT: percentile = ((total - rank) / total) * 100
+        percentile: total > 0 ? Math.round(((total - rank) / total) * 100 * 10) / 10 : 100,
       },
     };
 
@@ -676,7 +677,8 @@ export async function getUserRankings(
       rankings[stat].country = {
         rank: cRank,
         total: cTotal,
-        percentile: cTotal > 0 ? Math.round(((cTotal - cRank + 1) / cTotal) * 100 * 10) / 10 : 100,
+        // CORRECT: percentile = ((total - rank) / total) * 100
+        percentile: cTotal > 0 ? Math.round(((cTotal - cRank) / cTotal) * 100 * 10) / 10 : 100,
       };
     }
   }

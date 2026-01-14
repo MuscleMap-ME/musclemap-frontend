@@ -219,7 +219,7 @@ export const antiabuseService = {
     // Check for self-farming (same IP, device, or circular transfers)
     const circularTransfer = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM credit_transfers
-       WHERE from_user_id = $1 AND to_user_id = $2
+       WHERE sender_id = $1 AND recipient_id = $2
          AND created_at >= NOW() - INTERVAL '7 days'`,
       [toUserId, userId]
     );
@@ -232,7 +232,7 @@ export const antiabuseService = {
     // Check for rapid repeated transfers
     const recentTransfers = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM credit_transfers
-       WHERE from_user_id = $1 AND to_user_id = $2
+       WHERE sender_id = $1 AND recipient_id = $2
          AND created_at >= NOW() - INTERVAL '1 hour'`,
       [userId, toUserId]
     );
@@ -259,7 +259,7 @@ export const antiabuseService = {
     // Check for unusual amount patterns (round numbers, specific amounts)
     const recentAmounts = await queryAll<{ amount: number }>(
       `SELECT amount FROM credit_transfers
-       WHERE from_user_id = $1 AND created_at >= NOW() - INTERVAL '24 hours'`,
+       WHERE sender_id = $1 AND created_at >= NOW() - INTERVAL '24 hours'`,
       [userId]
     );
 

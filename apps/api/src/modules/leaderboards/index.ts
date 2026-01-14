@@ -677,7 +677,9 @@ export const leaderboardService = {
 
     const rank = parseInt(betterCount?.count || '0') + 1;
     const total = parseInt(totalCount?.count || '0');
-    const percentile = total > 0 ? Math.round(((total - rank + 1) / total) * 100 * 10) / 10 : 100;
+    // CORRECT: percentile = ((total - rank) / total) * 100
+    // Rank 1 out of 100 = (100-1)/100 * 100 = 99th percentile
+    const percentile = total > 0 ? Math.round(((total - rank) / total) * 100 * 10) / 10 : 100;
 
     return { rank, value: userValue, total, percentile };
   },

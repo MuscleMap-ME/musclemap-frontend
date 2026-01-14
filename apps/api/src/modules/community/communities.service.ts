@@ -255,11 +255,13 @@ export const communitiesService = {
     const whereClause = isNumeric ? 'c.id = $1' : 'c.slug = $1';
 
     const userJoin = userId
-      ? `LEFT JOIN community_memberships cm ON cm.community_id = c.id AND cm.user_id = '${userId}'`
+      ? `LEFT JOIN community_memberships cm ON cm.community_id = c.id AND cm.user_id = $2`
       : '';
     const userSelect = userId
       ? ', cm.role_level as user_role, (cm.user_id IS NOT NULL) as is_member, cm.status as membership_status'
       : ', NULL as user_role, NULL as is_member, NULL as membership_status';
+
+    const queryParams = userId ? [idOrSlug, userId] : [idOrSlug];
 
     const row = await queryOne<{
       id: number;
@@ -295,7 +297,7 @@ export const communitiesService = {
        FROM communities c
        ${userJoin}
        WHERE ${whereClause}`,
-      [idOrSlug]
+      queryParams
     );
 
     if (!row) return null;
@@ -380,12 +382,14 @@ export const communitiesService = {
 
     const whereClause = conditions.join(' AND ');
 
-    const userJoin = userId
-      ? `LEFT JOIN community_memberships cm ON cm.community_id = c.id AND cm.user_id = '${userId}'`
-      : '';
-    const userSelect = userId
-      ? ', cm.role_level as user_role, (cm.user_id IS NOT NULL) as is_member, cm.status as membership_status'
-      : ', NULL as user_role, NULL as is_member, NULL as membership_status';
+    // Handle userId parameter for SQL injection prevention
+    let userJoin = '';
+    let userSelect = ', NULL as user_role, NULL as is_member, NULL as membership_status';
+    if (userId) {
+      userJoin = `LEFT JOIN community_memberships cm ON cm.community_id = c.id AND cm.user_id = $${paramIndex++}`;
+      params.push(userId);
+      userSelect = ', cm.role_level as user_role, (cm.user_id IS NOT NULL) as is_member, cm.status as membership_status';
+    }
 
     const rows = await queryAll<{
       id: number;

@@ -3,6 +3,7 @@
  *
  * Business logic for the rivalry system.
  */
+import { randomUUID } from 'crypto';
 import { queryOne, queryAll, execute } from '../../db/client';
 import type {
   Rival,
@@ -125,7 +126,7 @@ export const rivalsService = {
       throw new Error('User not found');
     }
 
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     await execute(
       `INSERT INTO rivals (id, challenger_id, challenged_id, status, created_at)
        VALUES ($1, $2, $3, 'pending', NOW())`,

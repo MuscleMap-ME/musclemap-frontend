@@ -133,6 +133,7 @@ musclemap.me/
 │   └── sw.js
 ├── scripts/
 │   ├── lib/
+│   ├── test-harness/
 │   ├── utils/
 │   ├── backfill-ranks.ts
 │   ├── deploy-branch.sh
@@ -418,7 +419,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (523 total)
+## API Endpoints (527 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -454,6 +455,10 @@ Components are organized by feature:
 | PUT | `/admin/rate-limits/:action` | credits |
 | POST | `/admin/store/grant` | credits |
 | POST | `/admin/store/revoke` | credits |
+| GET | `/admin/test-scorecard` | test-scorecard |
+| POST | `/admin/test-scorecard` | test-scorecard |
+| DELETE | `/admin/test-scorecard/:id` | test-scorecard |
+| GET | `/admin/test-scorecard/history` | test-scorecard |
 | PUT | `/admin/trainers/:userId/status` | trainers |
 | GET | `/admin/trust/:userId` | credits |
 | POST | `/admin/trust/:userId/override` | credits |

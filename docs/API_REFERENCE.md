@@ -193,6 +193,16 @@ Authorization: Bearer <token>
 | `POST` | `/updates` | Yes |
 
 
+### Test-scorecard
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/admin/test-scorecard` | Yes |
+| `POST` | `/admin/test-scorecard` | Yes |
+| `DELETE` | `/admin/test-scorecard/:id` | Yes |
+| `GET` | `/admin/test-scorecard/history` | Yes |
+
+
 ### Trainers
 
 | Method | Endpoint | Auth Required |
