@@ -324,6 +324,7 @@ GlassButton.displayName = 'GlassButton';
 // Export triggerSuccess utility for external use
 export { useButtonFeedback } from './ButtonEffects';
 
+export { GlassButton };
 export default GlassButton;
 
 /**
