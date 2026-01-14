@@ -93,5 +93,4 @@ export function GlassMobileNav({
   );
 }
 
-export { GlassMobileNav };
 export default GlassMobileNav;
