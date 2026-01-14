@@ -171,7 +171,7 @@ Login page
 - **Protected**: Yes (requires login)
 
 ### Onboarding
-Onboarding page
+Handle archetype selection from ArchetypeSelector The selector already calls the API, so we just update state and move to step 2 /
 - **Route**: `/onboarding`
 - **Protected**: Yes (requires login)
 

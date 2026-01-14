@@ -231,6 +231,8 @@ Authorization: Bearer <token>
 |--------|----------|---------------|
 | `GET` | `/archetypes` | Yes |
 | `GET` | `/archetypes/:id/levels` | Yes |
+| `GET` | `/archetypes/by-category/:categoryId` | Yes |
+| `GET` | `/archetypes/categories` | Yes |
 | `POST` | `/archetypes/select` | Yes |
 | `GET` | `/journey` | Yes |
 | `GET` | `/journey/progress` | Yes |

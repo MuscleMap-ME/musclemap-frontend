@@ -122,7 +122,9 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       description: string;
       focus_areas: string;
       icon_url: string;
-    }>('SELECT * FROM archetypes');
+      image_url: string;
+      category_id: string;
+    }>('SELECT id, name, philosophy, description, focus_areas, icon_url, image_url, category_id FROM archetypes');
 
     return reply.send({
       data: archetypes.map((a) => {
@@ -142,7 +144,115 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
             }
           }
         }
-        return { ...a, focusAreas };
+        return {
+          id: a.id,
+          name: a.name,
+          philosophy: a.philosophy,
+          description: a.description,
+          icon: a.icon_url,
+          imageUrl: a.image_url,
+          categoryId: a.category_id,
+          focusAreas,
+        };
+      }),
+    });
+  });
+
+  // Get all archetype categories with archetype count
+  app.get('/archetypes/categories', async (request, reply) => {
+    const categories = await queryAll<{
+      id: string;
+      name: string;
+      description: string | null;
+      icon: string | null;
+      archetype_count: string;
+    }>(`
+      SELECT
+        ac.id,
+        ac.name,
+        ac.description,
+        ac.icon,
+        COUNT(a.id)::text as archetype_count
+      FROM archetype_categories ac
+      LEFT JOIN archetypes a ON a.category_id = ac.id
+      GROUP BY ac.id, ac.name, ac.description, ac.icon
+      ORDER BY ac.display_order ASC
+    `);
+
+    return reply.send({
+      data: categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        icon: c.icon,
+        imageUrl: null, // image_url column doesn't exist in categories table
+        archetypeCount: parseInt(c.archetype_count || '0'),
+      })),
+    });
+  });
+
+  // Get archetypes by category
+  app.get('/archetypes/by-category/:categoryId', async (request, reply) => {
+    const { categoryId } = request.params as { categoryId: string };
+
+    // First check if category exists
+    const category = await queryOne<{ id: string }>(
+      'SELECT id FROM archetype_categories WHERE id = $1',
+      [categoryId]
+    );
+
+    if (!category) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Category not found', statusCode: 404 },
+      });
+    }
+
+    const archetypes = await queryAll<{
+      id: string;
+      name: string;
+      philosophy: string;
+      description: string;
+      focus_areas: string;
+      icon_url: string;
+      image_url: string;
+      category_id: string;
+    }>(
+      `SELECT id, name, philosophy, description, focus_areas, icon_url, image_url, category_id
+       FROM archetypes
+       WHERE category_id = $1
+       ORDER BY name ASC`,
+      [categoryId]
+    );
+
+    return reply.send({
+      data: archetypes.map((a) => {
+        // Handle both JSON array and comma-separated string formats
+        let focusAreas: string[] = [];
+        const raw = a.focus_areas;
+        if (raw) {
+          if (Array.isArray(raw)) {
+            focusAreas = raw;
+          } else if (typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              focusAreas = Array.isArray(parsed) ? parsed : [raw];
+            } catch {
+              // If not valid JSON, treat as comma-separated string
+              focusAreas = raw.split(',').map((s) => s.trim());
+            }
+          }
+        }
+        return {
+          id: a.id,
+          name: a.name,
+          description: a.description,
+          philosophy: a.philosophy,
+          icon: a.icon_url,
+          imageUrl: a.image_url,
+          color: null, // color column doesn't exist in archetypes table
+          focusAreas,
+          categoryId: a.category_id,
+        };
       }),
     });
   });

@@ -58,6 +58,7 @@ musclemap.me/
 │   ├── IMPLEMENTATION-PLAN-4-FEATURES.md
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
+│   ├── MASTER-IMPLEMENTATION-PLAN.md
 │   ├── NATIVE_EXTENSIONS.md
 │   ├── PLUGIN-DEVELOPMENT.md
 │   ├── PLUGINS.md
@@ -70,6 +71,7 @@ musclemap.me/
 │   ├── STAGE-1-ARCHITECTURE-ANALYSIS.md
 │   ├── STAGE-2-USER-PERSONAS.md
 │   ├── STAGE-3-TEST-HARNESS.md
+│   ├── STAGE-4-5-6-SIMULATION-ANALYSIS-PLAN.md
 │   ├── STATE-MANAGEMENT.md
 │   ├── TOUCHSCREEN_UX_AUDIT.md
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
@@ -249,7 +251,7 @@ musclemap.me/
 | MyIssues | Yes | My Issues Page  User's submitted issues: - View status of reported issues - Track responses / |
 | MyVerifications | No | MyVerifications page |
 | NewIssue | No | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
-| Onboarding | Yes | Onboarding page |
+| Onboarding | Yes | Handle archetype selection from ArchetypeSelector The selector already calls the API, so we just update state and move to step 2 / |
 | PluginGuide | No | Plugin Development Guide  A visual, step-by-step guide for creating MuscleMap plugins with interactive diagrams and code examples |
 | PluginMarketplace | No | PluginMarketplace - Browse and install community plugins  Features: - Browse available plugins - Search and filter - Install/uninstall plugins - View plugin details / |
 | PluginSettings | No | PluginSettings - Manage installed plugins  Features: - View installed plugins - Enable/disable plugins - Configure plugin settings - Uninstall plugins - View plugin permissions / |
@@ -273,7 +275,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (94 total)
+## Components (95 total)
 
 Components are organized by feature:
 
@@ -296,6 +298,7 @@ Components are organized by feature:
 - `ArchetypeCard`
 - `ArchetypeDetail`
 - `ArchetypeGrid`
+- `ArchetypeSelector`
 - `CategoryGrid`
 
 ### atlas
@@ -415,7 +418,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (521 total)
+## API Endpoints (523 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -463,7 +466,9 @@ Components are organized by feature:
 | GET | `/archetype/suggested-communities` | archetype-communities |
 | GET | `/archetypes` | journey |
 | GET | `/archetypes/:id/levels` | journey |
+| GET | `/archetypes/by-category/:categoryId` | journey |
 | GET | `/archetypes/by-category/:categoryId` | pt-tests |
+| GET | `/archetypes/categories` | journey |
 | GET | `/archetypes/categories` | pt-tests |
 | GET | `/archetypes/communities` | archetype-communities |
 | POST | `/archetypes/select` | journey |

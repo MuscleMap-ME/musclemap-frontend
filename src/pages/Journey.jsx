@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../store/authStore";
+import { ArchetypeCard } from "../components/archetypes";
 
 // Archetype icons and colors
 const ARC = {
@@ -21,6 +23,26 @@ const ARC = {
   default: { i: "🎯", c: "from-purple-500 to-blue-500", bg: "bg-purple-500" }
 };
 const getA = id => ARC[id] || ARC["default"];
+
+// Archetype hex colors for ArchetypeCard component
+const ARCHETYPE_COLORS = {
+  bodybuilder: "#ef4444",    // red-500
+  powerlifter: "#4b5563",    // gray-600
+  gymnast: "#a855f7",        // purple-500
+  crossfit: "#eab308",       // yellow-500
+  sprinter: "#60a5fa",       // blue-400
+  swimmer: "#06b6d4",        // cyan-500
+  judoka: "#dc2626",         // red-600
+  boxer: "#ef4444",          // red-500
+  mma: "#1f2937",            // gray-800
+  wrestler: "#2563eb",       // blue-600
+  rock_climber: "#f59e0b",   // amber-500
+  marathon: "#fbbf24",       // amber-400
+  cyclist: "#4ade80",        // green-400
+  functional: "#22c55e",     // green-500
+  default: "#a855f7",        // purple-500
+};
+const getArchetypeColor = id => ARCHETYPE_COLORS[id] || ARCHETYPE_COLORS["default"];
 
 // Muscle group colors
 const MUSCLE_COLORS = {
@@ -416,23 +438,43 @@ export default function Journey() {
             {/* Other Paths */}
             <h3 className="text-sm text-gray-400 uppercase mb-3">Explore Other Paths</h3>
             <div className="grid grid-cols-2 gap-4">
-              {otherPaths.map(path => (
-                <button
-                  key={path.archetype}
-                  onClick={() => switchPath(path.archetype)}
-                  disabled={!!switching}
-                  className={`relative bg-gradient-to-br ${getA(path.archetype).c} rounded-2xl p-4 text-left transition-all hover:scale-105 active:scale-95`}
-                >
-                  <span className="text-4xl">{switching === path.archetype ? "⏳" : getA(path.archetype).i}</span>
-                  <div className="mt-2">
-                    <div className="font-bold">{path.name}</div>
-                    <div className="text-xs opacity-80">{path.percentComplete.toFixed(0)}% complete</div>
-                  </div>
-                  <div className="absolute top-2 right-2 bg-black/30 rounded-full px-2 py-1 text-xs">
-                    {path.percentComplete.toFixed(0)}%
-                  </div>
-                </button>
-              ))}
+              <AnimatePresence mode="popLayout">
+                {otherPaths.map(path => {
+                  // Map path data to ArchetypeCard format
+                  const archetypeData = {
+                    id: path.archetype,
+                    name: path.name,
+                    description: path.philosophy,
+                    philosophy: path.philosophy,
+                    icon: switching === path.archetype ? "⏳" : getA(path.archetype).i,
+                    // Convert gradient classes to a hex color for the card
+                    color: getArchetypeColor(path.archetype),
+                  };
+
+                  return (
+                    <motion.div
+                      key={path.archetype}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                      className="relative"
+                    >
+                      <ArchetypeCard
+                        archetype={archetypeData}
+                        size="md"
+                        onClick={() => !switching && switchPath(path.archetype)}
+                        showDetails={true}
+                      />
+                      {/* Progress badge */}
+                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold border border-white/20">
+                        {path.percentComplete.toFixed(0)}% mastery
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           </div>
         )}

@@ -134,7 +134,6 @@ const CategoryCard = memo(function CategoryCard({
   category,
   isSelected,
   onClick,
-  index,
 }) {
   const IconComponent = CATEGORY_ICONS[category.id] || Barbell;
   const gradientClass = CATEGORY_GRADIENTS[category.id] || CATEGORY_GRADIENTS.general;
@@ -362,13 +361,12 @@ const CategoryGrid = memo(function CategoryGrid({
       animate="visible"
     >
       <AnimatePresence mode="popLayout">
-        {categories.map((category, index) => (
+        {categories.map((category) => (
           <CategoryCard
             key={category.id}
             category={category}
             isSelected={selectedCategory === category.id}
             onClick={onSelectCategory}
-            index={index}
           />
         ))}
       </AnimatePresence>
