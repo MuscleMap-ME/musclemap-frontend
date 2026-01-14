@@ -889,18 +889,25 @@ export default function EmpireControl() {
                       </div>
                     </div>
                   </GlassSurface>
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 flex-wrap">
                     <Link
                       to="/admin-control"
-                      className="flex-1 text-center px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                      className="flex-1 min-w-[200px] text-center px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                     >
                       Admin Control Panel
                     </Link>
                     <Link
                       to="/admin/monitoring"
-                      className="flex-1 text-center px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                      className="flex-1 min-w-[200px] text-center px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                     >
                       System Monitoring
+                    </Link>
+                    <Link
+                      to="/live"
+                      className="flex-1 min-w-[200px] text-center px-6 py-3 bg-gradient-to-r from-blue-500/20 to-violet-500/20 hover:from-blue-500/30 hover:to-violet-500/30 border border-blue-500/30 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Activity className="w-4 h-4" />
+                      Live Activity
                     </Link>
                   </div>
                 </div>
