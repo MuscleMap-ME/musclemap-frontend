@@ -62,6 +62,10 @@ fi
 cd "$MAIN_REPO"
 echo -e "${BLUE}📂 Working in main repo: $MAIN_REPO${NC}"
 
+# Auto-generate docs before committing
+echo -e "${BLUE}📚 Regenerating documentation...${NC}"
+pnpm docs:generate 2>/dev/null || echo "  (docs generation skipped)"
+
 if [[ -n $(git status --porcelain) ]]; then
     echo -e "${YELLOW}📦 Committing main repo changes...${NC}"
     git add .
