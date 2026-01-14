@@ -887,6 +887,7 @@ export default function Dashboard() {
   const [muscleActivations, setMuscleActivations] = useState([]);
   const [_loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -897,6 +898,23 @@ export default function Dashboard() {
       setWallet(walletData);
       setLoading(false);
     });
+
+    // Fetch unread message count
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('/api/messaging/unread-count', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.data?.unreadCount !== undefined) {
+            setUnreadMessageCount(data.data.unreadCount);
+          }
+        })
+        .catch(() => {
+          // Silently fail - badge just won't show
+        });
+    }
 
     // Fetch character stats separately
     api.characterStats.me()
@@ -944,12 +962,16 @@ export default function Dashboard() {
         }
         rightContent={
           <div className="flex items-center gap-2">
-            {/* Notifications */}
+            {/* Messages */}
             <Link to="/messages" className="relative">
               <GlassIconButton size="sm">
-                <Icons.Bell className="w-5 h-5" />
+                <Icons.Message className="w-5 h-5" />
               </GlassIconButton>
-              <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[var(--brand-pulse-500)] rounded-full border-2 border-[var(--void-base)]" />
+              {unreadMessageCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[var(--brand-pulse-500)] rounded-full border-2 border-[var(--void-base)] text-[10px] font-bold text-white flex items-center justify-center">
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </span>
+              )}
             </Link>
 
             {/* Wallet */}
@@ -983,7 +1005,7 @@ export default function Dashboard() {
                   icon={item.icon}
                   label={item.label}
                   active={item.active}
-                  badge={item.badge}
+                  badge={item.to === '/messages' && unreadMessageCount > 0 ? unreadMessageCount : item.badge}
                 />
               ))}
             </GlassSidebarSection>

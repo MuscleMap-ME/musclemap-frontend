@@ -573,6 +573,7 @@ Authorization: Bearer <token>
 | `POST` | `/messaging/conversations/:id/messages` | Yes |
 | `POST` | `/messaging/conversations/:id/read` | Yes |
 | `DELETE` | `/messaging/messages/:id` | Yes |
+| `GET` | `/messaging/unread-count` | Yes |
 | `GET` | `/messaging/ws` | Yes |
 
 

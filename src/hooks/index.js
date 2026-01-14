@@ -63,6 +63,13 @@ export { useLocale, useTranslation, LOCALES } from '../contexts/LocaleContext';
 // Legacy user context (prefer useAuth)
 export { useUser } from '../contexts/UserContext';
 
+// Contextual tips
+export {
+  useContextualTips,
+  useTipOnCondition,
+} from '../components/tips/ContextualTipProvider';
+export { TIP_TRIGGERS } from '../components/tips/tipDefinitions';
+
 // ============================================
 // DATA FETCHING HOOKS
 // ============================================
@@ -76,6 +83,12 @@ export { default as useLiveActivity } from './useLiveActivity';
 // ============================================
 
 export { default as useWebSocket } from './useWebSocket';
+
+// Button interaction hooks
+export {
+  useButtonFeedback,
+  useReducedMotion,
+} from '../components/glass/ButtonEffects';
 export { default as useXR, useXRButton, XR_STATE } from './useXR';
 export { useLongPress } from './useLongPress';
 export { useSwipeGesture } from './useSwipeGesture';

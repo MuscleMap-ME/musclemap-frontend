@@ -81,6 +81,7 @@ musclemap.me/
 │   ├── TOUCHSCREEN_UX_AUDIT.md
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
 │   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
+│   ├── UI-UX-ENHANCEMENT-PLAN.md
 │   ├── USER_GUIDE.md
 │   ├── VISUAL_ARCHITECTURE_MAPS.md
 │   └── XP-VELOCITY-LIMITS.md
@@ -283,7 +284,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (95 total)
+## Components (110 total)
 
 Components are organized by feature:
 
@@ -301,6 +302,9 @@ Components are organized by feature:
 
 ### Toast
 - `ToastProvider`
+
+### animations
+- `AnimatedNumber`
 
 ### archetypes
 - `ArchetypeCard`
@@ -323,6 +327,9 @@ Components are organized by feature:
 - `RoadmapAtlas`
 - `RouteAtlas`
 
+### celebrations
+- `Confetti`
+
 ### community
 - `ActivityFeed`
 - `CommunityMap`
@@ -341,8 +348,14 @@ Components are organized by feature:
 - `RouteAtlasD3`
 - `WorldMapD3`
 
+### discovery
+- `FeatureCard`
+- `FeatureDiscovery`
+
 ### feedback
 - `BugReportForm`
+- `EmptyState`
+- `EmptyStateIllustrations`
 - `FeatureSuggestionForm`
 - `FeedbackCenter`
 - `GitHubStatsWidget`
@@ -351,6 +364,7 @@ Components are organized by feature:
 
 ### glass
 - `ActionCard`
+- `ButtonEffects`
 - `GlassButton`
 - `GlassNav`
 - `GlassProgress`
@@ -358,6 +372,10 @@ Components are organized by feature:
 - `MeshBackground`
 - `MuscleActivationCard`
 - `SwipeableCard`
+
+### help
+- `HelpProvider`
+- `HelpTooltip`
 
 ### icons
 - `Avatar`
@@ -401,9 +419,18 @@ Components are organized by feature:
 - `MessageThread`
 - `NewConversation`
 
+### navigation
+- `Breadcrumbs`
+
+### onboarding
+- `SpotlightTour`
+
 ### ranks
 - `RankBadge`
 - `VeteranBadge`
+
+### search
+- `CommandPalette`
 
 ### skeletons
 - `AtlasSkeleton`
@@ -412,10 +439,13 @@ Components are organized by feature:
 - `JourneySkeleton`
 - `ListSkeleton`
 - `ProfileSkeleton`
+- `SkeletonBase`
 - `TableSkeleton`
 - `WorkoutSkeleton`
 
 ### tips
+- `ContextualTip`
+- `ContextualTipProvider`
 - `DailyTip`
 - `ExerciseTip`
 - `MilestoneCard`
@@ -426,7 +456,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (525 total)
+## API Endpoints (526 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -750,6 +780,7 @@ Components are organized by feature:
 | POST | `/messaging/conversations/:id/messages` | messaging |
 | POST | `/messaging/conversations/:id/read` | messaging |
 | DELETE | `/messaging/messages/:id` | messaging |
+| GET | `/messaging/unread-count` | messaging |
 | GET | `/messaging/ws` | messaging |
 | GET | `/milestones` | tips |
 | POST | `/milestones/:id/claim` | tips |

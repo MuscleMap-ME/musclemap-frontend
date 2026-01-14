@@ -311,6 +311,28 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
     });
   });
 
+  // Get total unread message count across all conversations
+  app.get('/messaging/unread-count', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    // Count unread messages across all conversations the user is part of
+    const result = await queryOne<{ count: string }>(
+      `SELECT COALESCE(SUM(
+        (SELECT COUNT(*)
+         FROM messages m
+         WHERE m.conversation_id = cp.conversation_id
+           AND m.sender_id != cp.user_id
+           AND m.deleted_at IS NULL
+           AND m.created_at > COALESCE(cp.last_read_at, cp.joined_at))
+      ), 0)::int as count
+      FROM conversation_participants cp
+      WHERE cp.user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({ data: { unreadCount: parseInt(result?.count || '0', 10) } });
+  });
+
   // Mark as read
   app.post('/messaging/conversations/:id/read', { preHandler: authenticate }, async (request, reply) => {
     const { id } = request.params as { id: string };
