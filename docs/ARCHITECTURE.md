@@ -293,7 +293,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (147 total)
+## Components (149 total)
 
 Components are organized by feature:
 
@@ -397,6 +397,8 @@ Components are organized by feature:
 - `EmptyStateIllustrations`
 - `FeatureSuggestionForm`
 - `FeedbackCenter`
+- `FeedbackHub`
+- `FeedbackModal`
 - `GitHubStatsWidget`
 - `OpenSourceBanner`
 - `OpenSourceHero`
@@ -520,7 +522,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (675 total)
+## API Endpoints (687 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -724,6 +726,18 @@ Components are organized by feature:
 | GET | `/exercises/:id/illustration` | misc |
 | GET | `/exercises/:id/metrics` | leaderboards |
 | GET | `/exercises/:injuryId` | rehabilitation |
+| GET | `/faq` | feedback |
+| GET | `/faq/:id` | feedback |
+| POST | `/faq/:id/helpful` | feedback |
+| GET | `/faq/categories` | feedback |
+| POST | `/feedback` | feedback |
+| GET | `/feedback` | feedback |
+| GET | `/feedback/:id` | feedback |
+| POST | `/feedback/:id/respond` | feedback |
+| POST | `/feedback/:id/upvote` | feedback |
+| DELETE | `/feedback/:id/upvote` | feedback |
+| GET | `/feedback/features/popular` | feedback |
+| GET | `/feedback/search` | feedback |
 | GET | `/friend-requests` | social |
 | GET | `/friends` | social |
 | GET | `/goals` | goals |

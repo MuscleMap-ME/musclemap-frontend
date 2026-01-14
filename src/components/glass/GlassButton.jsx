@@ -10,10 +10,14 @@
  * FEATURES:
  * - Ripple effect on click (canvas-based for performance)
  * - Pulse effect option for subtle feedback
- * - Press feedback with scale animation
+ * - Burst effect option for confetti celebration
+ * - Shake effect option for error feedback
+ * - Press feedback with scale animation (0.98 on press)
  * - Success animation after async onClick resolves
+ * - Error shake animation on failed actions
+ * - Success burst with confetti particles
  * - Haptic feedback on mobile (navigator.vibrate)
- * - Loading state with optional loading text
+ * - Loading state with spinner and optional loading text
  * - Prominent focus ring for keyboard accessibility
  * - Respects prefers-reduced-motion
  *
@@ -24,6 +28,9 @@
  * // With pulse instead
  * <GlassButton feedback="pulse" onClick={handleClick}>Subtle</GlassButton>
  *
+ * // With burst effect (confetti on click)
+ * <GlassButton feedback="burst" onClick={handleClick}>Celebrate!</GlassButton>
+ *
  * // With success animation (async onClick)
  * <GlassButton
  *   successAnimation
@@ -32,6 +39,27 @@
  *   }}
  * >
  *   Save
+ * </GlassButton>
+ *
+ * // With success burst (confetti on success)
+ * <GlassButton
+ *   successBurst
+ *   onClick={async () => {
+ *     await saveData();
+ *   }}
+ * >
+ *   Complete Task
+ * </GlassButton>
+ *
+ * // With error handling
+ * <GlassButton
+ *   onError={() => toast.error('Failed!')}
+ *   onClick={async () => {
+ *     const result = await riskyOperation();
+ *     if (!result.ok) throw new Error('Failed');
+ *   }}
+ * >
+ *   Try Something
  * </GlassButton>
  *
  * // With haptic on mobile
@@ -48,6 +76,8 @@ import {
   RippleEffect,
   SuccessEffect,
   PulseEffect,
+  ShakeEffect,
+  BurstEffect,
   useButtonFeedback,
   useReducedMotion,
   triggerHaptic,
@@ -108,11 +138,14 @@ const GlassButton = forwardRef(
       rightIcon,
       as,
       // Enhanced interaction props
-      feedback = 'ripple', // 'ripple' | 'pulse' | 'none'
+      ripple = true, // Convenience prop - show ripple on click (same as feedback='ripple')
+      feedback = 'ripple', // 'ripple' | 'pulse' | 'shake' | 'burst' | 'none'
       haptic = false, // Trigger haptic feedback on mobile
       successAnimation = false, // Show success animation after onClick resolves
+      successBurst = false, // Show confetti burst on successful action
       loadingText, // Text to show while loading
-      onSuccess,
+      onSuccess, // Callback triggered on success
+      onError, // Callback triggered on error (also triggers shake)
       onClick,
       ...props
     },

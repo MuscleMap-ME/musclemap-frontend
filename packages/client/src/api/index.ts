@@ -1627,6 +1627,51 @@ export interface SkillLeaderboardEntry {
 }
 
 // =====================
+// Feedback System Types
+// =====================
+export interface FeedbackItem {
+  id: string;
+  type: 'bug_report' | 'feature_request' | 'question' | 'general';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  title: string;
+  description: string;
+  stepsToReproduce?: string | null;
+  expectedBehavior?: string | null;
+  actualBehavior?: string | null;
+  category?: string | null;
+  attachments?: string[];
+  upvotes: number;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  deviceInfo?: {
+    userAgent?: string | null;
+    screenSize?: string | null;
+    appVersion?: string | null;
+    platform?: string | null;
+  };
+}
+
+export interface FeedbackResponse {
+  id: string;
+  responderType: 'system' | 'admin' | 'user';
+  message: string;
+  createdAt: string;
+}
+
+export interface FAQEntry {
+  id: string;
+  category: string;
+  categoryLabel: string;
+  question: string;
+  answer: string;
+  viewCount: number;
+  helpfulCount: number;
+  notHelpfulCount: number;
+}
+
+// =====================
 // Helper to unwrap API responses
 // =====================
 interface DataResponse<T> {
@@ -4054,6 +4099,109 @@ export const apiClient = {
     /** Get veteran badge info */
     veteranBadge: () =>
       request<DataResponse<VeteranBadgeResponse>>('/ranks/veteran-badge'),
+  },
+
+  // Feedback System (Bug Reports, Feature Requests, Questions, FAQ)
+  feedback: {
+    /** Create new feedback (bug report, feature request, question, general) */
+    create: (payload: {
+      type: 'bug_report' | 'feature_request' | 'question' | 'general';
+      title: string;
+      description: string;
+      priority?: 'low' | 'medium' | 'high' | 'critical';
+      stepsToReproduce?: string;
+      expectedBehavior?: string;
+      actualBehavior?: string;
+      category?: string;
+      attachments?: string[];
+      metadata?: Record<string, unknown>;
+      userAgent?: string;
+      screenSize?: string;
+      appVersion?: string;
+      platform?: string;
+    }) =>
+      request<DataResponse<{ id: string; message: string }>>('/feedback', {
+        method: 'POST',
+        body: payload,
+      }),
+
+    /** List user's own feedback */
+    list: (options?: {
+      type?: 'bug_report' | 'feature_request' | 'question' | 'general';
+      status?: 'open' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
+      limit?: number;
+      cursor?: string;
+    }) => {
+      const params = new URLSearchParams();
+      if (options?.type) params.set('type', options.type);
+      if (options?.status) params.set('status', options.status);
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.cursor) params.set('cursor', options.cursor);
+      const query = params.toString();
+      return request<DataResponse<FeedbackItem[]> & { meta: { hasMore: boolean; nextCursor: string | null } }>(
+        `/feedback${query ? `?${query}` : ''}`
+      );
+    },
+
+    /** Get single feedback with responses */
+    get: (id: string) =>
+      request<DataResponse<FeedbackItem & { responses: FeedbackResponse[] }>>(`/feedback/${id}`),
+
+    /** Add response to own feedback (follow-up) */
+    respond: (id: string, message: string) =>
+      request<DataResponse<{ id: string; message: string }>>(`/feedback/${id}/respond`, {
+        method: 'POST',
+        body: { message },
+      }),
+
+    /** Get popular feature requests */
+    popularFeatures: (limit = 10) =>
+      request<DataResponse<(FeedbackItem & { userVoted: boolean })[]>>(`/feedback/features/popular?limit=${limit}`),
+
+    /** Upvote a feature request */
+    upvote: (id: string) =>
+      request<DataResponse<{ upvoted: boolean }>>(`/feedback/${id}/upvote`, {
+        method: 'POST',
+      }),
+
+    /** Remove upvote from a feature request */
+    removeUpvote: (id: string) =>
+      request<DataResponse<{ upvoted: boolean }>>(`/feedback/${id}/upvote`, {
+        method: 'DELETE',
+      }),
+
+    /** Get FAQ entries */
+    getFaq: (options?: { category?: string; search?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.category) params.set('category', options.category);
+      if (options?.search) params.set('search', options.search);
+      const query = params.toString();
+      return request<{ data: Record<string, FAQEntry[]>; categories: string[] }>(
+        `/faq${query ? `?${query}` : ''}`,
+        { cacheTtl: 300_000 }
+      );
+    },
+
+    /** Get FAQ categories */
+    faqCategories: () =>
+      request<DataResponse<{ name: string; label: string; count: number }[]>>('/faq/categories', {
+        cacheTtl: 300_000,
+      }),
+
+    /** Get single FAQ entry (increments view count) */
+    getFaqEntry: (id: string) =>
+      request<DataResponse<FAQEntry>>(`/faq/${id}`),
+
+    /** Mark FAQ as helpful or not helpful */
+    markFaqHelpful: (id: string, helpful: boolean) =>
+      request<DataResponse<{ recorded: boolean }>>(`/faq/${id}/helpful`, {
+        method: 'POST',
+        body: { helpful },
+      }),
+
+    /** Search FAQ and feature requests */
+    search: (query: string) =>
+      request<DataResponse<{ faq: FAQEntry[]; features: FeedbackItem[] }>>(`/feedback/search?q=${encodeURIComponent(query)}`),
   },
 };
 

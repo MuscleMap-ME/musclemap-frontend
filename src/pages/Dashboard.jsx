@@ -5,18 +5,25 @@
  * inspired by visionOS and iOS 18 spatial computing aesthetics.
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
-import { DailyTip, MilestoneProgress } from '../components/tips';
+import { DailyTip, MilestoneProgress, ActiveContextualTip, useTipOnCondition, TIP_TRIGGERS } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { NutritionDashboardCard, QuickLogModal } from '../components/nutrition';
+import { FeedbackHub, FeedbackModal } from '../components/feedback';
 import { useNutritionDashboard } from '../hooks/useNutrition';
 
 // Plugin System - Widget Slots
 import { WidgetSlot } from '../plugins';
+
+// New UI Components
+import { FeatureDiscovery } from '../components/discovery';
+import { AnimatedNumber, AnimatedCredits, AnimatedXP } from '../components/animations';
+import { HelpTooltip, InlineHelp } from '../components/help';
+import { EmptyState } from '../components/empty';
 
 // Lazy load heavy Atlas component (3D visualization)
 const DashboardAtlas = lazy(() =>
@@ -202,13 +209,17 @@ const getArchetype = (id) => ARCHETYPES[id] || ARCHETYPES.default;
 // ============================================
 // STAT CARD COMPONENT
 // ============================================
-const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'default' }) => {
+const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'default', helpTerm, animate = false }) => {
   const variants = {
     default: 'from-[var(--glass-white-5)] to-[var(--glass-white-10)]',
     brand: 'from-[var(--brand-blue-500)]/10 to-[var(--brand-blue-500)]/5',
     pulse: 'from-[var(--brand-pulse-500)]/10 to-[var(--brand-pulse-500)]/5',
     success: 'from-[var(--feedback-success)]/10 to-[var(--feedback-success)]/5',
   };
+
+  // Determine if value is a number that should be animated
+  const isNumericValue = typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value)));
+  const numericValue = isNumericValue ? parseFloat(value) : 0;
 
   return (
     <motion.div
@@ -247,8 +258,23 @@ const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'defaul
           )}
         </div>
 
-        <div className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">{value}</div>
-        <div className="text-sm text-[var(--text-secondary)] mt-1">{label}</div>
+        <div className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+          {animate && isNumericValue ? (
+            <AnimatedNumber
+              value={numericValue}
+              format="comma"
+              glowOnChange
+              glowColor="auto"
+              countUp
+            />
+          ) : (
+            value
+          )}
+        </div>
+        <div className="text-sm text-[var(--text-secondary)] mt-1 flex items-center gap-1">
+          {label}
+          {helpTerm && <HelpTooltip term={helpTerm} size="sm" />}
+        </div>
         {sublabel && <div className="text-xs text-[var(--text-quaternary)] mt-0.5">{sublabel}</div>}
       </div>
     </motion.div>
@@ -559,17 +585,27 @@ const CurrentPathCard = ({ archetype, stats, wallet: _wallet }) => {
 
             <div className="flex items-center gap-6 mt-6">
               <div>
-                <div className="text-3xl font-bold text-white">{stats?.level || 1}</div>
-                <div className="text-sm text-white/60">Level</div>
+                <div className="text-3xl font-bold text-white">
+                  <AnimatedNumber value={stats?.level || 1} countUp glowOnChange glowColor="auto" />
+                </div>
+                <div className="text-sm text-white/60 flex items-center gap-1">
+                  Level <HelpTooltip term="Level" size="sm" iconColor="rgba(255,255,255,0.6)" />
+                </div>
               </div>
               <div className="w-px h-12 bg-white/20" />
               <div>
-                <div className="text-3xl font-bold text-white">{stats?.xp?.toLocaleString() || 0}</div>
-                <div className="text-sm text-white/60">Total XP</div>
+                <div className="text-3xl font-bold text-white">
+                  <AnimatedXP value={stats?.xp || 0} />
+                </div>
+                <div className="text-sm text-white/60 flex items-center gap-1">
+                  Total XP <HelpTooltip term="XP" size="sm" iconColor="rgba(255,255,255,0.6)" />
+                </div>
               </div>
               <div className="w-px h-12 bg-white/20" />
               <div>
-                <div className="text-3xl font-bold text-white">{stats?.streak || 0}</div>
+                <div className="text-3xl font-bold text-white">
+                  <AnimatedNumber value={stats?.streak || 0} countUp glowOnChange glowColor="auto" />
+                </div>
                 <div className="text-sm text-white/60">Day Streak</div>
               </div>
             </div>
@@ -991,8 +1027,9 @@ export default function Dashboard() {
             >
               <Icons.Wallet className="w-4 h-4 text-[var(--brand-blue-400)]" />
               <span className="font-semibold text-[var(--text-primary)]">
-                {wallet?.wallet?.balance?.toFixed(0) || user?.credits || 0}
+                <AnimatedCredits value={wallet?.wallet?.balance || user?.credits || 0} />
               </span>
+              <HelpTooltip term="Credits" size="sm" />
             </Link>
 
             {/* Settings/Logout */}
@@ -1217,6 +1254,10 @@ export default function Dashboard() {
 
       {/* Nutrition Quick Log Modal */}
       <QuickLogModal />
+
+      {/* Feedback System */}
+      <FeedbackHub />
+      <FeedbackModal />
     </div>
   );
 }

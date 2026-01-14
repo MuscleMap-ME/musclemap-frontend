@@ -753,6 +753,31 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Feedback}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/faq} \\
+\texttt{GET} & \texttt{/faq/:id} \\
+\texttt{POST} & \texttt{/faq/:id/helpful} \\
+\texttt{GET} & \texttt{/faq/categories} \\
+\texttt{POST} & \texttt{/feedback} \\
+\texttt{GET} & \texttt{/feedback} \\
+\texttt{GET} & \texttt{/feedback/:id} \\
+\texttt{POST} & \texttt{/feedback/:id/respond} \\
+\texttt{POST} & \texttt{/feedback/:id/upvote} \\
+\texttt{DELETE} & \texttt{/feedback/:id/upvote} \\
+\texttt{GET} & \texttt{/feedback/features/popular} \\
+\texttt{GET} & \texttt{/feedback/search} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Goals}
 
 \begin{table}[h]

@@ -6,8 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { db } from '../../db/client';
-import { authenticate } from '../middleware/auth';
+import { db, queryAll, queryOne } from '../../db/client';
+import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.api;
@@ -82,7 +82,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
 
         query += ' ORDER BY body_region, name';
 
-        const profiles = await db.query<InjuryProfile>(query, params);
+        const profiles = await db.queryAll<InjuryProfile>(query, params);
 
         return reply.send({
           success: true,
@@ -117,7 +117,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         }
 
         // Get associated protocols
-        const protocols = await db.query(
+        const protocols = await db.queryAll(
           'SELECT * FROM rehab_protocols WHERE injury_profile_id = $1 ORDER BY phase',
           [id]
         );
@@ -145,7 +145,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
     { preHandler: [authenticate] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const regions = await db.query<{ body_region: string; count: string }>(
+        const regions = await db.queryAll<{ body_region: string; count: string }>(
           `SELECT body_region, COUNT(*) as count
            FROM injury_profiles
            GROUP BY body_region
@@ -248,7 +248,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
       try {
         const userId = (request as any).userId;
 
-        const injuries = await db.query(
+        const injuriesResult = await db.queryAll(
           `SELECT ui.*, ip.name as injury_name, ip.body_region, ip.typical_recovery_weeks
            FROM user_injuries ui
            JOIN injury_profiles ip ON ui.injury_profile_id = ip.id
@@ -259,7 +259,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
 
         // Get current protocol for each active injury
         const injuriesWithProtocols = await Promise.all(
-          injuries.map(async (injury: any) => {
+          injuriesResult.map(async (injury: any) => {
             if (injury.status === 'active') {
               const protocol = await db.queryOne(
                 `SELECT * FROM rehab_protocols
@@ -275,7 +275,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         return reply.send({
           success: true,
           injuries: injuriesWithProtocols,
-          activeCount: injuries.filter((i: any) => i.status === 'active').length,
+          activeCount: injuriesResult.filter((i: any) => i.status === 'active').length,
         });
       } catch (error) {
         log.error('Error fetching user injuries:', error);
@@ -307,7 +307,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         }
 
         // Get progress entries
-        const progress = await db.query(
+        const progressResult = await db.queryAll(
           `SELECT * FROM rehab_progress
            WHERE user_injury_id = $1
            ORDER BY date DESC`,
@@ -315,7 +315,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         );
 
         // Calculate trends
-        const recentProgress = progress.slice(0, 7);
+        const recentProgress = progressResult.slice(0, 7) as any[];
         const painTrend = recentProgress.length > 1
           ? recentProgress[recentProgress.length - 1].pain_after - recentProgress[0].pain_after
           : 0;
@@ -323,7 +323,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         return reply.send({
           success: true,
           injury,
-          progress,
+          progress: progressResult,
           trends: {
             painTrend, // negative is good (decreasing pain)
             sessionsThisWeek: recentProgress.length,

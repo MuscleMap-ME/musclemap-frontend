@@ -104,6 +104,8 @@ export default function SpotlightTour({
   const padding = maskPadding !== undefined ? maskPadding : spotlightPadding;
 
   // Handle controlled isOpen state
+  // Note: Intentionally not including config options in deps - we only want to
+  // trigger on isOpen/autoStart changes, not when callbacks change
   useEffect(() => {
     // If isOpen is explicitly controlled
     if (isOpen !== undefined) {
@@ -145,6 +147,7 @@ export default function SpotlightTour({
       }, delay);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, autoStart, steps, tourId, delay, startTour, endTour, globalIsActive, onChange, padding]);
 
   // Handle controlled step navigation

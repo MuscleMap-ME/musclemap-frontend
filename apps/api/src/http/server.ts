@@ -83,6 +83,8 @@ import volumeStatsRoutes from './routes/volume-stats';
 import nutritionRoutes from './routes/nutrition';
 import economyEnhancedRoutes from './routes/economyEnhanced';
 import { registerOrganizationsRoutes } from './routes/organizations';
+import rehabilitationRoutes from './routes/rehabilitation';
+import { registerFeedbackRoutes } from './routes/feedback';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -381,6 +383,12 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Enterprise organizations
     await registerOrganizationsRoutes(api);
+
+    // Rehabilitation system
+    await api.register(rehabilitationRoutes, { prefix: '/rehabilitation' });
+
+    // User feedback system (bug reports, suggestions, questions, FAQ)
+    await registerFeedbackRoutes(api);
   }, { prefix: '/api' });
 
   return app;

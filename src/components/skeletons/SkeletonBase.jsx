@@ -1,21 +1,29 @@
 /**
  * SkeletonBase - Base skeleton component with shimmer animation
  *
- * Provides a customizable skeleton loading placeholder with a smooth
- * left-to-right shimmer wave effect. Respects prefers-reduced-motion.
+ * Provides a customizable skeleton loading placeholder with smooth
+ * animation effects. Supports shimmer, wave, and pulse variants.
+ * Respects prefers-reduced-motion for accessibility.
  *
  * @example
  * // Basic usage
  * <SkeletonBase width={200} height={20} />
  * <SkeletonBase width="100%" height={48} borderRadius="lg" />
  *
- * // Using variants
- * <SkeletonBase variant="circle" width={48} height={48} />
- * <SkeletonBase variant="text" width="60%" />
- * <SkeletonBase variant="rect" width={100} height={50} />
+ * // Animation variants
+ * <SkeletonBase variant="shimmer" width={200} height={20} />
+ * <SkeletonBase variant="wave" width={200} height={20} />
+ * <SkeletonBase variant="pulse" width={200} height={20} />
  *
- * // Disable shimmer
- * <SkeletonBase width={200} height={20} shimmer={false} />
+ * // Animation speed
+ * <SkeletonBase speed="slow" width={200} height={20} />
+ * <SkeletonBase speed="normal" width={200} height={20} />
+ * <SkeletonBase speed="fast" width={200} height={20} />
+ *
+ * // Shape variants
+ * <SkeletonBase shape="circle" width={48} height={48} />
+ * <SkeletonBase shape="text" width="60%" />
+ * <SkeletonBase shape="rect" width={100} height={50} />
  *
  * // Animation delay for staggered effect
  * <SkeletonBase width="100%" height={16} animationDelay={0} />
@@ -26,8 +34,9 @@
 import React from 'react';
 import clsx from 'clsx';
 
-// CSS for shimmer animation - injected once
+// CSS for all skeleton animations - injected once
 const shimmerStyles = `
+  /* Shimmer animation - gradient sweep left to right */
   @keyframes skeleton-shimmer {
     0% {
       background-position: -200% 0;
@@ -37,38 +46,103 @@ const shimmerStyles = `
     }
   }
 
+  /* Wave animation - more pronounced gradient with smoother motion */
+  @keyframes skeleton-wave {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Pulse animation - opacity fade in/out */
+  @keyframes skeleton-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  /* Base skeleton styles */
+  .skeleton-base {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Shimmer variant - subtle gradient sweep */
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,
-      var(--skeleton-base, var(--glass-white-5)) 0%,
-      var(--skeleton-base, var(--glass-white-5)) 40%,
-      var(--skeleton-highlight, var(--glass-white-10)) 50%,
-      var(--skeleton-base, var(--glass-white-5)) 60%,
-      var(--skeleton-base, var(--glass-white-5)) 100%
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 0%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 40%,
+      var(--skeleton-highlight, rgba(255, 255, 255, 0.1)) 50%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 60%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 100%
     );
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
   }
 
-  .skeleton-shimmer.skeleton-delay-0 { animation-delay: 0ms; }
-  .skeleton-shimmer.skeleton-delay-1 { animation-delay: 100ms; }
-  .skeleton-shimmer.skeleton-delay-2 { animation-delay: 200ms; }
-  .skeleton-shimmer.skeleton-delay-3 { animation-delay: 300ms; }
-  .skeleton-shimmer.skeleton-delay-4 { animation-delay: 400ms; }
-  .skeleton-shimmer.skeleton-delay-5 { animation-delay: 500ms; }
-  .skeleton-shimmer.skeleton-delay-6 { animation-delay: 600ms; }
-  .skeleton-shimmer.skeleton-delay-7 { animation-delay: 700ms; }
-  .skeleton-shimmer.skeleton-delay-8 { animation-delay: 800ms; }
-  .skeleton-shimmer.skeleton-delay-9 { animation-delay: 900ms; }
-
-  .skeleton-static {
-    background: var(--skeleton-base, var(--glass-white-8));
+  /* Wave variant - more visible gradient with longer sweep */
+  .skeleton-wave {
+    background: linear-gradient(
+      90deg,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 0%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 25%,
+      var(--skeleton-highlight, rgba(255, 255, 255, 0.15)) 50%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 75%,
+      var(--skeleton-base, rgba(255, 255, 255, 0.05)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-wave 2s linear infinite;
   }
 
+  /* Pulse variant - simple opacity animation */
+  .skeleton-pulse {
+    background: var(--skeleton-base, rgba(255, 255, 255, 0.08));
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Speed modifiers */
+  .skeleton-speed-slow.skeleton-shimmer { animation-duration: 2.5s; }
+  .skeleton-speed-normal.skeleton-shimmer { animation-duration: 1.5s; }
+  .skeleton-speed-fast.skeleton-shimmer { animation-duration: 0.8s; }
+
+  .skeleton-speed-slow.skeleton-wave { animation-duration: 3s; }
+  .skeleton-speed-normal.skeleton-wave { animation-duration: 2s; }
+  .skeleton-speed-fast.skeleton-wave { animation-duration: 1.2s; }
+
+  .skeleton-speed-slow.skeleton-pulse { animation-duration: 2.5s; }
+  .skeleton-speed-normal.skeleton-pulse { animation-duration: 1.5s; }
+  .skeleton-speed-fast.skeleton-pulse { animation-duration: 0.8s; }
+
+  /* Delay classes for staggered animations */
+  .skeleton-delay-0 { animation-delay: 0ms; }
+  .skeleton-delay-1 { animation-delay: 100ms; }
+  .skeleton-delay-2 { animation-delay: 200ms; }
+  .skeleton-delay-3 { animation-delay: 300ms; }
+  .skeleton-delay-4 { animation-delay: 400ms; }
+  .skeleton-delay-5 { animation-delay: 500ms; }
+  .skeleton-delay-6 { animation-delay: 600ms; }
+  .skeleton-delay-7 { animation-delay: 700ms; }
+  .skeleton-delay-8 { animation-delay: 800ms; }
+  .skeleton-delay-9 { animation-delay: 900ms; }
+
+  /* Static variant - no animation */
+  .skeleton-static {
+    background: var(--skeleton-base, rgba(255, 255, 255, 0.08));
+  }
+
+  /* Respect prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {
-    .skeleton-shimmer {
+    .skeleton-shimmer,
+    .skeleton-wave,
+    .skeleton-pulse {
       animation: none;
-      background: var(--skeleton-base, var(--glass-white-8));
+      background: var(--skeleton-base, rgba(255, 255, 255, 0.08));
     }
   }
 `;
@@ -114,9 +188,12 @@ const textSizeMap = {
  * @param {number|string} [props.width] - Width (number = px, string = CSS value)
  * @param {number|string} [props.height] - Height (number = px, string = CSS value)
  * @param {'none'|'xs'|'sm'|'md'|'lg'|'xl'|'2xl'|'3xl'|'full'|string} [props.borderRadius='md'] - Border radius
- * @param {'rect'|'circle'|'text'} [props.variant='rect'] - Shape variant
- * @param {boolean} [props.shimmer=true] - Enable shimmer animation
- * @param {boolean} [props.circle=false] - Shorthand for variant="circle"
+ * @param {'rect'|'circle'|'text'} [props.shape='rect'] - Shape variant
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
+ * @param {boolean} [props.animate=true] - Enable animation (false = static)
+ * @param {boolean} [props.shimmer=true] - Legacy: enable shimmer animation (use animate instead)
+ * @param {boolean} [props.circle=false] - Shorthand for shape="circle"
  * @param {number} [props.animationDelay] - Delay index for staggered animations (0-9)
  * @param {string} [props.className] - Additional CSS classes
  * @param {Object} [props.style] - Additional inline styles
@@ -125,8 +202,11 @@ function SkeletonBase({
   width,
   height,
   borderRadius = 'md',
-  variant = 'rect',
-  shimmer = true,
+  shape = 'rect',
+  variant = 'shimmer',
+  speed = 'normal',
+  animate = true,
+  shimmer, // Legacy prop - if explicitly set to false, disable animation
   circle = false,
   animationDelay,
   className,
@@ -138,14 +218,17 @@ function SkeletonBase({
     injectStyles();
   }, []);
 
-  // Determine variant from props
-  const effectiveVariant = circle ? 'circle' : variant;
+  // Handle legacy shimmer prop
+  const shouldAnimate = shimmer === false ? false : animate;
 
-  // Compute border radius based on variant
+  // Determine shape from props (legacy 'variant' prop now becomes 'shape')
+  const effectiveShape = circle ? 'circle' : shape;
+
+  // Compute border radius based on shape
   let computedRadius;
-  if (effectiveVariant === 'circle') {
+  if (effectiveShape === 'circle') {
     computedRadius = 'var(--radius-full, 9999px)';
-  } else if (effectiveVariant === 'text') {
+  } else if (effectiveShape === 'text') {
     computedRadius = 'var(--radius-sm, 4px)';
   } else {
     computedRadius = radiusMap[borderRadius] || borderRadius;
@@ -155,26 +238,30 @@ function SkeletonBase({
   let computedWidth = typeof width === 'number' ? `${width}px` : width;
   let computedHeight = typeof height === 'number' ? `${height}px` : height;
 
-  // For text variant, use sensible defaults
-  if (effectiveVariant === 'text') {
+  // For text shape, use sensible defaults
+  if (effectiveShape === 'text') {
     computedWidth = computedWidth || '100%';
     computedHeight = computedHeight || '16px';
   }
 
-  // For circle variant, ensure equal dimensions
-  if (effectiveVariant === 'circle' && width && !height) {
+  // For circle shape, ensure equal dimensions
+  if (effectiveShape === 'circle' && width && !height) {
     computedHeight = computedWidth;
   }
 
-  // Build delay class
-  const delayClass = animationDelay !== undefined
+  // Build animation classes
+  const animationClass = shouldAnimate ? `skeleton-${variant}` : 'skeleton-static';
+  const speedClass = shouldAnimate ? `skeleton-speed-${speed}` : '';
+  const delayClass = shouldAnimate && animationDelay !== undefined
     ? `skeleton-delay-${Math.min(Math.max(0, animationDelay), 9)}`
     : '';
 
   return (
     <div
       className={clsx(
-        shimmer ? 'skeleton-shimmer' : 'skeleton-static',
+        'skeleton-base',
+        animationClass,
+        speedClass,
         delayClass,
         className
       )}
@@ -199,12 +286,16 @@ function SkeletonBase({
  * @param {number|string} [props.width='100%'] - Width of the text line
  * @param {'xs'|'sm'|'md'|'lg'|'xl'|'2xl'|number} [props.size='md'] - Text size
  * @param {number} [props.lines=1] - Number of lines to render
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
 export function SkeletonText({
   width = '100%',
   size = 'md',
   lines = 1,
+  variant = 'shimmer',
+  speed = 'normal',
   animationDelay,
   className,
   ...props
@@ -217,7 +308,9 @@ export function SkeletonText({
         {Array.from({ length: lines }).map((_, i) => (
           <SkeletonBase
             key={i}
-            variant="text"
+            shape="text"
+            variant={variant}
+            speed={speed}
             width={i === lines - 1 ? '75%' : width}
             height={heightValue}
             animationDelay={animationDelay !== undefined ? animationDelay + i : undefined}
@@ -230,7 +323,9 @@ export function SkeletonText({
 
   return (
     <SkeletonBase
-      variant="text"
+      shape="text"
+      variant={variant}
+      speed={speed}
       width={width}
       height={heightValue}
       animationDelay={animationDelay}
@@ -245,14 +340,25 @@ export function SkeletonText({
  *
  * @param {Object} props
  * @param {number|string} [props.size=48] - Avatar diameter
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
-export function SkeletonAvatar({ size = 48, animationDelay, className, ...props }) {
+export function SkeletonAvatar({
+  size = 48,
+  variant = 'shimmer',
+  speed = 'normal',
+  animationDelay,
+  className,
+  ...props
+}) {
   const computedSize = typeof size === 'number' ? size : parseInt(size, 10) || 48;
 
   return (
     <SkeletonBase
-      variant="circle"
+      shape="circle"
+      variant={variant}
+      speed={speed}
       width={computedSize}
       height={computedSize}
       animationDelay={animationDelay}
@@ -269,12 +375,16 @@ export function SkeletonAvatar({ size = 48, animationDelay, className, ...props 
  * @param {number|string} [props.width=120] - Button width
  * @param {number|string} [props.height=40] - Button height
  * @param {'sm'|'md'|'lg'} [props.size] - Predefined size
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
 export function SkeletonButton({
   width,
   height,
   size,
+  variant = 'shimmer',
+  speed = 'normal',
   animationDelay,
   className,
   ...props
@@ -292,7 +402,9 @@ export function SkeletonButton({
 
   return (
     <SkeletonBase
-      variant="rect"
+      shape="rect"
+      variant={variant}
+      speed={speed}
       width={finalWidth}
       height={finalHeight}
       borderRadius="lg"
@@ -309,18 +421,24 @@ export function SkeletonButton({
  * @param {Object} props
  * @param {string} [props.aspectRatio='16/9'] - CSS aspect ratio
  * @param {number|string} [props.width='100%'] - Image width
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
 export function SkeletonImage({
   aspectRatio = '16/9',
   width = '100%',
+  variant = 'shimmer',
+  speed = 'normal',
   animationDelay,
   className,
   ...props
 }) {
   return (
     <SkeletonBase
-      variant="rect"
+      shape="rect"
+      variant={variant}
+      speed={speed}
       width={width}
       height="auto"
       borderRadius="lg"
@@ -337,12 +455,23 @@ export function SkeletonImage({
  *
  * @param {Object} props
  * @param {number} [props.size=24] - Icon size
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
-export function SkeletonIcon({ size = 24, animationDelay, className, ...props }) {
+export function SkeletonIcon({
+  size = 24,
+  variant = 'shimmer',
+  speed = 'normal',
+  animationDelay,
+  className,
+  ...props
+}) {
   return (
     <SkeletonBase
-      variant="rect"
+      shape="rect"
+      variant={variant}
+      speed={speed}
       width={size}
       height={size}
       borderRadius="sm"
@@ -358,12 +487,23 @@ export function SkeletonIcon({ size = 24, animationDelay, className, ...props })
  *
  * @param {Object} props
  * @param {number|string} [props.width=64] - Badge width
+ * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
  * @param {number} [props.animationDelay] - Delay index for staggered animations
  */
-export function SkeletonBadge({ width = 64, animationDelay, className, ...props }) {
+export function SkeletonBadge({
+  width = 64,
+  variant = 'shimmer',
+  speed = 'normal',
+  animationDelay,
+  className,
+  ...props
+}) {
   return (
     <SkeletonBase
-      variant="rect"
+      shape="rect"
+      variant={variant}
+      speed={speed}
       width={width}
       height={22}
       borderRadius="full"

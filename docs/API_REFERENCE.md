@@ -476,6 +476,24 @@ Authorization: Bearer <token>
 | `GET` | `/virtual-hangouts/:id/leaderboard` | Yes |
 
 
+### Feedback
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/faq` | Yes |
+| `GET` | `/faq/:id` | Yes |
+| `POST` | `/faq/:id/helpful` | Yes |
+| `GET` | `/faq/categories` | Yes |
+| `POST` | `/feedback` | Yes |
+| `GET` | `/feedback` | Yes |
+| `GET` | `/feedback/:id` | Yes |
+| `POST` | `/feedback/:id/respond` | Yes |
+| `POST` | `/feedback/:id/upvote` | Yes |
+| `DELETE` | `/feedback/:id/upvote` | Yes |
+| `GET` | `/feedback/features/popular` | Yes |
+| `GET` | `/feedback/search` | Yes |
+
+
 ### Goals
 
 | Method | Endpoint | Auth Required |

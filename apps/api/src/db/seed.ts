@@ -6,6 +6,9 @@
 
 import { db, initializePool, closePool } from './client';
 
+// Import additional exercise seeds
+import { allClimbingGymnasticsExercises, climbingGymnasticsActivations } from './seeds/climbing-gymnastics-exercises';
+
 // ============================================
 // MUSCLES WITH BIAS WEIGHTS
 // ============================================

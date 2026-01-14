@@ -138,6 +138,16 @@ export const useWorkoutSessionStore = create(
     exerciseHistory: {}, // { exerciseId: { best1RM, bestWeight, bestVolume } }
 
     // ============================================
+    // WORKOUT COMPLETION CALLBACKS
+    // ============================================
+    // Callback fired when workout is completed (for celebrations, tips, etc.)
+    onWorkoutComplete: null,
+    // Callback fired when a PR is achieved (for instant celebration)
+    onPRAchieved: null,
+    // Callback fired when user levels up (from XP gained in workout)
+    onLevelUp: null,
+
+    // ============================================
     // SESSION ACTIONS
     // ============================================
     startSession: (workoutPlan) => {
@@ -195,6 +205,85 @@ export const useWorkoutSessionStore = create(
         restTimerActive: false,
       });
       return summary;
+    },
+
+    /**
+     * Complete workout and trigger celebration callbacks
+     * Use this instead of endSession when workout is successfully finished
+     * @param {Object} options - Additional data like xpEarned, leveledUp, etc.
+     */
+    completeWorkout: (options = {}) => {
+      const summary = get().getSessionSummary();
+      const { onWorkoutComplete, onLevelUp } = get();
+
+      // Build completion data
+      const completionData = {
+        ...summary,
+        xpEarned: options.xpEarned || Math.round(summary.totalVolume * 0.01),
+        duration: summary.duration,
+        exerciseCount: summary.exercisesCompleted,
+        totalSets: summary.totalSets,
+        totalVolume: summary.totalVolume,
+        prsAchieved: summary.sessionPRs.length,
+        musclesWorked: summary.musclesWorked,
+        completedAt: Date.now(),
+      };
+
+      // Fire workout complete callback (for celebrations, tips)
+      if (onWorkoutComplete) {
+        try {
+          onWorkoutComplete(completionData);
+        } catch (err) {
+          console.error('Error in onWorkoutComplete callback:', err);
+        }
+      }
+
+      // Fire level up callback if applicable
+      if (options.leveledUp && onLevelUp) {
+        try {
+          onLevelUp({
+            newLevel: options.newLevel,
+            xpEarned: completionData.xpEarned,
+          });
+        } catch (err) {
+          console.error('Error in onLevelUp callback:', err);
+        }
+      }
+
+      // End the session
+      get().endSession();
+
+      return completionData;
+    },
+
+    // ============================================
+    // CALLBACK SETTERS
+    // ============================================
+    setOnWorkoutComplete: (callback) => set({ onWorkoutComplete: callback }),
+    setOnPRAchieved: (callback) => set({ onPRAchieved: callback }),
+    setOnLevelUp: (callback) => set({ onLevelUp: callback }),
+
+    /**
+     * Register all celebration callbacks at once
+     * Useful for Dashboard/App initialization
+     */
+    registerCelebrationCallbacks: ({ onComplete, onPR, onLevelUp }) => {
+      set({
+        onWorkoutComplete: onComplete || null,
+        onPRAchieved: onPR || null,
+        onLevelUp: onLevelUp || null,
+      });
+    },
+
+    /**
+     * Clear all celebration callbacks (for cleanup)
+     */
+    clearCelebrationCallbacks: () => {
+      set({
+        onWorkoutComplete: null,
+        onPRAchieved: null,
+        onLevelUp: null,
+      });
     },
 
     // ============================================
@@ -306,6 +395,22 @@ export const useWorkoutSessionStore = create(
           [exerciseId]: updatedHistory,
         },
       });
+
+      // Fire PR callback if any PRs were achieved
+      if (newPRs.length > 0) {
+        const { onPRAchieved } = get();
+        if (onPRAchieved) {
+          try {
+            onPRAchieved({
+              prs: newPRs,
+              exerciseName: currentExercise?.name,
+              set: newSet,
+            });
+          } catch (err) {
+            console.error('Error in onPRAchieved callback:', err);
+          }
+        }
+      }
 
       return { set: newSet, prs: newPRs };
     },
@@ -475,6 +580,7 @@ export const useWorkoutSessionStore = create(
     }),
   }
 )
+)
 );
 
 /**
@@ -618,6 +724,87 @@ export const useSetLogging = () => {
         total: exerciseSets.length,
       };
     },
+  };
+};
+
+/**
+ * Hook for registering celebration callbacks
+ * Use this in Dashboard or App to connect UI celebrations to workout events
+ *
+ * @example
+ * const { register, clear } = useCelebrationCallbacks();
+ *
+ * useEffect(() => {
+ *   register({
+ *     onComplete: (data) => {
+ *       showTip('workout_complete');
+ *       triggerConfetti();
+ *     },
+ *     onPR: (data) => showSuccessBurst('New PR!'),
+ *     onLevelUp: (data) => showLevelUpCelebration(data.newLevel),
+ *   });
+ *   return () => clear();
+ * }, []);
+ */
+export const useCelebrationCallbacks = () => {
+  const registerCelebrationCallbacks = useWorkoutSessionStore((s) => s.registerCelebrationCallbacks);
+  const clearCelebrationCallbacks = useWorkoutSessionStore((s) => s.clearCelebrationCallbacks);
+  const setOnWorkoutComplete = useWorkoutSessionStore((s) => s.setOnWorkoutComplete);
+  const setOnPRAchieved = useWorkoutSessionStore((s) => s.setOnPRAchieved);
+  const setOnLevelUp = useWorkoutSessionStore((s) => s.setOnLevelUp);
+
+  return {
+    register: registerCelebrationCallbacks,
+    clear: clearCelebrationCallbacks,
+    setOnComplete: setOnWorkoutComplete,
+    setOnPR: setOnPRAchieved,
+    setOnLevelUp: setOnLevelUp,
+  };
+};
+
+/**
+ * Hook for completing workouts with celebration support
+ * Wraps the completeWorkout action with convenient helpers
+ *
+ * @example
+ * const { complete, isActive } = useWorkoutCompletion();
+ *
+ * const handleFinish = async () => {
+ *   const result = await complete({ xpEarned: 150, leveledUp: true, newLevel: 5 });
+ *   // Callbacks already fired - result contains summary
+ * };
+ */
+export const useWorkoutCompletion = () => {
+  const isActive = useWorkoutSessionStore((s) => s.isActive);
+  const completeWorkout = useWorkoutSessionStore((s) => s.completeWorkout);
+  const endSession = useWorkoutSessionStore((s) => s.endSession);
+  const getSessionSummary = useWorkoutSessionStore((s) => s.getSessionSummary);
+
+  return {
+    isActive,
+    complete: completeWorkout,
+    cancel: endSession,
+    getSummary: getSessionSummary,
+  };
+};
+
+/**
+ * Hook to check if workout is ready to trigger celebrations
+ * Useful for conditional rendering of celebration UI
+ */
+export const useWorkoutCelebrationState = () => {
+  const sessionPRs = useWorkoutSessionStore((s) => s.sessionPRs);
+  const isActive = useWorkoutSessionStore((s) => s.isActive);
+  const sets = useWorkoutSessionStore((s) => s.sets);
+
+  return {
+    hasPendingPRs: sessionPRs.length > 0,
+    prCount: sessionPRs.length,
+    latestPR: sessionPRs[sessionPRs.length - 1] || null,
+    isWorkoutActive: isActive,
+    hasCompletedSets: sets.length > 0,
+    // Ready to celebrate when workout is active and has completed sets
+    readyToCelebrate: isActive && sets.length > 0,
   };
 };
 

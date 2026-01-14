@@ -1,12 +1,12 @@
-import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import React, { lazy, useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
+import { MuscleHeroAnimation } from '../components/landing';
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
-const MuscleMapD3 = lazy(() => import('../components/d3').then(m => ({ default: m.MuscleMapD3 })));
 
 // Hook to only load component when it enters viewport
 function useInView(options = {}) {
@@ -90,17 +90,6 @@ export default function Landing() {
       getSoftwareAppSchema(),
     ],
   };
-
-  // Demo muscle activations for the interactive body map
-  const demoActivations = [
-    { muscleId: 'pectoralis-major-left', name: 'Pectoralis Major', activation: 0.85, isPrimary: true },
-    { muscleId: 'pectoralis-major-right', name: 'Pectoralis Major', activation: 0.85, isPrimary: true },
-    { muscleId: 'deltoid-anterior-left', name: 'Deltoid', activation: 0.7 },
-    { muscleId: 'deltoid-anterior-right', name: 'Deltoid', activation: 0.7 },
-    { muscleId: 'biceps-brachii-left', name: 'Biceps', activation: 0.5 },
-    { muscleId: 'biceps-brachii-right', name: 'Biceps', activation: 0.5 },
-    { muscleId: 'rectus-abdominis', name: 'Abs', activation: 0.4 },
-  ];
 
   return (
     <>
@@ -281,6 +270,26 @@ export default function Landing() {
             See every muscle <span className="text-cyan-400 font-semibold">fire</span>. Find your people along the way.
           </p>
         </motion.div>
+
+        {/* Hero Muscle Animation - Small interactive preview */}
+        {shouldLoadHeavyContent && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="mt-10"
+          >
+            <MuscleHeroAnimation
+              interactive
+              style="bioluminescent"
+              size="sm"
+              showLabels={false}
+              showParticles={animationsEnabled}
+              highlightSequence={['chest', 'shoulders', 'arms']}
+              speed="slow"
+            />
+          </motion.div>
+        )}
       </main>
 
       {/* Live Community Stats */}
@@ -546,24 +555,24 @@ export default function Landing() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4 }}
             className="flex flex-col lg:flex-row gap-8 items-center justify-center"
+            ref={muscleMapRef}
           >
-            {/* Front View - Only load D3 when section is in viewport */}
-            <div className="relative" ref={muscleMapRef}>
+            {/* Muscle Visualization */}
+            <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-br from-red-500/20 via-transparent to-orange-500/20 rounded-3xl blur-xl" />
-              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-                <div className="text-center text-sm text-gray-500 mb-2">Front View</div>
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
                 {isMuscleMapInView ? (
                   shouldLoadHeavyContent ? (
-                    <Suspense fallback={<MuscleMapSkeleton />}>
-                      <MuscleMapD3
-                        activations={demoActivations}
-                        view="front"
-                        height={450}
-                        interactive
-                        animated={animationsEnabled}
-                        showLabels={false}
-                      />
-                    </Suspense>
+                    <MuscleHeroAnimation
+                      autoPlay
+                      highlightSequence={['chest', 'shoulders', 'arms', 'core', 'legs']}
+                      style="bioluminescent"
+                      size="lg"
+                      showParticles={animationsEnabled}
+                      showLabels
+                      interactive
+                      speed="normal"
+                    />
                   ) : (
                     <MuscleMapStaticFallback />
                   )
@@ -602,6 +611,16 @@ export default function Landing() {
                   <span className="px-2 py-1 bg-green-500/20 border border-green-500/30 text-green-400 rounded text-xs font-medium">
                     Core 40%
                   </span>
+                </div>
+              </div>
+
+              {/* Interactive hint */}
+              <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 backdrop-blur-sm border border-violet-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-violet-400 text-sm">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Click any muscle to explore</span>
                 </div>
               </div>
             </div>

@@ -68,6 +68,16 @@ export {
   useRestTimer,
   useWorkoutMetrics,
   useCurrentExercise,
+  useSessionPRs,
+  use1RM,
+  useSetLogging,
+  useCelebrationCallbacks,
+  useWorkoutCompletion,
+  useWorkoutCelebrationState,
+  calculate1RM,
+  get1RMPercentage,
+  SET_TAGS,
+  REST_PRESETS,
   default as workoutSessionStore,
 } from './workoutSessionStore';
 
@@ -107,6 +117,24 @@ export {
   useMacroProgress,
   default as nutritionStore,
 } from './nutritionStore';
+
+// ============================================
+// FEEDBACK STORE
+// ============================================
+export {
+  useFeedbackStore,
+  useFeedbackModal,
+  useFeedbackForm,
+  useFaq,
+  useFeatureVoting,
+  useMyFeedback,
+  FEEDBACK_TYPES,
+  FEEDBACK_LABELS,
+  FEEDBACK_ICONS,
+  FEEDBACK_DESCRIPTIONS,
+  PRIORITY_OPTIONS,
+  default as feedbackStore,
+} from './feedbackStore';
 
 // ============================================
 // STORE UTILITIES
@@ -175,4 +203,112 @@ export function subscribeToStore(store, selector, callback) {
  */
 export function getStoreState(store, selector = (s) => s) {
   return selector(store.getState());
+}
+
+// ============================================
+// COMMON SELECTOR PATTERNS
+// ============================================
+
+/**
+ * Create a selector that only triggers re-render when selected values change
+ * Uses shallow comparison by default
+ *
+ * @example
+ * const selector = createSelector((s) => ({ a: s.a, b: s.b }));
+ * const { a, b } = useUIStore(selector);
+ */
+export function createSelector(selectorFn) {
+  return selectorFn;
+}
+
+/**
+ * Selector helpers for common patterns
+ * Use these with any Zustand store to minimize re-renders
+ */
+export const selectors = {
+  // UI Store selectors
+  ui: {
+    sidebar: (s) => s.sidebarOpen,
+    modal: (s) => ({ activeModal: s.activeModal, modalData: s.modalData }),
+    loading: (s) => ({ globalLoading: s.globalLoading, loadingMessage: s.loadingMessage }),
+    toasts: (s) => s.toasts,
+    responsive: (s) => ({ isMobile: s.isMobile, isTablet: s.isTablet, isDesktop: s.isDesktop }),
+  },
+
+  // Auth Store selectors
+  auth: {
+    user: (s) => s.user,
+    isAuthenticated: (s) => s.isAuthenticated,
+    token: (s) => s.token,
+    session: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated, loading: s.loading }),
+  },
+
+  // Workout Session selectors
+  workout: {
+    isActive: (s) => s.isActive,
+    currentExercise: (s) => s.currentExercise,
+    restTimer: (s) => ({ time: s.restTimer, isActive: s.restTimerActive }),
+    metrics: (s) => ({
+      totalVolume: s.totalVolume,
+      totalReps: s.totalReps,
+      estimatedCalories: s.estimatedCalories,
+      musclesWorked: s.musclesWorked,
+    }),
+    progress: (s) => ({
+      currentExerciseIndex: s.currentExerciseIndex,
+      totalExercises: s.exercises.length,
+      setsCompleted: s.sets.length,
+    }),
+    prs: (s) => s.sessionPRs,
+    celebration: (s) => ({
+      hasPRs: s.sessionPRs.length > 0,
+      prCount: s.sessionPRs.length,
+      latestPR: s.sessionPRs[s.sessionPRs.length - 1] || null,
+    }),
+  },
+
+  // Muscle Visualization selectors
+  muscle: {
+    highlighted: (s) => s.highlightedMuscles,
+    selected: (s) => s.selectedMuscle,
+    intensity: (s) => s.muscleIntensity,
+    camera: (s) => ({ rotation: s.cameraRotation, zoom: s.cameraZoom, preset: s.cameraPreset }),
+  },
+};
+
+// ============================================
+// CELEBRATION EVENT TYPES
+// ============================================
+
+/**
+ * Event types for workout celebrations
+ * Use these constants when registering callbacks
+ */
+export const CELEBRATION_EVENTS = {
+  WORKOUT_COMPLETE: 'workout_complete',
+  PR_ACHIEVED: 'pr_achieved',
+  LEVEL_UP: 'level_up',
+  STREAK_MILESTONE: 'streak_milestone',
+  ACHIEVEMENT_UNLOCKED: 'achievement_unlocked',
+};
+
+/**
+ * Helper to create celebration callback config
+ * @param {Object} handlers - Object with event handlers
+ * @returns {Object} Config object for registerCelebrationCallbacks
+ *
+ * @example
+ * const callbacks = createCelebrationConfig({
+ *   onWorkoutComplete: (data) => triggerConfetti(),
+ *   onPR: (data) => showPRBurst(data.prs[0]),
+ *   onLevelUp: (data) => showLevelUp(data.newLevel),
+ * });
+ * register(callbacks);
+ */
+export function createCelebrationConfig(handlers) {
+  return {
+    onComplete: handlers.onWorkoutComplete || null,
+    onPR: handlers.onPR || null,
+    onLevelUp: handlers.onLevelUp || null,
+  };
 }

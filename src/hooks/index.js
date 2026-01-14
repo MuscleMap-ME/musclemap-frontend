@@ -6,16 +6,33 @@
  * HOOK CATEGORIES:
  * ----------------
  * 1. State Management Hooks (from stores)
- *    - useAuth, useModal, useToast, etc.
+ *    - useAuth, useModal, useToast, useRestTimer, etc.
  *
- * 2. Data Fetching Hooks
+ * 2. Context Hooks
+ *    - useTheme, useLocale, useUser
+ *
+ * 3. Feature Hooks
+ *    - useHelp - Inline help system
+ *    - useContextualTips, useContextualTip - Contextual tips
+ *    - useTour - Spotlight tour system
+ *    - useFeatureDiscovery - Feature discovery tracking
+ *    - useCommandPalette - Command palette control
+ *    - useConfetti - Celebration animations
+ *
+ * 4. Data Fetching Hooks
  *    - useCommunityStats, useLiveCommunityStats
  *
- * 3. Utility Hooks
+ * 5. Utility Hooks
  *    - useWebSocket, useXR, useLongPress, useSwipeGesture
+ *    - useRipple - Button ripple effects
+ *
+ * 6. Performance Hooks
+ *    - useDebounce, useThrottle, useOptimistic
  *
  * @example
  * import { useAuth, useToast, useResponsive } from '@/hooks';
+ * import { useHelp, useContextualTip, useTour, useFeatureDiscovery } from '@/hooks';
+ * import { useCommandPalette, openCommandPalette, useConfetti } from '@/hooks';
  */
 
 // ============================================
@@ -63,12 +80,19 @@ export { useLocale, useTranslation, LOCALES } from '../contexts/LocaleContext';
 // Legacy user context (prefer useAuth)
 export { useUser } from '../contexts/UserContext';
 
+// Help system
+export { useHelp } from '../components/help';
+
 // Contextual tips
 export {
   useContextualTips,
+  useContextualTips as useContextualTip, // Alias for convenience
   useTipOnCondition,
 } from '../components/tips/ContextualTipProvider';
 export { TIP_TRIGGERS } from '../components/tips/tipDefinitions';
+
+// Feature discovery
+export { useFeatureDiscovery } from '../components/discovery';
 
 // Spotlight tour hooks
 export {

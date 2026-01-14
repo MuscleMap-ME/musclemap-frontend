@@ -37,6 +37,8 @@ const DURATIONS = {
   ripple: 600, // ms for ripple to expand and fade
   press: 100,  // ms for press feedback
   success: 600, // ms for success animation (increased for glow effect)
+  shake: 500, // ms for error shake animation
+  burst: 800, // ms for success burst animation
 };
 
 /**
@@ -305,20 +307,22 @@ export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
 /**
  * useButtonFeedback - Hook for managing button interaction states
  *
- * Handles press feedback, success states, and coordinates with ripple effects.
+ * Handles press feedback, success states, error states, and coordinates with ripple effects.
  * Respects prefers-reduced-motion for accessibility.
  *
  * @param {Object} options
- * @param {'ripple' | 'pulse' | 'none'} options.feedback - Type of click feedback
+ * @param {'ripple' | 'pulse' | 'shake' | 'burst' | 'none'} options.feedback - Type of click feedback
  * @param {Function} options.onSuccess - Callback for success state
+ * @param {Function} options.onError - Callback for error state
  * @param {boolean} options.disabled - Whether button is disabled
  *
  * @returns {Object} Feedback state and handlers
  *
  * @example
- * const { handlers, isPressed, showSuccess, rippleRef, triggerSuccess } = useButtonFeedback({
+ * const { handlers, isPressed, showSuccess, showError, rippleRef, triggerSuccess, triggerError } = useButtonFeedback({
  *   feedback: 'ripple',
  *   onSuccess: () => console.log('Success!'),
+ *   onError: () => console.log('Error!'),
  * });
  *
  * <button {...handlers}>Click me</button>
@@ -326,11 +330,15 @@ export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
 export function useButtonFeedback({
   feedback = 'ripple',
   onSuccess,
+  onError,
   disabled = false,
 } = {}) {
   const [isPressed, setIsPressed] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [showBurst, setShowBurst] = useState(false);
   const rippleRef = useRef(null);
+  const burstRef = useRef(null);
   const reducedMotion = useReducedMotion();
 
   /**
@@ -345,12 +353,47 @@ export function useButtonFeedback({
   }, [reducedMotion, onSuccess]);
 
   /**
+   * Trigger error shake animation
+   */
+  const triggerError = useCallback(() => {
+    if (reducedMotion) {
+      onError?.();
+      return;
+    }
+    setShowError(true);
+  }, [reducedMotion, onError]);
+
+  /**
+   * Trigger burst animation
+   */
+  const triggerBurst = useCallback(() => {
+    if (reducedMotion) return;
+    setShowBurst(true);
+    burstRef.current?.trigger();
+  }, [reducedMotion]);
+
+  /**
    * Handle success animation completion
    */
   const handleSuccessComplete = useCallback(() => {
     setShowSuccess(false);
     onSuccess?.();
   }, [onSuccess]);
+
+  /**
+   * Handle error animation completion
+   */
+  const handleErrorComplete = useCallback(() => {
+    setShowError(false);
+    onError?.();
+  }, [onError]);
+
+  /**
+   * Handle burst animation completion
+   */
+  const handleBurstComplete = useCallback(() => {
+    setShowBurst(false);
+  }, []);
 
   /**
    * Handle mouse/touch down
@@ -368,8 +411,13 @@ export function useButtonFeedback({
         const y = e.clientY - rect.top;
         rippleRef.current.trigger(x, y);
       }
+
+      // Trigger burst on click
+      if (feedback === 'burst') {
+        triggerBurst();
+      }
     },
-    [disabled, feedback]
+    [disabled, feedback, triggerBurst]
   );
 
   /**
@@ -394,9 +442,16 @@ export function useButtonFeedback({
     handlers,
     isPressed,
     showSuccess,
+    showError,
+    showBurst,
     rippleRef,
+    burstRef,
     triggerSuccess,
+    triggerError,
+    triggerBurst,
     handleSuccessComplete,
+    handleErrorComplete,
+    handleBurstComplete,
     reducedMotion,
   };
 }
@@ -478,6 +533,194 @@ export const PulseEffect = ({ active, variant = 'primary' }) => {
 };
 
 // ============================================
+// SHAKE EFFECT COMPONENT
+// ============================================
+
+/**
+ * ShakeEffect - Error shake animation
+ *
+ * Provides horizontal shake animation for error feedback.
+ * Automatically resets after animation completes.
+ *
+ * @param {Object} props
+ * @param {boolean} props.active - Whether to trigger shake
+ * @param {Function} props.onComplete - Callback when animation completes
+ */
+export const ShakeEffect = ({ active, onComplete }) => {
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (active && !reducedMotion) {
+      const timer = setTimeout(() => {
+        onComplete?.();
+      }, DURATIONS.shake);
+      return () => clearTimeout(timer);
+    } else if (active && reducedMotion) {
+      // Immediately complete for reduced motion
+      onComplete?.();
+    }
+  }, [active, onComplete, reducedMotion]);
+
+  return null; // Shake is applied via parent's animation state
+};
+
+// ============================================
+// BURST EFFECT COMPONENT
+// ============================================
+
+/**
+ * BurstEffect - Mini confetti burst contained within button
+ *
+ * Canvas-based particle burst that stays within button bounds.
+ * Lighter weight than full SuccessBurst for inline use.
+ *
+ * @param {Object} props
+ * @param {boolean} props.active - Whether to trigger burst
+ * @param {string} props.variant - Button variant for color matching
+ * @param {Function} props.onComplete - Callback when animation completes
+ */
+export const BurstEffect = forwardRef(({ active, variant = 'primary', onComplete }, ref) => {
+  const canvasRef = useRef(null);
+  const particlesRef = useRef([]);
+  const animationRef = useRef(null);
+  const reducedMotion = useReducedMotion();
+
+  // Burst colors based on variant
+  const BURST_COLORS = {
+    glass: ['#ffffff', '#0066ff', '#00aaff'],
+    primary: ['#0066ff', '#00aaff', '#ffffff'],
+    pulse: ['#00ff88', '#22c55e', '#10b981'],
+    ghost: ['#ffffff', '#94a3b8', '#64748b'],
+  };
+
+  // Expose trigger method
+  useImperativeHandle(ref, () => ({
+    trigger: () => {
+      if (reducedMotion) return;
+      createBurst();
+    },
+  }));
+
+  const createBurst = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const colors = BURST_COLORS[variant] || BURST_COLORS.primary;
+
+    // Create 20-30 small particles
+    const particleCount = 25;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+      const velocity = Math.random() * 3 + 2;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      particlesRef.current.push({
+        x: centerX,
+        y: centerY,
+        vx: Math.cos(angle) * velocity,
+        vy: Math.sin(angle) * velocity,
+        size: Math.random() * 4 + 2,
+        color,
+        opacity: 1,
+        decay: Math.random() * 0.02 + 0.015,
+        startTime: performance.now(),
+      });
+    }
+
+    // Start animation
+    if (!animationRef.current) {
+      animate();
+    }
+
+    // Complete callback
+    setTimeout(() => {
+      onComplete?.();
+    }, DURATIONS.burst);
+  }, [variant, onComplete, reducedMotion]);
+
+  const animate = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particlesRef.current = particlesRef.current.filter((particle) => {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      particle.vx *= 0.96;
+      particle.vy *= 0.96;
+      particle.vy += 0.1; // gravity
+      particle.opacity -= particle.decay;
+
+      if (particle.opacity <= 0) return false;
+
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fillStyle = particle.color;
+      ctx.globalAlpha = particle.opacity;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      return true;
+    });
+
+    if (particlesRef.current.length > 0) {
+      animationRef.current = requestAnimationFrame(animate);
+    } else {
+      animationRef.current = null;
+    }
+  }, []);
+
+  // Handle canvas resize
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const updateSize = () => {
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      if (rect) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Trigger burst when active changes to true
+  useEffect(() => {
+    if (active && !reducedMotion) {
+      createBurst();
+    }
+  }, [active, createBurst, reducedMotion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none"
+      style={{ borderRadius: 'inherit' }}
+    />
+  );
+});
+
+BurstEffect.displayName = 'BurstEffect';
+
+// ============================================
 // CSS KEYFRAMES (injected once)
 // ============================================
 
@@ -547,6 +790,27 @@ if (typeof document !== 'undefined') {
         }
       }
 
+      @keyframes error-shake {
+        0%, 100% {
+          transform: translateX(0);
+        }
+        10%, 30%, 50%, 70%, 90% {
+          transform: translateX(-4px);
+        }
+        20%, 40%, 60%, 80% {
+          transform: translateX(4px);
+        }
+      }
+
+      @keyframes error-flash {
+        0%, 100% {
+          box-shadow: none;
+        }
+        50% {
+          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5), 0 0 12px rgba(239, 68, 68, 0.4);
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         @keyframes success-check {
           0%, 100% {
@@ -576,6 +840,16 @@ if (typeof document !== 'undefined') {
             opacity: 0;
           }
         }
+        @keyframes error-shake {
+          0%, 100% {
+            transform: translateX(0);
+          }
+        }
+        @keyframes error-flash {
+          0%, 100% {
+            box-shadow: none;
+          }
+        }
       }
     `;
     document.head.appendChild(style);
@@ -586,6 +860,8 @@ export default {
   RippleEffect,
   SuccessEffect,
   PulseEffect,
+  ShakeEffect,
+  BurstEffect,
   useButtonFeedback,
   useReducedMotion,
   triggerHaptic,

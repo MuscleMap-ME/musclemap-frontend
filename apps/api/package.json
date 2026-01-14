@@ -52,6 +52,7 @@
     "pino": "^8.17.2",
     "pino-http": "^9.0.0",
     "sharp": "^0.34.5",
+    "stripe": "^20.1.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {

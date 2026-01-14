@@ -31,7 +31,7 @@ import {
   useFrequentFoods,
 } from '../../store/nutritionStore';
 import { useFoodSearch, useMealLog } from '../../hooks/useNutrition';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce } from '../../hooks';
 
 const mealTypes = [
   { id: 'breakfast', label: 'Breakfast', icon: Coffee, color: 'orange' },
