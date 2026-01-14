@@ -16,7 +16,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { skillService } from '../../modules/skills';
-import { requireAuth } from '../../middleware/auth';
+import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;
@@ -56,7 +56,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Get user progress for a skill tree (requires auth)
   app.get(
     '/skills/trees/:treeId/progress',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (request: FastifyRequest<{ Params: { treeId: string } }>, reply: FastifyReply) => {
       try {
         const { treeId } = request.params;
@@ -126,7 +126,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Get user's overall skill summary (requires auth)
   app.get(
     '/skills/progress',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const userId = request.user!.userId;
@@ -142,7 +142,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Log a practice session (requires auth)
   app.post(
     '/skills/practice',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Body: {
@@ -181,7 +181,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Mark a skill as achieved (requires auth)
   app.post(
     '/skills/achieve',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Body: {
@@ -220,7 +220,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Get practice history (requires auth)
   app.get(
     '/skills/history',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Querystring: { limit?: string; offset?: string; skillNodeId?: string };
@@ -250,7 +250,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   // Update notes for a skill (requires auth)
   app.put(
     '/skills/nodes/:nodeId/notes',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Params: { nodeId: string };

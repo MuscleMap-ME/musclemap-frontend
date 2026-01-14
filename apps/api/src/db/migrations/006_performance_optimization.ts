@@ -261,10 +261,20 @@ export async function migrate(): Promise<void> {
   }
 
   // Index for journey progress date queries
-  await createIndexIfNotExists(
-    'idx_journey_progress_user_started',
-    `CREATE INDEX idx_journey_progress_user_started ON journey_progress(user_id, journey_id, started_at DESC)`
-  );
+  // Note: Production has 'date' column, local dev might have 'started_at'
+  if (await tableExists('journey_progress')) {
+    if (await columnExists('journey_progress', 'started_at')) {
+      await createIndexIfNotExists(
+        'idx_journey_progress_user_started',
+        `CREATE INDEX idx_journey_progress_user_started ON journey_progress(user_id, journey_id, started_at DESC)`
+      );
+    } else if (await columnExists('journey_progress', 'date')) {
+      await createIndexIfNotExists(
+        'idx_journey_progress_user_date',
+        `CREATE INDEX IF NOT EXISTS idx_journey_progress_user_date ON journey_progress(user_id, journey_id, date DESC)`
+      );
+    }
+  }
 
   // ============================================
   // EXERCISES OPTIMIZATIONS

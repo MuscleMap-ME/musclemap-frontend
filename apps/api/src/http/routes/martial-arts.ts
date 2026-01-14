@@ -17,7 +17,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { martialArtsService } from '../../modules/martial-arts';
-import { requireAuth } from '../../middleware/auth';
+import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;
@@ -79,7 +79,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Get user progress for a discipline (requires auth)
   app.get(
     '/martial-arts/disciplines/:disciplineId/progress',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (request: FastifyRequest<{ Params: { disciplineId: string } }>, reply: FastifyReply) => {
       try {
         const { disciplineId } = request.params;
@@ -149,7 +149,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Get user's overall progress summary (requires auth)
   app.get(
     '/martial-arts/progress',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const userId = request.user!.userId;
@@ -165,7 +165,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Log a practice session (requires auth)
   app.post(
     '/martial-arts/practice',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Body: {
@@ -208,7 +208,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Mark a technique as mastered (requires auth)
   app.post(
     '/martial-arts/master',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Body: {
@@ -245,7 +245,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Get practice history (requires auth)
   app.get(
     '/martial-arts/history',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Querystring: { limit?: string; offset?: string; disciplineId?: string };
@@ -275,7 +275,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   // Update notes for a technique (requires auth)
   app.put(
     '/martial-arts/techniques/:techniqueId/notes',
-    { preHandler: requireAuth },
+    { preHandler: authenticate },
     async (
       request: FastifyRequest<{
         Params: { techniqueId: string };
