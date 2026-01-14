@@ -429,24 +429,26 @@ ORDER BY pg_relation_size(i.indexrelid) DESC;
 
 ## Implementation Roadmap
 
-### Phase 1: Quick Wins (1-2 days)
-1. ✅ `051_automated_matview_refresh.ts` - Automated leaderboard refresh
-2. ✅ `051_activity_events_composite_index.ts` - Activity feed index
+### Phase 1: Quick Wins - IMPLEMENTED
+1. ✅ `059_performance_optimization_phase1.ts` - Activity feed indexes, matview tracking, conversation participant index, exercise activation reverse lookup
 
-### Phase 2: Core Optimizations (3-5 days)
-3. ✅ `052_denormalize_profile_fields.ts` - Profile field denormalization
-4. ✅ `053_social_composite_indexes.ts` - Social feature indexes
-5. ✅ `053_exercise_activation_reverse.ts` - Muscle lookup index
+### Phase 2: Core Optimizations - IMPLEMENTED
+2. ✅ `060_social_composite_indexes.ts` - Social feature indexes (friendships, mentorships, crews, follows, blocks, high fives)
+3. ✅ `061_denormalize_profile_fields.ts` - Profile field denormalization + optimized mv_xp_rankings_v2
 
-### Phase 3: Data Lifecycle (1 week)
-6. ✅ `054_partition_timeseries_tables.ts` - Table partitioning
-7. ✅ `055_data_retention_policies.ts` - Cleanup functions
-8. ✅ `056_credit_ledger_archival.ts` - Transaction archival
+### Phase 3: Data Lifecycle - IMPLEMENTED
+4. ✅ `062_data_retention_policies.ts` - Cleanup functions with configurable retention policies
+5. ✅ `063_credit_ledger_archival.ts` - Transaction archival (hot/cold storage pattern)
 
-### Phase 4: Monitoring (2-3 days)
-9. ✅ `057_query_monitoring.ts` - Performance tracking
-10. ✅ Application-level connection tuning
-11. ✅ Prepared statement implementation
+### Phase 4: Monitoring - IMPLEMENTED
+6. ✅ `064_query_monitoring.ts` - Performance tracking views, index usage, slow query detection
+
+### Application-Level Changes - IMPLEMENTED
+7. ✅ Scheduler service updated with:
+   - Materialized view refresh every 5 minutes
+   - Data retention policies daily at 3 AM UTC
+   - Credit archival weekly on Sunday at 2 AM UTC
+   - Performance snapshot capture every 15 minutes
 
 ---
 

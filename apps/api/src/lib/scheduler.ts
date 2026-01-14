@@ -382,7 +382,184 @@ export function startScheduler(): void {
     activeIntervals.push(fraudInterval);
   }, msUntilMidnight);
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, and fraud cleanup jobs');
+  // ============================================
+  // DATABASE MAINTENANCE JOBS
+  // ============================================
+
+  // Materialized view refresh - every 5 minutes
+  const matviewInterval = setInterval(refreshMaterializedViews, 5 * 60 * 1000);
+  activeIntervals.push(matviewInterval);
+  refreshMaterializedViews(); // Run immediately
+
+  // Performance snapshot - every 15 minutes
+  const snapshotInterval = setInterval(capturePerformanceSnapshot, 15 * 60 * 1000);
+  activeIntervals.push(snapshotInterval);
+  capturePerformanceSnapshot(); // Run immediately
+
+  // Data retention policies - daily at 3 AM UTC
+  const msUntil3AM = (() => {
+    const next3AM = new Date(now);
+    next3AM.setUTCHours(3, 0, 0, 0);
+    if (next3AM <= now) {
+      next3AM.setUTCDate(next3AM.getUTCDate() + 1);
+    }
+    return next3AM.getTime() - now.getTime();
+  })();
+
+  setTimeout(() => {
+    runDataRetentionPolicies();
+    const retentionInterval = setInterval(runDataRetentionPolicies, 24 * 60 * 60 * 1000);
+    activeIntervals.push(retentionInterval);
+  }, msUntil3AM);
+
+  // Credit archival - weekly on Sunday at 2 AM UTC
+  const msUntilSunday2AM = (() => {
+    const nextSunday = new Date(now);
+    nextSunday.setUTCHours(2, 0, 0, 0);
+    // Find next Sunday
+    const daysUntilSunday = (7 - nextSunday.getUTCDay()) % 7;
+    nextSunday.setUTCDate(nextSunday.getUTCDate() + (daysUntilSunday === 0 && now.getTime() >= nextSunday.getTime() ? 7 : daysUntilSunday));
+    return nextSunday.getTime() - now.getTime();
+  })();
+
+  setTimeout(() => {
+    archiveCreditTransactions();
+    const archiveInterval = setInterval(archiveCreditTransactions, 7 * 24 * 60 * 60 * 1000);
+    activeIntervals.push(archiveInterval);
+  }, msUntilSunday2AM);
+
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, and credit archival');
+}
+
+/**
+ * Refresh materialized views (XP rankings leaderboard)
+ * Runs every 5 minutes
+ */
+async function refreshMaterializedViews(): Promise<void> {
+  try {
+    await withLock('scheduler:refresh-matviews', async () => {
+      log.debug('Refreshing materialized views...');
+
+      // Try the v2 view first (optimized), fall back to v1
+      try {
+        await query('SELECT refresh_xp_rankings_v2_with_log()');
+        log.debug('Refreshed mv_xp_rankings_v2');
+      } catch {
+        // Fall back to v1 if v2 doesn't exist
+        try {
+          await query('SELECT refresh_xp_rankings_with_log()');
+          log.debug('Refreshed mv_xp_rankings');
+        } catch {
+          // Last resort: direct refresh
+          await query('REFRESH MATERIALIZED VIEW CONCURRENTLY mv_xp_rankings');
+          log.debug('Refreshed mv_xp_rankings (direct)');
+        }
+      }
+    }, { ttl: 60000 }); // 1 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      // Silent - another instance is handling it
+    } else {
+      log.error({ err }, 'Error refreshing materialized views');
+    }
+  }
+}
+
+/**
+ * Run data retention policies (cleanup old data)
+ * Runs daily at 3 AM UTC
+ */
+async function runDataRetentionPolicies(): Promise<void> {
+  try {
+    await withLock('scheduler:data-retention', async () => {
+      log.info('Running data retention policies...');
+
+      try {
+        const result = await queryAll<{ policy_name: string; deleted_count: number; success: boolean }>(
+          'SELECT * FROM run_all_retention_policies()'
+        );
+
+        let totalDeleted = 0;
+        for (const row of result) {
+          if (row.success && row.deleted_count > 0) {
+            totalDeleted += row.deleted_count;
+            log.info({ policy: row.policy_name, deleted: row.deleted_count }, 'Retention policy executed');
+          }
+        }
+
+        if (totalDeleted > 0) {
+          log.info({ totalDeleted }, 'Data retention completed');
+        }
+      } catch {
+        log.warn('Data retention policies not available - migration may not have run yet');
+      }
+    }, { ttl: 600000 }); // 10 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      // Silent - another instance is handling it
+    } else {
+      log.error({ err }, 'Error running data retention policies');
+    }
+  }
+}
+
+/**
+ * Archive old credit transactions
+ * Runs weekly on Sunday at 2 AM UTC
+ */
+async function archiveCreditTransactions(): Promise<void> {
+  try {
+    await withLock('scheduler:archive-credits', async () => {
+      log.info('Archiving old credit transactions...');
+
+      try {
+        const result = await queryOne<{
+          archived_count: number;
+          duration_ms: number;
+          oldest_archived: string;
+          newest_archived: string;
+        }>(
+          'SELECT * FROM archive_old_credit_transactions(6, 10000)'
+        );
+
+        if (result && result.archived_count > 0) {
+          log.info({
+            archived: result.archived_count,
+            durationMs: result.duration_ms,
+            oldest: result.oldest_archived,
+            newest: result.newest_archived,
+          }, 'Credit transactions archived');
+        }
+      } catch {
+        log.warn('Credit archival not available - migration may not have run yet');
+      }
+    }, { ttl: 900000 }); // 15 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      // Silent - another instance is handling it
+    } else {
+      log.error({ err }, 'Error archiving credit transactions');
+    }
+  }
+}
+
+/**
+ * Capture performance snapshot for monitoring
+ * Runs every 15 minutes
+ */
+async function capturePerformanceSnapshot(): Promise<void> {
+  try {
+    await withLock('scheduler:performance-snapshot', async () => {
+      try {
+        await query('SELECT capture_performance_snapshot()');
+        log.debug('Performance snapshot captured');
+      } catch {
+        // Function may not exist yet - silently skip
+      }
+    }, { ttl: 30000 }); // 30 second lock
+  } catch {
+    // Silent failures for performance monitoring
+  }
 }
 
 /**
