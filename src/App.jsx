@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { CompanionProvider, CompanionDock } from './components/mascot';
 import { usePrefetchRoutes } from './components/PrefetchLink';
 import logger from './utils/logger';
+import { trackPageView } from './lib/analytics';
 
 // Plugin System
 import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins';
@@ -178,7 +179,7 @@ function SkipLink() {
   );
 }
 
-// Announces route changes to screen readers
+// Announces route changes to screen readers and tracks page views
 function RouteAnnouncer() {
   const location = useLocation();
   const [announcement, setAnnouncement] = useState('');
@@ -194,6 +195,9 @@ function RouteAnnouncer() {
     const formattedName = pageName.charAt(0).toUpperCase() + pageName.slice(1);
 
     setAnnouncement(`Navigated to ${formattedName} page`);
+
+    // Track page view in Google Analytics
+    trackPageView(location.pathname, `${formattedName} | MuscleMap`);
   }, [location.pathname]);
 
   return (

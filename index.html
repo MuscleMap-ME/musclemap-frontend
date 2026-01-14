@@ -44,9 +44,22 @@
   <!-- Canonical URL -->
   <link rel="canonical" href="https://musclemap.me/">
 
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4RPD5JD5L"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-S4RPD5JD5L', {
+      send_page_view: false // We'll send page views manually for SPA
+    });
+  </script>
+
   <!-- API Preconnect - establish early connections for faster data fetching -->
   <link rel="preconnect" href="https://api.musclemap.me" crossorigin>
   <link rel="dns-prefetch" href="https://api.musclemap.me">
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
+  <link rel="preconnect" href="https://www.google-analytics.com" crossorigin>
 
   <!-- Font Preconnect -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -54,6 +54,8 @@ import {
   Wallet,
   XCircle,
   Zap,
+  TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 import {
   LineChart as RechartsLineChart,
@@ -85,6 +87,7 @@ const OWNER_POWERS = [
 
 const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'community', label: 'Community', icon: Globe },
@@ -94,6 +97,10 @@ const NAV_SECTIONS = [
   { id: 'slack', label: 'Slack', icon: Slack },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+
+// Google Analytics Configuration
+const GA_PROPERTY_ID = 'G-S4RPD5JD5L';
+const GA_DASHBOARD_URL = `https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/intelligenthome`;
 
 // ============================================
 // HELPER COMPONENTS
@@ -865,6 +872,181 @@ export default function EmpireControl() {
                         </button>
                       </div>
                     )}
+                  </GlassSurface>
+                </div>
+              )}
+
+              {/* Analytics Section */}
+              {activeSection === 'analytics' && (
+                <div className="space-y-6">
+                  {/* GA4 Quick Links */}
+                  <GlassSurface className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-blue-400" />
+                        Google Analytics 4
+                      </h3>
+                      <span className="text-xs text-gray-500 font-mono">{GA_PROPERTY_ID}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/reportinghub`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                          <BarChart3 className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Reports Overview</div>
+                          <div className="text-xs text-gray-500">View all reports</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/dashboard?params=_u..nav%3Dmaui`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-green-500/20 rounded-lg">
+                          <Activity className="w-5 h-5 text-green-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Real-Time</div>
+                          <div className="text-xs text-gray-500">Live visitors</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/acquisition-overview`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-purple-500/20 rounded-lg">
+                          <Users className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">User Acquisition</div>
+                          <div className="text-xs text-gray-500">Traffic sources</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/engagement-overview`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-yellow-500/20 rounded-lg">
+                          <Heart className="w-5 h-5 text-yellow-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Engagement</div>
+                          <div className="text-xs text-gray-500">User behavior</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/retention-overview`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-pink-500/20 rounded-lg">
+                          <RefreshCw className="w-5 h-5 text-pink-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Retention</div>
+                          <div className="text-xs text-gray-500">User return rate</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                      <a
+                        href={`https://analytics.google.com/analytics/web/#/p${GA_PROPERTY_ID.replace('G-', '')}/reports/explorer-events`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-4 bg-white/5 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-3 group"
+                      >
+                        <div className="p-2 bg-cyan-500/20 rounded-lg">
+                          <Zap className="w-5 h-5 text-cyan-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Events</div>
+                          <div className="text-xs text-gray-500">Custom events</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      </a>
+                    </div>
+                  </GlassSurface>
+
+                  {/* Tracked Events Info */}
+                  <GlassSurface className="p-4">
+                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-cyan-400" />
+                      Tracked Events
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[
+                        { name: 'sign_up', description: 'User registration', color: 'green' },
+                        { name: 'login', description: 'User login', color: 'blue' },
+                        { name: 'page_view', description: 'Page navigation', color: 'purple' },
+                        { name: 'workout_complete', description: 'Workout finished', color: 'yellow' },
+                        { name: 'archetype_selected', description: 'Archetype chosen', color: 'pink' },
+                        { name: 'community_join', description: 'Joined community', color: 'cyan' },
+                        { name: 'achievement_unlocked', description: 'Achievement earned', color: 'orange' },
+                        { name: 'level_up', description: 'Level increased', color: 'violet' },
+                        { name: 'credits_purchased', description: 'Credits bought', color: 'emerald' },
+                      ].map((event) => (
+                        <div
+                          key={event.name}
+                          className="p-3 bg-white/5 rounded-lg flex items-center gap-3"
+                        >
+                          <div className={`w-2 h-2 rounded-full bg-${event.color}-400`} />
+                          <div>
+                            <div className="text-sm font-mono">{event.name}</div>
+                            <div className="text-xs text-gray-500">{event.description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassSurface>
+
+                  {/* GA4 Info Box */}
+                  <GlassSurface className="p-4 border border-blue-500/20">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <TrendingUp className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">About Google Analytics Integration</h4>
+                        <p className="text-sm text-gray-400 mb-3">
+                          MuscleMap tracks user behavior with GA4 to help understand how people use the app.
+                          Page views, signups, logins, and key actions are automatically tracked.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href="https://analytics.google.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+                          >
+                            Open GA4 Dashboard <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <span className="text-gray-600">|</span>
+                          <a
+                            href="https://support.google.com/analytics/answer/9304153"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-300"
+                          >
+                            GA4 Documentation <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </GlassSurface>
                 </div>
               )}

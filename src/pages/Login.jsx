@@ -5,6 +5,7 @@ import { useUser } from '../contexts/UserContext';
 import { fetchWithLogging } from '../utils/logger';
 import SEO from '../components/SEO';
 import { sanitizeEmail } from '../utils/sanitize';
+import { trackLogin, setUserProperties } from '../lib/analytics';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -47,6 +48,14 @@ export default function Login() {
       }
 
       login(user, token);
+
+      // Track login event
+      trackLogin('email');
+      setUserProperties(user.id, {
+        archetype: user.archetype || 'none',
+        has_completed_onboarding: !!user.archetype,
+      });
+
       navigate(user.archetype ? '/dashboard' : '/onboarding');
     } catch (err) {
       setError(extractErrorMessage(err, 'Login failed'));

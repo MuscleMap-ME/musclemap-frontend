@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import SEO from '../components/SEO';
 import { sanitizeText, sanitizeEmail } from '../utils/sanitize';
+import { trackSignUp, trackLogin, setUserProperties } from '../lib/analytics';
 
 export default function Signup() {
   // SEO structured data for signup
@@ -35,6 +36,14 @@ export default function Signup() {
       };
       const data = await api.auth.register(sanitizedData);
       login(data.user, data.token);
+
+      // Track signup event
+      trackSignUp('email');
+      setUserProperties(data.user.id, {
+        archetype: 'none',
+        has_completed_onboarding: false,
+      });
+
       navigate('/onboarding');
     } catch (err) {
       const message = err.message || '';
@@ -43,6 +52,14 @@ export default function Signup() {
         try {
           const loginData = await api.auth.login(form.email, form.password);
           login(loginData.user, loginData.token);
+
+          // Track login event (user already exists)
+          trackLogin('email');
+          setUserProperties(loginData.user.id, {
+            archetype: loginData.user.archetype || 'none',
+            has_completed_onboarding: !!loginData.user.archetype,
+          });
+
           navigate(loginData.user?.archetype ? '/dashboard' : '/onboarding');
           return;
         } catch (loginErr) {
