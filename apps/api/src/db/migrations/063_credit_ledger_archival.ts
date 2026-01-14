@@ -218,7 +218,7 @@ export async function up(): Promise<void> {
     CREATE OR REPLACE VIEW user_credit_history_full AS
     SELECT
       id, user_id, action, amount, balance_after,
-      reference_type, reference_id, created_at,
+      ref_type, ref_id, created_at,
       'active' as storage_tier
     FROM credit_ledger
     WHERE archived = FALSE
@@ -227,7 +227,7 @@ export async function up(): Promise<void> {
 
     SELECT
       id, user_id, action, amount, balance_after,
-      reference_type, reference_id, created_at,
+      reference_type as ref_type, reference_id as ref_id, created_at,
       'archived' as storage_tier
     FROM credit_ledger_archive
   `);
