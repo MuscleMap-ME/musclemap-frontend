@@ -258,6 +258,25 @@ DRY_RUN=1 ./scripts/repo-cleanup.sh  # Preview
 ./scripts/repo-cleanup.sh            # Execute
 ```
 
+#### `competitive-analysis.sh` - Competitive Feature Analysis
+Assists with monthly competitive analysis to identify feature gaps.
+```bash
+./scripts/competitive-analysis.sh           # Full analysis workflow
+./scripts/competitive-analysis.sh --check   # Check last update times
+./scripts/competitive-analysis.sh --gaps-only  # Update gaps only
+./scripts/competitive-analysis.sh --help    # Show help
+
+# Or via pnpm
+pnpm competitive-analysis              # Full analysis
+pnpm competitive-analysis:check        # Check dates
+```
+
+**Documents Updated:**
+- `docs/COMPETITOR-FEATURE-ANALYSIS.md` - Raw competitor feature data
+- `docs/FEATURE-GAP-ANALYSIS.md` - Prioritized gap analysis with implementation plan
+
+**Recommended Frequency:** Monthly
+
 ---
 
 ## Remote Server Commands

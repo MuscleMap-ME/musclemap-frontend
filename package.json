@@ -27,12 +27,18 @@
     "test:e2e:api": "npx tsx scripts/e2e-user-journey.ts",
     "test:e2e:api:prod": "npx tsx scripts/e2e-user-journey.ts --production",
     "test:api": "pnpm -C apps/api test",
+    "test:harness": "tsx scripts/test-harness/index.ts",
+    "test:harness:core": "tsx scripts/test-harness/index.ts --category core",
+    "test:harness:auth": "tsx scripts/test-harness/index.ts --category auth",
+    "test:harness:prod": "tsx scripts/test-harness/index.ts --env production",
     "test:coverage": "pnpm test:frontend:coverage && pnpm -C apps/api test:coverage",
     "deploy": "sh ./scripts/deploy-branch.sh",
     "deploy:now": "sh ./scripts/deploy-branch.sh --deploy --skip-tests",
     "deploy:auto": "sh ./scripts/deploy-branch.sh --auto-merge",
     "deploy:dry": "sh ./scripts/deploy-branch.sh --dry-run",
-    "deploy:merge": "sh ./scripts/deploy-branch.sh --merge-now"
+    "deploy:merge": "sh ./scripts/deploy-branch.sh --merge-now",
+    "competitive-analysis": "sh ./scripts/competitive-analysis.sh",
+    "competitive-analysis:check": "sh ./scripts/competitive-analysis.sh --check"
   },
   "dependencies": {
     "@apollo/client": "^4.0.11",
