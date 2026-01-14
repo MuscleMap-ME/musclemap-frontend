@@ -128,6 +128,7 @@ musclemap.me/
 │   ├── backfill-ranks.ts
 │   ├── deploy-branch.sh
 │   ├── deploy.sh
+│   ├── e2e-user-journey.ts
 │   ├── errors.sh
 │   ├── generate-docs.cjs
 │   ├── generate-icons.cjs
