@@ -587,42 +587,5 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
   });
 
   // Note: GET /archetypes/categories is already defined in journey.ts
-
-  /**
-   * GET /archetypes/by-category/:categoryId
-   * Get archetypes in a specific category
-   */
-  app.get('/archetypes/by-category/:categoryId', { preHandler: authenticate }, async (request, reply) => {
-    const { categoryId } = request.params as { categoryId: string };
-
-    const archetypes = await db.queryAll<{
-      id: string;
-      name: string;
-      description: string | null;
-      institution: string | null;
-      pt_test_id: string | null;
-      focus_areas: string[];
-      recommended_equipment: string[];
-    }>(
-      `SELECT id, name, description, institution, pt_test_id, focus_areas, recommended_equipment
-       FROM archetypes
-       WHERE category_id = $1
-       ORDER BY name`,
-      [categoryId]
-    );
-
-    return reply.send({
-      data: {
-        archetypes: archetypes.map(a => ({
-          id: a.id,
-          name: a.name,
-          description: a.description,
-          institution: a.institution,
-          ptTestId: a.pt_test_id,
-          focusAreas: a.focus_areas || [],
-          recommendedEquipment: a.recommended_equipment || [],
-        })),
-      },
-    });
-  });
+  // Note: GET /archetypes/by-category/:categoryId is already defined in journey.ts
 }

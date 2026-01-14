@@ -46,7 +46,7 @@ async function triggerExists(triggerName: string): Promise<boolean> {
 }
 
 export async function up(): Promise<void> {
-  log.info('Running migration: 065_wealth_tiers');
+  log.info('Running migration: 067_wealth_tiers');
 
   // ============================================
   // ADD WEALTH TIER COLUMN TO USERS
@@ -160,11 +160,11 @@ export async function up(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_users_wealth_tier ON users(wealth_tier)
   `);
 
-  log.info('Migration 065_wealth_tiers completed');
+  log.info('Migration 067_wealth_tiers completed');
 }
 
 export async function down(): Promise<void> {
-  log.info('Rolling back migration: 065_wealth_tiers');
+  log.info('Rolling back migration: 067_wealth_tiers');
 
   // Drop trigger
   await db.query('DROP TRIGGER IF EXISTS trigger_update_wealth_tier ON credit_balances');
@@ -183,7 +183,7 @@ export async function down(): Promise<void> {
   await db.query('ALTER TABLE users DROP COLUMN IF EXISTS bio_rich_json');
   await db.query('ALTER TABLE users DROP COLUMN IF EXISTS social_links');
 
-  log.info('Rollback 065_wealth_tiers completed');
+  log.info('Rollback 067_wealth_tiers completed');
 }
 
 export const migrate = up;
