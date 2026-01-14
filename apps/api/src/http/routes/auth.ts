@@ -255,6 +255,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           displayName: user.display_name,
           roles,
           role,
+          is_admin: roles.includes('admin'),
+          is_owner: roles.includes('owner'),
         },
       },
     });
@@ -281,6 +283,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     const balance = await economyService.getBalance(request.user!.userId);
+    const roles = user.roles || ['user'];
 
     return reply.send({
       data: {
@@ -288,7 +291,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         email: user.email,
         username: user.username,
         displayName: user.display_name,
-        roles: user.roles || ['user'],
+        roles,
+        is_admin: roles.includes('admin'),
+        is_owner: roles.includes('owner'),
         creditBalance: balance,
         createdAt: user.created_at,
       },
