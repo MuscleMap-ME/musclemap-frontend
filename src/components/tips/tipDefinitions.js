@@ -12,12 +12,16 @@
 export const TIP_TRIGGERS = {
   WORKOUT_COMPLETE: 'workout_complete',
   FIRST_LOGIN: 'first_login',
-  LOW_CREDITS: 'low_credits',
+  EARNED_CREDITS: 'earned_credits',
   NEW_ACHIEVEMENT: 'new_achievement',
-  INACTIVE_3_DAYS: 'inactive_3_days',
-  PROFILE_INCOMPLETE: 'profile_incomplete',
-  STREAK_AT_RISK: 'streak_at_risk',
+  STREAK_MILESTONE: 'streak_milestone',
   LEVEL_UP: 'level_up',
+  NO_WORKOUT_3_DAYS: 'no_workout_3_days',
+  PROFILE_INCOMPLETE: 'profile_incomplete',
+  // Legacy/additional triggers
+  LOW_CREDITS: 'low_credits',
+  INACTIVE_3_DAYS: 'inactive_3_days',
+  STREAK_AT_RISK: 'streak_at_risk',
   FIRST_WORKOUT: 'first_workout',
   MILESTONE_REACHED: 'milestone_reached',
   COMMUNITY_JOIN: 'community_join',
@@ -65,7 +69,7 @@ export const TIP_DEFINITIONS = {
     id: 'workout_complete_view_map',
     trigger: TIP_TRIGGERS.WORKOUT_COMPLETE,
     category: 'action',
-    message: 'Great workout! Want to see your muscle heat map?',
+    message: 'Great workout! View your muscle activation map',
     action: {
       label: 'View Map',
       to: '/stats',
@@ -85,6 +89,17 @@ export const TIP_DEFINITIONS = {
   },
 
   // First login tips
+  first_login_welcome: {
+    id: 'first_login_welcome',
+    trigger: TIP_TRIGGERS.FIRST_LOGIN,
+    category: 'action',
+    message: 'Welcome! Start with the guided tour',
+    action: {
+      label: 'Start Tour',
+      to: '/onboarding',
+    },
+    priority: 1,
+  },
   first_login_complete_profile: {
     id: 'first_login_complete_profile',
     trigger: TIP_TRIGGERS.FIRST_LOGIN,
@@ -94,7 +109,7 @@ export const TIP_DEFINITIONS = {
       label: 'Complete Profile',
       to: '/profile/edit',
     },
-    priority: 1,
+    priority: 2,
   },
   first_login_choose_archetype: {
     id: 'first_login_choose_archetype',
@@ -105,7 +120,46 @@ export const TIP_DEFINITIONS = {
       label: 'Choose Archetype',
       to: '/journey',
     },
-    priority: 2,
+    priority: 3,
+  },
+
+  // Earned credits tips
+  earned_credits_store: {
+    id: 'earned_credits_store',
+    trigger: TIP_TRIGGERS.EARNED_CREDITS,
+    category: 'reward',
+    message: 'You earned credits! Visit the store',
+    action: {
+      label: 'Visit Store',
+      to: '/store',
+    },
+    priority: 1,
+  },
+
+  // Streak milestone tips
+  streak_milestone_amazing: {
+    id: 'streak_milestone_amazing',
+    trigger: TIP_TRIGGERS.STREAK_MILESTONE,
+    category: 'progress',
+    message: 'Amazing streak! Keep it going',
+    action: {
+      label: 'View Streak',
+      to: '/stats',
+    },
+    priority: 1,
+  },
+
+  // No workout for 3 days tips
+  no_workout_3_days_comeback: {
+    id: 'no_workout_3_days_comeback',
+    trigger: TIP_TRIGGERS.NO_WORKOUT_3_DAYS,
+    category: 'reminder',
+    message: 'Time to get back in the gym!',
+    action: {
+      label: 'Start Workout',
+      to: '/workout',
+    },
+    priority: 1,
   },
 
   // Low credits tips
@@ -137,9 +191,9 @@ export const TIP_DEFINITIONS = {
     id: 'new_achievement_view',
     trigger: TIP_TRIGGERS.NEW_ACHIEVEMENT,
     category: 'reward',
-    message: 'Congratulations! Check out your new badge!',
+    message: 'You unlocked an achievement! View all achievements',
     action: {
-      label: 'View Badge',
+      label: 'View Achievements',
       to: '/achievements',
     },
     priority: 1,
@@ -170,6 +224,17 @@ export const TIP_DEFINITIONS = {
   },
 
   // Profile incomplete tips
+  profile_incomplete_bonus: {
+    id: 'profile_incomplete_bonus',
+    trigger: TIP_TRIGGERS.PROFILE_INCOMPLETE,
+    category: 'action',
+    message: 'Complete your profile for bonus XP',
+    action: {
+      label: 'Complete Profile',
+      to: '/profile/edit',
+    },
+    priority: 1,
+  },
   profile_incomplete_avatar: {
     id: 'profile_incomplete_avatar',
     trigger: TIP_TRIGGERS.PROFILE_INCOMPLETE,
@@ -179,7 +244,7 @@ export const TIP_DEFINITIONS = {
       label: 'Add Photo',
       to: '/profile/edit',
     },
-    priority: 1,
+    priority: 2,
   },
 
   // Streak at risk tips
@@ -200,9 +265,9 @@ export const TIP_DEFINITIONS = {
     id: 'level_up_view',
     trigger: TIP_TRIGGERS.LEVEL_UP,
     category: 'reward',
-    message: 'You leveled up! Check out your new unlocks.',
+    message: 'You leveled up! Check your new stats',
     action: {
-      label: 'View Progress',
+      label: 'View Stats',
       to: '/stats/progression',
     },
     priority: 1,

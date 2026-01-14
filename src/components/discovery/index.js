@@ -13,12 +13,20 @@
  *
  *   return (
  *     <FeatureDiscovery
- *       maxVisible={3}
- *       autoRotate={true}
- *       onFeatureClick={(feature) => navigate(feature.path)}
+ *       maxCards={3}
+ *       onFeatureClick={(feature) => navigate(feature.route)}
  *     />
  *   );
  * }
+ *
+ * @example With Custom Handling
+ * import { FeatureDiscovery } from '@/components/discovery';
+ *
+ * <FeatureDiscovery
+ *   maxCards={4}
+ *   onFeatureClick={(feature) => analytics.track('feature_discovered', feature.id)}
+ *   exclude={['martial_arts']} // Hide from certain users
+ * />
  *
  * @example Custom Features
  * import { FeatureDiscovery, DISCOVERABLE_FEATURES } from '@/components/discovery';
@@ -30,31 +38,39 @@
  *
  * <FeatureDiscovery
  *   features={competitiveFeatures}
- *   maxVisible={2}
+ *   maxCards={2}
  * />
  *
  * @example Compact Horizontal Version
  * import { FeatureDiscoveryCompact } from '@/components/discovery';
  *
  * <FeatureDiscoveryCompact
- *   onFeatureClick={(feature) => navigate(feature.path)}
+ *   onFeatureClick={(feature) => navigate(feature.route)}
  * />
  *
- * @example Programmatic Access
+ * @example Programmatic Access (Hook)
  * import { useFeatureDiscovery } from '@/components/discovery';
  *
  * function SomeComponent() {
  *   const {
- *     visited,
- *     markVisited,
- *     hasUnvisitedFeatures,
+ *     unusedFeatures,
+ *     markUsed,
+ *     dismiss,
+ *     getUnusedFeatures,
+ *     hasUnusedFeatures,
  *   } = useFeatureDiscovery();
  *
  *   // Check if user has explored all features
- *   if (!hasUnvisitedFeatures()) {
+ *   if (!hasUnusedFeatures()) {
  *     // Show "explorer" achievement
  *   }
  * }
+ *
+ * @example Hook with React Router Auto-Tracking
+ * import { useFeatureDiscovery } from '@/components/discovery/useFeatureDiscovery';
+ *
+ * // This version auto-marks features as used when navigating to their routes
+ * const { unusedFeatures, markUsed, dismiss } = useFeatureDiscovery();
  */
 
 // Main component
@@ -67,6 +83,9 @@ export {
   useFeatureDiscovery,
 } from './FeatureDiscovery';
 
+// Standalone hook with React Router integration
+export { default as useFeatureDiscoveryWithRouter } from './useFeatureDiscovery';
+
 // Card component
 export { default as FeatureCard } from './FeatureCard';
 export { FeatureCardSkeleton, FeatureCardCompact } from './FeatureCard';
@@ -76,8 +95,10 @@ export {
   DISCOVERABLE_FEATURES,
   FEATURE_CATEGORIES,
   getFeaturesByCategory,
+  getFeaturesByCategories,
   sortByPriority,
   getFeatureById,
+  getNewFeatures,
 } from './featureDefinitions';
 
 // Default export

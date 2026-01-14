@@ -82,8 +82,47 @@ const positionClasses = {
   'top-center': 'fixed top-20 left-1/2 -translate-x-1/2',
   'top-left': 'fixed top-20 left-4',
   'top-right': 'fixed top-20 right-4',
+  center: 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+  top: 'fixed top-20 left-1/2 -translate-x-1/2',
+  bottom: 'fixed bottom-4 left-1/2 -translate-x-1/2',
+  left: 'fixed top-1/2 left-4 -translate-y-1/2',
+  right: 'fixed top-1/2 right-4 -translate-y-1/2',
   inline: 'relative',
 };
+
+/**
+ * LocalStorage key for show-once tips
+ */
+const SHOW_ONCE_KEY = 'musclemap_shown_once_tips';
+
+/**
+ * Get show-once tips from localStorage
+ * @returns {Set<string>} Set of tip ids that have been shown once
+ */
+function getShownOnceTips() {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(SHOW_ONCE_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Mark a tip as shown once in localStorage
+ * @param {string} tipId - The tip id to mark
+ */
+function markTipAsShownOnce(tipId) {
+  if (typeof window === 'undefined') return;
+  try {
+    const shown = getShownOnceTips();
+    shown.add(tipId);
+    localStorage.setItem(SHOW_ONCE_KEY, JSON.stringify([...shown]));
+  } catch {
+    // localStorage not available
+  }
+}
 
 /**
  * ContextualTip Component
@@ -94,6 +133,7 @@ export default function ContextualTip({
   message: customMessage,
   action: customAction,
   dismissible = true,
+  showOnce = false,
   delay = 0,
   position = 'bottom-center',
   slideFrom = 'bottom',
@@ -107,7 +147,8 @@ export default function ContextualTip({
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [tipData, setTipData] = useState(null);
-  const { canShowTip, isTipDismissed } = useContextualTips();
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const { isTipDismissed } = useContextualTips();
 
   // Get tip definition from trigger
   const tipDefinition = useMemo(() => {
@@ -136,8 +177,10 @@ export default function ContextualTip({
   const shouldShow = useMemo(() => {
     if (!resolvedTip) return false;
     if (isTipDismissed(resolvedTip.id)) return false;
+    // Check showOnce - if tip was already shown once, don't show again
+    if (showOnce && getShownOnceTips().has(resolvedTip.id)) return false;
     return true;
-  }, [resolvedTip, isTipDismissed]);
+  }, [resolvedTip, isTipDismissed, showOnce]);
 
   // Show tip after delay
   useEffect(() => {
@@ -147,30 +190,40 @@ export default function ContextualTip({
     const timer = setTimeout(() => {
       setIsVisible(true);
       setTipData(resolvedTip);
+      // Mark as shown once if showOnce is true
+      if (showOnce && resolvedTip?.id) {
+        markTipAsShownOnce(resolvedTip.id);
+      }
       onShow?.();
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [shouldShow, showOnMount, trigger, delay, resolvedTip, onShow]);
+  }, [shouldShow, showOnMount, trigger, delay, resolvedTip, onShow, showOnce]);
 
   // Auto-hide after duration
   useEffect(() => {
     if (!isVisible || !autoHide || autoHide <= 0) return;
 
     const timer = setTimeout(() => {
-      handleDismiss(false);
+      setIsVisible(false);
+      onDismiss?.(false);
     }, autoHide);
 
     return () => clearTimeout(timer);
-  }, [isVisible, autoHide]);
+  }, [isVisible, autoHide, onDismiss]);
 
   // Handle dismiss
   const handleDismiss = useCallback(
     (permanent = false) => {
       setIsVisible(false);
-      onDismiss?.(permanent);
+      // If "don't show again" is checked, mark as permanent dismiss
+      const shouldPermanentlyDismiss = permanent || dontShowAgain;
+      if (shouldPermanentlyDismiss && tipData?.id) {
+        markTipAsShownOnce(tipData.id);
+      }
+      onDismiss?.(shouldPermanentlyDismiss);
     },
-    [onDismiss]
+    [onDismiss, dontShowAgain, tipData]
   );
 
   // Handle action click
@@ -188,7 +241,7 @@ export default function ContextualTip({
   const currentTip = tipData || resolvedTip;
   if (!currentTip) return null;
 
-  const { message, action, category, categoryConfig } = currentTip;
+  const { message, action, categoryConfig } = currentTip;
   const IconComponent = ICON_MAP[categoryConfig?.icon] || Zap;
   const variants = slideVariants[slideFrom] || slideVariants.bottom;
   const finalPosition = inline ? 'inline' : position;
@@ -304,6 +357,30 @@ export default function ContextualTip({
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     ) : null}
+                  </div>
+                )}
+
+                {/* Don't show again checkbox */}
+                {dismissible && (
+                  <div className="mt-3">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={dontShowAgain}
+                        onChange={(e) => setDontShowAgain(e.target.checked)}
+                        className={clsx(
+                          'w-4 h-4 rounded',
+                          'bg-white/10 border border-white/20',
+                          'checked:bg-blue-500 checked:border-blue-500',
+                          'focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-0',
+                          'transition-colors duration-200',
+                          'cursor-pointer'
+                        )}
+                      />
+                      <span className="text-white/60 text-xs group-hover:text-white/80 transition-colors">
+                        Don&apos;t show again
+                      </span>
+                    </label>
                   </div>
                 )}
               </div>

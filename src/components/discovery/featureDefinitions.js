@@ -9,13 +9,15 @@
  * Feature categories for grouping and filtering
  */
 export const FEATURE_CATEGORIES = {
+  TRACKING: 'tracking',
   SOCIAL: 'social',
   COMPETITIVE: 'competitive',
-  TRACKING: 'tracking',
   ECONOMY: 'economy',
   SKILLS: 'skills',
   CAREER: 'career',
   COMMUNITY: 'community',
+  AI: 'ai',
+  EXTENSIONS: 'extensions',
 };
 
 /**
@@ -23,262 +25,258 @@ export const FEATURE_CATEGORIES = {
  *
  * Each feature has:
  * - id: Unique identifier (used for localStorage tracking)
- * - title: Display name
+ * - name: Display name
  * - description: Short description for the card
- * - icon: Icon name from Lucide icons
- * - path: Navigation path
+ * - icon: Emoji or Lucide icon name
+ * - route: Navigation path (used for auto-tracking)
  * - category: Feature category
  * - priority: Higher = shown first (1-10)
- * - requirements: Optional array of required conditions (e.g., ['authenticated'])
+ * - isNew: Boolean for "New!" badge
+ * - isPopular: Boolean for "Popular!" badge
+ * - color: Accent color for the card (optional)
  */
 export const DISCOVERABLE_FEATURES = [
-  // Social Features
+  // Core features from spec
   {
-    id: 'crews',
-    title: 'Crew Battles',
-    description: 'Form a crew with friends and battle other teams in weekly challenges. Earn exclusive rewards.',
-    icon: 'Users',
-    path: '/crews',
-    category: FEATURE_CATEGORIES.SOCIAL,
-    priority: 9,
-    requirements: ['authenticated'],
-    color: '#8B5CF6', // Purple
+    id: 'muscle-map',
+    name: 'Muscle Visualization',
+    description: "See which muscles you've trained with our interactive body map",
+    icon: '💪',
+    route: '/stats',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: true,
+    priority: 10,
+    color: '#0066FF',
   },
   {
-    id: 'rivals',
-    title: 'Rivalries',
-    description: 'Challenge friends to head-to-head competitions. Track your rivalry record and bragging rights.',
-    icon: 'Swords',
-    path: '/rivals',
+    id: 'crew-battles',
+    name: 'Crew Battles',
+    description: 'Team up with friends and compete against other crews',
+    icon: '⚔️',
+    route: '/crews',
+    category: FEATURE_CATEGORIES.SOCIAL,
+    isNew: true,
+    isPopular: false,
+    priority: 9,
+    color: '#8B5CF6',
+  },
+  {
+    id: 'rivalries',
+    name: 'Rivalries',
+    description: 'Challenge others to head-to-head battles and track your record',
+    icon: '🥊',
+    route: '/rivals',
     category: FEATURE_CATEGORIES.COMPETITIVE,
+    isNew: false,
+    isPopular: true,
     priority: 8,
-    requirements: ['authenticated'],
-    color: '#EF4444', // Red
+    color: '#EF4444',
   },
   {
     id: 'competitions',
-    title: 'Competitions',
-    description: 'Join community-wide competitions. Compete for leaderboard positions and exclusive prizes.',
-    icon: 'Trophy',
-    path: '/competitions',
+    name: 'Competitions',
+    description: 'Join community-wide challenges and climb the leaderboards',
+    icon: '🏆',
+    route: '/competitions',
     category: FEATURE_CATEGORIES.COMPETITIVE,
+    isNew: false,
+    isPopular: true,
     priority: 8,
-    requirements: ['authenticated'],
-    color: '#F59E0B', // Amber
+    color: '#F59E0B',
   },
   {
-    id: 'martial-arts',
-    title: 'Martial Arts',
-    description: 'Track your martial arts journey. Log techniques, belt progression, and sparring sessions.',
-    icon: 'Shield',
-    path: '/martial-arts',
-    category: FEATURE_CATEGORIES.TRACKING,
+    id: 'hangouts',
+    name: 'Virtual Hangouts',
+    description: 'Work out together with friends in real-time virtual sessions',
+    icon: '🎮',
+    route: '/hangouts',
+    category: FEATURE_CATEGORIES.SOCIAL,
+    isNew: true,
+    isPopular: false,
     priority: 7,
-    requirements: ['authenticated'],
-    color: '#10B981', // Emerald
+    color: '#10B981',
   },
-
-  // Skill & Progression
+  {
+    id: 'achievements',
+    name: 'Achievements',
+    description: 'Unlock badges and trophies as you hit fitness milestones',
+    icon: '🏅',
+    route: '/achievements',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: true,
+    priority: 7,
+    color: '#FBBF24',
+  },
   {
     id: 'skills',
-    title: 'Skills Tracking',
-    description: 'Master specific exercises and movements. Track your skill levels and unlock advanced techniques.',
-    icon: 'Zap',
-    path: '/skills',
+    name: 'Skill Tree',
+    description: 'Level up RPG-style abilities and unlock special powers',
+    icon: '⚡',
+    route: '/skills',
     category: FEATURE_CATEGORIES.SKILLS,
-    priority: 7,
-    requirements: ['authenticated'],
-    color: '#3B82F6', // Blue
-  },
-  {
-    id: 'pt-tests',
-    title: 'PT Tests',
-    description: 'Prepare for military, police, or firefighter fitness tests. Track your scores and progress.',
-    icon: 'ClipboardCheck',
-    path: '/pt-tests',
-    category: FEATURE_CATEGORIES.CAREER,
+    isNew: false,
+    isPopular: false,
     priority: 6,
-    requirements: ['authenticated'],
-    color: '#0066FF', // Brand blue
+    color: '#3B82F6',
   },
   {
-    id: 'career-readiness',
-    title: 'Career Readiness',
-    description: 'Get ready for physically demanding careers. Track requirements for military, fire, police, and more.',
-    icon: 'Briefcase',
-    path: '/career',
-    category: FEATURE_CATEGORIES.CAREER,
+    id: 'journey',
+    name: 'Your Journey',
+    description: 'Follow your personalized fitness path with guided progression',
+    icon: '🗺️',
+    route: '/journey',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: false,
     priority: 6,
-    requirements: ['authenticated'],
-    color: '#6366F1', // Indigo
+    color: '#06B6D4',
   },
-
-  // Locations & Gyms
   {
-    id: 'locations',
-    title: 'Gym Finder',
-    description: 'Find gyms near you. Check-in to locations and see which MuscleMap members work out there.',
-    icon: 'MapPin',
-    path: '/locations',
-    category: FEATURE_CATEGORIES.COMMUNITY,
+    id: 'ai-workouts',
+    name: 'AI Workouts',
+    description: 'Get personalized workout plans tailored to your goals',
+    icon: '🤖',
+    route: '/prescriptions',
+    category: FEATURE_CATEGORIES.AI,
+    isNew: true,
+    isPopular: true,
+    priority: 9,
+    color: '#0066FF',
+  },
+  {
+    id: 'exercise-library',
+    name: 'Exercise Library',
+    description: 'Browse 500+ exercises with video demos and muscle targets',
+    icon: '📚',
+    route: '/exercises',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: false,
     priority: 5,
-    requirements: ['authenticated'],
-    color: '#14B8A6', // Teal
+    color: '#64748B',
   },
-
-  // Economy
   {
-    id: 'wallet',
-    title: 'Wallet & Credits',
-    description: 'Manage your MuscleMap credits. Earn from workouts, send to friends, unlock premium features.',
-    icon: 'Wallet',
-    path: '/wallet',
+    id: 'credits',
+    name: 'Credit Wallet',
+    description: 'Earn credits from workouts and spend them on rewards',
+    icon: '💰',
+    route: '/wallet',
     category: FEATURE_CATEGORIES.ECONOMY,
-    priority: 7,
-    requirements: ['authenticated'],
-    color: '#22C55E', // Green
+    isNew: false,
+    isPopular: false,
+    priority: 5,
+    color: '#22C55E',
   },
   {
     id: 'store',
-    title: 'Store',
-    description: 'Spend your credits on avatar skins, themes, and exclusive items.',
-    icon: 'ShoppingBag',
-    path: '/store',
+    name: 'Reward Store',
+    description: 'Spend credits on avatar skins, themes, and exclusive items',
+    icon: '🛍️',
+    route: '/store',
     category: FEATURE_CATEGORIES.ECONOMY,
-    priority: 5,
-    requirements: ['authenticated'],
-    color: '#EC4899', // Pink
-  },
-
-  // Achievements & Goals
-  {
-    id: 'achievements',
-    title: 'Achievements',
-    description: 'Unlock achievements as you progress. Show off your badges and earn bonus credits.',
-    icon: 'Award',
-    path: '/achievements',
-    category: FEATURE_CATEGORIES.TRACKING,
-    priority: 8,
-    requirements: ['authenticated'],
-    color: '#FBBF24', // Yellow
-  },
-  {
-    id: 'goals',
-    title: 'Goals',
-    description: 'Set fitness goals and track your progress. Get personalized recommendations to reach them faster.',
-    icon: 'Target',
-    path: '/goals',
-    category: FEATURE_CATEGORIES.TRACKING,
-    priority: 9,
-    requirements: ['authenticated'],
-    color: '#06B6D4', // Cyan
-  },
-
-  // Community
-  {
-    id: 'community',
-    title: 'Community Feed',
-    description: 'See what others are accomplishing. Celebrate victories and share your progress.',
-    icon: 'Rss',
-    path: '/community',
-    category: FEATURE_CATEGORIES.COMMUNITY,
-    priority: 6,
-    requirements: ['authenticated'],
-    color: '#8B5CF6', // Purple
-  },
-  {
-    id: 'messages',
-    title: 'Messages',
-    description: 'Chat with workout buddies and crew members. Coordinate training sessions.',
-    icon: 'MessageCircle',
-    path: '/messages',
-    category: FEATURE_CATEGORIES.SOCIAL,
-    priority: 5,
-    requirements: ['authenticated'],
-    color: '#0EA5E9', // Sky
+    isNew: false,
+    isPopular: false,
+    priority: 4,
+    color: '#EC4899',
   },
   {
     id: 'high-fives',
-    title: 'High Fives',
-    description: 'Send and receive high fives to celebrate accomplishments. Spread the motivation.',
-    icon: 'Hand',
-    path: '/high-fives',
+    name: 'High Fives',
+    description: 'Send encouragement to friends and celebrate their wins',
+    icon: '🙌',
+    route: '/high-fives',
     category: FEATURE_CATEGORIES.SOCIAL,
+    isNew: false,
+    isPopular: false,
     priority: 4,
-    requirements: ['authenticated'],
-    color: '#F97316', // Orange
+    color: '#F97316',
   },
-
-  // Stats & Progress
   {
-    id: 'stats',
-    title: 'Stats Dashboard',
-    description: 'Deep dive into your training statistics. Visualize your progress across all muscle groups.',
-    icon: 'BarChart3',
-    path: '/stats',
+    id: 'goals',
+    name: 'Goal Setting',
+    description: 'Set targets and get personalized recommendations to reach them',
+    icon: '🎯',
+    route: '/goals',
     category: FEATURE_CATEGORIES.TRACKING,
-    priority: 7,
-    requirements: ['authenticated'],
-    color: '#3B82F6', // Blue
+    isNew: false,
+    isPopular: true,
+    priority: 8,
+    color: '#06B6D4',
   },
+  {
+    id: 'milestones',
+    name: 'Milestones',
+    description: 'Track major achievements and celebrate your progress',
+    icon: '🚀',
+    route: '/milestones',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: false,
+    priority: 5,
+    color: '#8B5CF6',
+  },
+  // Additional features
   {
     id: 'leaderboard',
-    title: 'Leaderboard',
-    description: 'See where you rank among other athletes. Filter by friends, local, or global rankings.',
-    icon: 'Medal',
-    path: '/leaderboard',
+    name: 'Leaderboard',
+    description: 'See where you rank among friends, locally, or globally',
+    icon: '📊',
+    route: '/leaderboard',
     category: FEATURE_CATEGORIES.COMPETITIVE,
-    priority: 6,
-    requirements: ['authenticated'],
-    color: '#D97706', // Amber darker
-  },
-
-  // Mentorship
-  {
-    id: 'trainers',
-    title: 'Find a Trainer',
-    description: 'Connect with certified trainers for personalized guidance and coaching.',
-    icon: 'UserPlus',
-    path: '/trainers',
-    category: FEATURE_CATEGORIES.COMMUNITY,
-    priority: 5,
-    requirements: ['authenticated'],
-    color: '#7C3AED', // Violet
-  },
-  {
-    id: 'buddy',
-    title: 'Workout Buddy',
-    description: 'Find workout partners near you. Match based on schedule, goals, and training style.',
-    icon: 'HeartHandshake',
-    path: '/buddy',
-    category: FEATURE_CATEGORIES.SOCIAL,
-    priority: 6,
-    requirements: ['authenticated'],
-    color: '#F43F5E', // Rose
-  },
-
-  // Progress & Journey
-  {
-    id: 'journey',
-    title: 'Your Journey',
-    description: 'See your fitness journey visualized. Review milestones, patterns, and growth over time.',
-    icon: 'Route',
-    path: '/journey',
-    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: false,
+    isPopular: true,
     priority: 7,
-    requirements: ['authenticated'],
-    color: '#0066FF', // Brand blue
+    color: '#D97706',
   },
   {
-    id: 'progression',
-    title: 'Exercise Progression',
-    description: 'View your progression on each exercise. See strength curves and predict future PRs.',
-    icon: 'TrendingUp',
-    path: '/progression',
-    category: FEATURE_CATEGORIES.TRACKING,
+    id: 'community-feed',
+    name: 'Community Feed',
+    description: 'See what others are accomplishing and share your progress',
+    icon: '📱',
+    route: '/community',
+    category: FEATURE_CATEGORIES.COMMUNITY,
+    isNew: false,
+    isPopular: false,
+    priority: 5,
+    color: '#8B5CF6',
+  },
+  {
+    id: 'messages',
+    name: 'Messages',
+    description: 'Chat with workout buddies and crew members',
+    icon: '💬',
+    route: '/messages',
+    category: FEATURE_CATEGORIES.SOCIAL,
+    isNew: false,
+    isPopular: false,
+    priority: 4,
+    color: '#0EA5E9',
+  },
+  {
+    id: 'career-readiness',
+    name: 'Career Readiness',
+    description: 'Prepare for military, police, or firefighter fitness tests',
+    icon: '🎖️',
+    route: '/career',
+    category: FEATURE_CATEGORIES.CAREER,
+    isNew: false,
+    isPopular: false,
     priority: 6,
-    requirements: ['authenticated'],
-    color: '#10B981', // Emerald
+    color: '#6366F1',
+  },
+  {
+    id: 'nutrition',
+    name: 'Nutrition Tracking',
+    description: 'Log meals, track macros, and fuel your gains properly',
+    icon: '🥗',
+    route: '/nutrition',
+    category: FEATURE_CATEGORIES.TRACKING,
+    isNew: true,
+    isPopular: false,
+    priority: 7,
+    color: '#22C55E',
   },
 ];
 
@@ -288,7 +286,16 @@ export const DISCOVERABLE_FEATURES = [
  * @returns {Array} Features in that category
  */
 export function getFeaturesByCategory(category) {
-  return DISCOVERABLE_FEATURES.filter(f => f.category === category);
+  return DISCOVERABLE_FEATURES.filter((f) => f.category === category);
+}
+
+/**
+ * Get features matching multiple categories
+ * @param {Array<string>} categories - Array of categories
+ * @returns {Array} Features in any of the categories
+ */
+export function getFeaturesByCategories(categories) {
+  return DISCOVERABLE_FEATURES.filter((f) => categories.includes(f.category));
 }
 
 /**
@@ -306,7 +313,23 @@ export function sortByPriority(features) {
  * @returns {Object|undefined} Feature object or undefined
  */
 export function getFeatureById(id) {
-  return DISCOVERABLE_FEATURES.find(f => f.id === id);
+  return DISCOVERABLE_FEATURES.find((f) => f.id === id);
+}
+
+/**
+ * Get only new features
+ * @returns {Array} Features marked as new
+ */
+export function getNewFeatures() {
+  return DISCOVERABLE_FEATURES.filter((f) => f.isNew);
+}
+
+/**
+ * Get only popular features
+ * @returns {Array} Features marked as popular
+ */
+export function getPopularFeatures() {
+  return DISCOVERABLE_FEATURES.filter((f) => f.isPopular);
 }
 
 export default DISCOVERABLE_FEATURES;

@@ -57,6 +57,11 @@ const Limitations = lazy(() => import('./pages/Limitations'));
 const PTTests = lazy(() => import('./pages/PTTests'));
 const CareerReadiness = lazy(() => import('./pages/CareerReadiness'));
 
+// Career pages
+const CareerPage = lazy(() => import('./pages/CareerPage'));
+const CareerGoalPage = lazy(() => import('./pages/CareerGoalPage'));
+const CareerStandardPage = lazy(() => import('./pages/CareerStandardPage'));
+
 // Public documentation pages
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
 const Features = lazy(() => import('./pages/Features'));
@@ -102,6 +107,13 @@ const PluginSettings = lazy(() => import('./pages/PluginSettings'));
 const CommunityBulletinBoard = lazy(() => import('./pages/CommunityBulletinBoard'));
 const PluginGuide = lazy(() => import('./pages/PluginGuide'));
 const ContributeIdeas = lazy(() => import('./pages/ContributeIdeas'));
+
+// Nutrition pages
+const Nutrition = lazy(() => import('./pages/Nutrition'));
+const NutritionSettings = lazy(() => import('./pages/NutritionSettings'));
+const Recipes = lazy(() => import('./pages/Recipes'));
+const MealPlans = lazy(() => import('./pages/MealPlans'));
+const NutritionHistory = lazy(() => import('./pages/NutritionHistory'));
 
 // ============================================
 // LOADING COMPONENTS
@@ -446,8 +458,22 @@ function AppRoutes() {
           <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
           <Route path="/career-readiness" element={<ProtectedRoute name="CareerReadiness"><CareerReadiness /></ProtectedRoute>} />
+
+          {/* Career routes */}
+          <Route path="/career" element={<ProtectedRoute name="CareerPage"><CareerPage /></ProtectedRoute>} />
+          <Route path="/career/goals/:goalId" element={<ProtectedRoute name="CareerGoalPage"><CareerGoalPage /></ProtectedRoute>} />
+          <Route path="/career/standards/:standardId" element={<ProtectedRoute name="CareerStandardPage"><CareerStandardPage /></ProtectedRoute>} />
+
           <Route path="/issues/new" element={<ProtectedRoute name="NewIssue"><NewIssue /></ProtectedRoute>} />
           <Route path="/my-issues" element={<ProtectedRoute name="MyIssues"><MyIssues /></ProtectedRoute>} />
+
+          {/* Nutrition routes */}
+          <Route path="/nutrition" element={<ProtectedRoute name="Nutrition"><Nutrition /></ProtectedRoute>} />
+          <Route path="/nutrition/settings" element={<ProtectedRoute name="NutritionSettings"><NutritionSettings /></ProtectedRoute>} />
+          <Route path="/nutrition/recipes" element={<ProtectedRoute name="Recipes"><Recipes /></ProtectedRoute>} />
+          <Route path="/nutrition/recipes/:recipeId" element={<ProtectedRoute name="Recipes"><Recipes /></ProtectedRoute>} />
+          <Route path="/nutrition/plans" element={<ProtectedRoute name="MealPlans"><MealPlans /></ProtectedRoute>} />
+          <Route path="/nutrition/history" element={<ProtectedRoute name="NutritionHistory"><NutritionHistory /></ProtectedRoute>} />
 
           {/* Achievement routes */}
           <Route path="/achievements" element={<ProtectedRoute name="Achievements"><Achievements /></ProtectedRoute>} />

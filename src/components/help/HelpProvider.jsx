@@ -95,7 +95,7 @@ export function HelpProvider({
    */
   const removeHelp = useCallback((termKey) => {
     setHelpContent((prev) => {
-      const { [termKey]: removed, ...rest } = prev;
+      const { [termKey]: _removed, ...rest } = prev;
       return rest;
     });
   }, []);

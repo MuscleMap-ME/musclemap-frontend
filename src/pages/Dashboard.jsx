@@ -12,6 +12,8 @@ import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import { DailyTip, MilestoneProgress } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
+import { NutritionDashboardCard, QuickLogModal } from '../components/nutrition';
+import { useNutritionDashboard } from '../hooks/useNutrition';
 
 // Plugin System - Widget Slots
 import { WidgetSlot } from '../plugins';
@@ -889,6 +891,14 @@ export default function Dashboard() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
+  // Load nutrition data
+  const { load: loadNutrition } = useNutritionDashboard();
+
+  useEffect(() => {
+    // Load nutrition dashboard data
+    loadNutrition().catch(() => {});
+  }, [loadNutrition]);
+
   useEffect(() => {
     Promise.all([
       api.progress.stats().catch(() => null),
@@ -1128,6 +1138,11 @@ export default function Dashboard() {
               <WeeklyProgressCard stats={stats} />
             </div>
 
+            {/* Nutrition Dashboard Card */}
+            <div className="mb-8">
+              <NutritionDashboardCard />
+            </div>
+
             {/* Muscle Activation Map */}
             <div className="mb-8">
               <MuscleMapCard muscleActivations={muscleActivations} />
@@ -1199,6 +1214,9 @@ export default function Dashboard() {
 
       {/* Mobile Bottom Navigation */}
       <GlassMobileNav items={mobileNavItems} />
+
+      {/* Nutrition Quick Log Modal */}
+      <QuickLogModal />
     </div>
   );
 }

@@ -39,6 +39,7 @@ musclemap.me/
 │   ├── images/
 │   ├── latex/
 │   ├── legacy-system/
+│   ├── plans/
 │   ├── public/
 │   ├── specs/
 │   ├── API_REFERENCE.md
@@ -214,7 +215,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (65 total)
+## Frontend Pages (73 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -227,7 +228,10 @@ musclemap.me/
 | AdminMetrics | Yes | Admin Metrics Dashboard  Beautiful visual dashboard for Prometheus metrics with: - Real-time gauges for connections and health - Time-series charts for request latency - Status indicators with animations - Auto-refresh every 10 seconds / |
 | AdminMonitoring | Yes | Admin Monitoring Dashboard  Comprehensive system monitoring with: - Live API test runner - User journey viewer - Error tracking - System health metrics / |
 | Buddy | No | Buddy page |
+| CareerGoalPage | Yes | Career Goal Detail Page - MuscleMap  Shows full readiness dashboard for a specific career goal |
+| CareerPage | Yes | Career Page - MuscleMap Career Readiness Hub  Main landing page for career physical standards tracking |
 | CareerReadiness | Yes | Career Readiness Page - MuscleMap Liquid Glass Design  Career physical standards tracking for military, first responders, and law enforcement |
+| CareerStandardPage | Yes | Career Standard Detail Page - MuscleMap  Shows detailed information about a specific physical fitness standard |
 | CommunityBulletinBoard | No | Community Bulletin Board  A central hub for community contributions, plugin showcases, code snippets, ideas, and collaboration |
 | CommunityDashboard | Yes | CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings / |
 | Competitions | No | Competitions page |
@@ -255,10 +259,14 @@ musclemap.me/
 | Locations | No | Locations page |
 | Login | Yes | Login page |
 | MartialArts | No | MartialArts page |
+| MealPlans | No | Meal Plans Page  Create and manage meal plans / |
 | Messages | No | Messages page |
 | MyIssues | Yes | My Issues Page  User's submitted issues: - View status of reported issues - Track responses / |
 | MyVerifications | No | MyVerifications page |
 | NewIssue | No | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
+| Nutrition | No | Nutrition Page  Full nutrition tracking dashboard / |
+| NutritionHistory | No | Nutrition History Page  View historical nutrition data and trends / |
+| NutritionSettings | No | Nutrition Settings Page  Configure nutrition tracking preferences and goals / |
 | Onboarding | Yes | Handle archetype selection from ArchetypeSelector The selector already calls the API, so we just update state and move to step 2 / |
 | PluginGuide | No | Plugin Development Guide  A visual, step-by-step guide for creating MuscleMap plugins with interactive diagrams and code examples |
 | PluginMarketplace | No | PluginMarketplace - Browse and install community plugins  Features: - Browse available plugins - Search and filter - Install/uninstall plugins - View plugin details / |
@@ -267,6 +275,7 @@ musclemap.me/
 | Profile | No | Profile page |
 | Progression | No | Progression page |
 | PTTests | Yes | PT Tests Page - MuscleMap Liquid Glass Design  Physical fitness tests for military, first responders, and occupational training |
+| Recipes | No | Recipes Page  Browse, create, and manage recipes / |
 | Rivals | Yes | Rivals Page  1v1 rivalry competition system for web |
 | Roadmap | No | Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities / |
 | Science | No | Science Page  Explains the science behind MuscleMap's Training Units and muscle activation system |
@@ -284,7 +293,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (110 total)
+## Components (143 total)
 
 Components are organized by feature:
 
@@ -327,8 +336,23 @@ Components are organized by feature:
 - `RoadmapAtlas`
 - `RouteAtlas`
 
+### career
+- `AssessmentLogger`
+- `CareerGoalWizard`
+- `CareerStandardCard`
+- `CareerStandardsList`
+- `EventBreakdown`
+- `ReadinessDashboard`
+
 ### celebrations
 - `Confetti`
+- `LevelUpCelebration`
+- `StreakFlame`
+- `SuccessBurst`
+
+### command
+- `CommandItem`
+- `CommandPalette`
 
 ### community
 - `ActivityFeed`
@@ -336,6 +360,15 @@ Components are organized by feature:
 - `MonitorPanel`
 - `PrivacySettings`
 - `StatsDashboard`
+
+### credits
+- `BonusEventPopup`
+- `CreditBalanceWidget`
+- `CreditEarnStream`
+- `CreditEarnToast`
+- `CreditPackageStore`
+- `EarningSummary`
+- `WorkoutCreditsCounter`
 
 ### d3
 - `D3Container`
@@ -351,6 +384,10 @@ Components are organized by feature:
 ### discovery
 - `FeatureCard`
 - `FeatureDiscovery`
+
+### empty
+- `EmptyState`
+- `illustrations`
 
 ### feedback
 - `BugReportForm`
@@ -373,6 +410,11 @@ Components are organized by feature:
 - `MuscleActivationCard`
 - `SwipeableCard`
 
+### hangouts
+- `GeoHangoutCard`
+- `HangoutChallengeCard`
+- `HangoutMembersList`
+
 ### help
 - `HelpProvider`
 - `HelpTooltip`
@@ -392,6 +434,7 @@ Components are organized by feature:
 
 ### landing
 - `LiveCommunityStats`
+- `MuscleHeroAnimation`
 
 ### live
 - `ActivityMapAnonymous`
@@ -422,6 +465,10 @@ Components are organized by feature:
 ### navigation
 - `Breadcrumbs`
 
+### nutrition
+- `NutritionDashboardCard`
+- `QuickLogModal`
+
 ### onboarding
 - `SpotlightTour`
 
@@ -440,8 +487,13 @@ Components are organized by feature:
 - `ListSkeleton`
 - `ProfileSkeleton`
 - `SkeletonBase`
+- `SkeletonCard`
+- `SkeletonStats`
 - `TableSkeleton`
 - `WorkoutSkeleton`
+
+### stats
+- `VolumeChart`
 
 ### tips
 - `ContextualTip`
@@ -453,10 +505,18 @@ Components are organized by feature:
 - `TipCard`
 - `WorkoutComplete`
 
+### tour
+- `SpotlightTour`
+- `TourStep`
+
+### workout
+- `RestTimerControl`
+- `SetLogger`
+
 ### xr
 - `XRButton`
 
-## API Endpoints (526 total)
+## API Endpoints (665 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -516,6 +576,16 @@ Components are organized by feature:
 | GET | `/auth/me` | auth |
 | GET | `/auth/me/capabilities` | auth |
 | POST | `/auth/register` | auth |
+| GET | `/body-measurements` | body-measurements |
+| POST | `/body-measurements` | body-measurements |
+| GET | `/body-measurements/:id` | body-measurements |
+| PUT | `/body-measurements/:id` | body-measurements |
+| DELETE | `/body-measurements/:id` | body-measurements |
+| GET | `/body-measurements/comparison` | body-measurements |
+| GET | `/body-measurements/history/:field` | body-measurements |
+| GET | `/body-measurements/latest` | body-measurements |
+| GET | `/bonus-events/history` | economyEnhanced |
+| GET | `/bonus-events/types` | economyEnhanced |
 | GET | `/buddy` | credits |
 | POST | `/buddy` | credits |
 | POST | `/buddy/equip` | credits |
@@ -555,6 +625,7 @@ Components are organized by feature:
 | GET | `/career/team/:hangoutId` | career |
 | POST | `/career/team/:hangoutId/enable` | career |
 | POST | `/career/team/:hangoutId/opt-in` | career |
+| POST | `/checkout/stripe` | economyEnhanced |
 | POST | `/classes` | trainers |
 | GET | `/classes` | trainers |
 | GET | `/classes/:classId` | trainers |
@@ -617,6 +688,11 @@ Components are organized by feature:
 | GET | `/disputes/:disputeId` | credits |
 | GET | `/disputes/:disputeId/messages` | credits |
 | POST | `/disputes/:disputeId/messages` | credits |
+| GET | `/earn-events` | economyEnhanced |
+| POST | `/earn-events/mark-seen` | economyEnhanced |
+| GET | `/earn-events/recent` | economyEnhanced |
+| GET | `/earn-events/today` | economyEnhanced |
+| GET | `/earn-events/week` | economyEnhanced |
 | GET | `/earning/rules` | credits |
 | GET | `/economy/actions` | economy |
 | GET | `/economy/balance` | economy |
@@ -663,6 +739,13 @@ Components are organized by feature:
 | GET | `/hangouts/:id/members` | hangouts |
 | POST | `/hangouts/:id/posts` | hangouts |
 | GET | `/hangouts/:id/posts` | hangouts |
+| GET | `/hangouts/geo/:hangoutId` | economyEnhanced |
+| GET | `/hangouts/geo/:hangoutId/challenges` | economyEnhanced |
+| POST | `/hangouts/geo/:hangoutId/challenges` | economyEnhanced |
+| GET | `/hangouts/geo/:hangoutId/events` | economyEnhanced |
+| POST | `/hangouts/geo/:hangoutId/events` | economyEnhanced |
+| GET | `/hangouts/geo/:hangoutId/members` | economyEnhanced |
+| GET | `/hangouts/geo/my` | economyEnhanced |
 | GET | `/hangouts/nearby` | hangouts |
 | GET | `/hangouts/stats` | hangouts |
 | GET | `/hangouts/types` | hangouts |
@@ -725,6 +808,8 @@ Components are organized by feature:
 | GET | `/live/stats` | live-activity |
 | GET | `/live/stream` | live-activity |
 | GET | `/live/trending` | live-activity |
+| POST | `/location` | economyEnhanced |
+| GET | `/location` | economyEnhanced |
 | GET | `/locations/:id/equipment` | equipment |
 | POST | `/locations/:id/equipment` | equipment |
 | GET | `/locations/:id/equipment/my-reports` | equipment |
@@ -764,6 +849,50 @@ Components are organized by feature:
 | GET | `/me/issues` | issues |
 | POST | `/me/leaderboard-opt-in` | cohort-preferences |
 | POST | `/me/leaderboard-opt-out` | cohort-preferences |
+| GET | `/me/nutrition` | nutrition |
+| POST | `/me/nutrition/disable` | nutrition |
+| POST | `/me/nutrition/enable` | nutrition |
+| POST | `/me/nutrition/foods/custom` | nutrition |
+| GET | `/me/nutrition/foods/custom` | nutrition |
+| DELETE | `/me/nutrition/foods/custom/:id` | nutrition |
+| GET | `/me/nutrition/foods/frequent` | nutrition |
+| GET | `/me/nutrition/foods/recent` | nutrition |
+| GET | `/me/nutrition/goals` | nutrition |
+| POST | `/me/nutrition/goals/calculate` | nutrition |
+| POST | `/me/nutrition/hydration` | nutrition |
+| GET | `/me/nutrition/hydration` | nutrition |
+| POST | `/me/nutrition/meals` | nutrition |
+| GET | `/me/nutrition/meals` | nutrition |
+| GET | `/me/nutrition/meals/:id` | nutrition |
+| PUT | `/me/nutrition/meals/:id` | nutrition |
+| DELETE | `/me/nutrition/meals/:id` | nutrition |
+| POST | `/me/nutrition/meals/copy` | nutrition |
+| GET | `/me/nutrition/plans` | nutrition |
+| POST | `/me/nutrition/plans` | nutrition |
+| GET | `/me/nutrition/plans/:id` | nutrition |
+| PUT | `/me/nutrition/plans/:id` | nutrition |
+| DELETE | `/me/nutrition/plans/:id` | nutrition |
+| POST | `/me/nutrition/plans/:id/activate` | nutrition |
+| POST | `/me/nutrition/plans/:id/items` | nutrition |
+| GET | `/me/nutrition/plans/:id/items` | nutrition |
+| POST | `/me/nutrition/plans/:id/shopping-list` | nutrition |
+| GET | `/me/nutrition/plans/active` | nutrition |
+| POST | `/me/nutrition/plans/generate` | nutrition |
+| PUT | `/me/nutrition/plans/items/:itemId` | nutrition |
+| DELETE | `/me/nutrition/plans/items/:itemId` | nutrition |
+| GET | `/me/nutrition/preferences` | nutrition |
+| PATCH | `/me/nutrition/preferences` | nutrition |
+| POST | `/me/nutrition/recipes` | nutrition |
+| GET | `/me/nutrition/recipes` | nutrition |
+| PUT | `/me/nutrition/recipes/:id` | nutrition |
+| DELETE | `/me/nutrition/recipes/:id` | nutrition |
+| POST | `/me/nutrition/recipes/:id/rate` | nutrition |
+| POST | `/me/nutrition/recipes/:id/save` | nutrition |
+| DELETE | `/me/nutrition/recipes/:id/save` | nutrition |
+| GET | `/me/nutrition/recipes/saved` | nutrition |
+| GET | `/me/nutrition/streaks` | nutrition |
+| GET | `/me/nutrition/summary` | nutrition |
+| GET | `/me/nutrition/summary/range` | nutrition |
 | GET | `/me/rank` | leaderboards |
 | GET | `/me/verifications` | verifications |
 | GET | `/me/witness-requests` | verifications |
@@ -815,6 +944,17 @@ Components are organized by feature:
 | GET | `/notifications/preferences/:category` | notifications |
 | PUT | `/notifications/preferences/:category` | notifications |
 | GET | `/notifications/unread-count` | notifications |
+| GET | `/nutrition/archetypes` | nutrition |
+| GET | `/nutrition/archetypes/:archetype` | nutrition |
+| GET | `/nutrition/foods/:id` | nutrition |
+| GET | `/nutrition/foods/barcode/:barcode` | nutrition |
+| GET | `/nutrition/foods/search` | nutrition |
+| GET | `/nutrition/recipes` | nutrition |
+| GET | `/nutrition/recipes/:id` | nutrition |
+| GET | `/nutrition/recipes/:id/ratings` | nutrition |
+| GET | `/nutrition/recipes/archetype/:archetype` | nutrition |
+| GET | `/nutrition/recipes/popular` | nutrition |
+| GET | `/nutrition/recipes/trending` | nutrition |
 | POST | `/onboarding/back` | onboarding |
 | POST | `/onboarding/complete` | onboarding |
 | POST | `/onboarding/home-equipment` | onboarding |
@@ -829,6 +969,34 @@ Components are organized by feature:
 | GET | `/onboarding/status` | onboarding |
 | POST | `/onboarding/step` | onboarding |
 | GET | `/onboarding/steps` | onboarding |
+| POST | `/organizations` | organizations |
+| GET | `/organizations/:orgId` | organizations |
+| PUT | `/organizations/:orgId` | organizations |
+| DELETE | `/organizations/:orgId` | organizations |
+| GET | `/organizations/:orgId/audit` | organizations |
+| POST | `/organizations/:orgId/invite` | organizations |
+| POST | `/organizations/:orgId/invite/bulk` | organizations |
+| GET | `/organizations/:orgId/members` | organizations |
+| PUT | `/organizations/:orgId/members/:memberId` | organizations |
+| DELETE | `/organizations/:orgId/members/:memberId` | organizations |
+| PUT | `/organizations/:orgId/members/bulk` | organizations |
+| GET | `/organizations/:orgId/readiness` | organizations |
+| POST | `/organizations/:orgId/readiness/export` | organizations |
+| GET | `/organizations/:orgId/readiness/history` | organizations |
+| POST | `/organizations/:orgId/readiness/refresh` | organizations |
+| GET | `/organizations/:orgId/settings` | organizations |
+| PUT | `/organizations/:orgId/settings` | organizations |
+| GET | `/organizations/:orgId/units` | organizations |
+| POST | `/organizations/:orgId/units` | organizations |
+| PUT | `/organizations/:orgId/units/:unitId` | organizations |
+| DELETE | `/organizations/:orgId/units/:unitId` | organizations |
+| GET | `/organizations/:orgId/units/:unitId/readiness` | organizations |
+| GET | `/organizations/:orgId/units/tree` | organizations |
+| GET | `/organizations/by-slug/:slug` | organizations |
+| POST | `/organizations/invites/:token/accept` | organizations |
+| GET | `/packages` | economyEnhanced |
+| GET | `/packages/:packageId` | economyEnhanced |
+| GET | `/packages/custom/:credits` | economyEnhanced |
 | GET | `/personalization/context` | personalization |
 | POST | `/personalization/exercise-check` | personalization |
 | GET | `/personalization/plan` | personalization |
@@ -843,6 +1011,14 @@ Components are organized by feature:
 | GET | `/privacy/summary` | privacy |
 | GET | `/profile` | auth |
 | PUT | `/profile` | auth |
+| GET | `/progress-photos` | progress-photos |
+| POST | `/progress-photos` | progress-photos |
+| GET | `/progress-photos/:id` | progress-photos |
+| PUT | `/progress-photos/:id` | progress-photos |
+| DELETE | `/progress-photos/:id` | progress-photos |
+| GET | `/progress-photos/compare` | progress-photos |
+| GET | `/progress-photos/stats` | progress-photos |
+| GET | `/progress-photos/timeline` | progress-photos |
 | GET | `/progress/stats` | misc |
 | GET | `/progression/achievements` | misc |
 | GET | `/progression/leaderboard` | misc |
@@ -862,6 +1038,7 @@ Components are organized by feature:
 | POST | `/pt-tests/results` | pt-tests |
 | GET | `/pt-tests/results` | pt-tests |
 | GET | `/pt-tests/results/:id` | pt-tests |
+| GET | `/purchases` | economyEnhanced |
 | GET | `/ranks/definitions` | ranks |
 | GET | `/ranks/history` | ranks |
 | GET | `/ranks/leaderboard` | ranks |
@@ -911,6 +1088,19 @@ Components are organized by feature:
 | GET | `/skills/trees` | skills |
 | GET | `/skills/trees/:treeId` | skills |
 | GET | `/skills/trees/:treeId/progress` | skills |
+| POST | `/social/boost` | economyEnhanced |
+| GET | `/social/boost/check` | economyEnhanced |
+| GET | `/social/boost/options` | economyEnhanced |
+| POST | `/social/gift` | economyEnhanced |
+| POST | `/social/gifts/:giftId/accept` | economyEnhanced |
+| POST | `/social/gifts/:giftId/decline` | economyEnhanced |
+| GET | `/social/gifts/pending` | economyEnhanced |
+| GET | `/social/high-five/costs` | economyEnhanced |
+| POST | `/social/high-five/super` | economyEnhanced |
+| GET | `/social/high-fives/received` | economyEnhanced |
+| POST | `/social/tip` | economyEnhanced |
+| GET | `/social/tips/received` | economyEnhanced |
+| GET | `/social/tips/sent` | economyEnhanced |
 | GET | `/stats/history` | stats |
 | GET | `/stats/info` | stats |
 | GET | `/stats/leaderboards` | stats |
@@ -975,11 +1165,20 @@ Components are organized by feature:
 | GET | `/virtual-hangouts/my` | virtual-hangouts |
 | GET | `/virtual-hangouts/recommended` | virtual-hangouts |
 | GET | `/virtual-hangouts/themes` | virtual-hangouts |
+| GET | `/volume/1rm/:exerciseId` | volume-stats |
+| GET | `/volume/daily` | volume-stats |
+| GET | `/volume/exercise/:exerciseId` | volume-stats |
+| GET | `/volume/muscles` | volume-stats |
+| GET | `/volume/muscles/weekly` | volume-stats |
+| GET | `/volume/prs` | volume-stats |
+| GET | `/volume/summary` | volume-stats |
+| GET | `/volume/weekly` | volume-stats |
 | GET | `/wallet` | credits |
 | GET | `/wallet/earnings` | credits |
 | GET | `/wallet/transactions` | credits |
 | POST | `/wallet/transfer` | credits |
 | GET | `/wallet/transfers` | credits |
+| POST | `/webhook/stripe` | economyEnhanced |
 | POST | `/workouts` | workouts |
 | GET | `/workouts/:id` | workouts |
 | GET | `/workouts/me` | workouts |

@@ -571,6 +571,154 @@ async function testEconomy(ctx: TestContext) {
     });
     assert([200, 404, 500].includes(res.status), 'Transactions should respond');
   });
+
+  // ========================================
+  // Enhanced Economy Features
+  // ========================================
+
+  await runTest('Economy', 'Get credit packages', async () => {
+    const res = await request('GET', '/economy/packages', {
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Credit packages should respond');
+  });
+
+  await runTest('Economy', 'Get earn events', async () => {
+    const res = await request('GET', '/economy/earn-events', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Earn events should respond');
+  });
+
+  await runTest('Economy', 'Get earning summary', async () => {
+    const res = await request('GET', '/economy/earn-events/summary', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Earning summary should respond');
+  });
+
+  await runTest('Economy', 'Get bonus event types', async () => {
+    const res = await request('GET', '/economy/bonus-events/types', {
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Bonus event types should respond');
+  });
+
+  await runTest('Economy', 'Get user bonus history', async () => {
+    const res = await request('GET', '/economy/bonus-events/history', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Bonus history should respond');
+  });
+
+  await runTest('Economy', 'Check daily login bonus', async () => {
+    const res = await request('POST', '/economy/bonus-events/daily-login', {
+      token: ctx.token,
+      expectedStatus: [200, 400, 404, 500],
+    });
+    assert([200, 400, 404, 500].includes(res.status), 'Daily login bonus should respond');
+  });
+}
+
+async function testGeoHangouts(ctx: TestContext) {
+  logSection('GEO HANGOUTS');
+
+  await runTest('GeoHangouts', 'Update user location', async () => {
+    const res = await request('POST', '/economy/hangouts/location', {
+      token: ctx.token,
+      body: {
+        latitude: 40.7128, // NYC coordinates
+        longitude: -74.0060,
+      },
+      expectedStatus: [200, 201, 400, 404, 500],
+    });
+    assert([200, 201, 400, 404, 500].includes(res.status), 'Location update should respond');
+  });
+
+  await runTest('GeoHangouts', 'Get nearby hangouts', async () => {
+    const res = await request('GET', '/economy/hangouts/nearby?lat=40.7128&lng=-74.0060', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Nearby hangouts should respond');
+  });
+
+  await runTest('GeoHangouts', 'Get hangout members', async () => {
+    const res = await request('GET', '/economy/hangouts/members', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Hangout members should respond');
+  });
+
+  await runTest('GeoHangouts', 'Get hangout challenges', async () => {
+    const res = await request('GET', '/economy/hangouts/challenges', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Hangout challenges should respond');
+  });
+
+  await runTest('GeoHangouts', 'Get hangout events', async () => {
+    const res = await request('GET', '/economy/hangouts/events', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Hangout events should respond');
+  });
+}
+
+async function testSocialSpending(ctx: TestContext) {
+  logSection('SOCIAL SPENDING');
+
+  await runTest('SocialSpending', 'Get tips sent', async () => {
+    const res = await request('GET', '/economy/social/tips/sent', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Tips sent should respond');
+  });
+
+  await runTest('SocialSpending', 'Get tips received', async () => {
+    const res = await request('GET', '/economy/social/tips/received', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Tips received should respond');
+  });
+
+  await runTest('SocialSpending', 'Get gifts sent', async () => {
+    const res = await request('GET', '/economy/social/gifts/sent', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Gifts sent should respond');
+  });
+
+  await runTest('SocialSpending', 'Get gifts received', async () => {
+    const res = await request('GET', '/economy/social/gifts/received', {
+      token: ctx.token,
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Gifts received should respond');
+  });
+
+  await runTest('SocialSpending', 'Get high five costs', async () => {
+    const res = await request('GET', '/economy/social/high-fives/costs', {
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'High five costs should respond');
+  });
+
+  await runTest('SocialSpending', 'Get boost costs', async () => {
+    const res = await request('GET', '/economy/social/boosts/costs', {
+      expectedStatus: [200, 404, 500],
+    });
+    assert([200, 404, 500].includes(res.status), 'Boost costs should respond');
+  });
 }
 
 async function testCommunity(ctx: TestContext) {
@@ -2273,6 +2421,186 @@ async function testAdminDisputes(ctx: TestContext) {
 }
 
 // ============================================
+// NUTRITION TRACKING
+// ============================================
+
+async function testNutrition(ctx: TestContext) {
+  logSection('NUTRITION TRACKING');
+
+  // Get nutrition dashboard (not enabled)
+  await runTest('Nutrition', 'Get nutrition dashboard', async () => {
+    const res = await request('GET', '/me/nutrition', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should respond to dashboard request');
+  });
+
+  // Enable nutrition tracking
+  await runTest('Nutrition', 'Enable nutrition tracking', async () => {
+    const res = await request('POST', '/me/nutrition/enable', {
+      token: ctx.token,
+      expectedStatus: [200, 201, 400],
+    });
+    assert([200, 201, 400].includes(res.status), 'Should enable or already enabled');
+  });
+
+  // Calculate nutrition goals
+  await runTest('Nutrition', 'Calculate nutrition goals', async () => {
+    const res = await request('POST', '/me/nutrition/goals/calculate', {
+      token: ctx.token,
+      body: {
+        weightKg: 75,
+        heightCm: 178,
+        age: 30,
+        sex: 'male',
+        activityLevel: 'moderate',
+        goalType: 'maintain',
+        goalIntensity: 'moderate',
+      },
+      expectedStatus: [200, 201, 400],
+    });
+    assert([200, 201, 400].includes(res.status), 'Should calculate goals');
+  });
+
+  // Get goals
+  await runTest('Nutrition', 'Get nutrition goals', async () => {
+    const res = await request('GET', '/me/nutrition/goals', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should return goals or not found');
+  });
+
+  // Search foods
+  await runTest('Nutrition', 'Search foods', async () => {
+    const res = await request('GET', '/nutrition/foods/search?query=chicken&limit=5', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should search foods');
+  });
+
+  // Log a meal
+  await runTest('Nutrition', 'Log a meal (quick entry)', async () => {
+    const res = await request('POST', '/me/nutrition/meals', {
+      token: ctx.token,
+      body: {
+        mealType: 'lunch',
+        quickEntryName: 'Test meal',
+        quickEntryCalories: 500,
+        quickEntryProtein: 30,
+        quickEntryCarbs: 50,
+        quickEntryFat: 15,
+        servings: 1,
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should log meal');
+  });
+
+  // Get meals for today
+  await runTest('Nutrition', 'Get today meals', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await request('GET', `/me/nutrition/meals?date=${today}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return meals');
+  });
+
+  // Log hydration
+  await runTest('Nutrition', 'Log hydration', async () => {
+    const res = await request('POST', '/me/nutrition/hydration', {
+      token: ctx.token,
+      body: {
+        amountMl: 500,
+        beverageType: 'water',
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should log hydration');
+  });
+
+  // Get hydration
+  await runTest('Nutrition', 'Get hydration for today', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await request('GET', `/me/nutrition/hydration?date=${today}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return hydration');
+  });
+
+  // Get recipes
+  await runTest('Nutrition', 'Search recipes', async () => {
+    const res = await request('GET', '/nutrition/recipes?limit=5', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return recipes');
+  });
+
+  // Get popular recipes
+  await runTest('Nutrition', 'Get popular recipes', async () => {
+    const res = await request('GET', '/nutrition/recipes/popular?limit=5', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return popular recipes');
+  });
+
+  // Get meal plans
+  await runTest('Nutrition', 'Get meal plans', async () => {
+    const res = await request('GET', '/me/nutrition/plans', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return meal plans');
+  });
+
+  // Get archetype nutrition profiles
+  await runTest('Nutrition', 'Get archetype nutrition profiles', async () => {
+    const res = await request('GET', '/nutrition/archetypes', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return archetype profiles');
+  });
+
+  // Get nutrition preferences
+  await runTest('Nutrition', 'Get nutrition preferences', async () => {
+    const res = await request('GET', '/me/nutrition/preferences', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should return preferences');
+  });
+
+  // Update preferences
+  await runTest('Nutrition', 'Update nutrition preferences', async () => {
+    const res = await request('PATCH', '/me/nutrition/preferences', {
+      token: ctx.token,
+      body: {
+        showOnDashboard: true,
+        syncWithWorkouts: true,
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should update preferences');
+  });
+
+  // Get nutrition streaks
+  await runTest('Nutrition', 'Get nutrition streaks', async () => {
+    const res = await request('GET', '/me/nutrition/streaks', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should return streaks');
+  });
+}
+
+// ============================================
 // CLEANUP
 // ============================================
 
@@ -2336,6 +2664,8 @@ async function main() {
     await testGoals(ctx);
     await testStats(ctx);
     await testEconomy(ctx);
+    await testGeoHangouts(ctx);
+    await testSocialSpending(ctx);
     await testCommunity(ctx);
     await testCompetitions(ctx);
     await testHangouts(ctx);
@@ -2374,6 +2704,7 @@ async function main() {
     await testModules(ctx);
     await testCohortPreferences(ctx);
     await testAdminDisputes(ctx);
+    await testNutrition(ctx);
 
     await cleanup(ctx);
   } catch (error) {

@@ -85,6 +85,30 @@ export {
 } from './muscleVisualizationStore';
 
 // ============================================
+// NUTRITION STORE
+// ============================================
+export {
+  useNutritionStore,
+  useNutritionEnabled,
+  useNutritionPreferences,
+  useNutritionGoals,
+  useTodaysSummary,
+  useTodaysMeals,
+  useNutritionStreaks,
+  useArchetypeProfile,
+  useNutritionLoading,
+  useNutritionError,
+  useQuickLogOpen,
+  useQuickLogMealType,
+  useSearchResults,
+  useRecentFoods,
+  useFrequentFoods,
+  useRemainingMacros,
+  useMacroProgress,
+  default as nutritionStore,
+} from './nutritionStore';
+
+// ============================================
 // STORE UTILITIES
 // ============================================
 

@@ -7,16 +7,41 @@
  * TOUCHSCREEN-FIRST: All sizes meet minimum 44px touch target requirement.
  * Sizes have been increased from original to ensure accessibility.
  *
- * NEW FEATURES:
+ * FEATURES:
  * - Ripple effect on click (canvas-based for performance)
+ * - Pulse effect option for subtle feedback
  * - Press feedback with scale animation
- * - Optional success state animation
- * - Loading state improvements
- * - Haptic-style visual feedback
+ * - Success animation after async onClick resolves
+ * - Haptic feedback on mobile (navigator.vibrate)
+ * - Loading state with optional loading text
+ * - Prominent focus ring for keyboard accessibility
  * - Respects prefers-reduced-motion
+ *
+ * @example
+ * // With ripple (default)
+ * <GlassButton onClick={handleClick}>Click Me</GlassButton>
+ *
+ * // With pulse instead
+ * <GlassButton feedback="pulse" onClick={handleClick}>Subtle</GlassButton>
+ *
+ * // With success animation (async onClick)
+ * <GlassButton
+ *   successAnimation
+ *   onClick={async () => {
+ *     await saveData();
+ *   }}
+ * >
+ *   Save
+ * </GlassButton>
+ *
+ * // With haptic on mobile
+ * <GlassButton haptic onClick={handleClick}>Tap Me</GlassButton>
+ *
+ * // Loading state with text
+ * <GlassButton loading loadingText="Saving...">Save</GlassButton>
  */
 
-import React, { forwardRef, useCallback } from 'react';
+import React, { forwardRef, useCallback, useState } from 'react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -25,6 +50,7 @@ import {
   PulseEffect,
   useButtonFeedback,
   useReducedMotion,
+  triggerHaptic,
 } from './ButtonEffects';
 
 const VARIANTS = {
@@ -56,6 +82,18 @@ const SIZES = {
  */
 const TOUCH_CLASSES = 'touch-action-manipulation select-none';
 
+/**
+ * Focus ring styles for keyboard accessibility
+ * Different from click focus for better UX
+ */
+const FOCUS_CLASSES = `
+  focus:outline-none
+  focus-visible:ring-2
+  focus-visible:ring-blue-500
+  focus-visible:ring-offset-2
+  focus-visible:ring-offset-transparent
+`;
+
 const GlassButton = forwardRef(
   (
     {
@@ -69,8 +107,11 @@ const GlassButton = forwardRef(
       leftIcon,
       rightIcon,
       as,
-      // New props for enhanced interactions
+      // Enhanced interaction props
       feedback = 'ripple', // 'ripple' | 'pulse' | 'none'
+      haptic = false, // Trigger haptic feedback on mobile
+      successAnimation = false, // Show success animation after onClick resolves
+      loadingText, // Text to show while loading
       onSuccess,
       onClick,
       ...props
@@ -82,27 +123,56 @@ const GlassButton = forwardRef(
     const isMotion = !as || as === motion.button;
     const reducedMotion = useReducedMotion();
 
+    // Internal loading state for async onClick handling
+    const [isAsyncLoading, setIsAsyncLoading] = useState(false);
+    const isLoading = loading || isAsyncLoading;
+
     // Get feedback state and handlers
     const {
       handlers: feedbackHandlers,
       isPressed,
       showSuccess,
       rippleRef,
-      triggerSuccess: _triggerSuccess, // Available for external use via ref
+      triggerSuccess,
       handleSuccessComplete,
     } = useButtonFeedback({
       feedback,
       onSuccess,
-      disabled: disabled || loading,
+      disabled: disabled || isLoading,
     });
 
-    // Handle click with optional success trigger
+    // Handle click with haptic feedback and optional success animation
     const handleClick = useCallback(
-      (e) => {
-        if (disabled || loading) return;
-        onClick?.(e);
+      async (e) => {
+        if (disabled || isLoading) return;
+
+        // Trigger haptic feedback on mobile
+        if (haptic) {
+          triggerHaptic();
+        }
+
+        // If successAnimation is enabled and onClick returns a promise
+        if (successAnimation && onClick) {
+          try {
+            setIsAsyncLoading(true);
+            const result = onClick(e);
+
+            // Check if onClick returns a promise
+            if (result && typeof result.then === 'function') {
+              await result;
+              triggerSuccess();
+            }
+          } catch (error) {
+            // Re-throw to let error boundaries handle it
+            throw error;
+          } finally {
+            setIsAsyncLoading(false);
+          }
+        } else {
+          onClick?.(e);
+        }
       },
-      [disabled, loading, onClick]
+      [disabled, isLoading, haptic, successAnimation, onClick, triggerSuccess]
     );
 
     // Combine feedback handlers with existing handlers
@@ -114,8 +184,8 @@ const GlassButton = forwardRef(
     // Motion props with enhanced press feedback
     const motionProps = isMotion
       ? {
-          whileHover: disabled || loading ? {} : { scale: 1.02, y: -1 },
-          whileTap: disabled || loading ? {} : { scale: reducedMotion ? 0.98 : 0.97 },
+          whileHover: disabled || isLoading ? {} : { scale: 1.02, y: -1 },
+          whileTap: disabled || isLoading ? {} : { scale: reducedMotion ? 0.98 : 0.97 },
           animate: isPressed && !reducedMotion ? { scale: 0.97 } : { scale: 1 },
           transition: {
             type: 'spring',
@@ -132,24 +202,25 @@ const GlassButton = forwardRef(
           VARIANTS[variant],
           SIZES[size],
           TOUCH_CLASSES,
-          'relative overflow-hidden',
+          FOCUS_CLASSES,
+          'relative overflow-hidden transition-shadow',
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
-          loading && 'relative',
+          isLoading && 'relative opacity-80',
           className
         )}
-        disabled={disabled || loading}
+        disabled={disabled || isLoading}
         {...motionProps}
         {...combinedHandlers}
         {...props}
       >
         {/* Ripple Effect Layer */}
-        {feedback === 'ripple' && !disabled && !loading && (
+        {feedback === 'ripple' && !disabled && !isLoading && (
           <RippleEffect ref={rippleRef} variant={variant} />
         )}
 
         {/* Pulse Effect Layer */}
-        {feedback === 'pulse' && !disabled && !loading && (
+        {feedback === 'pulse' && !disabled && !isLoading && (
           <PulseEffect active={isPressed} variant={variant} />
         )}
 
@@ -175,26 +246,36 @@ const GlassButton = forwardRef(
         <span
           className={clsx(
             'relative z-0 flex items-center justify-center gap-2',
-            loading && 'text-transparent'
+            isLoading && !loadingText && 'text-transparent'
           )}
         >
-          {leftIcon && !loading && (
+          {leftIcon && !isLoading && (
             <span className="flex-shrink-0">{leftIcon}</span>
           )}
-          {children}
-          {rightIcon && !loading && (
+          {isLoading && loadingText ? loadingText : children}
+          {rightIcon && !isLoading && (
             <span className="flex-shrink-0">{rightIcon}</span>
           )}
         </span>
 
         {/* Loading Spinner */}
         <AnimatePresence>
-          {loading && (
+          {isLoading && !loadingText && (
             <motion.span
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               className="absolute inset-0 flex items-center justify-center z-10"
+            >
+              <LoadingSpinner size={size} variant={variant} />
+            </motion.span>
+          )}
+          {isLoading && loadingText && (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute left-4 flex items-center justify-center z-10"
             >
               <LoadingSpinner size={size} variant={variant} />
             </motion.span>
@@ -283,8 +364,10 @@ export const GlassIconButton = forwardRef(
       size = 'md',
       variant = 'glass',
       feedback = 'ripple',
+      haptic = false,
       disabled = false,
       loading = false,
+      onClick,
       ...props
     },
     ref
@@ -308,6 +391,20 @@ export const GlassIconButton = forwardRef(
       disabled: disabled || loading,
     });
 
+    // Handle click with optional haptic feedback
+    const handleClick = useCallback(
+      (e) => {
+        if (disabled || loading) return;
+
+        if (haptic) {
+          triggerHaptic();
+        }
+
+        onClick?.(e);
+      },
+      [disabled, loading, haptic, onClick]
+    );
+
     return (
       <motion.button
         ref={ref}
@@ -315,8 +412,10 @@ export const GlassIconButton = forwardRef(
           VARIANTS[variant],
           sizeMap[size],
           TOUCH_CLASSES,
-          'p-0 rounded-full flex items-center justify-center relative overflow-hidden',
+          FOCUS_CLASSES,
+          'p-0 rounded-full flex items-center justify-center relative overflow-hidden transition-shadow',
           disabled && 'opacity-50 cursor-not-allowed',
+          loading && 'opacity-80',
           className
         )}
         whileHover={disabled || loading ? {} : { scale: 1.05 }}
@@ -325,6 +424,7 @@ export const GlassIconButton = forwardRef(
         transition={{ type: 'spring', stiffness: 400, damping: 17 }}
         disabled={disabled || loading}
         {...feedbackHandlers}
+        onClick={handleClick}
         {...props}
       >
         {/* Ripple Effect Layer */}

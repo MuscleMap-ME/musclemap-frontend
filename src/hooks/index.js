@@ -70,6 +70,13 @@ export {
 } from '../components/tips/ContextualTipProvider';
 export { TIP_TRIGGERS } from '../components/tips/tipDefinitions';
 
+// Spotlight tour hooks
+export {
+  useTour,
+  useTourAutoStart,
+  useTourStep,
+} from '../components/tour';
+
 // ============================================
 // DATA FETCHING HOOKS
 // ============================================
@@ -88,11 +95,20 @@ export { default as useWebSocket } from './useWebSocket';
 export {
   useButtonFeedback,
   useReducedMotion,
+  triggerHaptic,
 } from '../components/glass/ButtonEffects';
+export { useRipple } from './useRipple';
 export { default as useXR, useXRButton, XR_STATE } from './useXR';
 export { useLongPress } from './useLongPress';
 export { useSwipeGesture } from './useSwipeGesture';
 export { default as useScrollRestoration } from './useScrollRestoration';
+
+// Celebration hooks
+export {
+  useConfetti,
+  ConfettiProvider,
+  CONFETTI_PRESETS,
+} from '../components/celebrations/SuccessBurst';
 
 // ============================================
 // NETWORK STATUS HOOKS

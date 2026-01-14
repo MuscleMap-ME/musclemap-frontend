@@ -326,3 +326,10 @@ export { trustService } from './trust.service';
 export { escrowService } from './escrow.service';
 export { disputeService } from './dispute.service';
 
+// New economy enhancement services
+export { earnEventsService } from './earnEvents.service';
+export { bonusEventsService } from './bonusEvents.service';
+export { geoHangoutsService } from './geoHangouts.service';
+export { paymentsService } from './payments.service';
+export { socialSpendingService } from './socialSpending.service';
+

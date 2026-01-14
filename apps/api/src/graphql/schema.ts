@@ -133,6 +133,14 @@ export const typeDefs = `#graphql
     ptTestResult(id: ID!): PTTestResult
     ptTestLeaderboard(testId: ID!): [PTTestLeaderboardEntry!]!
 
+    # Career Readiness
+    careerStandards(category: String): [CareerStandard!]!
+    careerStandard(id: ID!): CareerStandard
+    careerStandardCategories: [CareerStandardCategory!]!
+    myCareerGoals: [CareerGoal!]!
+    myCareerReadiness(goalId: ID): CareerReadiness
+    careerExerciseRecommendations(goalId: ID!): [ExerciseRecommendation!]!
+
     # Health (internal)
     health: HealthStatus
     healthDetailed: DetailedHealthStatus
@@ -232,6 +240,12 @@ export const typeDefs = `#graphql
 
     # PT Tests
     submitPTTestResults(input: PTTestResultInput!): PTTestResult!
+
+    # Career Readiness
+    createCareerGoal(input: CareerGoalInput!): CareerGoal!
+    updateCareerGoal(goalId: ID!, input: CareerGoalUpdateInput!): CareerGoal
+    deleteCareerGoal(goalId: ID!): Boolean!
+    logCareerAssessment(input: CareerAssessmentInput!): CareerAssessment!
 
     # Logging
     logFrontendError(input: FrontendLogInput!): Boolean!
@@ -1277,6 +1291,121 @@ export const typeDefs = `#graphql
     used: Float!
     total: Float!
     percentage: Float!
+  }
+
+  # ============================================
+  # CAREER READINESS TYPES
+  # ============================================
+  type CareerStandard {
+    id: ID!
+    name: String!
+    fullName: String
+    agency: String
+    category: String
+    description: String
+    officialUrl: String
+    scoringType: String!
+    recertificationPeriodMonths: Int
+    events: [CareerStandardEvent!]!
+    eventCount: Int!
+    icon: String
+    maxScore: Int
+    passingScore: Int
+  }
+
+  type CareerStandardEvent {
+    id: ID!
+    name: String!
+    description: String
+    metricType: String
+    metricUnit: String
+    direction: String
+    passingThreshold: Float
+    exerciseMappings: [String!]
+    tips: [String!]
+    orderIndex: Int!
+  }
+
+  type CareerGoal {
+    id: ID!
+    standard: CareerStandard
+    standardId: ID!
+    targetDate: String
+    priority: String!
+    status: String!
+    agencyName: String
+    notes: String
+    readiness: CareerReadiness
+    daysRemaining: Int
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type CareerReadiness {
+    score: Float
+    status: String!
+    trend: String
+    trendDelta: Float
+    eventBreakdown: [EventReadiness!]!
+    weakEvents: [String!]!
+    lastAssessmentAt: String
+    eventsPassed: Int!
+    eventsTotal: Int!
+  }
+
+  type EventReadiness {
+    eventId: ID!
+    eventName: String!
+    passed: Boolean
+    value: Float
+    status: String!
+  }
+
+  type CareerStandardCategory {
+    category: String!
+    count: Int!
+    icon: String!
+  }
+
+  type CareerAssessment {
+    id: ID!
+    userId: ID!
+    standardId: ID!
+    assessmentType: String!
+    results: JSON!
+    totalScore: Float
+    passed: Boolean
+    assessedAt: DateTime!
+    createdAt: DateTime!
+  }
+
+  type ExerciseRecommendation {
+    exerciseId: ID!
+    exerciseName: String!
+    targetEvents: [String!]!
+  }
+
+  input CareerGoalInput {
+    standardId: ID!
+    targetDate: String
+    priority: String
+    agencyName: String
+    notes: String
+  }
+
+  input CareerGoalUpdateInput {
+    targetDate: String
+    priority: String
+    status: String
+    agencyName: String
+    notes: String
+  }
+
+  input CareerAssessmentInput {
+    standardId: ID!
+    assessmentType: String!
+    results: JSON!
+    assessedAt: String
   }
 
   # ============================================

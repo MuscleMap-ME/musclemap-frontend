@@ -260,6 +260,61 @@ Authorization: Bearer <token>
 | `PUT` | `/profile` | Yes |
 
 
+### Body-measurements
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/body-measurements` | Yes |
+| `POST` | `/body-measurements` | Yes |
+| `GET` | `/body-measurements/:id` | Yes |
+| `PUT` | `/body-measurements/:id` | Yes |
+| `DELETE` | `/body-measurements/:id` | Yes |
+| `GET` | `/body-measurements/comparison` | Yes |
+| `GET` | `/body-measurements/history/:field` | Yes |
+| `GET` | `/body-measurements/latest` | Yes |
+
+
+### EconomyEnhanced
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/bonus-events/history` | Yes |
+| `GET` | `/bonus-events/types` | Yes |
+| `POST` | `/checkout/stripe` | Yes |
+| `GET` | `/earn-events` | Yes |
+| `POST` | `/earn-events/mark-seen` | Yes |
+| `GET` | `/earn-events/recent` | Yes |
+| `GET` | `/earn-events/today` | Yes |
+| `GET` | `/earn-events/week` | Yes |
+| `GET` | `/hangouts/geo/:hangoutId` | Yes |
+| `GET` | `/hangouts/geo/:hangoutId/challenges` | Yes |
+| `POST` | `/hangouts/geo/:hangoutId/challenges` | Yes |
+| `GET` | `/hangouts/geo/:hangoutId/events` | Yes |
+| `POST` | `/hangouts/geo/:hangoutId/events` | Yes |
+| `GET` | `/hangouts/geo/:hangoutId/members` | Yes |
+| `GET` | `/hangouts/geo/my` | Yes |
+| `POST` | `/location` | Yes |
+| `GET` | `/location` | Yes |
+| `GET` | `/packages` | Yes |
+| `GET` | `/packages/:packageId` | Yes |
+| `GET` | `/packages/custom/:credits` | Yes |
+| `GET` | `/purchases` | Yes |
+| `POST` | `/social/boost` | Yes |
+| `GET` | `/social/boost/check` | Yes |
+| `GET` | `/social/boost/options` | Yes |
+| `POST` | `/social/gift` | Yes |
+| `POST` | `/social/gifts/:giftId/accept` | Yes |
+| `POST` | `/social/gifts/:giftId/decline` | Yes |
+| `GET` | `/social/gifts/pending` | Yes |
+| `GET` | `/social/high-five/costs` | Yes |
+| `POST` | `/social/high-five/super` | Yes |
+| `GET` | `/social/high-fives/received` | Yes |
+| `POST` | `/social/tip` | Yes |
+| `GET` | `/social/tips/received` | Yes |
+| `GET` | `/social/tips/sent` | Yes |
+| `POST` | `/webhook/stripe` | Yes |
+
+
 ### Social
 
 | Method | Endpoint | Auth Required |
@@ -550,6 +605,67 @@ Authorization: Bearer <token>
 | `GET` | `/mascot/global/placements` | Yes |
 
 
+### Nutrition
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/me/nutrition` | Yes |
+| `POST` | `/me/nutrition/disable` | Yes |
+| `POST` | `/me/nutrition/enable` | Yes |
+| `POST` | `/me/nutrition/foods/custom` | Yes |
+| `GET` | `/me/nutrition/foods/custom` | Yes |
+| `DELETE` | `/me/nutrition/foods/custom/:id` | Yes |
+| `GET` | `/me/nutrition/foods/frequent` | Yes |
+| `GET` | `/me/nutrition/foods/recent` | Yes |
+| `GET` | `/me/nutrition/goals` | Yes |
+| `POST` | `/me/nutrition/goals/calculate` | Yes |
+| `POST` | `/me/nutrition/hydration` | Yes |
+| `GET` | `/me/nutrition/hydration` | Yes |
+| `POST` | `/me/nutrition/meals` | Yes |
+| `GET` | `/me/nutrition/meals` | Yes |
+| `GET` | `/me/nutrition/meals/:id` | Yes |
+| `PUT` | `/me/nutrition/meals/:id` | Yes |
+| `DELETE` | `/me/nutrition/meals/:id` | Yes |
+| `POST` | `/me/nutrition/meals/copy` | Yes |
+| `GET` | `/me/nutrition/plans` | Yes |
+| `POST` | `/me/nutrition/plans` | Yes |
+| `GET` | `/me/nutrition/plans/:id` | Yes |
+| `PUT` | `/me/nutrition/plans/:id` | Yes |
+| `DELETE` | `/me/nutrition/plans/:id` | Yes |
+| `POST` | `/me/nutrition/plans/:id/activate` | Yes |
+| `POST` | `/me/nutrition/plans/:id/items` | Yes |
+| `GET` | `/me/nutrition/plans/:id/items` | Yes |
+| `POST` | `/me/nutrition/plans/:id/shopping-list` | Yes |
+| `GET` | `/me/nutrition/plans/active` | Yes |
+| `POST` | `/me/nutrition/plans/generate` | Yes |
+| `PUT` | `/me/nutrition/plans/items/:itemId` | Yes |
+| `DELETE` | `/me/nutrition/plans/items/:itemId` | Yes |
+| `GET` | `/me/nutrition/preferences` | Yes |
+| `PATCH` | `/me/nutrition/preferences` | Yes |
+| `POST` | `/me/nutrition/recipes` | Yes |
+| `GET` | `/me/nutrition/recipes` | Yes |
+| `PUT` | `/me/nutrition/recipes/:id` | Yes |
+| `DELETE` | `/me/nutrition/recipes/:id` | Yes |
+| `POST` | `/me/nutrition/recipes/:id/rate` | Yes |
+| `POST` | `/me/nutrition/recipes/:id/save` | Yes |
+| `DELETE` | `/me/nutrition/recipes/:id/save` | Yes |
+| `GET` | `/me/nutrition/recipes/saved` | Yes |
+| `GET` | `/me/nutrition/streaks` | Yes |
+| `GET` | `/me/nutrition/summary` | Yes |
+| `GET` | `/me/nutrition/summary/range` | Yes |
+| `GET` | `/nutrition/archetypes` | Yes |
+| `GET` | `/nutrition/archetypes/:archetype` | Yes |
+| `GET` | `/nutrition/foods/:id` | Yes |
+| `GET` | `/nutrition/foods/barcode/:barcode` | Yes |
+| `GET` | `/nutrition/foods/search` | Yes |
+| `GET` | `/nutrition/recipes` | Yes |
+| `GET` | `/nutrition/recipes/:id` | Yes |
+| `GET` | `/nutrition/recipes/:id/ratings` | Yes |
+| `GET` | `/nutrition/recipes/archetype/:archetype` | Yes |
+| `GET` | `/nutrition/recipes/popular` | Yes |
+| `GET` | `/nutrition/recipes/trending` | Yes |
+
+
 ### Mentorship
 
 | Method | Endpoint | Auth Required |
@@ -654,6 +770,37 @@ Authorization: Bearer <token>
 | `GET` | `/onboarding/steps` | Yes |
 
 
+### Organizations
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/organizations` | Yes |
+| `GET` | `/organizations/:orgId` | Yes |
+| `PUT` | `/organizations/:orgId` | Yes |
+| `DELETE` | `/organizations/:orgId` | Yes |
+| `GET` | `/organizations/:orgId/audit` | Yes |
+| `POST` | `/organizations/:orgId/invite` | Yes |
+| `POST` | `/organizations/:orgId/invite/bulk` | Yes |
+| `GET` | `/organizations/:orgId/members` | Yes |
+| `PUT` | `/organizations/:orgId/members/:memberId` | Yes |
+| `DELETE` | `/organizations/:orgId/members/:memberId` | Yes |
+| `PUT` | `/organizations/:orgId/members/bulk` | Yes |
+| `GET` | `/organizations/:orgId/readiness` | Yes |
+| `POST` | `/organizations/:orgId/readiness/export` | Yes |
+| `GET` | `/organizations/:orgId/readiness/history` | Yes |
+| `POST` | `/organizations/:orgId/readiness/refresh` | Yes |
+| `GET` | `/organizations/:orgId/settings` | Yes |
+| `PUT` | `/organizations/:orgId/settings` | Yes |
+| `GET` | `/organizations/:orgId/units` | Yes |
+| `POST` | `/organizations/:orgId/units` | Yes |
+| `PUT` | `/organizations/:orgId/units/:unitId` | Yes |
+| `DELETE` | `/organizations/:orgId/units/:unitId` | Yes |
+| `GET` | `/organizations/:orgId/units/:unitId/readiness` | Yes |
+| `GET` | `/organizations/:orgId/units/tree` | Yes |
+| `GET` | `/organizations/by-slug/:slug` | Yes |
+| `POST` | `/organizations/invites/:token/accept` | Yes |
+
+
 ### Personalization
 
 | Method | Endpoint | Auth Required |
@@ -683,6 +830,20 @@ Authorization: Bearer <token>
 | `POST` | `/privacy/disable-minimalist` | Yes |
 | `POST` | `/privacy/enable-minimalist` | Yes |
 | `GET` | `/privacy/summary` | Yes |
+
+
+### Progress-photos
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/progress-photos` | Yes |
+| `POST` | `/progress-photos` | Yes |
+| `GET` | `/progress-photos/:id` | Yes |
+| `PUT` | `/progress-photos/:id` | Yes |
+| `DELETE` | `/progress-photos/:id` | Yes |
+| `GET` | `/progress-photos/compare` | Yes |
+| `GET` | `/progress-photos/stats` | Yes |
+| `GET` | `/progress-photos/timeline` | Yes |
 
 
 ### Progression
@@ -842,6 +1003,20 @@ Authorization: Bearer <token>
 | `GET` | `/virtual-hangouts/my` | Yes |
 | `GET` | `/virtual-hangouts/recommended` | Yes |
 | `GET` | `/virtual-hangouts/themes` | Yes |
+
+
+### Volume-stats
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/volume/1rm/:exerciseId` | Yes |
+| `GET` | `/volume/daily` | Yes |
+| `GET` | `/volume/exercise/:exerciseId` | Yes |
+| `GET` | `/volume/muscles` | Yes |
+| `GET` | `/volume/muscles/weekly` | Yes |
+| `GET` | `/volume/prs` | Yes |
+| `GET` | `/volume/summary` | Yes |
+| `GET` | `/volume/weekly` | Yes |
 
 
 ### Workouts

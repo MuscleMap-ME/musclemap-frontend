@@ -22,6 +22,7 @@ export {
 export {
   ContextualTipProvider,
   useContextualTips,
+  useContextualTips as useContextualTip, // Alias for convenience
   useTipOnCondition,
 } from './ContextualTipProvider';
 

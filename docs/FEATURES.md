@@ -4,7 +4,7 @@
 
 ## Overview
 
-MuscleMap is a comprehensive fitness platform with 65 pages/features across multiple categories.
+MuscleMap is a comprehensive fitness platform with 73 pages/features across multiple categories.
 
 ## Core Features
 

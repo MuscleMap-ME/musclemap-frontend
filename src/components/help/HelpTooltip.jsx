@@ -167,7 +167,7 @@ export default function HelpTooltip({
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   // Get help content from context
-  const { getHelp, openTooltip, closeTooltip, isTooltipActive } = useHelp();
+  const { getHelp, openTooltip, closeTooltip } = useHelp();
 
   // Resolve content (custom props override context)
   const helpContent = useMemo(() => {
@@ -178,6 +178,40 @@ export default function HelpTooltip({
       learnMoreUrl: customLearnMoreUrl || contextContent?.learnMoreUrl,
     };
   }, [term, customExplanation, customLearnMoreUrl, getHelp]);
+
+  // Define callbacks BEFORE effects that use them
+  const handleOpen = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setIsOpen(true);
+      openTooltip(tooltipId);
+    }, delay);
+  }, [delay, openTooltip, tooltipId]);
+
+  const handleClose = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    if (!persistent) {
+      setIsOpen(false);
+      closeTooltip();
+    }
+  }, [persistent, closeTooltip]);
+
+  const handleToggle = useCallback(() => {
+    if (isOpen) {
+      handleClose();
+    } else {
+      // Immediate open on click
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      setIsOpen(true);
+      openTooltip(tooltipId);
+    }
+  }, [isOpen, handleClose, openTooltip, tooltipId]);
 
   // Detect touch device
   useEffect(() => {
@@ -236,7 +270,7 @@ export default function HelpTooltip({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   // Close on outside click (mobile)
   useEffect(() => {
@@ -260,7 +294,7 @@ export default function HelpTooltip({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isOpen, isTouchDevice]);
+  }, [isOpen, isTouchDevice, handleClose]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -270,39 +304,6 @@ export default function HelpTooltip({
       }
     };
   }, []);
-
-  const handleOpen = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      setIsOpen(true);
-      openTooltip(tooltipId);
-    }, delay);
-  }, [delay, openTooltip, tooltipId]);
-
-  const handleClose = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    if (!persistent) {
-      setIsOpen(false);
-      closeTooltip();
-    }
-  }, [persistent, closeTooltip]);
-
-  const handleToggle = useCallback(() => {
-    if (isOpen) {
-      handleClose();
-    } else {
-      // Immediate open on click
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      setIsOpen(true);
-      openTooltip(tooltipId);
-    }
-  }, [isOpen, handleClose, openTooltip, tooltipId]);
 
   // If no explanation, don't render
   if (!helpContent.explanation) {

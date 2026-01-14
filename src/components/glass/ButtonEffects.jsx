@@ -36,8 +36,45 @@ const RIPPLE_COLORS = {
 const DURATIONS = {
   ripple: 600, // ms for ripple to expand and fade
   press: 100,  // ms for press feedback
-  success: 400, // ms for success animation
+  success: 600, // ms for success animation (increased for glow effect)
 };
+
+/**
+ * Haptic vibration pattern for mobile devices
+ * Short pulse pattern feels satisfying on tap
+ */
+const HAPTIC_PATTERN = [10]; // Single 10ms vibration
+
+// ============================================
+// HAPTIC FEEDBACK UTILITY
+// ============================================
+
+/**
+ * triggerHaptic - Trigger haptic feedback on mobile devices
+ *
+ * Uses the Vibration API when available. Fails silently on
+ * devices that don't support haptic feedback.
+ *
+ * @param {number[]} pattern - Vibration pattern in ms (default: short pulse)
+ */
+export function triggerHaptic(pattern = HAPTIC_PATTERN) {
+  // Check for reduced motion preference
+  if (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ) {
+    return;
+  }
+
+  // Check for Vibration API support
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // Silently fail if vibration not allowed
+    }
+  }
+}
 
 // ============================================
 // RIPPLE EFFECT COMPONENT (Canvas-based)
@@ -187,7 +224,10 @@ RippleEffect.displayName = 'RippleEffect';
 // ============================================
 
 /**
- * SuccessEffect - Checkmark animation on successful action
+ * SuccessEffect - Checkmark animation with green glow pulse
+ *
+ * Shows a brief checkmark with a green glow pulse effect,
+ * then returns to normal state.
  *
  * @param {Object} props
  * @param {boolean} props.active - Whether to show the animation
@@ -212,14 +252,32 @@ export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
   if (!visible) return null;
 
   const checkColor = variant === 'primary' ? '#fff' : '#00ff88';
+  const glowColor = 'rgba(0, 255, 136, 0.6)';
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div
+      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+      style={{
+        animation: reducedMotion ? 'none' : 'success-glow 0.6s ease-out forwards',
+        borderRadius: 'inherit',
+      }}
+    >
+      {/* Green glow background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(circle at center, ${glowColor} 0%, transparent 70%)`,
+          animation: reducedMotion ? 'none' : 'success-glow-pulse 0.6s ease-out forwards',
+          borderRadius: 'inherit',
+        }}
+      />
+      {/* Checkmark icon */}
       <svg
         viewBox="0 0 24 24"
-        className="w-6 h-6"
+        className="w-6 h-6 relative z-10"
         style={{
           animation: reducedMotion ? 'none' : 'success-check 0.4s ease-out forwards',
+          filter: reducedMotion ? 'none' : 'drop-shadow(0 0 8px rgba(0, 255, 136, 0.8))',
         }}
       >
         <path
@@ -451,6 +509,33 @@ if (typeof document !== 'undefined') {
         }
       }
 
+      @keyframes success-glow {
+        0% {
+          opacity: 0;
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes success-glow-pulse {
+        0% {
+          transform: scale(0.8);
+          opacity: 0;
+        }
+        30% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1.2);
+          opacity: 0;
+        }
+      }
+
       @keyframes pulse-expand {
         0% {
           transform: scale(1);
@@ -474,6 +559,17 @@ if (typeof document !== 'undefined') {
             stroke-dashoffset: 0;
           }
         }
+        @keyframes success-glow {
+          0%, 100% {
+            opacity: 0;
+          }
+        }
+        @keyframes success-glow-pulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0;
+          }
+        }
         @keyframes pulse-expand {
           0%, 100% {
             transform: scale(1);
@@ -492,6 +588,7 @@ export default {
   PulseEffect,
   useButtonFeedback,
   useReducedMotion,
+  triggerHaptic,
   RIPPLE_COLORS,
   DURATIONS,
 };

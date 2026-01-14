@@ -12,6 +12,7 @@ import { queryOne, queryAll, query } from '../db/client';
 import { config } from '../config';
 import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
+import { careerService } from '../modules/career';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -722,6 +723,217 @@ export const resolvers = {
         percentage: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100,
       },
     }),
+
+    // Career Readiness Queries
+    careerStandards: async (_: unknown, args: { category?: string }) => {
+      const standards = await careerService.getCareerStandards({
+        category: args.category,
+        activeOnly: true,
+      });
+      return standards.map((s) => ({
+        id: s.id,
+        name: s.name,
+        fullName: s.name,
+        agency: s.institution,
+        category: s.category,
+        description: s.description,
+        officialUrl: null,
+        scoringType: s.scoringMethod,
+        recertificationPeriodMonths: s.recertificationMonths,
+        events: (s.components as Array<{ id: string; name: string; description?: string }>).map((c, idx) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description || null,
+          metricType: null,
+          metricUnit: null,
+          direction: 'higher',
+          passingThreshold: null,
+          exerciseMappings: s.exerciseMappings[c.id] || [],
+          tips: s.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+          orderIndex: idx,
+        })),
+        eventCount: (s.components as Array<unknown>).length,
+        icon: s.icon,
+        maxScore: s.maxScore,
+        passingScore: s.passingScore,
+      }));
+    },
+
+    careerStandard: async (_: unknown, args: { id: string }) => {
+      const s = await careerService.getCareerStandard(args.id);
+      if (!s) return null;
+      return {
+        id: s.id,
+        name: s.name,
+        fullName: s.name,
+        agency: s.institution,
+        category: s.category,
+        description: s.description,
+        officialUrl: null,
+        scoringType: s.scoringMethod,
+        recertificationPeriodMonths: s.recertificationMonths,
+        events: (s.components as Array<{ id: string; name: string; description?: string }>).map((c, idx) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description || null,
+          metricType: null,
+          metricUnit: null,
+          direction: 'higher',
+          passingThreshold: null,
+          exerciseMappings: s.exerciseMappings[c.id] || [],
+          tips: s.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+          orderIndex: idx,
+        })),
+        eventCount: (s.components as Array<unknown>).length,
+        icon: s.icon,
+        maxScore: s.maxScore,
+        passingScore: s.passingScore,
+      };
+    },
+
+    careerStandardCategories: async () => {
+      const categories = await careerService.getCareerCategories();
+      return categories.map((c) => ({
+        category: c.category,
+        count: c.count,
+        icon: c.icon,
+      }));
+    },
+
+    myCareerGoals: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const goals = await careerService.getUserCareerGoals(userId);
+
+      return Promise.all(
+        goals.map(async (g) => {
+          const readiness = await careerService.getReadiness(userId, g.id);
+          const standard = await careerService.getCareerStandard(g.ptTestId);
+
+          // Calculate days remaining if target date exists
+          let daysRemaining = null;
+          if (g.targetDate) {
+            const targetDate = new Date(g.targetDate);
+            const now = new Date();
+            daysRemaining = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          }
+
+          return {
+            id: g.id,
+            standardId: g.ptTestId,
+            standard: standard
+              ? {
+                  id: standard.id,
+                  name: standard.name,
+                  fullName: standard.name,
+                  agency: standard.institution,
+                  category: standard.category,
+                  description: standard.description,
+                  officialUrl: null,
+                  scoringType: standard.scoringMethod,
+                  recertificationPeriodMonths: standard.recertificationMonths,
+                  events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
+                    (c, idx) => ({
+                      id: c.id,
+                      name: c.name,
+                      description: c.description || null,
+                      metricType: null,
+                      metricUnit: null,
+                      direction: 'higher',
+                      passingThreshold: null,
+                      exerciseMappings: standard.exerciseMappings[c.id] || [],
+                      tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+                      orderIndex: idx,
+                    })
+                  ),
+                  eventCount: (standard.components as Array<unknown>).length,
+                  icon: standard.icon,
+                  maxScore: standard.maxScore,
+                  passingScore: standard.passingScore,
+                }
+              : null,
+            targetDate: g.targetDate,
+            priority: g.priority,
+            status: g.status,
+            agencyName: g.agencyName,
+            notes: g.notes,
+            daysRemaining,
+            readiness: {
+              score: readiness.readinessScore,
+              status: readiness.status,
+              trend: null,
+              trendDelta: null,
+              eventBreakdown: [],
+              weakEvents: readiness.weakEvents,
+              lastAssessmentAt: readiness.lastAssessmentAt,
+              eventsPassed: readiness.eventsPassed,
+              eventsTotal: readiness.eventsTotal,
+            },
+            createdAt: new Date(g.createdAt),
+            updatedAt: new Date(g.updatedAt),
+          };
+        })
+      );
+    },
+
+    myCareerReadiness: async (_: unknown, args: { goalId?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      if (args.goalId) {
+        const readiness = await careerService.getReadiness(userId, args.goalId);
+        return {
+          score: readiness.readinessScore,
+          status: readiness.status,
+          trend: null,
+          trendDelta: null,
+          eventBreakdown: [],
+          weakEvents: readiness.weakEvents,
+          lastAssessmentAt: readiness.lastAssessmentAt,
+          eventsPassed: readiness.eventsPassed,
+          eventsTotal: readiness.eventsTotal,
+        };
+      }
+
+      // If no goalId specified, get readiness for primary goal
+      const goals = await careerService.getUserCareerGoals(userId);
+      const primaryGoal = goals.find((g) => g.priority === 'primary') || goals[0];
+
+      if (!primaryGoal) {
+        return {
+          score: null,
+          status: 'no_data',
+          trend: null,
+          trendDelta: null,
+          eventBreakdown: [],
+          weakEvents: [],
+          lastAssessmentAt: null,
+          eventsPassed: 0,
+          eventsTotal: 0,
+        };
+      }
+
+      const readiness = await careerService.getReadiness(userId, primaryGoal.id);
+      return {
+        score: readiness.readinessScore,
+        status: readiness.status,
+        trend: null,
+        trendDelta: null,
+        eventBreakdown: [],
+        weakEvents: readiness.weakEvents,
+        lastAssessmentAt: readiness.lastAssessmentAt,
+        eventsPassed: readiness.eventsPassed,
+        eventsTotal: readiness.eventsTotal,
+      };
+    },
+
+    careerExerciseRecommendations: async (_: unknown, args: { goalId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const recommendations = await careerService.getExercisesForWeakEvents(args.goalId, userId);
+      return recommendations.map((r) => ({
+        exerciseId: r.exerciseId,
+        exerciseName: r.exerciseName,
+        targetEvents: r.targetEvents,
+      }));
+    },
   },
 
   // ============================================
@@ -1049,6 +1261,255 @@ export const resolvers = {
     logFrontendError: async (_: unknown, args: { input: any }) => {
       log.error({ frontendError: args.input }, 'Frontend error reported');
       return true;
+    },
+
+    // Career Readiness Mutations
+    createCareerGoal: async (
+      _: unknown,
+      args: { input: { standardId: string; targetDate?: string; priority?: string; agencyName?: string; notes?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { standardId, targetDate, priority, agencyName, notes } = args.input;
+
+      try {
+        const goal = await careerService.createCareerGoal(userId, {
+          ptTestId: standardId,
+          targetDate,
+          priority: (priority as 'primary' | 'secondary') || 'primary',
+          agencyName,
+          notes,
+        });
+
+        const readiness = await careerService.getReadiness(userId, goal.id);
+        const standard = await careerService.getCareerStandard(goal.ptTestId);
+
+        // Calculate days remaining if target date exists
+        let daysRemaining = null;
+        if (goal.targetDate) {
+          const targetDateObj = new Date(goal.targetDate);
+          const now = new Date();
+          daysRemaining = Math.ceil((targetDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        return {
+          id: goal.id,
+          standardId: goal.ptTestId,
+          standard: standard
+            ? {
+                id: standard.id,
+                name: standard.name,
+                fullName: standard.name,
+                agency: standard.institution,
+                category: standard.category,
+                description: standard.description,
+                officialUrl: null,
+                scoringType: standard.scoringMethod,
+                recertificationPeriodMonths: standard.recertificationMonths,
+                events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
+                  (c, idx) => ({
+                    id: c.id,
+                    name: c.name,
+                    description: c.description || null,
+                    metricType: null,
+                    metricUnit: null,
+                    direction: 'higher',
+                    passingThreshold: null,
+                    exerciseMappings: standard.exerciseMappings[c.id] || [],
+                    tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+                    orderIndex: idx,
+                  })
+                ),
+                eventCount: (standard.components as Array<unknown>).length,
+                icon: standard.icon,
+                maxScore: standard.maxScore,
+                passingScore: standard.passingScore,
+              }
+            : null,
+          targetDate: goal.targetDate,
+          priority: goal.priority,
+          status: goal.status,
+          agencyName: goal.agencyName,
+          notes: goal.notes,
+          daysRemaining,
+          readiness: {
+            score: readiness.readinessScore,
+            status: readiness.status,
+            trend: null,
+            trendDelta: null,
+            eventBreakdown: [],
+            weakEvents: readiness.weakEvents,
+            lastAssessmentAt: readiness.lastAssessmentAt,
+            eventsPassed: readiness.eventsPassed,
+            eventsTotal: readiness.eventsTotal,
+          },
+          createdAt: new Date(goal.createdAt),
+          updatedAt: new Date(goal.updatedAt),
+        };
+      } catch (err) {
+        const error = err as Error;
+        throw new GraphQLError(error.message || 'Failed to create career goal', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    updateCareerGoal: async (
+      _: unknown,
+      args: {
+        goalId: string;
+        input: { targetDate?: string; priority?: string; status?: string; agencyName?: string; notes?: string };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { goalId, input } = args;
+
+      const goal = await careerService.updateCareerGoal(userId, goalId, {
+        targetDate: input.targetDate,
+        priority: input.priority as 'primary' | 'secondary' | undefined,
+        status: input.status as 'active' | 'achieved' | 'abandoned' | undefined,
+        agencyName: input.agencyName,
+        notes: input.notes,
+      });
+
+      if (!goal) {
+        return null;
+      }
+
+      const readiness = await careerService.getReadiness(userId, goal.id);
+      const standard = await careerService.getCareerStandard(goal.ptTestId);
+
+      // Calculate days remaining if target date exists
+      let daysRemaining = null;
+      if (goal.targetDate) {
+        const targetDateObj = new Date(goal.targetDate);
+        const now = new Date();
+        daysRemaining = Math.ceil((targetDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      }
+
+      return {
+        id: goal.id,
+        standardId: goal.ptTestId,
+        standard: standard
+          ? {
+              id: standard.id,
+              name: standard.name,
+              fullName: standard.name,
+              agency: standard.institution,
+              category: standard.category,
+              description: standard.description,
+              officialUrl: null,
+              scoringType: standard.scoringMethod,
+              recertificationPeriodMonths: standard.recertificationMonths,
+              events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
+                (c, idx) => ({
+                  id: c.id,
+                  name: c.name,
+                  description: c.description || null,
+                  metricType: null,
+                  metricUnit: null,
+                  direction: 'higher',
+                  passingThreshold: null,
+                  exerciseMappings: standard.exerciseMappings[c.id] || [],
+                  tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+                  orderIndex: idx,
+                })
+              ),
+              eventCount: (standard.components as Array<unknown>).length,
+              icon: standard.icon,
+              maxScore: standard.maxScore,
+              passingScore: standard.passingScore,
+            }
+          : null,
+        targetDate: goal.targetDate,
+        priority: goal.priority,
+        status: goal.status,
+        agencyName: goal.agencyName,
+        notes: goal.notes,
+        daysRemaining,
+        readiness: {
+          score: readiness.readinessScore,
+          status: readiness.status,
+          trend: null,
+          trendDelta: null,
+          eventBreakdown: [],
+          weakEvents: readiness.weakEvents,
+          lastAssessmentAt: readiness.lastAssessmentAt,
+          eventsPassed: readiness.eventsPassed,
+          eventsTotal: readiness.eventsTotal,
+        },
+        createdAt: new Date(goal.createdAt),
+        updatedAt: new Date(goal.updatedAt),
+      };
+    },
+
+    deleteCareerGoal: async (_: unknown, args: { goalId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return careerService.deleteCareerGoal(userId, args.goalId);
+    },
+
+    logCareerAssessment: async (
+      _: unknown,
+      args: { input: { standardId: string; assessmentType: string; results: Record<string, unknown>; assessedAt?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { standardId, assessmentType, results, assessedAt } = args.input;
+
+      // Log the assessment to the user_pt_results table
+      const assessmentId = `assessment_${crypto.randomBytes(12).toString('hex')}`;
+      const testDate = assessedAt ? new Date(assessedAt) : new Date();
+
+      // Calculate total score and passed status from results
+      let totalScore = 0;
+      let passed = true;
+      const componentResults: Record<string, { value: number; passed?: boolean }> = {};
+
+      for (const [key, value] of Object.entries(results)) {
+        if (typeof value === 'object' && value !== null) {
+          const resultObj = value as { value?: number; passed?: boolean };
+          componentResults[key] = {
+            value: resultObj.value || 0,
+            passed: resultObj.passed,
+          };
+          if (typeof resultObj.value === 'number') {
+            totalScore += resultObj.value;
+          }
+          if (resultObj.passed === false) {
+            passed = false;
+          }
+        } else if (typeof value === 'number') {
+          componentResults[key] = { value };
+          totalScore += value;
+        }
+      }
+
+      await query(
+        `INSERT INTO user_pt_results (id, user_id, pt_test_id, test_date, component_results, total_score, passed)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [assessmentId, userId, standardId, testDate.toISOString().split('T')[0], JSON.stringify(componentResults), totalScore, passed]
+      );
+
+      // Recalculate readiness for any goals associated with this standard
+      const goals = await careerService.getUserCareerGoals(userId);
+      for (const goal of goals) {
+        if (goal.ptTestId === standardId) {
+          await careerService.calculateReadiness(userId, goal.id);
+        }
+      }
+
+      return {
+        id: assessmentId,
+        userId,
+        standardId,
+        assessmentType,
+        results,
+        totalScore,
+        passed,
+        assessedAt: testDate,
+        createdAt: new Date(),
+      };
     },
   },
 

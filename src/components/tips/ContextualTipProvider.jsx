@@ -30,7 +30,6 @@ import React, {
   useMemo,
 } from 'react';
 import {
-  getTipsByTrigger,
   getPrimaryTipForTrigger,
   getTipById,
   TIP_TRIGGERS,
@@ -286,7 +285,18 @@ export function ContextualTipProvider({ children }) {
     saveDismissedTips(new Set());
     setCooldowns({});
     saveTipCooldowns({});
+    // Also clear show-once tips
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('musclemap_shown_once_tips');
+      } catch {
+        // localStorage not available
+      }
+    }
   }, []);
+
+  // Alias for API compatibility
+  const resetTips = resetDismissedTips;
 
   /**
    * Check if a specific tip has been dismissed
@@ -315,6 +325,7 @@ export function ContextualTipProvider({ children }) {
       dismissTipById,
       clearAllTips,
       resetDismissedTips,
+      resetTips, // Alias for resetDismissedTips
 
       // Utilities
       canShowTip,
@@ -333,6 +344,7 @@ export function ContextualTipProvider({ children }) {
       dismissTipById,
       clearAllTips,
       resetDismissedTips,
+      resetTips,
       canShowTip,
       isTipDismissed,
       isOnCooldown,
