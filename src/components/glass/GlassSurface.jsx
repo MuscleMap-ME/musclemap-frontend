@@ -94,6 +94,7 @@ const GlassSurface = forwardRef(
 
 GlassSurface.displayName = 'GlassSurface';
 
+export { GlassSurface };
 export default GlassSurface;
 
 /**
