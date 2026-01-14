@@ -214,11 +214,14 @@ export async function up(): Promise<void> {
   // 5. CREATE USER TRANSACTION HISTORY VIEW
   // ============================================
   log.info('Creating user_credit_history_full view...');
+  // Note: Types differ between credit_ledger (SMALLINT ref_type, TEXT ref_id)
+  // and credit_ledger_archive (TEXT reference_type, UUID reference_id)
+  // Cast to common types (TEXT) for the union
   await db.query(`
     CREATE OR REPLACE VIEW user_credit_history_full AS
     SELECT
       id, user_id, action, amount, balance_after,
-      ref_type, ref_id, created_at,
+      ref_type::TEXT as ref_type, ref_id, created_at,
       'active' as storage_tier
     FROM credit_ledger
     WHERE archived = FALSE
@@ -226,8 +229,8 @@ export async function up(): Promise<void> {
     UNION ALL
 
     SELECT
-      id, user_id, action, amount, balance_after,
-      reference_type as ref_type, reference_id as ref_id, created_at,
+      id::TEXT, user_id::TEXT, action, amount, balance_after,
+      reference_type as ref_type, reference_id::TEXT as ref_id, created_at,
       'archived' as storage_tier
     FROM credit_ledger_archive
   `);
