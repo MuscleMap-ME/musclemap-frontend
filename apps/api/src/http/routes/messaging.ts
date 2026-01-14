@@ -32,87 +32,120 @@ function generateId(prefix: string): string {
 
 export async function registerMessagingRoutes(app: FastifyInstance) {
   // Get user's conversations
+  // Optimized: Single query with JOINs instead of N+1 pattern
   app.get('/messaging/conversations', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
 
+    // Single optimized query that fetches conversations with:
+    // - All participants (as JSON array)
+    // - Last message info
+    // - Unread count
+    // - User's participant info (for read tracking)
     const conversations = await queryAll<{
       id: string;
       type: string;
       name: string;
       created_at: Date;
       last_message_at: Date;
-    }>(
-      `SELECT c.*
-       FROM conversations c
-       JOIN conversation_participants cp ON c.id = cp.conversation_id
-       WHERE cp.user_id = $1
-       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC`,
-      [userId]
-    );
-
-    // Get participants for each conversation
-    const result = [];
-    for (const conv of conversations) {
-      const participants = await queryAll<{
+      participants: Array<{
         user_id: string;
         username: string;
         display_name: string;
         avatar_url: string;
         role: string;
-      }>(
-        `SELECT cp.user_id, cp.role, u.username, u.display_name, u.avatar_url
-         FROM conversation_participants cp
-         JOIN users u ON cp.user_id = u.id
-         WHERE cp.conversation_id = $1`,
-        [conv.id]
-      );
+      }>;
+      last_message_content: string | null;
+      last_message_sender_id: string | null;
+      last_message_created_at: Date | null;
+      user_last_read_at: Date | null;
+      user_joined_at: Date;
+      unread_count: number;
+    }>(
+      `WITH user_conversations AS (
+        -- Get all conversations the user is part of
+        SELECT c.id, c.type, c.name, c.created_at, c.last_message_at,
+               cp_user.last_read_at as user_last_read_at,
+               cp_user.joined_at as user_joined_at
+        FROM conversations c
+        JOIN conversation_participants cp_user ON c.id = cp_user.conversation_id AND cp_user.user_id = $1
+      ),
+      conversation_participants_agg AS (
+        -- Aggregate all participants per conversation
+        SELECT cp.conversation_id,
+               json_agg(json_build_object(
+                 'user_id', cp.user_id,
+                 'username', u.username,
+                 'display_name', u.display_name,
+                 'avatar_url', u.avatar_url,
+                 'role', cp.role
+               )) as participants
+        FROM conversation_participants cp
+        JOIN users u ON cp.user_id = u.id
+        WHERE cp.conversation_id IN (SELECT id FROM user_conversations)
+        GROUP BY cp.conversation_id
+      ),
+      last_messages AS (
+        -- Get the last message for each conversation using DISTINCT ON
+        SELECT DISTINCT ON (m.conversation_id)
+               m.conversation_id,
+               m.content as last_message_content,
+               m.sender_id as last_message_sender_id,
+               m.created_at as last_message_created_at
+        FROM messages m
+        WHERE m.conversation_id IN (SELECT id FROM user_conversations)
+          AND m.deleted_at IS NULL
+        ORDER BY m.conversation_id, m.created_at DESC
+      ),
+      unread_counts AS (
+        -- Calculate unread count per conversation
+        SELECT uc.id as conversation_id,
+               COUNT(m.id)::int as unread_count
+        FROM user_conversations uc
+        LEFT JOIN messages m ON m.conversation_id = uc.id
+          AND m.sender_id != $1
+          AND m.deleted_at IS NULL
+          AND m.created_at > COALESCE(uc.user_last_read_at, uc.user_joined_at)
+        GROUP BY uc.id
+      )
+      SELECT
+        uc.id, uc.type, uc.name, uc.created_at, uc.last_message_at,
+        uc.user_last_read_at, uc.user_joined_at,
+        COALESCE(cpa.participants, '[]'::json) as participants,
+        lm.last_message_content,
+        lm.last_message_sender_id,
+        lm.last_message_created_at,
+        COALESCE(urc.unread_count, 0) as unread_count
+      FROM user_conversations uc
+      LEFT JOIN conversation_participants_agg cpa ON uc.id = cpa.conversation_id
+      LEFT JOIN last_messages lm ON uc.id = lm.conversation_id
+      LEFT JOIN unread_counts urc ON uc.id = urc.conversation_id
+      ORDER BY COALESCE(uc.last_message_at, uc.created_at) DESC`,
+      [userId]
+    );
 
-      // Get last message
-      const lastMessage = await queryOne<{ content: string; sender_id: string; created_at: Date }>(
-        `SELECT content, sender_id, created_at FROM messages
-         WHERE conversation_id = $1 AND deleted_at IS NULL
-         ORDER BY created_at DESC LIMIT 1`,
-        [conv.id]
-      );
-
-      // Get unread count
-      const participantInfo = await queryOne<{ last_read_at: Date | null; joined_at: Date }>(
-        `SELECT last_read_at, joined_at FROM conversation_participants
-         WHERE conversation_id = $1 AND user_id = $2`,
-        [conv.id, userId]
-      );
-
-      let unreadCount = 0;
-      // Use last_read_at if available, otherwise use joined_at as the baseline
-      const readBaseline = participantInfo?.last_read_at || participantInfo?.joined_at;
-      if (readBaseline) {
-        const unread = await queryOne<{ count: string }>(
-          `SELECT COUNT(*)::int as count FROM messages
-           WHERE conversation_id = $1 AND created_at > $2 AND sender_id != $3 AND deleted_at IS NULL`,
-          [conv.id, readBaseline, userId]
-        );
-        unreadCount = parseInt(unread?.count || '0', 10);
-      }
-
-      result.push({
-        id: conv.id,
-        type: conv.type,
-        name: conv.name,
-        createdAt: conv.created_at,
-        lastMessageAt: conv.last_message_at,
-        participants: participants.map((p) => ({
-          userId: p.user_id,
-          username: p.username,
-          displayName: p.display_name,
-          avatarUrl: p.avatar_url,
-          role: p.role,
-        })),
-        lastMessage: lastMessage
-          ? { content: lastMessage.content, senderId: lastMessage.sender_id, createdAt: lastMessage.created_at }
-          : null,
-        unreadCount,
-      });
-    }
+    // Transform the result into the expected format
+    const result = conversations.map((conv) => ({
+      id: conv.id,
+      type: conv.type,
+      name: conv.name,
+      createdAt: conv.created_at,
+      lastMessageAt: conv.last_message_at,
+      participants: (conv.participants || []).map((p: any) => ({
+        userId: p.user_id,
+        username: p.username,
+        displayName: p.display_name,
+        avatarUrl: p.avatar_url,
+        role: p.role,
+      })),
+      lastMessage: conv.last_message_content
+        ? {
+            content: conv.last_message_content,
+            senderId: conv.last_message_sender_id,
+            createdAt: conv.last_message_created_at,
+          }
+        : null,
+      unreadCount: conv.unread_count,
+    }));
 
     return reply.send({ data: result });
   });

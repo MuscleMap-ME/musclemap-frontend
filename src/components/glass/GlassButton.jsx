@@ -76,8 +76,6 @@ import {
   RippleEffect,
   SuccessEffect,
   PulseEffect,
-  ShakeEffect,
-  BurstEffect,
   useButtonFeedback,
   useReducedMotion,
   triggerHaptic,
@@ -138,14 +136,14 @@ const GlassButton = forwardRef(
       rightIcon,
       as,
       // Enhanced interaction props
-      ripple = true, // Convenience prop - show ripple on click (same as feedback='ripple')
+      ripple: _ripple = true, // Convenience prop - show ripple on click (same as feedback='ripple')
       feedback = 'ripple', // 'ripple' | 'pulse' | 'shake' | 'burst' | 'none'
       haptic = false, // Trigger haptic feedback on mobile
       successAnimation = false, // Show success animation after onClick resolves
-      successBurst = false, // Show confetti burst on successful action
+      successBurst: _successBurst = false, // Show confetti burst on successful action
       loadingText, // Text to show while loading
       onSuccess, // Callback triggered on success
-      onError, // Callback triggered on error (also triggers shake)
+      onError: _onError, // Callback triggered on error (also triggers shake)
       onClick,
       ...props
     },

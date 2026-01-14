@@ -9,11 +9,11 @@
  * - "Log Assessment" and "Get Workout" buttons
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { api } from '../../utils/api';
-import { GlassSurface, GlassButton, GlassCircularProgress } from '../glass';
+import { GlassSurface, GlassButton } from '../glass';
 import { CATEGORY_META } from './CareerStandardCard';
 import EventBreakdown from './EventBreakdown';
 

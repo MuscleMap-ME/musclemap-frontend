@@ -9,17 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
-  Plus,
-  Calendar,
   ShoppingCart,
   ArrowLeft,
   Check,
   Play,
-  Pause,
-  Trash2,
-  Clock,
-  Flame,
-  Target,
   Sparkles,
   ChevronRight,
   Wand2,
