@@ -1,10 +1,10 @@
 # MuscleMap Features
 
-> Auto-generated on 2026-01-10
+> Auto-generated on 2026-01-14
 
 ## Overview
 
-MuscleMap is a comprehensive fitness platform with 50 pages/features across multiple categories.
+MuscleMap is a comprehensive fitness platform with 58 pages/features across multiple categories.
 
 ## Core Features
 
@@ -21,7 +21,7 @@ Exercises page
 ### Journey
 Journey page
 - **Route**: `/journey`
-- **Protected**: Yes (requires login)
+- **Protected**: No (public)
 
 ### Progression
 Progression page
@@ -70,7 +70,7 @@ Credits page
 ### Profile
 Profile page
 - **Route**: `/profile`
-- **Protected**: Yes (requires login)
+- **Protected**: No (public)
 
 ### Settings
 Settings page
@@ -144,7 +144,7 @@ My Issues Page  User's submitted issues: - View status of reported issues - Trac
 ### NewIssue
 New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection /
 - **Route**: `/newissue`
-- **Protected**: Yes (requires login)
+- **Protected**: No (public)
 
 ### Roadmap
 Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities /

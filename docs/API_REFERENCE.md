@@ -1,6 +1,6 @@
 # MuscleMap API Reference
 
-> Auto-generated on 2026-01-10
+> Auto-generated on 2026-01-14
 
 ## Base URL
 
@@ -30,13 +30,16 @@ Authorization: Bearer <token>
 | `GET` | `/entitlements` | Yes |
 | `GET` | `/exercises` | Yes |
 | `GET` | `/exercises/:id/activations` | Yes |
+| `GET` | `/exercises/:id/illustration` | Yes |
 | `POST` | `/highfives/send` | Yes |
 | `GET` | `/highfives/stats` | Yes |
 | `GET` | `/highfives/users` | Yes |
 | `GET` | `/i18n/languages` | Yes |
+| `GET` | `/illustrations/bodies` | Yes |
 | `GET` | `/locations/nearby` | Yes |
 | `GET` | `/me/entitlements` | Yes |
 | `GET` | `/muscles` | Yes |
+| `GET` | `/muscles/:id` | Yes |
 | `GET` | `/progress/stats` | Yes |
 | `GET` | `/progression/achievements` | Yes |
 | `GET` | `/progression/leaderboard` | Yes |
@@ -45,6 +48,21 @@ Authorization: Bearer <token>
 | `PATCH` | `/settings` | Yes |
 | `GET` | `/settings/themes` | Yes |
 | `POST` | `/trace/frontend-log` | Yes |
+
+
+### Verifications
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/achievements/:id/can-verify` | Yes |
+| `POST` | `/achievements/:id/verify` | Yes |
+| `GET` | `/achievements/verification-required` | Yes |
+| `GET` | `/me/verifications` | Yes |
+| `GET` | `/me/witness-requests` | Yes |
+| `POST` | `/verifications` | Yes |
+| `GET` | `/verifications/:id` | Yes |
+| `DELETE` | `/verifications/:id` | Yes |
+| `POST` | `/verifications/:id/witness` | Yes |
 
 
 ### Achievements
@@ -630,6 +648,20 @@ Authorization: Bearer <token>
 | `POST` | `/privacy/disable-minimalist` | Yes |
 | `POST` | `/privacy/enable-minimalist` | Yes |
 | `GET` | `/privacy/summary` | Yes |
+
+
+### Ranks
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/ranks/definitions` | Yes |
+| `GET` | `/ranks/history` | Yes |
+| `GET` | `/ranks/leaderboard` | Yes |
+| `GET` | `/ranks/me` | Yes |
+| `POST` | `/ranks/refresh` | Yes |
+| `POST` | `/ranks/update-veterans` | Yes |
+| `GET` | `/ranks/user/:userId` | Yes |
+| `GET` | `/ranks/veteran-badge` | Yes |
 
 
 ### Content-reports

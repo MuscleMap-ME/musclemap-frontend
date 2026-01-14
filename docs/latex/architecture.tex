@@ -81,7 +81,7 @@
     \textcolor{textsecondary}{\Large Architecture Documentation}
 }
 \author{Auto-generated}
-\date{2026-01-10}
+\date{2026-01-14}
 
 \begin{document}
 
@@ -129,7 +129,7 @@ Reverse Proxy & Caddy & HTTPS termination \\
 \section{Packages}
 % ============================================
 
-The monorepo contains 5 packages:
+The monorepo contains 6 packages:
 
 \begin{table}[h]
 \centering
@@ -138,6 +138,7 @@ The monorepo contains 5 packages:
 \textbf{Package} & \textbf{Description} \\
 \midrule
 \texttt{@musclemap/client} & Shared client-side business logic for MuscleMap \\
+\texttt{@musclemap/contracts} & Shared GraphQL schema and types for MuscleMap \\
 \texttt{@musclemap/core} & Shared domain types and utilities for MuscleMap \\
 \texttt{@musclemap/plugin-sdk} & SDK for building MuscleMap plugins \\
 \texttt{@musclemap/shared} & Shared utilities and constants for MuscleMap apps \\
@@ -151,7 +152,7 @@ The monorepo contains 5 packages:
 \section{Frontend Pages}
 % ============================================
 
-The application contains 50 pages:
+The application contains 58 pages:
 
 \begin{longtable}{@{}lcc@{}}
 \toprule
@@ -159,13 +160,16 @@ The application contains 50 pages:
 \midrule
 \endhead
 Achievements & No & Achievements page \\
+AchievementVerification & No & AchievementVerification page \\
 AdminControl & No & AdminControl page \\
 AdminFraud & No & AdminFraud page \\
 AdminIssues & Yes & Admin Issues Page  Admin dashboard for m \\
 AdminMonitoring & Yes & Admin Monitoring Dashboard  Comprehensiv \\
 Buddy & No & Buddy page \\
+CommunityBulletinBoard & No & Community Bulletin Board  A central hub  \\
 CommunityDashboard & Yes & CommunityDashboard Page  Comprehensive c \\
 Competitions & No & Competitions page \\
+ContributeIdeas & No & Contribute Ideas Page  A page showcasing \\
 Credits & No & Credits page \\
 Crews & Yes & Crews Page  Crew management and Crew War \\
 Dashboard & Yes & Dashboard - MuscleMap Liquid Glass Desig \\
@@ -180,7 +184,7 @@ Health & Yes & Health Page  Wearables integration and h \\
 HighFives & No & HighFives page \\
 IssueDetail & Yes & Issue Detail Page  Single issue view wit \\
 Issues & Yes & Issues Page  Bug and issue tracker with: \\
-Journey & Yes & Journey page \\
+Journey & No & Journey page \\
 Landing & No & Landing page \\
 Leaderboard & No & Leaderboard page \\
 Limitations & Yes & Limitations Page - MuscleMap Liquid Glas \\
@@ -189,10 +193,14 @@ Login & Yes & Login page \\
 MartialArts & No & MartialArts page \\
 Messages & No & Messages page \\
 MyIssues & Yes & My Issues Page  User's submitted issues: \\
-NewIssue & Yes & New Issue Page  Create a new bug report, \\
+MyVerifications & No & MyVerifications page \\
+NewIssue & No & New Issue Page  Create a new bug report, \\
 Onboarding & Yes & Onboarding page \\
+PluginGuide & No & Plugin Development Guide  A visual, step \\
+PluginMarketplace & No & PluginMarketplace - Browse and install c \\
+PluginSettings & No & PluginSettings - Manage installed plugin \\
 Privacy & No & Privacy Policy Page  Required for App St \\
-Profile & Yes & Profile page \\
+Profile & No & Profile page \\
 Progression & No & Progression page \\
 PTTests & Yes & PT Tests Page - MuscleMap Liquid Glass D \\
 Rivals & Yes & Rivals Page  1v1 rivalry competition sys \\
@@ -207,6 +215,7 @@ Store & No & Store page \\
 Technology & No & Technology Stack Page  Showcases MuscleM \\
 TrainerDashboard & No & TrainerDashboard page \\
 Wallet & No & Wallet page \\
+WitnessAttestation & No & WitnessAttestation page \\
 Workout & No & Workout page \\
 \bottomrule
 \caption{Frontend Pages}
@@ -216,7 +225,7 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 447 endpoints:
+The API exposes 467 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
@@ -224,9 +233,12 @@ The API exposes 447 endpoints:
 \midrule
 \endhead
 \texttt{GET} & \texttt{/\_\_routes} & misc \\
+\texttt{GET} & \texttt{/achievements/:id/can-verify} & verifications \\
+\texttt{POST} & \texttt{/achievements/:id/verify} & verifications \\
 \texttt{GET} & \texttt{/achievements/categories} & achievements \\
 \texttt{GET} & \texttt{/achievements/definitions} & achievements \\
 \texttt{GET} & \texttt{/achievements/definitions/:key} & achievements \\
+\texttt{GET} & \texttt{/achievements/verification-required} & verifications \\
 \texttt{POST} & \texttt{/admin/abuse-check/:userId} & credits \\
 \texttt{POST} & \texttt{/admin/credits/adjust} & credits \\
 \texttt{GET} & \texttt{/admin/credits/audit} & credits \\
@@ -250,9 +262,6 @@ The API exposes 447 endpoints:
 \texttt{PUT} & \texttt{/admin/rate-limits/:action} & credits \\
 \texttt{POST} & \texttt{/admin/store/grant} & credits \\
 \texttt{POST} & \texttt{/admin/store/revoke} & credits \\
-\texttt{PUT} & \texttt{/admin/trainers/:userId/status} & trainers \\
-\texttt{GET} & \texttt{/admin/trust/:userId} & credits \\
-\texttt{POST} & \texttt{/admin/trust/:userId/override} & credits \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}
@@ -311,8 +320,8 @@ pnpm build           # Frontend (Vite)
 \texttt{publish-app.sh} & \# MuscleMap App Publishing Script \\
 \texttt{repo-cleanup.sh} & If caller sets DRY\_RUN/APPLY explicitly, we do not \\
 \texttt{reset-devbox.sh} & ---- toggles (set by menu) ---- \\
+\texttt{split-repos.sh} & ================================================== \\
 \texttt{test.sh} & Create a competition to get an ID (avoid hardcoded \\
-\texttt{tidy-root-js.sh} & Collect file basenames referenced by systemd units \\
 \bottomrule
 \end{tabular}
 \caption{Available Scripts}

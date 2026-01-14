@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Auto-generated on 2026-01-10
+> Auto-generated on 2026-01-14
 
 ## Overview
 
@@ -24,6 +24,9 @@ musclemap.me/
 ├── apps/
 │   ├── api/
 │   └── mobile/
+├── config/
+│   ├── roadmap-overrides.yaml
+│   └── route-atlas-overrides.yaml
 ├── data/
 │   ├── reference/
 │   ├── musclemap.db
@@ -49,17 +52,23 @@ musclemap.me/
 │   ├── ICONS.md
 │   ├── IMPLEMENTATION_PLAN_REMAINING.md
 │   ├── IMPLEMENTATION_PLANS.md
+│   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
 │   ├── NATIVE_EXTENSIONS.md
+│   ├── PLUGIN-DEVELOPMENT.md
 │   ├── PLUGINS.md
 │   ├── PRIVACY_POLICY.md
+│   ├── RANKING_LEADERBOARD_SYSTEM_PLAN.md
 │   ├── REFACTOR_PLAN.md
+│   ├── SCALING-ARCHITECTURE-PLAN.md
 │   ├── SECURITY.md
-│   ├── texput.log
+│   ├── SPA-UX-IMPROVEMENTS-PLAN.md
+│   ├── STATE-MANAGEMENT.md
 │   ├── TOUCHSCREEN_UX_AUDIT.md
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
 │   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
-│   └── USER_GUIDE.md
+│   ├── USER_GUIDE.md
+│   └── VISUAL_ARCHITECTURE_MAPS.md
 ├── e2e/
 │   └── login.spec.ts
 ├── markdown/
@@ -78,38 +87,44 @@ musclemap.me/
 │   └── tsconfig.json
 ├── packages/
 │   ├── client/
+│   ├── contracts/
 │   ├── core/
 │   ├── plugin-sdk/
 │   ├── shared/
 │   └── ui/
 ├── plugins/
 │   ├── admin-tools/
+│   ├── examples/
 │   └── leaderboard/
 ├── public/
+│   ├── atlases/
 │   ├── docs/
 │   ├── docs-files/
+│   ├── illustrations/
 │   ├── mascot/
 │   ├── founding.html
 │   ├── index.html
-│   ├── landing-decal-1024w.png
-│   ├── landing-decal-1024w.webp
-│   ├── landing-decal-1600w.png
-│   ├── landing-decal-1600w.webp
-│   ├── landing-decal-2400w.png
-│   ├── landing-decal-2400w.webp
-│   ├── landing-decal-640w.png
-│   ├── landing-decal-640w.webp
+│   ├── logo-180.png
+│   ├── logo-32.png
+│   ├── logo-80.png
+│   ├── logo-80.webp
+│   ├── logo-optimized.png
+│   ├── logo-original.png
 │   ├── logo.png
 │   ├── logo.svg
+│   ├── logo.webp
 │   ├── manifest.json
 │   ├── MuscleMap-Landing-Page-Decal.svg
-│   └── privacy-policy.md
+│   ├── offline.html
+│   ├── privacy-policy.md
+│   ├── robots.txt
+│   ├── sitemap.xml
+│   └── sw.js
 ├── script-runs/
-│   ├── cleanup-archive-20251230_053335/
-│   └── cleanup-archive-20251230_135318/
 ├── scripts/
 │   ├── lib/
 │   ├── utils/
+│   ├── backfill-ranks.ts
 │   ├── deploy-branch.sh
 │   ├── deploy.sh
 │   ├── errors.sh
@@ -124,14 +139,20 @@ musclemap.me/
 │   ├── README.md
 │   ├── repo-cleanup.sh
 │   ├── reset-devbox.sh
+│   ├── split-repos.sh
 │   ├── test.sh
 │   └── tidy-root-js.sh
 ├── src/
 │   ├── components/
+│   ├── config/
 │   ├── contexts/
+│   ├── fixtures/
 │   ├── graphql/
 │   ├── hooks/
+│   ├── lib/
+│   ├── mocks/
 │   ├── pages/
+│   ├── plugins/
 │   ├── store/
 │   ├── styles/
 │   ├── tests/
@@ -148,9 +169,11 @@ musclemap.me/
 ├── index.html
 ├── JOURNEY_OVERHAUL_PLAN.md
 ├── LICENSE
+├── lighthouserc.json
 ├── musclemap_exercises.json
 ├── new-path-exercises.json
 ├── package.json
+├── PLAN.md
 ├── playwright.config.ts
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
@@ -166,23 +189,27 @@ musclemap.me/
 | Package | Description |
 |---------|-------------|
 | `@musclemap/client` | Shared client-side business logic for MuscleMap |
+| `@musclemap/contracts` | Shared GraphQL schema and types for MuscleMap |
 | `@musclemap/core` | Shared domain types and utilities for MuscleMap |
 | `@musclemap/plugin-sdk` | SDK for building MuscleMap plugins |
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (50 total)
+## Frontend Pages (58 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
 | Achievements | No | Achievements page |
+| AchievementVerification | No | AchievementVerification page |
 | AdminControl | No | AdminControl page |
 | AdminFraud | No | AdminFraud page |
 | AdminIssues | Yes | Admin Issues Page  Admin dashboard for managing issues: - View all issues (including private) - Change status, priority, assignee - Bulk actions - Create dev updates - Manage roadmap / |
 | AdminMonitoring | Yes | Admin Monitoring Dashboard  Comprehensive system monitoring with: - Live API test runner - User journey viewer - Error tracking - System health metrics / |
 | Buddy | No | Buddy page |
+| CommunityBulletinBoard | No | Community Bulletin Board  A central hub for community contributions, plugin showcases, code snippets, ideas, and collaboration |
 | CommunityDashboard | Yes | CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings / |
 | Competitions | No | Competitions page |
+| ContributeIdeas | No | Contribute Ideas Page  A page showcasing ways to contribute to MuscleMap, with project improvement ideas and suggestions |
 | Credits | No | Credits page |
 | Crews | Yes | Crews Page  Crew management and Crew Wars tournament system for web |
 | Dashboard | Yes | Dashboard - MuscleMap Liquid Glass Design  A comprehensive, modern dashboard using the liquid glass design system inspired by visionOS and iOS 18 spatial computing aesthetics |
@@ -197,7 +224,7 @@ musclemap.me/
 | HighFives | No | HighFives page |
 | IssueDetail | Yes | Issue Detail Page  Single issue view with: - Full issue details - Comments thread - Voting and subscription - Status history / |
 | Issues | Yes | Issues Page  Bug and issue tracker with: - Issue listing with filters - Search functionality - Voting system - Status badges / |
-| Journey | Yes | Journey page |
+| Journey | No | Journey page |
 | Landing | No | Landing page |
 | Leaderboard | No | Leaderboard page |
 | Limitations | Yes | Limitations Page - MuscleMap Liquid Glass Design  Manage physical limitations, disabilities, and exercise modifications |
@@ -206,10 +233,14 @@ musclemap.me/
 | MartialArts | No | MartialArts page |
 | Messages | No | Messages page |
 | MyIssues | Yes | My Issues Page  User's submitted issues: - View status of reported issues - Track responses / |
-| NewIssue | Yes | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
+| MyVerifications | No | MyVerifications page |
+| NewIssue | No | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
 | Onboarding | Yes | Onboarding page |
+| PluginGuide | No | Plugin Development Guide  A visual, step-by-step guide for creating MuscleMap plugins with interactive diagrams and code examples |
+| PluginMarketplace | No | PluginMarketplace - Browse and install community plugins  Features: - Browse available plugins - Search and filter - Install/uninstall plugins - View plugin details / |
+| PluginSettings | No | PluginSettings - Manage installed plugins  Features: - View installed plugins - Enable/disable plugins - Configure plugin settings - Uninstall plugins - View plugin permissions / |
 | Privacy | No | Privacy Policy Page  Required for App Store submission |
-| Profile | Yes | Profile page |
+| Profile | No | Profile page |
 | Progression | No | Progression page |
 | PTTests | Yes | PT Tests Page - MuscleMap Liquid Glass Design  Physical fitness tests for military, first responders, and occupational training |
 | Rivals | Yes | Rivals Page  1v1 rivalry competition system for web |
@@ -224,17 +255,41 @@ musclemap.me/
 | Technology | No | Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics |
 | TrainerDashboard | No | TrainerDashboard page |
 | Wallet | No | Wallet page |
+| WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (41 total)
+## Components (84 total)
 
 Components are organized by feature:
+
+### AdaptiveImage.jsx
+- `AdaptiveImage`
 
 ### ErrorBoundary.jsx
 - `ErrorBoundary`
 
+### PrefetchLink.jsx
+- `PrefetchLink`
+
+### SEO.jsx
+- `SEO`
+
 ### Toast
 - `ToastProvider`
+
+### atlas
+- `AtlasCanvas`
+- `AtlasControls`
+- `AtlasLegend`
+- `AtlasSearch`
+- `AtlasTooltip`
+- `RouteNode`
+- `AtlasProvider`
+- `ArchitectureAtlas`
+- `DashboardAtlas`
+- `DocsAtlas`
+- `RoadmapAtlas`
+- `RouteAtlas`
 
 ### community
 - `ActivityFeed`
@@ -242,6 +297,25 @@ Components are organized by feature:
 - `MonitorPanel`
 - `PrivacySettings`
 - `StatsDashboard`
+
+### d3
+- `D3Container`
+- `BarChartD3`
+- `ForceGraph`
+- `MuscleMapD3`
+- `ParticleField`
+- `PieChartD3`
+- `RadarChartD3`
+- `RouteAtlasD3`
+- `WorldMapD3`
+
+### feedback
+- `BugReportForm`
+- `FeatureSuggestionForm`
+- `FeedbackCenter`
+- `GitHubStatsWidget`
+- `OpenSourceBanner`
+- `OpenSourceHero`
 
 ### glass
 - `ActionCard`
@@ -257,6 +331,11 @@ Components are organized by feature:
 - `Avatar`
 - `FitnessIcons`
 - `Icon`
+
+### illustrations
+- `BodyMuscleMap`
+- `ExerciseIllustration`
+- `MuscleDetailPopover`
 
 ### inputs
 - `Stepper`
@@ -282,6 +361,20 @@ Components are organized by feature:
 - `MessageThread`
 - `NewConversation`
 
+### ranks
+- `RankBadge`
+- `VeteranBadge`
+
+### skeletons
+- `AtlasSkeleton`
+- `CardSkeleton`
+- `ChartSkeleton`
+- `JourneySkeleton`
+- `ListSkeleton`
+- `ProfileSkeleton`
+- `TableSkeleton`
+- `WorkoutSkeleton`
+
 ### tips
 - `DailyTip`
 - `ExerciseTip`
@@ -293,14 +386,17 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (447 total)
+## API Endpoints (467 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | `/__routes` | misc |
+| GET | `/achievements/:id/can-verify` | verifications |
+| POST | `/achievements/:id/verify` | verifications |
 | GET | `/achievements/categories` | achievements |
 | GET | `/achievements/definitions` | achievements |
 | GET | `/achievements/definitions/:key` | achievements |
+| GET | `/achievements/verification-required` | verifications |
 | POST | `/admin/abuse-check/:userId` | credits |
 | POST | `/admin/credits/adjust` | credits |
 | GET | `/admin/credits/audit` | credits |
@@ -459,6 +555,7 @@ Components are organized by feature:
 | GET | `/escrow/:escrowId` | credits |
 | GET | `/exercises` | misc |
 | GET | `/exercises/:id/activations` | misc |
+| GET | `/exercises/:id/illustration` | misc |
 | GET | `/exercises/:id/metrics` | leaderboards |
 | GET | `/friend-requests` | social |
 | GET | `/friends` | social |
@@ -499,6 +596,7 @@ Components are organized by feature:
 | GET | `/identities/categories` | identities |
 | GET | `/identities/me` | identities |
 | GET | `/identities/suggested-communities` | identities |
+| GET | `/illustrations/bodies` | misc |
 | GET | `/issues` | issues |
 | POST | `/issues` | issues |
 | GET | `/issues/:id` | issues |
@@ -576,6 +674,8 @@ Components are organized by feature:
 | POST | `/me/leaderboard-opt-in` | cohort-preferences |
 | POST | `/me/leaderboard-opt-out` | cohort-preferences |
 | GET | `/me/rank` | leaderboards |
+| GET | `/me/verifications` | verifications |
+| GET | `/me/witness-requests` | verifications |
 | PUT | `/mentor/profile` | mentorship |
 | GET | `/mentors` | mentorship |
 | GET | `/mentorship/requests` | mentorship |
@@ -614,6 +714,7 @@ Components are organized by feature:
 | GET | `/monitoring/tests/history` | monitoring |
 | POST | `/monitoring/tests/run` | monitoring |
 | GET | `/muscles` | misc |
+| GET | `/muscles/:id` | misc |
 | POST | `/onboarding/back` | onboarding |
 | POST | `/onboarding/complete` | onboarding |
 | POST | `/onboarding/home-equipment` | onboarding |
@@ -653,6 +754,14 @@ Components are organized by feature:
 | POST | `/pt-tests/results` | pt-tests |
 | GET | `/pt-tests/results` | pt-tests |
 | GET | `/pt-tests/results/:id` | pt-tests |
+| GET | `/ranks/definitions` | ranks |
+| GET | `/ranks/history` | ranks |
+| GET | `/ranks/leaderboard` | ranks |
+| GET | `/ranks/me` | ranks |
+| POST | `/ranks/refresh` | ranks |
+| POST | `/ranks/update-veterans` | ranks |
+| GET | `/ranks/user/:userId` | ranks |
+| GET | `/ranks/veteran-badge` | ranks |
 | GET | `/reports` | content-reports |
 | GET | `/reports/my` | content-reports |
 | GET | `/reports/stats` | content-reports |
@@ -718,6 +827,10 @@ Components are organized by feature:
 | GET | `/users/:id/achievements/summary` | achievements |
 | GET | `/users/:id/rank` | leaderboards |
 | POST | `/v1/prescription/generate` | prescription |
+| POST | `/verifications` | verifications |
+| GET | `/verifications/:id` | verifications |
+| DELETE | `/verifications/:id` | verifications |
+| POST | `/verifications/:id/witness` | verifications |
 | GET | `/virtual-hangouts` | virtual-hangouts |
 | GET | `/virtual-hangouts/:id` | virtual-hangouts |
 | GET | `/virtual-hangouts/:id/activity` | virtual-hangouts |
@@ -762,6 +875,7 @@ Components are organized by feature:
 | `publish-app.sh` | # MuscleMap App Publishing Script |
 | `repo-cleanup.sh` | If caller sets DRY_RUN/APPLY explicitly, we do not prompt. |
 | `reset-devbox.sh` | ---- toggles (set by menu) ---- |
+| `split-repos.sh` | ============================================================================= |
 | `test.sh` | Create a competition to get an ID (avoid hardcoded /1) |
 | `tidy-root-js.sh` | Collect file basenames referenced by systemd units + pm2 dump |
 

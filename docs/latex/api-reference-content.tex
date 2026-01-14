@@ -60,13 +60,16 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/entitlements} \\
 \texttt{GET} & \texttt{/exercises} \\
 \texttt{GET} & \texttt{/exercises/:id/activations} \\
+\texttt{GET} & \texttt{/exercises/:id/illustration} \\
 \texttt{POST} & \texttt{/highfives/send} \\
 \texttt{GET} & \texttt{/highfives/stats} \\
 \texttt{GET} & \texttt{/highfives/users} \\
 \texttt{GET} & \texttt{/i18n/languages} \\
+\texttt{GET} & \texttt{/illustrations/bodies} \\
 \texttt{GET} & \texttt{/locations/nearby} \\
 \texttt{GET} & \texttt{/me/entitlements} \\
 \texttt{GET} & \texttt{/muscles} \\
+\texttt{GET} & \texttt{/muscles/:id} \\
 \texttt{GET} & \texttt{/progress/stats} \\
 \texttt{GET} & \texttt{/progression/achievements} \\
 \texttt{GET} & \texttt{/progression/leaderboard} \\
@@ -75,6 +78,28 @@ Authorization: Bearer <token>
 \texttt{PATCH} & \texttt{/settings} \\
 \texttt{GET} & \texttt{/settings/themes} \\
 \texttt{POST} & \texttt{/trace/frontend-log} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Verifications}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/achievements/:id/can-verify} \\
+\texttt{POST} & \texttt{/achievements/:id/verify} \\
+\texttt{GET} & \texttt{/achievements/verification-required} \\
+\texttt{GET} & \texttt{/me/verifications} \\
+\texttt{GET} & \texttt{/me/witness-requests} \\
+\texttt{POST} & \texttt{/verifications} \\
+\texttt{GET} & \texttt{/verifications/:id} \\
+\texttt{DELETE} & \texttt{/verifications/:id} \\
+\texttt{POST} & \texttt{/verifications/:id/witness} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -912,6 +937,27 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/privacy/disable-minimalist} \\
 \texttt{POST} & \texttt{/privacy/enable-minimalist} \\
 \texttt{GET} & \texttt{/privacy/summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Ranks}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/ranks/definitions} \\
+\texttt{GET} & \texttt{/ranks/history} \\
+\texttt{GET} & \texttt{/ranks/leaderboard} \\
+\texttt{GET} & \texttt{/ranks/me} \\
+\texttt{POST} & \texttt{/ranks/refresh} \\
+\texttt{POST} & \texttt{/ranks/update-veterans} \\
+\texttt{GET} & \texttt{/ranks/user/:userId} \\
+\texttt{GET} & \texttt{/ranks/veteran-badge} \\
 \bottomrule
 \end{tabular}
 \end{table}
