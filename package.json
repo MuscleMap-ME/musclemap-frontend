@@ -24,6 +24,8 @@
     "test:frontend": "vitest run",
     "test:frontend:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:api": "npx tsx scripts/e2e-user-journey.ts",
+    "test:e2e:api:prod": "npx tsx scripts/e2e-user-journey.ts --production",
     "test:api": "pnpm -C apps/api test",
     "test:coverage": "pnpm test:frontend:coverage && pnpm -C apps/api test:coverage",
     "deploy": "sh ./scripts/deploy-branch.sh",

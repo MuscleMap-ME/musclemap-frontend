@@ -160,14 +160,14 @@ export const resolvers = {
         email: string;
         username: string;
         display_name: string | null;
-        avatar: string | null;
+        avatar_url: string | null;
         archetype_id: string | null;
         level: number;
         xp: number;
         roles: string[];
         created_at: Date;
       }>(
-        `SELECT id, email, username, display_name, avatar, archetype_id,
+        `SELECT id, email, username, display_name, avatar_url, archetype_id,
                 COALESCE(level, 1) as level, COALESCE(xp, 0) as xp, roles, created_at
          FROM users WHERE id = $1`,
         [userId]
@@ -178,7 +178,7 @@ export const resolvers = {
         email: user.email,
         username: user.username,
         displayName: user.display_name,
-        avatar: user.avatar,
+        avatar: user.avatar_url,
         level: user.level,
         xp: user.xp,
         roles: user.roles || ['user'],
@@ -391,7 +391,7 @@ export const resolvers = {
     // Archetypes
     archetypes: async () => {
       const archetypes = await queryAll(
-        `SELECT id, name, description, philosophy, icon, color, primary_stats, bonuses
+        `SELECT id, name, description, philosophy, icon_url, color, primary_stats, bonuses
          FROM archetypes ORDER BY name`
       );
       return archetypes.map((a: any) => ({
@@ -399,7 +399,7 @@ export const resolvers = {
         name: a.name,
         description: a.description,
         philosophy: a.philosophy,
-        icon: a.icon,
+        icon: a.icon_url,
         color: a.color,
         primaryStats: a.primary_stats || [],
         bonuses: a.bonuses,
@@ -485,7 +485,7 @@ export const resolvers = {
 
     leaderboards: async (_: unknown, args: { type?: string }) => {
       const leaderboard = await queryAll(
-        `SELECT u.id, u.username, u.avatar, cs.level, cs.xp, cs.strength
+        `SELECT u.id, u.username, u.avatar_url, cs.level, cs.xp, cs.strength
          FROM character_stats cs
          JOIN users u ON cs.user_id = u.id
          ORDER BY cs.xp DESC
@@ -495,7 +495,7 @@ export const resolvers = {
         rank: index + 1,
         userId: entry.id,
         username: entry.username,
-        avatar: entry.avatar,
+        avatar: entry.avatar_url,
         level: entry.level,
         xp: entry.xp,
         stat: 'xp',

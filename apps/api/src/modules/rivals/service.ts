@@ -56,10 +56,10 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
   const opponent = await queryOne<{
     id: string;
     username: string | null;
-    avatar: string | null;
+    avatar_url: string | null;
     archetype: string | null;
   }>(
-    `SELECT id, username, avatar, archetype FROM users WHERE id = $1`,
+    `SELECT id, username, avatar_url, archetype FROM users WHERE id = $1`,
     [opponentId]
   );
 
@@ -77,7 +77,7 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
     opponent: {
       id: opponent?.id || opponentId,
       username: opponent?.username || 'Unknown',
-      avatar: opponent?.avatar ?? undefined,
+      avatar: opponent?.avatar_url ?? undefined,
       archetype: opponent?.archetype ?? undefined,
       level: levelData?.current_level || 1,
     },
@@ -391,10 +391,10 @@ export const rivalsService = {
     const rows = await queryAll<{
       id: string;
       username: string;
-      avatar: string | null;
+      avatar_url: string | null;
       archetype: string | null;
     }>(
-      `SELECT u.id, u.username, u.avatar, u.archetype
+      `SELECT u.id, u.username, u.avatar_url, u.archetype
        FROM users u
        WHERE u.id != $1
          AND u.username ILIKE $2
@@ -412,7 +412,7 @@ export const rivalsService = {
     return rows.map((r) => ({
       id: r.id,
       username: r.username,
-      avatar: r.avatar ?? undefined,
+      avatar: r.avatar_url ?? undefined,
       archetype: r.archetype ?? undefined,
     }));
   },

@@ -132,10 +132,10 @@ export async function getUserCrew(userId: string): Promise<{ crew: Crew; members
     weekly_tu: number;
     total_tu: number;
     username: string | null;
-    avatar: string | null;
+    avatar_url: string | null;
     archetype: string | null;
   }>(
-    `SELECT cm.*, u.username, u.avatar, u.archetype
+    `SELECT cm.*, u.username, u.avatar_url, u.archetype
      FROM crew_members cm
      LEFT JOIN users u ON u.id = cm.user_id
      WHERE cm.user_id = $1`,
@@ -158,7 +158,7 @@ export async function getUserCrew(userId: string): Promise<{ crew: Crew; members
       weeklyTU: membership.weekly_tu,
       totalTU: membership.total_tu,
       username: membership.username ?? undefined,
-      avatar: membership.avatar ?? undefined,
+      avatar: membership.avatar_url ?? undefined,
       archetype: membership.archetype ?? undefined,
     },
   };
@@ -177,10 +177,10 @@ export async function getCrewMembers(crewId: string): Promise<CrewMember[]> {
     weekly_tu: number;
     total_tu: number;
     username: string | null;
-    avatar: string | null;
+    avatar_url: string | null;
     archetype: string | null;
   }>(
-    `SELECT cm.*, u.username, u.avatar, u.archetype
+    `SELECT cm.*, u.username, u.avatar_url, u.archetype
      FROM crew_members cm
      LEFT JOIN users u ON u.id = cm.user_id
      WHERE cm.crew_id = $1
@@ -197,7 +197,7 @@ export async function getCrewMembers(crewId: string): Promise<CrewMember[]> {
     weeklyTU: row.weekly_tu,
     totalTU: row.total_tu,
     username: row.username ?? undefined,
-    avatar: row.avatar ?? undefined,
+    avatar: row.avatar_url ?? undefined,
     archetype: row.archetype ?? undefined,
   }));
 }
@@ -284,8 +284,8 @@ export async function acceptInvite(inviteId: string, userId: string): Promise<Cr
   await execute('UPDATE crew_invites SET status = $1 WHERE id = $2', ['accepted', inviteId]);
   await execute('UPDATE crews SET member_count = member_count + 1 WHERE id = $1', [invite.crew_id]);
 
-  const user = await queryOne<{ username: string | null; avatar: string | null; archetype: string | null }>(
-    'SELECT username, avatar, archetype FROM users WHERE id = $1',
+  const user = await queryOne<{ username: string | null; avatar_url: string | null; archetype: string | null }>(
+    'SELECT username, avatar_url, archetype FROM users WHERE id = $1',
     [userId]
   );
 
@@ -298,7 +298,7 @@ export async function acceptInvite(inviteId: string, userId: string): Promise<Cr
     weeklyTU: 0,
     totalTU: 0,
     username: user?.username ?? undefined,
-    avatar: user?.avatar ?? undefined,
+    avatar: user?.avatar_url ?? undefined,
     archetype: user?.archetype ?? undefined,
   };
 }
