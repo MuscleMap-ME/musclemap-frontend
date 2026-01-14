@@ -17,7 +17,9 @@ interface JwtPayload {
   exp: number;
 }
 
+// Module augmentation requires namespace syntax
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: {

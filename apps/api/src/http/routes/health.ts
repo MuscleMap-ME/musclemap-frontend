@@ -99,14 +99,11 @@ function getUptime(): number {
   return Math.floor((Date.now() - startTime) / 1000);
 }
 
+// API package version - hardcoded to avoid require() which isn't allowed in ES modules
+const API_VERSION = '2.0.0';
+
 function getVersion(): string {
-  try {
-    // Try to read from package.json
-    const pkg = require('../../../../../package.json');
-    return pkg.version || '0.0.0';
-  } catch {
-    return process.env.npm_package_version || '0.0.0';
-  }
+  return process.env.npm_package_version || API_VERSION;
 }
 
 function getInstanceId(): string {

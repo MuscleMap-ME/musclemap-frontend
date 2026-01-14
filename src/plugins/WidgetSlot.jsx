@@ -230,42 +230,49 @@ export function withWidgetSlot(slot, options = {}) {
 }
 
 /**
+ * Individual slot debug item component - allows hooks to be called properly
+ */
+function SlotDebugItem({ name, config }) {
+  const widgets = useWidgetsForSlot(name);
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-2">
+        <span className="text-blue-400">{name}</span>
+        <span className="text-white/40">
+          ({widgets.length} widget{widgets.length !== 1 ? 's' : ''})
+        </span>
+        {!config.multiple && (
+          <span className="text-yellow-400 text-xs">[single]</span>
+        )}
+      </div>
+      <div className="text-white/50 text-xs ml-4">
+        {config.description}
+      </div>
+      {widgets.length > 0 && (
+        <ul className="ml-4 mt-1 text-xs text-white/60">
+          {widgets.map((w) => (
+            <li key={w.id}>
+              • {w.id} <span className="text-white/40">({w.pluginId})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
  * Debug component to show all slots and their widgets
  */
 export function WidgetSlotDebug() {
   return (
     <div className="p-4 bg-black/50 rounded-xl text-sm font-mono">
       <h3 className="text-white font-bold mb-4">Widget Slots</h3>
-      {Object.entries(WIDGET_SLOTS).map(([name, config]) => {
-        const widgets = useWidgetsForSlot(name)
-        return (
-          <div key={name} className="mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-blue-400">{name}</span>
-              <span className="text-white/40">
-                ({widgets.length} widget{widgets.length !== 1 ? 's' : ''})
-              </span>
-              {!config.multiple && (
-                <span className="text-yellow-400 text-xs">[single]</span>
-              )}
-            </div>
-            <div className="text-white/50 text-xs ml-4">
-              {config.description}
-            </div>
-            {widgets.length > 0 && (
-              <ul className="ml-4 mt-1 text-xs text-white/60">
-                {widgets.map((w) => (
-                  <li key={w.id}>
-                    • {w.id} <span className="text-white/40">({w.pluginId})</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )
-      })}
+      {Object.entries(WIDGET_SLOTS).map(([name, config]) => (
+        <SlotDebugItem key={name} name={name} config={config} />
+      ))}
     </div>
-  )
+  );
 }
 
 export default WidgetSlot

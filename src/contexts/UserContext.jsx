@@ -42,10 +42,11 @@ export function UserProvider({ children }) {
  */
 export function useUser() {
   const context = useContext(UserContext);
+  // Always call useAuth to satisfy hooks rules (must be called unconditionally)
+  const auth = useAuth();
 
   // If used outside provider, fall back to Zustand store directly
   if (!context) {
-    const auth = useAuth();
     return {
       user: auth.user,
       setUser: auth.updateUser,
