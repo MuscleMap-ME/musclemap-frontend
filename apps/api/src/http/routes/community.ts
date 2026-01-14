@@ -5,7 +5,7 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { authenticate, optionalAuth } from './auth';
+import { authenticate, optionalAuth, verifyToken } from './auth';
 import { queryAll, queryOne, query } from '../../db/client';
 import { getRedis, isRedisAvailable, REDIS_KEYS, TTL } from '../../lib/redis';
 import { loggers } from '../../lib/logger';
@@ -693,9 +693,8 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
       return;
     }
 
-    // Verify token (simplified - in production use proper auth)
+    // Verify token
     try {
-      const { verifyToken } = require('./auth');
       const user = verifyToken(token);
 
       log.info({ userId: user.userId }, 'WebSocket connected');

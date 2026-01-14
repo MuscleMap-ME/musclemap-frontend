@@ -112,10 +112,25 @@ export default function CommunityDashboard() {
     connected,
     snapshot,
     events: wsEvents,
+    error: wsError,
   } = useWebSocket('/ws/community', {
     autoConnect: true,
     token,
   });
+
+  // Track if we've waited long enough for WebSocket initial connection
+  const [wsInitialized, setWsInitialized] = useState(false);
+
+  // Set wsInitialized after a short timeout or when we get data
+  useEffect(() => {
+    if (connected || snapshot || wsEvents.length > 0 || wsError) {
+      setWsInitialized(true);
+      return;
+    }
+    // Fallback timeout - don't wait forever for WebSocket
+    const timeout = setTimeout(() => setWsInitialized(true), 3000);
+    return () => clearTimeout(timeout);
+  }, [connected, snapshot, wsEvents, wsError]);
 
   // Stats hook for dashboard data
   const {
@@ -253,7 +268,7 @@ export default function CommunityDashboard() {
           {activeTab === 'feed' && (
             <ActivityFeed
               events={allEvents}
-              loading={!snapshot && wsEvents.length === 0}
+              loading={!wsInitialized && !snapshot && wsEvents.length === 0}
               connected={connected}
             />
           )}

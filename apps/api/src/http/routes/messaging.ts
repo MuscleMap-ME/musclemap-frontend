@@ -7,7 +7,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { authenticate } from './auth';
+import { authenticate, verifyToken } from './auth';
 import { queryAll, queryOne, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 
@@ -393,7 +393,6 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
     }
 
     try {
-      const { verifyToken } = require('./auth');
       const user = verifyToken(token);
 
       log.info({ userId: user.userId }, 'Messaging WebSocket connected');
