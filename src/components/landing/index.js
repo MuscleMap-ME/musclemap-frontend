@@ -9,7 +9,7 @@
 export { default as LiveCommunityStats } from './LiveCommunityStats';
 
 // Muscle hero animation
-export { default as MuscleHeroAnimation, SIZE_PRESETS, STYLE_PRESETS } from './MuscleHeroAnimation';
+export { default as MuscleHeroAnimation, SIZE_PRESETS, STYLE_PRESETS, SPEED_PRESETS } from './MuscleHeroAnimation';
 
 // Muscle path data utilities
 export {

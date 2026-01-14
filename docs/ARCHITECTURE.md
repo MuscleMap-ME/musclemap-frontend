@@ -293,7 +293,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (143 total)
+## Components (147 total)
 
 Components are organized by feature:
 
@@ -343,6 +343,7 @@ Components are organized by feature:
 - `CareerStandardsList`
 - `EventBreakdown`
 - `ReadinessDashboard`
+- `ReadinessTrendChart`
 
 ### celebrations
 - `Confetti`
@@ -353,6 +354,7 @@ Components are organized by feature:
 ### command
 - `CommandItem`
 - `CommandPalette`
+- `useCommandPalette`
 
 ### community
 - `ActivityFeed`
@@ -403,8 +405,10 @@ Components are organized by feature:
 - `ActionCard`
 - `ButtonEffects`
 - `GlassButton`
+- `GlassMobileNav`
 - `GlassNav`
 - `GlassProgress`
+- `GlassSidebar`
 - `GlassSurface`
 - `MeshBackground`
 - `MuscleActivationCard`
@@ -516,11 +520,12 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (665 total)
+## API Endpoints (675 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | `/__routes` | misc |
+| DELETE | `/:injuryId` | rehabilitation |
 | GET | `/achievements/:id/can-verify` | verifications |
 | POST | `/achievements/:id/verify` | verifications |
 | GET | `/achievements/categories` | achievements |
@@ -563,6 +568,7 @@ Components are organized by feature:
 | GET | `/admin/wallet/:userId` | credits |
 | POST | `/admin/wallet/freeze` | credits |
 | POST | `/admin/wallet/unfreeze` | credits |
+| POST | `/advance-phase/:injuryId` | rehabilitation |
 | GET | `/alternatives/low-impact` | misc |
 | GET | `/alternatives/seated` | misc |
 | GET | `/archetype/suggested-communities` | archetype-communities |
@@ -584,6 +590,7 @@ Components are organized by feature:
 | GET | `/body-measurements/comparison` | body-measurements |
 | GET | `/body-measurements/history/:field` | body-measurements |
 | GET | `/body-measurements/latest` | body-measurements |
+| GET | `/body-regions` | rehabilitation |
 | GET | `/bonus-events/history` | economyEnhanced |
 | GET | `/bonus-events/types` | economyEnhanced |
 | GET | `/buddy` | credits |
@@ -716,6 +723,7 @@ Components are organized by feature:
 | GET | `/exercises/:id/activations` | misc |
 | GET | `/exercises/:id/illustration` | misc |
 | GET | `/exercises/:id/metrics` | leaderboards |
+| GET | `/exercises/:injuryId` | rehabilitation |
 | GET | `/friend-requests` | social |
 | GET | `/friends` | social |
 | GET | `/goals` | goals |
@@ -815,6 +823,7 @@ Components are organized by feature:
 | GET | `/locations/:id/equipment/my-reports` | equipment |
 | GET | `/locations/:id/equipment/verified` | equipment |
 | GET | `/locations/nearby` | misc |
+| POST | `/log` | rehabilitation |
 | GET | `/martial-arts/disciplines` | martial-arts |
 | GET | `/martial-arts/disciplines/:disciplineId` | martial-arts |
 | GET | `/martial-arts/disciplines/:disciplineId/leaderboard` | martial-arts |
@@ -936,6 +945,7 @@ Components are organized by feature:
 | POST | `/monitoring/tests/run` | monitoring |
 | GET | `/muscles` | misc |
 | GET | `/muscles/:id` | misc |
+| GET | `/my-injuries` | rehabilitation |
 | GET | `/notifications` | notifications |
 | DELETE | `/notifications/:id` | notifications |
 | POST | `/notifications/mark-all-read` | notifications |
@@ -1011,6 +1021,8 @@ Components are organized by feature:
 | GET | `/privacy/summary` | privacy |
 | GET | `/profile` | auth |
 | PUT | `/profile` | auth |
+| GET | `/profiles` | rehabilitation |
+| GET | `/profiles/:id` | rehabilitation |
 | GET | `/progress-photos` | progress-photos |
 | POST | `/progress-photos` | progress-photos |
 | GET | `/progress-photos/:id` | progress-photos |
@@ -1019,6 +1031,7 @@ Components are organized by feature:
 | GET | `/progress-photos/compare` | progress-photos |
 | GET | `/progress-photos/stats` | progress-photos |
 | GET | `/progress-photos/timeline` | progress-photos |
+| GET | `/progress/:injuryId` | rehabilitation |
 | GET | `/progress/stats` | misc |
 | GET | `/progression/achievements` | misc |
 | GET | `/progression/leaderboard` | misc |
@@ -1101,6 +1114,7 @@ Components are organized by feature:
 | POST | `/social/tip` | economyEnhanced |
 | GET | `/social/tips/received` | economyEnhanced |
 | GET | `/social/tips/sent` | economyEnhanced |
+| POST | `/start` | rehabilitation |
 | GET | `/stats/history` | stats |
 | GET | `/stats/info` | stats |
 | GET | `/stats/leaderboards` | stats |

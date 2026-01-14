@@ -77,6 +77,15 @@ export {
   useTourStep,
 } from '../components/tour';
 
+// Command palette hooks
+export {
+  useCommandPalette,
+  useCommandPaletteContext,
+  openCommandPalette,
+  closeCommandPalette,
+  toggleCommandPalette,
+} from '../components/command';
+
 // ============================================
 // DATA FETCHING HOOKS
 // ============================================

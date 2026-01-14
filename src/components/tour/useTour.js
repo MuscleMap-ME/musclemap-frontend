@@ -220,6 +220,7 @@ export function useTour() {
     endTour,
     resetTour,
     isTourComplete,
+    hasCompletedTour: isTourComplete, // Alias for API consistency
   };
 }
 

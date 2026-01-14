@@ -1,21 +1,24 @@
 /**
  * useFeatureDiscovery Hook
  *
- * Tracks which features users have visited and which they've dismissed.
- * Integrates with React Router to auto-mark features as used when
+ * Tracks which features users have discovered (tried) and which they've dismissed.
+ * Integrates with React Router to auto-mark features as discovered when
  * the user navigates to them.
  *
- * @example
- * const { unusedFeatures, dismiss, markUsed, getUnusedFeatures } = useFeatureDiscovery();
+ * @example Basic Usage
+ * const {
+ *   undiscoveredFeatures, // features user hasn't tried
+ *   discoveredFeatures,   // features user has tried
+ *   markDiscovered,       // mark a feature as discovered
+ *   dismissFeature,       // hide a feature from suggestions
+ *   resetDiscovery,       // reset all discovery state
+ *   discoveryProgress     // { discovered: 5, total: 15, percent: 33 }
+ * } = useFeatureDiscovery();
  *
- * // Check if user has explored feature
- * const hasTriedCrews = !unusedFeatures.find(f => f.id === 'crews');
- *
- * // Manually mark a feature as used
- * markUsed('crews');
- *
- * // Dismiss a feature (hide forever)
- * dismiss('martial_arts');
+ * @example Auto-tracking on page visit
+ * useEffect(() => {
+ *   markDiscovered('muscle-map');
+ * }, []);
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -23,17 +26,15 @@ import { useLocation } from 'react-router-dom';
 import { DISCOVERABLE_FEATURES, sortByPriority } from './featureDefinitions';
 
 /**
- * localStorage keys for feature tracking
+ * localStorage key for feature tracking
  */
-const STORAGE_KEYS = {
-  USED: 'musclemap_used_features',
-  DISMISSED: 'musclemap_dismissed_features',
-};
+const STORAGE_KEY = 'musclemap_discovered_features';
+const DISMISSED_KEY = 'musclemap_dismissed_features';
 
 /**
- * Get stored array from localStorage
+ * Get stored object from localStorage
  */
-function getStoredArray(key) {
+function getStoredData(key) {
   try {
     const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored) : [];
@@ -43,11 +44,11 @@ function getStoredArray(key) {
 }
 
 /**
- * Save array to localStorage
+ * Save data to localStorage
  */
-function saveStoredArray(key, array) {
+function saveStoredData(key, data) {
   try {
-    localStorage.setItem(key, JSON.stringify(array));
+    localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
     console.warn(`Failed to save to ${key}:`, e);
   }
@@ -56,8 +57,8 @@ function saveStoredArray(key, array) {
 /**
  * useFeatureDiscovery Hook
  *
- * Tracks feature usage and provides methods to manage discovery state.
- * Automatically marks features as used when user navigates to their routes.
+ * Tracks feature discovery state and provides methods to manage it.
+ * Automatically marks features as discovered when user navigates to their routes.
  *
  * @param {Object} options
  * @param {Array} options.features - Custom features array (defaults to DISCOVERABLE_FEATURES)
@@ -65,37 +66,34 @@ function saveStoredArray(key, array) {
  * @returns {Object} Discovery state and methods
  */
 export function useFeatureDiscovery(options = {}) {
-  const {
-    features = DISCOVERABLE_FEATURES,
-    autoTrackRoutes = true,
-  } = options;
+  const { features = DISCOVERABLE_FEATURES, autoTrackRoutes = true } = options;
 
   const location = useLocation();
 
-  // State for used and dismissed features
-  const [usedFeatures, setUsedFeatures] = useState(() => getStoredArray(STORAGE_KEYS.USED));
-  const [dismissedFeatures, setDismissedFeatures] = useState(() => getStoredArray(STORAGE_KEYS.DISMISSED));
+  // State for discovered and dismissed feature IDs
+  const [discoveredIds, setDiscoveredIds] = useState(() => getStoredData(STORAGE_KEY));
+  const [dismissedIds, setDismissedIds] = useState(() => getStoredData(DISMISSED_KEY));
 
   /**
-   * Mark a feature as used (visited)
+   * Mark a feature as discovered (visited/tried)
    */
-  const markUsed = useCallback((featureId) => {
-    setUsedFeatures((prev) => {
+  const markDiscovered = useCallback((featureId) => {
+    setDiscoveredIds((prev) => {
       if (prev.includes(featureId)) return prev;
       const updated = [...prev, featureId];
-      saveStoredArray(STORAGE_KEYS.USED, updated);
+      saveStoredData(STORAGE_KEY, updated);
       return updated;
     });
   }, []);
 
   /**
-   * Dismiss a feature (hide forever)
+   * Dismiss a feature (hide from suggestions forever)
    */
-  const dismiss = useCallback((featureId) => {
-    setDismissedFeatures((prev) => {
+  const dismissFeature = useCallback((featureId) => {
+    setDismissedIds((prev) => {
       if (prev.includes(featureId)) return prev;
       const updated = [...prev, featureId];
-      saveStoredArray(STORAGE_KEYS.DISMISSED, updated);
+      saveStoredData(DISMISSED_KEY, updated);
       return updated;
     });
   }, []);
@@ -103,90 +101,92 @@ export function useFeatureDiscovery(options = {}) {
   /**
    * Undismiss a feature (show again)
    */
-  const undismiss = useCallback((featureId) => {
-    setDismissedFeatures((prev) => {
+  const undismissFeature = useCallback((featureId) => {
+    setDismissedIds((prev) => {
       const updated = prev.filter((id) => id !== featureId);
-      saveStoredArray(STORAGE_KEYS.DISMISSED, updated);
+      saveStoredData(DISMISSED_KEY, updated);
       return updated;
     });
   }, []);
 
   /**
-   * Clear all dismissed features
+   * Reset all discovery state (mark all as undiscovered)
+   */
+  const resetDiscovery = useCallback(() => {
+    setDiscoveredIds([]);
+    setDismissedIds([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(DISMISSED_KEY);
+    } catch (e) {
+      console.warn('Failed to reset feature discovery:', e);
+    }
+  }, []);
+
+  /**
+   * Clear only dismissed features
    */
   const clearDismissed = useCallback(() => {
-    setDismissedFeatures([]);
+    setDismissedIds([]);
     try {
-      localStorage.removeItem(STORAGE_KEYS.DISMISSED);
+      localStorage.removeItem(DISMISSED_KEY);
     } catch (e) {
       console.warn('Failed to clear dismissed features:', e);
     }
   }, []);
 
-  /**
-   * Reset all tracking (mark all as unused)
-   */
-  const resetAll = useCallback(() => {
-    setUsedFeatures([]);
-    setDismissedFeatures([]);
-    try {
-      localStorage.removeItem(STORAGE_KEYS.USED);
-      localStorage.removeItem(STORAGE_KEYS.DISMISSED);
-    } catch (e) {
-      console.warn('Failed to reset feature tracking:', e);
-    }
-  }, []);
+  // Computed: features user has discovered (tried)
+  const discoveredFeatures = useMemo(() => {
+    return features.filter((f) => discoveredIds.includes(f.id));
+  }, [features, discoveredIds]);
+
+  // Computed: features user hasn't tried yet (excluding dismissed)
+  const undiscoveredFeatures = useMemo(() => {
+    const filtered = features.filter(
+      (f) => !discoveredIds.includes(f.id) && !dismissedIds.includes(f.id)
+    );
+    return sortByPriority(filtered);
+  }, [features, discoveredIds, dismissedIds]);
+
+  // Computed: discovery progress
+  const discoveryProgress = useMemo(() => {
+    const total = features.length;
+    const discovered = discoveredIds.filter((id) => features.some((f) => f.id === id)).length;
+    const percent = total > 0 ? Math.round((discovered / total) * 100) : 0;
+    return { discovered, total, percent };
+  }, [features, discoveredIds]);
 
   /**
-   * Get unused features (not used and not dismissed)
+   * Check if a specific feature is discovered
    */
-  const getUnusedFeatures = useCallback(
-    (customFeatures = features) => {
-      const filtered = customFeatures.filter(
-        (f) => !usedFeatures.includes(f.id) && !dismissedFeatures.includes(f.id)
-      );
-      return sortByPriority(filtered);
-    },
-    [features, usedFeatures, dismissedFeatures]
-  );
-
-  /**
-   * Check if there are any unused features
-   */
-  const hasUnusedFeatures = useCallback(
-    (customFeatures = features) => {
-      return getUnusedFeatures(customFeatures).length > 0;
-    },
-    [features, getUnusedFeatures]
-  );
-
-  /**
-   * Check if a specific feature is used
-   */
-  const isFeatureUsed = useCallback(
+  const isDiscovered = useCallback(
     (featureId) => {
-      return usedFeatures.includes(featureId);
+      return discoveredIds.includes(featureId);
     },
-    [usedFeatures]
+    [discoveredIds]
   );
 
   /**
    * Check if a specific feature is dismissed
    */
-  const isFeatureDismissed = useCallback(
+  const isDismissed = useCallback(
     (featureId) => {
-      return dismissedFeatures.includes(featureId);
+      return dismissedIds.includes(featureId);
     },
-    [dismissedFeatures]
+    [dismissedIds]
   );
 
-  // Computed list of unused features
-  const unusedFeatures = useMemo(
-    () => getUnusedFeatures(features),
-    [features, getUnusedFeatures]
+  /**
+   * Get undiscovered features filtered by categories
+   */
+  const getUndiscoveredByCategories = useCallback(
+    (categories) => {
+      return undiscoveredFeatures.filter((f) => categories.includes(f.category));
+    },
+    [undiscoveredFeatures]
   );
 
-  // Auto-track routes: mark feature as used when user navigates to its path
+  // Auto-track routes: mark feature as discovered when user navigates to its path
   useEffect(() => {
     if (!autoTrackRoutes) return;
 
@@ -195,40 +195,44 @@ export function useFeatureDiscovery(options = {}) {
     // Find if current path matches any feature's route
     const matchedFeature = features.find((feature) => {
       // Exact match
-      if (feature.route === currentPath || feature.path === currentPath) {
+      if (feature.route === currentPath) {
         return true;
       }
       // Path starts with feature route (for nested routes)
-      const featurePath = feature.route || feature.path;
-      if (featurePath && currentPath.startsWith(featurePath + '/')) {
+      if (feature.route && currentPath.startsWith(feature.route + '/')) {
         return true;
       }
       return false;
     });
 
-    if (matchedFeature && !usedFeatures.includes(matchedFeature.id)) {
-      markUsed(matchedFeature.id);
+    if (matchedFeature && !discoveredIds.includes(matchedFeature.id)) {
+      markDiscovered(matchedFeature.id);
     }
-  }, [location.pathname, features, usedFeatures, markUsed, autoTrackRoutes]);
+  }, [location.pathname, features, discoveredIds, markDiscovered, autoTrackRoutes]);
 
   return {
-    // State
-    usedFeatures,
-    dismissedFeatures,
-    unusedFeatures,
+    // State - matches spec exactly
+    undiscoveredFeatures, // features user hasn't tried
+    discoveredFeatures, // features user has tried
+    discoveryProgress, // { discovered: 5, total: 15, percent: 33 }
 
-    // Actions
-    markUsed,
-    dismiss,
-    undismiss,
-    clearDismissed,
-    resetAll,
+    // Actions - matches spec exactly
+    markDiscovered, // mark a feature as discovered
+    dismissFeature, // hide a feature from suggestions
+    resetDiscovery, // reset all discovery state
 
-    // Queries
-    getUnusedFeatures,
-    hasUnusedFeatures,
-    isFeatureUsed,
-    isFeatureDismissed,
+    // Additional actions
+    undismissFeature, // show a dismissed feature again
+    clearDismissed, // clear all dismissed features
+
+    // Query helpers
+    isDiscovered,
+    isDismissed,
+    getUndiscoveredByCategories,
+
+    // Raw IDs (for advanced use)
+    discoveredIds,
+    dismissedIds,
   };
 }
 

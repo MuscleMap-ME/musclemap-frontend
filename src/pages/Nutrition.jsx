@@ -24,9 +24,7 @@ import {
 } from 'lucide-react';
 import { GlassSurface } from '../components/glass/GlassSurface';
 import { GlassButton } from '../components/glass/GlassButton';
-import { GlassNav } from '../components/glass/GlassNav';
-import { GlassSidebar } from '../components/glass/GlassSidebar';
-import { GlassMobileNav } from '../components/glass/GlassMobileNav';
+import { GlassNav, GlassSidebar, GlassMobileNav } from '../components/glass/GlassNav';
 import { MeshBackground } from '../components/glass/MeshBackground';
 import { QuickLogModal } from '../components/nutrition/QuickLogModal';
 import {

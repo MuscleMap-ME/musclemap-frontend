@@ -23,6 +23,7 @@ import clsx from 'clsx';
 
 import GlassButton from '../glass/GlassButton';
 import { getIllustrationByType, EMPTY_STATE_ILLUSTRATIONS } from './illustrations';
+import { getPreset } from './presets';
 
 /**
  * Animation variants for staggered entrance
@@ -74,7 +75,15 @@ const TYPE_DEFAULTS = {
     title: 'No Workouts Yet',
     description: 'This is where your training history will appear. Start logging to track your progress.',
   },
+  workout: {
+    title: 'No Workouts Yet',
+    description: 'This is where your training history will appear. Start logging to track your progress.',
+  },
   achievements: {
+    title: 'No Achievements Yet',
+    description: 'Complete workouts and challenges to unlock achievements and earn rewards.',
+  },
+  achievement: {
     title: 'No Achievements Yet',
     description: 'Complete workouts and challenges to unlock achievements and earn rewards.',
   },
@@ -90,6 +99,10 @@ const TYPE_DEFAULTS = {
     title: 'No Messages',
     description: 'Your conversations will appear here. Start chatting with training partners.',
   },
+  message: {
+    title: 'No Messages',
+    description: 'Your conversations will appear here. Start chatting with training partners.',
+  },
   exercises: {
     title: 'No Exercises Found',
     description: 'Browse our exercise library to discover movements for every muscle group.',
@@ -97,6 +110,18 @@ const TYPE_DEFAULTS = {
   stats: {
     title: 'No Stats Available',
     description: 'Complete workouts to generate insights about your training performance.',
+  },
+  search: {
+    title: 'No Results Found',
+    description: 'We could not find anything matching your search. Try different keywords or browse our categories.',
+  },
+  error: {
+    title: 'Something Went Wrong',
+    description: 'We encountered an unexpected error. Please try again or contact support if the problem persists.',
+  },
+  data: {
+    title: 'No Data Available',
+    description: 'Complete workouts to generate insights and track your progress over time.',
   },
   generic: {
     title: 'Nothing Here Yet',
@@ -108,10 +133,15 @@ const TYPE_DEFAULTS = {
  * EmptyState Component
  *
  * @param {Object} props
- * @param {'workouts'|'achievements'|'goals'|'community'|'messages'|'exercises'|'stats'|'generic'} props.type
+ * @param {string} [props.preset] - Preset configuration key (e.g., 'no-workouts', 'error')
+ *   - When provided, loads pre-configured title, description, actions, and tips
+ *   - Individual props override preset values
+ * @param {'workouts'|'achievements'|'goals'|'community'|'messages'|'exercises'|'stats'|'search'|'error'|'data'|'generic'} props.type
  *   - Type determines default illustration and can provide default title/description
- * @param {string} props.title - Main heading text (overrides type default)
- * @param {string} props.description - Explanatory subtext (overrides type default)
+ * @param {React.ReactNode|'workout'|'achievement'|'community'|'message'|'search'|'error'|'data'} props.illustration
+ *   - Custom ReactNode or string key for preset illustration (overrides type)
+ * @param {string} props.title - Main heading text (overrides type/preset default)
+ * @param {string} props.description - Explanatory subtext (overrides type/preset default)
  * @param {Object} props.action - Primary action button config
  * @param {string} props.action.label - Button text
  * @param {string} [props.action.to] - Link destination (uses react-router Link)
@@ -122,32 +152,53 @@ const TYPE_DEFAULTS = {
  * @param {string} [props.secondaryAction.to] - Link destination
  * @param {Function} [props.secondaryAction.onClick] - Click handler
  * @param {Array<string>} props.tips - Optional array of helpful tips
- * @param {React.ReactNode} props.illustration - Custom illustration (overrides type default)
  * @param {string} props.className - Additional container classes
  * @param {'sm'|'md'|'lg'} props.size - Size variant (affects illustration and text size)
  * @param {boolean} props.compact - Use compact spacing
  * @param {boolean} props.card - Wrap in glass card container
  */
 function EmptyState({
-  type = 'generic',
+  preset,
+  type,
   title,
   description,
   action,
   secondaryAction,
-  tips = [],
+  tips,
   illustration,
   className,
   size = 'md',
   compact = false,
   card = false,
 }) {
-  // Get defaults based on type
-  const defaults = TYPE_DEFAULTS[type] || TYPE_DEFAULTS.generic;
-  const displayTitle = title || defaults.title;
-  const displayDescription = description || defaults.description;
+  // Get preset configuration if provided
+  const presetConfig = preset ? getPreset(preset) : null;
 
-  // Get illustration - custom or type-based
-  const illustrationNode = illustration || getIllustrationByType(type);
+  // Determine effective values (props override preset, preset overrides type defaults)
+  const effectiveType = type || presetConfig?.type || 'generic';
+  const defaults = TYPE_DEFAULTS[effectiveType] || TYPE_DEFAULTS.generic;
+
+  // Merge values with priority: explicit props > preset > type defaults
+  const displayTitle = title ?? presetConfig?.title ?? defaults.title;
+  const displayDescription = description ?? presetConfig?.description ?? defaults.description;
+  const displayAction = action ?? presetConfig?.action;
+  const displaySecondaryAction = secondaryAction ?? presetConfig?.secondaryAction;
+  const displayTips = tips ?? presetConfig?.tips ?? [];
+
+  // Get illustration - supports custom ReactNode, string keys, or falls back to type
+  const getIllustration = () => {
+    // If illustration is a React element, use it directly
+    if (React.isValidElement(illustration)) {
+      return illustration;
+    }
+    // If illustration is a string, use it as a type key
+    if (typeof illustration === 'string') {
+      return getIllustrationByType(illustration);
+    }
+    // Fall back to effective type
+    return getIllustrationByType(effectiveType);
+  };
+  const illustrationNode = getIllustration();
 
   // Size configurations
   const sizeConfig = {
@@ -222,51 +273,51 @@ function EmptyState({
       </motion.div>
 
       {/* Action buttons */}
-      {(action || secondaryAction) && (
+      {(displayAction || displaySecondaryAction) && (
         <motion.div
           className="flex flex-wrap items-center justify-center gap-3 mt-2"
           variants={itemVariants}
         >
           {/* Primary action */}
-          {action && (
-            action.to ? (
+          {displayAction && (
+            displayAction.to ? (
               <GlassButton
                 as={Link}
-                to={action.to}
-                variant={action.variant || 'primary'}
+                to={displayAction.to}
+                variant={displayAction.variant || 'primary'}
                 size={config.buttonSize}
               >
-                {action.label}
+                {displayAction.label}
               </GlassButton>
             ) : (
               <GlassButton
-                onClick={action.onClick}
-                variant={action.variant || 'primary'}
+                onClick={displayAction.onClick}
+                variant={displayAction.variant || 'primary'}
                 size={config.buttonSize}
               >
-                {action.label}
+                {displayAction.label}
               </GlassButton>
             )
           )}
 
           {/* Secondary action */}
-          {secondaryAction && (
-            secondaryAction.to ? (
+          {displaySecondaryAction && (
+            displaySecondaryAction.to ? (
               <GlassButton
                 as={Link}
-                to={secondaryAction.to}
-                variant={secondaryAction.variant || 'glass'}
+                to={displaySecondaryAction.to}
+                variant={displaySecondaryAction.variant || 'glass'}
                 size={config.buttonSize}
               >
-                {secondaryAction.label}
+                {displaySecondaryAction.label}
               </GlassButton>
             ) : (
               <GlassButton
-                onClick={secondaryAction.onClick}
-                variant={secondaryAction.variant || 'glass'}
+                onClick={displaySecondaryAction.onClick}
+                variant={displaySecondaryAction.variant || 'glass'}
                 size={config.buttonSize}
               >
-                {secondaryAction.label}
+                {displaySecondaryAction.label}
               </GlassButton>
             )
           )}
@@ -274,14 +325,14 @@ function EmptyState({
       )}
 
       {/* Tips list */}
-      {tips.length > 0 && (
+      {displayTips.length > 0 && (
         <motion.div
           className="mt-3 w-full max-w-sm"
           variants={itemVariants}
         >
           <div className="glass-subtle rounded-xl p-4 border border-white/5">
             <ul className={clsx('space-y-2 text-left', config.tips)}>
-              {tips.map((tip, index) => (
+              {displayTips.map((tip, index) => (
                 <li
                   key={index}
                   className="flex items-start gap-2.5 text-white/50"

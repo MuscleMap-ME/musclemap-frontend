@@ -13,24 +13,33 @@
  * - Full keyboard navigation (arrows, Enter, Escape)
  * - Mobile responsive with adaptive tooltip positioning
  * - LocalStorage persistence for completion state
+ * - Support for presets (predefined tours)
+ * - Step lifecycle hooks (beforeShow, afterHide)
+ * - Optional action buttons per step
  *
  * @example
+ * // Basic usage
  * <SpotlightTour
  *   steps={[
  *     { target: '.muscle-map', title: 'Your Muscle Map', body: 'See which muscles you\'ve trained' },
  *     { target: '.start-workout', title: 'Quick Start', body: 'Tap here to begin' },
  *   ]}
- *   onComplete={() => console.log('Tour finished!')}
+ *   isOpen={showTour}
+ *   onComplete={() => setShowTour(false)}
  *   showProgress
  * />
+ *
+ * // Using preset
+ * <SpotlightTour preset="onboarding" isOpen={isNewUser} onComplete={markOnboarded} />
  */
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import TourStep from './TourStep';
-import { useTour, useTourStore } from './useTour';
+import { useTour } from './useTour';
+import { getTourPreset } from './tourPresets';
 
 /**
  * Default configuration
@@ -46,15 +55,37 @@ const DEFAULT_CONFIG = {
  * SpotlightTour Component (Declarative API)
  *
  * For direct usage in components. For programmatic control, use the useTour hook.
+ *
+ * @param {Object} props - Component props
+ * @param {Array} props.steps - Array of step configurations
+ * @param {string} props.preset - Name of a predefined tour preset (alternative to steps)
+ * @param {boolean} props.isOpen - Controlled open state
+ * @param {Function} props.onComplete - Called when tour finishes
+ * @param {Function} props.onSkip - Called if user skips
+ * @param {Function} props.onChange - Called on step change with (stepIndex, stepData)
+ * @param {number} props.currentStep - Controlled step index (optional)
+ * @param {boolean} props.showProgress - Show step counter
+ * @param {boolean} props.showSkip - Show skip button
+ * @param {number} props.maskPadding - Padding around highlighted element
+ * @param {string} props.tourId - Unique ID for localStorage persistence
+ * @param {string} props.backdropColor - Color of the darkened overlay
+ * @param {string} props.scrollBehavior - Scroll behavior ('smooth' | 'auto')
+ * @param {boolean} props.allowBackdropClick - Allow clicking backdrop to advance
+ * @param {boolean} props.autoStart - Auto-start on mount (when not using isOpen)
+ * @param {number} props.delay - Delay before starting (ms)
  */
 export default function SpotlightTour({
-  steps = [],
-  tourId,
+  steps: propSteps,
+  preset,
+  isOpen,
+  tourId: propTourId,
   onComplete,
   onSkip,
-  onStepChange,
+  onChange,
+  currentStep: controlledStep,
   showProgress = true,
   showSkip = true,
+  maskPadding,
   backdropColor = DEFAULT_CONFIG.backdropColor,
   spotlightPadding = DEFAULT_CONFIG.spotlightPadding,
   scrollBehavior = DEFAULT_CONFIG.scrollBehavior,
@@ -62,28 +93,66 @@ export default function SpotlightTour({
   autoStart = true,
   delay = 500,
 }) {
-  const { startTour, isActive: globalIsActive } = useTour();
+  const { startTour, endTour, goToStep, isActive: globalIsActive } = useTour();
 
-  // Start tour on mount if autoStart is true
+  // Resolve steps from preset or props
+  const resolvedPreset = preset ? getTourPreset(preset) : null;
+  const steps = propSteps || (resolvedPreset ? resolvedPreset.steps : []);
+  const tourId = propTourId || (resolvedPreset ? resolvedPreset.id : null);
+
+  // Use maskPadding if provided, otherwise fall back to spotlightPadding
+  const padding = maskPadding !== undefined ? maskPadding : spotlightPadding;
+
+  // Handle controlled isOpen state
   useEffect(() => {
+    // If isOpen is explicitly controlled
+    if (isOpen !== undefined) {
+      if (isOpen && steps.length > 0 && !globalIsActive) {
+        startTour(steps, {
+          tourId,
+          onComplete,
+          onSkip,
+          onStepChange: onChange,
+          showProgress,
+          showSkip,
+          backdropColor,
+          spotlightPadding: padding,
+          scrollBehavior,
+          allowBackdropClick,
+          force: true, // Force start even if completed before
+        });
+      } else if (!isOpen && globalIsActive) {
+        endTour();
+      }
+      return;
+    }
+
+    // Auto-start behavior (when isOpen is not controlled)
     if (autoStart && steps.length > 0 && !globalIsActive) {
       const timer = setTimeout(() => {
         startTour(steps, {
           tourId,
           onComplete,
           onSkip,
-          onStepChange,
+          onStepChange: onChange,
           showProgress,
           showSkip,
           backdropColor,
-          spotlightPadding,
+          spotlightPadding: padding,
           scrollBehavior,
           allowBackdropClick,
         });
       }, delay);
       return () => clearTimeout(timer);
     }
-  }, [autoStart, steps, tourId, delay, startTour, globalIsActive]);
+  }, [isOpen, autoStart, steps, tourId, delay, startTour, endTour, globalIsActive, onChange, padding]);
+
+  // Handle controlled step navigation
+  useEffect(() => {
+    if (controlledStep !== undefined && globalIsActive) {
+      goToStep(controlledStep);
+    }
+  }, [controlledStep, globalIsActive, goToStep]);
 
   // This component just triggers the tour - the actual rendering
   // is handled by SpotlightTourRenderer below
@@ -120,10 +189,38 @@ export function SpotlightTourRenderer() {
 
   const [targetRect, setTargetRect] = useState(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const observerRef = useRef(null);
   const resizeObserverRef = useRef(null);
+  const previousStepRef = useRef(null);
 
   const step = steps[currentStep];
+
+  // Handle step lifecycle hooks (beforeShow, afterHide)
+  useEffect(() => {
+    if (!isActive) return;
+
+    const prevStep = previousStepRef.current;
+    const currentStepData = steps[currentStep];
+
+    // Call afterHide on previous step
+    if (prevStep && prevStep !== currentStepData && prevStep.afterHide) {
+      try {
+        prevStep.afterHide();
+      } catch (err) {
+        console.warn('SpotlightTour: afterHide hook error:', err);
+      }
+    }
+
+    // Call beforeShow on current step
+    if (currentStepData?.beforeShow) {
+      try {
+        currentStepData.beforeShow();
+      } catch (err) {
+        console.warn('SpotlightTour: beforeShow hook error:', err);
+      }
+    }
+
+    previousStepRef.current = currentStepData;
+  }, [isActive, currentStep, steps]);
 
   // Find and track target element
   const updateTargetRect = useCallback(() => {
@@ -410,7 +507,7 @@ export function Spotlight({
   onDismiss,
   backdropColor = DEFAULT_CONFIG.backdropColor,
   spotlightPadding = DEFAULT_CONFIG.spotlightPadding,
-  placement = 'auto',
+  placement: _placement = 'auto', // Reserved for future use
 }) {
   const [targetRect, setTargetRect] = useState(null);
 

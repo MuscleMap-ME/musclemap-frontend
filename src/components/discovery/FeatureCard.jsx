@@ -5,11 +5,12 @@
  * and touch-friendly interactions. Part of the FeatureDiscovery system.
  *
  * Features:
- * - Compact card with icon, title, short description
+ * - Three variants: default, compact, highlighted
+ * - Emoji or Lucide icon support
  * - Gradient border that pulses subtly to attract attention
- * - "Try it" button or click entire card
+ * - "Try it" button with navigation
  * - "Dismiss" (X) button to hide forever
- * - Badge for "New!" features
+ * - Badges for "New!" or "Popular!" features
  * - Animated entrance when appearing
  */
 
@@ -19,9 +20,32 @@ import clsx from 'clsx';
 import * as Icons from 'lucide-react';
 
 /**
- * Get icon component from Lucide by name
+ * Check if string is an emoji
+ */
+function isEmoji(str) {
+  if (!str || typeof str !== 'string') return false;
+  // Check if it's a single character or starts with an emoji
+  const emojiRegex = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/u;
+  return emojiRegex.test(str);
+}
+
+/**
+ * Get icon component from Lucide by name, or return emoji span
  */
 function getIcon(iconName, props = {}) {
+  if (!iconName) return null;
+
+  // If it's an emoji, render as span
+  if (isEmoji(iconName)) {
+    const { className, style } = props;
+    return (
+      <span className={clsx('flex items-center justify-center', className)} style={style}>
+        {iconName}
+      </span>
+    );
+  }
+
+  // Otherwise get Lucide icon
   const IconComponent = Icons[iconName] || Icons.HelpCircle;
   return <IconComponent {...props} />;
 }
@@ -35,13 +59,22 @@ function getIcon(iconName, props = {}) {
  * - Icon with custom color
  * - "Try it" action button
  * - Dismiss option
- * - "New!" badge for new features
+ * - "New!" or "Popular!" badges
+ *
+ * @param {Object} props
+ * @param {Object} props.feature - Feature object from featureDefinitions
+ * @param {string} props.variant - 'default' | 'compact' | 'highlighted'
+ * @param {Function} props.onTry - Called when user clicks to try feature
+ * @param {Function} props.onDismiss - Called when user dismisses feature
  */
 const FeatureCard = forwardRef(function FeatureCard(
   {
     feature,
-    onClick,
+    variant = 'default',
+    onTry,
     onDismiss,
+    // Legacy props for backward compatibility
+    onClick,
     isActive = false,
     showPulse = true,
     index = 0,
@@ -49,7 +82,17 @@ const FeatureCard = forwardRef(function FeatureCard(
   },
   ref
 ) {
-  const { title, description, icon, color = '#0066FF', isNew = false } = feature;
+  const {
+    name,
+    description,
+    icon,
+    color = '#0066FF',
+    isNew = false,
+    isPopular = false,
+  } = feature;
+
+  // Use onTry or fall back to onClick for backward compatibility
+  const handleTry = onTry || onClick;
 
   // Animation variants for card entrance/exit
   const cardVariants = {
@@ -83,18 +126,77 @@ const FeatureCard = forwardRef(function FeatureCard(
   // Handle card click
   const handleClick = (e) => {
     e.stopPropagation();
-    if (onClick) {
-      onClick(feature);
+    if (handleTry) {
+      handleTry(feature);
     }
   };
 
   // Handle dismiss click
-  const handleDismiss = (e) => {
+  const handleDismissClick = (e) => {
     e.stopPropagation();
     if (onDismiss) {
       onDismiss(feature.id);
     }
   };
+
+  // Determine if we should show the pulsing effect
+  const shouldPulse = showPulse && variant !== 'compact';
+
+  // Compact variant
+  if (variant === 'compact') {
+    return (
+      <motion.button
+        ref={ref}
+        layout
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className={clsx(
+          'flex-shrink-0 px-4 py-3 rounded-xl',
+          'bg-white/5 backdrop-blur-md border border-white/10',
+          'flex items-center gap-3',
+          'cursor-pointer relative',
+          'hover:bg-white/10 hover:border-white/20',
+          'transition-colors duration-200',
+          className
+        )}
+        onClick={handleClick}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        {/* New/Popular badge for compact */}
+        {(isNew || isPopular) && (
+          <div
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+            style={{
+              background: `linear-gradient(135deg, ${color}, ${color}CC)`,
+            }}
+          >
+            {isNew ? (
+              <Icons.Sparkles className="w-3 h-3 text-white" />
+            ) : (
+              <Icons.TrendingUp className="w-3 h-3 text-white" />
+            )}
+          </div>
+        )}
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center"
+          style={{ background: `${color}20` }}
+        >
+          {getIcon(icon, {
+            className: isEmoji(icon) ? 'text-xl' : 'w-5 h-5',
+            style: isEmoji(icon) ? {} : { color },
+            strokeWidth: 1.5,
+          })}
+        </div>
+        <span className="text-sm font-medium text-white whitespace-nowrap">{name}</span>
+      </motion.button>
+    );
+  }
+
+  // Highlighted variant - larger with more emphasis
+  const isHighlighted = variant === 'highlighted';
 
   return (
     <motion.div
@@ -114,6 +216,8 @@ const FeatureCard = forwardRef(function FeatureCard(
         'transition-all duration-200',
         // Active state
         isActive && 'ring-2 ring-white/20',
+        // Highlighted variant has extra padding
+        isHighlighted && 'p-1',
         className
       )}
       onClick={handleClick}
@@ -124,7 +228,7 @@ const FeatureCard = forwardRef(function FeatureCard(
       whileTap={{ scale: 0.98 }}
     >
       {/* Pulsing gradient border - draws attention */}
-      {showPulse && (
+      {shouldPulse && (
         <motion.div
           className="absolute inset-0 rounded-2xl pointer-events-none"
           style={{
@@ -144,7 +248,7 @@ const FeatureCard = forwardRef(function FeatureCard(
       )}
 
       {/* Static border when not pulsing */}
-      {!showPulse && (
+      {!shouldPulse && (
         <div
           className="absolute inset-0 rounded-2xl pointer-events-none"
           style={{
@@ -160,7 +264,7 @@ const FeatureCard = forwardRef(function FeatureCard(
           background: `radial-gradient(circle at 30% 30%, ${color}15, transparent 60%)`,
         }}
         animate={
-          showPulse
+          shouldPulse
             ? {
                 opacity: [0.5, 0.8, 0.5],
               }
@@ -173,8 +277,8 @@ const FeatureCard = forwardRef(function FeatureCard(
         }}
       />
 
-      {/* "New!" badge */}
-      {isNew && (
+      {/* Badges: "New!" or "Popular!" */}
+      {(isNew || isPopular) && (
         <motion.div
           className="absolute top-3 right-3 z-10"
           initial={{ scale: 0, rotate: -12 }}
@@ -182,13 +286,23 @@ const FeatureCard = forwardRef(function FeatureCard(
           transition={{ type: 'spring', stiffness: 500, damping: 20, delay: index * 0.1 + 0.2 }}
         >
           <div
-            className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+            className="px-2 py-0.5 rounded-full text-xs font-bold text-white flex items-center gap-1"
             style={{
               background: `linear-gradient(135deg, ${color}, ${color}CC)`,
               boxShadow: `0 2px 8px ${color}50`,
             }}
           >
-            New!
+            {isNew ? (
+              <>
+                <Icons.Sparkles className="w-3 h-3" />
+                New!
+              </>
+            ) : (
+              <>
+                <Icons.TrendingUp className="w-3 h-3" />
+                Popular!
+              </>
+            )}
           </div>
         </motion.div>
       )}
@@ -196,10 +310,10 @@ const FeatureCard = forwardRef(function FeatureCard(
       {/* Dismiss button */}
       {onDismiss && (
         <button
-          onClick={handleDismiss}
+          onClick={handleDismissClick}
           className={clsx(
             'absolute top-3 z-10',
-            isNew ? 'right-16' : 'right-3',
+            isNew || isPopular ? 'right-20' : 'right-3',
             'w-6 h-6 rounded-full',
             'flex items-center justify-center',
             'bg-white/5 hover:bg-white/15',
@@ -207,24 +321,27 @@ const FeatureCard = forwardRef(function FeatureCard(
             'transition-all duration-150',
             'opacity-60 hover:opacity-100'
           )}
-          aria-label={`Dismiss ${title} suggestion`}
+          aria-label={`Dismiss ${name} suggestion`}
         >
           <Icons.X className="w-3.5 h-3.5" />
         </button>
       )}
 
       {/* Card content */}
-      <div className="relative p-4 flex gap-4">
+      <div className={clsx('relative p-4 flex gap-4', isHighlighted && 'p-5')}>
         {/* Icon container with glow */}
         <div className="flex-shrink-0">
           <motion.div
-            className="w-12 h-12 rounded-xl flex items-center justify-center relative"
+            className={clsx(
+              'rounded-xl flex items-center justify-center relative',
+              isHighlighted ? 'w-14 h-14' : 'w-12 h-12'
+            )}
             style={{
               background: `linear-gradient(135deg, ${color}30, ${color}10)`,
-              boxShadow: showPulse ? `0 0 20px ${color}40` : 'none',
+              boxShadow: shouldPulse ? `0 0 20px ${color}40` : 'none',
             }}
             animate={
-              showPulse
+              shouldPulse
                 ? {
                     boxShadow: [
                       `0 0 15px ${color}30`,
@@ -241,8 +358,14 @@ const FeatureCard = forwardRef(function FeatureCard(
             }}
           >
             {getIcon(icon, {
-              className: 'w-6 h-6',
-              style: { color },
+              className: isEmoji(icon)
+                ? isHighlighted
+                  ? 'text-3xl'
+                  : 'text-2xl'
+                : isHighlighted
+                ? 'w-7 h-7'
+                : 'w-6 h-6',
+              style: isEmoji(icon) ? {} : { color },
               strokeWidth: 1.5,
             })}
           </motion.div>
@@ -250,19 +373,34 @@ const FeatureCard = forwardRef(function FeatureCard(
 
         {/* Text content */}
         <div className="flex-1 min-w-0 pr-6">
-          <h3 className="font-bold text-white text-base mb-1 truncate">{title}</h3>
-          <p className="text-sm text-gray-400 line-clamp-2 leading-relaxed">{description}</p>
+          <h3
+            className={clsx(
+              'font-bold text-white mb-1 truncate',
+              isHighlighted ? 'text-lg' : 'text-base'
+            )}
+          >
+            {name}
+          </h3>
+          <p
+            className={clsx(
+              'text-gray-400 line-clamp-2 leading-relaxed',
+              isHighlighted ? 'text-base' : 'text-sm'
+            )}
+          >
+            {description}
+          </p>
         </div>
       </div>
 
       {/* "Try it" action button */}
-      <div className="relative px-4 pb-4 pt-0">
+      <div className={clsx('relative px-4 pb-4 pt-0', isHighlighted && 'px-5 pb-5')}>
         <motion.button
           className={clsx(
-            'w-full py-2.5 rounded-xl',
+            'w-full rounded-xl',
             'flex items-center justify-center gap-2',
-            'font-medium text-sm text-white',
-            'transition-colors duration-150'
+            'font-medium text-white',
+            'transition-colors duration-150',
+            isHighlighted ? 'py-3 text-base' : 'py-2.5 text-sm'
           )}
           style={{
             background: `linear-gradient(135deg, ${color}, ${color}CC)`,
@@ -274,7 +412,7 @@ const FeatureCard = forwardRef(function FeatureCard(
           onClick={handleClick}
         >
           Try it
-          <Icons.ArrowRight className="w-4 h-4" />
+          <Icons.ArrowRight className={isHighlighted ? 'w-5 h-5' : 'w-4 h-4'} />
         </motion.button>
       </div>
 
@@ -292,7 +430,24 @@ const FeatureCard = forwardRef(function FeatureCard(
 /**
  * FeatureCardSkeleton - Loading placeholder
  */
-export function FeatureCardSkeleton({ className }) {
+export function FeatureCardSkeleton({ variant = 'default', className }) {
+  if (variant === 'compact') {
+    return (
+      <div
+        className={clsx(
+          'flex-shrink-0 px-4 py-3 rounded-xl',
+          'bg-white/5 border border-white/10',
+          'flex items-center gap-3',
+          'animate-pulse',
+          className
+        )}
+      >
+        <div className="w-9 h-9 rounded-lg bg-white/10" />
+        <div className="h-4 w-20 bg-white/10 rounded" />
+      </div>
+    );
+  }
+
   return (
     <div
       className={clsx(
@@ -315,47 +470,12 @@ export function FeatureCardSkeleton({ className }) {
 }
 
 /**
- * FeatureCardCompact - Smaller version for horizontal scrolling
+ * FeatureCardCompact - Compact version (alias for variant='compact')
+ * @deprecated Use <FeatureCard variant="compact" /> instead
  */
 export function FeatureCardCompact({ feature, onClick, className }) {
-  const { title, icon, color = '#0066FF', isNew = false } = feature;
-
   return (
-    <motion.button
-      className={clsx(
-        'flex-shrink-0 px-4 py-3 rounded-xl',
-        'bg-white/5 backdrop-blur-md border border-white/10',
-        'flex items-center gap-2',
-        'cursor-pointer relative',
-        className
-      )}
-      onClick={() => onClick?.(feature)}
-      whileHover={{ scale: 1.02, borderColor: 'rgba(255,255,255,0.2)' }}
-      whileTap={{ scale: 0.98 }}
-    >
-      {/* New badge for compact */}
-      {isNew && (
-        <div
-          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
-          style={{
-            background: `linear-gradient(135deg, ${color}, ${color}CC)`,
-          }}
-        >
-          <Icons.Sparkles className="w-2.5 h-2.5 text-white" />
-        </div>
-      )}
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center"
-        style={{ background: `${color}20` }}
-      >
-        {getIcon(icon, {
-          className: 'w-4 h-4',
-          style: { color },
-          strokeWidth: 1.5,
-        })}
-      </div>
-      <span className="text-sm font-medium text-white whitespace-nowrap">{title}</span>
-    </motion.button>
+    <FeatureCard feature={feature} variant="compact" onTry={onClick} className={className} />
   );
 }
 

@@ -50,6 +50,22 @@ Authorization: Bearer <token>
 | `POST` | `/trace/frontend-log` | Yes |
 
 
+### Rehabilitation
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `DELETE` | `/:injuryId` | Yes |
+| `POST` | `/advance-phase/:injuryId` | Yes |
+| `GET` | `/body-regions` | Yes |
+| `GET` | `/exercises/:injuryId` | Yes |
+| `POST` | `/log` | Yes |
+| `GET` | `/my-injuries` | Yes |
+| `GET` | `/profiles` | Yes |
+| `GET` | `/profiles/:id` | Yes |
+| `GET` | `/progress/:injuryId` | Yes |
+| `POST` | `/start` | Yes |
+
+
 ### Verifications
 
 | Method | Endpoint | Auth Required |

@@ -5,7 +5,7 @@
  * Shows rotating cards with engaging animations and tracks visited features
  * via localStorage.
  *
- * @example Basic Usage
+ * @example Basic Usage (Dashboard)
  * import { FeatureDiscovery } from '@/components/discovery';
  *
  * function Dashboard() {
@@ -13,84 +13,62 @@
  *
  *   return (
  *     <FeatureDiscovery
- *       maxCards={3}
+ *       maxVisible={3}
+ *       layout="carousel"
+ *       filter={['social', 'tracking']}
  *       onFeatureClick={(feature) => navigate(feature.route)}
  *     />
  *   );
  * }
  *
- * @example With Custom Handling
+ * @example Compact in Sidebar
+ * import { FeatureDiscovery } from '@/components/discovery';
+ *
+ * <FeatureDiscovery maxVisible={1} layout="stack" />
+ *
+ * @example With Progress Indicator
  * import { FeatureDiscovery } from '@/components/discovery';
  *
  * <FeatureDiscovery
- *   maxCards={4}
- *   onFeatureClick={(feature) => analytics.track('feature_discovered', feature.id)}
- *   exclude={['martial_arts']} // Hide from certain users
+ *   maxVisible={3}
+ *   layout="grid"
+ *   showProgress
  * />
  *
- * @example Custom Features
- * import { FeatureDiscovery, DISCOVERABLE_FEATURES } from '@/components/discovery';
- *
- * // Filter to only show competitive features
- * const competitiveFeatures = DISCOVERABLE_FEATURES.filter(
- *   f => f.category === 'competitive'
- * );
- *
- * <FeatureDiscovery
- *   features={competitiveFeatures}
- *   maxCards={2}
- * />
- *
- * @example Compact Horizontal Version
- * import { FeatureDiscoveryCompact } from '@/components/discovery';
- *
- * <FeatureDiscoveryCompact
- *   onFeatureClick={(feature) => navigate(feature.route)}
- * />
- *
- * @example Programmatic Access (Hook)
+ * @example Using the Hook
  * import { useFeatureDiscovery } from '@/components/discovery';
  *
  * function SomeComponent() {
  *   const {
- *     unusedFeatures,
- *     markUsed,
- *     dismiss,
- *     getUnusedFeatures,
- *     hasUnusedFeatures,
+ *     undiscoveredFeatures, // features user hasn't tried
+ *     discoveredFeatures,   // features user has tried
+ *     markDiscovered,       // mark a feature as discovered
+ *     dismissFeature,       // hide a feature from suggestions
+ *     resetDiscovery,       // reset all discovery state
+ *     discoveryProgress     // { discovered: 5, total: 15, percent: 33 }
  *   } = useFeatureDiscovery();
  *
- *   // Check if user has explored all features
- *   if (!hasUnusedFeatures()) {
- *     // Show "explorer" achievement
- *   }
+ *   // Mark feature as discovered when user visits a page
+ *   useEffect(() => {
+ *     markDiscovered('muscle-map');
+ *   }, []);
  * }
- *
- * @example Hook with React Router Auto-Tracking
- * import { useFeatureDiscovery } from '@/components/discovery/useFeatureDiscovery';
- *
- * // This version auto-marks features as used when navigating to their routes
- * const { unusedFeatures, markUsed, dismiss } = useFeatureDiscovery();
  */
 
 // Main component
 export { default as FeatureDiscovery } from './FeatureDiscovery';
 
 // Additional exports from FeatureDiscovery
-export {
-  FeatureDiscoverySkeleton,
-  FeatureDiscoveryCompact,
-  useFeatureDiscovery,
-} from './FeatureDiscovery';
+export { FeatureDiscoverySkeleton, FeatureDiscoveryCompact } from './FeatureDiscovery';
 
-// Standalone hook with React Router integration
-export { default as useFeatureDiscoveryWithRouter } from './useFeatureDiscovery';
+// Hook for programmatic access
+export { useFeatureDiscovery } from './useFeatureDiscovery';
 
-// Card component
+// Card components
 export { default as FeatureCard } from './FeatureCard';
 export { FeatureCardSkeleton, FeatureCardCompact } from './FeatureCard';
 
-// Feature definitions
+// Feature definitions and utilities
 export {
   DISCOVERABLE_FEATURES,
   FEATURE_CATEGORIES,
@@ -99,6 +77,7 @@ export {
   sortByPriority,
   getFeatureById,
   getNewFeatures,
+  getPopularFeatures,
 } from './featureDefinitions';
 
 // Default export

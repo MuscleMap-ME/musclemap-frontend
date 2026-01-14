@@ -23,7 +23,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * Tooltip offset from target element
@@ -206,22 +206,6 @@ export default function TourStep({
     [targetRect, placement, tooltipRect]
   );
 
-  // Determine animation direction
-  const animationOrigin = useMemo(() => {
-    switch (placement) {
-      case 'top':
-        return { y: 10 };
-      case 'bottom':
-        return { y: -10 };
-      case 'left':
-        return { x: 10 };
-      case 'right':
-        return { x: -10 };
-      default:
-        return { y: -10 };
-    }
-  }, [placement]);
-
   if (!step) return null;
 
   const isFirstStep = currentStep === 0;
@@ -318,6 +302,29 @@ export default function TourStep({
           {/* Custom content slot */}
           {step.content && (
             <div className="mb-5">{step.content}</div>
+          )}
+
+          {/* Step action button (optional) */}
+          {step.action && step.action.label && (
+            <div className="mb-4">
+              <motion.button
+                onClick={() => {
+                  if (step.action.onClick) {
+                    step.action.onClick();
+                  }
+                }}
+                className={clsx(
+                  'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium',
+                  'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-purple-200',
+                  'border border-purple-500/30 hover:border-purple-500/50',
+                  'transition-all duration-200'
+                )}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+              >
+                {step.action.label}
+              </motion.button>
+            </div>
           )}
 
           {/* Navigation buttons */}

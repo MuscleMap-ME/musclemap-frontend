@@ -1,106 +1,105 @@
 /**
  * FeatureDiscovery Component
  *
- * A horizontal scrollable row of cards highlighting features the user hasn't tried yet.
- * Tracks visited features in localStorage and provides an engaging way to help users
- * discover all of MuscleMap's capabilities.
+ * A container component that displays feature cards for features the user hasn't tried yet.
+ * Shows a rotating/scrollable set of feature cards with various layout options.
  *
- * @example Basic Usage
- * <FeatureDiscovery maxCards={3} />
- *
- * @example With Custom Handling
+ * @example Basic Usage (Dashboard)
  * <FeatureDiscovery
- *   maxCards={4}
- *   onFeatureClick={(feature) => analytics.track('feature_discovered', feature.id)}
- *   exclude={['martial_arts']} // Hide from certain users
+ *   maxVisible={3}
+ *   layout="carousel"
+ *   filter={['social', 'tracking']}
  * />
  *
- * @example Grid Mode (default)
- * <FeatureDiscovery maxCards={3} layout="grid" />
+ * @example Compact in Sidebar
+ * <FeatureDiscovery maxVisible={1} layout="stack" />
  *
- * @example Horizontal Scroll Mode
- * <FeatureDiscovery maxCards={5} layout="scroll" />
+ * @example Grid with Progress
+ * <FeatureDiscovery
+ *   maxVisible={6}
+ *   layout="grid"
+ *   showProgress
+ *   onFeatureClick={(feature) => navigate(feature.route)}
+ * />
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import FeatureCard, { FeatureCardSkeleton, FeatureCardCompact } from './FeatureCard';
-import { DISCOVERABLE_FEATURES, sortByPriority } from './featureDefinitions';
+import { ChevronLeft, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import FeatureCard, { FeatureCardSkeleton } from './FeatureCard';
+import {
+  DISCOVERABLE_FEATURES,
+  sortByPriority,
+  getFeaturesByCategories,
+} from './featureDefinitions';
 
 /**
  * localStorage keys for feature tracking
  */
-const STORAGE_KEYS = {
-  USED: 'musclemap_used_features',
-  DISMISSED: 'musclemap_dismissed_features',
-  LAST_ROTATION: 'musclemap_feature_rotation_index',
-};
+const STORAGE_KEY = 'musclemap_discovered_features';
+const DISMISSED_KEY = 'musclemap_dismissed_features';
 
 /**
- * Hook to manage used features tracking
+ * Get stored array from localStorage
  */
-function useUsedFeatures() {
-  const [used, setUsed] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.USED);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const markUsed = useCallback((featureId) => {
-    setUsed((prev) => {
-      if (prev.includes(featureId)) return prev;
-      const updated = [...prev, featureId];
-      try {
-        localStorage.setItem(STORAGE_KEYS.USED, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to save used features:', e);
-      }
-      return updated;
-    });
-  }, []);
-
-  return { used, markUsed };
+function getStoredArray(key) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Hook to manage dismissed features
+ * Save array to localStorage
  */
-function useDismissedFeatures() {
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.DISMISSED);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+function saveStoredArray(key, array) {
+  try {
+    localStorage.setItem(key, JSON.stringify(array));
+  } catch (e) {
+    console.warn(`Failed to save to ${key}:`, e);
+  }
+}
 
-  const dismiss = useCallback((featureId) => {
-    setDismissed((prev) => {
+/**
+ * Internal hook to manage discovered features tracking
+ */
+function useDiscoveredFeatures() {
+  const [discovered, setDiscovered] = useState(() => getStoredArray(STORAGE_KEY));
+
+  const markDiscovered = useCallback((featureId) => {
+    setDiscovered((prev) => {
       if (prev.includes(featureId)) return prev;
       const updated = [...prev, featureId];
-      try {
-        localStorage.setItem(STORAGE_KEYS.DISMISSED, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to save dismissed features:', e);
-      }
+      saveStoredArray(STORAGE_KEY, updated);
       return updated;
     });
   }, []);
 
-  const undismiss = useCallback((featureId) => {
+  return { discovered, markDiscovered };
+}
+
+/**
+ * Internal hook to manage dismissed features
+ */
+function useDismissedFeatures() {
+  const [dismissed, setDismissed] = useState(() => getStoredArray(DISMISSED_KEY));
+
+  const dismissFeature = useCallback((featureId) => {
+    setDismissed((prev) => {
+      if (prev.includes(featureId)) return prev;
+      const updated = [...prev, featureId];
+      saveStoredArray(DISMISSED_KEY, updated);
+      return updated;
+    });
+  }, []);
+
+  const undismissFeature = useCallback((featureId) => {
     setDismissed((prev) => {
       const updated = prev.filter((id) => id !== featureId);
-      try {
-        localStorage.setItem(STORAGE_KEYS.DISMISSED, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to save dismissed features:', e);
-      }
+      saveStoredArray(DISMISSED_KEY, updated);
       return updated;
     });
   }, []);
@@ -108,85 +107,111 @@ function useDismissedFeatures() {
   const clearDismissed = useCallback(() => {
     setDismissed([]);
     try {
-      localStorage.removeItem(STORAGE_KEYS.DISMISSED);
+      localStorage.removeItem(DISMISSED_KEY);
     } catch (e) {
       console.warn('Failed to clear dismissed features:', e);
     }
   }, []);
 
-  return { dismissed, dismiss, undismiss, clearDismissed };
+  return { dismissed, dismissFeature, undismissFeature, clearDismissed };
 }
 
 /**
  * FeatureDiscovery Component
+ *
+ * @param {Object} props
+ * @param {number} props.maxVisible - How many cards to show at once (default 3)
+ * @param {string} props.layout - 'carousel' | 'grid' | 'stack' (default 'carousel')
+ * @param {string[]} props.filter - Only show specific feature categories
+ * @param {Function} props.onFeatureClick - Called when user clicks a feature
+ * @param {boolean} props.showProgress - Show "X of Y features discovered" (default false)
+ * @param {boolean} props.showHeader - Show the header section (default true)
+ * @param {boolean} props.autoRotate - Auto-rotate carousel (default true)
+ * @param {number} props.rotationInterval - Rotation interval in ms (default 8000)
+ * @param {string} props.className - Additional CSS classes
  */
 export default function FeatureDiscovery({
-  features: propFeatures,
-  maxCards = 3,
-  layout = 'scroll', // 'scroll' for horizontal, 'grid' for responsive grid
+  maxVisible = 3,
+  layout = 'carousel',
+  filter,
+  onFeatureClick,
+  showProgress = false,
+  showHeader = true,
   autoRotate = true,
   rotationInterval = 8000,
-  onFeatureClick,
-  onDismiss,
-  exclude = [], // Array of feature IDs to never show
-  showHeader = true,
   className,
 }) {
   // Feature tracking hooks
-  const { used, markUsed } = useUsedFeatures();
-  const { dismissed, dismiss } = useDismissedFeatures();
+  const { discovered, markDiscovered } = useDiscoveredFeatures();
+  const { dismissed, dismissFeature } = useDismissedFeatures();
 
-  // Rotation state for grid layout
+  // Carousel/rotation state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const autoRotateRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  // Use prop features or default to all discoverable features
-  const allFeatures = propFeatures || DISCOVERABLE_FEATURES;
+  // Get all features, optionally filtered by categories
+  const allFeatures = useMemo(() => {
+    if (filter && filter.length > 0) {
+      return getFeaturesByCategories(filter);
+    }
+    return DISCOVERABLE_FEATURES;
+  }, [filter]);
 
-  // Filter out used, dismissed, and excluded features, sort by priority
-  const availableFeatures = useMemo(() => {
+  // Filter out discovered and dismissed features, sort by priority
+  const undiscoveredFeatures = useMemo(() => {
     const filtered = allFeatures.filter(
-      (f) =>
-        !used.includes(f.id) && !dismissed.includes(f.id) && !exclude.includes(f.id)
+      (f) => !discovered.includes(f.id) && !dismissed.includes(f.id)
     );
     return sortByPriority(filtered);
-  }, [allFeatures, used, dismissed, exclude]);
+  }, [allFeatures, discovered, dismissed]);
 
-  // Get currently visible features (for grid layout with rotation)
+  // Calculate discovery progress
+  const discoveryProgress = useMemo(() => {
+    const total = allFeatures.length;
+    const discoveredCount = discovered.filter((id) =>
+      allFeatures.some((f) => f.id === id)
+    ).length;
+    const percent = total > 0 ? Math.round((discoveredCount / total) * 100) : 0;
+    return { discovered: discoveredCount, total, percent };
+  }, [allFeatures, discovered]);
+
+  // Get currently visible features based on layout
   const visibleFeatures = useMemo(() => {
-    if (availableFeatures.length === 0) return [];
+    if (undiscoveredFeatures.length === 0) return [];
 
-    if (layout === 'scroll') {
-      // For scroll layout, return all available features
-      return availableFeatures;
+    if (layout === 'carousel') {
+      // Show all for horizontal scrolling, but limit display
+      return undiscoveredFeatures.slice(0, maxVisible * 2);
     }
 
-    // For grid layout with rotation
-    if (availableFeatures.length <= maxCards) return availableFeatures;
+    if (layout === 'stack') {
+      // Stack shows one at a time
+      return [undiscoveredFeatures[currentIndex % undiscoveredFeatures.length]];
+    }
+
+    // Grid layout with rotation
+    if (undiscoveredFeatures.length <= maxVisible) {
+      return undiscoveredFeatures;
+    }
 
     const features = [];
-    for (let i = 0; i < maxCards; i++) {
-      const idx = (currentIndex + i) % availableFeatures.length;
-      features.push(availableFeatures[idx]);
+    for (let i = 0; i < maxVisible; i++) {
+      const idx = (currentIndex + i) % undiscoveredFeatures.length;
+      features.push(undiscoveredFeatures[idx]);
     }
     return features;
-  }, [availableFeatures, currentIndex, maxCards, layout]);
+  }, [undiscoveredFeatures, currentIndex, maxVisible, layout]);
 
-  // Auto-rotation effect (only for grid layout)
+  // Auto-rotation effect (for grid and stack layouts)
   useEffect(() => {
-    if (
-      layout !== 'grid' ||
-      !autoRotate ||
-      isPaused ||
-      availableFeatures.length <= maxCards
-    ) {
+    if (layout === 'carousel' || !autoRotate || isPaused || undiscoveredFeatures.length <= maxVisible) {
       return;
     }
 
     autoRotateRef.current = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % availableFeatures.length);
+      setCurrentIndex((prev) => (prev + 1) % undiscoveredFeatures.length);
     }, rotationInterval);
 
     return () => {
@@ -194,51 +219,48 @@ export default function FeatureDiscovery({
         clearInterval(autoRotateRef.current);
       }
     };
-  }, [autoRotate, isPaused, availableFeatures.length, maxCards, rotationInterval, layout]);
+  }, [autoRotate, isPaused, undiscoveredFeatures.length, maxVisible, rotationInterval, layout]);
 
   // Handle feature click
   const handleFeatureClick = useCallback(
     (feature) => {
-      markUsed(feature.id);
+      markDiscovered(feature.id);
       if (onFeatureClick) {
         onFeatureClick(feature);
       }
     },
-    [markUsed, onFeatureClick]
+    [markDiscovered, onFeatureClick]
   );
 
   // Handle dismiss
   const handleDismiss = useCallback(
     (featureId) => {
-      dismiss(featureId);
-      if (onDismiss) {
-        onDismiss(featureId);
-      }
+      dismissFeature(featureId);
     },
-    [dismiss, onDismiss]
+    [dismissFeature]
   );
 
-  // Navigation handlers (for grid layout)
+  // Navigation handlers
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) =>
-      prev === 0 ? availableFeatures.length - 1 : prev - 1
+      prev === 0 ? undiscoveredFeatures.length - 1 : prev - 1
     );
-  }, [availableFeatures.length]);
+  }, [undiscoveredFeatures.length]);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % availableFeatures.length);
-  }, [availableFeatures.length]);
+    setCurrentIndex((prev) => (prev + 1) % undiscoveredFeatures.length);
+  }, [undiscoveredFeatures.length]);
 
-  // Scroll handlers (for scroll layout)
+  // Scroll handlers (for carousel layout)
   const scrollLeft = useCallback(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -280, behavior: 'smooth' });
+      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
     }
   }, []);
 
   const scrollRight = useCallback(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 280, behavior: 'smooth' });
+      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
     }
   }, []);
 
@@ -247,73 +269,115 @@ export default function FeatureDiscovery({
   const handleMouseLeave = useCallback(() => setIsPaused(false), []);
 
   // Don't render if no features to show
-  if (availableFeatures.length === 0) {
+  if (undiscoveredFeatures.length === 0) {
+    // Optionally show completion message if showProgress is enabled
+    if (showProgress && discoveryProgress.total > 0) {
+      return (
+        <div className={clsx('text-center py-6', className)}>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-500/20 mb-3">
+            <CheckCircle2 className="w-6 h-6 text-green-400" />
+          </div>
+          <p className="text-sm text-gray-400">
+            You have explored all {discoveryProgress.total} features!
+          </p>
+        </div>
+      );
+    }
     return null;
   }
 
   const showNavigation =
-    layout === 'grid'
-      ? availableFeatures.length > maxCards
-      : availableFeatures.length > maxCards;
+    layout === 'carousel'
+      ? undiscoveredFeatures.length > maxVisible
+      : undiscoveredFeatures.length > (layout === 'stack' ? 1 : maxVisible);
 
-  // Horizontal scroll layout
-  if (layout === 'scroll') {
+  // Render header with progress
+  const renderHeader = () => {
+    if (!showHeader) return null;
+
+    return (
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <motion.div
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20"
+            animate={{
+              boxShadow: [
+                '0 0 10px rgba(59, 130, 246, 0.3)',
+                '0 0 20px rgba(139, 92, 246, 0.4)',
+                '0 0 10px rgba(59, 130, 246, 0.3)',
+              ],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          >
+            <Sparkles className="w-4 h-4 text-blue-400" />
+          </motion.div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Discover Features</h3>
+            <p className="text-xs text-gray-500">
+              {showProgress
+                ? `${discoveryProgress.discovered} of ${discoveryProgress.total} discovered`
+                : `${undiscoveredFeatures.length} features to explore`}
+            </p>
+          </div>
+        </div>
+
+        {/* Navigation arrows */}
+        {showNavigation && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={layout === 'carousel' ? scrollLeft : goToPrevious}
+              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              aria-label="Previous features"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={layout === 'carousel' ? scrollRight : goToNext}
+              className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              aria-label="Next features"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render progress bar
+  const renderProgress = () => {
+    if (!showProgress) return null;
+
+    return (
+      <div className="mt-4">
+        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: `${discoveryProgress.percent}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
+        </div>
+        <p className="text-xs text-gray-500 mt-1 text-right">
+          {discoveryProgress.percent}% complete
+        </p>
+      </div>
+    );
+  };
+
+  // Carousel layout - horizontal scrolling
+  if (layout === 'carousel') {
     return (
       <div
         className={clsx('relative', className)}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Header */}
-        {showHeader && (
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <motion.div
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20"
-                animate={{
-                  boxShadow: [
-                    '0 0 10px rgba(59, 130, 246, 0.3)',
-                    '0 0 20px rgba(139, 92, 246, 0.4)',
-                    '0 0 10px rgba(59, 130, 246, 0.3)',
-                  ],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              >
-                <Sparkles className="w-4 h-4 text-blue-400" />
-              </motion.div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">Discover Features</h3>
-                <p className="text-xs text-gray-500">
-                  {availableFeatures.length} features to explore
-                </p>
-              </div>
-            </div>
-
-            {/* Scroll navigation arrows */}
-            {showNavigation && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={scrollLeft}
-                  className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                  aria-label="Scroll left"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={scrollRight}
-                  className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                  aria-label="Scroll right"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {renderHeader()}
 
         {/* Horizontal scrollable row */}
         <div
@@ -325,11 +389,12 @@ export default function FeatureDiscovery({
           }}
         >
           <AnimatePresence mode="popLayout">
-            {visibleFeatures.slice(0, maxCards * 2).map((feature, index) => (
+            {visibleFeatures.map((feature, index) => (
               <div key={feature.id} className="flex-shrink-0 w-72 snap-start">
                 <FeatureCard
                   feature={feature}
-                  onClick={handleFeatureClick}
+                  variant={index === 0 ? 'highlighted' : 'default'}
+                  onTry={handleFeatureClick}
                   onDismiss={handleDismiss}
                   showPulse={index === 0}
                   index={index}
@@ -340,9 +405,9 @@ export default function FeatureDiscovery({
         </div>
 
         {/* Scroll indicator dots */}
-        {availableFeatures.length > maxCards && (
+        {undiscoveredFeatures.length > maxVisible && (
           <div className="flex items-center justify-center gap-1.5 mt-3">
-            {Array.from({ length: Math.min(availableFeatures.length, maxCards * 2) }).map(
+            {Array.from({ length: Math.min(undiscoveredFeatures.length, maxVisible * 2) }).map(
               (_, idx) => (
                 <div
                   key={idx}
@@ -353,18 +418,85 @@ export default function FeatureDiscovery({
                 />
               )
             )}
-            {availableFeatures.length > maxCards * 2 && (
+            {undiscoveredFeatures.length > maxVisible * 2 && (
               <span className="text-xs text-gray-500 ml-1">
-                +{availableFeatures.length - maxCards * 2}
+                +{undiscoveredFeatures.length - maxVisible * 2}
               </span>
             )}
           </div>
         )}
+
+        {renderProgress()}
       </div>
     );
   }
 
-  // Grid layout (default for backward compatibility)
+  // Stack layout - one card at a time with transitions
+  if (layout === 'stack') {
+    return (
+      <div
+        className={clsx('relative', className)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleMouseEnter}
+        onBlur={handleMouseLeave}
+      >
+        {renderHeader()}
+
+        {/* Single card with animation */}
+        <div className="relative min-h-[200px]">
+          <AnimatePresence mode="wait">
+            {visibleFeatures.map((feature) => (
+              <motion.div
+                key={feature.id}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+              >
+                <FeatureCard
+                  feature={feature}
+                  variant="default"
+                  onTry={handleFeatureClick}
+                  onDismiss={handleDismiss}
+                  showPulse
+                  index={0}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Stack indicator */}
+        {undiscoveredFeatures.length > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mt-4">
+            {undiscoveredFeatures.slice(0, 5).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx)}
+                className={clsx(
+                  'w-2 h-2 rounded-full transition-all duration-200',
+                  idx === currentIndex % undiscoveredFeatures.length
+                    ? 'bg-blue-500 w-6'
+                    : 'bg-white/20 hover:bg-white/40'
+                )}
+                aria-label={`Go to feature ${idx + 1}`}
+              />
+            ))}
+            {undiscoveredFeatures.length > 5 && (
+              <span className="text-xs text-gray-500 ml-1">
+                +{undiscoveredFeatures.length - 5}
+              </span>
+            )}
+          </div>
+        )}
+
+        {renderProgress()}
+      </div>
+    );
+  }
+
+  // Grid layout (default)
   return (
     <div
       className={clsx('relative', className)}
@@ -373,74 +505,26 @@ export default function FeatureDiscovery({
       onFocus={handleMouseEnter}
       onBlur={handleMouseLeave}
     >
-      {/* Header */}
-      {showHeader && (
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <motion.div
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20"
-              animate={{
-                boxShadow: [
-                  '0 0 10px rgba(59, 130, 246, 0.3)',
-                  '0 0 20px rgba(139, 92, 246, 0.4)',
-                  '0 0 10px rgba(59, 130, 246, 0.3)',
-                ],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            >
-              <Sparkles className="w-4 h-4 text-blue-400" />
-            </motion.div>
-            <div>
-              <h3 className="text-sm font-semibold text-white">Discover Features</h3>
-              <p className="text-xs text-gray-500">
-                {availableFeatures.length} features to explore
-              </p>
-            </div>
-          </div>
-
-          {/* Navigation arrows */}
-          {showNavigation && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goToPrevious}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                aria-label="Previous features"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={goToNext}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                aria-label="Next features"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {renderHeader()}
 
       {/* Feature cards grid */}
       <div
         className={clsx(
           'grid gap-4',
-          maxCards === 1
+          maxVisible === 1
             ? 'grid-cols-1'
-            : maxCards === 2
+            : maxVisible === 2
             ? 'grid-cols-1 sm:grid-cols-2'
             : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
         )}
       >
         <AnimatePresence mode="popLayout">
-          {visibleFeatures.slice(0, maxCards).map((feature, index) => (
+          {visibleFeatures.slice(0, maxVisible).map((feature, index) => (
             <FeatureCard
               key={feature.id}
               feature={feature}
-              onClick={handleFeatureClick}
+              variant={index === 0 ? 'highlighted' : 'default'}
+              onTry={handleFeatureClick}
               onDismiss={handleDismiss}
               showPulse={index === 0}
               index={index}
@@ -449,19 +533,18 @@ export default function FeatureDiscovery({
         </AnimatePresence>
       </div>
 
-      {/* Progress dots */}
-      {showNavigation && availableFeatures.length > maxCards && (
+      {/* Progress dots for grid */}
+      {showNavigation && undiscoveredFeatures.length > maxVisible && (
         <div className="flex items-center justify-center gap-1.5 mt-4">
-          {Array.from({ length: Math.ceil(availableFeatures.length / maxCards) }).map(
+          {Array.from({ length: Math.ceil(undiscoveredFeatures.length / maxVisible) }).map(
             (_, idx) => {
               const isActive =
-                Math.floor(currentIndex / maxCards) === idx ||
-                (currentIndex % maxCards !== 0 &&
-                  Math.ceil(currentIndex / maxCards) === idx);
+                Math.floor(currentIndex / maxVisible) === idx ||
+                (currentIndex % maxVisible !== 0 && Math.ceil(currentIndex / maxVisible) === idx);
               return (
                 <button
                   key={idx}
-                  onClick={() => setCurrentIndex(idx * maxCards)}
+                  onClick={() => setCurrentIndex(idx * maxVisible)}
                   className={clsx(
                     'w-2 h-2 rounded-full transition-all duration-200',
                     isActive ? 'bg-blue-500 w-6' : 'bg-white/20 hover:bg-white/40'
@@ -490,6 +573,8 @@ export default function FeatureDiscovery({
           />
         </div>
       )}
+
+      {renderProgress()}
     </div>
   );
 }
@@ -498,7 +583,7 @@ export default function FeatureDiscovery({
  * FeatureDiscoverySkeleton - Loading state
  */
 export function FeatureDiscoverySkeleton({ count = 3, layout = 'grid' }) {
-  if (layout === 'scroll') {
+  if (layout === 'carousel') {
     return (
       <div>
         <div className="flex items-center gap-2 mb-4">
@@ -515,6 +600,21 @@ export function FeatureDiscoverySkeleton({ count = 3, layout = 'grid' }) {
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (layout === 'stack') {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-white/10 animate-pulse" />
+          <div>
+            <div className="h-4 w-28 bg-white/10 rounded animate-pulse mb-1" />
+            <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+          </div>
+        </div>
+        <FeatureCardSkeleton />
       </div>
     );
   }
@@ -541,36 +641,39 @@ export function FeatureDiscoverySkeleton({ count = 3, layout = 'grid' }) {
  * FeatureDiscoveryCompact - Horizontal scrolling compact version
  */
 export function FeatureDiscoveryCompact({
-  features: propFeatures,
-  maxCards = 10,
-  exclude = [],
+  maxVisible = 10,
+  filter,
   onFeatureClick,
   className,
 }) {
-  const { used, markUsed } = useUsedFeatures();
+  const { discovered, markDiscovered } = useDiscoveredFeatures();
   const { dismissed } = useDismissedFeatures();
 
-  const allFeatures = propFeatures || DISCOVERABLE_FEATURES;
+  const allFeatures = useMemo(() => {
+    if (filter && filter.length > 0) {
+      return getFeaturesByCategories(filter);
+    }
+    return DISCOVERABLE_FEATURES;
+  }, [filter]);
 
-  const availableFeatures = useMemo(() => {
+  const undiscoveredFeatures = useMemo(() => {
     const filtered = allFeatures.filter(
-      (f) =>
-        !used.includes(f.id) && !dismissed.includes(f.id) && !exclude.includes(f.id)
+      (f) => !discovered.includes(f.id) && !dismissed.includes(f.id)
     );
-    return sortByPriority(filtered).slice(0, maxCards);
-  }, [allFeatures, used, dismissed, exclude, maxCards]);
+    return sortByPriority(filtered).slice(0, maxVisible);
+  }, [allFeatures, discovered, dismissed, maxVisible]);
 
   const handleClick = useCallback(
     (feature) => {
-      markUsed(feature.id);
+      markDiscovered(feature.id);
       if (onFeatureClick) {
         onFeatureClick(feature);
       }
     },
-    [markUsed, onFeatureClick]
+    [markDiscovered, onFeatureClick]
   );
 
-  if (availableFeatures.length === 0) {
+  if (undiscoveredFeatures.length === 0) {
     return null;
   }
 
@@ -587,11 +690,12 @@ export function FeatureDiscoveryCompact({
           msOverflowStyle: 'none',
         }}
       >
-        {availableFeatures.map((feature) => (
-          <FeatureCardCompact
+        {undiscoveredFeatures.map((feature) => (
+          <FeatureCard
             key={feature.id}
             feature={feature}
-            onClick={handleClick}
+            variant="compact"
+            onTry={handleClick}
           />
         ))}
       </div>
@@ -601,40 +705,6 @@ export function FeatureDiscoveryCompact({
 
 /**
  * useFeatureDiscovery - Hook for programmatic access
- * (Re-exported from useFeatureDiscovery.js for backward compatibility)
+ * Re-exported for convenience (main implementation in useFeatureDiscovery.js)
  */
-export function useFeatureDiscovery() {
-  const { used, markUsed } = useUsedFeatures();
-  const { dismissed, dismiss, undismiss, clearDismissed } = useDismissedFeatures();
-
-  const getUnusedFeatures = useCallback(
-    (features = DISCOVERABLE_FEATURES, excludeIds = []) => {
-      return features.filter(
-        (f) =>
-          !used.includes(f.id) &&
-          !dismissed.includes(f.id) &&
-          !excludeIds.includes(f.id)
-      );
-    },
-    [used, dismissed]
-  );
-
-  const hasUnusedFeatures = useCallback(
-    (features = DISCOVERABLE_FEATURES, excludeIds = []) => {
-      return getUnusedFeatures(features, excludeIds).length > 0;
-    },
-    [getUnusedFeatures]
-  );
-
-  return {
-    usedFeatures: used,
-    dismissedFeatures: dismissed,
-    unusedFeatures: getUnusedFeatures(),
-    markUsed,
-    dismiss,
-    undismiss,
-    clearDismissed,
-    getUnusedFeatures,
-    hasUnusedFeatures,
-  };
-}
+export { useFeatureDiscovery } from './useFeatureDiscovery';

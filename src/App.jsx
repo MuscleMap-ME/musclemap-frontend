@@ -1,5 +1,5 @@
 import React, { useEffect, Suspense, lazy, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client/react';
 import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
@@ -7,6 +7,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LocaleProvider } from './contexts/LocaleContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { CompanionProvider, CompanionDock } from './components/mascot';
+import { CommandPalette, CommandPaletteProvider, useCommandPaletteContext } from './components/command';
 import { usePrefetchRoutes } from './components/PrefetchLink';
 import logger from './utils/logger';
 import { trackPageView } from './lib/analytics';
@@ -533,6 +534,35 @@ function AppRoutes() {
 }
 
 // ============================================
+// GLOBAL COMMAND PALETTE
+// ============================================
+
+function GlobalCommandPalette() {
+  const { isOpen, close, handleSelect } = useCommandPaletteContext();
+  const navigate = useNavigate();
+
+  const onSelect = (item) => {
+    if (item.action && typeof item.action === 'function') {
+      item.action(navigate);
+    } else if (item.path) {
+      navigate(item.path);
+    }
+    handleSelect?.(item);
+  };
+
+  return (
+    <CommandPalette
+      isOpen={isOpen}
+      onClose={close}
+      onSelect={onSelect}
+      placeholder="Search exercises, pages, actions..."
+      recentSearches
+      maxResults={6}
+    />
+  );
+}
+
+// ============================================
 // ROOT APP COMPONENT
 // ============================================
 
@@ -565,12 +595,15 @@ export default function App() {
               <UserProvider>
                 <PluginProvider>
                   <PluginThemeProvider>
-                    <CompanionProvider>
-                      <div id="main-content" role="main">
-                        <AppRoutes />
-                      </div>
-                      <CompanionDock />
-                    </CompanionProvider>
+                    <CommandPaletteProvider>
+                      <CompanionProvider>
+                        <div id="main-content" role="main">
+                          <AppRoutes />
+                        </div>
+                        <CompanionDock />
+                        <GlobalCommandPalette />
+                      </CompanionProvider>
+                    </CommandPaletteProvider>
                   </PluginThemeProvider>
                 </PluginProvider>
               </UserProvider>

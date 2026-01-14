@@ -964,12 +964,18 @@ export const GenericIllustration = () => (
  */
 export const EMPTY_STATE_ILLUSTRATIONS = {
   workouts: WorkoutsIllustration,
+  workout: WorkoutsIllustration, // alias
   achievements: AchievementsIllustration,
+  achievement: AchievementsIllustration, // alias
   goals: GoalsIllustration,
   community: CommunityIllustration,
   messages: MessagesIllustration,
+  message: MessagesIllustration, // alias
   exercises: ExercisesIllustration,
   stats: StatsIllustration,
+  search: SearchIllustration,
+  error: ErrorIllustration,
+  data: DataIllustration,
   generic: GenericIllustration,
 };
 

@@ -5,6 +5,12 @@
  * Features bioluminescent glow effects, sequential muscle highlighting,
  * breathing idle animation, particle effects, and interactive hover/click.
  *
+ * Performance optimizations:
+ * - Pure SVG + CSS animations (no canvas)
+ * - Respects prefers-reduced-motion
+ * - Pauses when not in viewport (IntersectionObserver)
+ * - Lazy loads animation logic
+ *
  * @example
  * // Auto-playing hero animation
  * <MuscleHeroAnimation
@@ -29,13 +35,42 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   MUSCLE_PATHS,
   VIEWBOX,
   DEFAULT_HIGHLIGHT_SEQUENCE,
   getMusclePathsForView,
 } from './musclePathData';
+
+// Speed presets in milliseconds
+const SPEED_PRESETS = {
+  slow: 3000,
+  normal: 2000,
+  fast: 1000,
+};
+
+// Hook to detect if element is in viewport
+function useInViewport(ref, options = {}) {
+  const [isInViewport, setIsInViewport] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInViewport(entry.isIntersecting);
+      },
+      { threshold: 0.1, ...options }
+    );
+
+    observer.observe(ref.current);
+
+    return () => observer.disconnect();
+  }, [ref, options]);
+
+  return isInViewport;
+}
 
 // Size presets
 const SIZE_PRESETS = {
@@ -387,7 +422,7 @@ const MuscleLabel = React.memo(function MuscleLabel({ muscle, isVisible }) {
 export default function MuscleHeroAnimation({
   autoPlay = true,
   highlightSequence = DEFAULT_HIGHLIGHT_SEQUENCE,
-  speed = 2000,
+  speed = 'normal',
   style = 'bioluminescent',
   view = 'front',
   interactive = false,
@@ -402,6 +437,25 @@ export default function MuscleHeroAnimation({
   const [sequenceIndex, setSequenceIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const containerRef = useRef(null);
+
+  // Accessibility: respect reduced motion preference
+  const prefersReducedMotion = useReducedMotion();
+
+  // Performance: pause when not in viewport
+  const isInViewport = useInViewport(containerRef);
+
+  // Resolve speed to milliseconds
+  const speedMs = useMemo(() => {
+    if (typeof speed === 'number') return speed;
+    return SPEED_PRESETS[speed] || SPEED_PRESETS.normal;
+  }, [speed]);
+
+  // Determine if animations should run
+  const shouldAnimate = useMemo(() => {
+    if (prefersReducedMotion) return false;
+    if (!isInViewport) return false;
+    return true;
+  }, [prefersReducedMotion, isInViewport]);
 
   // Get style preset
   const stylePreset = useMemo(() => {
@@ -432,16 +486,16 @@ export default function MuscleHeroAnimation({
 
   // Auto-play sequence
   useEffect(() => {
-    if (!isPlaying || highlightSequence.length === 0) {
+    if (!isPlaying || highlightSequence.length === 0 || !shouldAnimate) {
       return;
     }
 
     const interval = setInterval(() => {
       setSequenceIndex((prev) => (prev + 1) % highlightSequence.length);
-    }, speed);
+    }, speedMs);
 
     return () => clearInterval(interval);
-  }, [isPlaying, highlightSequence, speed]);
+  }, [isPlaying, highlightSequence, speedMs, shouldAnimate]);
 
   // Update highlighted muscle based on sequence
   useEffect(() => {
@@ -525,16 +579,16 @@ export default function MuscleHeroAnimation({
           display: 'block',
           color: 'rgba(255, 255, 255, 0.6)',
         }}
-        // Breathing animation when idle
+        // Breathing animation when idle (respects reduced motion and viewport)
         animate={{
-          scale: isPlaying
+          scale: shouldAnimate && isPlaying
             ? [1, stylePreset.breathingScale, 1]
             : 1,
         }}
         transition={{
           scale: {
             duration: 4,
-            repeat: Infinity,
+            repeat: shouldAnimate ? Infinity : 0,
             ease: 'easeInOut',
           },
         }}
@@ -660,4 +714,4 @@ export default function MuscleHeroAnimation({
 
 // Named exports for convenience
 export { MuscleHeroAnimation };
-export { SIZE_PRESETS, STYLE_PRESETS };
+export { SIZE_PRESETS, STYLE_PRESETS, SPEED_PRESETS };

@@ -177,16 +177,18 @@ const OdometerDigit = memo(function OdometerDigit({ char, isDigit, glowColor }) 
  *
  * @param {number} value - Target value to animate to
  * @param {number} duration - Animation duration in milliseconds (default: 1000)
- * @param {string} format - Number format: 'comma', 'decimal', 'currency', 'compact', or 'none' (default: 'none')
+ * @param {string} format - Number format: 'comma', 'decimal', 'currency', 'compact', 'percent', or 'none' (default: 'none')
  * @param {number} decimals - Number of decimal places to display
  * @param {string} prefix - String to display before the number
  * @param {string} suffix - String to display after the number
  * @param {boolean} glowOnChange - Add glow effect when value changes
- * @param {string} glowColor - Color for the glow effect (CSS value, default: brand blue)
+ * @param {string} glowColor - Color for the glow effect (CSS value, default: brand blue). Set to 'auto' for green/red based on direction
  * @param {string} easing - Easing function name (default: 'easeOut')
  * @param {string} variant - Display variant: 'default' or 'odometer' (default: 'default')
  * @param {string} className - Additional CSS classes
+ * @param {boolean} countUp - Whether to always animate from 0 on initial load (alias for startFromZero)
  * @param {boolean} startFromZero - Whether to always start from zero (default: false)
+ * @param {string} ariaLabel - Custom aria-label for accessibility
  */
 function AnimatedNumber({
   value = 0,
@@ -200,17 +202,23 @@ function AnimatedNumber({
   easing = 'easeOut',
   variant = 'default',
   className,
+  countUp = false,
   startFromZero = false,
+  ariaLabel,
   ...props
 }) {
-  const [displayValue, setDisplayValue] = useState(value);
+  // countUp is an alias for startFromZero
+  const shouldStartFromZero = countUp || startFromZero;
+
+  const [displayValue, setDisplayValue] = useState(shouldStartFromZero ? 0 : value);
   const [isGlowing, setIsGlowing] = useState(false);
-  const [increased, setIncreased] = useState(false);
-  const previousValueRef = useRef(value);
+  const [changeDirection, setChangeDirection] = useState(null); // 'increase' | 'decrease' | null
+  const previousValueRef = useRef(shouldStartFromZero ? 0 : value);
   const animationFrameRef = useRef(null);
   const startTimeRef = useRef(null);
-  const startValueRef = useRef(value);
-  const displayValueRef = useRef(value);
+  const startValueRef = useRef(shouldStartFromZero ? 0 : value);
+  const displayValueRef = useRef(shouldStartFromZero ? 0 : value);
+  const isFirstRender = useRef(true);
 
   // Keep displayValueRef in sync with displayValue
   useEffect(() => {
@@ -254,9 +262,9 @@ function AnimatedNumber({
     const valueChanged = value !== previousValueRef.current;
     const valueIncreased = value > previousValueRef.current;
 
-    // Track if value increased (for glow direction)
+    // Track change direction (for glow color)
     if (valueChanged) {
-      setIncreased(valueIncreased);
+      setChangeDirection(valueIncreased ? 'increase' : 'decrease');
     }
 
     // Check for reduced motion preference
@@ -264,7 +272,10 @@ function AnimatedNumber({
       setDisplayValue(value);
       if (glowOnChange && valueChanged) {
         setIsGlowing(true);
-        const timer = setTimeout(() => setIsGlowing(false), 600);
+        const timer = setTimeout(() => {
+          setIsGlowing(false);
+          setChangeDirection(null);
+        }, 600);
         previousValueRef.current = value;
         return () => clearTimeout(timer);
       }
@@ -278,8 +289,9 @@ function AnimatedNumber({
     }
 
     // Determine start value
-    if (startFromZero) {
+    if (shouldStartFromZero && isFirstRender.current) {
       startValueRef.current = 0;
+      isFirstRender.current = false;
     } else {
       // Start from current display value for smooth mid-animation transitions
       startValueRef.current = displayValueRef.current;
@@ -291,7 +303,10 @@ function AnimatedNumber({
     // Trigger glow effect if enabled and value changed
     if (glowOnChange && valueChanged) {
       setIsGlowing(true);
-      setTimeout(() => setIsGlowing(false), 600);
+      setTimeout(() => {
+        setIsGlowing(false);
+        setChangeDirection(null);
+      }, 600);
     }
 
     // Start animation
@@ -306,7 +321,7 @@ function AnimatedNumber({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [value, animate, glowOnChange, startFromZero, reducedMotion]);
+  }, [value, animate, glowOnChange, shouldStartFromZero, reducedMotion]);
 
   // Format the display value
   const formattedValue = useMemo(
@@ -320,6 +335,17 @@ function AnimatedNumber({
     [formattedValue, variant]
   );
 
+  // Compute the effective glow color based on direction
+  const effectiveGlowColor = useMemo(() => {
+    if (glowColor === 'auto') {
+      // Automatic color based on direction
+      if (changeDirection === 'increase') return GLOW_COLORS.increase;
+      if (changeDirection === 'decrease') return GLOW_COLORS.decrease;
+      return GLOW_COLORS.default;
+    }
+    return glowColor;
+  }, [glowColor, changeDirection]);
+
   // Glow animation variants for Framer Motion
   const glowVariants = {
     initial: {
@@ -329,8 +355,8 @@ function AnimatedNumber({
     glowing: {
       textShadow: [
         '0 0 0 transparent',
-        `0 0 20px ${glowColor}, 0 0 40px ${glowColor}`,
-        `0 0 10px ${glowColor}`,
+        `0 0 20px ${effectiveGlowColor}, 0 0 40px ${effectiveGlowColor}`,
+        `0 0 10px ${effectiveGlowColor}`,
       ],
       scale: [1, 1.05, 1],
       transition: {
@@ -340,19 +366,22 @@ function AnimatedNumber({
     },
   };
 
+  // Generate accessible label
+  const accessibleLabel = ariaLabel || `${prefix}${formattedValue}${suffix}`;
+
   const content = (
     <>
-      {prefix && <span className="animated-number__prefix">{prefix}</span>}
+      {prefix && <span className="animated-number__prefix" aria-hidden="true">{prefix}</span>}
       {variant === 'odometer' ? (
-        <span className="odometer-container">
+        <span className="odometer-container" aria-hidden="true">
           {digits.map(({ char, key, isDigit }) => (
-            <OdometerDigit key={key} char={char} isDigit={isDigit} glowColor={glowColor} />
+            <OdometerDigit key={key} char={char} isDigit={isDigit} glowColor={effectiveGlowColor} />
           ))}
         </span>
       ) : (
-        <span className="animated-number__value">{formattedValue}</span>
+        <span className="animated-number__value" aria-hidden="true">{formattedValue}</span>
       )}
-      {suffix && <span className="animated-number__suffix">{suffix}</span>}
+      {suffix && <span className="animated-number__suffix" aria-hidden="true">{suffix}</span>}
     </>
   );
 
@@ -363,15 +392,20 @@ function AnimatedNumber({
           'animated-number',
           variant === 'odometer' && 'animated-number--odometer',
           isGlowing && 'animated-number--glowing',
-          increased && 'animated-number--increased',
+          changeDirection === 'increase' && 'animated-number--increased',
+          changeDirection === 'decrease' && 'animated-number--decreased',
           className
         )}
         style={{
-          '--glow-color': glowColor,
+          '--glow-color': effectiveGlowColor,
         }}
         variants={glowVariants}
         initial="initial"
         animate={isGlowing && !reducedMotion ? 'glowing' : 'initial'}
+        aria-label={accessibleLabel}
+        aria-live="polite"
+        aria-atomic="true"
+        role="status"
         {...props}
       >
         {content}
@@ -418,9 +452,11 @@ function AnimatedNumber({
         /* Glow states */
         .animated-number--glowing {
           text-shadow: 0 0 10px var(--glow-color);
+          position: relative;
         }
 
-        .animated-number--glowing.animated-number--increased::after {
+        .animated-number--glowing.animated-number--increased::after,
+        .animated-number--glowing.animated-number--decreased::after {
           content: '';
           position: absolute;
           inset: -4px;
@@ -429,6 +465,15 @@ function AnimatedNumber({
           opacity: 0;
           animation: glow-pulse 600ms var(--ease-out, ease-out) forwards;
           pointer-events: none;
+        }
+
+        /* Direction-specific glow colors when using auto */
+        .animated-number--increased {
+          --direction-color: var(--color-success, #22c55e);
+        }
+
+        .animated-number--decreased {
+          --direction-color: var(--color-error, #ef4444);
         }
 
         @keyframes glow-pulse {
@@ -488,9 +533,25 @@ export function AnimatedCurrency({
 }
 
 /**
- * AnimatedPercentage - Preset for percentage values
+ * AnimatedPercentage - Preset for percentage values (decimal input)
+ * Takes a decimal value (0.75) and displays as percentage (75%)
  */
 export function AnimatedPercentage({ value, decimals = 1, ...props }) {
+  return (
+    <AnimatedNumber
+      value={value}
+      format="percent"
+      decimals={decimals}
+      {...props}
+    />
+  );
+}
+
+/**
+ * AnimatedPercent - Preset for percentage values (already percentage input)
+ * Takes a percentage value (75) and displays as percentage (75%)
+ */
+export function AnimatedPercent({ value, decimals = 0, ...props }) {
   return (
     <AnimatedNumber
       value={value}
