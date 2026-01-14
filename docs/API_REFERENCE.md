@@ -505,6 +505,20 @@ Authorization: Bearer <token>
 | `GET` | `/limitations/substitutions/:exerciseId` | Yes |
 
 
+### Live-activity
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/live/cleanup` | Yes |
+| `GET` | `/live/feed` | Yes |
+| `GET` | `/live/filters` | Yes |
+| `GET` | `/live/hierarchy/:level` | Yes |
+| `GET` | `/live/map` | Yes |
+| `GET` | `/live/stats` | Yes |
+| `GET` | `/live/stream` | Yes |
+| `GET` | `/live/trending` | Yes |
+
+
 ### Martial-arts
 
 | Method | Endpoint | Auth Required |

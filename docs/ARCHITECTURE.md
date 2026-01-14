@@ -196,7 +196,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (60 total)
+## Frontend Pages (61 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -231,6 +231,7 @@ musclemap.me/
 | Landing | No | Landing page |
 | Leaderboard | No | Leaderboard page |
 | Limitations | Yes | Limitations Page - MuscleMap Liquid Glass Design  Manage physical limitations, disabilities, and exercise modifications |
+| LiveActivityMonitor | No | LiveActivityMonitor Page  Real-time activity visualization dashboard |
 | Locations | No | Locations page |
 | Login | Yes | Login page |
 | MartialArts | No | MartialArts page |
@@ -261,7 +262,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (84 total)
+## Components (90 total)
 
 Components are organized by feature:
 
@@ -346,6 +347,14 @@ Components are organized by feature:
 ### landing
 - `LiveCommunityStats`
 
+### live
+- `ActivityMapAnonymous`
+- `FilterPanel`
+- `HierarchyNavigator`
+- `LiveActivityFeed`
+- `StatsPanel`
+- `TrendingExercises`
+
 ### mascot
 - `CompanionCharacter`
 - `CompanionContext`
@@ -389,7 +398,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (476 total)
+## API Endpoints (484 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -646,6 +655,14 @@ Components are organized by feature:
 | GET | `/limitations/body-regions` | limitations |
 | POST | `/limitations/check-workout` | limitations |
 | GET | `/limitations/substitutions/:exerciseId` | limitations |
+| POST | `/live/cleanup` | live-activity |
+| GET | `/live/feed` | live-activity |
+| GET | `/live/filters` | live-activity |
+| GET | `/live/hierarchy/:level` | live-activity |
+| GET | `/live/map` | live-activity |
+| GET | `/live/stats` | live-activity |
+| GET | `/live/stream` | live-activity |
+| GET | `/live/trending` | live-activity |
 | GET | `/locations/:id/equipment` | equipment |
 | POST | `/locations/:id/equipment` | equipment |
 | GET | `/locations/:id/equipment/my-reports` | equipment |
