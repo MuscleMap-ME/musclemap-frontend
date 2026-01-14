@@ -175,7 +175,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
         COUNT(a.id)::text as archetype_count
       FROM archetype_categories ac
       LEFT JOIN archetypes a ON a.category_id = ac.id
-      GROUP BY ac.id, ac.name, ac.description, ac.icon
+      GROUP BY ac.id, ac.name, ac.description, ac.icon, ac.display_order
       ORDER BY ac.display_order ASC
     `);
 
