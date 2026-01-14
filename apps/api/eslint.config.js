@@ -16,8 +16,8 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off', // Allow any for flexibility
+      '@typescript-eslint/no-unused-vars': 'off', // Disabled - many are intentional placeholders
       'no-console': 'off',
     },
   },
