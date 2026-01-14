@@ -195,7 +195,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (59 total)
+## Frontend Pages (60 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -218,6 +218,7 @@ musclemap.me/
 | DesignSystem | No | Design System Showcase  Demonstrates the MuscleMap Liquid Glass design system components |
 | DevUpdates | No | Dev Updates Page  Development updates, announcements, and changelog: - Release notes - Bug fixes - Feature announcements / |
 | Docs | No | Docs page |
+| EmpireControl | Yes | Empire Control - Master Admin Panel  The ultimate control center for the MuscleMap empire, integrating: - System metrics and monitoring dashboards - Community management and messaging - Owner avatar with unlimited powers - User and resource management - Slack integration - Real-time activity feeds / |
 | Exercises | No | Exercises page |
 | Features | No | Features Page  Showcases MuscleMap features with VGA-style graphics, charts, and bars |
 | Goals | Yes | Goals Page - MuscleMap Liquid Glass Design  Goal-based training with targets, progress tracking, and milestones |

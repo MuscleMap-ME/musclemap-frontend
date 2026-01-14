@@ -84,6 +84,7 @@ const AdminControl = lazy(() => import('./pages/AdminControl'));
 const AdminIssues = lazy(() => import('./pages/AdminIssues'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
+const EmpireControl = lazy(() => import('./pages/EmpireControl'));
 
 // Plugin pages
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
@@ -446,6 +447,7 @@ function AppRoutes() {
           <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
           <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
+          <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
 
           {/* Plugin routes */}
           <Route path="/plugins" element={<ProtectedRoute name="PluginMarketplace"><PluginMarketplace /></ProtectedRoute>} />
