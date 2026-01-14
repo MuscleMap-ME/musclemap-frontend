@@ -63,6 +63,7 @@ musclemap.me/
 │   ├── mascot_system.md
 │   ├── MASTER-IMPLEMENTATION-PLAN.md
 │   ├── NATIVE_EXTENSIONS.md
+│   ├── NUTRITION-SYSTEM-PLAN.md
 │   ├── PLUGIN-DEVELOPMENT.md
 │   ├── PLUGINS.md
 │   ├── PRIVACY_POLICY.md
