@@ -62,6 +62,9 @@ interface TestContext {
     templateId?: string;
     clonedTemplateId?: string;
     progressionTargetId?: string;
+    crewId?: string;
+    rivalryId?: string;
+    buddyId?: string;
   };
 }
 
@@ -1556,6 +1559,446 @@ async function testProgressiveOverload(ctx: TestContext) {
 }
 
 // ============================================
+// WEARABLES TEST
+// ============================================
+
+async function testWearables(ctx: TestContext) {
+  logSection('WEARABLES');
+
+  // Get wearables summary (will be empty for new user)
+  await runTest('Wearables', 'Get wearables summary', async () => {
+    const res = await request('GET', '/wearables', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get wearables summary');
+  });
+
+  // Get wearable workouts
+  await runTest('Wearables', 'Get wearable workouts', async () => {
+    const res = await request('GET', '/wearables/workouts?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get wearable workouts');
+    const data = res.body as { data: { workouts: unknown[] } };
+    assert(Array.isArray(data.data.workouts), 'Should return workouts array');
+  });
+
+  // Test connect endpoint validation (requires valid provider)
+  await runTest('Wearables', 'Connect requires valid provider', async () => {
+    const res = await request('POST', '/wearables/connect', {
+      token: ctx.token,
+      body: {
+        provider: 'invalid_provider',
+      },
+      expectedStatus: [400],
+    });
+    assert(res.status === 400, 'Should reject invalid provider');
+  });
+
+  // Test connect with valid provider (but no real tokens)
+  await runTest('Wearables', 'Connect with valid provider', async () => {
+    const res = await request('POST', '/wearables/connect', {
+      token: ctx.token,
+      body: {
+        provider: 'apple_health',
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should accept valid provider');
+  });
+
+  // Disconnect wearable
+  await runTest('Wearables', 'Disconnect wearable', async () => {
+    const res = await request('POST', '/wearables/disconnect', {
+      token: ctx.token,
+      body: {
+        provider: 'apple_health',
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should disconnect wearable');
+  });
+}
+
+// ============================================
+// CREWS TEST
+// ============================================
+
+async function testCrews(ctx: TestContext) {
+  logSection('CREWS');
+
+  // Get crew leaderboard (public)
+  await runTest('Crews', 'Get crew leaderboard', async () => {
+    const res = await request('GET', '/crews/leaderboard?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get crew leaderboard');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return leaderboard array');
+  });
+
+  // Get user's crew (should be null initially)
+  await runTest('Crews', 'Get my crew (none)', async () => {
+    const res = await request('GET', '/crews/my', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should respond to my crew request');
+    const data = res.body as { data: null | object };
+    assert(data.data === null, 'Should have no crew initially');
+  });
+
+  // Create a crew
+  await runTest('Crews', 'Create crew', async () => {
+    const res = await request('POST', '/crews', {
+      token: ctx.token,
+      body: {
+        name: `E2E Test Crew ${Date.now()}`,
+        tag: 'E2E',
+        description: 'Test crew for E2E testing',
+      },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should create crew');
+    const data = res.body as { data: { id: string; name: string } };
+    assert(data.data.id, 'Should return crew ID');
+    ctx.createdResources.crewId = data.data.id;
+  });
+
+  // Get user's crew (should exist now)
+  await runTest('Crews', 'Get my crew (exists)', async () => {
+    const res = await request('GET', '/crews/my', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get my crew');
+    const data = res.body as { data: { crew: { id: string } } };
+    assert(data.data?.crew?.id === ctx.createdResources.crewId, 'Should return correct crew');
+  });
+
+  // Search crews
+  await runTest('Crews', 'Search crews', async () => {
+    const res = await request('GET', '/crews/search?q=E2E', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should search crews');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return array of crews');
+  });
+
+  // Get crew by ID
+  if (ctx.createdResources.crewId) {
+    await runTest('Crews', 'Get crew by ID', async () => {
+      const res = await request('GET', `/crews/${ctx.createdResources.crewId}`, {
+        token: ctx.token,
+        expectedStatus: [200],
+      });
+      assert(res.status === 200, 'Should get crew by ID');
+    });
+
+    // Get crew wars
+    await runTest('Crews', 'Get crew wars', async () => {
+      const res = await request('GET', `/crews/${ctx.createdResources.crewId}/wars`, {
+        token: ctx.token,
+        expectedStatus: [200],
+      });
+      assert(res.status === 200, 'Should get crew wars');
+      const data = res.body as { data: unknown[] };
+      assert(Array.isArray(data.data), 'Should return wars array');
+    });
+  }
+
+  // Leave crew
+  await runTest('Crews', 'Leave crew', async () => {
+    const res = await request('POST', '/crews/leave', {
+      token: ctx.token,
+      expectedStatus: [200, 400], // 400 if owner can't leave
+    });
+    assert([200, 400].includes(res.status), 'Should respond to leave request');
+  });
+}
+
+// ============================================
+// BUDDY TEST
+// ============================================
+
+async function testBuddy(ctx: TestContext) {
+  logSection('TRAINING BUDDY');
+
+  // Get buddy (should be null initially)
+  await runTest('Buddy', 'Get buddy (none)', async () => {
+    const res = await request('GET', '/buddy', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should respond to buddy request');
+  });
+
+  // Create buddy
+  await runTest('Buddy', 'Create buddy', async () => {
+    const res = await request('POST', '/buddy', {
+      token: ctx.token,
+      body: {
+        species: 'wolf',
+      },
+      expectedStatus: [201, 400], // 400 if already exists
+    });
+    assert([201, 400].includes(res.status), 'Should respond to create buddy');
+    if (res.status === 201) {
+      const data = res.body as { data: { id: string } };
+      ctx.createdResources.buddyId = data.data.id;
+    }
+  });
+
+  // Get buddy (should exist now)
+  await runTest('Buddy', 'Get buddy (exists)', async () => {
+    const res = await request('GET', '/buddy', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get buddy');
+  });
+
+  // Update buddy nickname
+  await runTest('Buddy', 'Set buddy nickname', async () => {
+    const res = await request('PUT', '/buddy/nickname', {
+      token: ctx.token,
+      body: {
+        nickname: 'E2E Test Buddy',
+      },
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should respond to nickname update');
+  });
+
+  // Update display settings
+  await runTest('Buddy', 'Update display settings', async () => {
+    const res = await request('PUT', '/buddy/settings', {
+      token: ctx.token,
+      body: {
+        visible: true,
+        showOnProfile: true,
+      },
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should respond to settings update');
+  });
+
+  // Get evolution path
+  await runTest('Buddy', 'Get evolution path', async () => {
+    const res = await request('GET', '/buddy/evolution/wolf', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get evolution path');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return evolution stages array');
+  });
+
+  // Get buddy leaderboard
+  await runTest('Buddy', 'Get buddy leaderboard', async () => {
+    const res = await request('GET', '/buddy/leaderboard?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get buddy leaderboard');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return leaderboard array');
+  });
+}
+
+// ============================================
+// RIVALS TEST
+// ============================================
+
+async function testRivals(ctx: TestContext) {
+  logSection('RIVALS');
+
+  // Get rivalries
+  await runTest('Rivals', 'Get rivalries', async () => {
+    const res = await request('GET', '/rivals', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get rivalries');
+    const data = res.body as { data: { rivals: unknown[]; stats: object } };
+    assert(Array.isArray(data.data.rivals), 'Should return rivals array');
+    assert(data.data.stats, 'Should return stats');
+  });
+
+  // Get pending rivalries
+  await runTest('Rivals', 'Get pending rivalries', async () => {
+    const res = await request('GET', '/rivals/pending', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get pending rivalries');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return pending array');
+  });
+
+  // Get rivalry stats
+  await runTest('Rivals', 'Get rivalry stats', async () => {
+    const res = await request('GET', '/rivals/stats', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get rivalry stats');
+  });
+
+  // Search for potential rivals
+  await runTest('Rivals', 'Search potential rivals', async () => {
+    const res = await request('GET', '/rivals/search?q=test', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should search rivals');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return search results array');
+  });
+
+  // Test challenge validation (can't challenge self)
+  await runTest('Rivals', 'Cannot challenge self', async () => {
+    const res = await request('POST', '/rivals/challenge', {
+      token: ctx.token,
+      body: {
+        opponentId: ctx.userId,
+      },
+      expectedStatus: [400],
+    });
+    assert(res.status === 400, 'Should reject self-challenge');
+  });
+
+  // Test challenge validation (invalid opponent)
+  await runTest('Rivals', 'Challenge requires valid opponent', async () => {
+    const res = await request('POST', '/rivals/challenge', {
+      token: ctx.token,
+      body: {
+        opponentId: 'invalid-user-id',
+      },
+      expectedStatus: [400, 404],
+    });
+    assert([400, 404].includes(res.status), 'Should reject invalid opponent');
+  });
+}
+
+// ============================================
+// TRAINERS TEST
+// ============================================
+
+async function testTrainers(ctx: TestContext) {
+  logSection('TRAINERS');
+
+  // List trainers
+  await runTest('Trainers', 'List trainers', async () => {
+    const res = await request('GET', '/trainers?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should list trainers');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return trainers array');
+  });
+
+  // Get my trainer profile (should be null initially)
+  await runTest('Trainers', 'Get my profile (none)', async () => {
+    const res = await request('GET', '/trainers/me', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should respond to profile request');
+  });
+
+  // Create trainer profile
+  await runTest('Trainers', 'Create trainer profile', async () => {
+    const res = await request('POST', '/trainers/profile', {
+      token: ctx.token,
+      body: {
+        displayName: 'E2E Test Trainer',
+        bio: 'Test trainer for E2E testing',
+        specialties: ['Strength', 'HIIT'],
+        perClassRateCredits: 50,
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should create trainer profile');
+  });
+
+  // Get my trainer profile (should exist now)
+  await runTest('Trainers', 'Get my profile (exists)', async () => {
+    const res = await request('GET', '/trainers/me', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get trainer profile');
+    const data = res.body as { data: { displayName: string } };
+    assert(data.data?.displayName === 'E2E Test Trainer', 'Should return correct profile');
+  });
+
+  // List classes
+  await runTest('Trainers', 'List classes', async () => {
+    const res = await request('GET', '/classes?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should list classes');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return classes array');
+  });
+
+  // Create a class
+  await runTest('Trainers', 'Create class', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+
+    const res = await request('POST', '/classes', {
+      token: ctx.token,
+      body: {
+        title: 'E2E Test Class',
+        description: 'Test class for E2E testing',
+        category: 'fitness',
+        difficulty: 'all',
+        startAt: tomorrow.toISOString(),
+        durationMinutes: 60,
+        locationType: 'virtual',
+        capacity: 20,
+        creditsPerStudent: 50,
+        trainerWagePerStudent: 40,
+      },
+      expectedStatus: [201, 400], // 400 if trainer profile missing
+    });
+    assert([201, 400].includes(res.status), 'Should respond to create class request');
+  });
+
+  // Get trainer's classes
+  await runTest('Trainers', 'Get my classes', async () => {
+    const res = await request('GET', '/trainers/me/classes', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get trainer classes');
+    const data = res.body as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return classes array');
+  });
+
+  // Get user's enrollments
+  await runTest('Trainers', 'Get my enrollments', async () => {
+    const res = await request('GET', '/me/enrollments', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get enrollments');
+    const data = res.body as { data: { enrollments: unknown[] } };
+    assert(Array.isArray(data.data.enrollments), 'Should return enrollments array');
+  });
+}
+
+// ============================================
 // CLEANUP
 // ============================================
 
@@ -1642,6 +2085,11 @@ async function main() {
     await testNotifications(ctx);
     await testWorkoutTemplates(ctx);
     await testProgressiveOverload(ctx);
+    await testWearables(ctx);
+    await testCrews(ctx);
+    await testBuddy(ctx);
+    await testRivals(ctx);
+    await testTrainers(ctx);
 
     await cleanup(ctx);
   } catch (error) {

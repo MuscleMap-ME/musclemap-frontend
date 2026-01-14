@@ -74,6 +74,8 @@ import { registerLiveActivityRoutes } from './routes/live-activity';
 import { registerNotificationRoutes } from './routes/notifications';
 import { registerTemplateRoutes } from './routes/templates';
 import { registerProgressionRoutes } from './routes/progression';
+import { registerCrewsRoutes } from '../modules/crews';
+import { registerRivalsRoutes } from './routes/rivals';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -355,6 +357,8 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerNotificationRoutes(api);
     await registerTemplateRoutes(api);
     await registerProgressionRoutes(api);
+    registerCrewsRoutes(api);
+    await registerRivalsRoutes(api);
   }, { prefix: '/api' });
 
   return app;

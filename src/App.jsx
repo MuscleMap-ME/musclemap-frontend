@@ -48,6 +48,7 @@ const Rivals = lazy(() => import('./pages/Rivals'));
 const Credits = lazy(() => import('./pages/Credits'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const SkinsStore = lazy(() => import('./pages/SkinsStore'));
+const Trainers = lazy(() => import('./pages/Trainers'));
 
 // Health pages
 const Health = lazy(() => import('./pages/Health'));
@@ -86,6 +87,7 @@ const AdminControl = lazy(() => import('./pages/AdminControl'));
 const AdminIssues = lazy(() => import('./pages/AdminIssues'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
+const AdminDisputes = lazy(() => import('./pages/AdminDisputes'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
 
 // Live activity monitoring
@@ -433,6 +435,7 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute name="Messages"><Messages /></ProtectedRoute>} />
           <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
           <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
+          <Route path="/trainers" element={<ProtectedRoute name="Trainers"><Trainers /></ProtectedRoute>} />
           <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
           <Route path="/stats" element={<ProtectedRoute name="Stats"><Stats /></ProtectedRoute>} />
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
@@ -456,6 +459,7 @@ function AppRoutes() {
           <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
           <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
+          <Route path="/admin/disputes" element={<AdminRoute name="AdminDisputes"><AdminDisputes /></AdminRoute>} />
           <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
 
           {/* Live activity monitoring - public anonymous data */}
