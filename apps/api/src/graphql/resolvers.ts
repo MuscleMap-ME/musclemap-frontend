@@ -22,6 +22,13 @@ import {
   MessageEvent,
   ConversationEvent,
 } from '../lib/pubsub';
+import {
+  WEALTH_TIERS_BY_LEVEL,
+  calculateWealthTier,
+  creditsToNextTier,
+  wealthTierProgress,
+  type WealthTierLevel,
+} from '@musclemap/core';
 
 const log = loggers.core;
 
@@ -71,6 +78,36 @@ function generateToken(payload: { userId: string; email: string; roles: string[]
   return jwt.sign(payload, config.JWT_SECRET, {
     expiresIn: config.JWT_EXPIRES_IN,
   } as jwt.SignOptions);
+}
+
+// ============================================
+// WEALTH TIER HELPERS
+// ============================================
+
+interface WealthTierResponse {
+  tier: number;
+  name: string;
+  minCredits: number;
+  color: string;
+  icon: string;
+  description: string;
+  creditsToNext: number | null;
+  progressPercent: number;
+}
+
+function buildWealthTierResponse(credits: number): WealthTierResponse {
+  const tierLevel = calculateWealthTier(credits) as WealthTierLevel;
+  const tierDef = WEALTH_TIERS_BY_LEVEL[tierLevel];
+  return {
+    tier: tierDef.tier,
+    name: tierDef.name,
+    minCredits: tierDef.minCredits,
+    color: tierDef.color,
+    icon: tierDef.icon,
+    description: tierDef.description,
+    creditsToNext: creditsToNextTier(credits),
+    progressPercent: wealthTierProgress(credits),
+  };
 }
 
 // ============================================
@@ -161,26 +198,35 @@ export const resolvers = {
         username: string;
         display_name: string | null;
         avatar_url: string | null;
+        bio: string | null;
+        social_links: Record<string, string> | null;
         archetype_id: string | null;
         level: number;
         xp: number;
         roles: string[];
         created_at: Date;
       }>(
-        `SELECT id, email, username, display_name, avatar_url, archetype_id,
+        `SELECT id, email, username, display_name, avatar_url, bio, social_links, archetype_id,
                 COALESCE(level, 1) as level, COALESCE(xp, 0) as xp, roles, created_at
          FROM users WHERE id = $1`,
         [userId]
       );
       if (!user) return null;
+
+      // Get credit balance for wealth tier calculation
+      const credits = await economyService.getBalance(userId);
+
       return {
         id: user.id,
         email: user.email,
         username: user.username,
         displayName: user.display_name,
         avatar: user.avatar_url,
+        bio: user.bio,
+        socialLinks: user.social_links,
         level: user.level,
         xp: user.xp,
+        wealthTier: buildWealthTierResponse(credits),
         roles: user.roles || ['user'],
         createdAt: user.created_at,
       };
@@ -713,6 +759,7 @@ export const resolvers = {
 
       const token = generateToken({ userId, email, roles: ['user'] });
 
+      // New users start with 100 credits from initializeBalance
       return {
         token,
         user: {
@@ -721,6 +768,7 @@ export const resolvers = {
           username,
           level: 1,
           xp: 0,
+          wealthTier: buildWealthTierResponse(100),
           roles: ['user'],
           createdAt: now,
         },
@@ -735,13 +783,15 @@ export const resolvers = {
         email: string;
         username: string;
         display_name: string | null;
+        bio: string | null;
+        social_links: Record<string, string> | null;
         password_hash: string;
         roles: string[];
         level: number;
         xp: number;
         created_at: Date;
       }>(
-        `SELECT id, email, username, display_name, password_hash, roles,
+        `SELECT id, email, username, display_name, bio, social_links, password_hash, roles,
                 COALESCE(level, 1) as level, COALESCE(xp, 0) as xp, created_at
          FROM users WHERE email = $1`,
         [email]
@@ -756,6 +806,9 @@ export const resolvers = {
       const roles = user.roles || ['user'];
       const token = generateToken({ userId: user.id, email: user.email, roles });
 
+      // Get credit balance for wealth tier calculation
+      const credits = await economyService.getBalance(user.id);
+
       return {
         token,
         user: {
@@ -763,8 +816,11 @@ export const resolvers = {
           email: user.email,
           username: user.username,
           displayName: user.display_name,
+          bio: user.bio,
+          socialLinks: user.social_links,
           level: user.level,
           xp: user.xp,
+          wealthTier: buildWealthTierResponse(credits),
           roles,
           createdAt: user.created_at,
         },
@@ -774,14 +830,19 @@ export const resolvers = {
     // Profile
     updateProfile: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { displayName, bio, avatar, location } = args.input;
+      const { displayName, bio, avatar, location, socialLinks } = args.input;
 
       await query(
         `UPDATE users SET display_name = COALESCE($1, display_name),
-                         avatar = COALESCE($2, avatar)
-         WHERE id = $3`,
-        [displayName, avatar, userId]
+                         avatar = COALESCE($2, avatar),
+                         bio = COALESCE($3, bio),
+                         social_links = COALESCE($4, social_links)
+         WHERE id = $5`,
+        [displayName, avatar, bio, socialLinks ? JSON.stringify(socialLinks) : null, userId]
       );
+
+      // Get credit balance for wealth tier calculation
+      const credits = await economyService.getBalance(userId);
 
       return {
         id: userId,
@@ -790,7 +851,9 @@ export const resolvers = {
         bio,
         avatar,
         location,
+        socialLinks,
         visibility: 'public',
+        wealthTier: buildWealthTierResponse(credits),
         createdAt: new Date(),
         updatedAt: new Date(),
       };

@@ -15,6 +15,7 @@ import { statsService } from '../../modules/stats';
 import { companionEventsService } from '../../modules/mascot';
 import { logActivityEvent } from '../../services/live-activity-logger';
 import { loggers } from '../../lib/logger';
+import { tu_calculate, isNative, TUInput } from '@musclemap/native';
 
 const log = loggers.db;
 
@@ -47,12 +48,13 @@ interface WorkoutExercise {
 
 /**
  * Calculate total TU and muscle activations for a workout
+ * Uses native C implementation when available for 10x performance
  */
 async function calculateTU(exercises: WorkoutExercise[]): Promise<{
   totalTU: number;
   muscleActivations: Record<string, number>;
 }> {
-  const muscleActivations: Record<string, number> = {};
+  const start = performance.now();
 
   // Get all exercise activations in one query
   const exerciseIds = exercises.map((e) => e.exerciseId);
@@ -63,26 +65,19 @@ async function calculateTU(exercises: WorkoutExercise[]): Promise<{
     exerciseIds
   );
 
-  // Build activation map
+  // Build activation map and collect unique muscle IDs
   const activationMap: Record<string, Record<string, number>> = {};
+  const uniqueMuscleIds = new Set<string>();
   for (const row of activations) {
     if (!activationMap[row.exercise_id]) {
       activationMap[row.exercise_id] = {};
     }
     activationMap[row.exercise_id][row.muscle_id] = row.activation;
-  }
-
-  // Calculate activations
-  for (const exercise of exercises) {
-    const exerciseActivations = activationMap[exercise.exerciseId] || {};
-    for (const [muscleId, activation] of Object.entries(exerciseActivations)) {
-      const contribution = exercise.sets * (activation / 100);
-      muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + contribution;
-    }
+    uniqueMuscleIds.add(row.muscle_id);
   }
 
   // Get muscles with bias weights
-  const muscleIds = Object.keys(muscleActivations);
+  const muscleIds = Array.from(uniqueMuscleIds);
   if (muscleIds.length === 0) {
     return { totalTU: 0, muscleActivations: {} };
   }
@@ -95,13 +90,57 @@ async function calculateTU(exercises: WorkoutExercise[]): Promise<{
 
   const biasMap = new Map(muscles.map((m) => [m.id, m.bias_weight]));
 
-  let totalTU = 0;
-  for (const [muscleId, rawActivation] of Object.entries(muscleActivations)) {
-    const biasWeight = biasMap.get(muscleId) || 1;
-    totalTU += rawActivation * biasWeight;
+  // Prepare data for native TU calculation
+  const exerciseCount = exercises.length;
+  const muscleCount = muscleIds.length;
+  const muscleIndexMap = new Map(muscleIds.map((id, idx) => [id, idx]));
+
+  // Build flat activation array: [ex0_m0, ex0_m1, ..., ex1_m0, ex1_m1, ...]
+  const flatActivations: number[] = new Array(exerciseCount * muscleCount).fill(0);
+  const sets: number[] = exercises.map((e) => e.sets);
+  const biasWeights: number[] = muscleIds.map((id) => biasMap.get(id) || 1);
+
+  for (let e = 0; e < exerciseCount; e++) {
+    const exerciseActivations = activationMap[exercises[e].exerciseId] || {};
+    for (const [muscleId, activation] of Object.entries(exerciseActivations)) {
+      const muscleIdx = muscleIndexMap.get(muscleId);
+      if (muscleIdx !== undefined) {
+        flatActivations[e * muscleCount + muscleIdx] = activation;
+      }
+    }
   }
 
-  return { totalTU: Math.round(totalTU * 100) / 100, muscleActivations };
+  // Use native TU calculator when available
+  const tuInput: TUInput = {
+    activations: flatActivations,
+    sets,
+    biasWeights,
+    exerciseCount,
+    muscleCount,
+  };
+
+  const result = tu_calculate(tuInput);
+
+  // Convert muscle activations back to Record format
+  const muscleActivations: Record<string, number> = {};
+  for (let i = 0; i < muscleCount; i++) {
+    if (result.muscleActivations[i] > 0) {
+      muscleActivations[muscleIds[i]] = result.muscleActivations[i];
+    }
+  }
+
+  const totalDuration = performance.now() - start;
+  log.debug({
+    totalTU: result.totalTU,
+    exerciseCount,
+    muscleCount,
+    native: result.native,
+    tuCalcMs: result.durationMs.toFixed(2),
+    totalMs: totalDuration.toFixed(2),
+    nativeAvailable: isNative.tu,
+  }, 'TU calculation completed');
+
+  return { totalTU: result.totalTU, muscleActivations };
 }
 
 export async function registerWorkoutRoutes(app: FastifyInstance) {

@@ -79,6 +79,7 @@ const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
+  { id: 'scorecard', label: 'Test Scorecard', icon: Target, link: '/empire/scorecard' },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'community', label: 'Community', icon: Globe },
   { id: 'messages', label: 'Messages', icon: Mail },
@@ -412,18 +413,30 @@ export default function EmpireControl() {
 
         <nav className="flex-1 p-2 overflow-y-auto">
           {NAV_SECTIONS.map((section) => (
-            <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-1 ${
-                activeSection === section.id
-                  ? 'bg-violet-500/20 text-violet-400'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <section.icon className="w-5 h-5" />
-              <span>{section.label}</span>
-            </button>
+            section.link ? (
+              <Link
+                key={section.id}
+                to={section.link}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-1 text-gray-400 hover:text-white hover:bg-white/5"
+              >
+                <section.icon className="w-5 h-5" />
+                <span>{section.label}</span>
+                <ChevronRight className="w-4 h-4 ml-auto opacity-50" />
+              </Link>
+            ) : (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors mb-1 ${
+                  activeSection === section.id
+                    ? 'bg-violet-500/20 text-violet-400'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <section.icon className="w-5 h-5" />
+                <span>{section.label}</span>
+              </button>
+            )
           ))}
         </nav>
 

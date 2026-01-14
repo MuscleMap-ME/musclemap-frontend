@@ -227,74 +227,125 @@ export async function updateStatsFromWorkout(
   const consistencyBonus = Math.min(parseInt(recentWorkouts?.count || '0') * 0.2, 1.0);
   totalContributions.constitution += consistencyBonus;
 
-  // Update or create stats record
-  return await transaction(async (client) => {
-    const existing = await client.query(
-      `SELECT * FROM character_stats WHERE user_id = $1`,
-      [userId]
-    );
+  // Update or create stats record with optimistic locking
+  const MAX_RETRIES = 3;
+  let retryCount = 0;
 
-    if (existing.rows.length > 0) {
-      // Update existing stats
-      await client.query(
-        `UPDATE character_stats SET
-          strength = strength + $2,
-          constitution = constitution + $3,
-          dexterity = dexterity + $4,
-          power = power + $5,
-          endurance = endurance + $6,
-          vitality = (strength + $2 + constitution + $3 + dexterity + $4 + power + $5 + endurance + $6) / 5,
-          last_calculated_at = NOW(),
-          version = version + 1,
-          updated_at = NOW()
-        WHERE user_id = $1`,
-        [
-          userId,
-          totalContributions.strength,
-          totalContributions.constitution,
-          totalContributions.dexterity,
-          totalContributions.power,
-          totalContributions.endurance,
-        ]
-      );
-    } else {
-      // Create new stats record
-      const vitality =
-        (totalContributions.strength +
-          totalContributions.constitution +
-          totalContributions.dexterity +
-          totalContributions.power +
-          totalContributions.endurance) /
-        5;
+  while (retryCount < MAX_RETRIES) {
+    try {
+      return await transaction(async (client) => {
+        // Get existing stats with row lock
+        const existing = await client.query<{
+          user_id: string;
+          strength: number;
+          constitution: number;
+          dexterity: number;
+          power: number;
+          endurance: number;
+          vitality: number;
+          version: number;
+        }>(
+          `SELECT * FROM character_stats WHERE user_id = $1 FOR UPDATE`,
+          [userId]
+        );
 
-      await client.query(
-        `INSERT INTO character_stats (user_id, strength, constitution, dexterity, power, endurance, vitality)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          userId,
-          totalContributions.strength,
-          totalContributions.constitution,
-          totalContributions.dexterity,
-          totalContributions.power,
-          totalContributions.endurance,
-          vitality,
-        ]
-      );
+        if (existing.rows.length > 0) {
+          const currentVersion = existing.rows[0].version;
+
+          // Update existing stats with optimistic locking (version check)
+          const updateResult = await client.query(
+            `UPDATE character_stats SET
+              strength = strength + $2,
+              constitution = constitution + $3,
+              dexterity = dexterity + $4,
+              power = power + $5,
+              endurance = endurance + $6,
+              vitality = (strength + $2 + constitution + $3 + dexterity + $4 + power + $5 + endurance + $6) / 5,
+              last_calculated_at = NOW(),
+              version = version + 1,
+              updated_at = NOW()
+            WHERE user_id = $1 AND version = $7
+            RETURNING user_id`,
+            [
+              userId,
+              totalContributions.strength,
+              totalContributions.constitution,
+              totalContributions.dexterity,
+              totalContributions.power,
+              totalContributions.endurance,
+              currentVersion,
+            ]
+          );
+
+          // If no rows updated, version mismatch (concurrent update)
+          if (updateResult.rows.length === 0) {
+            const error = new Error('Version conflict - stats were updated by another request');
+            (error as any).code = 'VERSION_CONFLICT';
+            throw error;
+          }
+        } else {
+          // Create new stats record with ON CONFLICT to handle race conditions
+          const vitality =
+            (totalContributions.strength +
+              totalContributions.constitution +
+              totalContributions.dexterity +
+              totalContributions.power +
+              totalContributions.endurance) /
+            5;
+
+          await client.query(
+            `INSERT INTO character_stats (user_id, strength, constitution, dexterity, power, endurance, vitality, version)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+             ON CONFLICT (user_id) DO UPDATE SET
+               strength = character_stats.strength + EXCLUDED.strength,
+               constitution = character_stats.constitution + EXCLUDED.constitution,
+               dexterity = character_stats.dexterity + EXCLUDED.dexterity,
+               power = character_stats.power + EXCLUDED.power,
+               endurance = character_stats.endurance + EXCLUDED.endurance,
+               vitality = (character_stats.strength + EXCLUDED.strength + character_stats.constitution + EXCLUDED.constitution + character_stats.dexterity + EXCLUDED.dexterity + character_stats.power + EXCLUDED.power + character_stats.endurance + EXCLUDED.endurance) / 5,
+               last_calculated_at = NOW(),
+               version = character_stats.version + 1,
+               updated_at = NOW()`,
+            [
+              userId,
+              totalContributions.strength,
+              totalContributions.constitution,
+              totalContributions.dexterity,
+              totalContributions.power,
+              totalContributions.endurance,
+              vitality,
+            ]
+          );
+        }
+
+        // Get updated stats
+        const result = await client.query(
+          `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
+                  last_calculated_at as "lastCalculatedAt", version
+           FROM character_stats WHERE user_id = $1`,
+          [userId]
+        );
+
+        // Invalidate user stats cache
+        await CacheInvalidation.onUserStatsUpdated(userId);
+
+        return result.rows[0] as CharacterStats;
+      });
+    } catch (error: any) {
+      // Retry on version conflict
+      if (error.code === 'VERSION_CONFLICT' && retryCount < MAX_RETRIES - 1) {
+        retryCount++;
+        log.warn({ userId, retryCount }, 'Stats version conflict, retrying...');
+        // Small delay before retry to reduce contention
+        await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
+        continue;
+      }
+      throw error;
     }
+  }
 
-    // Get updated stats
-    const result = await client.query(
-      `SELECT user_id as "userId", strength, constitution, dexterity, power, endurance, vitality,
-              last_calculated_at as "lastCalculatedAt", version
-       FROM character_stats WHERE user_id = $1`,
-      [userId]
-    );
-
-    // Invalidate user stats cache
-    await CacheInvalidation.onUserStatsUpdated(userId);
-
-    return result.rows[0] as CharacterStats;
-  });
+  // This should never be reached, but TypeScript needs it
+  throw new Error('Failed to update stats after max retries');
 }
 
 /**

@@ -45,6 +45,7 @@ musclemap.me/
 │   ├── ARCHETYPE-GRAPHICS-UPGRADE-PLAN.md
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
+│   ├── COMPETITOR-FEATURE-ANALYSIS.md
 │   ├── CONTRIBUTING.md
 │   ├── CREDITS_ECONOMY.md
 │   ├── DATA_FLOW.md
@@ -207,7 +208,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (64 total)
+## Frontend Pages (65 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -270,6 +271,7 @@ musclemap.me/
 | Stats | Yes | Stats Page  Character stats display with radar chart visualization and leaderboards |
 | Store | No | Store page |
 | Technology | No | Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics |
+| TestScorecard | Yes | Test Scorecard Dashboard  Empire dashboard component for viewing API test results, including: - Overall score with grade (A+/A/B/C/D/F) - Category breakdown (core, edge, security, performance) - Failed tests list with details - Recommendations - Historical trend chart / |
 | TrainerDashboard | No | TrainerDashboard page |
 | Trainers | Yes | Trainers Page  Browse trainers, manage trainer profile, create/manage classes |
 | Wallet | No | Wallet page |

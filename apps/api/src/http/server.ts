@@ -76,6 +76,7 @@ import { registerTemplateRoutes } from './routes/templates';
 import { registerProgressionRoutes } from './routes/progression';
 import { registerCrewsRoutes } from '../modules/crews';
 import { registerRivalsRoutes } from './routes/rivals';
+import { registerTestScorecardRoutes } from './routes/test-scorecard';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -359,6 +360,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerProgressionRoutes(api);
     registerCrewsRoutes(api);
     await registerRivalsRoutes(api);
+    await registerTestScorecardRoutes(api);
   }, { prefix: '/api' });
 
   return app;

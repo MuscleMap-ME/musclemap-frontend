@@ -256,11 +256,28 @@ export const typeDefs = `#graphql
     username: String!
     displayName: String
     avatar: String
+    bio: String
+    socialLinks: JSON
     archetype: Archetype
     level: Int!
     xp: Int!
+    wealthTier: WealthTier
     createdAt: DateTime!
     roles: [String!]!
+  }
+
+  # ============================================
+  # WEALTH TIER TYPES
+  # ============================================
+  type WealthTier {
+    tier: Int!
+    name: String!
+    minCredits: Int!
+    color: String!
+    icon: String!
+    description: String!
+    creditsToNext: Int
+    progressPercent: Int!
   }
 
   type AuthPayload {
@@ -298,6 +315,7 @@ export const typeDefs = `#graphql
     userId: ID!
     displayName: String
     bio: String
+    bioRichJson: JSON
     avatar: String
     location: String
     website: String
@@ -306,6 +324,7 @@ export const typeDefs = `#graphql
     preferredWorkoutTime: String
     experienceLevel: String
     visibility: String!
+    wealthTier: WealthTier
     createdAt: DateTime!
     updatedAt: DateTime!
   }

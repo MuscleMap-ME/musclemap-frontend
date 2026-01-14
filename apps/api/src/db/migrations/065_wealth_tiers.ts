@@ -27,7 +27,7 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
   return parseInt(result?.count || '0') > 0;
 }
 
-async function functionExists(funcName: string): Promise<boolean> {
+async function _functionExists(funcName: string): Promise<boolean> {
   const result = await db.queryOne<{ count: string }>(
     `SELECT COUNT(*) as count FROM pg_proc
      WHERE proname = $1`,

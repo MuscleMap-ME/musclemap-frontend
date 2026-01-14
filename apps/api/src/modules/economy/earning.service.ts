@@ -34,6 +34,50 @@ export interface EarningRule {
   enabled: boolean;
 }
 
+// Default caps for earning rules when not specified in database
+// This prevents abuse from unlimited earning triggers
+const DEFAULT_MAX_PER_DAY: Record<string, number> = {
+  // Workouts - reasonable daily limits
+  'workout_complete': 5,
+  'workout_volume_bonus': 3,
+
+  // Streaks - 1 per milestone level per day
+  'streak_3': 1,
+  'streak_7': 1,
+  'streak_14': 1,
+  'streak_30': 1,
+  'streak_100': 1,
+  'streak_365': 1,
+
+  // Personal records - limited to prevent rapid fire PR claims
+  'pr_set': 10,
+
+  // Goals - reasonable daily completions
+  'goal_complete_easy': 5,
+  'goal_complete_medium': 3,
+  'goal_complete_hard': 2,
+
+  // Leaderboard - once per placement per day
+  'leaderboard_1st': 1,
+  'leaderboard_2nd': 1,
+  'leaderboard_3rd': 1,
+  'leaderboard_top10': 1,
+
+  // Trainer wages - multiple classes possible
+  'trainer_class_wage': 10,
+
+  // Social actions
+  'high_five_sent': 20,
+  'high_five_received': 50,
+
+  // Referrals
+  'referral_signup': 10,
+  'referral_first_workout': 10,
+};
+
+// Fallback default if rule code not in map
+const FALLBACK_MAX_PER_DAY = 20;
+
 export interface EarningContext {
   userId: string;
   ruleCode: string;
@@ -176,12 +220,12 @@ export const earningService = {
     }
 
     // Check daily/weekly limits
-    if (rule.maxPerDay) {
-      const todayCount = await this.getTodayCount(userId, ruleCode);
-      if (todayCount >= rule.maxPerDay) {
-        log.debug({ userId, ruleCode, todayCount, maxPerDay: rule.maxPerDay }, 'Daily limit reached');
-        return { success: false, error: 'Daily limit reached' };
-      }
+    // Use rule's maxPerDay if set, otherwise use default cap to prevent abuse
+    const effectiveMaxPerDay = rule.maxPerDay ?? DEFAULT_MAX_PER_DAY[ruleCode] ?? FALLBACK_MAX_PER_DAY;
+    const todayCount = await this.getTodayCount(userId, ruleCode);
+    if (todayCount >= effectiveMaxPerDay) {
+      log.debug({ userId, ruleCode, todayCount, maxPerDay: effectiveMaxPerDay }, 'Daily limit reached');
+      return { success: false, error: 'Daily limit reached' };
     }
 
     if (rule.maxPerWeek) {

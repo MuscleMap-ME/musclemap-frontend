@@ -89,6 +89,7 @@ const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const AdminDisputes = lazy(() => import('./pages/AdminDisputes'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
+const TestScorecard = lazy(() => import('./pages/TestScorecard'));
 
 // Live activity monitoring
 const LiveActivityMonitor = lazy(() => import('./pages/LiveActivityMonitor'));
@@ -461,6 +462,7 @@ function AppRoutes() {
           <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
           <Route path="/admin/disputes" element={<AdminRoute name="AdminDisputes"><AdminDisputes /></AdminRoute>} />
           <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
+          <Route path="/empire/scorecard" element={<AdminRoute name="TestScorecard"><TestScorecard /></AdminRoute>} />
 
           {/* Live activity monitoring - public anonymous data */}
           <Route path="/live" element={<ErrorBoundary name="LiveActivityMonitor"><LiveActivityMonitor /></ErrorBoundary>} />

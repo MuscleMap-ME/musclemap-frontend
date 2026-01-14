@@ -677,6 +677,7 @@ export const walletService = {
 
   /**
    * Check transfer rate limits
+   * Uses time buffers to prevent clock sensitivity issues at boundaries
    */
   async checkTransferRateLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     // Ensure rate limit record exists
@@ -687,18 +688,21 @@ export const walletService = {
       [userId]
     );
 
-    // Reset if needed
+    // Reset if needed - add 5 second buffer to daily reset to handle clock skew
+    // This ensures the reset happens reliably even with minor time differences
     await query(
       `UPDATE economy_rate_limits
        SET transfers_today = 0, daily_reset_at = CURRENT_DATE
-       WHERE user_id = $1 AND daily_reset_at < CURRENT_DATE`,
+       WHERE user_id = $1 AND daily_reset_at < CURRENT_DATE - INTERVAL '5 seconds'`,
       [userId]
     );
 
+    // Reset hourly counter - add 10 second buffer for clock sensitivity
+    // Use slightly longer buffer for hourly since resets happen more frequently
     await query(
       `UPDATE economy_rate_limits
        SET transfers_this_hour = 0, hourly_reset_at = NOW()
-       WHERE user_id = $1 AND hourly_reset_at < NOW() - INTERVAL '1 hour'`,
+       WHERE user_id = $1 AND hourly_reset_at < NOW() - INTERVAL '1 hour 10 seconds'`,
       [userId]
     );
 
