@@ -122,24 +122,37 @@ Optimizations implemented:
 - ✅ **Cloudflare Free Tier** - Edge caching + DDoS protection
 - ✅ **Connection pooling** - Node.js pool (5-20 connections) → pgBouncer (1000 clients)
 
-**Current Configuration:**
+**Current Configuration (Updated January 15, 2026):**
 ```
+PM2 Cluster:
+  exec_mode: cluster
+  instances: 2 (one per CPU core)
+
 pgBouncer Settings:
   pool_mode: transaction
-  max_client_conn: 1000
-  default_pool_size: 20
-  max_db_connections: 50
+  max_client_conn: 3000 (increased from 1000)
+  default_pool_size: 25
+  min_pool_size: 10
+  max_db_connections: 80 (increased from 50)
 
-Redis Settings:
-  REDIS_ENABLED: true
-  Cache TTLs: Exercise (5m), User (30s), Leaderboard (1m)
+Redis Cache TTLs (Optimized):
+  Exercise: 15 minutes (was 5m)
+  Archetype: 30 minutes (was 10m)
+  Leaderboard: 3 minutes (was 1m)
+  User: 1 minute (was 30s)
+  CreditBalance: 15 seconds
+
+CDN Cache Headers:
+  /api/muscles: s-maxage=3600 (1 hour at edge)
+  /api/exercises: s-maxage=1800 (30 minutes at edge)
+  /api/archetypes: s-maxage=3600 (1 hour at edge)
 
 PostgreSQL:
   Connection via pgBouncer port 6432
   Materialized view refresh: 5 minutes
 ```
 
-Expected capacity: **15,000-25,000 concurrent users**
+Expected capacity: **25,000-40,000 concurrent users**
 
 #### Phase 2: Vertical Scale + CDN (10K-100K users)
 **Cost: ~$50-100/month**
