@@ -26,6 +26,7 @@ import { TransitionProvider } from './components/transitions';
 // Global Components - Lazy loaded for performance
 const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
 const LootDrop = lazy(() => import('./components/loot/LootDrop'));
+const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
 
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
@@ -47,6 +48,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Progression = lazy(() => import('./pages/Progression'));
 const Exercises = lazy(() => import('./pages/Exercises'));
 const Stats = lazy(() => import('./pages/Stats'));
+const PersonalRecords = lazy(() => import('./pages/PersonalRecords'));
+const ProgressPhotos = lazy(() => import('./pages/Progress-photos'));
 
 // Community pages
 const CommunityDashboard = lazy(() => import('./pages/CommunityDashboard'));
@@ -126,6 +129,7 @@ const Nutrition = lazy(() => import('./pages/Nutrition'));
 const NutritionSettings = lazy(() => import('./pages/NutritionSettings'));
 const Recipes = lazy(() => import('./pages/Recipes'));
 const MealPlans = lazy(() => import('./pages/MealPlans'));
+const ShoppingList = lazy(() => import('./pages/ShoppingList'));
 const NutritionHistory = lazy(() => import('./pages/NutritionHistory'));
 
 // ============================================
@@ -466,6 +470,8 @@ function AppRoutes() {
           <Route path="/trainers" element={<ProtectedRoute name="Trainers"><Trainers /></ProtectedRoute>} />
           <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
           <Route path="/stats" element={<ProtectedRoute name="Stats"><Stats /></ProtectedRoute>} />
+          <Route path="/personal-records" element={<ProtectedRoute name="PersonalRecords"><PersonalRecords /></ProtectedRoute>} />
+          <Route path="/progress-photos" element={<ProtectedRoute name="ProgressPhotos"><ProgressPhotos /></ProtectedRoute>} />
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
           <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute name="Health"><Health /></ProtectedRoute>} />
@@ -488,6 +494,8 @@ function AppRoutes() {
           <Route path="/nutrition/recipes" element={<ProtectedRoute name="Recipes"><Recipes /></ProtectedRoute>} />
           <Route path="/nutrition/recipes/:recipeId" element={<ProtectedRoute name="Recipes"><Recipes /></ProtectedRoute>} />
           <Route path="/nutrition/plans" element={<ProtectedRoute name="MealPlans"><MealPlans /></ProtectedRoute>} />
+          <Route path="/nutrition/plans/:planId" element={<ProtectedRoute name="MealPlans"><MealPlans /></ProtectedRoute>} />
+          <Route path="/nutrition/plans/:planId/shopping-list" element={<ProtectedRoute name="ShoppingList"><ShoppingList /></ProtectedRoute>} />
           <Route path="/nutrition/history" element={<ProtectedRoute name="NutritionHistory"><NutritionHistory /></ProtectedRoute>} />
 
           {/* Achievement routes */}
@@ -628,6 +636,10 @@ export default function App() {
                             {/* Global Loot Drop System */}
                             <Suspense fallback={null}>
                               <LootDrop />
+                            </Suspense>
+                            {/* Global Floating Rest Timer - Shows during active workouts */}
+                            <Suspense fallback={null}>
+                              <FloatingRestTimer enabled />
                             </Suspense>
                           </ContextualTipProvider>
                         </CompanionProvider>
