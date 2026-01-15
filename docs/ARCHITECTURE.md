@@ -173,6 +173,7 @@ musclemap.me/
 │   ├── fixtures/
 │   ├── graphql/
 │   ├── hooks/
+│   ├── layouts/
 │   ├── lib/
 │   ├── mocks/
 │   ├── pages/
@@ -295,7 +296,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (202 total)
+## Components (206 total)
 
 Components are organized by feature:
 
@@ -478,8 +479,12 @@ Components are organized by feature:
 - `Stepper`
 
 ### landing
+- `InteractiveDemo`
 - `LiveCommunityStats`
 - `MuscleHeroAnimation`
+- `MuscleTrackingDemo`
+- `RPGProgressionDemo`
+- `WorkoutLogDemo`
 
 ### live
 - `ActivityMapAnonymous`
