@@ -532,7 +532,161 @@ export function startScheduler(): void {
   activeIntervals.push(feedbackDigestInterval);
   // Don't run immediately - wait for the first hour
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, and feedback digest');
+  // ============================================
+  // BUG REPORT DIGEST JOB - Hourly
+  // ============================================
+  const bugDigestInterval = setInterval(processBugReportDigest, 60 * 60 * 1000);
+  activeIntervals.push(bugDigestInterval);
+  processBugReportDigest(); // Run immediately on startup to catch any pending bugs
+
+  // ============================================
+  // BETA TESTER SNAPSHOTS - Daily at 4 AM UTC
+  // ============================================
+  const msUntil4AM = (() => {
+    const next4AM = new Date(now);
+    next4AM.setUTCHours(4, 0, 0, 0);
+    if (next4AM <= now) {
+      next4AM.setUTCDate(next4AM.getUTCDate() + 1);
+    }
+    return next4AM.getTime() - now.getTime();
+  })();
+
+  setTimeout(() => {
+    runBetaTesterSnapshots();
+    const snapshotInterval = setInterval(runBetaTesterSnapshots, 24 * 60 * 60 * 1000);
+    activeIntervals.push(snapshotInterval);
+  }, msUntil4AM);
+
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, and beta tester snapshots');
+}
+
+/**
+ * Process hourly bug report digest email
+ * Collects new bug reports and sends priority digest to admin
+ * Runs every hour
+ */
+async function processBugReportDigest(): Promise<void> {
+  try {
+    await withLock('scheduler:bug-digest', async () => {
+      log.info('Processing bug report digest...');
+
+      // Get new bug reports that haven't been included in a digest yet
+      // Prioritize beta tester reports
+      const bugs = await queryAll<{
+        id: string;
+        title: string;
+        description: string;
+        username: string;
+        email: string;
+        is_beta_tester_report: boolean;
+        beta_tester_priority: number;
+        beta_tester_tier: string | null;
+        steps_to_reproduce: string | null;
+        created_at: Date;
+      }>(
+        `SELECT
+          f.id,
+          f.title,
+          f.description,
+          f.steps_to_reproduce,
+          f.is_beta_tester_report,
+          f.beta_tester_priority,
+          u.username,
+          u.email,
+          u.beta_tester_tier,
+          f.created_at
+        FROM user_feedback f
+        JOIN users u ON f.user_id = u.id
+        WHERE f.digest_included_at IS NULL
+        AND f.type = 'bug_report'
+        AND f.created_at > NOW() - INTERVAL '2 hours'
+        ORDER BY f.is_beta_tester_report DESC, f.beta_tester_priority DESC, f.created_at ASC
+        LIMIT 50`
+      );
+
+      if (bugs.length === 0) {
+        log.debug('No new bug reports for digest');
+        return;
+      }
+
+      // Send the bug digest email
+      const result = await EmailService.sendBugReportDigest(
+        bugs.map((bug) => ({
+          id: bug.id,
+          title: bug.title,
+          description: bug.description,
+          stepsToReproduce: bug.steps_to_reproduce,
+          username: bug.username,
+          email: bug.email,
+          isBetaTester: bug.is_beta_tester_report,
+          betaTesterTier: bug.beta_tester_tier,
+          betaTesterPriority: bug.beta_tester_priority,
+          createdAt: bug.created_at,
+        }))
+      );
+
+      if (result.success) {
+        // Mark bugs as included in digest
+        const bugIds = bugs.map((b) => b.id);
+        await query(
+          `UPDATE user_feedback SET digest_included_at = NOW() WHERE id = ANY($1)`,
+          [bugIds]
+        );
+
+        log.info({ bugCount: bugs.length, emailId: result.id }, 'Bug report digest sent');
+      } else {
+        log.error({ error: result.error }, 'Failed to send bug report digest');
+      }
+    }, { ttl: 120000 }); // 2 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      log.debug('Another instance is processing bug report digest');
+    } else {
+      log.error({ err }, 'Error processing bug report digest');
+    }
+  }
+}
+
+/**
+ * Run daily beta tester progress snapshots
+ * Creates automatic backups of beta tester progress
+ * Runs daily at 4 AM UTC
+ */
+async function runBetaTesterSnapshots(): Promise<void> {
+  try {
+    await withLock('scheduler:beta-snapshots', async () => {
+      log.info('Running beta tester snapshots...');
+
+      try {
+        const result = await queryAll<{ user_id: string; snapshot_id: string; success: boolean }>(
+          'SELECT * FROM run_daily_beta_snapshots()'
+        );
+
+        let successCount = 0;
+        let failCount = 0;
+        for (const row of result) {
+          if (row.success) {
+            successCount++;
+          } else {
+            failCount++;
+            log.warn({ userId: row.user_id }, 'Failed to create beta tester snapshot');
+          }
+        }
+
+        if (successCount > 0 || failCount > 0) {
+          log.info({ successCount, failCount }, 'Beta tester snapshots completed');
+        }
+      } catch {
+        log.warn('Beta tester snapshots not available - migration may not have run yet');
+      }
+    }, { ttl: 300000 }); // 5 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      log.debug('Another instance is running beta tester snapshots');
+    } else {
+      log.error({ err }, 'Error running beta tester snapshots');
+    }
+  }
 }
 
 /**

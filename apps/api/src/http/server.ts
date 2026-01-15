@@ -86,6 +86,8 @@ import { registerOrganizationsRoutes } from './routes/organizations';
 import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
 import adminFeedbackRoutes from './routes/admin-feedback';
+import adminBetaTesterRoutes from './routes/admin-beta-testers';
+import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
 import workoutSetsRoutes from './routes/workout-sets';
@@ -402,6 +404,12 @@ export async function createServer(): Promise<FastifyInstance> {
     // User feedback system (bug reports, suggestions, questions, FAQ)
     await registerFeedbackRoutes(api);
     await adminFeedbackRoutes(api);
+
+    // Beta tester management (admin only)
+    await api.register(adminBetaTesterRoutes, { prefix: '/admin/beta-testers' });
+
+    // Beta tester user features (journal, snapshots, quick bug reporting)
+    await api.register(betaTesterRoutes, { prefix: '/beta-tester' });
 
     // Plugin settings management
     await registerPluginRoutes(api);

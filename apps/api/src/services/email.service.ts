@@ -455,6 +455,136 @@ ${escapeHtml(params.errorMessage || 'Unknown error')}
   });
 }
 
+interface BugReportDigestItem {
+  id: string;
+  title: string;
+  description: string;
+  stepsToReproduce: string | null;
+  username: string;
+  email: string;
+  isBetaTester: boolean;
+  betaTesterTier: string | null;
+  betaTesterPriority: number;
+  createdAt: Date;
+}
+
+/**
+ * Send hourly bug report digest to admin
+ * Prioritizes beta tester reports
+ */
+export async function sendBugReportDigest(bugs: BugReportDigestItem[]): Promise<EmailResult> {
+  if (bugs.length === 0) {
+    return { success: true };
+  }
+
+  const betaTesterBugs = bugs.filter((b) => b.isBetaTester);
+  const regularBugs = bugs.filter((b) => !b.isBetaTester);
+  const baseUrl = process.env.APP_URL || 'https://musclemap.me';
+
+  const formatBug = (bug: BugReportDigestItem): string => {
+    const tierBadge = bug.isBetaTester
+      ? `<span style="background: ${bug.betaTesterTier === 'founding' ? '#FFD700' : bug.betaTesterTier === 'vip' ? '#9333EA' : '#3B82F6'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px;">${(bug.betaTesterTier || 'beta').toUpperCase()} TESTER</span>`
+      : '';
+
+    return `
+    <tr>
+      <td style="padding: 16px; border-bottom: 1px solid #eee; background: ${bug.isBetaTester ? '#faf5ff' : 'white'};">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <strong style="font-size: 16px; color: #111;">${escapeHtml(bug.title)}</strong>
+          ${tierBadge}
+        </div>
+        <p style="color: #666; font-size: 14px; margin: 0 0 8px; line-height: 1.5;">
+          ${escapeHtml(bug.description.substring(0, 200))}${bug.description.length > 200 ? '...' : ''}
+        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #999; font-size: 13px;">from @${escapeHtml(bug.username)}</span>
+          <a href="${baseUrl}/empire?section=feedback&id=${bug.id}"
+             style="background: #ef4444; color: white; padding: 6px 14px; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: 500;">
+            Review Bug
+          </a>
+        </div>
+      </td>
+    </tr>
+  `;
+  };
+
+  const formatSection = (title: string, items: BugReportDigestItem[], emoji: string, highlight: boolean): string => {
+    if (items.length === 0) return '';
+    return `
+      <div style="margin: 24px 0;">
+        <h2 style="color: ${highlight ? '#9333EA' : '#333'}; margin: 0 0 12px; font-size: 18px; display: flex; align-items: center;">
+          ${emoji} ${title} (${items.length})
+          ${highlight ? '<span style="background: #9333EA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">PRIORITY</span>' : ''}
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+          ${items.map(formatBug).join('')}
+        </table>
+      </div>
+    `;
+  };
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5;">
+      <div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+        <div style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 2px solid #ef4444;">
+            <h1 style="color: #ef4444; margin: 0; font-size: 24px;">
+              Bug Report Digest
+            </h1>
+            <p style="color: #666; margin: 8px 0 0;">
+              ${bugs.length} new bug${bugs.length === 1 ? '' : 's'} reported in the last hour
+            </p>
+            ${betaTesterBugs.length > 0 ? `
+            <p style="color: #9333EA; margin: 8px 0 0; font-weight: 600;">
+              ${betaTesterBugs.length} from beta testers - prioritized for review
+            </p>
+            ` : ''}
+          </div>
+
+          ${formatSection('Beta Tester Bug Reports', betaTesterBugs, '⭐', true)}
+          ${formatSection('User Bug Reports', regularBugs, '🐛', false)}
+
+          <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee; text-align: center;">
+            <a href="${baseUrl}/empire?section=feedback&type=bug_report"
+               style="color: #ef4444; text-decoration: none; font-weight: 500;">
+              View All Bug Reports →
+            </a>
+          </div>
+        </div>
+
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 16px;">
+          This is an automated hourly digest from MuscleMap.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+BUG REPORT DIGEST
+${bugs.length} new bug${bugs.length === 1 ? '' : 's'} reported in the last hour
+${betaTesterBugs.length > 0 ? `\n⭐ ${betaTesterBugs.length} from beta testers - PRIORITY\n` : ''}
+
+${betaTesterBugs.length > 0 ? `BETA TESTER BUG REPORTS (${betaTesterBugs.length})\n${betaTesterBugs.map((b) => `• [${b.betaTesterTier?.toUpperCase() || 'BETA'}] "${b.title}" - from @${b.username}\n  → Review: ${baseUrl}/empire?section=feedback&id=${b.id}`).join('\n')}\n\n` : ''}
+${regularBugs.length > 0 ? `USER BUG REPORTS (${regularBugs.length})\n${regularBugs.map((b) => `• "${b.title}" - from @${b.username}\n  → Review: ${baseUrl}/empire?section=feedback&id=${b.id}`).join('\n')}\n\n` : ''}
+
+View all bug reports: ${baseUrl}/empire?section=feedback&type=bug_report
+  `;
+
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `🐛 ${bugs.length} New Bug Report${bugs.length === 1 ? '' : 's'}${betaTesterBugs.length > 0 ? ` (${betaTesterBugs.length} from Beta Testers)` : ''}`,
+    html,
+    text,
+  });
+}
+
 /**
  * Escape HTML special characters
  */
@@ -475,4 +605,5 @@ export const EmailService = {
   sendFeedbackDigest,
   sendResolutionNotification,
   sendBugFixNotification,
+  sendBugReportDigest,
 };
