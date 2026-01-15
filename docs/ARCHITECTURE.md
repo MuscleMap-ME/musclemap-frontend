@@ -220,7 +220,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (76 total)
+## Frontend Pages (77 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -283,6 +283,7 @@ musclemap.me/
 | Progression | No | Progression page |
 | PTTests | Yes | PT Tests Page - MuscleMap Liquid Glass Design  Physical fitness tests for military, first responders, and occupational training |
 | Recipes | No | Recipes Page  Browse, create, and manage recipes / |
+| Recovery | Yes | Recovery Page  Sleep tracking and recovery scoring system |
 | Rivals | Yes | Rivals Page  1v1 rivalry competition system for web |
 | Roadmap | No | Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities / |
 | Science | No | Science Page  Explains the science behind MuscleMap's Training Units and muscle activation system |
