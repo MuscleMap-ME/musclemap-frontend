@@ -16,6 +16,8 @@
 
 import { queryAll, queryOne } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { recoveryService } from '../recovery';
+import type { RecoveryScore, WorkoutIntensity } from '../recovery/types';
 
 const log = loggers.prescription || loggers.api;
 
@@ -171,6 +173,7 @@ export class PrescriptionEngine {
       trainingPhase,
       muscleStats,
       preferences,
+      recoveryScore,
     ] = await Promise.all([
       this.getAvailableExercises(userContext),
       this.getUserInjuries(userContext.userId),
@@ -178,7 +181,17 @@ export class PrescriptionEngine {
       this.getCurrentTrainingPhase(userContext.userId),
       this.getMuscleStats(userContext.userId),
       this.getUserPreferences(userContext.userId),
+      recoveryService.getRecoveryScore(userContext.userId).catch(() => null),
     ]);
+
+    // Adjust prescription based on recovery state
+    const intensityMultiplier = this.getIntensityMultiplier(recoveryScore);
+    log.info({
+      userId: userContext.userId,
+      recoveryScore: recoveryScore?.score,
+      recommendedIntensity: recoveryScore?.recommendedIntensity,
+      intensityMultiplier,
+    }, 'Prescription with recovery context');
 
     // Score all exercises
     const scoredExercises = await this.scoreExercises(
@@ -189,38 +202,43 @@ export class PrescriptionEngine {
       trainingPhase,
       muscleStats,
       preferences,
-      request
+      request,
+      recoveryScore
     );
 
-    // Select optimal exercise set
+    // Select optimal exercise set, adjusting for recovery
     const selectedExercises = this.selectExercises(
       scoredExercises,
       request,
-      trainingPhase
+      trainingPhase,
+      recoveryScore
     );
+
+    // Adjust sets/reps based on recovery
+    const adjustedExercises = this.adjustForRecovery(selectedExercises, recoveryScore);
 
     // Generate warmup if requested
     const warmup = request.includeWarmup
-      ? await this.generateWarmup(selectedExercises, userContext)
+      ? await this.generateWarmup(adjustedExercises, userContext)
       : [];
 
     // Generate cooldown if requested
     const cooldown = request.includeCooldown
-      ? await this.generateCooldown(selectedExercises, userContext)
+      ? await this.generateCooldown(adjustedExercises, userContext)
       : [];
 
     // Calculate muscle coverage
-    const muscleCoverage = this.calculateMuscleCoverage(selectedExercises);
+    const muscleCoverage = this.calculateMuscleCoverage(adjustedExercises);
 
     // Estimate total duration
-    const totalDuration = this.estimateDuration(selectedExercises, warmup, cooldown);
+    const totalDuration = this.estimateDuration(adjustedExercises, warmup, cooldown);
 
-    // Determine difficulty rating
-    const difficulty = this.determineDifficulty(selectedExercises);
+    // Determine difficulty rating (adjusted for recovery)
+    const difficulty = this.determineDifficulty(adjustedExercises, recoveryScore);
 
     const result: PrescriptionResult = {
       id: `rx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      exercises: selectedExercises,
+      exercises: adjustedExercises,
       warmup,
       cooldown,
       totalDuration,
@@ -230,8 +248,10 @@ export class PrescriptionEngine {
       metadata: {
         algorithVersion: this.algorithmVersion,
         generatedAt: new Date().toISOString(),
-        factorsConsidered: Object.keys(SCORING_WEIGHTS),
-      },
+        factorsConsidered: [...Object.keys(SCORING_WEIGHTS), 'recoveryScore'],
+        recoveryScore: recoveryScore?.score,
+        recoveryRecommendation: recoveryScore?.recommendedIntensity,
+      } as any,
     };
 
     // Store prescription history for ML feedback
@@ -239,8 +259,9 @@ export class PrescriptionEngine {
 
     log.info({
       userId: userContext.userId,
-      exerciseCount: selectedExercises.length,
+      exerciseCount: adjustedExercises.length,
       duration: totalDuration,
+      recoveryScore: recoveryScore?.score,
       timeMs: Date.now() - startTime,
     }, 'Prescription generated');
 
@@ -879,17 +900,96 @@ export class PrescriptionEngine {
   }
 
   /**
-   * Determine workout difficulty rating
+   * Determine workout difficulty rating (adjusted for recovery)
    */
-  private determineDifficulty(exercises: ScoredExercise[]): string {
+  private determineDifficulty(exercises: ScoredExercise[], recoveryScore?: RecoveryScore | null): string {
     if (exercises.length === 0) return 'easy';
 
     const avgScore = exercises.reduce((sum, e) => sum + e.score, 0) / exercises.length;
     const totalVolume = exercises.reduce((sum, e) => sum + (e.sets * e.reps), 0);
 
+    // If recovery is poor, cap difficulty at moderate
+    if (recoveryScore && recoveryScore.classification === 'poor') {
+      if (totalVolume > 100 || avgScore > 60) return 'moderate';
+      return 'easy';
+    }
+
+    // If recovery is fair, cap difficulty at moderate
+    if (recoveryScore && recoveryScore.classification === 'fair') {
+      if (totalVolume > 150 || avgScore > 80) return 'moderate';
+      if (totalVolume > 100 || avgScore > 60) return 'moderate';
+      return 'easy';
+    }
+
     if (totalVolume > 150 || avgScore > 80) return 'intense';
     if (totalVolume > 100 || avgScore > 60) return 'moderate';
     return 'easy';
+  }
+
+  /**
+   * Get intensity multiplier based on recovery score
+   * Maps recovery classification to volume/intensity adjustments
+   */
+  private getIntensityMultiplier(recoveryScore: RecoveryScore | null): number {
+    if (!recoveryScore) return 1.0; // No data = normal workout
+
+    // Map recommended intensity to multiplier
+    const intensityMultipliers: Record<WorkoutIntensity, number> = {
+      'rest': 0.0,      // Complete rest recommended
+      'light': 0.5,     // Half volume/intensity
+      'moderate': 0.75, // Reduced volume/intensity
+      'normal': 1.0,    // Normal workout
+      'high': 1.1,      // Can push harder
+    };
+
+    return intensityMultipliers[recoveryScore.recommendedIntensity] || 1.0;
+  }
+
+  /**
+   * Adjust exercises based on recovery state
+   * Modifies sets, reps, and adds recovery-appropriate notes
+   */
+  private adjustForRecovery(
+    exercises: ScoredExercise[],
+    recoveryScore: RecoveryScore | null
+  ): ScoredExercise[] {
+    if (!recoveryScore) return exercises;
+
+    const multiplier = this.getIntensityMultiplier(recoveryScore);
+
+    // If rest is recommended, return empty workout with note
+    if (recoveryScore.recommendedIntensity === 'rest') {
+      log.info('Recovery score recommends complete rest, returning minimal workout');
+      return [];
+    }
+
+    return exercises.map(exercise => {
+      // Adjust sets and reps based on recovery
+      const adjustedSets = Math.max(2, Math.round(exercise.sets * multiplier));
+      const adjustedReps = Math.max(5, Math.round(exercise.reps * multiplier));
+
+      // Add recovery-based notes
+      let notes = exercise.notes || '';
+      if (recoveryScore.classification === 'poor') {
+        notes = `${notes} [Recovery: Poor - Focus on technique, reduce weight]`.trim();
+      } else if (recoveryScore.classification === 'fair') {
+        notes = `${notes} [Recovery: Fair - Moderate intensity, listen to your body]`.trim();
+      } else if (recoveryScore.classification === 'excellent') {
+        notes = `${notes} [Recovery: Excellent - Ready for peak performance]`.trim();
+      }
+
+      return {
+        ...exercise,
+        sets: adjustedSets,
+        reps: adjustedReps,
+        restSeconds: recoveryScore.classification === 'poor'
+          ? Math.round(exercise.restSeconds * 1.3) // More rest when recovery is poor
+          : recoveryScore.classification === 'excellent'
+            ? Math.round(exercise.restSeconds * 0.9) // Less rest when fully recovered
+            : exercise.restSeconds,
+        notes,
+      };
+    });
   }
 
   /**

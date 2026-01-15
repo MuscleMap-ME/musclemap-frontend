@@ -23,7 +23,7 @@ async function tableExists(tableName: string): Promise<boolean> {
 }
 
 export async function up(): Promise<void> {
-  log.info('Running migration: 092_training_programs');
+  log.info('Running migration: 093_training_programs');
 
   // ============================================
   // TRAINING PROGRAMS TABLE
@@ -585,11 +585,11 @@ This dual approach builds both strength AND size, making it ideal for intermedia
 
   log.info(`Seeded ${programs.length} official training programs`);
 
-  log.info('Migration 092_training_programs completed');
+  log.info('Migration 093_training_programs completed');
 }
 
 export async function down(): Promise<void> {
-  log.info('Rolling back migration: 092_training_programs');
+  log.info('Rolling back migration: 093_training_programs');
 
   await db.query('DROP TABLE IF EXISTS program_ratings CASCADE');
   await db.query('DROP TABLE IF EXISTS program_enrollments CASCADE');
@@ -599,5 +599,5 @@ export async function down(): Promise<void> {
   await db.query('DROP TRIGGER IF EXISTS trg_program_updated ON training_programs');
   await db.query('DROP TRIGGER IF EXISTS trg_enrollment_updated ON program_enrollments');
 
-  log.info('Rollback 092_training_programs completed');
+  log.info('Rollback 093_training_programs completed');
 }

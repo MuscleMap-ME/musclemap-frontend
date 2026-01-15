@@ -68,6 +68,7 @@ const Trainers = lazy(() => import('./pages/Trainers'));
 
 // Health pages
 const Health = lazy(() => import('./pages/Health'));
+const Recovery = lazy(() => import('./pages/Recovery'));
 const Goals = lazy(() => import('./pages/Goals'));
 const Limitations = lazy(() => import('./pages/Limitations'));
 const PTTests = lazy(() => import('./pages/PTTests'));
@@ -475,6 +476,7 @@ function AppRoutes() {
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
           <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
           <Route path="/health" element={<ProtectedRoute name="Health"><Health /></ProtectedRoute>} />
+          <Route path="/recovery" element={<ProtectedRoute name="Recovery"><Recovery /></ProtectedRoute>} />
           <Route path="/goals" element={<ProtectedRoute name="Goals"><Goals /></ProtectedRoute>} />
           <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
