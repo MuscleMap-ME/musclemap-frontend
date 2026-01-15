@@ -6,38 +6,70 @@
  *
  * Features:
  * - Smooth left-to-right shimmer wave animation
+ * - Multiple animation types: shimmer, wave, pulse, none
  * - Respects prefers-reduced-motion (static gray if reduced motion)
  * - Uses CSS variables from design-tokens.css for consistent styling
  * - All components include aria-hidden="true" for accessibility
  *
  * @example
- * // Simple usage
- * {loading ? <SkeletonCard hasHeader lines={3} /> : <ActualCard />}
- * {loading ? <SkeletonStats count={4} /> : <StatsGrid />}
+ * // Base skeleton with new API
+ * <Skeleton variant="text" width="60%" />
+ * <Skeleton variant="circular" width={48} height={48} />
+ * <Skeleton variant="rectangular" width={200} height={100} />
+ * <Skeleton variant="rounded" width={200} height={100} />
  *
- * // Base components for custom skeletons
+ * // Animation types
+ * <Skeleton animation="shimmer" width={200} height={20} />
+ * <Skeleton animation="pulse" width={200} height={20} />
+ * <Skeleton animation="wave" width={200} height={20} />
+ * <Skeleton animation="none" width={200} height={20} />
+ *
+ * // Specialized skeletons
+ * <CardSkeleton />
+ * <StatSkeleton count={4} />
+ * <ListSkeleton rows={5} />
+ * <ProfileSkeleton showBio showStats />
+ *
+ * // Legacy API (still supported)
  * <SkeletonBase width={200} height={20} />
  * <SkeletonText width="100%" size="md" />
  * <SkeletonAvatar size={48} />
  */
 
-// Base primitives
+// Base primitives - new API
+export { Skeleton } from './SkeletonBase';
+
+// Base primitives - legacy API (still supported)
 export {
   default as SkeletonBase,
   SkeletonText,
   SkeletonAvatar,
   SkeletonButton,
   SkeletonImage,
+  SkeletonIcon,
+  SkeletonBadge,
+  SkeletonParagraph,
 } from './SkeletonBase';
 
 // Card skeletons
 export {
-  default as SkeletonCard,
+  default as CardSkeleton,
+  CardSkeletonGrid,
+  StatSkeleton,
+} from './CardSkeleton';
+
+// Enhanced card exports from SkeletonCard.jsx
+export {
   SkeletonCardGrid,
   SkeletonStatCard,
   SkeletonExerciseCard,
   SkeletonUserCard,
+  SkeletonFeatureCard,
+  SkeletonMiniCard,
 } from './SkeletonCard';
+
+// For legacy compatibility - alias SkeletonCard as well
+export { default as SkeletonCard } from './CardSkeleton';
 
 // Stats skeletons
 export {
@@ -46,45 +78,65 @@ export {
   SkeletonProgressStats,
   SkeletonDashboard,
   SkeletonLeaderboard,
+  SkeletonCharacterStats,
+  SkeletonMetricRow,
+  SkeletonComparisonCard,
 } from './SkeletonStats';
 
 // List skeletons
 export {
-  default as SkeletonList,
+  default as ListSkeleton,
   SkeletonListItem,
   SkeletonNotificationList,
   SkeletonActivityFeed,
   SkeletonConversationList,
   SkeletonSearchResults,
+  SkeletonMenuList,
+  SkeletonCommentList,
+  SkeletonGridList,
 } from './ListSkeleton';
+
+// For legacy compatibility - alias SkeletonList as well
+export { default as SkeletonList } from './ListSkeleton';
 
 // Profile skeletons
 export {
-  default as SkeletonProfile,
+  default as ProfileSkeleton,
   SkeletonProfileHeader,
   SkeletonProfileCard,
   SkeletonUserList,
+  SkeletonFollowerCard,
+  SkeletonProfileBanner,
+  SkeletonCrewCard,
+  SkeletonWealthIndicator,
 } from './ProfileSkeleton';
+
+// For legacy compatibility
+export { default as SkeletonProfile } from './ProfileSkeleton';
 
 // Workout skeletons
 export {
-  default as SkeletonWorkout,
+  default as WorkoutSkeleton,
   SkeletonExerciseItem,
   SkeletonRestTimer,
   SkeletonSetInput,
   SkeletonWorkoutHistory,
   SkeletonWorkoutPlan,
   SkeletonWorkoutSummary,
+  SkeletonMuscleIndicator,
 } from './WorkoutSkeleton';
 
-// Existing skeletons (legacy compatibility)
-export { default as AtlasSkeleton } from './AtlasSkeleton';
-export { default as ChartSkeleton } from './ChartSkeleton';
-export { default as JourneySkeleton } from './JourneySkeleton';
-export { default as CardSkeleton } from './CardSkeleton';
-export { default as ListSkeleton } from './ListSkeleton';
-export { default as TableSkeleton } from './TableSkeleton';
+// For legacy compatibility
+export { default as SkeletonWorkout } from './WorkoutSkeleton';
 
-// Re-export old profile/workout skeletons for backwards compatibility
-export { default as ProfileSkeleton } from './ProfileSkeleton';
-export { default as WorkoutSkeleton } from './WorkoutSkeleton';
+// Chart skeletons
+export {
+  default as ChartSkeleton,
+  SkeletonChartCard,
+  SkeletonSparkline,
+} from './ChartSkeleton';
+
+// Other specialized skeletons
+export { default as AtlasSkeleton } from './AtlasSkeleton';
+export { default as JourneySkeleton } from './JourneySkeleton';
+export { default as TableSkeleton } from './TableSkeleton';

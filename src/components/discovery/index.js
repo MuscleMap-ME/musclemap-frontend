@@ -13,24 +13,29 @@
  *
  *   return (
  *     <FeatureDiscovery
- *       maxVisible={3}
+ *       maxFeatures={3}
  *       layout="carousel"
- *       filter={['social', 'tracking']}
+ *       category="social"
  *       onFeatureClick={(feature) => navigate(feature.route)}
  *     />
  *   );
  * }
  *
- * @example Compact in Sidebar
+ * @example Filtered by Category
  * import { FeatureDiscovery } from '@/components/discovery';
  *
- * <FeatureDiscovery maxVisible={1} layout="stack" />
+ * <FeatureDiscovery category="social" layout="grid" maxFeatures={4} />
+ *
+ * @example List Layout (Sidebar)
+ * import { FeatureDiscovery } from '@/components/discovery';
+ *
+ * <FeatureDiscovery maxFeatures={5} layout="list" />
  *
  * @example With Progress Indicator
  * import { FeatureDiscovery } from '@/components/discovery';
  *
  * <FeatureDiscovery
- *   maxVisible={3}
+ *   maxFeatures={3}
  *   layout="grid"
  *   showProgress
  * />
@@ -45,8 +50,11 @@
  *     markDiscovered,       // mark a feature as discovered
  *     dismissFeature,       // hide a feature from suggestions
  *     resetDiscovery,       // reset all discovery state
- *     discoveryProgress     // { discovered: 5, total: 15, percent: 33 }
+ *     getRecommendations,   // get personalized recommendations
  *   } = useFeatureDiscovery();
+ *
+ *   // Get top 3 personalized recommendations
+ *   const recommendations = getRecommendations(3);
  *
  *   // Mark feature as discovered when user visits a page
  *   useEffect(() => {

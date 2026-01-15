@@ -186,6 +186,50 @@ export function useFeatureDiscovery(options = {}) {
     [undiscoveredFeatures]
   );
 
+  /**
+   * Get personalized recommendations based on what user has already discovered
+   * Prioritizes: high priority features, new features, popular features
+   * @param {number} count - Number of recommendations to return (default 3)
+   * @returns {Array} Recommended features
+   */
+  const getRecommendations = useCallback(
+    (count = 3) => {
+      if (undiscoveredFeatures.length === 0) {
+        return [];
+      }
+
+      // Score each feature based on multiple factors
+      const scored = undiscoveredFeatures.map((feature) => {
+        let score = feature.priority || 5;
+
+        // Boost new features
+        if (feature.isNew) {
+          score += 3;
+        }
+
+        // Boost popular features
+        if (feature.isPopular) {
+          score += 2;
+        }
+
+        // Boost features in categories user has shown interest in
+        const discoveredCategories = discoveredFeatures.map((f) => f.category);
+        if (discoveredCategories.includes(feature.category)) {
+          score += 1;
+        }
+
+        return { feature, score };
+      });
+
+      // Sort by score (highest first) and return top N
+      return scored
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count)
+        .map((s) => s.feature);
+    },
+    [undiscoveredFeatures, discoveredFeatures]
+  );
+
   // Auto-track routes: mark feature as discovered when user navigates to its path
   useEffect(() => {
     if (!autoTrackRoutes) return;
@@ -220,6 +264,7 @@ export function useFeatureDiscovery(options = {}) {
     markDiscovered, // mark a feature as discovered
     dismissFeature, // hide a feature from suggestions
     resetDiscovery, // reset all discovery state
+    getRecommendations, // get personalized recommendations
 
     // Additional actions
     undismissFeature, // show a dismissed feature again

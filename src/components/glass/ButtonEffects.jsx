@@ -26,8 +26,28 @@ import React, {
 const RIPPLE_COLORS = {
   glass: 'rgba(255, 255, 255, 0.35)',
   primary: 'rgba(0, 102, 255, 0.4)',
-  pulse: 'rgba(0, 255, 136, 0.4)',
+  pulse: 'rgba(255, 51, 102, 0.4)',
   ghost: 'rgba(255, 255, 255, 0.25)',
+};
+
+/**
+ * Glow colors matched to button variants for hover effect
+ */
+const GLOW_COLORS = {
+  glass: 'rgba(255, 255, 255, 0.15)',
+  primary: 'rgba(0, 102, 255, 0.35)',
+  pulse: 'rgba(255, 51, 102, 0.35)',
+  ghost: 'rgba(255, 255, 255, 0.1)',
+};
+
+/**
+ * Success animation types
+ */
+const SUCCESS_ANIMATION_TYPES = {
+  burst: 'burst',
+  checkmark: 'checkmark',
+  glow: 'glow',
+  none: 'none',
 };
 
 /**
@@ -76,6 +96,164 @@ export function triggerHaptic(pattern = HAPTIC_PATTERN) {
       // Silently fail if vibration not allowed
     }
   }
+}
+
+// ============================================
+// SOUND EFFECTS UTILITIES
+// ============================================
+
+/**
+ * Audio context singleton for Web Audio API sounds
+ * Created lazily on first use to avoid autoplay issues
+ */
+let audioContext = null;
+
+/**
+ * getAudioContext - Get or create the shared AudioContext
+ *
+ * @returns {AudioContext|null} The audio context or null if not supported
+ */
+function getAudioContext() {
+  if (typeof window === 'undefined') return null;
+
+  if (!audioContext) {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        audioContext = new AudioContext();
+      }
+    } catch {
+      // Web Audio API not supported
+      return null;
+    }
+  }
+
+  return audioContext;
+}
+
+/**
+ * playClickSound - Play a subtle click sound using Web Audio API
+ *
+ * Creates a short, satisfying click sound without requiring audio files.
+ * The sound is a quick sine wave with exponential decay.
+ *
+ * @param {Object} options - Sound configuration
+ * @param {number} options.frequency - Base frequency in Hz (default: 1200)
+ * @param {number} options.duration - Sound duration in seconds (default: 0.05)
+ * @param {number} options.volume - Volume level 0-1 (default: 0.15)
+ */
+export function playClickSound({ frequency = 1200, duration = 0.05, volume = 0.15 } = {}) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  // Resume context if suspended (browser autoplay policy)
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+
+  try {
+    // Create oscillator for the click tone
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Configure the click sound
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      frequency * 0.5,
+      ctx.currentTime + duration
+    );
+
+    // Quick attack, exponential decay for satisfying click
+    gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    // Play the sound
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + duration);
+  } catch {
+    // Silently fail if audio playback fails
+  }
+}
+
+/**
+ * playSuccessSound - Play a satisfying success sound
+ *
+ * Creates a pleasant two-tone chime for success feedback.
+ */
+export function playSuccessSound({ volume = 0.12 } = {}) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+
+  try {
+    // First tone
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.type = 'sine';
+    osc1.frequency.value = 880; // A5
+    gain1.gain.setValueAtTime(volume, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.15);
+
+    // Second tone (higher, delayed)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.value = 1320; // E6
+    gain2.gain.setValueAtTime(0, ctx.currentTime);
+    gain2.gain.setValueAtTime(volume, ctx.currentTime + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc2.start(ctx.currentTime + 0.08);
+    osc2.stop(ctx.currentTime + 0.25);
+  } catch {
+    // Silently fail
+  }
+}
+
+/**
+ * useSound - Hook for managing button sounds
+ *
+ * @param {Object} options
+ * @param {boolean} options.enabled - Whether sounds are enabled
+ * @param {string} options.variant - Button variant for sound customization
+ *
+ * @returns {Object} Sound trigger functions
+ */
+export function useSound({ enabled = false, variant = 'primary' } = {}) {
+  const reducedMotion = useReducedMotion();
+
+  const playClick = useCallback(() => {
+    if (!enabled || reducedMotion) return;
+
+    // Slightly different frequencies for different variants
+    const frequencies = {
+      glass: 1100,
+      primary: 1200,
+      pulse: 1400,
+      ghost: 1000,
+    };
+
+    playClickSound({ frequency: frequencies[variant] || 1200 });
+  }, [enabled, reducedMotion, variant]);
+
+  const playSuccess = useCallback(() => {
+    if (!enabled || reducedMotion) return;
+    playSuccessSound();
+  }, [enabled, reducedMotion]);
+
+  return { playClick, playSuccess };
 }
 
 // ============================================
@@ -226,36 +404,232 @@ RippleEffect.displayName = 'RippleEffect';
 // ============================================
 
 /**
- * SuccessEffect - Checkmark animation with green glow pulse
+ * Success animation variant colors
+ */
+const SUCCESS_COLORS = {
+  glass: { check: '#00ff88', glow: 'rgba(0, 255, 136, 0.6)', brand: 'rgba(255, 255, 255, 0.4)' },
+  primary: { check: '#ffffff', glow: 'rgba(0, 255, 136, 0.6)', brand: 'rgba(0, 102, 255, 0.6)' },
+  pulse: { check: '#ffffff', glow: 'rgba(255, 51, 102, 0.6)', brand: 'rgba(255, 51, 102, 0.6)' },
+  ghost: { check: '#00ff88', glow: 'rgba(0, 255, 136, 0.4)', brand: 'rgba(255, 255, 255, 0.3)' },
+};
+
+/**
+ * SuccessEffect - Multi-type success animation
  *
- * Shows a brief checkmark with a green glow pulse effect,
- * then returns to normal state.
+ * Supports different animation types:
+ * - 'checkmark': Classic checkmark with green glow pulse (default)
+ * - 'burst': Particle explosion celebration
+ * - 'glow': Intense brand-colored glow pulse
+ * - 'none': No animation
  *
  * @param {Object} props
  * @param {boolean} props.active - Whether to show the animation
  * @param {string} props.variant - Button variant for color matching
+ * @param {'checkmark' | 'burst' | 'glow' | 'none'} props.animationType - Type of success animation
  * @param {Function} props.onComplete - Callback when animation completes
  */
-export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
+export const SuccessEffect = ({
+  active,
+  variant = 'primary',
+  animationType = 'checkmark',
+  onComplete,
+}) => {
   const reducedMotion = useReducedMotion();
   const [visible, setVisible] = useState(false);
+  const canvasRef = useRef(null);
+  const particlesRef = useRef([]);
+  const animationRef = useRef(null);
+
+  const colors = SUCCESS_COLORS[variant] || SUCCESS_COLORS.primary;
 
   useEffect(() => {
-    if (active) {
+    if (active && animationType !== 'none') {
       setVisible(true);
+
+      // Trigger burst particles if animationType is 'burst'
+      if (animationType === 'burst' && !reducedMotion) {
+        createBurstParticles();
+      }
+
+      const duration = animationType === 'burst' ? DURATIONS.burst : DURATIONS.success;
       const timer = setTimeout(() => {
         setVisible(false);
         onComplete?.();
-      }, DURATIONS.success);
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [active, onComplete]);
+  }, [active, animationType, onComplete, reducedMotion]);
 
-  if (!visible) return null;
+  // Create burst particles for 'burst' animation type
+  const createBurstParticles = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const checkColor = variant === 'primary' ? '#fff' : '#00ff88';
-  const glowColor = 'rgba(0, 255, 136, 0.6)';
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
 
+    const burstColors = {
+      glass: ['#ffffff', '#0066ff', '#00aaff', '#00ff88'],
+      primary: ['#0066ff', '#00aaff', '#ffffff', '#00ff88'],
+      pulse: ['#ff3366', '#ff6699', '#ffffff', '#ff99bb'],
+      ghost: ['#ffffff', '#94a3b8', '#64748b', '#00ff88'],
+    };
+
+    const colorSet = burstColors[variant] || burstColors.primary;
+
+    // Create 30 particles shooting outward
+    for (let i = 0; i < 30; i++) {
+      const angle = (Math.PI * 2 * i) / 30 + (Math.random() - 0.5) * 0.3;
+      const velocity = Math.random() * 4 + 3;
+      particlesRef.current.push({
+        x: centerX,
+        y: centerY,
+        vx: Math.cos(angle) * velocity,
+        vy: Math.sin(angle) * velocity,
+        size: Math.random() * 5 + 2,
+        color: colorSet[Math.floor(Math.random() * colorSet.length)],
+        opacity: 1,
+        decay: Math.random() * 0.02 + 0.012,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.3,
+      });
+    }
+
+    // Start animation
+    if (!animationRef.current) {
+      animateBurst();
+    }
+  }, [variant]);
+
+  const animateBurst = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particlesRef.current = particlesRef.current.filter((particle) => {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      particle.vx *= 0.96;
+      particle.vy *= 0.96;
+      particle.vy += 0.08; // gravity
+      particle.opacity -= particle.decay;
+      particle.rotation += particle.rotationSpeed;
+
+      if (particle.opacity <= 0) return false;
+
+      ctx.save();
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.rotation);
+      ctx.globalAlpha = particle.opacity;
+      ctx.fillStyle = particle.color;
+
+      // Draw star shape for more festive look
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+        const outerRadius = particle.size;
+        const innerRadius = particle.size * 0.4;
+        if (i === 0) {
+          ctx.moveTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+        } else {
+          ctx.lineTo(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+        }
+        const innerAngle = angle + Math.PI / 5;
+        ctx.lineTo(Math.cos(innerAngle) * innerRadius, Math.sin(innerAngle) * innerRadius);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      return true;
+    });
+
+    if (particlesRef.current.length > 0) {
+      animationRef.current = requestAnimationFrame(animateBurst);
+    } else {
+      animationRef.current = null;
+    }
+  }, []);
+
+  // Handle canvas resize for burst effect
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const updateSize = () => {
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      if (rect) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  if (!visible || animationType === 'none') return null;
+
+  // Render based on animation type
+  if (animationType === 'burst') {
+    return (
+      <div
+        className="absolute inset-0 pointer-events-none overflow-hidden"
+        style={{ borderRadius: 'inherit' }}
+      >
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0"
+          style={{ borderRadius: 'inherit' }}
+        />
+      </div>
+    );
+  }
+
+  if (animationType === 'glow') {
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        style={{
+          borderRadius: 'inherit',
+        }}
+      >
+        {/* Intense brand glow pulse */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at center, ${colors.brand} 0%, transparent 60%)`,
+            animation: reducedMotion ? 'none' : 'success-intense-glow 0.6s ease-out forwards',
+            borderRadius: 'inherit',
+          }}
+        />
+        {/* Outer ring pulse */}
+        <div
+          className="absolute inset-0"
+          style={{
+            boxShadow: `0 0 30px 10px ${colors.brand}, inset 0 0 20px 5px ${colors.brand}`,
+            animation: reducedMotion ? 'none' : 'success-ring-pulse 0.6s ease-out forwards',
+            borderRadius: 'inherit',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Default: checkmark animation
   return (
     <div
       className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -268,7 +642,7 @@ export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at center, ${glowColor} 0%, transparent 70%)`,
+          background: `radial-gradient(circle at center, ${colors.glow} 0%, transparent 70%)`,
           animation: reducedMotion ? 'none' : 'success-glow-pulse 0.6s ease-out forwards',
           borderRadius: 'inherit',
         }}
@@ -279,12 +653,12 @@ export const SuccessEffect = ({ active, variant = 'primary', onComplete }) => {
         className="w-6 h-6 relative z-10"
         style={{
           animation: reducedMotion ? 'none' : 'success-check 0.4s ease-out forwards',
-          filter: reducedMotion ? 'none' : 'drop-shadow(0 0 8px rgba(0, 255, 136, 0.8))',
+          filter: reducedMotion ? 'none' : `drop-shadow(0 0 8px ${colors.glow})`,
         }}
       >
         <path
           fill="none"
-          stroke={checkColor}
+          stroke={colors.check}
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -529,6 +903,41 @@ export const PulseEffect = ({ active, variant = 'primary' }) => {
         </div>
       ))}
     </div>
+  );
+};
+
+// ============================================
+// GLOW EFFECT COMPONENT
+// ============================================
+
+/**
+ * GlowEffect - Ambient glow on hover
+ *
+ * Creates a soft glow around the button that matches the variant color.
+ * The glow grows slightly on hover for enhanced visual feedback.
+ *
+ * @param {Object} props
+ * @param {boolean} props.active - Whether to show the glow (hover state)
+ * @param {string} props.variant - Button variant for color matching
+ */
+export const GlowEffect = ({ active, variant = 'primary' }) => {
+  const reducedMotion = useReducedMotion();
+  const glowColor = GLOW_COLORS[variant] || GLOW_COLORS.primary;
+
+  if (reducedMotion) return null;
+
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none transition-all duration-300"
+      style={{
+        borderRadius: 'inherit',
+        opacity: active ? 1 : 0,
+        boxShadow: active
+          ? `0 0 20px 4px ${glowColor}, 0 0 40px 8px ${glowColor.replace(/[\d.]+\)$/, '0.15)')}`
+          : 'none',
+        transform: active ? 'scale(1.02)' : 'scale(1)',
+      }}
+    />
   );
 };
 
@@ -811,6 +1220,62 @@ if (typeof document !== 'undefined') {
         }
       }
 
+      @keyframes success-intense-glow {
+        0% {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+        60% {
+          opacity: 0.8;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.2);
+        }
+      }
+
+      @keyframes success-ring-pulse {
+        0% {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        30% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes loading-breathe {
+        0%, 100% {
+          opacity: 0.8;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.02);
+        }
+      }
+
+      @keyframes spinner-pulse {
+        0%, 100% {
+          opacity: 0.9;
+          filter: drop-shadow(0 0 2px currentColor);
+        }
+        50% {
+          opacity: 1;
+          filter: drop-shadow(0 0 6px currentColor);
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         @keyframes success-check {
           0%, 100% {
@@ -850,6 +1315,30 @@ if (typeof document !== 'undefined') {
             box-shadow: none;
           }
         }
+        @keyframes success-intense-glow {
+          0%, 100% {
+            opacity: 0;
+            transform: scale(1);
+          }
+        }
+        @keyframes success-ring-pulse {
+          0%, 100% {
+            opacity: 0;
+            transform: scale(1);
+          }
+        }
+        @keyframes loading-breathe {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes spinner-pulse {
+          0%, 100% {
+            opacity: 1;
+            filter: none;
+          }
+        }
       }
     `;
     document.head.appendChild(style);
@@ -860,11 +1349,17 @@ export default {
   RippleEffect,
   SuccessEffect,
   PulseEffect,
+  GlowEffect,
   ShakeEffect,
   BurstEffect,
   useButtonFeedback,
   useReducedMotion,
+  useSound,
   triggerHaptic,
+  playClickSound,
+  playSuccessSound,
   RIPPLE_COLORS,
+  GLOW_COLORS,
   DURATIONS,
+  SUCCESS_ANIMATION_TYPES,
 };

@@ -33,13 +33,13 @@
  * />
  *
  * @example With custom illustration
- * import { EmptyState } from '@/components/empty';
+ * import { EmptyState, WorkoutIllustration } from '@/components/empty';
  *
  * <EmptyState
  *   type="generic"
  *   title="Nothing Here"
  *   description="Check back later!"
- *   illustration={<CustomIllustration />}
+ *   illustration={<WorkoutIllustration />}
  * />
  *
  * @example Card variant
@@ -59,16 +59,26 @@
  *   secondaryAction={{ label: "Browse Leaderboard", to: "/leaderboard" }}
  * />
  *
+ * @example Horizontal layout (illustration on side)
+ * import { EmptyState } from '@/components/empty';
+ *
+ * <EmptyState
+ *   preset="no-workouts"
+ *   horizontal
+ *   size="lg"
+ * />
+ *
  * Available types/illustrations:
  * - 'workouts' / 'workout' - Dumbbell with sparkles
- * - 'achievements' / 'achievement' - Trophy outline
- * - 'goals' - Target/bullseye
+ * - 'achievements' / 'achievement' - Trophy with rays
+ * - 'goals' - Target with arrow
  * - 'community' - Group of people silhouettes
  * - 'messages' / 'message' - Chat bubbles
  * - 'exercises' - Figure in motion
- * - 'stats' - Chart/graph
- * - 'search' - Magnifying glass with question mark
- * - 'error' - Warning/error symbol
+ * - 'stats' - Chart going up
+ * - 'search' - Magnifying glass
+ * - 'error' - Warning sign
+ * - 'success' - Checkmark with celebration
  * - 'data' - Chart with no data points
  * - 'generic' - Empty box with question mark
  *
@@ -91,6 +101,11 @@
  * - 'offline' - User is offline
  * - 'coming-soon' - Feature coming soon
  * - 'maintenance' - Under maintenance
+ * - 'success' - Task completed successfully
+ * - 'workout-complete' - Workout finished
+ * - 'no-leaderboard' - Empty leaderboard
+ * - 'no-followers' - No followers yet
+ * - 'no-challenges' - No active challenges
  */
 
 // Main component and variants
@@ -100,6 +115,7 @@ export {
   EmptyStatePage,
   EmptyStateInline,
   EMPTY_STATE_TYPES,
+  EMPTY_STATE_ILLUSTRATIONS,
 } from './EmptyState';
 
 // Presets for common scenarios
@@ -112,17 +128,29 @@ export {
 
 // Illustrations (for custom composition)
 export {
-  default as EMPTY_STATE_ILLUSTRATIONS,
-  getIllustrationByType,
-  WorkoutsIllustration,
-  AchievementsIllustration,
-  GoalsIllustration,
+  default as ILLUSTRATIONS,
+  getIllustration,
+  hasIllustration,
+  getIllustrationKeys,
+  // Individual illustration components
+  WorkoutIllustration,
+  AchievementIllustration,
   CommunityIllustration,
-  MessagesIllustration,
-  ExercisesIllustration,
   StatsIllustration,
+  GoalsIllustration,
+  MessagesIllustration,
   SearchIllustration,
   ErrorIllustration,
-  DataIllustration,
+  SuccessIllustration,
   GenericIllustration,
+  ExercisesIllustration,
+  DataIllustration,
+  // Shared utilities for creating custom illustrations
+  IllustrationWrapper,
+  Float,
+  Pulse,
+  Sparkle,
+  Rotate,
+  Fade,
+  Bounce,
 } from './illustrations';

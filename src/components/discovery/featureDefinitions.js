@@ -18,6 +18,7 @@ export const FEATURE_CATEGORIES = {
   COMMUNITY: 'community',
   AI: 'ai',
   EXTENSIONS: 'extensions',
+  SETTINGS: 'settings',
 };
 
 /**
@@ -277,6 +278,56 @@ export const DISCOVERABLE_FEATURES = [
     isPopular: false,
     priority: 7,
     color: '#22C55E',
+  },
+  // Settings and Profile features
+  {
+    id: 'settings',
+    name: 'Settings',
+    description: 'Customize notifications, privacy, and app preferences',
+    icon: 'Settings',
+    route: '/settings',
+    category: FEATURE_CATEGORIES.SETTINGS,
+    isNew: false,
+    isPopular: false,
+    priority: 3,
+    color: '#6B7280',
+  },
+  {
+    id: 'profile-customize',
+    name: 'Profile Customization',
+    description: 'Personalize your avatar, bio, and display preferences',
+    icon: 'UserCog',
+    route: '/profile/edit',
+    category: FEATURE_CATEGORIES.SETTINGS,
+    isNew: false,
+    isPopular: false,
+    priority: 4,
+    color: '#8B5CF6',
+  },
+  {
+    id: 'theme-settings',
+    name: 'Theme Settings',
+    description: 'Switch between dark and light modes, accent colors',
+    icon: 'Palette',
+    route: '/settings/theme',
+    category: FEATURE_CATEGORIES.SETTINGS,
+    isNew: false,
+    isPopular: false,
+    priority: 3,
+    color: '#EC4899',
+  },
+  // Credit transfers (Economy)
+  {
+    id: 'credit-transfer',
+    name: 'Credit Transfers',
+    description: 'Send credits to friends and crew members',
+    icon: 'Send',
+    route: '/wallet/transfer',
+    category: FEATURE_CATEGORIES.ECONOMY,
+    isNew: false,
+    isPopular: false,
+    priority: 4,
+    color: '#10B981',
   },
 ];
 

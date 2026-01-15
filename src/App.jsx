@@ -15,6 +15,10 @@ import { trackPageView } from './lib/analytics';
 // Plugin System
 import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins';
 
+// UI/UX Enhancement Components
+import { ContextualTipProvider } from './components/tips';
+import { SpotlightTourRenderer } from './components/tour';
+
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
 // Each page loads only when needed, reducing initial bundle by ~85%
@@ -597,11 +601,15 @@ export default function App() {
                   <PluginThemeProvider>
                     <CommandPaletteProvider>
                       <CompanionProvider>
-                        <div id="main-content" role="main">
-                          <AppRoutes />
-                        </div>
-                        <CompanionDock />
-                        <GlobalCommandPalette />
+                        <ContextualTipProvider>
+                          <div id="main-content" role="main">
+                            <AppRoutes />
+                          </div>
+                          <CompanionDock />
+                          <GlobalCommandPalette />
+                          {/* Global Spotlight Tour Renderer */}
+                          <SpotlightTourRenderer />
+                        </ContextualTipProvider>
                       </CompanionProvider>
                     </CommandPaletteProvider>
                   </PluginThemeProvider>

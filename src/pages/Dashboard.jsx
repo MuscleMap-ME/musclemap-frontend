@@ -3,14 +3,22 @@
  *
  * A comprehensive, modern dashboard using the liquid glass design system
  * inspired by visionOS and iOS 18 spatial computing aesthetics.
+ *
+ * Integrates:
+ * - SpotlightTour for new user onboarding
+ * - FeatureDiscovery for feature exploration
+ * - ContextualTips for contextual guidance
+ * - AnimatedNumber with glow effects
+ * - HelpTooltips for terminology
+ * - Celebration hooks for achievements
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
-import { DailyTip, MilestoneProgress } from '../components/tips';
+import { DailyTip, MilestoneProgress, useContextualTips, useTipOnCondition, ActiveContextualTip } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { NutritionDashboardCard, QuickLogModal } from '../components/nutrition';
 import { FeedbackHub, FeedbackModal } from '../components/feedback';
@@ -22,6 +30,13 @@ import { WidgetSlot } from '../plugins';
 // New UI Components
 import { AnimatedNumber, AnimatedCredits, AnimatedXP } from '../components/animations';
 import { HelpTooltip } from '../components/help';
+
+// Tour and Discovery Components
+import { SpotlightTour, useTour } from '../components/tour';
+import { FeatureDiscovery } from '../components/discovery';
+
+// Celebration hooks
+import { useCelebrationCallbacks } from '../store';
 
 // Lazy load heavy Atlas component (3D visualization)
 const DashboardAtlas = lazy(() =>
@@ -912,11 +927,17 @@ const mobileNavItems = [
 ];
 
 // ============================================
+// ONBOARDING TOUR LOCAL STORAGE KEY
+// ============================================
+const ONBOARDING_COMPLETE_KEY = 'musclemap_onboarding_tour_complete';
+const LAST_WORKOUT_KEY = 'musclemap_last_workout_date';
+
+// ============================================
 // MAIN DASHBOARD COMPONENT
 // ============================================
 export default function Dashboard() {
   const { user, logout } = useUser();
-  const _navigate = useNavigate();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [characterStats, setCharacterStats] = useState(null);
@@ -924,6 +945,94 @@ export default function Dashboard() {
   const [_loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  // ============================================
+  // ONBOARDING TOUR STATE
+  // ============================================
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
+  const { hasCompletedTour } = useTour();
+
+  // Check if user needs onboarding tour
+  useEffect(() => {
+    const hasCompleted = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
+    const tourCompleted = hasCompletedTour('onboarding');
+    if (!hasCompleted && !tourCompleted && user) {
+      // Delay the tour start to let the dashboard render first
+      const timer = setTimeout(() => {
+        setShowOnboardingTour(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, hasCompletedTour]);
+
+  // Handle tour completion
+  const handleTourComplete = useCallback(() => {
+    localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
+    setShowOnboardingTour(false);
+  }, []);
+
+  // ============================================
+  // CONTEXTUAL TIP TRIGGERS
+  // ============================================
+  // Check if profile is incomplete (no avatar or bio)
+  const isProfileIncomplete = user && (!user.avatar_url || !user.bio);
+
+  // Check if no workout in 3 days
+  const [noRecentWorkout, setNoRecentWorkout] = useState(false);
+  useEffect(() => {
+    const lastWorkout = localStorage.getItem(LAST_WORKOUT_KEY);
+    if (lastWorkout) {
+      const daysSinceWorkout = (Date.now() - parseInt(lastWorkout, 10)) / (1000 * 60 * 60 * 24);
+      setNoRecentWorkout(daysSinceWorkout >= 3);
+    } else {
+      // No record of last workout, check from stats
+      if (stats?.lastWorkoutDate) {
+        const daysSinceWorkout = (Date.now() - new Date(stats.lastWorkoutDate).getTime()) / (1000 * 60 * 60 * 24);
+        setNoRecentWorkout(daysSinceWorkout >= 3);
+      }
+    }
+  }, [stats]);
+
+  // Trigger contextual tips after dashboard loads
+  useTipOnCondition('profile_incomplete', isProfileIncomplete, { delay: 3000 });
+  useTipOnCondition('no_workout_3_days', noRecentWorkout, { delay: 5000 });
+
+  // ============================================
+  // CELEBRATION CALLBACKS
+  // ============================================
+  const { register: registerCelebrations, clear: clearCelebrations } = useCelebrationCallbacks();
+  const { showTip } = useContextualTips();
+
+  useEffect(() => {
+    // Register celebration callbacks for workout events
+    registerCelebrations({
+      onComplete: (data) => {
+        // Update last workout date
+        localStorage.setItem(LAST_WORKOUT_KEY, Date.now().toString());
+        // Show workout complete tip
+        showTip('workout_complete', { data });
+      },
+      onPR: (data) => {
+        // Show achievement tip for PR
+        showTip('new_achievement', { data: { type: 'pr', ...data } });
+      },
+      onLevelUp: (data) => {
+        // Show level up tip
+        showTip('level_up', { data });
+      },
+    });
+
+    return () => clearCelebrations();
+  }, [registerCelebrations, clearCelebrations, showTip]);
+
+  // ============================================
+  // FEATURE DISCOVERY HANDLER
+  // ============================================
+  const handleFeatureClick = useCallback((feature) => {
+    if (feature.route) {
+      navigate(feature.route);
+    }
+  }, [navigate]);
 
   // Load nutrition data
   const { load: loadNutrition } = useNutritionDashboard();
@@ -1077,7 +1186,7 @@ export default function Dashboard() {
             {/* Current Path Hero Card + Stats Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Current Path - Takes 2 columns on large screens */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2" data-tour="welcome">
                 <CurrentPathCard
                   archetype={user?.archetype}
                   stats={stats}
@@ -1086,7 +1195,7 @@ export default function Dashboard() {
               </div>
 
               {/* Stats - Takes 1 column on large screens */}
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-1" data-tour="stats-card">
                 <CharacterStatsCard
                   characterStats={characterStats}
                   loading={statsLoading}
@@ -1102,6 +1211,7 @@ export default function Dashboard() {
                 value={stats?.streak || 0}
                 trend={12}
                 variant="pulse"
+                animate
               />
               <StatCard
                 icon={Icons.Dumbbell}
@@ -1109,12 +1219,14 @@ export default function Dashboard() {
                 value={stats?.workouts || 0}
                 sublabel="This month"
                 variant="brand"
+                animate
               />
               <StatCard
                 icon={Icons.Trophy}
                 label="Achievements"
-                value="12"
+                value={12}
                 sublabel="3 new"
+                animate
               />
               <StatCard
                 icon={Icons.Target}
@@ -1137,14 +1249,16 @@ export default function Dashboard() {
             <div className="mb-8">
               <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Quick Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <QuickActionCard
-                  to="/workout"
-                  icon={Icons.Play}
-                  label="Start Workout"
-                  description="Begin your training session"
-                  gradient="from-emerald-500 to-teal-600"
-                  delay={0}
-                />
+                <div data-tour="start-workout">
+                  <QuickActionCard
+                    to="/workout"
+                    icon={Icons.Play}
+                    label="Start Workout"
+                    description="Begin your training session"
+                    gradient="from-emerald-500 to-teal-600"
+                    delay={0}
+                  />
+                </div>
                 <QuickActionCard
                   to="/journey"
                   icon={Icons.Journey}
@@ -1179,7 +1293,7 @@ export default function Dashboard() {
             </div>
 
             {/* Muscle Activation Map */}
-            <div className="mb-8">
+            <div className="mb-8" data-tour="muscle-map">
               <MuscleMapCard muscleActivations={muscleActivations} />
             </div>
 
@@ -1235,6 +1349,17 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Feature Discovery Section */}
+            <div className="mb-8">
+              <FeatureDiscovery
+                maxVisible={3}
+                layout="carousel"
+                filter={['social', 'tracking', 'economy', 'competitive']}
+                onFeatureClick={handleFeatureClick}
+                showProgress
+              />
+            </div>
+
             {/* Plugin Widget Slot: Main Dashboard Area */}
             <WidgetSlot
               name="dashboard.main"
@@ -1256,6 +1381,19 @@ export default function Dashboard() {
       {/* Feedback System */}
       <FeedbackHub />
       <FeedbackModal />
+
+      {/* Onboarding Tour for new users */}
+      <SpotlightTour
+        preset="onboarding"
+        isOpen={showOnboardingTour}
+        onComplete={handleTourComplete}
+        onSkip={handleTourComplete}
+        showProgress
+        showSkip
+      />
+
+      {/* Active Contextual Tips */}
+      <ActiveContextualTip />
     </div>
   );
 }

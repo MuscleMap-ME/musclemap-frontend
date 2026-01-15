@@ -2,54 +2,53 @@
  * Confetti Component
  *
  * A performant canvas-based confetti burst animation with bioluminescent aesthetic.
- * Uses requestAnimationFrame for smooth 60fps rendering.
+ * Uses requestAnimationFrame for smooth 60fps rendering and respects reduced motion.
  *
  * @example
- * <Confetti trigger={showConfetti} origin={buttonRef} />
- * <Confetti trigger={celebrate} particleCount={100} colors={['#0066ff', '#ff3366']} />
+ * // Basic usage
+ * <Confetti active={showConfetti} />
+ *
+ * // With custom origin and colors
+ * <Confetti
+ *   active={celebrate}
+ *   origin={{ x: 0.5, y: 0.3 }}
+ *   colors={['#0066ff', '#ff3366']}
+ *   particleCount={100}
+ * />
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { useReducedMotion } from '../glass/ButtonEffects';
 
 // Default colors from MuscleMap design system
 const DEFAULT_COLORS = [
-  'var(--brand-blue-400)',
-  'var(--brand-blue-500)',
-  'var(--brand-pulse-400)',
-  'var(--brand-pulse-500)',
-  '#22c55e', // success green
-  '#8b5cf6', // purple
-  '#f59e0b', // amber
+  '#0066ff',  // brand-blue-500
+  '#1a80ff',  // brand-blue-400
+  '#ff3366',  // brand-pulse-500
+  '#ff4d74',  // brand-pulse-300
+  '#22c55e',  // success green
+  '#8b5cf6',  // purple
+  '#f59e0b',  // amber
 ];
-
-// Parse CSS variable to actual color value
-function resolveColor(color) {
-  if (color.startsWith('var(')) {
-    const varName = color.match(/var\((--[^)]+)\)/)?.[1];
-    if (varName) {
-      return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || color;
-    }
-  }
-  return color;
-}
 
 // Particle class for physics simulation
 class Particle {
-  constructor(x, y, color, size) {
+  constructor(x, y, color, size, options = {}) {
     this.x = x;
     this.y = y;
     this.color = color;
     this.size = size;
 
-    // Random velocity with upward bias
-    const angle = Math.random() * Math.PI * 2;
+    // Calculate velocity based on spread and origin
+    const spreadRad = ((options.spread || 360) / 360) * Math.PI * 2;
+    const angle = Math.random() * spreadRad - spreadRad / 2 - Math.PI / 2;
     const speed = Math.random() * 8 + 4;
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed - 6; // Upward bias
 
     // Physics properties
-    this.gravity = 0.15;
+    this.gravity = options.gravity || 0.15;
     this.friction = 0.99;
     this.rotation = Math.random() * Math.PI * 2;
     this.rotationSpeed = (Math.random() - 0.5) * 0.3;
@@ -60,11 +59,10 @@ class Particle {
 
     // Shape variation
     this.shape = Math.random() > 0.5 ? 'rect' : 'circle';
-    this.aspect = Math.random() * 0.5 + 0.5; // For rectangles
+    this.aspect = Math.random() * 0.5 + 0.5;
   }
 
   update() {
-    // Apply physics
     this.vy += this.gravity;
     this.vx *= this.friction;
     this.vy *= this.friction;
@@ -84,7 +82,7 @@ class Particle {
     ctx.rotate(this.rotation);
     ctx.globalAlpha = this.opacity;
 
-    // Add glow effect for bioluminescent look
+    // Glow effect for bioluminescent look
     ctx.shadowColor = this.color;
     ctx.shadowBlur = this.size * 2;
 
@@ -108,63 +106,40 @@ class Particle {
 }
 
 export function Confetti({
-  trigger = false,
-  origin = null,
-  colors = DEFAULT_COLORS,
-  particleCount = 80,
-  spread = 360,
+  active = false,
   duration = 3000,
+  particleCount = 80,
+  colors = DEFAULT_COLORS,
+  origin = { x: 0.5, y: 0.5 },
+  spread = 360,
+  gravity = 0.15,
   className = '',
 }) {
   const canvasRef = useRef(null);
   const particlesRef = useRef([]);
   const animationRef = useRef(null);
-  const resolvedColorsRef = useRef([]);
+  const isVisibleRef = useRef(true);
+  const reducedMotion = useReducedMotion();
 
-  // Resolve CSS variables to actual colors
-  useEffect(() => {
-    resolvedColorsRef.current = colors.map(resolveColor);
-  }, [colors]);
-
-  // Get origin coordinates
-  const getOrigin = useCallback(() => {
-    if (!origin) {
-      // Default to center of screen
+  // Memoize origin in pixels
+  const getOriginPixels = useCallback(() => {
+    if (typeof origin.x === 'number' && origin.x <= 1) {
       return {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
+        x: origin.x * window.innerWidth,
+        y: origin.y * window.innerHeight,
       };
     }
-
-    // If origin is a ref with current element
-    if (origin.current) {
-      const rect = origin.current.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    }
-
-    // If origin is coordinates object
-    if (typeof origin.x === 'number' && typeof origin.y === 'number') {
-      return origin;
-    }
-
-    return {
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2,
-    };
+    return origin;
   }, [origin]);
 
   // Animation loop
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !isVisibleRef.current) return;
 
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Update and draw particles
     particlesRef.current = particlesRef.current.filter(particle => {
       const alive = particle.update();
       if (alive) {
@@ -173,23 +148,36 @@ export function Confetti({
       return alive;
     });
 
-    // Continue animation if particles remain
     if (particlesRef.current.length > 0) {
       animationRef.current = requestAnimationFrame(animate);
+    } else {
+      animationRef.current = null;
     }
   }, []);
 
   // Spawn particles
   const spawnParticles = useCallback(() => {
-    const { x, y } = getOrigin();
-    const colors = resolvedColorsRef.current;
+    const { x, y } = getOriginPixels();
 
     for (let i = 0; i < particleCount; i++) {
       const color = colors[Math.floor(Math.random() * colors.length)];
       const size = Math.random() * 8 + 4;
-      particlesRef.current.push(new Particle(x, y, color, size));
+      particlesRef.current.push(new Particle(x, y, color, size, { spread, gravity }));
     }
-  }, [getOrigin, particleCount]);
+  }, [getOriginPixels, particleCount, colors, spread, gravity]);
+
+  // Handle visibility change (pause when tab not visible)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = !document.hidden;
+      if (isVisibleRef.current && particlesRef.current.length > 0 && !animationRef.current) {
+        animate();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [animate]);
 
   // Handle canvas resize
   useEffect(() => {
@@ -209,12 +197,11 @@ export function Confetti({
     };
   }, []);
 
-  // Trigger confetti
+  // Trigger confetti when active changes
   useEffect(() => {
-    if (trigger) {
+    if (active && !reducedMotion) {
       spawnParticles();
 
-      // Start animation if not already running
       if (!animationRef.current) {
         animate();
       }
@@ -237,7 +224,7 @@ export function Confetti({
         clearTimeout(timeout);
       };
     }
-  }, [trigger, spawnParticles, animate, duration]);
+  }, [active, reducedMotion, spawnParticles, animate, duration]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -248,25 +235,38 @@ export function Confetti({
     };
   }, []);
 
+  // Don't render canvas if reduced motion preferred
+  if (reducedMotion) return null;
+
   return (
     <canvas
       ref={canvasRef}
       className={`fixed inset-0 pointer-events-none ${className}`}
       style={{ zIndex: 9999 }}
+      aria-hidden="true"
     />
   );
 }
 
 Confetti.propTypes = {
-  trigger: PropTypes.bool,
-  origin: PropTypes.oneOfType([
-    PropTypes.shape({ current: PropTypes.any }),
-    PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
-  ]),
-  colors: PropTypes.arrayOf(PropTypes.string),
-  particleCount: PropTypes.number,
-  spread: PropTypes.number,
+  /** Whether the confetti animation is active */
+  active: PropTypes.bool,
+  /** Duration of the animation in milliseconds */
   duration: PropTypes.number,
+  /** Number of particles to spawn */
+  particleCount: PropTypes.number,
+  /** Array of colors for particles */
+  colors: PropTypes.arrayOf(PropTypes.string),
+  /** Origin point (0-1 viewport ratio or pixel coordinates) */
+  origin: PropTypes.shape({
+    x: PropTypes.number,
+    y: PropTypes.number,
+  }),
+  /** Spread angle in degrees */
+  spread: PropTypes.number,
+  /** Gravity multiplier */
+  gravity: PropTypes.number,
+  /** Additional CSS classes */
   className: PropTypes.string,
 };
 

@@ -28,6 +28,25 @@
  * }
  * ```
  *
+ * ## Full Hook API
+ *
+ * The useCommandPalette hook provides complete control:
+ * ```jsx
+ * const {
+ *   isOpen,
+ *   open,
+ *   close,
+ *   toggle,
+ *   search,           // Current search query
+ *   setSearch,        // Update search query
+ *   results,          // Flat array of search results
+ *   selectedIndex,    // Current selection index
+ *   selectNext,       // Move selection down
+ *   selectPrev,       // Move selection up
+ *   executeSelected,  // Execute currently selected item
+ * } = useCommandPalette();
+ * ```
+ *
  * ## Register Custom Commands
  *
  * Plugins and features can register their own commands:
@@ -42,6 +61,28 @@
  *   action: () => console.log('Custom action executed!'),
  *   icon: 'Zap', // Lucide icon name
  *   shortcut: 'G then A',
+ * });
+ * ```
+ *
+ * ## Predefined Actions
+ *
+ * Use action creators for consistent command structure:
+ * ```jsx
+ * import {
+ *   createNavigationAction,
+ *   createQuickAction,
+ *   NAVIGATION_ACTIONS,
+ *   QUICK_ACTIONS,
+ * } from '@/components/command';
+ *
+ * // Use predefined actions
+ * registerCommands(NAVIGATION_ACTIONS);
+ *
+ * // Or create custom ones
+ * const myAction = createQuickAction({
+ *   id: 'my-action',
+ *   title: 'My Action',
+ *   action: () => doSomething(),
  * });
  * ```
  *
@@ -102,3 +143,19 @@ export {
   CATEGORIES,
   CATEGORY_ORDER,
 } from './commandRegistry';
+
+// Predefined actions and action creators
+export {
+  NAVIGATION_ACTIONS,
+  QUICK_ACTIONS,
+  SETTINGS_ACTIONS,
+  COMMUNITY_ACTIONS,
+  HELP_ACTIONS,
+  DEFAULT_ACTIONS,
+  createNavigationAction,
+  createQuickAction,
+  createSettingsAction,
+  createCommunityAction,
+  loadExerciseActions,
+  loadUserActions,
+} from './commandActions';

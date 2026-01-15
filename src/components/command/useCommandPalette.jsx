@@ -18,12 +18,29 @@
  * }
  *
  * @example
+ * // Full API usage
+ * const {
+ *   isOpen,
+ *   open,
+ *   close,
+ *   toggle,
+ *   search,           // Current search query
+ *   setSearch,        // Update search query
+ *   results,          // Flat array of search results
+ *   selectedIndex,    // Current selection index
+ *   selectNext,       // Move selection down
+ *   selectPrev,       // Move selection up
+ *   executeSelected,  // Execute currently selected item
+ * } = useCommandPalette();
+ *
+ * @example
  * // Open programmatically from anywhere
  * import { openCommandPalette } from './useCommandPalette';
  * openCommandPalette();
  */
 
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from 'react';
+import { searchCommandsFlat } from './commandRegistry';
 
 // ============================================
 // GLOBAL STATE (for programmatic access)
@@ -102,6 +119,8 @@ export { CommandPaletteContext };
  * @param {Function} [options.onOpen] - Callback when palette opens
  * @param {Function} [options.onClose] - Callback when palette closes
  * @param {Function} [options.onSelect] - Callback when item is selected
+ * @param {number} [options.maxResults=10] - Maximum results per category
+ * @param {string[]} [options.categories] - Categories to search (all if empty)
  * @returns {Object} Palette state and controls
  */
 export function useCommandPalette(options = {}) {
@@ -110,16 +129,42 @@ export function useCommandPalette(options = {}) {
     onOpen,
     onClose,
     onSelect,
+    maxResults = 10,
+    categories = [],
   } = options;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [initialQuery, setInitialQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const lastOpenTime = useRef(0);
+
+  // Search results - memoized for performance
+  const results = useMemo(() => {
+    return searchCommandsFlat(search, { maxResults, categories });
+  }, [search, maxResults, categories]);
+
+  // Keep selected index in bounds when results change
+  useEffect(() => {
+    if (selectedIndex >= results.length) {
+      setSelectedIndex(Math.max(0, results.length - 1));
+    }
+  }, [results.length, selectedIndex]);
+
+  // Reset state when opening
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIndex(0);
+    } else {
+      // Clear search when closing
+      setSearch('');
+    }
+  }, [isOpen]);
 
   // Open handler
   const open = useCallback((query = '') => {
-    setInitialQuery(query);
+    setSearch(query);
     setIsOpen(true);
+    setSelectedIndex(0);
     lastOpenTime.current = Date.now();
     onOpen?.();
   }, [onOpen]);
@@ -127,7 +172,8 @@ export function useCommandPalette(options = {}) {
   // Close handler
   const close = useCallback(() => {
     setIsOpen(false);
-    setInitialQuery('');
+    setSearch('');
+    setSelectedIndex(0);
     onClose?.();
   }, [onClose]);
 
@@ -140,11 +186,46 @@ export function useCommandPalette(options = {}) {
     }
   }, [isOpen, open, close]);
 
-  // Selection handler
-  const handleSelect = useCallback((item) => {
-    close();
+  // Select next item (move down)
+  const selectNext = useCallback(() => {
+    setSelectedIndex((prev) =>
+      prev < results.length - 1 ? prev + 1 : 0
+    );
+  }, [results.length]);
+
+  // Select previous item (move up)
+  const selectPrev = useCallback(() => {
+    setSelectedIndex((prev) =>
+      prev > 0 ? prev - 1 : results.length - 1
+    );
+  }, [results.length]);
+
+  // Execute the currently selected item
+  const executeSelected = useCallback(() => {
+    const item = results[selectedIndex];
+    if (!item) return;
+
+    // Execute action or navigate
+    if (item.action && typeof item.action === 'function') {
+      item.action(item.data);
+    }
+
     onSelect?.(item);
-  }, [close, onSelect]);
+    close();
+  }, [results, selectedIndex, onSelect, close]);
+
+  // Selection handler (for direct item clicks)
+  const handleSelect = useCallback((item) => {
+    if (!item) return;
+
+    // Execute action if present
+    if (item.action && typeof item.action === 'function') {
+      item.action(item.data);
+    }
+
+    onSelect?.(item);
+    close();
+  }, [onSelect, close]);
 
   // Register global functions
   useEffect(() => {
@@ -197,13 +278,29 @@ export function useCommandPalette(options = {}) {
   }, [enableGlobalShortcut, isOpen, toggle, close]);
 
   return {
+    // State
     isOpen,
+    search,
+    results,
+    selectedIndex,
+
+    // Open/Close controls
     open,
     close,
     toggle,
+
+    // Search controls
+    setSearch,
+
+    // Selection controls
+    selectNext,
+    selectPrev,
+    executeSelected,
+
+    // Legacy API (backward compatibility)
     handleSelect,
-    initialQuery,
-    setInitialQuery,
+    initialQuery: search,
+    setInitialQuery: setSearch,
   };
 }
 

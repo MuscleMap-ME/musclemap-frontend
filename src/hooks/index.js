@@ -128,9 +128,12 @@ export { default as useWebSocket } from './useWebSocket';
 export {
   useButtonFeedback,
   useReducedMotion,
+  useSound,
   triggerHaptic,
+  playClickSound,
+  playSuccessSound,
 } from '../components/glass/ButtonEffects';
-export { useRipple } from './useRipple';
+export { useRipple } from './useRipple.jsx';
 export { default as useXR, useXRButton, XR_STATE } from './useXR';
 export { useLongPress } from './useLongPress';
 export { useSwipeGesture } from './useSwipeGesture';

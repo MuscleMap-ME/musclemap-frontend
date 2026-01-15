@@ -182,32 +182,56 @@ const textSizeMap = {
 };
 
 /**
- * SkeletonBase - The foundational skeleton component
+ * Skeleton - Base skeleton component with shimmer animation
+ *
+ * A flexible skeleton loading placeholder that supports multiple animation
+ * types, variants, and sizing options. This is the core building block for
+ * all skeleton loading states in the app.
  *
  * @param {Object} props
+ * @param {'text'|'circular'|'rectangular'|'rounded'} [props.variant='rectangular'] - Shape variant
  * @param {number|string} [props.width] - Width (number = px, string = CSS value)
  * @param {number|string} [props.height] - Height (number = px, string = CSS value)
- * @param {'none'|'xs'|'sm'|'md'|'lg'|'xl'|'2xl'|'3xl'|'full'|string} [props.borderRadius='md'] - Border radius
- * @param {'rect'|'circle'|'text'} [props.shape='rect'] - Shape variant
- * @param {'pulse'|'shimmer'|'wave'} [props.variant='shimmer'] - Animation variant
+ * @param {'shimmer'|'pulse'|'wave'|'none'} [props.animation='shimmer'] - Animation type
  * @param {'slow'|'normal'|'fast'} [props.speed='normal'] - Animation speed
- * @param {boolean} [props.animate=true] - Enable animation (false = static)
- * @param {boolean} [props.shimmer=true] - Legacy: enable shimmer animation (use animate instead)
- * @param {boolean} [props.circle=false] - Shorthand for shape="circle"
  * @param {number} [props.animationDelay] - Delay index for staggered animations (0-9)
+ * @param {'none'|'xs'|'sm'|'md'|'lg'|'xl'|'2xl'|'3xl'|'full'|string} [props.borderRadius] - Custom border radius (overrides variant)
  * @param {string} [props.className] - Additional CSS classes
  * @param {Object} [props.style] - Additional inline styles
+ *
+ * @example
+ * // Basic shapes
+ * <Skeleton variant="text" width="60%" />
+ * <Skeleton variant="circular" width={48} height={48} />
+ * <Skeleton variant="rectangular" width={200} height={100} />
+ * <Skeleton variant="rounded" width={200} height={100} />
+ *
+ * // Animation types
+ * <Skeleton animation="shimmer" width={200} height={20} />
+ * <Skeleton animation="pulse" width={200} height={20} />
+ * <Skeleton animation="wave" width={200} height={20} />
+ * <Skeleton animation="none" width={200} height={20} />
+ *
+ * // Staggered animations
+ * <Skeleton width="100%" height={16} animationDelay={0} />
+ * <Skeleton width="80%" height={16} animationDelay={1} />
+ * <Skeleton width="90%" height={16} animationDelay={2} />
  */
 function SkeletonBase({
+  // New API props (preferred)
+  variant = 'rectangular',
+  animation = 'shimmer',
+  // Legacy API props (still supported for backward compatibility)
+  shape, // Legacy: 'rect'|'circle'|'text' -> maps to variant
+  // eslint-disable-next-line no-unused-vars
+  animate, // Legacy: boolean -> maps to animation !== 'none'
+  shimmer, // Legacy: boolean -> if false, animation='none'
+  circle = false, // Legacy: boolean -> variant='circular'
+  // Common props
   width,
   height,
-  borderRadius = 'md',
-  shape = 'rect',
-  variant = 'shimmer',
+  borderRadius,
   speed = 'normal',
-  animate = true,
-  shimmer, // Legacy prop - if explicitly set to false, disable animation
-  circle = false,
   animationDelay,
   className,
   style,
@@ -218,41 +242,72 @@ function SkeletonBase({
     injectStyles();
   }, []);
 
-  // Handle legacy shimmer prop
-  const shouldAnimate = shimmer === false ? false : animate;
+  // Handle legacy props - map to new API
+  let effectiveVariant = variant;
+  if (circle) {
+    effectiveVariant = 'circular';
+  } else if (shape) {
+    // Map legacy shape values to new variant names
+    const shapeToVariant = {
+      rect: 'rectangular',
+      circle: 'circular',
+      text: 'text',
+    };
+    effectiveVariant = shapeToVariant[shape] || shape;
+  }
 
-  // Determine shape from props (legacy 'variant' prop now becomes 'shape')
-  const effectiveShape = circle ? 'circle' : shape;
+  // Handle legacy animation props
+  let effectiveAnimation = animation;
+  if (shimmer === false || props.animate === false) {
+    effectiveAnimation = 'none';
+  }
 
-  // Compute border radius based on shape
+  // Compute border radius based on variant (can be overridden by borderRadius prop)
   let computedRadius;
-  if (effectiveShape === 'circle') {
-    computedRadius = 'var(--radius-full, 9999px)';
-  } else if (effectiveShape === 'text') {
-    computedRadius = 'var(--radius-sm, 4px)';
-  } else {
+  if (borderRadius !== undefined) {
     computedRadius = radiusMap[borderRadius] || borderRadius;
+  } else {
+    // Default radius based on variant
+    switch (effectiveVariant) {
+      case 'circular':
+        computedRadius = 'var(--radius-full, 9999px)';
+        break;
+      case 'text':
+        computedRadius = 'var(--radius-sm, 4px)';
+        break;
+      case 'rounded':
+        computedRadius = 'var(--radius-lg, 12px)';
+        break;
+      case 'rectangular':
+      default:
+        computedRadius = 'var(--radius-md, 8px)';
+        break;
+    }
   }
 
   // Compute dimensions
   let computedWidth = typeof width === 'number' ? `${width}px` : width;
   let computedHeight = typeof height === 'number' ? `${height}px` : height;
 
-  // For text shape, use sensible defaults
-  if (effectiveShape === 'text') {
+  // Set sensible defaults for text variant
+  if (effectiveVariant === 'text') {
     computedWidth = computedWidth || '100%';
     computedHeight = computedHeight || '16px';
   }
 
-  // For circle shape, ensure equal dimensions
-  if (effectiveShape === 'circle' && width && !height) {
+  // For circular variant, ensure equal dimensions
+  if (effectiveVariant === 'circular' && width && !height) {
     computedHeight = computedWidth;
   }
 
   // Build animation classes
-  const animationClass = shouldAnimate ? `skeleton-${variant}` : 'skeleton-static';
-  const speedClass = shouldAnimate ? `skeleton-speed-${speed}` : '';
-  const delayClass = shouldAnimate && animationDelay !== undefined
+  const animationClass = effectiveAnimation !== 'none'
+    ? `skeleton-${effectiveAnimation}`
+    : 'skeleton-static';
+  const speedClass = effectiveAnimation !== 'none'
+    ? `skeleton-speed-${speed}`
+    : '';
+  const delayClass = effectiveAnimation !== 'none' && animationDelay !== undefined
     ? `skeleton-delay-${Math.min(Math.max(0, animationDelay), 9)}`
     : '';
 
@@ -278,6 +333,9 @@ function SkeletonBase({
     />
   );
 }
+
+// Export as both default and named export for flexibility
+export { SkeletonBase as Skeleton };
 
 /**
  * SkeletonText - Text line skeleton with appropriate height

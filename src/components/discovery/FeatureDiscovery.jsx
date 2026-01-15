@@ -6,21 +6,27 @@
  *
  * @example Basic Usage (Dashboard)
  * <FeatureDiscovery
- *   maxVisible={3}
+ *   maxFeatures={3}
  *   layout="carousel"
- *   filter={['social', 'tracking']}
+ *   category="social"
  * />
  *
  * @example Compact in Sidebar
- * <FeatureDiscovery maxVisible={1} layout="stack" />
+ * <FeatureDiscovery maxFeatures={1} layout="list" />
  *
  * @example Grid with Progress
  * <FeatureDiscovery
- *   maxVisible={6}
+ *   maxFeatures={6}
  *   layout="grid"
  *   showProgress
  *   onFeatureClick={(feature) => navigate(feature.route)}
  * />
+ *
+ * @example Filtered by Category
+ * <FeatureDiscovery category="social" layout="grid" maxFeatures={4} />
+ *
+ * @example With Hook
+ * const { undiscoveredFeatures, markDiscovered } = useFeatureDiscovery();
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -32,6 +38,7 @@ import {
   DISCOVERABLE_FEATURES,
   sortByPriority,
   getFeaturesByCategories,
+  getFeaturesByCategory,
 } from './featureDefinitions';
 
 /**
@@ -120,9 +127,11 @@ function useDismissedFeatures() {
  * FeatureDiscovery Component
  *
  * @param {Object} props
- * @param {number} props.maxVisible - How many cards to show at once (default 3)
- * @param {string} props.layout - 'carousel' | 'grid' | 'stack' (default 'carousel')
- * @param {string[]} props.filter - Only show specific feature categories
+ * @param {number} props.maxFeatures - How many cards to show at once (default 3)
+ * @param {string} props.layout - 'carousel' | 'grid' | 'list' (default 'carousel')
+ * @param {string} props.category - Filter by a single category
+ * @param {string[]} props.filter - Filter by multiple categories (legacy support)
+ * @param {boolean} props.showDismiss - Show dismiss (X) button on cards (default true)
  * @param {Function} props.onFeatureClick - Called when user clicks a feature
  * @param {boolean} props.showProgress - Show "X of Y features discovered" (default false)
  * @param {boolean} props.showHeader - Show the header section (default true)
@@ -131,9 +140,12 @@ function useDismissedFeatures() {
  * @param {string} props.className - Additional CSS classes
  */
 export default function FeatureDiscovery({
-  maxVisible = 3,
+  maxFeatures = 3,
+  maxVisible, // Legacy prop support
   layout = 'carousel',
+  category,
   filter,
+  showDismiss = true,
   onFeatureClick,
   showProgress = false,
   showHeader = true,
@@ -141,6 +153,8 @@ export default function FeatureDiscovery({
   rotationInterval = 8000,
   className,
 }) {
+  // Support both maxFeatures (new) and maxVisible (legacy)
+  const effectiveMaxVisible = maxFeatures ?? maxVisible ?? 3;
   // Feature tracking hooks
   const { discovered, markDiscovered } = useDiscoveredFeatures();
   const { dismissed, dismissFeature } = useDismissedFeatures();
@@ -151,13 +165,18 @@ export default function FeatureDiscovery({
   const autoRotateRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  // Get all features, optionally filtered by categories
+  // Get all features, optionally filtered by category or categories
   const allFeatures = useMemo(() => {
+    // Single category filter (new prop)
+    if (category) {
+      return getFeaturesByCategory(category);
+    }
+    // Multiple categories filter (legacy prop)
     if (filter && filter.length > 0) {
       return getFeaturesByCategories(filter);
     }
     return DISCOVERABLE_FEATURES;
-  }, [filter]);
+  }, [category, filter]);
 
   // Filter out discovered and dismissed features, sort by priority
   const undiscoveredFeatures = useMemo(() => {
@@ -183,7 +202,7 @@ export default function FeatureDiscovery({
 
     if (layout === 'carousel') {
       // Show all for horizontal scrolling, but limit display
-      return undiscoveredFeatures.slice(0, maxVisible * 2);
+      return undiscoveredFeatures.slice(0, effectiveMaxVisible * 2);
     }
 
     if (layout === 'stack') {
@@ -191,22 +210,27 @@ export default function FeatureDiscovery({
       return [undiscoveredFeatures[currentIndex % undiscoveredFeatures.length]];
     }
 
+    if (layout === 'list') {
+      // List shows all up to max in a vertical layout
+      return undiscoveredFeatures.slice(0, effectiveMaxVisible);
+    }
+
     // Grid layout with rotation
-    if (undiscoveredFeatures.length <= maxVisible) {
+    if (undiscoveredFeatures.length <= effectiveMaxVisible) {
       return undiscoveredFeatures;
     }
 
     const features = [];
-    for (let i = 0; i < maxVisible; i++) {
+    for (let i = 0; i < effectiveMaxVisible; i++) {
       const idx = (currentIndex + i) % undiscoveredFeatures.length;
       features.push(undiscoveredFeatures[idx]);
     }
     return features;
-  }, [undiscoveredFeatures, currentIndex, maxVisible, layout]);
+  }, [undiscoveredFeatures, currentIndex, effectiveMaxVisible, layout]);
 
-  // Auto-rotation effect (for grid and stack layouts)
+  // Auto-rotation effect (for grid and stack layouts, not list)
   useEffect(() => {
-    if (layout === 'carousel' || !autoRotate || isPaused || undiscoveredFeatures.length <= maxVisible) {
+    if (layout === 'carousel' || layout === 'list' || !autoRotate || isPaused || undiscoveredFeatures.length <= effectiveMaxVisible) {
       return;
     }
 
@@ -219,7 +243,7 @@ export default function FeatureDiscovery({
         clearInterval(autoRotateRef.current);
       }
     };
-  }, [autoRotate, isPaused, undiscoveredFeatures.length, maxVisible, rotationInterval, layout]);
+  }, [autoRotate, isPaused, undiscoveredFeatures.length, effectiveMaxVisible, rotationInterval, layout]);
 
   // Handle feature click
   const handleFeatureClick = useCallback(
@@ -288,8 +312,10 @@ export default function FeatureDiscovery({
 
   const showNavigation =
     layout === 'carousel'
-      ? undiscoveredFeatures.length > maxVisible
-      : undiscoveredFeatures.length > (layout === 'stack' ? 1 : maxVisible);
+      ? undiscoveredFeatures.length > effectiveMaxVisible
+      : layout === 'list'
+      ? false // List layout doesn't need navigation
+      : undiscoveredFeatures.length > (layout === 'stack' ? 1 : effectiveMaxVisible);
 
   // Render header with progress
   const renderHeader = () => {
@@ -395,7 +421,7 @@ export default function FeatureDiscovery({
                   feature={feature}
                   variant={index === 0 ? 'highlighted' : 'default'}
                   onTry={handleFeatureClick}
-                  onDismiss={handleDismiss}
+                  onDismiss={showDismiss ? handleDismiss : undefined}
                   showPulse={index === 0}
                   index={index}
                 />
@@ -405,9 +431,9 @@ export default function FeatureDiscovery({
         </div>
 
         {/* Scroll indicator dots */}
-        {undiscoveredFeatures.length > maxVisible && (
+        {undiscoveredFeatures.length > effectiveMaxVisible && (
           <div className="flex items-center justify-center gap-1.5 mt-3">
-            {Array.from({ length: Math.min(undiscoveredFeatures.length, maxVisible * 2) }).map(
+            {Array.from({ length: Math.min(undiscoveredFeatures.length, effectiveMaxVisible * 2) }).map(
               (_, idx) => (
                 <div
                   key={idx}
@@ -418,9 +444,9 @@ export default function FeatureDiscovery({
                 />
               )
             )}
-            {undiscoveredFeatures.length > maxVisible * 2 && (
+            {undiscoveredFeatures.length > effectiveMaxVisible * 2 && (
               <span className="text-xs text-gray-500 ml-1">
-                +{undiscoveredFeatures.length - maxVisible * 2}
+                +{undiscoveredFeatures.length - effectiveMaxVisible * 2}
               </span>
             )}
           </div>
@@ -458,7 +484,7 @@ export default function FeatureDiscovery({
                   feature={feature}
                   variant="default"
                   onTry={handleFeatureClick}
-                  onDismiss={handleDismiss}
+                  onDismiss={showDismiss ? handleDismiss : undefined}
                   showPulse
                   index={0}
                 />
@@ -496,6 +522,53 @@ export default function FeatureDiscovery({
     );
   }
 
+  // List layout - vertical list of compact cards
+  if (layout === 'list') {
+    return (
+      <div
+        className={clsx('relative', className)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleMouseEnter}
+        onBlur={handleMouseLeave}
+      >
+        {renderHeader()}
+
+        {/* Vertical list */}
+        <div className="flex flex-col gap-3">
+          <AnimatePresence mode="popLayout">
+            {visibleFeatures.map((feature, index) => (
+              <motion.div
+                key={feature.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+              >
+                <FeatureCard
+                  feature={feature}
+                  variant="compact"
+                  onTry={handleFeatureClick}
+                  onDismiss={showDismiss ? handleDismiss : undefined}
+                  index={index}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Show more indicator */}
+        {undiscoveredFeatures.length > effectiveMaxVisible && (
+          <p className="text-xs text-gray-500 text-center mt-3">
+            +{undiscoveredFeatures.length - effectiveMaxVisible} more to explore
+          </p>
+        )}
+
+        {renderProgress()}
+      </div>
+    );
+  }
+
   // Grid layout (default)
   return (
     <div
@@ -511,21 +584,21 @@ export default function FeatureDiscovery({
       <div
         className={clsx(
           'grid gap-4',
-          maxVisible === 1
+          effectiveMaxVisible === 1
             ? 'grid-cols-1'
-            : maxVisible === 2
+            : effectiveMaxVisible === 2
             ? 'grid-cols-1 sm:grid-cols-2'
             : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
         )}
       >
         <AnimatePresence mode="popLayout">
-          {visibleFeatures.slice(0, maxVisible).map((feature, index) => (
+          {visibleFeatures.slice(0, effectiveMaxVisible).map((feature, index) => (
             <FeatureCard
               key={feature.id}
               feature={feature}
               variant={index === 0 ? 'highlighted' : 'default'}
               onTry={handleFeatureClick}
-              onDismiss={handleDismiss}
+              onDismiss={showDismiss ? handleDismiss : undefined}
               showPulse={index === 0}
               index={index}
             />
@@ -534,17 +607,17 @@ export default function FeatureDiscovery({
       </div>
 
       {/* Progress dots for grid */}
-      {showNavigation && undiscoveredFeatures.length > maxVisible && (
+      {showNavigation && undiscoveredFeatures.length > effectiveMaxVisible && (
         <div className="flex items-center justify-center gap-1.5 mt-4">
-          {Array.from({ length: Math.ceil(undiscoveredFeatures.length / maxVisible) }).map(
+          {Array.from({ length: Math.ceil(undiscoveredFeatures.length / effectiveMaxVisible) }).map(
             (_, idx) => {
               const isActive =
-                Math.floor(currentIndex / maxVisible) === idx ||
-                (currentIndex % maxVisible !== 0 && Math.ceil(currentIndex / maxVisible) === idx);
+                Math.floor(currentIndex / effectiveMaxVisible) === idx ||
+                (currentIndex % effectiveMaxVisible !== 0 && Math.ceil(currentIndex / effectiveMaxVisible) === idx);
               return (
                 <button
                   key={idx}
-                  onClick={() => setCurrentIndex(idx * maxVisible)}
+                  onClick={() => setCurrentIndex(idx * effectiveMaxVisible)}
                   className={clsx(
                     'w-2 h-2 rounded-full transition-all duration-200',
                     isActive ? 'bg-blue-500 w-6' : 'bg-white/20 hover:bg-white/40'
@@ -615,6 +688,25 @@ export function FeatureDiscoverySkeleton({ count = 3, layout = 'grid' }) {
           </div>
         </div>
         <FeatureCardSkeleton />
+      </div>
+    );
+  }
+
+  if (layout === 'list') {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-white/10 animate-pulse" />
+          <div>
+            <div className="h-4 w-28 bg-white/10 rounded animate-pulse mb-1" />
+            <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: count }).map((_, i) => (
+            <FeatureCardSkeleton key={i} variant="compact" />
+          ))}
+        </div>
       </div>
     );
   }

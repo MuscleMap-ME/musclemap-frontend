@@ -1,5 +1,5 @@
 /**
- * GlassButton - Interactive button with glass morphism and micro-interactions
+ * GlassButton - Interactive button with glass morphism and advanced micro-interactions
  *
  * Supports multiple variants with satisfying press animations,
  * luminous hover states, ripple effects, and success feedback.
@@ -12,12 +12,14 @@
  * - Pulse effect option for subtle feedback
  * - Burst effect option for confetti celebration
  * - Shake effect option for error feedback
- * - Press feedback with scale animation (0.98 on press)
- * - Success animation after async onClick resolves
+ * - Press feedback with scale animation (0.97 on press, spring release)
+ * - Hover glow effect with ambient lighting
+ * - Success animation after async onClick resolves (checkmark, burst, or glow)
  * - Error shake animation on failed actions
  * - Success burst with confetti particles
  * - Haptic feedback on mobile (navigator.vibrate)
- * - Loading state with spinner and optional loading text
+ * - Optional click sound effects (Web Audio API)
+ * - Loading state with pulsing spinner and breathing animation
  * - Prominent focus ring for keyboard accessibility
  * - Respects prefers-reduced-motion
  *
@@ -34,6 +36,7 @@
  * // With success animation (async onClick)
  * <GlassButton
  *   successAnimation
+ *   onSuccessAnimation="checkmark"
  *   onClick={async () => {
  *     await saveData();
  *   }}
@@ -41,15 +44,33 @@
  *   Save
  * </GlassButton>
  *
- * // With success burst (confetti on success)
+ * // With burst success animation
  * <GlassButton
- *   successBurst
+ *   successAnimation
+ *   onSuccessAnimation="burst"
  *   onClick={async () => {
  *     await saveData();
  *   }}
  * >
  *   Complete Task
  * </GlassButton>
+ *
+ * // With glow success animation
+ * <GlassButton
+ *   successAnimation
+ *   onSuccessAnimation="glow"
+ *   onClick={async () => {
+ *     await saveData();
+ *   }}
+ * >
+ *   Submit
+ * </GlassButton>
+ *
+ * // With sound effects
+ * <GlassButton soundEnabled onClick={handleClick}>Click Me</GlassButton>
+ *
+ * // With hover glow disabled
+ * <GlassButton glowOnHover={false} onClick={handleClick}>No Glow</GlassButton>
  *
  * // With error handling
  * <GlassButton
@@ -76,8 +97,10 @@ import {
   RippleEffect,
   SuccessEffect,
   PulseEffect,
+  GlowEffect,
   useButtonFeedback,
   useReducedMotion,
+  useSound,
   triggerHaptic,
 } from './ButtonEffects';
 
@@ -140,7 +163,9 @@ const GlassButton = forwardRef(
       feedback = 'ripple', // 'ripple' | 'pulse' | 'shake' | 'burst' | 'none'
       haptic = false, // Trigger haptic feedback on mobile
       successAnimation = false, // Show success animation after onClick resolves
-      successBurst: _successBurst = false, // Show confetti burst on successful action
+      onSuccessAnimation = 'checkmark', // 'burst' | 'checkmark' | 'glow' | 'none'
+      soundEnabled = false, // Enable click sound effects
+      glowOnHover = true, // Show ambient glow on hover
       loadingText, // Text to show while loading
       onSuccess, // Callback triggered on success
       onError: _onError, // Callback triggered on error (also triggers shake)
@@ -156,7 +181,14 @@ const GlassButton = forwardRef(
 
     // Internal loading state for async onClick handling
     const [isAsyncLoading, setIsAsyncLoading] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const isLoading = loading || isAsyncLoading;
+
+    // Sound effects
+    const { playClick, playSuccess } = useSound({
+      enabled: soundEnabled,
+      variant,
+    });
 
     // Get feedback state and handlers
     const {
@@ -165,17 +197,30 @@ const GlassButton = forwardRef(
       showSuccess,
       rippleRef,
       triggerSuccess,
-      handleSuccessComplete,
+      handleSuccessComplete: baseHandleSuccessComplete,
     } = useButtonFeedback({
       feedback,
       onSuccess,
       disabled: disabled || isLoading,
     });
 
+    // Wrap success complete to play sound
+    const handleSuccessComplete = useCallback(() => {
+      if (soundEnabled) {
+        playSuccess();
+      }
+      baseHandleSuccessComplete();
+    }, [soundEnabled, playSuccess, baseHandleSuccessComplete]);
+
     // Handle click with haptic feedback and optional success animation
     const handleClick = useCallback(
       async (e) => {
         if (disabled || isLoading) return;
+
+        // Play click sound
+        if (soundEnabled) {
+          playClick();
+        }
 
         // Trigger haptic feedback on mobile
         if (haptic) {
@@ -203,13 +248,27 @@ const GlassButton = forwardRef(
           onClick?.(e);
         }
       },
-      [disabled, isLoading, haptic, successAnimation, onClick, triggerSuccess]
+      [disabled, isLoading, soundEnabled, playClick, haptic, successAnimation, onClick, triggerSuccess]
     );
+
+    // Hover handlers for glow effect
+    const handleMouseEnter = useCallback(() => {
+      if (!disabled && !isLoading) {
+        setIsHovered(true);
+      }
+    }, [disabled, isLoading]);
+
+    const handleMouseLeave = useCallback(() => {
+      setIsHovered(false);
+      feedbackHandlers.onMouseLeave?.();
+    }, [feedbackHandlers]);
 
     // Combine feedback handlers with existing handlers
     const combinedHandlers = {
       ...feedbackHandlers,
       onClick: handleClick,
+      onMouseEnter: handleMouseEnter,
+      onMouseLeave: handleMouseLeave,
     };
 
     // Motion props with enhanced press feedback
@@ -237,14 +296,20 @@ const GlassButton = forwardRef(
           'relative overflow-hidden transition-shadow',
           fullWidth && 'w-full',
           disabled && 'opacity-50 cursor-not-allowed',
-          isLoading && 'relative opacity-80',
+          isLoading && 'relative',
           className
         )}
         disabled={disabled || isLoading}
+        style={isLoading && !reducedMotion ? { animation: 'loading-breathe 2s ease-in-out infinite' } : undefined}
         {...motionProps}
         {...combinedHandlers}
         {...props}
       >
+        {/* Hover Glow Effect Layer */}
+        {glowOnHover && !disabled && !isLoading && (
+          <GlowEffect active={isHovered} variant={variant} />
+        )}
+
         {/* Ripple Effect Layer */}
         {feedback === 'ripple' && !disabled && !isLoading && (
           <RippleEffect ref={rippleRef} variant={variant} />
@@ -257,7 +322,7 @@ const GlassButton = forwardRef(
 
         {/* Success Animation Layer */}
         <AnimatePresence>
-          {showSuccess && (
+          {showSuccess && onSuccessAnimation !== 'none' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -267,6 +332,7 @@ const GlassButton = forwardRef(
               <SuccessEffect
                 active={showSuccess}
                 variant={variant}
+                animationType={onSuccessAnimation}
                 onComplete={handleSuccessComplete}
               />
             </motion.div>
@@ -298,7 +364,7 @@ const GlassButton = forwardRef(
               exit={{ opacity: 0, scale: 0.8 }}
               className="absolute inset-0 flex items-center justify-center z-10"
             >
-              <LoadingSpinner size={size} variant={variant} />
+              <LoadingSpinner size={size} variant={variant} pulsing />
             </motion.span>
           )}
           {isLoading && loadingText && (
@@ -308,7 +374,7 @@ const GlassButton = forwardRef(
               exit={{ opacity: 0 }}
               className="absolute left-4 flex items-center justify-center z-10"
             >
-              <LoadingSpinner size={size} variant={variant} />
+              <LoadingSpinner size={size} variant={variant} pulsing />
             </motion.span>
           )}
         </AnimatePresence>
@@ -326,10 +392,12 @@ export { GlassButton };
 export default GlassButton;
 
 /**
- * Loading spinner with liquid animation
+ * Loading spinner with liquid animation and optional pulsing effect
  * Enhanced with variant-aware coloring and smoother animation
  */
-const LoadingSpinner = ({ size, variant = 'glass' }) => {
+const LoadingSpinner = ({ size, variant = 'glass', pulsing = false }) => {
+  const reducedMotion = useReducedMotion();
+
   const sizeMap = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
@@ -338,13 +406,19 @@ const LoadingSpinner = ({ size, variant = 'glass' }) => {
   };
 
   // Get spinner color based on variant
-  const spinnerColor = variant === 'primary' ? 'text-white' : 'text-current';
+  const spinnerColor = variant === 'primary' || variant === 'pulse' ? 'text-white' : 'text-current';
+
+  // Pulsing animation style
+  const pulsingStyle = pulsing && !reducedMotion
+    ? { animation: 'spinner-pulse 1.5s ease-in-out infinite' }
+    : {};
 
   return (
     <svg
       className={clsx('animate-spin', sizeMap[size], spinnerColor)}
       viewBox="0 0 24 24"
       fill="none"
+      style={pulsingStyle}
     >
       {/* Background track */}
       <circle
@@ -361,8 +435,8 @@ const LoadingSpinner = ({ size, variant = 'glass' }) => {
         fill="currentColor"
         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
       />
-      {/* Glowing effect for primary variant */}
-      {variant === 'primary' && (
+      {/* Glowing effect for primary/pulse variant */}
+      {(variant === 'primary' || variant === 'pulse') && (
         <circle
           cx="12"
           cy="4"
@@ -379,7 +453,7 @@ const LoadingSpinner = ({ size, variant = 'glass' }) => {
 };
 
 /**
- * GlassIconButton - Circular icon button variant
+ * GlassIconButton - Circular icon button variant with micro-interactions
  *
  * TOUCHSCREEN-FIRST: All sizes meet minimum 44px touch target.
  * Previous sizes were too small:
@@ -387,6 +461,14 @@ const LoadingSpinner = ({ size, variant = 'glass' }) => {
  * - md: was 40px, now 48px
  * - lg: was 48px, now 56px
  * - xl: was 56px, now 64px
+ *
+ * FEATURES (same as GlassButton):
+ * - Ripple effect on click
+ * - Hover glow effect
+ * - Optional sound effects
+ * - Haptic feedback on mobile
+ * - Loading state with pulsing spinner
+ * - Respects prefers-reduced-motion
  */
 export const GlassIconButton = forwardRef(
   (
@@ -397,6 +479,8 @@ export const GlassIconButton = forwardRef(
       variant = 'glass',
       feedback = 'ripple',
       haptic = false,
+      soundEnabled = false,
+      glowOnHover = true,
       disabled = false,
       loading = false,
       onClick,
@@ -412,6 +496,13 @@ export const GlassIconButton = forwardRef(
     };
 
     const reducedMotion = useReducedMotion();
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Sound effects
+    const { playClick } = useSound({
+      enabled: soundEnabled,
+      variant,
+    });
 
     // Get feedback state and handlers
     const {
@@ -423,10 +514,14 @@ export const GlassIconButton = forwardRef(
       disabled: disabled || loading,
     });
 
-    // Handle click with optional haptic feedback
+    // Handle click with optional haptic feedback and sound
     const handleClick = useCallback(
       (e) => {
         if (disabled || loading) return;
+
+        if (soundEnabled) {
+          playClick();
+        }
 
         if (haptic) {
           triggerHaptic();
@@ -434,8 +529,20 @@ export const GlassIconButton = forwardRef(
 
         onClick?.(e);
       },
-      [disabled, loading, haptic, onClick]
+      [disabled, loading, soundEnabled, playClick, haptic, onClick]
     );
+
+    // Hover handlers for glow effect
+    const handleMouseEnter = useCallback(() => {
+      if (!disabled && !loading) {
+        setIsHovered(true);
+      }
+    }, [disabled, loading]);
+
+    const handleMouseLeave = useCallback(() => {
+      setIsHovered(false);
+      feedbackHandlers.onMouseLeave?.();
+    }, [feedbackHandlers]);
 
     return (
       <motion.button
@@ -455,13 +562,26 @@ export const GlassIconButton = forwardRef(
         animate={isPressed && !reducedMotion ? { scale: 0.93 } : { scale: 1 }}
         transition={{ type: 'spring', stiffness: 400, damping: 17 }}
         disabled={disabled || loading}
+        style={loading && !reducedMotion ? { animation: 'loading-breathe 2s ease-in-out infinite' } : undefined}
         {...feedbackHandlers}
         onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         {...props}
       >
+        {/* Hover Glow Effect Layer */}
+        {glowOnHover && !disabled && !loading && (
+          <GlowEffect active={isHovered} variant={variant} />
+        )}
+
         {/* Ripple Effect Layer */}
         {feedback === 'ripple' && !disabled && !loading && (
           <RippleEffect ref={rippleRef} variant={variant} />
+        )}
+
+        {/* Pulse Effect Layer */}
+        {feedback === 'pulse' && !disabled && !loading && (
+          <PulseEffect active={isPressed} variant={variant} />
         )}
 
         {/* Icon Content */}
@@ -478,7 +598,7 @@ export const GlassIconButton = forwardRef(
               exit={{ opacity: 0, scale: 0.8 }}
               className="absolute inset-0 flex items-center justify-center"
             >
-              <LoadingSpinner size="sm" variant={variant} />
+              <LoadingSpinner size="sm" variant={variant} pulsing />
             </motion.span>
           )}
         </AnimatePresence>

@@ -264,6 +264,65 @@ export const EMPTY_STATE_PRESETS = {
     title: 'Under Maintenance',
     description: 'We are performing scheduled maintenance. Please check back shortly.',
   },
+
+  // Success / Completed
+  'success': {
+    type: 'success',
+    title: 'All Done!',
+    description: 'You have successfully completed this task.',
+  },
+
+  // Completed workout
+  'workout-complete': {
+    type: 'success',
+    title: 'Workout Complete!',
+    description: 'Great job finishing your workout. Your progress has been saved.',
+    tips: [
+      'Review your stats to see your performance',
+      'Share your achievement with friends',
+      'Plan your next workout',
+    ],
+  },
+
+  // Empty leaderboard
+  'no-leaderboard': {
+    type: 'achievements',
+    title: 'Leaderboard Empty',
+    description: 'Be the first to climb the ranks! Complete workouts to appear on the leaderboard.',
+    action: {
+      label: 'Start Workout',
+      to: '/workout',
+      variant: 'primary',
+    },
+  },
+
+  // No followers/following
+  'no-followers': {
+    type: 'community',
+    title: 'No Followers Yet',
+    description: 'Share your profile to gain followers and grow your fitness community.',
+    tips: [
+      'Complete workouts to attract followers',
+      'Engage with other athletes',
+    ],
+  },
+
+  // Empty challenges
+  'no-challenges': {
+    type: 'goals',
+    title: 'No Active Challenges',
+    description: 'Join or create a challenge to compete with others and push your limits.',
+    action: {
+      label: 'Browse Challenges',
+      to: '/challenges',
+      variant: 'primary',
+    },
+    secondaryAction: {
+      label: 'Create Challenge',
+      to: '/challenges/new',
+      variant: 'glass',
+    },
+  },
 };
 
 /**

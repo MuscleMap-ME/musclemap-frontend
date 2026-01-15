@@ -40,6 +40,21 @@ import {
   Search,
   Zap,
   Compass,
+  // Additional icons for commandActions
+  Wallet,
+  Moon,
+  Globe,
+  Ruler,
+  UserCog,
+  Puzzle,
+  Radio,
+  Newspaper,
+  BookOpen,
+  Code,
+  Bug,
+  Lightbulb,
+  MessageSquare,
+  Camera,
 } from 'lucide-react';
 
 // ============================================
@@ -79,6 +94,21 @@ const ICON_MAP = {
   Search,
   Zap,
   Compass,
+  // Additional icons for commandActions
+  Wallet,
+  Moon,
+  Globe,
+  Ruler,
+  UserCog,
+  Puzzle,
+  Radio,
+  Newspaper,
+  BookOpen,
+  Code,
+  Bug,
+  Lightbulb,
+  MessageSquare,
+  Camera,
 };
 
 // Category to default icon
