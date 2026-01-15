@@ -395,8 +395,7 @@ export async function up(): Promise<void> {
 
   await query(`
     CREATE INDEX IF NOT EXISTS idx_streak_saves_week
-    ON mascot_streak_saves(user_id, saved_at)
-    WHERE saved_at > CURRENT_DATE - INTERVAL '7 days'
+    ON mascot_streak_saves(user_id, saved_at DESC)
   `);
 
   log.info('Migration 101_mascot_powers_phase2 complete');
