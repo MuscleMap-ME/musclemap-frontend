@@ -53,8 +53,8 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE workout_sets (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        workout_id UUID NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        workout_id TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         exercise_id TEXT NOT NULL,
         set_number INTEGER NOT NULL,
         weight DECIMAL(10, 2),
@@ -104,7 +104,7 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE progress_photos (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         storage_path TEXT NOT NULL,
         thumbnail_path TEXT,
         photo_type TEXT NOT NULL,
@@ -137,7 +137,7 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE body_measurements (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         weight_kg DECIMAL(5, 2),
         body_fat_percentage DECIMAL(4, 1),
         lean_mass_kg DECIMAL(5, 2),
@@ -176,7 +176,7 @@ export async function migrate(): Promise<void> {
     await db.query(`
       CREATE TABLE user_rest_preferences (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
         default_rest_seconds INTEGER DEFAULT 90,
         exercise_rest_defaults JSONB DEFAULT '{}',
         auto_start_timer BOOLEAN DEFAULT true,
