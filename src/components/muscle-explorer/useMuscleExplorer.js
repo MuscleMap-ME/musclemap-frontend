@@ -2,9 +2,22 @@
  * useMuscleExplorer - State management hook for the 3D Muscle Explorer
  *
  * Manages selection, rotation, zoom, and view state for the muscle model.
+ *
+ * @example
+ * const {
+ *   selectedMuscle,
+ *   setSelectedMuscle,
+ *   hoveredMuscle,
+ *   setHoveredMuscle,
+ *   view,
+ *   setView,
+ *   getMuscleActivation,
+ *   getMuscleStats
+ * } = useMuscleExplorer(activations);
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { MUSCLE_DATA } from './muscleData';
 
 /**
  * Default configuration for the explorer
@@ -295,14 +308,65 @@ export function useMuscleExplorer(options = {}) {
   }, [isAutoRotating, config.autoRotateSpeed]);
 
   // ============================================
+  // HOVERED MUSCLE STATE
+  // ============================================
+
+  const [hoveredMuscle, setHoveredMuscle] = useState(null);
+
+  // ============================================
+  // HELPER FUNCTIONS FOR ACTIVATIONS
+  // ============================================
+
+  /**
+   * Get activation level for a specific muscle
+   * @param {string} muscleId - The muscle identifier
+   * @returns {number} Activation level 0-100
+   */
+  const getMuscleActivation = useCallback((muscleId) => {
+    if (!options.activations) return 0;
+    const value = options.activations[muscleId];
+    if (value === undefined) return 0;
+    // Normalize to 0-100
+    return value <= 1 && value > 0 ? value * 100 : value;
+  }, [options.activations]);
+
+  /**
+   * Get stats for a specific muscle
+   * @param {string} muscleId - The muscle identifier
+   * @returns {Object} Muscle stats object
+   */
+  const getMuscleStats = useCallback((muscleId) => {
+    const muscle = MUSCLE_DATA[muscleId];
+    if (!muscle) return null;
+
+    const activation = getMuscleActivation(muscleId);
+
+    return {
+      id: muscleId,
+      name: muscle.commonName,
+      scientificName: muscle.name,
+      activation,
+      group: muscle.group,
+      exercises: muscle.exercises,
+      color: muscle.color,
+      glowColor: muscle.glowColor,
+    };
+  }, [getMuscleActivation]);
+
+  // ============================================
   // RETURN VALUE
   // ============================================
 
   return {
     // Selection
     selectedMuscle,
+    setSelectedMuscle: selectMuscle,
     selectMuscle,
     clearSelection,
+
+    // Hovered
+    hoveredMuscle,
+    setHoveredMuscle,
 
     // Rotation
     rotation,
@@ -315,7 +379,8 @@ export function useMuscleExplorer(options = {}) {
     zoomIn,
     zoomOut,
 
-    // View
+    // View - alias for compatibility
+    view: currentView,
     currentView,
     setView,
     toggleView,
@@ -327,6 +392,10 @@ export function useMuscleExplorer(options = {}) {
     startAutoRotate,
     stopAutoRotate,
     toggleAutoRotate,
+
+    // Helper functions
+    getMuscleActivation,
+    getMuscleStats,
 
     // Config
     viewPresets: VIEW_PRESETS,

@@ -7,11 +7,19 @@
  * Components:
  * - PageTransition - Wrapper for page enter/exit animations
  * - SharedElement - Element that morphs between pages
+ * - TransitionLink - Link with prefetch and transition support
  * - TransitionProvider - Context provider for transition state
  *
  * Hooks:
  * - usePageTransition - Access transition state and navigation
  * - useSharedElement - Control shared element registration
+ * - useTransitionNavigate - Programmatic navigation with transitions
+ * - usePrefetchLink - Add prefetch behavior to any element
+ *
+ * Presets:
+ * - PRESETS - Animation presets (fade, slide, scale, etc.)
+ * - getPreset - Get preset with reduced motion fallback
+ * - getPresetForDirection - Get appropriate preset for navigation direction
  *
  * @example
  * // Wrap your app with TransitionProvider
@@ -35,6 +43,13 @@
  *     </PageTransition>
  *   );
  * }
+ *
+ * // Use TransitionLink for navigation with transitions
+ * import { TransitionLink, TransitionNavLink } from '@/components/transitions';
+ *
+ * <TransitionLink to="/profile" transition="slideUp">
+ *   View Profile
+ * </TransitionLink>
  */
 
 // ============================================
@@ -77,6 +92,37 @@ export {
 } from './SharedElement';
 
 // ============================================
+// TRANSITION LINK
+// ============================================
+
+export {
+  default as TransitionLink,
+  TransitionNavLink,
+  TRANSITION_TYPES,
+  useTransitionNavigate,
+  usePrefetchLink,
+  useTransitionState,
+} from './TransitionLink';
+
+// ============================================
+// TRANSITION PRESETS
+// ============================================
+
+export {
+  PRESETS,
+  REDUCED_MOTION_PRESETS,
+  LAYOUT_TRANSITIONS,
+  DEFAULT_SPRING,
+  SNAPPY_SPRING,
+  GENTLE_SPRING,
+  getPresetForDirection,
+  getPreset,
+  createCustomPreset,
+  mergePresetWithTransition,
+  getPresetWithCustomExit,
+} from './transitionPresets';
+
+// ============================================
 // PAGE TRANSITION HOOK
 // ============================================
 
@@ -108,12 +154,14 @@ export {
 // Re-export commonly used items under simpler names
 import PageTransition from './PageTransition';
 import SharedElement from './SharedElement';
+import TransitionLink from './TransitionLink';
 import TransitionProvider from './TransitionProvider';
 import usePageTransition from './usePageTransition';
 
 export const Transitions = {
   PageTransition,
   SharedElement,
+  TransitionLink,
   TransitionProvider,
   usePageTransition,
 };

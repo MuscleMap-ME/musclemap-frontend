@@ -3,6 +3,7 @@
  *
  * Animated avatar for the AI Training Partner.
  * Supports idle, thinking, and speaking states with CSS animations.
+ * Also supports different personality styles: flex, spark, zen.
  */
 
 import React from 'react';
@@ -17,21 +18,53 @@ export const AVATAR_STATES = {
   CELEBRATING: 'celebrating',
 };
 
+// Avatar personalities with their icons and colors
+export const AVATAR_PERSONALITIES = {
+  flex: {
+    icon: '\uD83D\uDCAA', // Muscle emoji
+    name: 'Max',
+    title: 'Your Strength Coach',
+    gradient: 'from-blue-500 to-purple-600',
+    glow: 'bg-blue-400',
+    shadow: 'shadow-blue-500/30',
+  },
+  spark: {
+    icon: '\u26A1', // Lightning bolt
+    name: 'Spark',
+    title: 'Your Energy Coach',
+    gradient: 'from-yellow-400 to-orange-500',
+    glow: 'bg-yellow-400',
+    shadow: 'shadow-yellow-500/30',
+  },
+  zen: {
+    icon: '\uD83E\uDDD8', // Person in lotus position
+    name: 'Zen',
+    title: 'Your Mindful Coach',
+    gradient: 'from-teal-400 to-green-500',
+    glow: 'bg-teal-400',
+    shadow: 'shadow-teal-500/30',
+  },
+};
+
 /**
  * CoachAvatar - Animated coach avatar with state-based animations
  *
  * @param {Object} props
  * @param {string} props.state - Current avatar state
- * @param {string} props.size - Size variant (sm, md, lg)
+ * @param {string} props.size - Size variant (sm, md, lg, xl)
+ * @param {string} props.personality - Avatar personality (flex, spark, zen)
  * @param {string} props.className - Additional CSS classes
  * @param {boolean} props.reducedMotion - Respect reduced motion preference
  */
 export default function CoachAvatar({
   state = AVATAR_STATES.IDLE,
   size = 'md',
+  personality = 'flex',
   className,
   reducedMotion = false,
 }) {
+  // Get personality settings
+  const personalityConfig = AVATAR_PERSONALITIES[personality] || AVATAR_PERSONALITIES.flex;
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-12 h-12',
@@ -46,18 +79,47 @@ export default function CoachAvatar({
     xl: 'text-3xl',
   };
 
-  // Animation variants based on state
-  const containerVariants = {
-    idle: reducedMotion
+  // Personality-specific idle animations
+  const idleAnimations = {
+    flex: reducedMotion
       ? {}
       : {
+          // Pulse animation for flex (muscle)
+          scale: [1, 1.05, 1],
+          transition: {
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+        },
+    spark: reducedMotion
+      ? {}
+      : {
+          // Glow/flash animation for spark (energy)
           scale: [1, 1.02, 1],
+          opacity: [1, 0.8, 1],
+          transition: {
+            duration: 0.8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+        },
+    zen: reducedMotion
+      ? {}
+      : {
+          // Breathing animation for zen (calm)
+          scale: [1, 1.03, 1],
           transition: {
             duration: 3,
             repeat: Infinity,
             ease: 'easeInOut',
           },
         },
+  };
+
+  // Animation variants based on state
+  const containerVariants = {
+    idle: idleAnimations[personality] || idleAnimations.flex,
     thinking: reducedMotion
       ? {}
       : {
@@ -131,17 +193,17 @@ export default function CoachAvatar({
         },
   };
 
-  // Icon based on state
+  // Icon based on state and personality
   const getIcon = () => {
     switch (state) {
       case AVATAR_STATES.THINKING:
-        return '🤔';
+        return '\uD83E\uDD14'; // Thinking face
       case AVATAR_STATES.SPEAKING:
-        return '💬';
+        return '\uD83D\uDCAC'; // Speech bubble
       case AVATAR_STATES.CELEBRATING:
-        return '🎉';
+        return '\uD83C\uDF89'; // Party popper
       default:
-        return '💪';
+        return personalityConfig.icon;
     }
   };
 
@@ -149,7 +211,7 @@ export default function CoachAvatar({
     <motion.div
       className={clsx(
         'relative flex items-center justify-center rounded-full',
-        'bg-gradient-to-br from-blue-500 to-purple-600',
+        `bg-gradient-to-br ${personalityConfig.gradient}`,
         sizeClasses[size],
         className
       )}
@@ -157,9 +219,9 @@ export default function CoachAvatar({
       animate={state}
       initial="idle"
     >
-      {/* Glow effect */}
+      {/* Glow effect - uses personality color */}
       <motion.div
-        className="absolute inset-0 rounded-full bg-blue-400 blur-md -z-10"
+        className={clsx('absolute inset-0 rounded-full blur-md -z-10', personalityConfig.glow)}
         variants={glowVariants}
         animate={state}
         initial="idle"

@@ -22,7 +22,7 @@
 export { WorkoutMode, default } from './WorkoutMode';
 
 // Sub-components
-export { ExerciseDisplay } from './ExerciseDisplay';
+export { ExerciseDisplay, ExercisePanel } from './ExerciseDisplay';
 export { SetLogger } from './SetLogger';
 export { RestTimer, useAmbientSound } from './RestTimer';
 export { WorkoutProgress, WorkoutProgressDetailed } from './WorkoutProgress';
@@ -31,6 +31,7 @@ export {
   QuickControlsExpanded,
   QuickControlsMinimal,
 } from './QuickControls';
+export { MusclePreview, MusclePreviewBadge } from './MusclePreview';
 
 // Hooks
 export { useWorkoutMode, useSwipeGestures } from './useWorkoutMode';

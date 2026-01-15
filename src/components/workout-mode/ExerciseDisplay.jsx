@@ -6,19 +6,24 @@
  * - Muscle visualization showing targeted muscles
  * - Set progress indicator
  * - Exercise details (equipment, difficulty)
+ * - Previous performance hint
+ * - Swap exercise button
  *
  * @example
  * <ExerciseDisplay
  *   exercise={currentExercise}
  *   setNumber={2}
  *   totalSets={4}
+ *   onSkip={() => {}}
+ *   onSwap={() => {}}
  * />
  */
 
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, Target, Zap, Activity } from 'lucide-react';
+import { Dumbbell, Target, Zap, Activity, ArrowRightLeft, SkipForward, TrendingUp } from 'lucide-react';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
+import { haptic } from '../../utils/haptics';
 
 // Muscle groups for visualization
 const MUSCLE_POSITIONS = {
@@ -199,8 +204,23 @@ export function ExerciseDisplay({
   exercise,
   setNumber = 1,
   totalSets = 3,
+  onSkip,
+  onSwap,
+  previousPerformance,
 }) {
   const shouldReduceMotion = useShouldReduceMotion();
+
+  // Handle swap button click
+  const handleSwap = () => {
+    haptic('light');
+    onSwap?.();
+  };
+
+  // Handle skip button click
+  const handleSkip = () => {
+    haptic('light');
+    onSkip?.();
+  };
 
   if (!exercise) {
     return (
@@ -340,8 +360,62 @@ export function ExerciseDisplay({
           )}
         </motion.div>
       )}
+
+      {/* Previous Performance Hint */}
+      {previousPerformance && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.45 }}
+          className="mt-4 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 inline-flex items-center gap-2"
+        >
+          <TrendingUp className="w-4 h-4 text-blue-400" />
+          <span className="text-sm text-blue-400">
+            Last: {previousPerformance.weight} lbs x {previousPerformance.reps} reps
+          </span>
+        </motion.div>
+      )}
+
+      {/* Action Buttons */}
+      {(onSkip || onSwap) && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.5 }}
+          className="flex items-center justify-center gap-3 mt-4"
+        >
+          {onSwap && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSwap}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-gray-400 hover:text-gray-300 text-sm font-medium transition-colors touch-manipulation"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Swap Exercise
+            </motion.button>
+          )}
+          {onSkip && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSkip}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:bg-white/15 text-gray-400 hover:text-gray-300 text-sm font-medium transition-colors touch-manipulation"
+            >
+              <SkipForward className="w-4 h-4" />
+              Skip
+            </motion.button>
+          )}
+        </motion.div>
+      )}
     </motion.div>
   );
+}
+
+/**
+ * ExercisePanel Component - Alias for ExerciseDisplay with additional features
+ * This is the component name requested by the user
+ */
+export function ExercisePanel(props) {
+  return <ExerciseDisplay {...props} />;
 }
 
 export default ExerciseDisplay;

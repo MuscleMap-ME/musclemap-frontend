@@ -27,27 +27,63 @@ import CoachAvatar, { AVATAR_STATES } from './CoachAvatar';
  * @param {Object} props.userContext - User data for personalization
  * @param {boolean} props.reducedMotion - Respect reduced motion preference
  * @param {string} props.position - Widget position (bottom-right, bottom-left)
+ * @param {string} props.placement - Display mode: 'floating' (default) or 'sidebar'
+ * @param {string} props.avatar - Coach personality: 'flex' (muscle), 'spark' (energy), 'zen' (calm)
+ * @param {boolean} props.collapsed - External control of collapsed state
+ * @param {Function} props.onToggle - Callback when chat is toggled
  * @param {number} props.zIndex - CSS z-index for the widget
  */
 export default function AICoach({
   userContext = {},
   reducedMotion = false,
   position = 'bottom-right',
+  placement = 'floating',
+  avatar = 'flex',
+  collapsed: externalCollapsed,
+  onToggle,
   zIndex = 50,
 }) {
   const {
     messages,
     isTyping,
-    isOpen,
+    isOpen: internalIsOpen,
     hasUnread,
     coachName,
     coachTitle,
     sendMessage,
     handleQuickAction,
-    toggleChat,
-    closeChat,
+    toggleChat: internalToggleChat,
+    closeChat: internalCloseChat,
+    openChat: _internalOpenChat,
     quickActions,
-  } = useAICoach({ userContext });
+  } = useAICoach({ userContext, avatarPersonality: avatar });
+
+  // Suppress unused variable warning - openChat is available for external use via hook
+  void _internalOpenChat;
+
+  // Handle external vs internal collapsed state
+  const isControlled = externalCollapsed !== undefined;
+  const isOpen = isControlled ? !externalCollapsed : internalIsOpen;
+
+  // Memoized toggle handler that respects external control
+  const handleToggle = useCallback(() => {
+    if (onToggle) {
+      onToggle(!isOpen);
+    }
+    if (!isControlled) {
+      internalToggleChat();
+    }
+  }, [onToggle, isOpen, isControlled, internalToggleChat]);
+
+  // Close handler
+  const handleClose = useCallback(() => {
+    if (onToggle) {
+      onToggle(false);
+    }
+    if (!isControlled) {
+      internalCloseChat();
+    }
+  }, [onToggle, isControlled, internalCloseChat]);
 
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
@@ -72,25 +108,27 @@ export default function AICoach({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isOpen) {
-        closeChat();
+        handleClose();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, closeChat]);
+  }, [isOpen, handleClose]);
 
-  // Handle click outside to close
+  // Handle click outside to close (only for floating placement)
   useEffect(() => {
+    if (placement === 'sidebar') return; // Don't close sidebar on click outside
+
     const handleClickOutside = (e) => {
       if (isOpen && chatRef.current && !chatRef.current.contains(e.target)) {
-        closeChat();
+        handleClose();
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, closeChat]);
+  }, [isOpen, handleClose, placement]);
 
   // Handle message submission
   const handleSubmit = useCallback((e) => {
@@ -106,14 +144,25 @@ export default function AICoach({
     handleQuickAction(actionId);
   }, [handleQuickAction]);
 
-  // Position classes
-  const positionClasses = {
+  // Position classes for floating placement
+  const floatingPositionClasses = {
     'bottom-right': 'right-4 bottom-4 sm:right-6 sm:bottom-6',
     'bottom-left': 'left-4 bottom-4 sm:left-6 sm:bottom-6',
   };
 
-  // Chat panel animation variants
-  const chatVariants = {
+  // Sidebar positioning
+  const sidebarPositionClasses = {
+    'bottom-right': 'right-0 top-0 h-full',
+    'bottom-left': 'left-0 top-0 h-full',
+  };
+
+  // Select appropriate positioning based on placement
+  const positionClasses = placement === 'sidebar'
+    ? sidebarPositionClasses
+    : floatingPositionClasses;
+
+  // Chat panel animation variants - different for floating vs sidebar
+  const floatingChatVariants = {
     hidden: {
       opacity: 0,
       scale: 0.8,
@@ -138,6 +187,31 @@ export default function AICoach({
       },
     },
   };
+
+  const sidebarChatVariants = {
+    hidden: {
+      x: position === 'bottom-right' ? '100%' : '-100%',
+      opacity: 0,
+    },
+    visible: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        type: 'spring',
+        stiffness: 300,
+        damping: 30,
+      },
+    },
+    exit: {
+      x: position === 'bottom-right' ? '100%' : '-100%',
+      opacity: 0,
+      transition: {
+        duration: 0.2,
+      },
+    },
+  };
+
+  const chatVariants = placement === 'sidebar' ? sidebarChatVariants : floatingChatVariants;
 
   // FAB animation variants
   const fabVariants = {
@@ -174,10 +248,15 @@ export default function AICoach({
               'bg-gray-900/95 backdrop-blur-xl',
               'border border-gray-700/50',
               'shadow-2xl shadow-black/50',
-              'rounded-2xl overflow-hidden',
-              // Size - full screen on mobile, fixed size on desktop
-              'fixed inset-4 sm:inset-auto',
-              'sm:relative sm:w-96 sm:h-[32rem]'
+              'overflow-hidden',
+              // Placement-specific styles
+              placement === 'sidebar'
+                ? 'w-[400px] h-full rounded-none border-r-0'
+                : [
+                    'rounded-2xl',
+                    'fixed inset-4 sm:inset-auto',
+                    'sm:relative sm:w-96 sm:h-[500px]'
+                  ]
             )}
             role="dialog"
             aria-modal="true"
@@ -188,6 +267,7 @@ export default function AICoach({
               <CoachAvatar
                 state={isTyping ? AVATAR_STATES.THINKING : AVATAR_STATES.IDLE}
                 size="md"
+                personality={avatar}
                 reducedMotion={reducedMotion}
               />
               <div className="flex-1 min-w-0">
@@ -195,7 +275,7 @@ export default function AICoach({
                 <p className="text-xs text-gray-400 truncate">{coachTitle}</p>
               </div>
               <button
-                onClick={closeChat}
+                onClick={handleClose}
                 className={clsx(
                   'w-8 h-8 rounded-full',
                   'bg-gray-800/50 hover:bg-gray-700/80',
@@ -219,6 +299,7 @@ export default function AICoach({
                   <CoachAvatar
                     state={AVATAR_STATES.CELEBRATING}
                     size="xl"
+                    personality={avatar}
                     reducedMotion={reducedMotion}
                   />
                   <h3 className="mt-4 text-lg font-bold text-white">
@@ -318,62 +399,65 @@ export default function AICoach({
             </form>
           </motion.div>
         ) : (
-          /* Floating Action Button */
-          <motion.button
-            key="chat-fab"
-            variants={reducedMotion ? {} : fabVariants}
-            initial="idle"
-            whileHover="hover"
-            whileTap="tap"
-            onClick={toggleChat}
-            className={clsx(
-              'relative',
-              'w-14 h-14 rounded-full',
-              'bg-gradient-to-br from-blue-500 to-purple-600',
-              'shadow-lg shadow-blue-500/30',
-              'flex items-center justify-center',
-              'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',
-              'transition-shadow hover:shadow-xl hover:shadow-blue-500/40'
-            )}
-            aria-label="Open AI Coach chat"
-            aria-expanded={isOpen}
-          >
-            <CoachAvatar
-              state={AVATAR_STATES.IDLE}
-              size="md"
-              className="bg-transparent"
-              reducedMotion={reducedMotion}
-            />
-
-            {/* Unread indicator */}
-            {hasUnread && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className={clsx(
-                  'absolute -top-1 -right-1',
-                  'w-4 h-4 rounded-full',
-                  'bg-red-500 border-2 border-gray-900'
-                )}
+          /* Floating Action Button - only show in floating mode */
+          placement === 'floating' && (
+            <motion.button
+              key="chat-fab"
+              variants={reducedMotion ? {} : fabVariants}
+              initial="idle"
+              whileHover="hover"
+              whileTap="tap"
+              onClick={handleToggle}
+              className={clsx(
+                'relative',
+                'w-14 h-14 rounded-full',
+                'bg-gradient-to-br from-blue-500 to-purple-600',
+                'shadow-lg shadow-blue-500/30',
+                'flex items-center justify-center',
+                'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',
+                'transition-shadow hover:shadow-xl hover:shadow-blue-500/40'
+              )}
+              aria-label="Open AI Coach chat"
+              aria-expanded={isOpen}
+            >
+              <CoachAvatar
+                state={AVATAR_STATES.IDLE}
+                size="md"
+                personality={avatar}
+                className="bg-transparent"
+                reducedMotion={reducedMotion}
               />
-            )}
 
-            {/* Pulse animation */}
-            {!reducedMotion && (
-              <motion.div
-                className="absolute inset-0 rounded-full bg-blue-400"
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.3, 0, 0.3],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              />
-            )}
-          </motion.button>
+              {/* Unread indicator */}
+              {hasUnread && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className={clsx(
+                    'absolute -top-1 -right-1',
+                    'w-4 h-4 rounded-full',
+                    'bg-red-500 border-2 border-gray-900'
+                  )}
+                />
+              )}
+
+              {/* Pulse animation */}
+              {!reducedMotion && (
+                <motion.div
+                  className="absolute inset-0 rounded-full bg-blue-400"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [0.3, 0, 0.3],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+              )}
+            </motion.button>
+          )
         )}
       </AnimatePresence>
     </div>

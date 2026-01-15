@@ -13,6 +13,14 @@ import {
   type ExerciseSeed,
   type ActivationSeed
 } from './seeds/climbing-gymnastics-exercises';
+import {
+  allOlympicWrestlingExercises,
+  olympicWrestlingActivations
+} from './seeds/olympic-wrestling-exercises';
+import {
+  allCircusAerialExercises,
+  circusAerialActivations
+} from './seeds/circus-aerial-exercises';
 
 // ============================================
 // MUSCLES WITH BIAS WEIGHTS
@@ -389,6 +397,108 @@ export async function seedDatabase(): Promise<void> {
     `, [a.exerciseId, a.muscleId, a.activation]);
   }
   console.log(`✓ Inserted ${climbingGymnasticsActivations.length} climbing/gymnastics activations`);
+
+  // Seed Olympic weightlifting, wrestling, and combat exercises
+  console.log('🏋️ Seeding Olympic weightlifting & wrestling exercises...');
+  for (const e of allOlympicWrestlingExercises) {
+    const musclesArray = e.primaryMuscles ? e.primaryMuscles.split(',').map(m => m.trim()) : [];
+    await db.query(`
+      INSERT INTO exercises (id, name, type, difficulty, primary_muscles, description, cues,
+        equipment_required, equipment_optional, locations, movement_pattern, skill_level,
+        source_methodology, regression_exercise, progression_exercise)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        difficulty = EXCLUDED.difficulty,
+        primary_muscles = EXCLUDED.primary_muscles,
+        description = EXCLUDED.description,
+        cues = EXCLUDED.cues,
+        equipment_required = EXCLUDED.equipment_required,
+        equipment_optional = EXCLUDED.equipment_optional,
+        locations = EXCLUDED.locations,
+        movement_pattern = EXCLUDED.movement_pattern,
+        skill_level = EXCLUDED.skill_level,
+        source_methodology = EXCLUDED.source_methodology,
+        regression_exercise = EXCLUDED.regression_exercise,
+        progression_exercise = EXCLUDED.progression_exercise
+    `, [
+      e.id, e.name, e.type, e.difficulty, musclesArray,
+      e.description || null, e.cues || null,
+      e.equipmentRequired || null, e.equipmentOptional || null,
+      e.locations || null, e.movementPattern || null,
+      e.skillLevel || 'fundamental', e.sourceMethodology || null,
+      e.regressionExercise || null, e.progressionExercise || null
+    ]);
+  }
+  console.log(`✓ Inserted ${allOlympicWrestlingExercises.length} Olympic/wrestling exercises`);
+
+  // Seed Olympic/wrestling activations
+  for (const a of olympicWrestlingActivations) {
+    await db.query(`
+      INSERT INTO exercise_activations (exercise_id, muscle_id, activation)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (exercise_id, muscle_id) DO UPDATE SET
+        activation = EXCLUDED.activation
+    `, [a.exerciseId, a.muscleId, a.activation]);
+  }
+  console.log(`✓ Inserted ${olympicWrestlingActivations.length} Olympic/wrestling activations`);
+
+  // Seed circus and aerial exercises
+  console.log('🎪 Seeding circus & aerial exercises...');
+  for (const e of allCircusAerialExercises) {
+    const musclesArray = e.primaryMuscles ? e.primaryMuscles.split(',').map(m => m.trim()) : [];
+    await db.query(`
+      INSERT INTO exercises (id, name, type, difficulty, primary_muscles, description, cues,
+        equipment_required, equipment_optional, locations, movement_pattern, skill_level,
+        source_methodology, regression_exercise, progression_exercise)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        difficulty = EXCLUDED.difficulty,
+        primary_muscles = EXCLUDED.primary_muscles,
+        description = EXCLUDED.description,
+        cues = EXCLUDED.cues,
+        equipment_required = EXCLUDED.equipment_required,
+        equipment_optional = EXCLUDED.equipment_optional,
+        locations = EXCLUDED.locations,
+        movement_pattern = EXCLUDED.movement_pattern,
+        skill_level = EXCLUDED.skill_level,
+        source_methodology = EXCLUDED.source_methodology,
+        regression_exercise = EXCLUDED.regression_exercise,
+        progression_exercise = EXCLUDED.progression_exercise
+    `, [
+      e.id, e.name, e.type, e.difficulty, musclesArray,
+      e.description || null, e.cues || null,
+      e.equipmentRequired || null, e.equipmentOptional || null,
+      e.locations || null, e.movementPattern || null,
+      e.skillLevel || 'fundamental', e.sourceMethodology || null,
+      e.regressionExercise || null, e.progressionExercise || null
+    ]);
+  }
+  console.log(`✓ Inserted ${allCircusAerialExercises.length} circus/aerial exercises`);
+
+  // Seed circus/aerial activations
+  for (const a of circusAerialActivations) {
+    await db.query(`
+      INSERT INTO exercise_activations (exercise_id, muscle_id, activation)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (exercise_id, muscle_id) DO UPDATE SET
+        activation = EXCLUDED.activation
+    `, [a.exerciseId, a.muscleId, a.activation]);
+  }
+  console.log(`✓ Inserted ${circusAerialActivations.length} circus/aerial activations`);
+
+  // Print summary
+  const totalExercises = exercises.length + allClimbingGymnasticsExercises.length +
+    allOlympicWrestlingExercises.length + allCircusAerialExercises.length;
+  const totalActivations = activations.length + climbingGymnasticsActivations.length +
+    olympicWrestlingActivations.length + circusAerialActivations.length;
+  console.log(`\n📊 SEED SUMMARY:`);
+  console.log(`   - ${muscles.length} muscles`);
+  console.log(`   - ${totalExercises} exercises total`);
+  console.log(`   - ${totalActivations} muscle activations`);
 
   console.log('✅ Database seeded successfully!');
 }

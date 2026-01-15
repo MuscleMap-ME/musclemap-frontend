@@ -46,7 +46,7 @@ export { default as AICoach, useAICoach } from './AICoach';
 // Sub-components
 export { default as ChatMessage, TypingIndicator } from './ChatMessage';
 export { default as QuickActions, QuickActionGrid, QuickActionFAB } from './QuickActions';
-export { default as CoachAvatar, AVATAR_STATES } from './CoachAvatar';
+export { default as CoachAvatar, AVATAR_STATES, AVATAR_PERSONALITIES } from './CoachAvatar';
 
 // Hooks
 export { default as useAICoachHook, QUICK_ACTIONS, MESSAGE_TYPES } from './useAICoach';

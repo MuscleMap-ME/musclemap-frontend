@@ -5,8 +5,9 @@
  * Handles message history, typing indicators, and response generation.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { generateResponse, getGreetingMessage, COACH_PERSONALITY } from './coachPersonality';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { generateResponse, getGreetingMessage } from './coachPersonality';
+import { AVATAR_PERSONALITIES } from './CoachAvatar';
 
 // Message types
 export const MESSAGE_TYPES = {
@@ -22,10 +23,11 @@ export const MESSAGE_TYPES = {
 
 // Quick action definitions
 export const QUICK_ACTIONS = [
-  { id: 'workout', label: "Today's workout", icon: '💪', query: "What workout should I do today?" },
-  { id: 'motivate', label: 'Motivate me', icon: '🔥', query: "I need some motivation" },
-  { id: 'form', label: 'Form tip', icon: '🎯', query: "Give me a form tip" },
-  { id: 'progress', label: 'My progress', icon: '📊', query: "How's my progress?" },
+  { id: 'workout', label: "Today's workout", icon: '\uD83D\uDCAA', query: "What workout should I do today?" },
+  { id: 'motivate', label: 'Motivate me', icon: '\uD83D\uDD25', query: "I need some motivation" },
+  { id: 'chest', label: 'Chest exercises', icon: '\uD83E\uDDB5', query: "Give me some chest exercises" },
+  { id: 'progress', label: "How's my progress?", icon: '\uD83D\uDCCA', query: "How's my progress?" },
+  { id: 'rest', label: 'Rest day tips', icon: '\uD83E\uDDD8', query: "Give me some rest day tips" },
 ];
 
 // Create a unique message ID
@@ -38,20 +40,60 @@ function generateId() {
  *
  * @param {Object} options - Configuration options
  * @param {Object} options.userContext - User data for personalization
+ * @param {string} options.avatarPersonality - Avatar personality (flex, spark, zen)
  * @param {number} options.typingDelay - Simulated typing delay in ms
  * @returns {Object} Chat state and controls
  */
 export function useAICoach(options = {}) {
   const {
     userContext = {},
+    avatarPersonality = 'flex',
     typingDelay = 800,
   } = options;
 
-  // Chat state
-  const [messages, setMessages] = useState([]);
+  // Get coach name and title based on personality
+  const coachConfig = useMemo(() => {
+    const personality = AVATAR_PERSONALITIES[avatarPersonality] || AVATAR_PERSONALITIES.flex;
+    return {
+      name: personality.name,
+      title: personality.title,
+    };
+  }, [avatarPersonality]);
+
+  // Load messages from localStorage
+  const loadSavedMessages = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('musclemap_ai_coach_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only return messages from the last 24 hours
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+        return parsed.filter(m => new Date(m.timestamp).getTime() > oneDayAgo);
+      }
+    } catch (e) {
+      console.warn('Failed to load AI coach chat history:', e);
+    }
+    return [];
+  }, []);
+
+  // Chat state - initialize from localStorage
+  const [messages, setMessages] = useState(loadSavedMessages);
   const [isTyping, setIsTyping] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        // Keep only last 50 messages
+        const toSave = messages.slice(-50);
+        localStorage.setItem('musclemap_ai_coach_history', JSON.stringify(toSave));
+      } catch (e) {
+        console.warn('Failed to save AI coach chat history:', e);
+      }
+    }
+  }, [messages]);
 
   // Refs for cleanup
   const typingTimeoutRef = useRef(null);
@@ -63,7 +105,7 @@ export function useAICoach(options = {}) {
       id: generateId(),
       sender: 'coach',
       timestamp: new Date().toISOString(),
-      coachName: COACH_PERSONALITY.name,
+      coachName: coachConfig.name,
       ...messageData,
     };
 
@@ -72,11 +114,14 @@ export function useAICoach(options = {}) {
 
     // Set unread if chat is closed
     setHasUnread(prev => !isOpen ? true : prev);
-  }, [isOpen]);
+  }, [isOpen, coachConfig.name]);
 
-  // Initialize with greeting on first open
+  // Track if messages were loaded from storage
+  const loadedFromStorageRef = useRef(messages.length > 0);
+
+  // Initialize with greeting on first open (only if no stored messages)
   useEffect(() => {
-    if (isOpen && !initializedRef.current && messages.length === 0) {
+    if (isOpen && !initializedRef.current && messages.length === 0 && !loadedFromStorageRef.current) {
       initializedRef.current = true;
 
       // Add welcome message after a brief delay
@@ -88,6 +133,9 @@ export function useAICoach(options = {}) {
           showQuickActions: true,
         });
       }, 300);
+    } else if (isOpen && !initializedRef.current && messages.length > 0) {
+      // Mark as initialized if there are stored messages
+      initializedRef.current = true;
     }
   }, [isOpen, messages.length, userContext.name, addCoachMessage]);
 
@@ -162,6 +210,11 @@ export function useAICoach(options = {}) {
   const clearChat = useCallback(() => {
     setMessages([]);
     initializedRef.current = false;
+    try {
+      localStorage.removeItem('musclemap_ai_coach_history');
+    } catch (e) {
+      console.warn('Failed to clear AI coach chat history:', e);
+    }
   }, []);
 
   // Send a proactive message (for external triggers)
@@ -175,8 +228,8 @@ export function useAICoach(options = {}) {
     isTyping,
     isOpen,
     hasUnread,
-    coachName: COACH_PERSONALITY.name,
-    coachTitle: COACH_PERSONALITY.title,
+    coachName: coachConfig.name,
+    coachTitle: coachConfig.title,
 
     // Actions
     sendMessage,

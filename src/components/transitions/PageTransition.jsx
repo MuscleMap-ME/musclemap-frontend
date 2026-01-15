@@ -242,7 +242,9 @@ function msToSeconds(ms) {
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children - Page content to animate
- * @param {'fade' | 'slide' | 'slideUp' | 'slideDown' | 'scale' | 'scaleDown' | 'zoom' | 'reveal' | 'flip' | 'none'} props.variant - Animation variant
+ * @param {'fade' | 'slide' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'scale' | 'scaleDown' | 'zoom' | 'reveal' | 'flip' | 'none'} props.variant - Animation variant
+ * @param {'fade' | 'slide' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'scale' | 'scaleDown' | 'zoom' | 'reveal' | 'flip' | 'none'} props.preset - Alias for variant (for API consistency)
+ * @param {'left' | 'right' | 'up' | 'down'} props.direction - Direction for slide variant
  * @param {number} props.duration - Animation duration in milliseconds
  * @param {number} props.delay - Animation delay in milliseconds
  * @param {boolean} props.directionAware - Adapt animation based on navigation direction
@@ -254,7 +256,9 @@ function msToSeconds(ms) {
  */
 function PageTransition({
   children,
-  variant = 'fade',
+  variant,
+  preset = 'fade',
+  direction,
   duration = 300,
   delay = 0,
   directionAware = false,
@@ -264,6 +268,8 @@ function PageTransition({
   onAnimationStart,
   onAnimationComplete,
 }) {
+  // Support both 'variant' and 'preset' props (preset is the alias)
+  const effectiveVariant = variant || preset;
   // Check motion preference
   const motionAllowed = useMotionAllowed();
 
@@ -283,14 +289,27 @@ function PageTransition({
       return PAGE_VARIANTS.none;
     }
 
+    // Handle direction prop for slide variants
+    if (direction) {
+      const directionVariantMap = {
+        left: PAGE_VARIANTS.slideLeft,
+        right: PAGE_VARIANTS.slideRight,
+        up: PAGE_VARIANTS.slideUp,
+        down: PAGE_VARIANTS.slideDown,
+      };
+      if (directionVariantMap[direction]) {
+        return directionVariantMap[direction];
+      }
+    }
+
     // Direction-aware variants
-    if (directionAware && DIRECTION_AWARE_VARIANTS[variant]) {
-      return DIRECTION_AWARE_VARIANTS[variant][contextDirection] || PAGE_VARIANTS[variant];
+    if (directionAware && DIRECTION_AWARE_VARIANTS[effectiveVariant]) {
+      return DIRECTION_AWARE_VARIANTS[effectiveVariant][contextDirection] || PAGE_VARIANTS[effectiveVariant];
     }
 
     // Standard variants
-    return PAGE_VARIANTS[variant] || PAGE_VARIANTS.fade;
-  }, [variant, directionAware, contextDirection, motionAllowed]);
+    return PAGE_VARIANTS[effectiveVariant] || PAGE_VARIANTS.fade;
+  }, [effectiveVariant, direction, directionAware, contextDirection, motionAllowed]);
 
   // Build transition config
   const transition = useMemo(() => {

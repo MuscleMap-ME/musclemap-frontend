@@ -14,7 +14,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Minus, Plus, Check, Trophy, TrendingUp, ChevronUp, ChevronDown, Flame } from 'lucide-react';
+import { Minus, Plus, Check, Trophy, TrendingUp, ChevronUp, ChevronDown, Flame, Copy, ArrowDown, AlertTriangle } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { calculate1RM, SET_TAGS } from '../../store/workoutSessionStore';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
@@ -37,6 +37,13 @@ const RPE_SCALE = [
   { value: 8, label: '8', description: 'Moderate' },
   { value: 9, label: '9', description: 'Hard' },
   { value: 10, label: '10', description: 'Max Effort' },
+];
+
+// Quick action buttons for common set logging scenarios
+const QUICK_ACTIONS = [
+  { id: 'same', label: 'Same as last', icon: Copy, color: 'blue' },
+  { id: 'dropset', label: 'Drop set', icon: ArrowDown, color: 'purple' },
+  { id: 'failure', label: 'Failure', icon: AlertTriangle, color: 'red' },
 ];
 
 export function SetLogger({
@@ -170,6 +177,66 @@ export function SetLogger({
     }
   }, [previousSet]);
 
+  // Handle quick action buttons
+  const handleQuickAction = useCallback((actionId) => {
+    haptic('medium');
+
+    switch (actionId) {
+      case 'same':
+        // Same as last set - copy previous values and log immediately
+        if (previousSet) {
+          const setData = {
+            weight: previousSet.weight,
+            reps: previousSet.reps,
+            rpe: previousSet.rpe,
+            tag: SET_TAGS.WORKING,
+          };
+          onLogSet?.(setData);
+          setJustLogged(true);
+          onStartTimer?.();
+          setTimeout(() => {
+            setJustLogged(false);
+            setReps(0);
+          }, 1500);
+        }
+        break;
+
+      case 'dropset':
+        // Drop set - reduce weight by 20%, keep reps same
+        if (previousSet) {
+          const reducedWeight = Math.round(previousSet.weight * 0.8 / 5) * 5; // Round to nearest 5
+          setWeight(reducedWeight);
+          setReps(previousSet.reps);
+        } else if (weight > 0) {
+          setWeight(Math.round(weight * 0.8 / 5) * 5);
+        }
+        break;
+
+      case 'failure':
+        // Log as failure set (RPE 10)
+        if (weight > 0 && reps > 0) {
+          const setData = {
+            weight,
+            reps,
+            rpe: 10,
+            tag: SET_TAGS.FAILURE,
+          };
+          onLogSet?.(setData);
+          setJustLogged(true);
+          onStartTimer?.();
+          setTimeout(() => {
+            setJustLogged(false);
+            setReps(0);
+            setRpe(null);
+          }, 1500);
+        }
+        break;
+
+      default:
+        break;
+    }
+  }, [previousSet, weight, reps, onLogSet, onStartTimer]);
+
   return (
     <motion.div
       ref={containerRef}
@@ -217,6 +284,39 @@ export function SetLogger({
           </span>
           <span className="text-gray-500 text-sm ml-2">(tap to use)</span>
         </button>
+      )}
+
+      {/* Quick Action Buttons */}
+      {!justLogged && (
+        <div className="flex justify-center gap-2 mb-4 flex-wrap">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            const isDisabled =
+              (action.id === 'same' && !previousSet) ||
+              (action.id === 'failure' && (weight <= 0 || reps <= 0));
+
+            return (
+              <motion.button
+                key={action.id}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleQuickAction(action.id)}
+                disabled={isDisabled}
+                className={`flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all touch-manipulation select-none ${
+                  isDisabled
+                    ? 'bg-white/5 text-gray-600 cursor-not-allowed'
+                    : action.color === 'blue'
+                    ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20'
+                    : action.color === 'purple'
+                    ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20'
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{action.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
       )}
 
       {/* Success Animation Overlay */}
