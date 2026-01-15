@@ -2037,6 +2037,44 @@ import { creditService } from '@/modules/economy';
 | Utility files | 200 | Split by domain |
 | Test files | 500 | Split by scenario |
 
+### 12.4 Shell Script Standards
+
+**All shell scripts MUST be POSIX-compatible.** The production server runs `/bin/sh`, not bash.
+
+```bash
+#!/bin/sh
+# Correct: POSIX-compatible shebang
+
+# ❌ BAD - Bash-specific syntax
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[[ "$var" == "value" ]]
+array=("one" "two" "three")
+
+# ✅ GOOD - POSIX-compatible
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+[ "$var" = "value" ]
+# Use separate variables instead of arrays
+```
+
+**POSIX Shell Rules:**
+| Feature | POSIX Syntax | Bash (Not Allowed) |
+|---------|-------------|-------------------|
+| Shebang | `#!/bin/sh` | `#!/bin/bash` |
+| Script directory | `$(dirname "$0")` | `${BASH_SOURCE[0]}` |
+| String comparison | `[ "$a" = "$b" ]` | `[[ "$a" == "$b" ]]` |
+| Process substitution | Use temp files | `<(command)` |
+| Arrays | Not supported | `array=(...)` |
+| Local variables | `local` in functions | Same, but test! |
+
+**Testing shell scripts:**
+```bash
+# Test with dash (POSIX-compliant shell)
+dash ./scripts/your-script.sh
+
+# Or use shellcheck
+shellcheck --shell=sh ./scripts/your-script.sh
+```
+
 ---
 
 ## 13. Git & Deployment
