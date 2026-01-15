@@ -13,6 +13,7 @@ import { config } from '../config';
 import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { careerService } from '../modules/career';
+import { sleepService, recoveryService } from '../modules/recovery';
 import { ProgressionService } from '../services/progression.service';
 import { ProgramsService, EnrollmentService } from '../modules/programs';
 import { loggers } from '../lib/logger';
@@ -782,22 +783,7 @@ export const resolvers = {
     // Training Programs Queries
     trainingPrograms: async (
       _: unknown,
-      args: { input?: {
-        search?: string;
-        category?: string;
-        difficulty?: string;
-        minRating?: number;
-        durationWeeks?: number;
-        daysPerWeek?: number;
-        official?: boolean;
-        featured?: boolean;
-        goals?: string[];
-        equipment?: string[];
-        creator?: string;
-        sortBy?: string;
-        limit?: number;
-        offset?: number;
-      } },
+      args: { input?: import('../modules/programs/types').ProgramSearchOptions },
       context: Context
     ) => {
       const result = await ProgramsService.search(args.input || {}, context.user?.userId);
@@ -852,6 +838,86 @@ export const resolvers = {
     todaysWorkout: async (_: unknown, args: { programId?: string }, context: Context) => {
       const { userId } = requireAuth(context);
       return EnrollmentService.getTodaysWorkout(userId, args.programId);
+    },
+
+    // Sleep & Recovery Queries
+    sleepLog: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.getSleepLog(userId, args.id);
+    },
+
+    lastSleep: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.getLastSleep(userId);
+    },
+
+    sleepHistory: async (
+      _: unknown,
+      args: { limit?: number; cursor?: string; startDate?: string; endDate?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      let cursor: { bedTime: string; id: string } | undefined;
+
+      if (args.cursor) {
+        try {
+          cursor = JSON.parse(Buffer.from(args.cursor, 'base64').toString());
+        } catch {
+          // Invalid cursor, start from beginning
+        }
+      }
+
+      const result = await sleepService.getSleepHistory(userId, {
+        limit: args.limit || 30,
+        cursor,
+        startDate: args.startDate,
+        endDate: args.endDate,
+      });
+
+      const nextCursor = result.nextCursor
+        ? Buffer.from(JSON.stringify(result.nextCursor)).toString('base64')
+        : null;
+
+      return {
+        logs: result.logs,
+        nextCursor,
+        hasMore: result.nextCursor !== null,
+      };
+    },
+
+    sleepStats: async (_: unknown, args: { period?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.getSleepStats(userId, (args.period || 'week') as 'week' | 'month' | 'all');
+    },
+
+    weeklySleepStats: async (_: unknown, args: { weeks?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.getWeeklySleepStats(userId, args.weeks || 8);
+    },
+
+    sleepGoal: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.getActiveSleepGoal(userId);
+    },
+
+    recoveryScore: async (_: unknown, args: { forceRecalculate?: boolean }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recoveryService.getRecoveryScore(userId, { forceRecalculate: args.forceRecalculate });
+    },
+
+    recoveryStatus: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recoveryService.getRecoveryStatus(userId);
+    },
+
+    recoveryHistory: async (_: unknown, args: { days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recoveryService.getRecoveryHistory(userId, args.days || 30);
+    },
+
+    recoveryRecommendations: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recoveryService.getActiveRecommendations(userId);
     },
 
     // Career Readiness Queries
@@ -1448,6 +1514,134 @@ export const resolvers = {
     dropEnrollment: async (_: unknown, args: { enrollmentId: string }, context: Context) => {
       const { userId } = requireAuth(context);
       return EnrollmentService.drop(args.enrollmentId, userId);
+    },
+
+    // Sleep & Recovery Mutations
+    logSleep: async (
+      _: unknown,
+      args: {
+        input: {
+          bedTime: string;
+          wakeTime: string;
+          quality: number;
+          sleepEnvironment?: {
+            dark?: boolean;
+            quiet?: boolean;
+            temperature?: string;
+            screenBeforeBed?: boolean;
+            caffeineAfter6pm?: boolean;
+            alcoholConsumed?: boolean;
+          };
+          timeToFallAsleepMinutes?: number;
+          wakeCount?: number;
+          notes?: string;
+          source?: string;
+          externalId?: string;
+          loggedAt?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return sleepService.logSleep(userId, args.input as any);
+    },
+
+    updateSleepLog: async (
+      _: unknown,
+      args: {
+        id: string;
+        input: {
+          quality?: number;
+          sleepEnvironment?: {
+            dark?: boolean;
+            quiet?: boolean;
+            temperature?: string;
+            screenBeforeBed?: boolean;
+            caffeineAfter6pm?: boolean;
+            alcoholConsumed?: boolean;
+          };
+          timeToFallAsleepMinutes?: number;
+          wakeCount?: number;
+          notes?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const result = await sleepService.updateSleepLog(userId, args.id, args.input as any);
+      if (!result) {
+        throw new GraphQLError('Sleep log not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+      return result;
+    },
+
+    deleteSleepLog: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.deleteSleepLog(userId, args.id);
+    },
+
+    createSleepGoal: async (
+      _: unknown,
+      args: {
+        input: {
+          targetHours: number;
+          targetBedTime?: string;
+          targetWakeTime?: string;
+          targetQuality?: number;
+          consistencyTarget?: number;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return sleepService.upsertSleepGoal(userId, args.input as any);
+    },
+
+    updateSleepGoal: async (
+      _: unknown,
+      args: {
+        id: string;
+        input: {
+          targetHours?: number;
+          targetBedTime?: string;
+          targetWakeTime?: string;
+          targetQuality?: number;
+          consistencyTarget?: number;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const result = await sleepService.updateSleepGoal(userId, args.id, args.input as any);
+      if (!result) {
+        throw new GraphQLError('Sleep goal not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+      return result;
+    },
+
+    deleteSleepGoal: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return sleepService.deleteSleepGoal(userId, args.id);
+    },
+
+    acknowledgeRecommendation: async (
+      _: unknown,
+      args: { id: string; input?: { followed?: boolean; feedback?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await recoveryService.acknowledgeRecommendation(
+        userId,
+        args.id,
+        args.input?.followed,
+        args.input?.feedback
+      );
+      return true;
+    },
+
+    generateRecoveryRecommendations: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recoveryService.generateRecommendations(userId);
     },
 
     // Career Readiness Mutations
