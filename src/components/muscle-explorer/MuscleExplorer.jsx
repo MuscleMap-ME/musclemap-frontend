@@ -21,7 +21,7 @@ import {
   BODY_OUTLINE,
   GLOW_FILTER_DEF,
 } from './muscleData';
-import MuscleRegion, { MuscleRegionGroup, COLOR_SCHEMES } from './MuscleRegion';
+import { MuscleRegionGroup, COLOR_SCHEMES } from './MuscleRegion';
 import MuscleDetail from './MuscleDetail';
 import MuscleControls from './MuscleControls';
 import { useMuscleExplorer, VIEW_PRESETS } from './useMuscleExplorer';
@@ -239,7 +239,6 @@ const MuscleExplorer = ({
     selectMuscle: internalSelectMuscle,
     clearSelection: internalClearSelection,
     rotation,
-    setRotation,
     rotateBy,
     zoom,
     setZoom,
@@ -247,7 +246,6 @@ const MuscleExplorer = ({
     zoomOut,
     currentView,
     setView,
-    toggleView,
     resetView,
     isAutoRotating,
     toggleAutoRotate,
@@ -263,8 +261,8 @@ const MuscleExplorer = ({
   // Hovered muscle state
   const [hoveredMuscle, setHoveredMuscle] = useState(null);
 
-  // Touch gesture state
-  const [gestureState, setGestureState] = useState({
+  // Touch gesture state (used internally by touch handlers)
+  const [_gestureState, _setGestureState] = useState({
     isPinching: false,
     initialDistance: null,
     initialZoom: null,
@@ -282,8 +280,8 @@ const MuscleExplorer = ({
     return result;
   }, [activations]);
 
-  // Get muscles for current view
-  const visibleMuscles = useMemo(() => {
+  // Get muscles for current view (used by renderMuscles)
+  const _visibleMuscles = useMemo(() => {
     return getMusclesForView(currentView);
   }, [currentView]);
 

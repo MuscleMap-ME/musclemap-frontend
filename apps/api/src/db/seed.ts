@@ -379,8 +379,10 @@ export async function seedDatabase(): Promise<void> {
     `, [
       e.id, e.name, e.type, e.difficulty, musclesArray,
       e.description || null, e.cues || null,
-      e.equipmentRequired || null, e.equipmentOptional || null,
-      e.locations || null, e.movementPattern || null,
+      JSON.stringify(e.equipmentRequired || []),
+      JSON.stringify(e.equipmentOptional || []),
+      JSON.stringify(e.locations || []),
+      e.movementPattern || null,
       e.skillLevel || 'fundamental', e.sourceMethodology || null,
       e.regressionExercise || null, e.progressionExercise || null
     ]);
@@ -425,8 +427,10 @@ export async function seedDatabase(): Promise<void> {
     `, [
       e.id, e.name, e.type, e.difficulty, musclesArray,
       e.description || null, e.cues || null,
-      e.equipmentRequired || null, e.equipmentOptional || null,
-      e.locations || null, e.movementPattern || null,
+      JSON.stringify(e.equipmentRequired || []),
+      JSON.stringify(e.equipmentOptional || []),
+      JSON.stringify(e.locations || []),
+      e.movementPattern || null,
       e.skillLevel || 'fundamental', e.sourceMethodology || null,
       e.regressionExercise || null, e.progressionExercise || null
     ]);
@@ -471,8 +475,10 @@ export async function seedDatabase(): Promise<void> {
     `, [
       e.id, e.name, e.type, e.difficulty, musclesArray,
       e.description || null, e.cues || null,
-      e.equipmentRequired || null, e.equipmentOptional || null,
-      e.locations || null, e.movementPattern || null,
+      JSON.stringify(e.equipmentRequired || []),
+      JSON.stringify(e.equipmentOptional || []),
+      JSON.stringify(e.locations || []),
+      e.movementPattern || null,
       e.skillLevel || 'fundamental', e.sourceMethodology || null,
       e.regressionExercise || null, e.progressionExercise || null
     ]);

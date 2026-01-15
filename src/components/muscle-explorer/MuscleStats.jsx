@@ -345,7 +345,7 @@ const MuscleStats = ({
         <div className="mb-4">
           <div className="flex items-center justify-between text-xs mb-1">
             <span className="text-[var(--text-tertiary,#94a3b8)]">
-              Today's Activation
+              Today&apos;s Activation
             </span>
             <span
               className="font-medium"
@@ -426,7 +426,7 @@ MuscleStats.displayName = 'MuscleStats';
 export const MuscleStatsMini = React.memo(({
   muscleId,
   timesTrained = 0,
-  lastTrained,
+  lastTrained: _lastTrained,
   history = {},
   className,
 }) => {

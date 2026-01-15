@@ -16,7 +16,7 @@
  * } = useMuscleExplorer(activations);
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { MUSCLE_DATA } from './muscleData';
 
 /**
@@ -244,7 +244,7 @@ export function useMuscleExplorer(options = {}) {
       y: VIEW_PRESETS[config.initialView]?.rotationY || 0,
     });
     setZoomState(config.initialZoom);
-    stopAutoRotate();
+    setIsAutoRotating(false);
   }, [config.initialView, config.initialRotation, config.initialZoom]);
 
   // ============================================

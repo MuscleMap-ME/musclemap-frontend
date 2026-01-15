@@ -13,7 +13,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { getActivationColor, ACTIVATION_COLORS, MUSCLE_DATA } from './muscleData';
+import { MUSCLE_DATA } from './muscleData';
 import { useMotionAllowed } from '../../hooks/useReducedMotion';
 
 // ============================================
@@ -118,7 +118,7 @@ const MuscleRegion = ({
   onClick,
   onHover,
   colorScheme = 'heat',
-  showLabel = true,
+  showLabel: _showLabel = true,
   className,
 }) => {
   const motionAllowed = useMotionAllowed();

@@ -25,7 +25,6 @@ import {
   Dumbbell,
   Search,
   TrendingUp,
-  Calendar,
   Trophy,
   ChevronRight,
   ExternalLink,
@@ -36,8 +35,7 @@ import {
   Star,
 } from 'lucide-react';
 import { MUSCLE_DATA, getAntagonist, getSynergists, getActivationColor } from './muscleData';
-import MuscleHistory, { MuscleHistorySparkline } from './MuscleHistory';
-import MuscleStats from './MuscleStats';
+import MuscleHistory from './MuscleHistory';
 import { useMotionAllowed } from '../../hooks/useReducedMotion';
 
 // ============================================
@@ -377,7 +375,7 @@ const MuscleDetail = ({
                         style={{ color: getActivationColor(currentActivation) }}
                       />
                       <span className="text-[var(--text-tertiary,#94a3b8)]">
-                        Today's Activation
+                        Today&apos;s Activation
                       </span>
                     </div>
                     <span
