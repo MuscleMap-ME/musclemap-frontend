@@ -711,6 +711,7 @@ export async function up(): Promise<void> {
     log.info('Creating user_frequent_foods table...');
     await db.query(`
       CREATE TABLE user_frequent_foods (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         food_id TEXT REFERENCES foods(id) ON DELETE CASCADE,
         custom_food_id TEXT REFERENCES custom_foods(id) ON DELETE CASCADE,
@@ -722,7 +723,6 @@ export async function up(): Promise<void> {
         -- Default serving for this user
         default_servings DECIMAL(5,2) DEFAULT 1,
 
-        PRIMARY KEY(user_id, COALESCE(food_id, ''), COALESCE(custom_food_id, ''), COALESCE(recipe_id, '')),
         CHECK (
           (food_id IS NOT NULL AND custom_food_id IS NULL AND recipe_id IS NULL) OR
           (food_id IS NULL AND custom_food_id IS NOT NULL AND recipe_id IS NULL) OR
@@ -731,6 +731,10 @@ export async function up(): Promise<void> {
       )
     `);
 
+    // Create unique partial indexes for each food type
+    await db.query('CREATE UNIQUE INDEX idx_frequent_foods_food ON user_frequent_foods(user_id, food_id) WHERE food_id IS NOT NULL');
+    await db.query('CREATE UNIQUE INDEX idx_frequent_foods_custom ON user_frequent_foods(user_id, custom_food_id) WHERE custom_food_id IS NOT NULL');
+    await db.query('CREATE UNIQUE INDEX idx_frequent_foods_recipe ON user_frequent_foods(user_id, recipe_id) WHERE recipe_id IS NOT NULL');
     await db.query('CREATE INDEX idx_frequent_foods_user ON user_frequent_foods(user_id, use_count DESC)');
   }
 
