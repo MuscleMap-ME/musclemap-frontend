@@ -406,7 +406,7 @@ export class PrescriptionEngine {
   }
 
   /**
-   * Score all available exercises
+   * Score all available exercises (including recovery factor)
    */
   private async scoreExercises(
     exercises: Exercise[],
@@ -416,7 +416,8 @@ export class PrescriptionEngine {
     phase: TrainingPhase | null,
     muscleStats: Record<string, number>,
     preferences: Record<string, number>,
-    request: PrescriptionRequest
+    request: PrescriptionRequest,
+    recoveryScore?: RecoveryScore | null
   ): Promise<ScoredExercise[]> {
     const historyMap = new Map(history.map(h => [h.exercise_id, h]));
     const contraindicatedMovements = new Set(
@@ -483,6 +484,15 @@ export class PrescriptionEngine {
         contraindicatedMovements,
         injuries
       );
+
+      // 9. Recovery-based adjustment (favor low-intensity when recovery is poor)
+      if (recoveryScore) {
+        breakdown.recoveryAdjustment = this.applyRecoveryPenalty(
+          exercise,
+          recoveryScore,
+          breakdown.recoveryAdjustment
+        );
+      }
 
       // Calculate total score
       const totalScore = Object.values(breakdown).reduce((a, b) => a + b, 0);
@@ -731,23 +741,51 @@ export class PrescriptionEngine {
   }
 
   /**
-   * Select optimal set of exercises
+   * Select optimal set of exercises (adjusted for recovery)
    */
   private selectExercises(
     scored: ScoredExercise[],
     request: PrescriptionRequest,
-    phase: TrainingPhase | null
+    phase: TrainingPhase | null,
+    recoveryScore?: RecoveryScore | null
   ): ScoredExercise[] {
-    const maxExercises = request.maxExercises || this.calculateMaxExercises(
+    // Calculate base max exercises
+    let maxExercises = request.maxExercises || this.calculateMaxExercises(
       request.userContext.timeAvailable,
       phase
     );
+
+    // Reduce exercise count based on recovery
+    if (recoveryScore) {
+      if (recoveryScore.recommendedIntensity === 'rest') {
+        return []; // Complete rest
+      }
+      if (recoveryScore.classification === 'poor') {
+        maxExercises = Math.max(3, Math.floor(maxExercises * 0.5));
+      } else if (recoveryScore.classification === 'fair') {
+        maxExercises = Math.max(4, Math.floor(maxExercises * 0.7));
+      }
+    }
 
     const selected: ScoredExercise[] = [];
     const selectedMuscles = new Set<string>();
     const selectedPatterns = new Set<string>();
 
-    for (const exercise of scored) {
+    // For poor recovery, prefer lower-intensity exercises
+    let sortedExercises = scored;
+    if (recoveryScore && (recoveryScore.classification === 'poor' || recoveryScore.classification === 'fair')) {
+      // Prioritize exercises with higher recovery adjustment scores
+      sortedExercises = [...scored].sort((a, b) => {
+        const aRecoveryScore = a.scoreBreakdown.recoveryAdjustment;
+        const bRecoveryScore = b.scoreBreakdown.recoveryAdjustment;
+        if (aRecoveryScore !== bRecoveryScore) {
+          return bRecoveryScore - aRecoveryScore;
+        }
+        return b.score - a.score;
+      });
+    }
+
+    for (const exercise of sortedExercises) {
       if (selected.length >= maxExercises) break;
 
       // Ensure variety in movement patterns
