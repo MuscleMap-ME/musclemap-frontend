@@ -249,6 +249,9 @@ async function testHealthEndpoints() {
     const url = `${BASE_URL}/health`;
     const res = await fetch(url);
     assert(res.ok, `Expected 200, got ${res.status}`);
+    const data = await res.json();
+    assert(data.status === 'ok', `Health status not ok: ${JSON.stringify(data)}`);
+    assert(data.database?.connected === true, `Database not connected: ${JSON.stringify(data)}`);
   });
 
   await runTest('Health', 'Ready check', async () => {
@@ -263,6 +266,189 @@ async function testHealthEndpoints() {
     // Metrics may not be enabled in all environments
     assert(res.status === 200 || res.status === 404, 'Metrics should respond');
   });
+}
+
+// ============================================
+// FRONTEND VERIFICATION
+// Checks that the website actually renders, not just returns HTTP 200
+// ============================================
+
+async function testFrontendHealth() {
+  logSection('FRONTEND VERIFICATION (Blank Page Detection)');
+
+  // Get the frontend URL (same as API but without /api path)
+  const frontendUrl = BASE_URL.replace('/api', '').replace(':3001', ':5173');
+  const prodFrontendUrl = BASE_URL.includes('musclemap.me')
+    ? 'https://musclemap.me'
+    : frontendUrl;
+
+  // Test 1: HTML page loads and contains expected elements
+  await runTest('Frontend', 'HTML page loads with content', async () => {
+    const res = await fetch(prodFrontendUrl);
+    assert(res.ok, `Frontend returned ${res.status}`);
+
+    const html = await res.text();
+
+    // Check for essential HTML structure
+    assert(html.includes('<!DOCTYPE html>'), 'Missing DOCTYPE');
+    assert(html.includes('<html'), 'Missing html tag');
+    assert(html.includes('<head>'), 'Missing head tag');
+    assert(html.includes('<body>'), 'Missing body tag');
+    assert(html.includes('<div id="root">'), 'Missing React root div');
+
+    // Check for MuscleMap-specific content
+    assert(html.includes('MuscleMap'), 'Missing MuscleMap title/branding');
+
+    // Check that JS bundle references exist
+    assert(html.includes('.js"'), 'Missing JavaScript bundle references');
+  });
+
+  // Test 2: Main JavaScript bundle loads and is valid
+  await runTest('Frontend', 'Main JS bundle loads', async () => {
+    const htmlRes = await fetch(prodFrontendUrl);
+    const html = await htmlRes.text();
+
+    // Extract the main JS bundle URL from the HTML
+    const jsMatch = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+    assert(jsMatch, 'Could not find main JS bundle in HTML');
+
+    const jsUrl = `${prodFrontendUrl}${jsMatch[1]}`;
+    const jsRes = await fetch(jsUrl);
+
+    assert(jsRes.ok, `JS bundle returned ${jsRes.status}`);
+    assert(jsRes.headers.get('content-type')?.includes('javascript'), 'JS bundle has wrong content-type');
+
+    const jsContent = await jsRes.text();
+
+    // Check JS is not empty and has minimum expected size (real bundle should be > 100KB)
+    assert(jsContent.length > 100000, `JS bundle too small: ${jsContent.length} bytes (expected >100KB)`);
+
+    // Check JS doesn't start with error HTML
+    assert(!jsContent.startsWith('<!DOCTYPE'), 'JS bundle returned HTML (likely 404 page)');
+    assert(!jsContent.startsWith('<html'), 'JS bundle returned HTML (likely error page)');
+
+    // Check for React/app signatures in the bundle
+    assert(jsContent.includes('react') || jsContent.includes('React'), 'JS bundle missing React');
+  });
+
+  // Test 3: CSS bundle loads
+  await runTest('Frontend', 'CSS bundle loads', async () => {
+    const htmlRes = await fetch(prodFrontendUrl);
+    const html = await htmlRes.text();
+
+    // Extract a CSS bundle URL
+    const cssMatch = html.match(/href="(\/assets\/[^"]+\.css)"/);
+    assert(cssMatch, 'Could not find CSS bundle in HTML');
+
+    const cssUrl = `${prodFrontendUrl}${cssMatch[1]}`;
+    const cssRes = await fetch(cssUrl);
+
+    assert(cssRes.ok, `CSS bundle returned ${cssRes.status}`);
+
+    const cssContent = await cssRes.text();
+    assert(cssContent.length > 1000, `CSS bundle too small: ${cssContent.length} bytes`);
+    assert(!cssContent.startsWith('<!DOCTYPE'), 'CSS bundle returned HTML');
+  });
+
+  // Test 4: Static assets accessible (logo, manifest)
+  await runTest('Frontend', 'Static assets load (logo)', async () => {
+    const logoRes = await fetch(`${prodFrontendUrl}/logo.png`);
+    // Logo should exist and be an image
+    assert(logoRes.ok || logoRes.status === 304, `Logo returned ${logoRes.status}`);
+    if (logoRes.ok) {
+      const contentType = logoRes.headers.get('content-type');
+      assert(contentType?.includes('image'), `Logo has wrong content-type: ${contentType}`);
+    }
+  });
+
+  await runTest('Frontend', 'Manifest.json loads', async () => {
+    const manifestRes = await fetch(`${prodFrontendUrl}/manifest.json`);
+    assert(manifestRes.ok, `Manifest returned ${manifestRes.status}`);
+
+    const manifest = await manifestRes.json();
+    assert(manifest.name, 'Manifest missing name');
+  });
+
+  // Test 5: Vendor bundles load (critical for app to work)
+  await runTest('Frontend', 'React vendor bundle loads', async () => {
+    const htmlRes = await fetch(prodFrontendUrl);
+    const html = await htmlRes.text();
+
+    // Look for React vendor bundle
+    const reactMatch = html.match(/(\/assets\/react-vendor-[^"]+\.js)/);
+    if (reactMatch) {
+      const reactUrl = `${prodFrontendUrl}${reactMatch[1]}`;
+      const reactRes = await fetch(reactUrl);
+      assert(reactRes.ok, `React vendor bundle returned ${reactRes.status}`);
+
+      const content = await reactRes.text();
+      assert(content.length > 50000, 'React vendor bundle too small');
+      assert(!content.startsWith('<!'), 'React vendor returned HTML error');
+    }
+  });
+
+  // Test 6: GraphQL endpoint works (required for app data)
+  await runTest('Frontend', 'GraphQL endpoint responds', async () => {
+    const gqlUrl = `${BASE_URL}/api/graphql`;
+    const res = await fetch(gqlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '{ __typename }' }),
+    });
+
+    assert(res.ok, `GraphQL returned ${res.status}`);
+
+    const data = await res.json();
+    assert(data.data?.__typename === 'Query', `GraphQL response invalid: ${JSON.stringify(data)}`);
+    assert(!data.errors, `GraphQL returned errors: ${JSON.stringify(data.errors)}`);
+  });
+
+  // Test 7: Initial data query works (exercises - typically loaded on landing)
+  await runTest('Frontend', 'Initial data query works (exercises)', async () => {
+    const gqlUrl = `${BASE_URL}/api/graphql`;
+    const res = await fetch(gqlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: '{ exercises(limit: 3) { id name primaryMuscles } }'
+      }),
+    });
+
+    assert(res.ok, `Exercises query returned ${res.status}`);
+
+    const data = await res.json();
+    assert(!data.errors, `Exercises query errors: ${JSON.stringify(data.errors)}`);
+    assert(Array.isArray(data.data?.exercises), 'Exercises should be array');
+    assert(data.data.exercises.length > 0, 'Exercises should not be empty');
+  });
+
+  // Test 8: Check for common error indicators
+  await runTest('Frontend', 'No error indicators in HTML', async () => {
+    const res = await fetch(prodFrontendUrl);
+    const html = await res.text();
+
+    // Check for common error page indicators
+    const errorIndicators = [
+      'Internal Server Error',
+      '500 Error',
+      '502 Bad Gateway',
+      '503 Service Unavailable',
+      '504 Gateway Timeout',
+      'Application Error',
+      'Something went wrong',
+      'Oops!',
+      'nginx error',
+      'Apache error',
+    ];
+
+    for (const indicator of errorIndicators) {
+      // Only fail if the error is in the visible HTML, not in JS strings
+      const inBody = html.includes(`>${indicator}<`) || html.includes(`">${indicator}`);
+      assert(!inBody, `HTML contains error indicator: "${indicator}"`);
+    }
+  });
+
+  log('\n  Frontend verification complete', 'green');
 }
 
 async function testAuthentication(ctx: TestContext) {

@@ -61,19 +61,8 @@ configureHttpClient({
   },
 })
 
-// Initialize storage and cache persistence before rendering
-async function initializeApp() {
-  // Request persistent storage (prevents browser eviction)
-  await requestPersistentStorage()
-
-  // Initialize Apollo cache persistence
-  // This restores cached data from IndexedDB for instant loads
-  await initializeApolloCache()
-
-  // Check and prune storage if needed
-  await checkAndPruneStorage()
-
-  // Render the app
+// Render the app - this MUST succeed even if initialization fails
+function renderApp() {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
       <App />
@@ -81,7 +70,40 @@ async function initializeApp() {
   )
 }
 
-initializeApp()
+// Initialize storage and cache persistence before rendering
+async function initializeApp() {
+  try {
+    // Request persistent storage (prevents browser eviction)
+    await requestPersistentStorage()
+  } catch (e) {
+    console.warn('[MuscleMap] Persistent storage request failed:', e)
+  }
+
+  try {
+    // Initialize Apollo cache persistence
+    // This restores cached data from IndexedDB for instant loads
+    await initializeApolloCache()
+  } catch (e) {
+    console.warn('[MuscleMap] Apollo cache initialization failed:', e)
+  }
+
+  try {
+    // Check and prune storage if needed
+    await checkAndPruneStorage()
+  } catch (e) {
+    console.warn('[MuscleMap] Storage pruning failed:', e)
+  }
+
+  // Render the app - always succeeds
+  renderApp()
+}
+
+// Start initialization, but ensure we render even if it fails completely
+initializeApp().catch((e) => {
+  console.error('[MuscleMap] Critical initialization error:', e)
+  // Render anyway - the app should work without cache persistence
+  renderApp()
+})
 
 // Report Web Vitals - send to analytics in production, log to console in development
 if (import.meta.env.PROD) {
