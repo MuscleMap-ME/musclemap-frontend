@@ -64,31 +64,148 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Increase chunk size warning limit since we're code-splitting
-    chunkSizeWarningLimit: 600,
+    // Target modern browsers for better tree-shaking
+    target: 'es2020',
+    // Warning limit - we still want to be alerted for large chunks
+    chunkSizeWarningLimit: 300,
+    // Disable modulepreload for heavy vendor chunks
+    // They will be loaded on-demand when the page that needs them is visited
+    modulePreload: {
+      resolveDependencies: (filename, deps, context) => {
+        // Only preload critical path chunks
+        // Exclude heavy vendor chunks that are only needed for specific pages
+        const heavyChunks = [
+          'three-vendor',
+          'recharts-vendor',
+          'd3-vendor',
+          'reactflow-vendor',
+          'leaflet-vendor',
+          'markdown-vendor',
+          'lottie-vendor',
+          'dicebear-vendor',
+          'ui-vendor',
+        ];
+
+        return deps.filter(dep => {
+          // Exclude heavy chunks from preload
+          return !heavyChunks.some(chunk => dep.includes(chunk));
+        });
+      },
+    },
     rollupOptions: {
       output: {
         // Strategic chunk splitting for optimal caching and loading
-        // Note: Three.js is NOT in manualChunks - Vite will auto-split it
-        // based on actual usage, preventing it from being preloaded on pages
-        // that don't use 3D features (important for slow connections)
-        manualChunks: {
-          // Core React - loaded on every page
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+        // Chunks are split by usage pattern and load priority
+        manualChunks(id) {
+          // Core React - loaded on every page (~165KB)
+          if (id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/react-router-dom/') ||
+              id.includes('node_modules/scheduler/')) {
+            return 'react-vendor';
+          }
 
-          // D3 for charts and graphs - only loaded when needed
-          'd3-vendor': ['d3'],
+          // Apollo/GraphQL - loaded after initial render (~170KB)
+          if (id.includes('@apollo/client') ||
+              id.includes('node_modules/graphql/')) {
+            return 'apollo-vendor';
+          }
 
-          // Apollo/GraphQL - loaded after initial render
-          'apollo-vendor': ['@apollo/client', 'graphql'],
+          // Animation - framer-motion (~125KB)
+          if (id.includes('framer-motion') || id.includes('motion/')) {
+            return 'animation-vendor';
+          }
 
-          // Animation library - commonly used but not critical path
-          'animation-vendor': ['framer-motion'],
+          // Three.js and React Three Fiber - only for 3D pages (~800KB)
+          // Kept separate so pages without 3D never load this
+          if (id.includes('node_modules/three/') ||
+              id.includes('@react-three/fiber') ||
+              id.includes('@react-three/drei')) {
+            return 'three-vendor';
+          }
 
-          // Icons - loaded as needed
-          'icons-vendor': ['lucide-react'],
+          // D3 for charts and graphs (~150KB)
+          if (id.includes('node_modules/d3')) {
+            return 'd3-vendor';
+          }
+
+          // Recharts - only for pages with charts (~300KB)
+          if (id.includes('node_modules/recharts')) {
+            return 'recharts-vendor';
+          }
+
+          // Leaflet - only for map pages (~150KB)
+          if (id.includes('node_modules/leaflet') ||
+              id.includes('react-leaflet')) {
+            return 'leaflet-vendor';
+          }
+
+          // UI libraries (MUI, Headless UI, etc.)
+          if (id.includes('@mui/') ||
+              id.includes('@headlessui/') ||
+              id.includes('@emotion/')) {
+            return 'ui-vendor';
+          }
+
+          // ReactFlow - only for skill tree pages
+          if (id.includes('reactflow')) {
+            return 'reactflow-vendor';
+          }
+
+          // Date utilities
+          if (id.includes('date-fns')) {
+            return 'date-vendor';
+          }
+
+          // Markdown rendering
+          if (id.includes('react-markdown') ||
+              id.includes('remark-') ||
+              id.includes('rehype-') ||
+              id.includes('unified') ||
+              id.includes('micromark') ||
+              id.includes('mdast') ||
+              id.includes('hast')) {
+            return 'markdown-vendor';
+          }
+
+          // Lottie animations
+          if (id.includes('lottie-')) {
+            return 'lottie-vendor';
+          }
+
+          // DiceBear avatars
+          if (id.includes('@dicebear')) {
+            return 'dicebear-vendor';
+          }
+
+          // Do NOT bundle lucide-react or phosphor-icons into a single chunk
+          // Let Vite tree-shake them per-component for optimal size
+          // Icons are imported directly in components that need them
         },
       },
     },
+    // Optimize dependency pre-bundling
+    commonjsOptions: {
+      // Helps with tree-shaking
+      transformMixedEsModules: true,
+    },
+  },
+  // Optimize deps for faster dev server
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@apollo/client',
+      'graphql',
+      'framer-motion',
+      'zustand',
+    ],
+    // Exclude heavy deps from pre-bundling to improve dev startup
+    exclude: [
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+    ],
   },
 })

@@ -17,7 +17,58 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import * as Icons from 'lucide-react';
+import {
+  HelpCircle,
+  Sparkles,
+  TrendingUp,
+  X,
+  ArrowRight,
+  // Common feature icons
+  Dumbbell,
+  Target,
+  Users,
+  Trophy,
+  Zap,
+  Heart,
+  Brain,
+  Flame,
+  Star,
+  Crown,
+  Settings,
+  Calendar,
+  BarChart3,
+  Activity,
+  Compass,
+  Map,
+  MessageCircle,
+} from 'lucide-react';
+
+// Icon lookup map - only includes icons commonly used in feature cards
+// This prevents importing the entire lucide-react library (~1MB)
+const FEATURE_ICONS = {
+  HelpCircle,
+  Sparkles,
+  TrendingUp,
+  X,
+  ArrowRight,
+  Dumbbell,
+  Target,
+  Users,
+  Trophy,
+  Zap,
+  Heart,
+  Brain,
+  Flame,
+  Star,
+  Crown,
+  Settings,
+  Calendar,
+  BarChart3,
+  Activity,
+  Compass,
+  Map,
+  MessageCircle,
+};
 
 /**
  * Check if string is an emoji
@@ -45,8 +96,8 @@ function getIcon(iconName, props = {}) {
     );
   }
 
-  // Otherwise get Lucide icon
-  const IconComponent = Icons[iconName] || Icons.HelpCircle;
+  // Otherwise get Lucide icon from our limited set
+  const IconComponent = FEATURE_ICONS[iconName] || HelpCircle;
   return <IconComponent {...props} />;
 }
 
@@ -174,9 +225,9 @@ const FeatureCard = forwardRef(function FeatureCard(
             }}
           >
             {isNew ? (
-              <Icons.Sparkles className="w-3 h-3 text-white" />
+              <Sparkles className="w-3 h-3 text-white" />
             ) : (
-              <Icons.TrendingUp className="w-3 h-3 text-white" />
+              <TrendingUp className="w-3 h-3 text-white" />
             )}
           </div>
         )}
@@ -294,12 +345,12 @@ const FeatureCard = forwardRef(function FeatureCard(
           >
             {isNew ? (
               <>
-                <Icons.Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3 h-3" />
                 New!
               </>
             ) : (
               <>
-                <Icons.TrendingUp className="w-3 h-3" />
+                <TrendingUp className="w-3 h-3" />
                 Popular!
               </>
             )}
@@ -323,7 +374,7 @@ const FeatureCard = forwardRef(function FeatureCard(
           )}
           aria-label={`Dismiss ${name} suggestion`}
         >
-          <Icons.X className="w-3.5 h-3.5" />
+          <X className="w-3.5 h-3.5" />
         </button>
       )}
 
@@ -412,7 +463,7 @@ const FeatureCard = forwardRef(function FeatureCard(
           onClick={handleClick}
         >
           Try it
-          <Icons.ArrowRight className={isHighlighted ? 'w-5 h-5' : 'w-4 h-4'} />
+          <ArrowRight className={isHighlighted ? 'w-5 h-5' : 'w-4 h-4'} />
         </motion.button>
       </div>
 

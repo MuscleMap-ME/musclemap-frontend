@@ -25,17 +25,27 @@ import React, { memo, useMemo, useState, useRef, useEffect, useCallback } from '
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import * as Icons from 'lucide-react';
+import { Home, ChevronRight, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { useMotionAllowed } from '../../contexts/MotionContext';
 
+// Icon map for breadcrumbs - only include icons actually used in breadcrumbs
+// This avoids importing the entire lucide-react library
+const BREADCRUMB_ICONS = {
+  Home,
+  ChevronRight,
+  MoreHorizontal,
+  ChevronDown,
+};
+
 /**
- * Get icon component by name from lucide-react
+ * Get icon component by name
+ * Only returns icons that are commonly used in breadcrumbs
  * @param {string} iconName - Icon name (e.g., 'Home', 'Users')
  * @returns {React.Component|null} Icon component or null
  */
 function getIconComponent(iconName) {
   if (!iconName) return null;
-  return Icons[iconName] || null;
+  return BREADCRUMB_ICONS[iconName] || null;
 }
 
 /**
@@ -123,7 +133,7 @@ function BreadcrumbItem({
   path,
   icon,
   isLast = false,
-  isFirst = false,
+  isFirst: _isFirst = false,
   onClick,
   index = 0,
   className,
@@ -258,7 +268,7 @@ export const BreadcrumbHome = memo(function BreadcrumbHome({
 }) {
   const motionAllowed = useMotionAllowed();
   const variants = motionAllowed ? itemVariants : reducedMotionVariants;
-  const HomeIcon = Icons.Home;
+  const HomeIcon = Home;
 
   const handleClick = (e) => {
     if (onClick) {
@@ -331,8 +341,8 @@ export const BreadcrumbEllipsis = memo(function BreadcrumbEllipsis({
   const navigate = useNavigate();
   const motionAllowed = useMotionAllowed();
   const variants = motionAllowed ? itemVariants : reducedMotionVariants;
-  const MoreIcon = Icons.MoreHorizontal;
-  const ChevronDownIcon = Icons.ChevronDown;
+  const MoreIcon = MoreHorizontal;
+  const ChevronDownIcon = ChevronDown;
 
   // Dropdown state
   const [isOpen, setIsOpen] = useState(false);
@@ -492,7 +502,7 @@ export const BreadcrumbSeparator = memo(function BreadcrumbSeparator({
   animated = true,
 }) {
   const motionAllowed = useMotionAllowed();
-  const ChevronIcon = Icons.ChevronRight;
+  const ChevronIcon = ChevronRight;
 
   const content = (
     <span
