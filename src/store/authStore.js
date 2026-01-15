@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { clearApolloCache } from '../graphql/client';
 
 /**
  * Safe localStorage wrapper that handles Safari private mode and other edge cases
@@ -64,10 +65,12 @@ export const useAuthStore = create(
           user: state.user ? { ...state.user, ...updates } : null,
         })),
 
-      logout: () => {
+      logout: async () => {
         // Also clear legacy keys
         localStorage.removeItem('musclemap_token');
         localStorage.removeItem('musclemap_user');
+        // Clear Apollo cache (in-memory and persisted)
+        await clearApolloCache();
         set({ user: null, token: null, isAuthenticated: false, loading: false });
       },
 

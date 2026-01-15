@@ -1,7 +1,7 @@
 import React, { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client/react';
-import { AnimatePresence } from 'framer-motion';
+import { AdaptiveAnimatePresence } from './components/transitions/AdaptiveAnimatePresence';
 import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -425,7 +425,7 @@ function AppRoutes() {
       <PageTracker />
 
       <Suspense fallback={<PageSkeleton />}>
-        <AnimatePresence mode="wait" initial={false}>
+        <AdaptiveAnimatePresence mode="wait" initial={false}>
         <Routes location={location} key={location.pathname}>
           {/* Public routes */}
           <Route path="/" element={<ErrorBoundary name="Landing"><Landing /></ErrorBoundary>} />
@@ -552,7 +552,7 @@ function AppRoutes() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-        </AnimatePresence>
+        </AdaptiveAnimatePresence>
       </Suspense>
     </>
   );

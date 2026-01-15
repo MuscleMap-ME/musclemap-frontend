@@ -154,13 +154,14 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 816 endpoints:
+The API exposes 837 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
 \textbf{Method} & \textbf{Path} & \textbf{Handler} \\
 \midrule
 \endhead
+\texttt{GET} & \texttt{/} & admin-beta-testers \\
 \texttt{GET} & \texttt{/\_\_routes} & misc \\
 \texttt{DELETE} & \texttt{/:injuryId} & rehabilitation \\
 \texttt{POST} & \texttt{/1rm} & one-rep-max \\
@@ -190,7 +191,6 @@ The API exposes 816 endpoints:
 \texttt{GET} & \texttt{/admin/economy/metrics} & credits \\
 \texttt{GET} & \texttt{/admin/escrow} & credits \\
 \texttt{POST} & \texttt{/admin/escrow/:escrowId/refund} & credits \\
-\texttt{POST} & \texttt{/admin/escrow/:escrowId/release} & credits \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}

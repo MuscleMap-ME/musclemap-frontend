@@ -5,6 +5,8 @@ import App from './App'
 import './styles/index.css'
 import { reportWebVitals, logWebVitals } from './utils/webVitals'
 import { registerServiceWorker, setupControllerChangeHandler } from './utils/registerSW'
+import { initializeApolloCache } from './graphql/client'
+import { checkAndPruneStorage, requestPersistentStorage } from './lib/storage-manager'
 
 /**
  * Storage adapter that syncs with Zustand auth store
@@ -59,11 +61,27 @@ configureHttpClient({
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+// Initialize storage and cache persistence before rendering
+async function initializeApp() {
+  // Request persistent storage (prevents browser eviction)
+  await requestPersistentStorage()
+
+  // Initialize Apollo cache persistence
+  // This restores cached data from IndexedDB for instant loads
+  await initializeApolloCache()
+
+  // Check and prune storage if needed
+  await checkAndPruneStorage()
+
+  // Render the app
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+}
+
+initializeApp()
 
 // Report Web Vitals - send to analytics in production, log to console in development
 if (import.meta.env.PROD) {

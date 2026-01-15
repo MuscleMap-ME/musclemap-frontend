@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
-import { companionEventsService, mascotAssistService, mascotPowersService } from '../../modules/mascot';
+import { companionEventsService, mascotAssistService, mascotPowersService, spiritWardrobeService } from '../../modules/mascot';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -1186,6 +1186,447 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       log.error({ error, userId, abilityKey }, 'Failed to unlock master ability');
       return reply.status(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Failed to unlock ability', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // SPIRIT ANIMAL WARDROBE ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/wardrobe/catalog
+   * Browse available cosmetics
+   */
+  app.get('/mascot/companion/wardrobe/catalog', { preHandler: authenticate }, async (request, reply) => {
+    const { category, rarity, maxPrice, purchasableOnly, season } = request.query as {
+      category?: string;
+      rarity?: string;
+      maxPrice?: string;
+      purchasableOnly?: string;
+      season?: string;
+    };
+
+    try {
+      const cosmetics = await spiritWardrobeService.getCatalog({
+        category,
+        rarity,
+        maxPrice: maxPrice ? parseInt(maxPrice, 10) : undefined,
+        purchasableOnly: purchasableOnly === 'true',
+        season,
+      });
+
+      return reply.send({ data: cosmetics });
+    } catch (error) {
+      log.error({ error }, 'Failed to get wardrobe catalog');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get catalog', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/wardrobe/cosmetic/:idOrKey
+   * Get specific cosmetic details
+   */
+  app.get('/mascot/companion/wardrobe/cosmetic/:idOrKey', { preHandler: authenticate }, async (request, reply) => {
+    const { idOrKey } = request.params as { idOrKey: string };
+
+    try {
+      const cosmetic = await spiritWardrobeService.getCosmetic(idOrKey);
+
+      if (!cosmetic) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Cosmetic not found', statusCode: 404 },
+        });
+      }
+
+      return reply.send({ data: cosmetic });
+    } catch (error) {
+      log.error({ error, idOrKey }, 'Failed to get cosmetic');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get cosmetic', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/wardrobe/collection
+   * Get user's owned cosmetics
+   */
+  app.get('/mascot/companion/wardrobe/collection', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { category } = request.query as { category?: string };
+
+    try {
+      const collection = await spiritWardrobeService.getUserCollection(userId, category);
+      return reply.send({ data: collection });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get wardrobe collection');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get collection', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/purchase/:cosmeticId
+   * Purchase a cosmetic
+   */
+  app.post('/mascot/companion/wardrobe/purchase/:cosmeticId', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { cosmeticId } = request.params as { cosmeticId: string };
+    const { discountPercent = 0 } = request.body as { discountPercent?: number };
+
+    try {
+      const result = await spiritWardrobeService.purchaseCosmetic(userId, cosmeticId, discountPercent);
+
+      if (!result.success) {
+        const statusCode = result.error === 'Insufficient credits' ? 402 :
+                          result.error === 'Cosmetic not found' ? 404 : 400;
+        return reply.status(statusCode).send({
+          error: { code: 'PURCHASE_FAILED', message: result.error, statusCode },
+        });
+      }
+
+      return reply.send({
+        data: {
+          success: true,
+          cosmetic: result.cosmetic,
+          creditsSpent: result.creditsSpent,
+          newBalance: result.newBalance,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId, cosmeticId }, 'Failed to purchase cosmetic');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to purchase', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/gift
+   * Gift a cosmetic to another user
+   */
+  app.post('/mascot/companion/wardrobe/gift', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { toUserId, cosmeticId, message } = request.body as {
+      toUserId: string;
+      cosmeticId: string;
+      message?: string;
+    };
+
+    if (!toUserId || !cosmeticId) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'toUserId and cosmeticId required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await spiritWardrobeService.giftCosmetic(userId, toUserId, cosmeticId, message);
+
+      if (!result.success) {
+        const statusCode = result.error === 'Insufficient credits' ? 402 :
+                          result.error === 'Cosmetic not found' ? 404 : 400;
+        return reply.status(statusCode).send({
+          error: { code: 'GIFT_FAILED', message: result.error, statusCode },
+        });
+      }
+
+      return reply.send({
+        data: {
+          success: true,
+          giftId: result.giftId,
+          creditsSpent: result.creditsSpent,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId, toUserId, cosmeticId }, 'Failed to gift cosmetic');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to gift', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/wardrobe/loadout
+   * Get user's current equipped loadout
+   */
+  app.get('/mascot/companion/wardrobe/loadout', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+      return reply.send({ data: loadout });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get loadout');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get loadout', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * PUT /mascot/companion/wardrobe/loadout
+   * Update user's equipped loadout
+   */
+  app.put('/mascot/companion/wardrobe/loadout', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const updates = request.body as {
+      skinId?: string | null;
+      eyesId?: string | null;
+      outfitId?: string | null;
+      headwearId?: string | null;
+      footwearId?: string | null;
+      accessory1Id?: string | null;
+      accessory2Id?: string | null;
+      accessory3Id?: string | null;
+      auraId?: string | null;
+      emoteVictoryId?: string | null;
+      emoteIdleId?: string | null;
+      backgroundId?: string | null;
+    };
+
+    try {
+      const result = await spiritWardrobeService.updateLoadout(userId, updates);
+
+      if (!result.success) {
+        return reply.status(400).send({
+          error: { code: 'LOADOUT_ERROR', message: result.error, statusCode: 400 },
+        });
+      }
+
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+      return reply.send({ data: loadout });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to update loadout');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to update loadout', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/wardrobe/shop
+   * Get today's shop rotation
+   */
+  app.get('/mascot/companion/wardrobe/shop', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const shop = await spiritWardrobeService.getTodaysShop(userId);
+      return reply.send({ data: shop });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get shop');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get shop', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/favorite/:cosmeticId
+   * Toggle favorite status on a cosmetic
+   */
+  app.post('/mascot/companion/wardrobe/favorite/:cosmeticId', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { cosmeticId } = request.params as { cosmeticId: string };
+
+    try {
+      const isFavorite = await spiritWardrobeService.toggleFavorite(userId, cosmeticId);
+      return reply.send({ data: { isFavorite } });
+    } catch (error) {
+      log.error({ error, userId, cosmeticId }, 'Failed to toggle favorite');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to toggle favorite', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/mark-seen
+   * Mark cosmetics as seen (removes "new" indicator)
+   */
+  app.post('/mascot/companion/wardrobe/mark-seen', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { cosmeticIds } = request.body as { cosmeticIds: string[] };
+
+    if (!cosmeticIds || !Array.isArray(cosmeticIds) || cosmeticIds.length === 0) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'cosmeticIds array required', statusCode: 400 },
+      });
+    }
+
+    try {
+      await spiritWardrobeService.markAsSeen(userId, cosmeticIds);
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to mark cosmetics as seen');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to mark as seen', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/wardrobe/appearance
+   * Get full Spirit Animal appearance (uses DB function)
+   */
+  app.get('/mascot/companion/wardrobe/appearance', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const result = await queryOne<{ appearance: Record<string, unknown> }>(
+        `SELECT get_spirit_animal_appearance($1) as appearance`,
+        [userId]
+      );
+
+      return reply.send({ data: result?.appearance || { equipped: {} } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get Spirit Animal appearance');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get appearance', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // SPIRIT ANIMAL PRESET ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/wardrobe/presets
+   * Get all user's saved presets
+   */
+  app.get('/mascot/companion/wardrobe/presets', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const presets = await spiritWardrobeService.getPresets(userId);
+      return reply.send({ data: presets });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get presets');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get presets', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/presets
+   * Save current loadout as a preset
+   */
+  app.post('/mascot/companion/wardrobe/presets', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { name, icon } = request.body as { name: string; icon?: string };
+
+    if (!name) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'Preset name required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await spiritWardrobeService.savePreset(userId, name, icon);
+
+      if (!result.success) {
+        return reply.status(400).send({
+          error: { code: 'SAVE_FAILED', message: result.error, statusCode: 400 },
+        });
+      }
+
+      return reply.send({ data: { success: true, presetId: result.presetId } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to save preset');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to save preset', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/wardrobe/presets/:presetId/load
+   * Load a preset into current loadout
+   */
+  app.post('/mascot/companion/wardrobe/presets/:presetId/load', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { presetId } = request.params as { presetId: string };
+
+    try {
+      const result = await spiritWardrobeService.loadPreset(userId, presetId);
+
+      if (!result.success) {
+        return reply.status(404).send({
+          error: { code: 'LOAD_FAILED', message: result.error, statusCode: 404 },
+        });
+      }
+
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+      return reply.send({ data: loadout });
+    } catch (error) {
+      log.error({ error, userId, presetId }, 'Failed to load preset');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to load preset', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * PATCH /mascot/companion/wardrobe/presets/:presetId
+   * Rename a preset
+   */
+  app.patch('/mascot/companion/wardrobe/presets/:presetId', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { presetId } = request.params as { presetId: string };
+    const { name } = request.body as { name: string };
+
+    if (!name) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'New name required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await spiritWardrobeService.renamePreset(userId, presetId, name);
+
+      if (!result.success) {
+        return reply.status(404).send({
+          error: { code: 'RENAME_FAILED', message: result.error, statusCode: 404 },
+        });
+      }
+
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, presetId }, 'Failed to rename preset');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to rename preset', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * DELETE /mascot/companion/wardrobe/presets/:presetId
+   * Delete a preset
+   */
+  app.delete('/mascot/companion/wardrobe/presets/:presetId', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { presetId } = request.params as { presetId: string };
+
+    try {
+      const result = await spiritWardrobeService.deletePreset(userId, presetId);
+
+      if (!result.success) {
+        return reply.status(404).send({
+          error: { code: 'DELETE_FAILED', message: result.error, statusCode: 404 },
+        });
+      }
+
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, presetId }, 'Failed to delete preset');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to delete preset', statusCode: 500 },
       });
     }
   });

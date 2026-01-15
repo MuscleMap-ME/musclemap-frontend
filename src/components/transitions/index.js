@@ -148,6 +148,20 @@ export {
 } from './TransitionProvider';
 
 // ============================================
+// ADAPTIVE ANIMATIONS (Lightweight alternatives)
+// ============================================
+
+export {
+  AdaptiveAnimatePresence,
+  AdaptiveProgressBar,
+} from './AdaptiveAnimatePresence';
+
+export {
+  AnimatePresenceLite,
+  ProgressBarLite,
+} from './AnimatePresenceLite';
+
+// ============================================
 // CONVENIENCE EXPORTS
 // ============================================
 

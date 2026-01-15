@@ -27,7 +27,7 @@ import React, {
   useMemo,
 } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AdaptiveProgressBar } from './AdaptiveAnimatePresence';
 
 // ============================================
 // CONSTANTS
@@ -57,55 +57,10 @@ export function useTransitionContext() {
 
 /**
  * NavigationProgressBar - Top progress bar during route transitions
- * Similar to YouTube/GitHub loading indicator
+ * Uses AdaptiveProgressBar which is CSS-only (saves ~150KB framer-motion)
  */
 function NavigationProgressBar({ isVisible, progress = 0 }) {
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          className="fixed top-0 left-0 right-0 z-[9999] h-1 overflow-hidden"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-        >
-          {/* Background track */}
-          <div className="absolute inset-0 bg-black/10" />
-
-          {/* Progress indicator */}
-          <motion.div
-            className="h-full bg-gradient-to-r from-[var(--brand-blue-500)] via-[var(--brand-pulse-500)] to-[var(--brand-blue-400)]"
-            initial={{ width: '0%', x: '-100%' }}
-            animate={{
-              width: progress < 100 ? `${Math.max(progress, 30)}%` : '100%',
-              x: '0%',
-            }}
-            exit={{ width: '100%', opacity: 0 }}
-            transition={{
-              width: { type: 'spring', stiffness: 100, damping: 20 },
-              x: { duration: 0.2 },
-              opacity: { duration: 0.3, delay: 0.1 },
-            }}
-            style={{
-              boxShadow: '0 0 10px rgba(0, 102, 255, 0.5), 0 0 20px rgba(0, 102, 255, 0.3)',
-            }}
-          />
-
-          {/* Shimmer effect */}
-          <motion.div
-            className="absolute top-0 h-full w-32 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-            animate={{ x: ['-100%', '400%'] }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  return <AdaptiveProgressBar isVisible={isVisible} progress={progress} />;
 }
 
 // ============================================

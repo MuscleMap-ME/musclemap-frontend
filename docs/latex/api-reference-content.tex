@@ -44,6 +44,21 @@ Authorization: Bearer <token>
 % ============================================
 
 
+\subsection{Admin-beta-testers}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/} \\
+\texttt{GET} & \texttt{/pending-feedback} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Misc}
 
 \begin{table}[h]
@@ -879,6 +894,22 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Beta-tester}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/journal} \\
+\texttt{GET} & \texttt{/snapshots} \\
+\texttt{GET} & \texttt{/status} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Journeys}
 
 \begin{table}[h]
@@ -1012,6 +1043,22 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/mascot/companion/tutorial} \\
 \texttt{GET} & \texttt{/mascot/companion/upgrades} \\
 \texttt{POST} & \texttt{/mascot/companion/upgrades/:upgradeId/purchase} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/appearance} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/catalog} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/collection} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/cosmetic/:idOrKey} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/favorite/:cosmeticId} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/gift} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/loadout} \\
+\texttt{PUT} & \texttt{/mascot/companion/wardrobe/loadout} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/mark-seen} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/presets} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/presets} \\
+\texttt{PATCH} & \texttt{/mascot/companion/wardrobe/presets/:presetId} \\
+\texttt{DELETE} & \texttt{/mascot/companion/wardrobe/presets/:presetId} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/presets/:presetId/load} \\
+\texttt{POST} & \texttt{/mascot/companion/wardrobe/purchase/:cosmeticId} \\
+\texttt{GET} & \texttt{/mascot/companion/wardrobe/shop} \\
 \texttt{GET} & \texttt{/mascot/companion/workout-suggestion} \\
 \texttt{GET} & \texttt{/mascot/global/config} \\
 \texttt{GET} & \texttt{/mascot/global/placements} \\

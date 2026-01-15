@@ -18,6 +18,14 @@ Authorization: Bearer <token>
 ## Endpoints
 
 
+### Admin-beta-testers
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/` | Yes |
+| `GET` | `/pending-feedback` | Yes |
+
+
 ### Misc
 
 | Method | Endpoint | Auth Required |
@@ -622,6 +630,15 @@ Authorization: Bearer <token>
 | `GET` | `/identities/suggested-communities` | Yes |
 
 
+### Beta-tester
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/journal` | Yes |
+| `GET` | `/snapshots` | Yes |
+| `GET` | `/status` | Yes |
+
+
 ### Journeys
 
 | Method | Endpoint | Auth Required |
@@ -723,6 +740,22 @@ Authorization: Bearer <token>
 | `GET` | `/mascot/companion/tutorial` | Yes |
 | `GET` | `/mascot/companion/upgrades` | Yes |
 | `POST` | `/mascot/companion/upgrades/:upgradeId/purchase` | Yes |
+| `GET` | `/mascot/companion/wardrobe/appearance` | Yes |
+| `GET` | `/mascot/companion/wardrobe/catalog` | Yes |
+| `GET` | `/mascot/companion/wardrobe/collection` | Yes |
+| `GET` | `/mascot/companion/wardrobe/cosmetic/:idOrKey` | Yes |
+| `POST` | `/mascot/companion/wardrobe/favorite/:cosmeticId` | Yes |
+| `POST` | `/mascot/companion/wardrobe/gift` | Yes |
+| `GET` | `/mascot/companion/wardrobe/loadout` | Yes |
+| `PUT` | `/mascot/companion/wardrobe/loadout` | Yes |
+| `POST` | `/mascot/companion/wardrobe/mark-seen` | Yes |
+| `GET` | `/mascot/companion/wardrobe/presets` | Yes |
+| `POST` | `/mascot/companion/wardrobe/presets` | Yes |
+| `PATCH` | `/mascot/companion/wardrobe/presets/:presetId` | Yes |
+| `DELETE` | `/mascot/companion/wardrobe/presets/:presetId` | Yes |
+| `POST` | `/mascot/companion/wardrobe/presets/:presetId/load` | Yes |
+| `POST` | `/mascot/companion/wardrobe/purchase/:cosmeticId` | Yes |
+| `GET` | `/mascot/companion/wardrobe/shop` | Yes |
 | `GET` | `/mascot/companion/workout-suggestion` | Yes |
 | `GET` | `/mascot/global/config` | Yes |
 | `GET` | `/mascot/global/placements` | Yes |

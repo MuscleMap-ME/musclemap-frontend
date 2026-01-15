@@ -2,6 +2,7 @@
  * Apollo Client Configuration
  *
  * Sets up Apollo Client with authentication, error handling, and caching.
+ * Includes IndexedDB persistence for instant loads on repeat visits.
  */
 
 import { ApolloClient, InMemoryCache, from } from '@apollo/client/core';
@@ -9,6 +10,7 @@ import { BatchHttpLink } from '@apollo/client/link/batch-http';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
+import { initializeCachePersistence, clearPersistedCache } from '../lib/apollo-persist';
 
 /**
  * Batch HTTP Link - batches multiple GraphQL requests into one HTTP request
@@ -256,5 +258,40 @@ export const apolloClient = new ApolloClient({
   },
   connectToDevTools: process.env.NODE_ENV !== 'production',
 });
+
+/**
+ * Initialize cache persistence (called during app bootstrap)
+ * Returns a promise that resolves when persistence is ready
+ */
+let persistenceInitialized = false;
+
+export async function initializeApolloCache() {
+  if (persistenceInitialized) return;
+
+  try {
+    await initializeCachePersistence(cache);
+    persistenceInitialized = true;
+    console.info('[Apollo] Cache persistence ready');
+  } catch (error) {
+    console.warn('[Apollo] Cache persistence failed, continuing without:', error);
+  }
+}
+
+/**
+ * Clear all Apollo cache (persisted and in-memory)
+ * Call this on user logout
+ */
+export async function clearApolloCache() {
+  try {
+    await apolloClient.clearStore();
+    await clearPersistedCache();
+    console.info('[Apollo] All cache cleared');
+  } catch (error) {
+    console.warn('[Apollo] Failed to clear cache:', error);
+  }
+}
+
+// Export cache for direct access if needed
+export { cache };
 
 export default apolloClient;

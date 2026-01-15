@@ -79,6 +79,7 @@ musclemap.me/
 │   ├── SCALING-ARCHITECTURE-PLAN.md
 │   ├── SECURITY.md
 │   ├── SPA-UX-IMPROVEMENTS-PLAN.md
+│   ├── SPIRIT-ANIMAL-SYSTEM.md
 │   ├── STAGE-1-ARCHITECTURE-ANALYSIS.md
 │   ├── STAGE-2-USER-PERSONAS.md
 │   ├── STAGE-3-TEST-HARNESS.md
@@ -325,7 +326,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (225 total)
+## Components (227 total)
 
 Components are organized by feature:
 
@@ -623,6 +624,8 @@ Components are organized by feature:
 - `TourStep`
 
 ### transitions
+- `AdaptiveAnimatePresence`
+- `AnimatePresenceLite`
 - `PageTransition`
 - `SharedElement`
 - `TransitionLink`
@@ -656,10 +659,11 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (816 total)
+## API Endpoints (837 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
+| GET | `/` | admin-beta-testers |
 | GET | `/__routes` | misc |
 | DELETE | `/:injuryId` | rehabilitation |
 | POST | `/1rm` | one-rep-max |
@@ -963,6 +967,7 @@ Components are organized by feature:
 | POST | `/issues/:issueId/comments/:commentId/solution` | issues |
 | GET | `/issues/labels` | issues |
 | GET | `/issues/stats` | issues |
+| GET | `/journal` | beta-tester |
 | GET | `/journey` | journey |
 | GET | `/journey/progress` | journey |
 | GET | `/journeys` | journeys |
@@ -1049,6 +1054,22 @@ Components are organized by feature:
 | GET | `/mascot/companion/tutorial` | mascot |
 | GET | `/mascot/companion/upgrades` | mascot |
 | POST | `/mascot/companion/upgrades/:upgradeId/purchase` | mascot |
+| GET | `/mascot/companion/wardrobe/appearance` | mascot |
+| GET | `/mascot/companion/wardrobe/catalog` | mascot |
+| GET | `/mascot/companion/wardrobe/collection` | mascot |
+| GET | `/mascot/companion/wardrobe/cosmetic/:idOrKey` | mascot |
+| POST | `/mascot/companion/wardrobe/favorite/:cosmeticId` | mascot |
+| POST | `/mascot/companion/wardrobe/gift` | mascot |
+| GET | `/mascot/companion/wardrobe/loadout` | mascot |
+| PUT | `/mascot/companion/wardrobe/loadout` | mascot |
+| POST | `/mascot/companion/wardrobe/mark-seen` | mascot |
+| GET | `/mascot/companion/wardrobe/presets` | mascot |
+| POST | `/mascot/companion/wardrobe/presets` | mascot |
+| PATCH | `/mascot/companion/wardrobe/presets/:presetId` | mascot |
+| DELETE | `/mascot/companion/wardrobe/presets/:presetId` | mascot |
+| POST | `/mascot/companion/wardrobe/presets/:presetId/load` | mascot |
+| POST | `/mascot/companion/wardrobe/purchase/:cosmeticId` | mascot |
+| GET | `/mascot/companion/wardrobe/shop` | mascot |
 | GET | `/mascot/companion/workout-suggestion` | mascot |
 | GET | `/mascot/global/config` | mascot |
 | GET | `/mascot/global/placements` | mascot |
@@ -1215,6 +1236,7 @@ Components are organized by feature:
 | GET | `/packages` | economyEnhanced |
 | GET | `/packages/:packageId` | economyEnhanced |
 | GET | `/packages/custom/:credits` | economyEnhanced |
+| GET | `/pending-feedback` | admin-beta-testers |
 | GET | `/personalization/context` | personalization |
 | POST | `/personalization/exercise-check` | personalization |
 | GET | `/personalization/plan` | personalization |
@@ -1368,6 +1390,7 @@ Components are organized by feature:
 | POST | `/sleep/log` | recovery |
 | GET | `/sleep/stats` | recovery |
 | GET | `/sleep/weekly-stats` | recovery |
+| GET | `/snapshots` | beta-tester |
 | POST | `/social/boost` | economyEnhanced |
 | GET | `/social/boost/check` | economyEnhanced |
 | GET | `/social/boost/options` | economyEnhanced |
@@ -1391,6 +1414,7 @@ Components are organized by feature:
 | PUT | `/stats/profile/extended` | stats |
 | POST | `/stats/recalculate` | stats |
 | GET | `/stats/user/:userId` | stats |
+| GET | `/status` | beta-tester |
 | GET | `/store/categories` | credits |
 | GET | `/store/featured` | credits |
 | GET | `/store/inventory` | credits |
