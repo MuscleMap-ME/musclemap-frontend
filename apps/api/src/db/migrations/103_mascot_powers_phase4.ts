@@ -25,7 +25,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_crew_coordination (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      crew_id UUID NOT NULL,
+      crew_id TEXT NOT NULL,
       coordination_type VARCHAR(50) NOT NULL,
       proposed_time TIMESTAMPTZ,
       workout_type VARCHAR(50),
@@ -54,7 +54,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_crew_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      crew_id UUID NOT NULL,
+      crew_id TEXT NOT NULL,
       crew_name VARCHAR(100),
       match_score INTEGER DEFAULT 0,
       match_reasons JSONB DEFAULT '[]',
@@ -106,7 +106,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_rivalry_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      rivalry_id UUID NOT NULL,
+      rivalry_id TEXT NOT NULL,
       rival_user_id TEXT NOT NULL REFERENCES users(id),
       alert_type VARCHAR(50) NOT NULL,
       rival_action TEXT,
@@ -134,7 +134,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_rivalry_strategies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      rivalry_id UUID NOT NULL,
+      rivalry_id TEXT NOT NULL,
       strategy_type VARCHAR(50) NOT NULL,
       analysis JSONB DEFAULT '{}',
       recommended_actions JSONB DEFAULT '[]',
@@ -228,7 +228,7 @@ export async function up(): Promise<void> {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       target_user_id TEXT NOT NULL REFERENCES users(id),
-      target_workout_id UUID,
+      target_workout_id TEXT,
       trigger_type VARCHAR(50) NOT NULL,
       message TEXT,
       companion_stage INTEGER NOT NULL,

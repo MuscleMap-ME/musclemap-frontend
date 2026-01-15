@@ -65,22 +65,29 @@ export interface CacheStats {
 
 const DEFAULT_CONFIG: CacheConfig = {
   enabled: true,
-  defaultTtl: 60, // 1 minute
+  defaultTtl: 120, // 2 minutes (was 1 minute)
   typeTtl: {
-    // Static data - cache longer
-    Exercise: 300,      // 5 minutes
-    Muscle: 300,        // 5 minutes
-    Archetype: 600,     // 10 minutes
-    PricingTier: 3600,  // 1 hour
+    // Static/reference data - cache aggressively
+    Exercise: 900,       // 15 minutes (was 5)
+    Muscle: 900,         // 15 minutes (was 5)
+    Archetype: 1800,     // 30 minutes (was 10)
+    PricingTier: 3600,   // 1 hour (unchanged)
+    Achievement: 600,    // 10 minutes (new)
+    Skill: 600,          // 10 minutes (new)
+    Equipment: 900,      // 15 minutes (new)
 
-    // Semi-dynamic data
-    Leaderboard: 60,    // 1 minute
-    User: 30,           // 30 seconds
-    Workout: 60,        // 1 minute
+    // Semi-dynamic data - moderate caching
+    Leaderboard: 120,    // 2 minutes (was 1)
+    User: 60,            // 1 minute (was 30s)
+    Workout: 120,        // 2 minutes (was 1)
+    WorkoutPrescription: 300, // 5 minutes (new)
+    Community: 180,      // 3 minutes (new)
+    Feed: 60,            // 1 minute (new)
 
-    // Dynamic data - short cache
-    CreditBalance: 10,  // 10 seconds
-    Presence: 5,        // 5 seconds
+    // Dynamic data - short cache but not zero
+    CreditBalance: 15,   // 15 seconds (was 10)
+    Presence: 10,        // 10 seconds (was 5)
+    Stats: 60,           // 1 minute (new)
   },
   neverCache: [
     'Mutation',

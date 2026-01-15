@@ -149,7 +149,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_bonus_log (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      workout_id UUID REFERENCES workouts(id) ON DELETE SET NULL,
+      workout_id TEXT REFERENCES workouts(id) ON DELETE SET NULL,
       bonus_type VARCHAR(50) NOT NULL,
       base_tu INTEGER NOT NULL,
       multiplier DECIMAL(4,2) NOT NULL,

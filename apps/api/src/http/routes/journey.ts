@@ -113,7 +113,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     });
   });
 
-  // Get all archetypes
+  // Get all archetypes - static reference data, cache aggressively
   app.get('/archetypes', async (request, reply) => {
     const archetypes = await queryAll<{
       id: string;
@@ -124,6 +124,9 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       icon_url: string;
     }>('SELECT id, name, philosophy, description, focus_areas, icon_url FROM archetypes');
 
+    // Cache for 1 hour at edge, 30 minutes in browser (archetypes rarely change)
+    reply.header('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400');
+    reply.header('CDN-Cache-Control', 'public, max-age=3600');
     return reply.send({
       data: archetypes.map((a) => {
         // Handle both JSON array and comma-separated string formats

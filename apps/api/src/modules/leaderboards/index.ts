@@ -17,8 +17,8 @@ import { earningService } from '../economy/earning.service';
 
 const log = loggers.core;
 
-// Cache settings
-const LEADERBOARD_CACHE_TTL = 60; // 1 minute
+// Cache settings - optimized for high concurrency
+const LEADERBOARD_CACHE_TTL = 180; // 3 minutes (was 1 minute)
 const LEADERBOARD_CACHE_PREFIX = 'lb:';
 
 // Period types

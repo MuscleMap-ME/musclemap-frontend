@@ -66,6 +66,7 @@ musclemap.me/
 │   ├── INTELLIGENT-EXERCISE-PRESCRIPTION-PLAN.md
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
+│   ├── MASCOT-POWERS-PLAN.md
 │   ├── MASTER-IMPLEMENTATION-PLAN.md
 │   ├── MISSING-FEATURES-IMPLEMENTATION-PLAN.md
 │   ├── NATIVE_EXTENSIONS.md
@@ -173,6 +174,7 @@ musclemap.me/
 │   ├── merge-all.sh
 │   ├── musclemap-start.sh
 │   ├── musclemap-stop.sh
+│   ├── pre-deploy-check.sh
 │   ├── prepare-app-store.cjs
 │   ├── production-deploy.sh
 │   ├── publish-app.sh
@@ -182,7 +184,8 @@ musclemap.me/
 │   ├── split-repos.sh
 │   ├── sync-docs-plain.sh
 │   ├── test.sh
-│   └── tidy-root-js.sh
+│   ├── tidy-root-js.sh
+│   └── warning-tracker.sh
 ├── src/
 │   ├── components/
 │   ├── config/
@@ -645,7 +648,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (795 total)
+## API Endpoints (816 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -1009,15 +1012,36 @@ Components are organized by feature:
 | GET | `/mascot/companion/assist/history` | mascot |
 | GET | `/mascot/companion/assist/state` | mascot |
 | POST | `/mascot/companion/assist/use` | mascot |
+| GET | `/mascot/companion/bonus` | mascot |
 | POST | `/mascot/companion/cosmetics/equip` | mascot |
+| GET | `/mascot/companion/credit-alerts` | mascot |
+| POST | `/mascot/companion/credit-alerts/:alertId/dismiss` | mascot |
+| GET | `/mascot/companion/data-alerts` | mascot |
+| GET | `/mascot/companion/energy` | mascot |
 | POST | `/mascot/companion/events/mark-reacted` | mascot |
 | GET | `/mascot/companion/events/recent` | mascot |
+| GET | `/mascot/companion/highfive-prefs` | mascot |
+| PUT | `/mascot/companion/highfive-prefs` | mascot |
+| GET | `/mascot/companion/master-abilities` | mascot |
+| POST | `/mascot/companion/master-abilities/:abilityKey/unlock` | mascot |
+| GET | `/mascot/companion/milestones` | mascot |
 | PATCH | `/mascot/companion/nickname` | mascot |
+| GET | `/mascot/companion/nutrition-hint` | mascot |
+| GET | `/mascot/companion/overtraining-alerts` | mascot |
+| GET | `/mascot/companion/powers` | mascot |
+| GET | `/mascot/companion/powers/all` | mascot |
+| GET | `/mascot/companion/programs` | mascot |
+| GET | `/mascot/companion/recovered-muscles` | mascot |
 | PATCH | `/mascot/companion/settings` | mascot |
+| GET | `/mascot/companion/social-actions` | mascot |
 | GET | `/mascot/companion/state` | mascot |
+| GET | `/mascot/companion/streak-saver` | mascot |
+| POST | `/mascot/companion/streak-saver/use` | mascot |
 | GET | `/mascot/companion/tips/next` | mascot |
+| GET | `/mascot/companion/tutorial` | mascot |
 | GET | `/mascot/companion/upgrades` | mascot |
 | POST | `/mascot/companion/upgrades/:upgradeId/purchase` | mascot |
+| GET | `/mascot/companion/workout-suggestion` | mascot |
 | GET | `/mascot/global/config` | mascot |
 | GET | `/mascot/global/placements` | mascot |
 | GET | `/me/achievements` | achievements |
@@ -1460,6 +1484,7 @@ Components are organized by feature:
 | `merge-all.sh` | # merge-all.sh - Merge all worktree branches into main |
 | `musclemap-start.sh` | # MuscleMap Local Development Services - START |
 | `musclemap-stop.sh` | # MuscleMap Local Development Services - STOP |
+| `pre-deploy-check.sh` | Pre-Deploy Check Script |
 | `prepare-app-store.cjs` | MuscleMap App Store Preparation Script  Automates everything needed for App Store submission: - Generates all app icons (iOS + Android) - Creates App Store metadata JSON - Generates screenshot templates - Creates store listing text  Usage: node scripts/prepare-app-store.cjs pnpm prepare:appstore / |
 | `production-deploy.sh` | # production-deploy.sh - Deploy script for MuscleMap production server |
 | `publish-app.sh` | # MuscleMap App Publishing Script |
@@ -1469,6 +1494,7 @@ Components are organized by feature:
 | `sync-docs-plain.sh` | Sync docs-plain to public directory for static serving |
 | `test.sh` | Create a competition to get an ID (avoid hardcoded /1) |
 | `tidy-root-js.sh` | Collect file basenames referenced by systemd units + pm2 dump |
+| `warning-tracker.sh` | Warning Tracker - Tracks, triages, and auto-resolves common warnings |
 
 ## Data Flow
 

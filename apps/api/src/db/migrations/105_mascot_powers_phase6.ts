@@ -219,7 +219,7 @@ export async function up(): Promise<void> {
       hint_type VARCHAR(50) NOT NULL,
       timing VARCHAR(50),
       message TEXT NOT NULL,
-      context_workout_id UUID REFERENCES workouts(id),
+      context_workout_id TEXT REFERENCES workouts(id),
       companion_stage INTEGER NOT NULL,
       shown BOOLEAN DEFAULT FALSE,
       helpful_rating INTEGER,

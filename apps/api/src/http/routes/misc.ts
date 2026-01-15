@@ -20,15 +20,18 @@ import {
 const log = loggers.http;
 
 export async function registerMiscRoutes(app: FastifyInstance) {
-  // Muscles
+  // Muscles - static reference data, cache aggressively
   app.get('/muscles', async (request, reply) => {
     const muscles = await queryAll(
       'SELECT id, name, anatomical_name, muscle_group, bias_weight, optimal_weekly_volume, recovery_time FROM muscles'
     );
+    // Cache for 1 hour at edge, 15 minutes in browser
+    reply.header('Cache-Control', 'public, max-age=900, s-maxage=3600, stale-while-revalidate=86400');
+    reply.header('CDN-Cache-Control', 'public, max-age=3600');
     return reply.send({ data: muscles });
   });
 
-  // Exercises
+  // Exercises - reference data, cache at edge
   app.get('/exercises', async (request, reply) => {
     const params = request.query as { location?: string; equipment?: string; include_videos?: string };
 
@@ -42,6 +45,9 @@ export async function registerMiscRoutes(app: FastifyInstance) {
 
     const exercises = await queryAll(sql, queryParams);
 
+    // Cache for 30 minutes at edge, 10 minutes in browser (exercises change rarely)
+    reply.header('Cache-Control', 'public, max-age=600, s-maxage=1800, stale-while-revalidate=86400');
+    reply.header('CDN-Cache-Control', 'public, max-age=1800');
     return reply.send({
       data: exercises.map((e: any) => {
         const illustration = getExerciseIllustration(e.id);

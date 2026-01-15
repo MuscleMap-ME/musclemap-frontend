@@ -124,7 +124,7 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS user_exercise_preferences (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
       preference_type VARCHAR(20) NOT NULL,
       reason VARCHAR(100),
       created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -145,8 +145,8 @@ export async function up(): Promise<void> {
     CREATE TABLE IF NOT EXISTS mascot_exercise_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      original_exercise_id UUID NOT NULL REFERENCES exercises(id),
-      suggested_exercise_id UUID NOT NULL REFERENCES exercises(id),
+      original_exercise_id TEXT NOT NULL REFERENCES exercises(id),
+      suggested_exercise_id TEXT NOT NULL REFERENCES exercises(id),
       suggestion_reason VARCHAR(50) NOT NULL,
       companion_stage INTEGER NOT NULL,
       accepted BOOLEAN,
