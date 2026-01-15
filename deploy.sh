@@ -25,6 +25,15 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 MuscleMap Deploy${NC}"
 echo "================================"
 
+# Step 0: Run pre-deploy checks
+echo -e "${BLUE}🔍 Running pre-deploy checks...${NC}"
+if [ -f "$MAIN_REPO/scripts/pre-deploy-check.sh" ]; then
+    if ! "$MAIN_REPO/scripts/pre-deploy-check.sh"; then
+        echo -e "${RED}❌ Pre-deploy checks failed. Fix errors before deploying.${NC}"
+        exit 1
+    fi
+fi
+
 # Step 1: Handle worktree if running from one
 CURRENT_DIR="$(pwd)"
 if [[ "$CURRENT_DIR" == "$WORKTREE_BASE"* ]]; then
