@@ -2536,7 +2536,7 @@ async function testOneRepMax(ctx: TestContext) {
     const res = await request('POST', '/1rm', {
       token: ctx.token,
       body: {
-        exerciseId: 'BB-PUSH-BENCH-PRESS',
+        exerciseId: 'fw-bench-press', // Valid exercise ID
         weight: 225,
         reps: 3,
         bodyweightKg: 80,
@@ -2588,7 +2588,7 @@ async function testOneRepMax(ctx: TestContext) {
 
   // Get 1RM history for an exercise
   await runTest('1RM', 'Get exercise 1RM history', async () => {
-    const res = await request('GET', '/1rm/exercise/BB-PUSH-BENCH-PRESS', {
+    const res = await request('GET', '/1rm/exercise/fw-bench-press', {
       token: ctx.token,
       expectedStatus: [200],
     });
@@ -2599,26 +2599,26 @@ async function testOneRepMax(ctx: TestContext) {
 
   // Get 1RM progression data
   await runTest('1RM', 'Get 1RM progression', async () => {
-    const res = await request('GET', '/1rm/progression/BB-PUSH-BENCH-PRESS?period=weekly&days=90', {
+    const res = await request('GET', '/1rm/progression/fw-bench-press?period=weekly&days=90', {
       token: ctx.token,
       expectedStatus: [200],
     });
     assert(res.status === 200, 'Should get progression data');
     const data = res.data as { data: { exerciseId: string; data: unknown[] } };
-    assert(data.data.exerciseId === 'BB-PUSH-BENCH-PRESS', 'Should return correct exercise');
+    assert(data.data.exerciseId === 'fw-bench-press', 'Should return correct exercise');
     assert(Array.isArray(data.data.data), 'Should return progression data array');
   });
 
   // Get 1RM leaderboard
   await runTest('1RM', 'Get 1RM leaderboard', async () => {
-    const res = await request('GET', '/1rm/leaderboard/BB-PUSH-BENCH-PRESS', {
+    const res = await request('GET', '/1rm/leaderboard/fw-bench-press', {
       token: ctx.token,
       expectedStatus: [200],
     });
     assert(res.status === 200, 'Should get leaderboard');
     const data = res.data as { data: unknown[]; meta: { exerciseId: string } };
     assert(Array.isArray(data.data), 'Should return leaderboard array');
-    assert(data.meta.exerciseId === 'BB-PUSH-BENCH-PRESS', 'Should return correct exercise');
+    assert(data.meta.exerciseId === 'fw-bench-press', 'Should return correct exercise');
   });
 
   // Log a workout set with automatic 1RM calculation
@@ -2628,7 +2628,7 @@ async function testOneRepMax(ctx: TestContext) {
       token: ctx.token,
       body: {
         exercises: [
-          { exerciseId: 'BB-SQUAT-BACK-SQUAT', sets: 3, reps: 5, weight: 275 },
+          { exerciseId: 'fw-squat', sets: 3, reps: 5, weight: 275 }, // Valid exercise ID
         ],
         notes: 'E2E 1RM test workout',
         idempotencyKey: `e2e-1rm-test-${Date.now()}`,
@@ -2650,7 +2650,7 @@ async function testOneRepMax(ctx: TestContext) {
       token: ctx.token,
       body: {
         workoutId,
-        exerciseId: 'BB-SQUAT-BACK-SQUAT',
+        exerciseId: 'fw-squat', // Valid exercise ID
         setNumber: 1,
         weight: 315,
         reps: 3,
@@ -2843,8 +2843,9 @@ async function testBuddy(ctx: TestContext) {
   logSection('TRAINING BUDDY');
 
   // Get buddy (should be null initially)
+  // Note: Buddy routes are under /credits prefix
   await runTest('Buddy', 'Get buddy (none)', async () => {
-    const res = await request('GET', '/buddy', {
+    const res = await request('GET', '/credits/buddy', {
       token: ctx.token,
       expectedStatus: [200],
     });
@@ -2853,7 +2854,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Create buddy
   await runTest('Buddy', 'Create buddy', async () => {
-    const res = await request('POST', '/buddy', {
+    const res = await request('POST', '/credits/buddy', {
       token: ctx.token,
       body: {
         species: 'wolf',
@@ -2869,7 +2870,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Get buddy (should exist now)
   await runTest('Buddy', 'Get buddy (exists)', async () => {
-    const res = await request('GET', '/buddy', {
+    const res = await request('GET', '/credits/buddy', {
       token: ctx.token,
       expectedStatus: [200],
     });
@@ -2878,7 +2879,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Update buddy nickname
   await runTest('Buddy', 'Set buddy nickname', async () => {
-    const res = await request('PUT', '/buddy/nickname', {
+    const res = await request('PUT', '/credits/buddy/nickname', {
       token: ctx.token,
       body: {
         nickname: 'E2E Test Buddy',
@@ -2890,7 +2891,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Update display settings
   await runTest('Buddy', 'Update display settings', async () => {
-    const res = await request('PUT', '/buddy/settings', {
+    const res = await request('PUT', '/credits/buddy/settings', {
       token: ctx.token,
       body: {
         visible: true,
@@ -2903,7 +2904,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Get evolution path
   await runTest('Buddy', 'Get evolution path', async () => {
-    const res = await request('GET', '/buddy/evolution/wolf', {
+    const res = await request('GET', '/credits/buddy/evolution/wolf', {
       token: ctx.token,
       expectedStatus: [200],
     });
@@ -2914,7 +2915,7 @@ async function testBuddy(ctx: TestContext) {
 
   // Get buddy leaderboard
   await runTest('Buddy', 'Get buddy leaderboard', async () => {
-    const res = await request('GET', '/buddy/leaderboard?limit=10', {
+    const res = await request('GET', '/credits/buddy/leaderboard?limit=10', {
       token: ctx.token,
       expectedStatus: [200],
     });
