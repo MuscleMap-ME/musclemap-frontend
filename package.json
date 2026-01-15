@@ -11,7 +11,7 @@
     "docs:generate": "node scripts/generate-docs.cjs",
     "docs:latex": "node scripts/generate-docs.cjs --latex",
     "docs:md": "node scripts/generate-docs.cjs --md",
-    "docs:sync-plain": "sh ./scripts/sync-docs-plain.sh",
+    "docs:sync-plain": "node scripts/generate-docs.cjs --sync-plain",
     "build": "pnpm docs:sync-plain && vite build",
     "build:analyze": "ANALYZE=true vite build && echo 'Bundle analysis available at dist/stats.html'",
     "build:api": "pnpm -C apps/api build",
