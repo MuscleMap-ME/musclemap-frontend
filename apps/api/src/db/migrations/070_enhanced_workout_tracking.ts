@@ -277,13 +277,13 @@ export async function migrate(): Promise<void> {
     SELECT
       ws.user_id,
       DATE_TRUNC('week', ws.performed_at) as week_start,
-      e.primary_muscle as muscle_group,
+      e.primary_muscles as muscle_group,
       COALESCE(SUM(ws.weight * ws.reps), 0) as total_volume,
       COUNT(*) as total_sets
     FROM workout_sets ws
     JOIN exercises e ON ws.exercise_id = e.id
     WHERE ws.tag != 'warmup'
-    GROUP BY ws.user_id, DATE_TRUNC('week', ws.performed_at), e.primary_muscle
+    GROUP BY ws.user_id, DATE_TRUNC('week', ws.performed_at), e.primary_muscles
     ORDER BY week_start DESC
   `);
 
