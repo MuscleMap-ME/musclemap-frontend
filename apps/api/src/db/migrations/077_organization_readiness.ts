@@ -88,11 +88,21 @@ export async function migrate(): Promise<void> {
         -- Metadata
         computed_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-        -- Ensure unique combination of org + unit + standard
-        -- unit_id NULL means org-wide aggregate
-        UNIQUE(org_id, COALESCE(unit_id, '00000000-0000-0000-0000-000000000000'::UUID), standard_id)
+        -- Metadata
+        -- Note: unique constraint handled by partial unique indexes below
       )
     `);
+
+    // Create unique index to ensure no duplicate org+unit+standard combinations
+    // Use partial indexes for null and non-null unit_id cases
+    if (!(await indexExists('idx_org_readiness_cache_unique_with_unit'))) {
+      log.info('Creating unique index for non-null unit_id...');
+      await db.query(`CREATE UNIQUE INDEX idx_org_readiness_cache_unique_with_unit ON organization_readiness_cache(org_id, unit_id, standard_id) WHERE unit_id IS NOT NULL`);
+    }
+    if (!(await indexExists('idx_org_readiness_cache_unique_org_only'))) {
+      log.info('Creating unique index for null unit_id...');
+      await db.query(`CREATE UNIQUE INDEX idx_org_readiness_cache_unique_org_only ON organization_readiness_cache(org_id, standard_id) WHERE unit_id IS NULL`);
+    }
 
     // Create indexes for efficient querying
     if (!(await indexExists('idx_org_readiness_cache_org'))) {
