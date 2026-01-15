@@ -122,9 +122,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       description: string;
       focus_areas: string;
       icon_url: string;
-      image_url: string;
-      category_id: string;
-    }>('SELECT id, name, philosophy, description, focus_areas, icon_url, image_url, category_id FROM archetypes');
+    }>('SELECT id, name, philosophy, description, focus_areas, icon_url FROM archetypes');
 
     return reply.send({
       data: archetypes.map((a) => {
@@ -150,8 +148,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
           philosophy: a.philosophy,
           description: a.description,
           icon: a.icon_url,
-          imageUrl: a.image_url,
-          categoryId: a.category_id,
+          imageUrl: a.icon_url, // Use icon_url as fallback since image_url may not exist in all environments
           focusAreas,
         };
       }),

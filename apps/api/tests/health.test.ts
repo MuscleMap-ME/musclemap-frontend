@@ -19,9 +19,9 @@ afterAll(async () => {
 });
 
 describe('health', () => {
-  it('GET /api/health returns 200', async () => {
+  it('GET /health returns 200', async () => {
     if (skipTests) return;
-    const res = await request(getRequestTarget(app)).get('/api/health');
+    const res = await request(getRequestTarget(app)).get('/health');
     expect(res.status).toBe(200);
     expect(res.body?.status).toBe('ok');
   });

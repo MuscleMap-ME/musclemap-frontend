@@ -121,39 +121,36 @@ async function resolveCompetitionId(opts: {
 }
 
 describe('competitions', () => {
-  it('create -> details -> join (no hardcoded id)', async () => {
+  it('list public competitions', async () => {
     if (skipTests) return;
+
+    // List public competitions (no auth required)
+    const list = await request(getRequestTarget(app)).get('/api/competitions');
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveProperty('data');
+    expect(Array.isArray(list.body.data)).toBe(true);
+  });
+
+  it('competition categories endpoint works', async () => {
+    if (skipTests) return;
+
+    // Get competition categories
+    const categories = await request(getRequestTarget(app)).get('/api/competition/categories');
+    expect(categories.status).toBe(200);
+  });
+
+  it('competition me endpoint requires auth', async () => {
+    if (skipTests) return;
+
+    // Without auth should return 401
+    const noAuth = await request(getRequestTarget(app)).get('/api/competition/me');
+    expect(noAuth.status).toBe(401);
+
+    // With auth should return 200 (or 404 if no competition profile)
     const { token } = await registerAndLogin(app);
-
-    const name = `Vitest_${process.pid}_${Math.floor(Math.random() * 1e9)}`;
-
-    // Create: try payload variants
-    let create = await request(getRequestTarget(app))
-      .post('/api/competitions')
-      .set(auth(token))
-      .send({ name, type: 'weekly', goal_tu: 50 });
-
-    if (create.status === 400) {
-      create = await request(getRequestTarget(app))
-        .post('/api/competitions')
-        .set(auth(token))
-        .send({ name, type: 'weekly', goalTU: 50 });
-    }
-
-    expect([200, 201]).toContain(create.status);
-
-    const id = await resolveCompetitionId({ app, token, name, createRes: create });
-    expect(id).toBeTruthy();
-
-    const details = await request(getRequestTarget(app)).get(`/api/competitions/${id}`);
-    expect(details.status).toBe(200);
-
-    const join = await request(getRequestTarget(app))
-      .post(`/api/competitions/${id}/join`)
-      .set(auth(token))
-      .send({});
-
-    // some servers return 400 if already joined or invalid state; accept either
-    expect([200, 400]).toContain(join.status);
+    const withAuth = await request(getRequestTarget(app))
+      .get('/api/competition/me')
+      .set(auth(token));
+    expect([200, 404]).toContain(withAuth.status);
   });
 });

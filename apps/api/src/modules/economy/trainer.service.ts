@@ -14,6 +14,34 @@ import { earningService } from './earning.service';
 
 const log = loggers.economy;
 
+/**
+ * Safely parse JSON array or comma-separated string
+ */
+function parseJsonOrCsv(value: string | null | undefined): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [String(parsed)];
+  } catch {
+    // Not JSON, treat as comma-separated string
+    return value.split(',').map(s => s.trim()).filter(Boolean);
+  }
+}
+
+/**
+ * Safely parse JSON object or return object as-is (for JSONB columns)
+ */
+function parseJsonOrObject(value: string | object | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === 'object') return value as Record<string, unknown>;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
 // Types
 export interface TrainerProfile {
   userId: string;
@@ -144,8 +172,8 @@ export const trainerService = {
       userId: row.user_id,
       displayName: row.display_name,
       bio: row.bio ?? undefined,
-      specialties: row.specialties ? JSON.parse(row.specialties) : [],
-      certifications: row.certifications ? JSON.parse(row.certifications) : [],
+      specialties: parseJsonOrCsv(row.specialties),
+      certifications: parseJsonOrCsv(row.certifications),
       hourlyRateCredits: row.hourly_rate_credits,
       perClassRateCredits: row.per_class_rate_credits,
       verified: row.verified,
@@ -272,8 +300,8 @@ export const trainerService = {
         userId: row.user_id,
         displayName: row.display_name,
         bio: row.bio ?? undefined,
-        specialties: row.specialties ? JSON.parse(row.specialties) : [],
-        certifications: row.certifications ? JSON.parse(row.certifications) : [],
+        specialties: parseJsonOrCsv(row.specialties),
+        certifications: parseJsonOrCsv(row.certifications),
         hourlyRateCredits: row.hourly_rate_credits,
         perClassRateCredits: row.per_class_rate_credits,
         verified: row.verified,
@@ -403,7 +431,7 @@ export const trainerService = {
       creditsPerStudent: row.credits_per_student,
       trainerWagePerStudent: row.trainer_wage_per_student,
       status: row.status as 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled',
-      metadata: row.metadata ? JSON.parse(row.metadata) : {},
+      metadata: parseJsonOrObject(row.metadata),
       createdAt: row.created_at,
     };
   },
@@ -498,7 +526,7 @@ export const trainerService = {
         creditsPerStudent: row.credits_per_student,
         trainerWagePerStudent: row.trainer_wage_per_student,
         status: row.status as 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled',
-        metadata: row.metadata ? JSON.parse(row.metadata) : {},
+        metadata: parseJsonOrObject(row.metadata),
         createdAt: row.created_at,
       })),
       total: parseInt(countResult?.count || '0', 10),
@@ -863,7 +891,7 @@ export const trainerService = {
           creditsPerStudent: row.c_credits_per_student,
           trainerWagePerStudent: row.c_trainer_wage_per_student,
           status: row.c_status as 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled',
-          metadata: row.c_metadata ? JSON.parse(row.c_metadata) : {},
+          metadata: parseJsonOrObject(row.c_metadata),
           createdAt: row.c_created_at,
         },
       })),

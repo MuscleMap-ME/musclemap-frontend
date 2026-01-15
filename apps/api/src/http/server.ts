@@ -358,7 +358,9 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerModulesRoutes(api);
     await registerCareerRoutes(api);
     await registerMascotRoutes(api);
-    await registerCreditsRoutes(api);
+    await api.register(async (credits) => {
+      await registerCreditsRoutes(credits);
+    }, { prefix: '/credits' });
     await registerTrainerRoutes(api);
     await registerSkillsRoutes(api);
     await registerMartialArtsRoutes(api);

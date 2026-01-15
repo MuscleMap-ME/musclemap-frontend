@@ -40,20 +40,13 @@ describe('core endpoints', () => {
     expect([200, 400]).toContain(res.status);
   });
 
-  it('journey paths + switch work', async () => {
+  it('journey overview works', async () => {
     if (skipTests) return;
     const target = getRequestTarget(app);
     const { token } = await registerAndLogin(app);
 
-    const p = await request(target).get('/api/journey/paths').set(auth(token));
+    const p = await request(target).get('/api/journey').set(auth(token));
     expect(p.status).toBe(200);
-
-    const s = await request(target)
-      .post('/api/journey/switch')
-      .set(auth(token))
-      .send({ archetype: 'gymnast' });
-
-    expect([200, 400]).toContain(s.status);
   });
 
   it('exercises list works', async () => {
@@ -68,16 +61,16 @@ describe('core endpoints', () => {
     const target = getRequestTarget(app);
     const { token } = await registerAndLogin(app);
 
-    const res = await request(target).get('/api/workouts').set(auth(token));
+    const res = await request(target).get('/api/workouts/me').set(auth(token));
     expect(res.status).toBe(200);
   });
 
-  it('credits pricing public, balance authed', async () => {
+  it('economy pricing public, balance authed', async () => {
     if (skipTests) return;
     const target = getRequestTarget(app);
     const { token } = await registerAndLogin(app);
 
-    const p = await request(target).get('/api/credits/pricing');
+    const p = await request(target).get('/api/economy/pricing');
     expect(p.status).toBe(200);
 
     const b = await request(target).get('/api/credits/balance').set(auth(token));

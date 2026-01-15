@@ -259,4 +259,9 @@ export async function closeTestApp(): Promise<void> {
   } catch {
     // ignore close errors
   }
+
+  // Reset state flags so pool can be re-initialized by next test suite
+  _modulesLoaded = false;
+  _dbInitialized = false;
+  _dbAvailable = false;
 }
