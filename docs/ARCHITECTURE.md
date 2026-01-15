@@ -295,7 +295,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (165 total)
+## Components (175 total)
 
 Components are organized by feature:
 
@@ -358,6 +358,10 @@ Components are organized by feature:
 - `StreakFire`
 - `StreakFlame`
 - `SuccessBurst`
+
+### challenges
+- `ChallengeProgress`
+- `ChallengeReward`
 
 ### command
 - `CommandItem`
@@ -470,6 +474,9 @@ Components are organized by feature:
 - `StatsPanel`
 - `TrendingExercises`
 
+### loot
+- `LootChest`
+
 ### mascot
 - `CompanionCharacter`
 - `CompanionContext`
@@ -488,7 +495,11 @@ Components are organized by feature:
 - `MessageThread`
 - `NewConversation`
 
+### muscle-explorer
+- `MuscleInfoPanel`
+
 ### navigation
+- `BreadcrumbItem`
 - `Breadcrumbs`
 
 ### nutrition
@@ -535,8 +546,17 @@ Components are organized by feature:
 - `SpotlightTour`
 - `TourStep`
 
+### transitions
+- `PageTransition`
+- `SharedElement`
+- `TransitionProvider`
+
 ### workout
 - `RestTimerControl`
+- `SetLogger`
+
+### workout-mode
+- `RestTimer`
 - `SetLogger`
 
 ### xr
