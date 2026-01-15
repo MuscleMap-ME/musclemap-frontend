@@ -645,7 +645,7 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (791 total)
+## API Endpoints (795 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -1005,6 +1005,10 @@ Components are organized by feature:
 | GET | `/martial-arts/progress` | martial-arts |
 | GET | `/martial-arts/techniques/:techniqueId` | martial-arts |
 | PUT | `/martial-arts/techniques/:techniqueId/notes` | martial-arts |
+| GET | `/mascot/companion/assist/abilities` | mascot |
+| GET | `/mascot/companion/assist/history` | mascot |
+| GET | `/mascot/companion/assist/state` | mascot |
+| POST | `/mascot/companion/assist/use` | mascot |
 | POST | `/mascot/companion/cosmetics/equip` | mascot |
 | POST | `/mascot/companion/events/mark-reacted` | mascot |
 | GET | `/mascot/companion/events/recent` | mascot |

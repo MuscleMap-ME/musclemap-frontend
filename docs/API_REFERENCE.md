@@ -690,6 +690,10 @@ Authorization: Bearer <token>
 
 | Method | Endpoint | Auth Required |
 |--------|----------|---------------|
+| `GET` | `/mascot/companion/assist/abilities` | Yes |
+| `GET` | `/mascot/companion/assist/history` | Yes |
+| `GET` | `/mascot/companion/assist/state` | Yes |
+| `POST` | `/mascot/companion/assist/use` | Yes |
 | `POST` | `/mascot/companion/cosmetics/equip` | Yes |
 | `POST` | `/mascot/companion/events/mark-reacted` | Yes |
 | `GET` | `/mascot/companion/events/recent` | Yes |
