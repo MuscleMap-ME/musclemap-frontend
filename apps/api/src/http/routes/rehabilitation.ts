@@ -6,7 +6,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { db, queryAll, queryOne } from '../../db/client';
+import { db } from '../../db/client';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 

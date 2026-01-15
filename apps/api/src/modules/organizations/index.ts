@@ -9,8 +9,8 @@
  * Types: apps/api/src/modules/organizations/types.ts
  */
 
-import { queryOne, queryAll, query, transaction } from '../../db/client';
-import { ValidationError, NotFoundError, AuthorizationError, ConflictError } from '../../lib/errors';
+import { queryOne, queryAll, transaction } from '../../db/client';
+import { NotFoundError, ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
 import type {
@@ -30,7 +30,6 @@ import type {
   UnitFilters,
   BulkInviteItem,
   BulkUpdateData,
-  OrgAuditLog,
 } from './types';
 import { ROLE_PERMISSIONS } from './types';
 
