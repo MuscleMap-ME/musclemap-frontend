@@ -242,8 +242,7 @@ export async function up(): Promise<void> {
 
   await query(`
     CREATE INDEX IF NOT EXISTS idx_auto_highfives_user_date
-    ON mascot_auto_highfives(user_id, created_at)
-    WHERE created_at > CURRENT_DATE - INTERVAL '1 day'
+    ON mascot_auto_highfives(user_id, created_at DESC)
   `);
 
   // Friends who need motivation (identified by mascot)
