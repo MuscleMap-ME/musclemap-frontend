@@ -429,7 +429,7 @@ export default function Recovery() {
     );
   }
 
-  const { currentScore, lastSleep, sleepStats, recommendations, sleepGoal, nextWorkoutSuggestion } = recoveryStatus || {};
+  const { currentScore, sleepStats, recommendations, sleepGoal, nextWorkoutSuggestion } = recoveryStatus || {};
 
   return (
     <GlassSurface className="min-h-screen p-6">
@@ -517,7 +517,7 @@ export default function Recovery() {
             <GlassCard className="p-6 h-full">
               <div className="flex items-center gap-3 mb-4">
                 <Icons.Lightning className="w-6 h-6 text-yellow-400" />
-                <h3 className="text-lg font-semibold text-white">Today's Workout Recommendation</h3>
+                <h3 className="text-lg font-semibold text-white">Today&apos;s Workout Recommendation</h3>
               </div>
               {nextWorkoutSuggestion && (
                 <div className="space-y-4">

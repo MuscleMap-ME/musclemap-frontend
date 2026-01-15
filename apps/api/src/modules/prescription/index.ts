@@ -672,6 +672,62 @@ export class PrescriptionEngine {
   }
 
   /**
+   * Apply recovery penalty based on exercise intensity and current recovery state
+   * Penalizes high-intensity exercises when recovery is poor,
+   * and favors low-intensity/mobility exercises
+   */
+  private applyRecoveryPenalty(
+    exercise: Exercise,
+    recoveryScore: RecoveryScore,
+    baseRecoveryScore: number
+  ): number {
+    // High-intensity exercise types that should be penalized when recovery is poor
+    const highIntensityTypes = new Set([
+      'powerlifting', 'olympic_weightlifting', 'strength',
+      'hiit', 'plyometric', 'power', 'metabolic'
+    ]);
+
+    // Low-intensity exercise types that should be favored when recovery is poor
+    const lowIntensityTypes = new Set([
+      'mobility', 'stretching', 'yoga', 'warmup', 'cooldown',
+      'rehab', 'corrective', 'activation'
+    ]);
+
+    let adjustment = baseRecoveryScore;
+
+    if (recoveryScore.classification === 'poor') {
+      // Strong penalty for high-intensity when recovery is poor
+      if (highIntensityTypes.has(exercise.type)) {
+        adjustment -= 30;
+      }
+      // Strong bonus for low-intensity/mobility
+      if (lowIntensityTypes.has(exercise.type)) {
+        adjustment += 20;
+      }
+      // Penalty for high difficulty exercises
+      if (exercise.difficulty >= 4) {
+        adjustment -= 20;
+      }
+    } else if (recoveryScore.classification === 'fair') {
+      // Moderate penalty for high-intensity
+      if (highIntensityTypes.has(exercise.type)) {
+        adjustment -= 15;
+      }
+      // Moderate bonus for low-intensity
+      if (lowIntensityTypes.has(exercise.type)) {
+        adjustment += 10;
+      }
+    } else if (recoveryScore.classification === 'excellent') {
+      // Bonus for high-intensity when fully recovered
+      if (highIntensityTypes.has(exercise.type)) {
+        adjustment += 10;
+      }
+    }
+
+    return adjustment;
+  }
+
+  /**
    * Recommend sets based on phase and context
    */
   private recommendSets(exercise: Exercise, phase: TrainingPhase | null, context: UserContext): number {
