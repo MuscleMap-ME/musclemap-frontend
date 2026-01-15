@@ -20,7 +20,7 @@ import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins'
 
 // UI/UX Enhancement Components
 import { ContextualTipProvider } from './components/tips';
-import { SpotlightTourRenderer } from './components/tour';
+const SpotlightTourRenderer = lazy(() => import('./components/tour/SpotlightTour').then(m => ({ default: m.SpotlightTourRenderer })));
 
 // Transition System
 import { TransitionProvider } from './components/transitions';

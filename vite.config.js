@@ -75,15 +75,17 @@ export default defineConfig({
         // Only preload critical path chunks
         // Exclude heavy vendor chunks that are only needed for specific pages
         const heavyChunks = [
-          'three-vendor',
-          'recharts-vendor',
-          'd3-vendor',
-          'reactflow-vendor',
-          'leaflet-vendor',
-          'markdown-vendor',
-          'lottie-vendor',
-          'dicebear-vendor',
-          'ui-vendor',
+          'three-vendor',     // 3D rendering - only dashboard/workout
+          'recharts-vendor',  // Charts - only stats pages
+          'd3-vendor',        // Charts - only stats pages
+          'reactflow-vendor', // Flow diagrams - only skill tree
+          'leaflet-vendor',   // Maps - only location pages
+          'markdown-vendor',  // Markdown - only docs pages
+          'lottie-vendor',    // Animations - rare usage
+          'dicebear-vendor',  // Avatar generation - rare usage
+          'ui-vendor',        // MUI/Headless - load after initial
+          'animation-vendor', // framer-motion - defer for low-end devices
+          'apollo-vendor',    // GraphQL - can load after initial paint
         ];
 
         return deps.filter(dep => {
