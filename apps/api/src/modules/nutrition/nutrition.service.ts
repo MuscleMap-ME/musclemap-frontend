@@ -385,11 +385,11 @@ export class NutritionService {
   // ============================================
 
   private async getUserArchetype(userId: string): Promise<string | null> {
-    const row = await db.queryOne<{ archetype: string }>(
-      `SELECT archetype FROM users WHERE id = $1`,
+    const row = await db.queryOne<{ current_identity_id: string | null }>(
+      `SELECT current_identity_id FROM users WHERE id = $1`,
       [userId]
     );
-    return row?.archetype || null;
+    return row?.current_identity_id || null;
   }
 
   private mapPreferencesRow(row: any): NutritionPreferences {
