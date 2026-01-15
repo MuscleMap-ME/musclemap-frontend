@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
-import { companionEventsService } from '../../modules/mascot';
+import { companionEventsService, mascotAssistService } from '../../modules/mascot';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -40,6 +40,15 @@ const equipSchema = z.object({
 
 const markReactedSchema = z.object({
   eventIds: z.array(z.string()).min(1),
+});
+
+const useAssistSchema = z.object({
+  exerciseId: z.string().min(1),
+  workoutId: z.string().optional(),
+  sets: z.number().int().min(1).max(10).default(1),
+  reps: z.number().int().min(0).max(1000).optional(),
+  weight: z.number().min(0).max(10000).optional(),
+  reason: z.enum(['tired', 'injury_recovery', 'time_constraint', 'other']).optional(),
 });
 
 // =====================================================
@@ -76,10 +85,11 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       });
     }
 
+    // ecosystem_sections is a JSONB column, so it comes back as an array already
     return reply.send({
       data: {
         ...config,
-        ecosystem_sections: JSON.parse(config.ecosystem_sections || '[]'),
+        ecosystem_sections: config.ecosystem_sections || [],
       },
     });
   });
@@ -91,6 +101,7 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
   app.get('/mascot/global/placements', async (request, reply) => {
     const { location } = request.query as { location?: string };
 
+    // config column is JSONB, no need to parse
     let queryStr = `SELECT * FROM global_mascot_placements WHERE enabled = TRUE`;
     const params: string[] = [];
 
@@ -105,14 +116,15 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       enabled: boolean;
       animation_state: string;
       size: string;
-      config: string;
+      config: Record<string, unknown>;
       created_at: Date;
     }>(queryStr, params);
 
+    // config is JSONB, no need to parse
     return reply.send({
       data: placements.map((p) => ({
         ...p,
-        config: JSON.parse(p.config || '{}'),
+        config: p.config || {},
       })),
     });
   });
@@ -543,5 +555,192 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
     );
 
     return reply.send({ data: { tip } });
+  });
+
+  // =====================================================
+  // MASCOT ASSIST ROUTES (Authenticated)
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/assist/state
+   * Get current mascot assist state (charges, cooldown, ability)
+   */
+  app.get('/mascot/companion/assist/state', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const state = await mascotAssistService.getOrCreateState(userId);
+
+      return reply.send({
+        data: {
+          chargesRemaining: state.chargesRemaining,
+          chargesMax: state.chargesMax,
+          lastChargeReset: state.lastChargeReset,
+          lastAssistUsed: state.lastAssistUsed,
+          totalAssistsUsed: state.totalAssistsUsed,
+          exercisesAssistedToday: state.exercisesAssistedToday,
+          canUseAssist: state.canUseAssist,
+          cooldownEndsAt: state.cooldownEndsAt,
+          companionStage: state.companionStage,
+          userRankTier: state.userRankTier,
+          ability: state.currentAbility ? {
+            id: state.currentAbility.abilityId,
+            name: state.currentAbility.abilityName,
+            maxExercises: state.currentAbility.maxExercises,
+            dailyCharges: state.currentAbility.dailyCharges,
+            cooldownHours: state.currentAbility.cooldownHours,
+          } : null,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get mascot assist state');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get assist state', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/assist/use
+   * Use mascot assist to complete an exercise
+   */
+  app.post('/mascot/companion/assist/use', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    let data;
+    try {
+      data = useAssistSchema.parse(request.body);
+    } catch {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'Invalid assist request', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await mascotAssistService.useAssist(userId, data.exerciseId, {
+        workoutId: data.workoutId,
+        sets: data.sets,
+        reps: data.reps,
+        weight: data.weight,
+        reason: data.reason,
+      });
+
+      if (!result.success) {
+        const statusCode = result.error === 'NO_CHARGES' ? 429 :
+                          result.error === 'COOLDOWN' ? 429 :
+                          result.error === 'MAX_EXERCISES' ? 429 :
+                          result.error === 'NO_ABILITY' ? 403 :
+                          result.error === 'EXERCISE_NOT_FOUND' ? 404 : 400;
+
+        return reply.status(statusCode).send({
+          error: {
+            code: result.error,
+            message: result.message,
+            statusCode,
+          },
+        });
+      }
+
+      // Emit companion event for the assist
+      await companionEventsService.emit(userId, 'workout_logged', {
+        assisted: true,
+        exerciseId: data.exerciseId,
+        sets: data.sets,
+      });
+
+      return reply.send({
+        data: {
+          success: true,
+          assistLogId: result.assistLogId,
+          tuAwarded: result.tuAwarded,
+          chargesRemaining: result.chargesRemaining,
+          message: result.message,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId, exerciseId: data.exerciseId }, 'Failed to use mascot assist');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to use assist', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/assist/history
+   * Get mascot assist history
+   */
+  app.get('/mascot/companion/assist/history', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { limit, cursor } = request.query as { limit?: string; cursor?: string };
+
+    try {
+      const result = await mascotAssistService.getAssistHistory(userId, {
+        limit: limit ? parseInt(limit, 10) : undefined,
+        cursor,
+      });
+
+      return reply.send({
+        data: result.entries,
+        meta: {
+          nextCursor: result.nextCursor,
+          hasMore: result.nextCursor !== null,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get assist history');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get assist history', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/assist/abilities
+   * Get all mascot assist abilities and which one user qualifies for
+   */
+  app.get('/mascot/companion/assist/abilities', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const state = await mascotAssistService.getOrCreateState(userId);
+
+      const abilities = await queryAll<{
+        id: string;
+        name: string;
+        description: string;
+        min_companion_stage: number;
+        max_user_rank_tier: number | null;
+        max_exercises_per_workout: number;
+        daily_charges: number;
+        cooldown_hours: number;
+        enabled: boolean;
+      }>(`SELECT * FROM mascot_assist_abilities WHERE enabled = TRUE ORDER BY min_companion_stage ASC`);
+
+      return reply.send({
+        data: {
+          currentAbility: state.currentAbility,
+          companionStage: state.companionStage,
+          userRankTier: state.userRankTier,
+          abilities: abilities.map((a) => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            minCompanionStage: a.min_companion_stage,
+            maxUserRankTier: a.max_user_rank_tier,
+            maxExercises: a.max_exercises_per_workout,
+            dailyCharges: a.daily_charges,
+            cooldownHours: a.cooldown_hours,
+            isActive: state.currentAbility?.abilityId === a.id,
+            isUnlocked: state.companionStage >= a.min_companion_stage &&
+                        (a.max_user_rank_tier === null || state.userRankTier <= a.max_user_rank_tier),
+          })),
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get assist abilities');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get abilities', statusCode: 500 },
+      });
+    }
   });
 }

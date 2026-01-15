@@ -1243,14 +1243,149 @@ async function testTips(ctx: TestContext) {
 }
 
 async function testMascot(ctx: TestContext) {
-  logSection('MASCOT');
+  logSection('MASCOT & COMPANION');
 
-  await runTest('Mascot', 'Get mascot info', async () => {
-    const res = await request('GET', '/mascot', {
-      token: ctx.token,
-      expectedStatus: [200, 404, 500],
+  // Global mascot config
+  await runTest('Mascot', 'Get global mascot config', async () => {
+    const res = await request('GET', '/mascot/global/config', {
+      expectedStatus: [200, 404],
     });
-    assert([200, 404, 500].includes(res.status), 'Mascot should respond');
+    assert([200, 404].includes(res.status), 'Global mascot config should respond');
+  });
+
+  // Global mascot placements
+  await runTest('Mascot', 'Get global mascot placements', async () => {
+    const res = await request('GET', '/mascot/global/placements', {
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Global mascot placements should respond');
+  });
+
+  // User companion state
+  await runTest('Mascot', 'Get companion state', async () => {
+    const res = await request('GET', '/mascot/companion/state', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Companion state should respond');
+    const data = res.data as { data?: { stage?: number; xp?: number } };
+    assert(data?.data?.stage !== undefined, 'Should have companion stage');
+  });
+
+  // Companion upgrades
+  await runTest('Mascot', 'Get companion upgrades', async () => {
+    const res = await request('GET', '/mascot/companion/upgrades', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Companion upgrades should respond');
+    const data = res.data as { data?: { upgrades?: unknown[] } };
+    assert(Array.isArray(data?.data?.upgrades), 'Should have upgrades array');
+  });
+
+  // Companion recent events
+  await runTest('Mascot', 'Get companion recent events', async () => {
+    const res = await request('GET', '/mascot/companion/events/recent?limit=5', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Companion events should respond');
+  });
+
+  // ============================================
+  // MASCOT ASSIST TESTS
+  // ============================================
+
+  // Get mascot assist state
+  await runTest('Mascot', 'Get mascot assist state', async () => {
+    const res = await request('GET', '/mascot/companion/assist/state', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot assist state should respond');
+    const data = res.data as {
+      data?: {
+        chargesRemaining?: number;
+        chargesMax?: number;
+        canUseAssist?: boolean;
+        ability?: unknown;
+      };
+    };
+    assert(data?.data?.chargesRemaining !== undefined, 'Should have charges remaining');
+    assert(data?.data?.chargesMax !== undefined, 'Should have max charges');
+    assert(data?.data?.canUseAssist !== undefined, 'Should have canUseAssist flag');
+  });
+
+  // Get mascot assist abilities
+  await runTest('Mascot', 'Get mascot assist abilities', async () => {
+    const res = await request('GET', '/mascot/companion/assist/abilities', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot assist abilities should respond');
+    const data = res.data as {
+      data?: {
+        abilities?: unknown[];
+        companionStage?: number;
+        userRankTier?: number;
+      };
+    };
+    assert(Array.isArray(data?.data?.abilities), 'Should have abilities array');
+  });
+
+  // Get mascot assist history (should be empty for new user)
+  await runTest('Mascot', 'Get mascot assist history', async () => {
+    const res = await request('GET', '/mascot/companion/assist/history?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot assist history should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have history array');
+  });
+
+  // Test using mascot assist (should work for new users with stage 1)
+  await runTest('Mascot', 'Use mascot assist on exercise', async () => {
+    // First get an exercise ID
+    const exercisesRes = await request('GET', '/exercises?limit=1', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    const exercisesData = exercisesRes.data as { data?: { id: string }[] };
+    const exerciseId = exercisesData?.data?.[0]?.id;
+
+    if (!exerciseId) {
+      // Skip if no exercises available
+      return;
+    }
+
+    const res = await request('POST', '/mascot/companion/assist/use', {
+      token: ctx.token,
+      body: {
+        exerciseId,
+        sets: 1,
+        reps: 10,
+        reason: 'tired',
+      },
+      expectedStatus: [200, 403, 429], // 403 if no ability, 429 if no charges/cooldown
+    });
+    assert([200, 403, 429].includes(res.status), 'Mascot assist use should respond appropriately');
+
+    if (res.status === 200) {
+      const data = res.data as { data?: { success?: boolean; tuAwarded?: number } };
+      assert(data?.data?.success === true, 'Assist should succeed');
+      assert(data?.data?.tuAwarded !== undefined, 'Should award TU');
+    }
+  });
+
+  // Verify assist history now has an entry (if assist was used)
+  await runTest('Mascot', 'Verify mascot assist logged', async () => {
+    const res = await request('GET', '/mascot/companion/assist/history?limit=1', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot assist history should respond');
+    // History may or may not have entries depending on previous test
   });
 }
 

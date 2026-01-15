@@ -12,7 +12,7 @@ import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
 import { earningService } from '../../modules/economy/earning.service';
 import { statsService } from '../../modules/stats';
-import { companionEventsService } from '../../modules/mascot';
+import { companionEventsService, mascotAssistService } from '../../modules/mascot';
 import { logActivityEvent } from '../../services/live-activity-logger';
 import { loggers } from '../../lib/logger';
 import { tu_calculate, isNative, TUInput } from '@musclemap/native';
@@ -27,6 +27,7 @@ const workoutExerciseSchema = z.object({
   weight: z.number().min(0).max(10000).optional(),
   duration: z.number().int().min(0).max(86400).optional(),
   notes: z.string().max(500).optional(),
+  mascotAssisted: z.boolean().optional(), // If true, mascot completed this exercise
 });
 
 const createWorkoutSchema = z.object({
@@ -44,6 +45,7 @@ interface WorkoutExercise {
   weight?: number;
   duration?: number;
   notes?: string;
+  mascotAssisted?: boolean;
 }
 
 // In-memory cache for TU calculation inputs (exercise activations don't change frequently)
@@ -234,6 +236,73 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
 
       const { totalTU, muscleActivations } = await calculateTU(data.exercises as WorkoutExercise[]);
 
+      // Handle mascot-assisted exercises
+      const mascotAssistedExerciseIds: string[] = [];
+      const assistedExercises = data.exercises.filter((e) => e.mascotAssisted);
+
+      if (assistedExercises.length > 0) {
+        // Validate mascot assist usage
+        const assistState = await mascotAssistService.getOrCreateState(userId);
+
+        if (!assistState.currentAbility) {
+          return reply.status(403).send({
+            error: {
+              code: 'NO_ASSIST_ABILITY',
+              message: 'Your companion cannot assist with exercises yet. Keep training together!',
+              statusCode: 403,
+            },
+          });
+        }
+
+        if (assistedExercises.length > assistState.currentAbility.maxExercises) {
+          return reply.status(400).send({
+            error: {
+              code: 'TOO_MANY_ASSISTS',
+              message: `Your companion can only assist with ${assistState.currentAbility.maxExercises} exercise(s) per workout.`,
+              statusCode: 400,
+            },
+          });
+        }
+
+        if (assistState.chargesRemaining < assistedExercises.length) {
+          return reply.status(429).send({
+            error: {
+              code: 'NO_CHARGES',
+              message: `Your companion only has ${assistState.chargesRemaining} charge(s) remaining. Charges reset daily.`,
+              statusCode: 429,
+            },
+          });
+        }
+
+        if (assistState.cooldownEndsAt) {
+          const minutesRemaining = Math.ceil((assistState.cooldownEndsAt.getTime() - Date.now()) / (1000 * 60));
+          return reply.status(429).send({
+            error: {
+              code: 'COOLDOWN',
+              message: `Your companion needs ${minutesRemaining} more minutes to recover.`,
+              statusCode: 429,
+            },
+          });
+        }
+
+        // Use assist charges for each assisted exercise
+        for (const exercise of assistedExercises) {
+          const assistResult = await mascotAssistService.useAssist(userId, exercise.exerciseId, {
+            sets: exercise.sets,
+            reps: exercise.reps,
+            weight: exercise.weight,
+            reason: 'tired',
+          });
+
+          if (assistResult.success) {
+            mascotAssistedExerciseIds.push(exercise.exerciseId);
+          } else {
+            log.warn({ userId, exerciseId: exercise.exerciseId, error: assistResult.error },
+              'Failed to use mascot assist for exercise');
+          }
+        }
+      }
+
       // Charge credits
       let chargeResult;
       try {
@@ -262,8 +331,8 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
       // Insert workout - if this fails after charging, the idempotency key prevents double-charging on retry
       try {
         await query(
-          `INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO workouts (id, user_id, date, total_tu, credits_used, notes, is_public, exercise_data, muscle_activations, mascot_assisted_exercises)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
             workoutId,
             userId,
@@ -274,6 +343,7 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
             data.isPublic !== false,
             JSON.stringify(data.exercises),
             JSON.stringify(muscleActivations),
+            mascotAssistedExerciseIds,
           ]
         );
       } catch (insertError: any) {
@@ -299,7 +369,23 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         }
       }
 
-      log.info({ workoutId, userId, totalTU }, 'Workout created');
+      log.info({ workoutId, userId, totalTU, mascotAssistedCount: mascotAssistedExerciseIds.length }, 'Workout created');
+
+      // Update mascot assist log entries with the workout ID - non-critical
+      if (mascotAssistedExerciseIds.length > 0) {
+        try {
+          const placeholders = mascotAssistedExerciseIds.map((_, i) => `$${i + 3}`).join(',');
+          await query(
+            `UPDATE mascot_assist_log
+             SET workout_id = $1
+             WHERE user_id = $2 AND exercise_id IN (${placeholders}) AND workout_id IS NULL
+             AND created_at > NOW() - INTERVAL '5 minutes'`,
+            [workoutId, userId, ...mascotAssistedExerciseIds]
+          );
+        } catch (assistLogError) {
+          log.error({ assistLogError, userId, workoutId }, 'Failed to update mascot assist log');
+        }
+      }
 
       // Update character stats - non-critical, log errors but don't fail the request
       let updatedStats = null;
@@ -322,6 +408,7 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
           workoutId,
           exerciseCount: data.exercises.length,
           totalTU,
+          mascotAssistedCount: mascotAssistedExerciseIds.length,
         });
       } catch (companionError) {
         log.error({ companionError, userId, workoutId }, 'Failed to emit companion event');
@@ -396,6 +483,7 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
           ...workout,
           exerciseData,
           muscleActivations: muscleActivationsData,
+          mascotAssistedExercises: mascotAssistedExerciseIds,
           characterStats: updatedStats ? {
             strength: Number(updatedStats.strength),
             constitution: Number(updatedStats.constitution),
