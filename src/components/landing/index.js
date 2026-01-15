@@ -21,3 +21,9 @@ export {
   getMusclesForView,
   getMusclePathsForView,
 } from './musclePathData';
+
+// Interactive demo components
+export { default as InteractiveDemo } from './InteractiveDemo';
+export { default as MuscleTrackingDemo } from './MuscleTrackingDemo';
+export { default as RPGProgressionDemo } from './RPGProgressionDemo';
+export { default as WorkoutLogDemo } from './WorkoutLogDemo';

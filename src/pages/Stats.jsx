@@ -4,8 +4,9 @@
  * Character stats display with radar chart visualization and leaderboards.
  */
 
-import React, { useState, useEffect, useCallback, useMemo, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import {
@@ -17,6 +18,11 @@ import {
 // Lazy load heavy D3 chart component
 const RadarChartD3 = lazy(() =>
   import('../components/d3').then(m => ({ default: m.RadarChartD3 }))
+);
+
+// Lazy load MuscleExplorer for 3D-like muscle visualization
+const MuscleExplorer = lazy(() =>
+  import('../components/muscle-explorer').then(m => ({ default: m.default || m.MuscleExplorer }))
 );
 
 
@@ -431,12 +437,19 @@ function Leaderboard({ userLocation }) {
 // ============================================
 export default function Stats() {
   const { user: _user } = useUser();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [rankings, setRankings] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Muscle Explorer state
+  const [muscleActivations, setMuscleActivations] = useState({});
+  const [selectedMuscle, setSelectedMuscle] = useState(searchParams.get('muscle') || null);
+  const [muscleHistory, _setMuscleHistory] = useState({});
 
   const loadData = useCallback(async () => {
     try {
@@ -456,9 +469,56 @@ export default function Stats() {
     }
   }, []);
 
+  // Load muscle activation data
+  const loadMuscleData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/muscles/activations');
+      const data = await response.json();
+      if (data.data && Array.isArray(data.data)) {
+        // Convert array to object map for MuscleExplorer
+        const activationMap = {};
+        data.data.forEach(item => {
+          activationMap[item.muscleId] = item.activation;
+        });
+        setMuscleActivations(activationMap);
+      }
+    } catch (_err) {
+      // Use mock data if API fails
+      setMuscleActivations({
+        'pectoralis-major': 65,
+        'deltoid-anterior': 45,
+        'biceps-brachii': 30,
+        'rectus-abdominis': 20,
+        'quadriceps': 50,
+        'latissimus-dorsi': 35,
+        'trapezius': 40,
+        'gluteus-maximus': 55,
+      });
+    }
+  }, []);
+
+  // Handle muscle selection - navigates to exercises filtered by muscle
+  const handleFindExercises = useCallback((muscleId) => {
+    navigate(`/exercises?muscle=${muscleId}`);
+  }, [navigate]);
+
+  // Handle muscle click to filter stats by that muscle
+  const handleMuscleSelect = useCallback((muscleId) => {
+    setSelectedMuscle(muscleId);
+    // Update URL params
+    const params = new URLSearchParams(searchParams);
+    if (muscleId) {
+      params.set('muscle', muscleId);
+    } else {
+      params.delete('muscle');
+    }
+    navigate({ search: params.toString() }, { replace: true });
+  }, [navigate, searchParams]);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadMuscleData();
+  }, [loadData, loadMuscleData]);
 
   const handleRecalculate = async () => {
     setRecalculating(true);
@@ -513,6 +573,66 @@ export default function Stats() {
             {error}
           </div>
         )}
+
+        {/* Muscle Explorer Section - Full Width */}
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Icons.User className="w-5 h-5 text-violet-400" />
+                Muscle Activation Explorer
+              </h2>
+              <p className="text-white/60 text-sm mt-1">
+                Click on muscles to see activation history and find exercises
+              </p>
+            </div>
+            {selectedMuscle && (
+              <GlassButton
+                onClick={() => handleMuscleSelect(null)}
+                className="text-sm"
+              >
+                Clear Selection
+              </GlassButton>
+            )}
+          </div>
+
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-white/50 text-sm">Loading muscle explorer...</p>
+                </div>
+              </div>
+            }
+          >
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Front and Back Views */}
+              <MuscleExplorer
+                view="both"
+                activations={muscleActivations}
+                selectedMuscle={selectedMuscle}
+                onMuscleSelect={handleMuscleSelect}
+                interactive
+                showLabels
+                size="md"
+                colorScheme="heat"
+                showControls
+                showLegend
+                activationHistory={muscleHistory}
+                onFindExercises={handleFindExercises}
+                onViewHistory={(muscleId) => {
+                  // Could navigate to a dedicated muscle history page
+                  console.log('View history for', muscleId);
+                }}
+                onExerciseClick={(exercise) => {
+                  navigate(`/exercises?search=${encodeURIComponent(exercise)}`);
+                }}
+                className="flex-1"
+              />
+            </div>
+          </Suspense>
+        </GlassCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* D3 Radar Chart - Hyper-realistic with animations */}

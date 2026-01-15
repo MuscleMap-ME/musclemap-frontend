@@ -18,6 +18,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
+import logger from '../utils/logger';
 import { DailyTip, MilestoneProgress, useContextualTips, useTipOnCondition, ActiveContextualTip } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { NutritionDashboardCard, QuickLogModal } from '../components/nutrition';
@@ -34,6 +35,9 @@ import { HelpTooltip } from '../components/help';
 // Tour and Discovery Components
 import { SpotlightTour, useTour } from '../components/tour';
 import { FeatureDiscovery } from '../components/discovery';
+
+// Daily Challenges Component
+import { DailyChallenges } from '../components/challenges';
 
 // Celebration hooks
 import { useCelebrationCallbacks } from '../store';
@@ -1276,6 +1280,19 @@ export default function Dashboard() {
                   delay={0.2}
                 />
               </div>
+            </div>
+
+            {/* Daily Challenges Section */}
+            <div className="mb-8" data-tour="daily-challenges">
+              <DailyChallenges
+                userId={user?.id}
+                onChallengeComplete={(challenge) => {
+                  logger.info('challenge_completed', { challengeId: challenge.id });
+                }}
+                onRewardClaimed={(challenge, rewards) => {
+                  logger.info('challenge_reward_claimed', { challengeId: challenge.id, rewards });
+                }}
+              />
             </div>
 
             {/* Two Column Layout */}

@@ -504,5 +504,4 @@ export function useSharedElementTransition(id, options = {}) {
 // EXPORTS
 // ============================================
 
-export { DEFAULT_TRANSITION, TRANSITION_PRESETS };
 export default SharedElement;

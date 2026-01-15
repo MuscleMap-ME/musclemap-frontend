@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client/react';
+import { AnimatePresence } from 'framer-motion';
 import { apolloClient } from './graphql';
 import { UserProvider, useUser } from './contexts/UserContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -18,6 +19,13 @@ import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins'
 // UI/UX Enhancement Components
 import { ContextualTipProvider } from './components/tips';
 import { SpotlightTourRenderer } from './components/tour';
+
+// Transition System
+import { TransitionProvider } from './components/transitions';
+
+// Global Components - Lazy loaded for performance
+const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
+const LootDrop = lazy(() => import('./components/loot/LootDrop'));
 
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
@@ -401,6 +409,7 @@ function PluginRouteWrapper({ route }) {
 function AppRoutes() {
   const isNavigating = useNavigationState();
   const pluginRoutes = usePluginRoutes();
+  const location = useLocation();
 
   return (
     <>
@@ -411,7 +420,8 @@ function AppRoutes() {
       <PageTracker />
 
       <Suspense fallback={<PageSkeleton />}>
-        <Routes>
+        <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
           {/* Public routes */}
           <Route path="/" element={<ErrorBoundary name="Landing"><Landing /></ErrorBoundary>} />
           <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
@@ -532,6 +542,7 @@ function AppRoutes() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </AnimatePresence>
       </Suspense>
     </>
   );
@@ -596,25 +607,35 @@ export default function App() {
         <ThemeProvider>
           <LocaleProvider>
             <BrowserRouter>
-              <UserProvider>
-                <PluginProvider>
-                  <PluginThemeProvider>
-                    <CommandPaletteProvider>
-                      <CompanionProvider>
-                        <ContextualTipProvider>
-                          <div id="main-content" role="main">
-                            <AppRoutes />
-                          </div>
-                          <CompanionDock />
-                          <GlobalCommandPalette />
-                          {/* Global Spotlight Tour Renderer */}
-                          <SpotlightTourRenderer />
-                        </ContextualTipProvider>
-                      </CompanionProvider>
-                    </CommandPaletteProvider>
-                  </PluginThemeProvider>
-                </PluginProvider>
-              </UserProvider>
+              <TransitionProvider showProgressBar>
+                <UserProvider>
+                  <PluginProvider>
+                    <PluginThemeProvider>
+                      <CommandPaletteProvider>
+                        <CompanionProvider>
+                          <ContextualTipProvider>
+                            <div id="main-content" role="main">
+                              <AppRoutes />
+                            </div>
+                            <CompanionDock />
+                            <GlobalCommandPalette />
+                            {/* Global Spotlight Tour Renderer */}
+                            <SpotlightTourRenderer />
+                            {/* Global AI Coach - Floating widget (bottom-right) */}
+                            <Suspense fallback={null}>
+                              <AICoach position="bottom-right" />
+                            </Suspense>
+                            {/* Global Loot Drop System */}
+                            <Suspense fallback={null}>
+                              <LootDrop />
+                            </Suspense>
+                          </ContextualTipProvider>
+                        </CompanionProvider>
+                      </CommandPaletteProvider>
+                    </PluginThemeProvider>
+                  </PluginProvider>
+                </UserProvider>
+              </TransitionProvider>
             </BrowserRouter>
           </LocaleProvider>
         </ThemeProvider>
