@@ -10,6 +10,7 @@ import { loggers } from './logger';
 import { withLock } from './distributed-lock';
 import { queryAll, queryOne, query } from '../db/client';
 import earningService from '../modules/economy/earning.service';
+import { EmailService } from '../services/email.service';
 
 const log = loggers.core.child({ module: 'scheduler' });
 
@@ -328,6 +329,102 @@ async function cleanupOldFraudFlags(): Promise<void> {
 }
 
 /**
+ * Process hourly feedback digest email
+ * Collects non-bug feedback items and sends digest to admin
+ * Runs every hour
+ */
+async function processFeedbackDigest(): Promise<void> {
+  try {
+    await withLock('scheduler:feedback-digest', async () => {
+      log.info('Processing feedback digest...');
+
+      // Get new non-bug feedback items that haven't been included in a digest yet
+      const items = await queryAll<{
+        id: string;
+        type: string;
+        title: string;
+        description: string;
+        username: string;
+        created_at: Date;
+      }>(
+        `SELECT
+          f.id,
+          f.type,
+          f.title,
+          f.description,
+          u.username,
+          f.created_at
+        FROM user_feedback f
+        JOIN users u ON f.user_id = u.id
+        WHERE f.digest_included_at IS NULL
+        AND f.type != 'bug_report'
+        AND f.created_at > NOW() - INTERVAL '2 hours'
+        ORDER BY f.created_at DESC
+        LIMIT 50`
+      );
+
+      if (items.length === 0) {
+        log.debug('No new feedback items for digest');
+        return;
+      }
+
+      // Send the digest email
+      const result = await EmailService.sendFeedbackDigest(
+        items.map((item) => ({
+          id: item.id,
+          type: item.type as 'feature_request' | 'question' | 'general',
+          title: item.title,
+          description: item.description,
+          username: item.username,
+          createdAt: item.created_at,
+        }))
+      );
+
+      if (result.success) {
+        // Mark items as included in digest
+        const feedbackIds = items.map((i) => i.id);
+        await query(
+          `UPDATE user_feedback SET digest_included_at = NOW() WHERE id = ANY($1)`,
+          [feedbackIds]
+        );
+
+        // Record the digest
+        const bugCount = items.filter((i) => i.type === 'bug_report').length;
+        const featureCount = items.filter((i) => i.type === 'feature_request').length;
+        const questionCount = items.filter((i) => i.type === 'question').length;
+        const generalCount = items.filter((i) => i.type === 'general').length;
+
+        await query(
+          `INSERT INTO feedback_email_digests
+           (recipient_email, feedback_ids, feedback_count, email_id, bug_count, feature_count, question_count, general_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            process.env.ADMIN_EMAIL || 'admin@musclemap.me',
+            feedbackIds,
+            items.length,
+            result.id || null,
+            bugCount,
+            featureCount,
+            questionCount,
+            generalCount,
+          ]
+        );
+
+        log.info({ itemCount: items.length, emailId: result.id }, 'Feedback digest sent');
+      } else {
+        log.error({ error: result.error }, 'Failed to send feedback digest');
+      }
+    }, { ttl: 120000 }); // 2 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      log.debug('Another instance is processing feedback digest');
+    } else {
+      log.error({ err }, 'Error processing feedback digest');
+    }
+  }
+}
+
+/**
  * Start all scheduled jobs
  */
 export function startScheduler(): void {
@@ -428,7 +525,14 @@ export function startScheduler(): void {
     activeIntervals.push(archiveInterval);
   }, msUntilSunday2AM);
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, and credit archival');
+  // ============================================
+  // FEEDBACK DIGEST JOB - Hourly
+  // ============================================
+  const feedbackDigestInterval = setInterval(processFeedbackDigest, 60 * 60 * 1000);
+  activeIntervals.push(feedbackDigestInterval);
+  // Don't run immediately - wait for the first hour
+
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, and feedback digest');
 }
 
 /**
@@ -589,4 +693,11 @@ export async function triggerLeaderboardRewards(periodType: 'daily' | 'weekly' |
       await processMonthlyLeaderboardRewards();
       break;
   }
+}
+
+/**
+ * Manually trigger feedback digest (for admin/testing)
+ */
+export async function triggerFeedbackDigest(): Promise<void> {
+  await processFeedbackDigest();
 }

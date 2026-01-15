@@ -16,23 +16,29 @@ import { useUser } from '../contexts/UserContext';
 import GlassSurface from '../components/glass/GlassSurface';
 import {
   Activity,
+  AlertCircle,
   Award,
   BarChart3,
   Bell,
+  Bug,
   CheckCircle,
   ChevronRight,
+  Clock,
   Coins,
   Crown,
   Flame,
   Gift,
   Globe,
   Heart,
+  HelpCircle,
   Infinity,
   LayoutDashboard,
+  Lightbulb,
   Mail,
   MessageCircle,
   MessageSquare,
   MoreVertical,
+  Play,
   RefreshCw,
   Search,
   Send,
@@ -45,6 +51,7 @@ import {
   Trophy,
   Users,
   Wallet,
+  X,
   Zap,
   TrendingUp,
   ExternalLink,
@@ -77,6 +84,7 @@ const OWNER_POWERS = [
 
 const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
   { id: 'scorecard', label: 'Test Scorecard', icon: Target, link: '/empire/scorecard' },
@@ -214,6 +222,15 @@ export default function EmpireControl() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [giftAmount, setGiftAmount] = useState(100);
 
+  // Feedback state
+  const [feedbackStats, setFeedbackStats] = useState(null);
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [feedbackFilter, setFeedbackFilter] = useState({ type: null, status: null });
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [feedbackDetailOpen, setFeedbackDetailOpen] = useState(false);
+  const [respondMessage, setRespondMessage] = useState('');
+  const [respondInternal, setRespondInternal] = useState(false);
+
   // Get auth header
   const getAuthHeader = useCallback(() => {
     try {
@@ -295,6 +312,123 @@ export default function EmpireControl() {
     }
   }, [getAuthHeader]);
 
+  // Fetch feedback stats
+  const fetchFeedbackStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/feedback/stats', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackStats(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch feedback stats:', e);
+    }
+  }, [getAuthHeader]);
+
+  // Fetch feedback items
+  const fetchFeedbackItems = useCallback(async () => {
+    try {
+      let url = '/api/admin/feedback?limit=50';
+      if (feedbackFilter.type) url += `&type=${feedbackFilter.type}`;
+      if (feedbackFilter.status) url += `&status=${feedbackFilter.status}`;
+
+      const res = await fetch(url, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackItems(data.items || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch feedback:', e);
+    }
+  }, [getAuthHeader, feedbackFilter]);
+
+  // Fetch single feedback detail
+  const fetchFeedbackDetail = useCallback(async (id) => {
+    try {
+      const res = await fetch(`/api/admin/feedback/${id}`, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedFeedback(data);
+        setFeedbackDetailOpen(true);
+      }
+    } catch (e) {
+      console.error('Failed to fetch feedback detail:', e);
+    }
+  }, [getAuthHeader]);
+
+  // Confirm bug for auto-fix
+  const confirmBug = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/feedback/${id}/confirm-bug`, {
+        method: 'POST',
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Bug confirmed! Job ID: ${data.jobId}`);
+        fetchFeedbackItems();
+        fetchFeedbackStats();
+      }
+    } catch (e) {
+      console.error('Failed to confirm bug:', e);
+    }
+  };
+
+  // Update feedback status
+  const updateFeedbackStatus = async (id, status) => {
+    try {
+      const res = await fetch(`/api/admin/feedback/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        fetchFeedbackItems();
+        fetchFeedbackStats();
+        if (selectedFeedback?.id === id) {
+          fetchFeedbackDetail(id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to update feedback:', e);
+    }
+  };
+
+  // Respond to feedback
+  const respondToFeedback = async () => {
+    if (!selectedFeedback || !respondMessage.trim()) return;
+
+    try {
+      const res = await fetch(`/api/admin/feedback/${selectedFeedback.id}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          message: respondMessage,
+          is_internal: respondInternal,
+        }),
+      });
+      if (res.ok) {
+        setRespondMessage('');
+        setRespondInternal(false);
+        fetchFeedbackDetail(selectedFeedback.id);
+      }
+    } catch (e) {
+      console.error('Failed to respond:', e);
+    }
+  };
+
   // Gift credits to user
   const giftCredits = async () => {
     if (!selectedUser || giftAmount <= 0) return;
@@ -351,11 +485,18 @@ export default function EmpireControl() {
         fetchUsers(),
         fetchEconomyStats(),
         fetchMessages(),
+        fetchFeedbackStats(),
+        fetchFeedbackItems(),
       ]);
       setLoading(false);
     };
     loadData();
-  }, [fetchMetrics, fetchUsers, fetchEconomyStats, fetchMessages]);
+  }, [fetchMetrics, fetchUsers, fetchEconomyStats, fetchMessages, fetchFeedbackStats, fetchFeedbackItems]);
+
+  // Refresh feedback when filter changes
+  useEffect(() => {
+    fetchFeedbackItems();
+  }, [feedbackFilter, fetchFeedbackItems]);
 
   // Auto-refresh metrics
   useEffect(() => {
@@ -620,6 +761,406 @@ export default function EmpireControl() {
                       ))}
                     </div>
                   </GlassSurface>
+                </div>
+              )}
+
+              {/* Feedback Queue Section */}
+              {activeSection === 'feedback' && (
+                <div className="space-y-6">
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard
+                      title="Total Feedback"
+                      value={feedbackStats?.total || 0}
+                      icon={MessageSquare}
+                      color="#8b5cf6"
+                    />
+                    <StatCard
+                      title="Open Bugs"
+                      value={feedbackStats?.unresolved_bugs || 0}
+                      icon={Bug}
+                      color="#ef4444"
+                      onClick={() => setFeedbackFilter({ type: 'bug_report', status: 'open' })}
+                    />
+                    <StatCard
+                      title="Auto-Fix Queue"
+                      value={(feedbackStats?.auto_fix_pending || 0) + (feedbackStats?.auto_fix_in_progress || 0)}
+                      icon={Zap}
+                      color="#f59e0b"
+                    />
+                    <StatCard
+                      title="Pending Review"
+                      value={feedbackStats?.pending_review || 0}
+                      icon={Clock}
+                      color="#06b6d4"
+                      onClick={() => setFeedbackFilter({ type: null, status: 'open' })}
+                    />
+                  </div>
+
+                  {/* Type Breakdown */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { type: 'bug_report', label: 'Bugs', icon: Bug, color: '#ef4444' },
+                      { type: 'feature_request', label: 'Features', icon: Lightbulb, color: '#10b981' },
+                      { type: 'question', label: 'Questions', icon: HelpCircle, color: '#3b82f6' },
+                      { type: 'general', label: 'General', icon: MessageCircle, color: '#8b5cf6' },
+                    ].map((t) => (
+                      <button
+                        key={t.type}
+                        onClick={() => setFeedbackFilter(prev => ({ ...prev, type: prev.type === t.type ? null : t.type }))}
+                        className={`p-3 rounded-lg border transition-all ${
+                          feedbackFilter.type === t.type
+                            ? 'border-violet-500 bg-violet-500/20'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        <t.icon className="w-5 h-5 mx-auto mb-1" style={{ color: t.color }} />
+                        <div className="text-xs text-gray-400">{t.label}</div>
+                        <div className="text-lg font-bold">{feedbackStats?.by_type?.[t.type] || 0}</div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex gap-2 flex-wrap">
+                    {['open', 'in_progress', 'confirmed', 'resolved', 'closed', 'wont_fix'].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setFeedbackFilter(prev => ({ ...prev, status: prev.status === s ? null : s }))}
+                        className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                          feedbackFilter.status === s
+                            ? 'bg-violet-500 text-white'
+                            : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                        }`}
+                      >
+                        {s.replace('_', ' ')} ({feedbackStats?.by_status?.[s] || 0})
+                      </button>
+                    ))}
+                    {(feedbackFilter.type || feedbackFilter.status) && (
+                      <button
+                        onClick={() => setFeedbackFilter({ type: null, status: null })}
+                        className="px-3 py-1 rounded-full text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Feedback List */}
+                  <GlassSurface className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold">Feedback Items</h3>
+                      <button
+                        onClick={() => { fetchFeedbackItems(); fetchFeedbackStats(); }}
+                        className="p-2 rounded-lg hover:bg-white/10"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                      {feedbackItems.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                          <p>No feedback items found</p>
+                        </div>
+                      ) : (
+                        feedbackItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                            onClick={() => fetchFeedbackDetail(item.id)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {item.type === 'bug_report' && <Bug className="w-4 h-4 text-red-400" />}
+                                  {item.type === 'feature_request' && <Lightbulb className="w-4 h-4 text-green-400" />}
+                                  {item.type === 'question' && <HelpCircle className="w-4 h-4 text-blue-400" />}
+                                  {item.type === 'general' && <MessageCircle className="w-4 h-4 text-violet-400" />}
+                                  <span className="font-medium truncate">{item.title}</span>
+                                </div>
+                                <div className="text-sm text-gray-400 truncate">{item.description}</div>
+                                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                  <span>@{item.user?.username}</span>
+                                  <span>•</span>
+                                  <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                                  {item.autoFixStatus && (
+                                    <>
+                                      <span>•</span>
+                                      <span className={`flex items-center gap-1 ${
+                                        item.autoFixStatus === 'completed' ? 'text-green-400' :
+                                        item.autoFixStatus === 'failed' ? 'text-red-400' :
+                                        item.autoFixStatus === 'in_progress' ? 'text-yellow-400' :
+                                        'text-gray-400'
+                                      }`}>
+                                        <Zap className="w-3 h-3" />
+                                        {item.autoFixStatus}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded text-xs ${
+                                  item.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
+                                  item.status === 'in_progress' ? 'bg-yellow-500/20 text-yellow-400' :
+                                  item.status === 'confirmed' ? 'bg-orange-500/20 text-orange-400' :
+                                  item.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>
+                                  {item.status}
+                                </span>
+                                {item.type === 'bug_report' && item.status === 'open' && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); confirmBug(item.id); }}
+                                    className="px-2 py-1 rounded bg-orange-500/20 text-orange-400 text-xs hover:bg-orange-500/30 flex items-center gap-1"
+                                    title="Confirm bug for auto-fix"
+                                  >
+                                    <Play className="w-3 h-3" />
+                                    Fix
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </GlassSurface>
+                </div>
+              )}
+
+              {/* Feedback Detail Modal */}
+              {feedbackDetailOpen && selectedFeedback && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+                  <div className="bg-[#0f0f15] border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-[#0f0f15] border-b border-white/10 p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {selectedFeedback.type === 'bug_report' && <Bug className="w-5 h-5 text-red-400" />}
+                        {selectedFeedback.type === 'feature_request' && <Lightbulb className="w-5 h-5 text-green-400" />}
+                        {selectedFeedback.type === 'question' && <HelpCircle className="w-5 h-5 text-blue-400" />}
+                        {selectedFeedback.type === 'general' && <MessageCircle className="w-5 h-5 text-violet-400" />}
+                        <h2 className="font-bold text-lg">{selectedFeedback.title}</h2>
+                      </div>
+                      <button
+                        onClick={() => { setFeedbackDetailOpen(false); setSelectedFeedback(null); }}
+                        className="p-2 rounded-lg hover:bg-white/10"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                      {/* Status & Actions */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                          value={selectedFeedback.status}
+                          onChange={(e) => updateFeedbackStatus(selectedFeedback.id, e.target.value)}
+                          className="bg-white/10 border border-white/10 rounded-lg px-3 py-1 text-sm"
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                          <option value="wont_fix">{"Won't Fix"}</option>
+                        </select>
+                        {selectedFeedback.type === 'bug_report' && selectedFeedback.status === 'open' && (
+                          <button
+                            onClick={() => confirmBug(selectedFeedback.id)}
+                            className="px-3 py-1 rounded-lg bg-orange-500/20 text-orange-400 text-sm hover:bg-orange-500/30 flex items-center gap-1"
+                          >
+                            <Zap className="w-4 h-4" />
+                            Confirm & Auto-Fix
+                          </button>
+                        )}
+                        {selectedFeedback.autoFixStatus && (
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            selectedFeedback.autoFixStatus === 'completed' ? 'bg-green-500/20 text-green-400' :
+                            selectedFeedback.autoFixStatus === 'failed' ? 'bg-red-500/20 text-red-400' :
+                            selectedFeedback.autoFixStatus === 'in_progress' ? 'bg-yellow-500/20 text-yellow-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            Auto-fix: {selectedFeedback.autoFixStatus}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* User Info */}
+                      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold">
+                          {selectedFeedback.user?.username?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <div className="font-medium">@{selectedFeedback.user?.username}</div>
+                          <div className="text-xs text-gray-400">{new Date(selectedFeedback.createdAt).toLocaleString()}</div>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-400 mb-1">Description</h4>
+                        <p className="text-gray-300 whitespace-pre-wrap">{selectedFeedback.description}</p>
+                      </div>
+
+                      {/* Bug-specific fields */}
+                      {selectedFeedback.type === 'bug_report' && (
+                        <>
+                          {selectedFeedback.stepsToReproduce && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-400 mb-1">Steps to Reproduce</h4>
+                              <p className="text-gray-300 whitespace-pre-wrap">{selectedFeedback.stepsToReproduce}</p>
+                            </div>
+                          )}
+                          {selectedFeedback.expectedBehavior && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-400 mb-1">Expected Behavior</h4>
+                              <p className="text-gray-300 whitespace-pre-wrap">{selectedFeedback.expectedBehavior}</p>
+                            </div>
+                          )}
+                          {selectedFeedback.actualBehavior && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-400 mb-1">Actual Behavior</h4>
+                              <p className="text-gray-300 whitespace-pre-wrap">{selectedFeedback.actualBehavior}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Device Info */}
+                      {(selectedFeedback.platform || selectedFeedback.userAgent) && (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {selectedFeedback.platform && (
+                            <div className="p-2 bg-white/5 rounded">
+                              <span className="text-gray-500">Platform:</span> {selectedFeedback.platform}
+                            </div>
+                          )}
+                          {selectedFeedback.appVersion && (
+                            <div className="p-2 bg-white/5 rounded">
+                              <span className="text-gray-500">Version:</span> {selectedFeedback.appVersion}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Admin Notes */}
+                      {selectedFeedback.adminNotes && (
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                          <h4 className="text-sm font-medium text-yellow-400 mb-1 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            Admin Notes (Internal)
+                          </h4>
+                          <p className="text-gray-300 text-sm">{selectedFeedback.adminNotes}</p>
+                        </div>
+                      )}
+
+                      {/* Responses */}
+                      {selectedFeedback.responses?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2">Conversation</h4>
+                          <div className="space-y-2">
+                            {selectedFeedback.responses.map((r) => (
+                              <div
+                                key={r.id}
+                                className={`p-3 rounded-lg ${
+                                  r.isInternal ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                                  r.responderType === 'admin' ? 'bg-violet-500/10 border border-violet-500/20' :
+                                  r.responderType === 'system' ? 'bg-gray-500/10 border border-gray-500/20' :
+                                  'bg-white/5'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 mb-1 text-xs text-gray-400">
+                                  <span className="font-medium">
+                                    {r.responderType === 'system' ? 'System' :
+                                     r.responderType === 'admin' ? `Admin (${r.responderUsername || 'Unknown'})` :
+                                     `@${r.responderUsername || 'User'}`}
+                                  </span>
+                                  {r.isInternal && <span className="text-yellow-400">(Internal)</span>}
+                                  <span>•</span>
+                                  <span>{new Date(r.createdAt).toLocaleString()}</span>
+                                </div>
+                                <p className="text-gray-300 text-sm">{r.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Agent Jobs */}
+                      {selectedFeedback.agentJobs?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2 flex items-center gap-1">
+                            <Zap className="w-4 h-4" />
+                            Auto-Fix Jobs
+                          </h4>
+                          <div className="space-y-2">
+                            {selectedFeedback.agentJobs.map((j) => (
+                              <div key={j.id} className="p-3 bg-white/5 rounded-lg text-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className={`px-2 py-0.5 rounded text-xs ${
+                                    j.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                    j.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                                    j.status === 'running' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-gray-500/20 text-gray-400'
+                                  }`}>
+                                    {j.status}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(j.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                                {j.filesModified?.length > 0 && (
+                                  <div className="text-xs text-gray-400 mb-1">
+                                    Files: {j.filesModified.join(', ')}
+                                  </div>
+                                )}
+                                {j.deployed && j.deployCommit && (
+                                  <div className="text-xs text-green-400">
+                                    Deployed: {j.deployCommit}
+                                  </div>
+                                )}
+                                {j.errorMessage && (
+                                  <div className="text-xs text-red-400 mt-1">
+                                    Error: {j.errorMessage}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Respond Form */}
+                      <div className="border-t border-white/10 pt-4">
+                        <h4 className="text-sm font-medium text-gray-400 mb-2">Add Response</h4>
+                        <textarea
+                          value={respondMessage}
+                          onChange={(e) => setRespondMessage(e.target.value)}
+                          placeholder="Type your response..."
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm resize-none h-24 focus:outline-none focus:border-violet-500"
+                        />
+                        <div className="flex items-center justify-between mt-2">
+                          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={respondInternal}
+                              onChange={(e) => setRespondInternal(e.target.checked)}
+                              className="rounded bg-white/10 border-white/20"
+                            />
+                            Internal note (not visible to user)
+                          </label>
+                          <button
+                            onClick={respondToFeedback}
+                            disabled={!respondMessage.trim()}
+                            className="px-4 py-2 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm flex items-center gap-2"
+                          >
+                            <Send className="w-4 h-4" />
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

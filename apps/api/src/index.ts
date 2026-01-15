@@ -19,6 +19,7 @@ import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
 import { config } from './config';
 import { startScheduler, stopScheduler } from './lib/scheduler';
+import { startBugFixWorker, stopBugFixWorker } from './jobs/bug-fix.queue';
 
 async function main(): Promise<void> {
   logger.info('🚀 Starting MuscleMap API server...');
@@ -66,12 +67,18 @@ async function main(): Promise<void> {
   // Start scheduled jobs (leaderboard rewards, mute expiry, etc.)
   startScheduler();
 
+  // Start bug fix worker (processes confirmed bug reports)
+  startBugFixWorker();
+
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
 
     // Stop scheduler first
     stopScheduler();
+
+    // Stop bug fix worker
+    await stopBugFixWorker();
 
     try {
       await invokePluginHook('onShutdown');

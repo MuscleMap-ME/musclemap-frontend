@@ -85,6 +85,7 @@ import economyEnhancedRoutes from './routes/economyEnhanced';
 import { registerOrganizationsRoutes } from './routes/organizations';
 import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
+import adminFeedbackRoutes from './routes/admin-feedback';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -389,6 +390,7 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // User feedback system (bug reports, suggestions, questions, FAQ)
     await registerFeedbackRoutes(api);
+    await adminFeedbackRoutes(api);
   }, { prefix: '/api' });
 
   return app;
