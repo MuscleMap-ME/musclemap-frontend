@@ -1043,15 +1043,14 @@ export async function up(): Promise<void> {
 
   for (const achievement of achievements) {
     await db.query(`
-      INSERT INTO achievement_definitions (id, slug, name, description, category, xp_reward, credit_reward)
-      VALUES (gen_random_uuid()::TEXT, $1, $2, $3, $4, $5, $6)
-      ON CONFLICT (slug) DO UPDATE SET
+      INSERT INTO achievement_definitions (id, key, name, description, category, points)
+      VALUES (gen_random_uuid()::TEXT, $1, $2, $3, $4, $5)
+      ON CONFLICT (key) DO UPDATE SET
         name = EXCLUDED.name,
         description = EXCLUDED.description,
         category = EXCLUDED.category,
-        xp_reward = EXCLUDED.xp_reward,
-        credit_reward = EXCLUDED.credit_reward
-    `, [achievement.slug, achievement.name, achievement.description, achievement.category, achievement.xp, achievement.credits]);
+        points = EXCLUDED.points
+    `, [achievement.slug, achievement.name, achievement.description, achievement.category, achievement.xp]);
   }
 
   // ============================================
