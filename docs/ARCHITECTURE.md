@@ -295,7 +295,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (149 total)
+## Components (165 total)
 
 Components are organized by feature:
 
@@ -313,6 +313,9 @@ Components are organized by feature:
 
 ### Toast
 - `ToastProvider`
+
+### animated
+- `AnimatedNumber`
 
 ### animations
 - `AnimatedNumber`
@@ -348,8 +351,11 @@ Components are organized by feature:
 - `ReadinessTrendChart`
 
 ### celebrations
+- `AchievementBurst`
 - `Confetti`
 - `LevelUpCelebration`
+- `LevelUpEffect`
+- `StreakFire`
 - `StreakFlame`
 - `SuccessBurst`
 
@@ -391,7 +397,19 @@ Components are organized by feature:
 
 ### empty
 - `EmptyState`
-- `illustrations`
+- `AchievementIllustration`
+- `CommunityIllustration`
+- `DataIllustration`
+- `ErrorIllustration`
+- `ExercisesIllustration`
+- `GenericIllustration`
+- `GoalsIllustration`
+- `MessagesIllustration`
+- `SearchIllustration`
+- `StatsIllustration`
+- `SuccessIllustration`
+- `WorkoutIllustration`
+- `shared`
 
 ### feedback
 - `BugReportForm`
