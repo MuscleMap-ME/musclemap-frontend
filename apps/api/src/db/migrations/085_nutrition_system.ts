@@ -1012,6 +1012,15 @@ export async function up(): Promise<void> {
   // SECTION 18: Nutrition Achievements
   // ============================================
 
+  // First, update the category constraint to include 'nutrition'
+  log.info('Updating achievement_definitions category constraint to include nutrition...');
+  await db.query(`ALTER TABLE achievement_definitions DROP CONSTRAINT IF EXISTS achievement_definitions_category_check`);
+  await db.query(`
+    ALTER TABLE achievement_definitions
+    ADD CONSTRAINT achievement_definitions_category_check
+    CHECK (category = ANY (ARRAY['record'::text, 'streak'::text, 'first_time'::text, 'top_rank'::text, 'milestone'::text, 'social'::text, 'special'::text, 'nutrition'::text]))
+  `);
+
   log.info('Seeding nutrition achievements...');
   const achievements = [
     { slug: 'first_meal_logged', name: 'First Bite', description: 'Log your first meal', category: 'nutrition', xp: 10, credits: 5 },
