@@ -84,7 +84,6 @@ export default defineConfig({
           'lottie-vendor',    // Animations - rare usage
           'dicebear-vendor',  // Avatar generation - rare usage
           'ui-vendor',        // MUI/Headless - load after initial
-          'animation-vendor', // framer-motion - defer for low-end devices
           'apollo-vendor',    // GraphQL - can load after initial paint
         ];
 
@@ -114,9 +113,13 @@ export default defineConfig({
           }
 
           // Animation - framer-motion (~125KB)
-          if (id.includes('framer-motion') || id.includes('motion/')) {
-            return 'animation-vendor';
-          }
+          // NOTE: Do NOT split framer-motion into separate chunk!
+          // It depends on React context and must load after react-vendor.
+          // Splitting it causes "Cannot read properties of undefined (reading 'createContext')"
+          // Let it bundle with the main app code instead.
+          // if (id.includes('framer-motion') || id.includes('motion/')) {
+          //   return 'animation-vendor';
+          // }
 
           // Three.js and React Three Fiber - only for 3D pages (~800KB)
           // Kept separate so pages without 3D never load this
