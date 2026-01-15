@@ -54,6 +54,16 @@ export {
   default as UserContext,
 } from './UserContext';
 
+// Motion Context
+export {
+  MotionProvider,
+  useMotion,
+  useMotionAllowed,
+  useShouldReduceMotion,
+  MOTION_PREFERENCES,
+  default as MotionContext,
+} from './MotionContext';
+
 /**
  * Combined provider for convenience
  * Wraps all contexts in the correct order
@@ -61,11 +71,14 @@ export {
 export function AppProviders({ children }) {
   const { ThemeProvider } = require('./ThemeContext');
   const { LocaleProvider } = require('./LocaleContext');
+  const { MotionProvider } = require('./MotionContext');
 
   return (
     <ThemeProvider>
       <LocaleProvider>
-        {children}
+        <MotionProvider>
+          {children}
+        </MotionProvider>
       </LocaleProvider>
     </ThemeProvider>
   );

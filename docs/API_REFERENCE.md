@@ -243,6 +243,20 @@ Authorization: Bearer <token>
 | `POST` | `/trainers/profile` | Yes |
 
 
+### Admin-feedback
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/api/admin/feedback` | Yes |
+| `GET` | `/api/admin/feedback/:id` | Yes |
+| `PATCH` | `/api/admin/feedback/:id` | Yes |
+| `POST` | `/api/admin/feedback/:id/cancel-autofix` | Yes |
+| `POST` | `/api/admin/feedback/:id/confirm-bug` | Yes |
+| `POST` | `/api/admin/feedback/:id/respond` | Yes |
+| `GET` | `/api/admin/feedback/recent-activity` | Yes |
+| `GET` | `/api/admin/feedback/stats` | Yes |
+
+
 ### Archetype-communities
 
 | Method | Endpoint | Auth Required |

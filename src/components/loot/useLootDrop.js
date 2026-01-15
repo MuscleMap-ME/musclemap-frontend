@@ -43,7 +43,6 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   generateLootDrop,
   determineChestType,
-  RARITY_ORDER,
 } from './lootDefinitions';
 
 // ============================================

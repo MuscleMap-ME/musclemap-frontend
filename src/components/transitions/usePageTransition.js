@@ -4,13 +4,21 @@
  * Provides access to transition state and navigation functions.
  * Works with TransitionProvider to enable smooth page transitions.
  *
+ * Features:
+ * - Detects navigation direction (forward/back/same)
+ * - Tracks transition progress
+ * - Provides navigation utilities
+ * - Manages shared element registry
+ * - Route preloading on hover
+ *
  * @example
  * const {
  *   isTransitioning,    // Currently in a transition
- *   direction,          // 'forward' | 'back'
+ *   direction,          // 'forward' | 'back' | 'same'
+ *   progress,           // 0-100 progress percentage
  *   transitionTo,       // Navigate with transition
- *   registerSharedElement,
- *   unregisterSharedElement,
+ *   goBack,             // Navigate back
+ *   goForward,          // Navigate forward
  * } = usePageTransition();
  *
  * // Navigate with transition
@@ -30,6 +38,7 @@ import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 const DEFAULT_TRANSITION_DURATION = 300;
 const DIRECTION_FORWARD = 'forward';
 const DIRECTION_BACK = 'back';
+const DIRECTION_SAME = 'same';
 
 // ============================================
 // STANDALONE HOOK
@@ -39,7 +48,7 @@ const DIRECTION_BACK = 'back';
  * usePageTransition - Standalone hook for page transition control
  *
  * Can be used independently without TransitionProvider, though
- * some features (shared elements) require the provider.
+ * some features (shared elements, progress bar) require the provider.
  *
  * @param {Object} options
  * @param {number} options.duration - Transition duration in ms
@@ -57,36 +66,52 @@ export function usePageTransition(options = {}) {
   const [direction, setDirection] = useState(DIRECTION_FORWARD);
   const [progress, setProgress] = useState(0);
 
-  // History tracking
+  // History tracking for direction detection
   const historyRef = useRef([]);
+  const previousLocationRef = useRef(null);
   const transitionTimeoutRef = useRef(null);
   const progressIntervalRef = useRef(null);
 
   // Shared element registry (simplified without context)
   const sharedElementsRef = useRef(new Map());
 
-  // Detect navigation direction
+  // Detect navigation direction based on history
   useEffect(() => {
     const history = historyRef.current;
+    const previousPath = previousLocationRef.current;
+    const currentPath = location.pathname;
+
+    // Skip if same location
+    if (previousPath === currentPath) {
+      setDirection(DIRECTION_SAME);
+      return;
+    }
 
     if (navigationType === 'POP') {
       // Back/forward navigation
-      const currentIndex = history.indexOf(location.pathname);
-      setDirection(currentIndex !== -1 && currentIndex < history.length - 1
-        ? DIRECTION_BACK
-        : DIRECTION_FORWARD
-      );
-    } else {
-      // Push or replace
-      setDirection(DIRECTION_FORWARD);
-      if (navigationType === 'PUSH') {
-        history.push(location.pathname);
-      } else if (navigationType === 'REPLACE' && history.length > 0) {
-        history[history.length - 1] = location.pathname;
+      const currentIndex = history.indexOf(currentPath);
+      const previousIndex = history.indexOf(previousPath);
+
+      if (currentIndex !== -1 && previousIndex !== -1) {
+        setDirection(currentIndex < previousIndex ? DIRECTION_BACK : DIRECTION_FORWARD);
       } else {
-        history.push(location.pathname);
+        setDirection(DIRECTION_BACK);
+      }
+    } else {
+      // Push or replace navigation
+      setDirection(DIRECTION_FORWARD);
+
+      if (navigationType === 'PUSH') {
+        history.push(currentPath);
+      } else if (navigationType === 'REPLACE' && history.length > 0) {
+        history[history.length - 1] = currentPath;
+      } else {
+        history.push(currentPath);
       }
     }
+
+    // Update previous location
+    previousLocationRef.current = currentPath;
 
     // Start transition animation
     setIsTransitioning(true);
@@ -94,7 +119,7 @@ export function usePageTransition(options = {}) {
 
     // Simulate progress
     progressIntervalRef.current = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         const increment = prev < 30 ? 20 : prev < 60 ? 10 : prev < 80 ? 5 : 2;
         return Math.min(prev + increment, 90);
       });
@@ -123,9 +148,12 @@ export function usePageTransition(options = {}) {
   }, [location.pathname, navigationType, duration]);
 
   // Navigate with transition
-  const transitionTo = useCallback((to, navOptions = {}) => {
-    navigate(to, navOptions);
-  }, [navigate]);
+  const transitionTo = useCallback(
+    (to, navOptions = {}) => {
+      navigate(to, navOptions);
+    },
+    [navigate]
+  );
 
   // Go back with transition
   const goBack = useCallback(() => {
@@ -136,6 +164,14 @@ export function usePageTransition(options = {}) {
   const goForward = useCallback(() => {
     navigate(1);
   }, [navigate]);
+
+  // Navigate and replace
+  const replaceWith = useCallback(
+    (to, navOptions = {}) => {
+      navigate(to, { ...navOptions, replace: true });
+    },
+    [navigate]
+  );
 
   // Shared element management (simplified)
   const registerSharedElement = useCallback((id, element, zIndex = 100) => {
@@ -161,6 +197,13 @@ export function usePageTransition(options = {}) {
     return history.length > 1 ? history[history.length - 2] : null;
   }, [location.pathname]);
 
+  // Check if navigating deeper or shallower
+  const isNavigatingDeeper = useMemo(() => {
+    const prevDepth = previousPath?.split('/').filter(Boolean).length || 0;
+    const currentDepth = currentPath.split('/').filter(Boolean).length;
+    return currentDepth > prevDepth;
+  }, [currentPath, previousPath]);
+
   return {
     // State
     isTransitioning,
@@ -172,10 +215,12 @@ export function usePageTransition(options = {}) {
     transitionTo,
     goBack,
     goForward,
+    replaceWith,
 
     // Path info
     currentPath,
     previousPath,
+    isNavigatingDeeper,
 
     // Shared elements
     registerSharedElement,
@@ -191,7 +236,7 @@ export function usePageTransition(options = {}) {
 
 /**
  * useTransitionDirection - Get current transition direction
- * @returns {'forward' | 'back'}
+ * @returns {'forward' | 'back' | 'same'}
  */
 export function useTransitionDirection() {
   const { direction } = usePageTransition();
@@ -275,6 +320,93 @@ export function usePreloadOnHover(preloadFn) {
     onMouseEnter: handleMouseEnter,
     onFocus: handleFocus,
   };
+}
+
+/**
+ * useRouteDirection - Determine if navigation is going forward or back
+ * based on route depth
+ *
+ * @returns {Object} Direction info and utilities
+ */
+export function useRouteDirection() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const previousDepthRef = useRef(0);
+  const previousPathRef = useRef('');
+
+  const currentDepth = location.pathname.split('/').filter(Boolean).length;
+
+  const direction = useMemo(() => {
+    const prevDepth = previousDepthRef.current;
+
+    if (navigationType === 'POP') {
+      return 'back';
+    }
+
+    if (currentDepth > prevDepth) {
+      return 'forward';
+    } else if (currentDepth < prevDepth) {
+      return 'back';
+    }
+
+    return 'same';
+  }, [currentDepth, navigationType]);
+
+  useEffect(() => {
+    previousDepthRef.current = currentDepth;
+    previousPathRef.current = location.pathname;
+  }, [currentDepth, location.pathname]);
+
+  return {
+    direction,
+    depth: currentDepth,
+    isNavigatingDeeper: direction === 'forward',
+    isNavigatingShallower: direction === 'back',
+  };
+}
+
+/**
+ * useScrollRestoration - Restore scroll position on navigation
+ *
+ * @param {Object} options
+ * @param {boolean} options.enabled - Enable scroll restoration
+ * @param {string} options.behavior - Scroll behavior ('auto' | 'smooth')
+ */
+export function useScrollRestoration(options = {}) {
+  const { enabled = true, behavior = 'auto' } = options;
+  const location = useLocation();
+  const scrollPositionsRef = useRef(new Map());
+
+  // Save scroll position before navigation
+  useEffect(() => {
+    const currentPath = location.pathname;
+
+    return () => {
+      if (enabled) {
+        scrollPositionsRef.current.set(currentPath, window.scrollY);
+      }
+    };
+  }, [location.pathname, enabled]);
+
+  // Restore scroll position after navigation
+  useEffect(() => {
+    if (!enabled) return;
+
+    const currentPath = location.pathname;
+    const savedPosition = scrollPositionsRef.current.get(currentPath);
+
+    if (savedPosition !== undefined) {
+      window.scrollTo({
+        top: savedPosition,
+        behavior,
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior,
+      });
+    }
+  }, [location.pathname, enabled, behavior]);
 }
 
 // ============================================

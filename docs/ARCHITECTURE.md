@@ -295,7 +295,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (175 total)
+## Components (192 total)
 
 Components are organized by feature:
 
@@ -313,6 +313,12 @@ Components are organized by feature:
 
 ### Toast
 - `ToastProvider`
+
+### ai-coach
+- `AICoach`
+- `ChatMessage`
+- `CoachAvatar`
+- `QuickActions`
 
 ### animated
 - `AnimatedNumber`
@@ -360,8 +366,11 @@ Components are organized by feature:
 - `SuccessBurst`
 
 ### challenges
+- `ChallengeCard`
 - `ChallengeProgress`
 - `ChallengeReward`
+- `ChallengeTimer`
+- `DailyChallenges`
 
 ### command
 - `CommandItem`
@@ -476,6 +485,8 @@ Components are organized by feature:
 
 ### loot
 - `LootChest`
+- `LootDrop`
+- `LootReveal`
 
 ### mascot
 - `CompanionCharacter`
@@ -496,7 +507,11 @@ Components are organized by feature:
 - `NewConversation`
 
 ### muscle-explorer
+- `MuscleControls`
+- `MuscleHistory`
+- `MuscleInfo`
 - `MuscleInfoPanel`
+- `MuscleModel`
 
 ### navigation
 - `BreadcrumbItem`
@@ -556,13 +571,17 @@ Components are organized by feature:
 - `SetLogger`
 
 ### workout-mode
+- `ExerciseDisplay`
+- `QuickControls`
 - `RestTimer`
 - `SetLogger`
+- `WorkoutMode`
+- `WorkoutProgress`
 
 ### xr
 - `XRButton`
 
-## API Endpoints (687 total)
+## API Endpoints (695 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -613,6 +632,14 @@ Components are organized by feature:
 | POST | `/advance-phase/:injuryId` | rehabilitation |
 | GET | `/alternatives/low-impact` | misc |
 | GET | `/alternatives/seated` | misc |
+| GET | `/api/admin/feedback` | admin-feedback |
+| GET | `/api/admin/feedback/:id` | admin-feedback |
+| PATCH | `/api/admin/feedback/:id` | admin-feedback |
+| POST | `/api/admin/feedback/:id/cancel-autofix` | admin-feedback |
+| POST | `/api/admin/feedback/:id/confirm-bug` | admin-feedback |
+| POST | `/api/admin/feedback/:id/respond` | admin-feedback |
+| GET | `/api/admin/feedback/recent-activity` | admin-feedback |
+| GET | `/api/admin/feedback/stats` | admin-feedback |
 | GET | `/archetype/suggested-communities` | archetype-communities |
 | GET | `/archetypes` | journey |
 | GET | `/archetypes/:id/levels` | journey |

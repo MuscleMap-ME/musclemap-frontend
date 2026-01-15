@@ -422,6 +422,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Admin-feedback}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/api/admin/feedback} \\
+\texttt{GET} & \texttt{/api/admin/feedback/:id} \\
+\texttt{PATCH} & \texttt{/api/admin/feedback/:id} \\
+\texttt{POST} & \texttt{/api/admin/feedback/:id/cancel-autofix} \\
+\texttt{POST} & \texttt{/api/admin/feedback/:id/confirm-bug} \\
+\texttt{POST} & \texttt{/api/admin/feedback/:id/respond} \\
+\texttt{GET} & \texttt{/api/admin/feedback/recent-activity} \\
+\texttt{GET} & \texttt{/api/admin/feedback/stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Archetype-communities}
 
 \begin{table}[h]

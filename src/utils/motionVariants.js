@@ -203,6 +203,46 @@ export const safeVariants = {
   }),
 
   /**
+   * Slide in from left (alias with better naming)
+   */
+  slideInLeft: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, x: -30 },
+    animate: { opacity: 1, x: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, x: -30 },
+    transition: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 },
+  }),
+
+  /**
+   * Slide in from right (alias with better naming)
+   */
+  slideInRight: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, x: 30 },
+    animate: { opacity: 1, x: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, x: 30 },
+    transition: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 },
+  }),
+
+  /**
+   * Slide in from top
+   */
+  slideInUp: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: -30 },
+    animate: { opacity: 1, y: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, y: -30 },
+    transition: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 },
+  }),
+
+  /**
+   * Slide in from bottom
+   */
+  slideInDown: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 30 },
+    animate: { opacity: 1, y: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, y: 30 },
+    transition: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 },
+  }),
+
+  /**
    * Scale animation
    * Reduced: Instant opacity only
    * Full: Scale with opacity
@@ -234,6 +274,25 @@ export const safeVariants = {
     animate: { opacity: 1, scale: 1 },
     exit: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 1.1 },
     transition: reducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' },
+  }),
+
+  /**
+   * Scale in - zoom in from small
+   */
+  scaleIn: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 },
+    animate: { opacity: 1, scale: 1 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 },
+    transition: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 },
+  }),
+
+  /**
+   * Scale out - zoom out to small
+   */
+  scaleOut: (reducedMotion) => ({
+    initial: { opacity: 1, scale: 1 },
+    animate: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 },
+    transition: reducedMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeIn' },
   }),
 
   /**
@@ -419,7 +478,174 @@ export const safeVariants = {
           ease: 'easeInOut',
         },
   }),
+
+  /**
+   * Burst animation - for reactions and celebrations
+   * Creates outward expansion effect
+   */
+  burst: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.3 },
+    animate: { opacity: 1, scale: 1 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 1.5 },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : { type: 'spring', stiffness: 400, damping: 15 },
+  }),
+
+  /**
+   * Bounce in - playful entrance for notifications
+   */
+  bounceIn: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.3, y: -20 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.3, y: 20 },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : { type: 'spring', stiffness: 400, damping: 10 },
+  }),
+
+  /**
+   * Wiggle animation - for attention/error states
+   */
+  wiggle: (reducedMotion) => ({
+    animate: reducedMotion
+      ? {}
+      : {
+          rotate: [0, -3, 3, -3, 3, 0],
+        },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : {
+          duration: 0.5,
+          ease: 'easeInOut',
+        },
+  }),
+
+  /**
+   * Flip animation - for card flip effects
+   */
+  flipIn: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, rotateY: -90 },
+    animate: { opacity: 1, rotateY: 0 },
+    exit: reducedMotion ? { opacity: 0 } : { opacity: 0, rotateY: 90 },
+    transition: reducedMotion ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' },
+  }),
+
+  /**
+   * Swing animation - pendulum-like entrance
+   */
+  swing: (reducedMotion) => ({
+    initial: reducedMotion ? { opacity: 0 } : { opacity: 0, rotate: -15, transformOrigin: 'top center' },
+    animate: { opacity: 1, rotate: 0, transformOrigin: 'top center' },
+    transition: reducedMotion
+      ? { duration: 0 }
+      : { type: 'spring', stiffness: 200, damping: 12 },
+  }),
 };
+
+// ============================================
+// STAGGER CHILDREN VARIANTS
+// ============================================
+
+/**
+ * Create container variants for staggered children animations.
+ * Use with motion.ul/motion.div as parent container.
+ *
+ * @param {boolean} reducedMotion - Whether reduced motion is preferred
+ * @param {Object} options - Configuration options
+ * @param {number} options.staggerDelay - Delay between children (default: 0.05)
+ * @param {number} options.delayChildren - Initial delay before first child (default: 0.1)
+ * @returns {Object} Container variants
+ *
+ * @example
+ * <motion.ul variants={staggerChildren(reducedMotion)} initial="hidden" animate="visible">
+ *   {items.map(item => (
+ *     <motion.li key={item.id} variants={staggerItem(reducedMotion)}>
+ *       {item.name}
+ *     </motion.li>
+ *   ))}
+ * </motion.ul>
+ */
+export function staggerChildren(reducedMotion, { staggerDelay = 0.05, delayChildren = 0.1 } = {}) {
+  if (reducedMotion) {
+    return {
+      hidden: {},
+      visible: {},
+    };
+  }
+  return {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: staggerDelay,
+        delayChildren,
+      },
+    },
+  };
+}
+
+/**
+ * Child item variants for use with staggerChildren container
+ *
+ * @param {boolean} reducedMotion - Whether reduced motion is preferred
+ * @param {string} direction - Direction to animate from ('up' | 'down' | 'left' | 'right')
+ * @returns {Object} Child variants
+ */
+export function staggerItem(reducedMotion, direction = 'up') {
+  if (reducedMotion) {
+    return {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 0 } },
+    };
+  }
+
+  const directionMap = {
+    up: { y: 20 },
+    down: { y: -20 },
+    left: { x: 20 },
+    right: { x: -20 },
+  };
+
+  const offset = directionMap[direction] || directionMap.up;
+
+  return {
+    hidden: { opacity: 0, ...offset },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      transition: {
+        type: 'spring',
+        stiffness: 300,
+        damping: 25,
+      },
+    },
+  };
+}
+
+/**
+ * Reverse stagger - animate children from last to first
+ */
+export function reverseStaggerChildren(reducedMotion, { staggerDelay = 0.05, delayChildren = 0.1 } = {}) {
+  if (reducedMotion) {
+    return {
+      hidden: {},
+      visible: {},
+    };
+  }
+  return {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: staggerDelay,
+        staggerDirection: -1,
+        delayChildren,
+      },
+    },
+  };
+}
 
 // ============================================
 // HELPER FUNCTIONS
@@ -558,14 +784,62 @@ export const animationPresets = {
   }),
 };
 
+// ============================================
+// NAMED VARIANT EXPORTS (for convenience)
+// ============================================
+
+/**
+ * Convenience exports matching the requested names
+ */
+export const fadeIn = safeVariants.fadeIn;
+export const fadeOut = safeVariants.fadeOut;
+export const slideInLeft = safeVariants.slideInLeft;
+export const slideInRight = safeVariants.slideInRight;
+export const slideInUp = safeVariants.slideInUp;
+export const slideInDown = safeVariants.slideInDown;
+export const scaleIn = safeVariants.scaleIn;
+export const scaleOut = safeVariants.scaleOut;
+export const burst = safeVariants.burst;
+export const bounceIn = safeVariants.bounceIn;
+
+/**
+ * Preset shortcuts
+ */
+export const spring = transitionPresets.spring;
+export const bounce = transitionPresets.bounce;
+export const smooth = transitionPresets.smooth;
+
 export default {
+  // Variants
   safeVariants,
+  // Transition helpers
   safeTransition,
   safeSpring,
+  transitionPresets,
+  // Variant getters
   getMotionVariant,
   createSafeVariant,
   getInteractionVariants,
+  // Stagger helpers
   getStaggerContainerVariants,
   getStaggerChildVariants,
+  staggerChildren,
+  staggerItem,
+  reverseStaggerChildren,
+  // Presets
   animationPresets,
+  // Named exports
+  fadeIn,
+  fadeOut,
+  slideInLeft,
+  slideInRight,
+  slideInUp,
+  slideInDown,
+  scaleIn,
+  scaleOut,
+  burst,
+  bounceIn,
+  spring,
+  bounce,
+  smooth,
 };

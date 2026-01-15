@@ -7,11 +7,14 @@
  * Features:
  * - Auto-generates from current route
  * - Optional manual override via items prop
- * - Truncates middle items when too many
+ * - Truncates middle items with dropdown showing hidden items
  * - Animated entrance with stagger effect
  * - Glass styling with subtle separators
- * - Mobile-friendly with horizontal scroll or compact view
+ * - Mobile: horizontal scroll, Desktop: full display
+ * - Home icon for first item
+ * - Current page highlighted differently
  * - Accessible with proper ARIA attributes
+ * - Respects reduced motion preferences
  *
  * @example
  * // Auto-generated from route
@@ -31,8 +34,9 @@
  * <Breadcrumbs maxItems={3} />
  */
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import BreadcrumbItem, {
   BreadcrumbHome,
@@ -40,6 +44,20 @@ import BreadcrumbItem, {
   BreadcrumbSeparator,
 } from './BreadcrumbItem';
 import useBreadcrumbs from './useBreadcrumbs';
+import { useMotionAllowed } from '../../contexts/MotionContext';
+
+/**
+ * Container animation variants
+ */
+const containerVariants = {
+  initial: {},
+  animate: {
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+  exit: {},
+};
 
 /**
  * Main Breadcrumbs Component
@@ -53,6 +71,7 @@ import useBreadcrumbs from './useBreadcrumbs';
  * @param {Object} props.context - Context for resolving dynamic labels
  * @param {string} props.className - Container class name
  * @param {string} props.itemClassName - Class name for each item
+ * @param {boolean} props.animate - Whether to animate on route change (default: true)
  * @param {string} props['aria-label'] - Accessibility label (default: 'Breadcrumb navigation')
  */
 export function Breadcrumbs({
@@ -64,8 +83,13 @@ export function Breadcrumbs({
   context,
   className,
   itemClassName,
+  animate = true,
   'aria-label': ariaLabel = 'Breadcrumb navigation',
 }) {
+  const location = useLocation();
+  const motionAllowed = useMotionAllowed();
+  const scrollContainerRef = useRef(null);
+
   // Auto-generate breadcrumbs from route if items not provided
   const { breadcrumbs: routeBreadcrumbs } = useBreadcrumbs({
     context,
@@ -76,33 +100,46 @@ export function Breadcrumbs({
   // State for showing all items when truncated
   const [showAll, setShowAll] = useState(false);
 
+  // Reset showAll when route changes
+  useEffect(() => {
+    setShowAll(false);
+  }, [location.pathname]);
+
+  // Scroll to end on mobile when items change
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, [items]);
+
   // Expand truncated items
   const expandTruncation = useCallback(() => {
     setShowAll(true);
   }, []);
 
   // Calculate visible items with truncation
-  const { visibleItems, hiddenCount } = useMemo(() => {
+  const { visibleItems, hiddenItems, hiddenCount } = useMemo(() => {
     if (!items || items.length === 0) {
-      return { visibleItems: [], hiddenCount: 0 };
+      return { visibleItems: [], hiddenItems: [], hiddenCount: 0 };
     }
 
     if (showAll || items.length <= maxItems) {
-      return { visibleItems: items, hiddenCount: 0 };
+      return { visibleItems: items, hiddenItems: [], hiddenCount: 0 };
     }
 
-    // Keep first, last, and truncate middle
+    // Keep first and last, truncate middle
     const first = items[0];
     const last = items[items.length - 1];
-    const hidden = items.length - 2;
+    const middle = items.slice(1, -1);
 
     return {
       visibleItems: [
         first,
-        { isTruncation: true, count: hidden },
+        { isTruncation: true, count: middle.length, hiddenItems: middle },
         last,
       ],
-      hiddenCount: hidden,
+      hiddenItems: middle,
+      hiddenCount: middle.length,
     };
   }, [items, maxItems, showAll]);
 
@@ -110,6 +147,9 @@ export function Breadcrumbs({
   if (!items || items.length === 0) {
     return null;
   }
+
+  // Use key based on route for AnimatePresence
+  const routeKey = animate && motionAllowed ? location.pathname : 'static';
 
   return (
     <nav
@@ -119,79 +159,89 @@ export function Breadcrumbs({
     >
       {/* Scrollable container for mobile */}
       <div
+        ref={scrollContainerRef}
         className={clsx(
-          'overflow-x-auto scrollbar-hide',
+          'overflow-x-auto scrollbar-hide scroll-smooth',
           '-mx-4 px-4 sm:mx-0 sm:px-0'
         )}
       >
-        <motion.ol
-          className="flex items-center gap-1 py-2 min-w-max"
-          initial="initial"
-          animate="animate"
-          exit="exit"
-        >
-          <AnimatePresence mode="popLayout">
-            {visibleItems.map((item, index) => {
-              // Render truncation indicator
-              if (item.isTruncation) {
+        <LayoutGroup>
+          <AnimatePresence mode="wait">
+            <motion.ol
+              key={routeKey}
+              className="flex items-center gap-1 py-2 min-w-max"
+              variants={animate && motionAllowed ? containerVariants : undefined}
+              initial={animate && motionAllowed ? 'initial' : undefined}
+              animate={animate && motionAllowed ? 'animate' : undefined}
+              exit={animate && motionAllowed ? 'exit' : undefined}
+            >
+              {visibleItems.map((item, index) => {
+                // Render truncation indicator with dropdown
+                if (item.isTruncation) {
+                  return (
+                    <motion.li
+                      key="truncation"
+                      className="flex items-center gap-1"
+                      layout
+                    >
+                      <BreadcrumbSeparator animated={animate}>
+                        {separator}
+                      </BreadcrumbSeparator>
+                      <BreadcrumbEllipsis
+                        count={item.count}
+                        hiddenItems={item.hiddenItems}
+                        onClick={expandTruncation}
+                        onExpand={expandTruncation}
+                        index={index}
+                        className={itemClassName}
+                      />
+                    </motion.li>
+                  );
+                }
+
+                const isHome = item.path === '/' || item.label === 'Home';
+                const isFirst = index === 0;
+                const isLast = index === visibleItems.length - 1 ||
+                  (item.isTruncation === false && item.isLast);
+
                 return (
                   <motion.li
-                    key="truncation"
-                    className="flex items-center gap-1"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
+                    key={item.path || item.label || index}
+                    className="flex items-center gap-1 min-w-0"
+                    layout
                   >
-                    <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
-                    <BreadcrumbEllipsis
-                      count={item.count}
-                      onClick={expandTruncation}
-                      index={index}
-                      className={itemClassName}
-                    />
+                    {/* Separator (not before first item) */}
+                    {index > 0 && (
+                      <BreadcrumbSeparator animated={animate}>
+                        {separator}
+                      </BreadcrumbSeparator>
+                    )}
+
+                    {/* Home breadcrumb with special handling */}
+                    {isHome && isFirst && showHome ? (
+                      <BreadcrumbHome
+                        path={item.path}
+                        showLabel={!propItems} // Show label for auto-generated
+                        index={index}
+                        className={itemClassName}
+                      />
+                    ) : (
+                      <BreadcrumbItem
+                        label={item.label}
+                        path={item.path}
+                        icon={item.icon}
+                        isLast={isLast || item.isLast}
+                        isFirst={isFirst}
+                        index={index}
+                        className={itemClassName}
+                      />
+                    )}
                   </motion.li>
                 );
-              }
-
-              const isHome = item.path === '/' || item.label === 'Home';
-              const isFirst = index === 0;
-              const isLast = index === visibleItems.length - 1 ||
-                (item.isTruncation === false && item.isLast);
-
-              return (
-                <motion.li
-                  key={item.path || item.label || index}
-                  className="flex items-center gap-1 min-w-0"
-                  layout
-                >
-                  {/* Separator (not before first item) */}
-                  {index > 0 && (
-                    <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
-                  )}
-
-                  {/* Home breadcrumb with special handling */}
-                  {isHome && isFirst && showHome ? (
-                    <BreadcrumbHome
-                      path={item.path}
-                      showLabel={!propItems} // Show label for auto-generated
-                      index={index}
-                      className={itemClassName}
-                    />
-                  ) : (
-                    <BreadcrumbItem
-                      label={item.label}
-                      path={item.path}
-                      icon={item.icon}
-                      isLast={isLast || item.isLast}
-                      index={index}
-                      className={itemClassName}
-                    />
-                  )}
-                </motion.li>
-              );
-            })}
+              })}
+            </motion.ol>
           </AnimatePresence>
-        </motion.ol>
+        </LayoutGroup>
       </div>
 
       {/* Fade indicator for scroll on mobile */}
@@ -223,6 +273,7 @@ export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
     context,
   });
   const items = propItems || routeBreadcrumbs;
+  const motionAllowed = useMotionAllowed();
 
   if (!items || items.length === 0) {
     return null;
@@ -235,10 +286,15 @@ export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
 
   return (
     <nav aria-label="Breadcrumb" className={className} data-testid="compact-breadcrumbs">
-      <div className="flex items-center gap-1 text-xs">
+      <motion.div
+        className="flex items-center gap-1 text-xs"
+        initial={motionAllowed ? { opacity: 0, y: -4 } : undefined}
+        animate={motionAllowed ? { opacity: 1, y: 0 } : undefined}
+        transition={{ duration: 0.2 }}
+      >
         {displayItems.map((item, index) => (
           <React.Fragment key={item.path || item.label}>
-            {index > 0 && <BreadcrumbSeparator />}
+            {index > 0 && <BreadcrumbSeparator animated={false} />}
             {item.path && index < displayItems.length - 1 ? (
               <button
                 type="button"
@@ -247,7 +303,8 @@ export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
                   'text-[var(--text-tertiary)]',
                   'hover:text-[var(--text-secondary)]',
                   'transition-colors duration-150',
-                  'truncate max-w-[100px]'
+                  'truncate max-w-[100px]',
+                  'focus:outline-none focus-visible:underline'
                 )}
               >
                 {item.label}
@@ -259,7 +316,7 @@ export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
             )}
           </React.Fragment>
         ))}
-      </div>
+      </motion.div>
     </nav>
   );
 });
@@ -278,6 +335,7 @@ export const GlassBreadcrumbs = memo(function GlassBreadcrumbs({
   includeHome,
   context,
   className,
+  animate = true,
 }) {
   return (
     <div
@@ -294,6 +352,7 @@ export const GlassBreadcrumbs = memo(function GlassBreadcrumbs({
         showHome={showHome}
         includeHome={includeHome}
         context={context}
+        animate={animate}
       />
     </div>
   );
@@ -313,6 +372,7 @@ export const ResponsiveBreadcrumbs = memo(function ResponsiveBreadcrumbs({
   context,
   className,
   compactClassName,
+  animate = true,
 }) {
   return (
     <>
@@ -325,6 +385,7 @@ export const ResponsiveBreadcrumbs = memo(function ResponsiveBreadcrumbs({
           showHome={showHome}
           includeHome={includeHome}
           context={context}
+          animate={animate}
         />
       </div>
 
@@ -348,6 +409,7 @@ export const PageBreadcrumbs = memo(function PageBreadcrumbs({
   items,
   context,
   className,
+  animate = true,
 }) {
   return (
     <div className={clsx('mb-4', className)}>
@@ -357,8 +419,39 @@ export const PageBreadcrumbs = memo(function PageBreadcrumbs({
         showHome
         includeHome
         maxItems={4}
+        animate={animate}
       />
     </div>
+  );
+});
+
+/**
+ * AnimatedBreadcrumbs - Breadcrumbs with enhanced route change animations
+ *
+ * Uses route key for smooth transitions between pages.
+ */
+export const AnimatedBreadcrumbs = memo(function AnimatedBreadcrumbs({
+  items,
+  separator,
+  maxItems = 4,
+  showHome = true,
+  includeHome = true,
+  context,
+  className,
+  itemClassName,
+}) {
+  return (
+    <Breadcrumbs
+      items={items}
+      separator={separator}
+      maxItems={maxItems}
+      showHome={showHome}
+      includeHome={includeHome}
+      context={context}
+      className={className}
+      itemClassName={itemClassName}
+      animate={true}
+    />
   );
 });
 

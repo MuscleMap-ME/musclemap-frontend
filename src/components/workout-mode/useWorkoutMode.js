@@ -3,13 +3,15 @@
  *
  * Manages fullscreen workout mode state including:
  * - Screen wake lock to prevent sleep
- * - Swipe navigation between exercises
+ * - Swipe navigation between exercises (left/right to change, up to log)
  * - Voice input state
  * - Auto-rest timer after set logging
  * - Fullscreen mode management
+ * - Keyboard shortcuts
+ * - Celebration triggers
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { haptic } from '../../utils/haptics';
 import {
   useWorkoutSessionStore,
@@ -17,7 +19,13 @@ import {
   useRestTimer,
   useSetLogging,
   useWorkoutMetrics,
+  useSessionPRs,
 } from '../../store/workoutSessionStore';
+
+// Swipe thresholds
+const SWIPE_HORIZONTAL_THRESHOLD = 50;
+const SWIPE_VERTICAL_THRESHOLD = 80;
+const SWIPE_VELOCITY_THRESHOLD = 300;
 
 /**
  * Hook for managing fullscreen workout mode
@@ -71,6 +79,9 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
 
   // Workout metrics hooks
   const metrics = useWorkoutMetrics();
+
+  // PR tracking
+  const { prs: sessionPRs, hasPRs } = useSessionPRs();
 
   // ============================================
   // WAKE LOCK MANAGEMENT
@@ -352,6 +363,84 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
   }, [releaseWakeLock]);
 
   // ============================================
+  // SWIPE GESTURE HANDLERS
+  // ============================================
+
+  /**
+   * Handle horizontal swipe gesture
+   * @param {number} offsetX - Horizontal offset
+   * @param {number} velocityX - Horizontal velocity
+   * @returns {string|null} Direction of swipe or null
+   */
+  const handleHorizontalSwipe = useCallback(
+    (offsetX, velocityX) => {
+      // Swipe left (next exercise)
+      if (offsetX < -SWIPE_HORIZONTAL_THRESHOLD || velocityX < -SWIPE_VELOCITY_THRESHOLD) {
+        if (hasNext) {
+          nextExercise();
+          return 'left';
+        }
+      }
+      // Swipe right (previous exercise)
+      else if (offsetX > SWIPE_HORIZONTAL_THRESHOLD || velocityX > SWIPE_VELOCITY_THRESHOLD) {
+        if (hasPrevious) {
+          previousExercise();
+          return 'right';
+        }
+      }
+      return null;
+    },
+    [hasNext, hasPrevious, nextExercise, previousExercise]
+  );
+
+  /**
+   * Handle vertical swipe gesture (for set logging)
+   * @param {number} offsetY - Vertical offset
+   * @param {number} velocityY - Vertical velocity
+   * @param {Object} pendingSet - Set data to log if swipe completes
+   * @returns {boolean} Whether swipe triggered an action
+   */
+  const handleVerticalSwipe = useCallback(
+    (offsetY, velocityY, pendingSet) => {
+      // Swipe up to log set
+      if (offsetY < -SWIPE_VERTICAL_THRESHOLD || velocityY < -SWIPE_VELOCITY_THRESHOLD) {
+        if (pendingSet && pendingSet.weight > 0 && pendingSet.reps > 0) {
+          logSet(pendingSet);
+          return true;
+        }
+      }
+      return false;
+    },
+    [logSet]
+  );
+
+  // ============================================
+  // COMPUTED VALUES
+  // ============================================
+
+  /**
+   * Get default values for set logger based on previous set
+   */
+  const getDefaultSetValues = useMemo(() => {
+    const lastSet = currentExerciseSets[currentExerciseSets.length - 1];
+    return {
+      weight: lastSet?.weight || 0,
+      reps: lastSet?.reps || 0,
+    };
+  }, [currentExerciseSets]);
+
+  /**
+   * Calculate workout intensity based on metrics
+   */
+  const workoutIntensity = useMemo(() => {
+    if (!isActive) return 'none';
+    const setsPerMinute = metrics.totalSets / (metrics.duration / 60000 || 1);
+    if (setsPerMinute > 2) return 'high';
+    if (setsPerMinute > 1) return 'moderate';
+    return 'low';
+  }, [isActive, metrics.totalSets, metrics.duration]);
+
+  // ============================================
   // RETURN VALUE
   // ============================================
 
@@ -371,6 +460,10 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     // Metrics
     metrics,
 
+    // PRs
+    sessionPRs,
+    hasPRs,
+
     // Rest timer
     restTimer,
 
@@ -384,6 +477,10 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     soundEnabled,
     restDuration,
 
+    // Computed values
+    getDefaultSetValues,
+    workoutIntensity,
+
     // Actions
     initializeSession,
     handleComplete,
@@ -395,6 +492,10 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     previousExercise,
     logSet,
 
+    // Swipe gesture handlers
+    handleHorizontalSwipe,
+    handleVerticalSwipe,
+
     // Voice actions
     startVoiceInput,
     stopVoiceInput,
@@ -403,6 +504,69 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     // Settings
     setSoundEnabled,
     setRestDuration,
+  };
+}
+
+/**
+ * Hook for swipe gesture detection with thresholds
+ * Can be used standalone for custom swipe implementations
+ */
+export function useSwipeGestures({
+  onSwipeLeft,
+  onSwipeRight,
+  onSwipeUp,
+  onSwipeDown,
+  horizontalThreshold = SWIPE_HORIZONTAL_THRESHOLD,
+  verticalThreshold = SWIPE_VERTICAL_THRESHOLD,
+  velocityThreshold = SWIPE_VELOCITY_THRESHOLD,
+}) {
+  const handleDragEnd = useCallback(
+    (event, info) => {
+      const { offset, velocity } = info;
+
+      // Check horizontal swipes
+      if (Math.abs(offset.x) > Math.abs(offset.y)) {
+        if (offset.x < -horizontalThreshold || velocity.x < -velocityThreshold) {
+          onSwipeLeft?.();
+          return 'left';
+        }
+        if (offset.x > horizontalThreshold || velocity.x > velocityThreshold) {
+          onSwipeRight?.();
+          return 'right';
+        }
+      }
+      // Check vertical swipes
+      else {
+        if (offset.y < -verticalThreshold || velocity.y < -velocityThreshold) {
+          onSwipeUp?.();
+          return 'up';
+        }
+        if (offset.y > verticalThreshold || velocity.y > velocityThreshold) {
+          onSwipeDown?.();
+          return 'down';
+        }
+      }
+
+      return null;
+    },
+    [
+      onSwipeLeft,
+      onSwipeRight,
+      onSwipeUp,
+      onSwipeDown,
+      horizontalThreshold,
+      verticalThreshold,
+      velocityThreshold,
+    ]
+  );
+
+  return {
+    handleDragEnd,
+    thresholds: {
+      horizontal: horizontalThreshold,
+      vertical: verticalThreshold,
+      velocity: velocityThreshold,
+    },
   };
 }
 

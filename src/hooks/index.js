@@ -80,6 +80,41 @@ export { useLocale, useTranslation, LOCALES } from '../contexts/LocaleContext';
 // Legacy user context (prefer useAuth)
 export { useUser } from '../contexts/UserContext';
 
+// Motion context (for reduced motion / animation preferences)
+export {
+  useMotion,
+  useMotionAllowed,
+  useShouldReduceMotion,
+  MOTION_PREFERENCES,
+} from '../contexts/MotionContext';
+
+// Motion variants for Framer Motion
+export {
+  safeVariants,
+  safeTransition,
+  safeSpring,
+  transitionPresets,
+  getMotionVariant,
+  createSafeVariant,
+  getInteractionVariants,
+  staggerChildren,
+  staggerItem,
+  reverseStaggerChildren,
+  fadeIn,
+  fadeOut,
+  slideInLeft,
+  slideInRight,
+  slideInUp,
+  slideInDown,
+  scaleIn,
+  scaleOut,
+  burst,
+  bounceIn,
+  spring,
+  bounce,
+  smooth,
+} from '../utils/motionVariants';
+
 // Help system
 export { useHelp } from '../components/help';
 

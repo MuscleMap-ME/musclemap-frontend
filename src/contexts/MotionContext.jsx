@@ -62,11 +62,20 @@ export function MotionProvider({ children }) {
       // Resolved preference considering user override (USE THIS)
       motionAllowed,
 
+      // Alias for motionAllowed (requested in requirements)
+      shouldAnimate: motionAllowed,
+
+      // Boolean for reduced motion state
+      reducedMotion: !motionAllowed,
+
       // User's explicit choice ('system' | 'reduced' | 'full')
       userMotionPref,
 
-      // Function to update user preference
+      // Function to update user preference (alias: setReducedMotion)
       setUserMotionPref,
+      setReducedMotion: (reduce) => {
+        setUserMotionPref(reduce ? MOTION_PREFERENCES.REDUCED : MOTION_PREFERENCES.FULL);
+      },
 
       // Convenience: opposite of motionAllowed for common pattern
       shouldReduceMotion: !motionAllowed,
