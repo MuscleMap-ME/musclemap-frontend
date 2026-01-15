@@ -141,7 +141,7 @@ ssh root@musclemap.me "cd /var/www/musclemap.me && \
   echo '🏗️ Building frontend...' && \
   pnpm build && \
   echo '🔄 Restarting API...' && \
-  pm2 restart musclemap-api"
+  pm2 restart musclemap"
 
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
