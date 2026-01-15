@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../store/authStore';
 import { ArchetypeSelector } from '../components/archetypes';
+import Logo from '../components/Logo';
 
 const ADDITIONAL_EQUIPMENT = [
   { id: 'pullupBar', name: 'Pull-up Bar', icon: '🔩', desc: 'Pull-ups, chin-ups, hanging' },
@@ -61,11 +62,9 @@ export default function Onboarding() {
           >
             {/* Logo Header for Step 1 */}
             <div className="text-center pt-8 pb-4 px-4">
-              <img
-                src="/logo.png"
-                alt="MuscleMap"
-                className="w-16 h-16 mx-auto mb-3 rounded-xl shadow-lg shadow-purple-500/20"
-              />
+              <div className="w-16 h-16 mx-auto mb-3 rounded-xl shadow-lg shadow-purple-500/20 overflow-hidden">
+                <Logo size="lg" priority className="rounded-xl" />
+              </div>
               <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
                 Welcome to MuscleMap
               </h1>
@@ -89,11 +88,9 @@ export default function Onboarding() {
             <div className="max-w-2xl mx-auto pt-8">
               {/* Logo Header for Step 2 */}
               <div className="text-center mb-8">
-                <img
-                  src="/logo.png"
-                  alt="MuscleMap"
-                  className="w-16 h-16 mx-auto mb-3 rounded-xl shadow-lg shadow-purple-500/20"
-                />
+                <div className="w-16 h-16 mx-auto mb-3 rounded-xl shadow-lg shadow-purple-500/20 overflow-hidden">
+                  <Logo size="lg" priority className="rounded-xl" />
+                </div>
                 <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
                   Almost There
                 </h1>

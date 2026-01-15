@@ -27,6 +27,7 @@ import { useNutritionDashboard } from '../hooks/useNutrition';
 
 // Plugin System - Widget Slots
 import { WidgetSlot } from '../plugins';
+import Logo from '../components/Logo';
 
 // New UI Components
 import { AnimatedNumber, AnimatedCredits, AnimatedXP } from '../components/animations';
@@ -1113,7 +1114,7 @@ export default function Dashboard() {
       <GlassNav
         brandSlot={
           <Link to="/dashboard" className="flex items-center gap-3">
-            <img src="/logo.png" alt="MuscleMap" className="w-8 h-8 rounded-lg" />
+            <Logo size="sm" />
             <span className="font-bold text-lg text-[var(--text-primary)] hidden sm:block">MuscleMap</span>
           </Link>
         }

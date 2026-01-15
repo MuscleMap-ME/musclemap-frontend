@@ -140,12 +140,17 @@ musclemap.me/
 │   ├── mascot/
 │   ├── founding.html
 │   ├── index.html
+│   ├── logo-180.avif
 │   ├── logo-180.png
+│   ├── logo-180.webp
 │   ├── logo-32.png
+│   ├── logo-32.webp
+│   ├── logo-80.avif
 │   ├── logo-80.png
 │   ├── logo-80.webp
 │   ├── logo-optimized.png
-│   ├── logo-original.png
+│   ├── logo-optimized.webp
+│   ├── logo.avif
 │   ├── logo.png
 │   ├── logo.svg
 │   ├── logo.webp
@@ -320,7 +325,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (224 total)
+## Components (225 total)
 
 Components are organized by feature:
 
@@ -329,6 +334,9 @@ Components are organized by feature:
 
 ### ErrorBoundary.jsx
 - `ErrorBoundary`
+
+### Logo.jsx
+- `Logo`
 
 ### PrefetchLink.jsx
 - `PrefetchLink`

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import SEO from '../components/SEO';
+import Logo from '../components/Logo';
 import { sanitizeText, sanitizeEmail } from '../utils/sanitize';
 import { trackSignUp, trackLogin, setUserProperties } from '../lib/analytics';
 
@@ -90,11 +91,9 @@ export default function Signup() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
-            <img
-              src="/logo.png"
-              alt="MuscleMap"
-              className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow duration-300"
-            />
+            <div className="mx-auto mb-4 w-20 h-20 rounded-2xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-shadow duration-300 overflow-hidden">
+              <Logo size="xl" priority className="rounded-2xl" />
+            </div>
             <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">MuscleMap</h1>
           </Link>
           <p className="text-gray-400 mt-2">Create your account</p>

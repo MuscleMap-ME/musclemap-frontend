@@ -114,6 +114,7 @@ export default function Landing() {
             className="flex items-center gap-3"
           >
             <picture>
+              <source srcSet="/logo.avif" type="image/avif" />
               <source srcSet="/logo.webp" type="image/webp" />
               <img
                 src="/logo.png"
@@ -121,6 +122,8 @@ export default function Landing() {
                 width={40}
                 height={40}
                 className="w-10 h-10 rounded-lg"
+                loading="eager"
+                fetchPriority="high"
               />
             </picture>
             <span
