@@ -86,9 +86,7 @@ export async function migrate(): Promise<void> {
         trend_delta DECIMAL(5, 2),                       -- Change from last period (-100 to +100)
 
         -- Metadata
-        computed_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-        -- Metadata
+        computed_at TIMESTAMP NOT NULL DEFAULT NOW()
         -- Note: unique constraint handled by partial unique indexes below
       )
     `);
