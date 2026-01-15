@@ -158,12 +158,20 @@ export async function migrate(): Promise<void> {
         full_data JSONB DEFAULT '{}',
 
         -- Metadata
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-        -- Ensure unique snapshot per org/unit/standard/date/type
-        UNIQUE(org_id, COALESCE(unit_id, '00000000-0000-0000-0000-000000000000'::UUID), standard_id, snapshot_date, snapshot_type)
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        -- Note: unique constraint handled by partial unique indexes below
       )
     `);
+
+    // Create unique indexes for snapshot uniqueness
+    if (!(await indexExists('idx_org_snapshots_unique_with_unit'))) {
+      log.info('Creating unique index for snapshots with unit...');
+      await db.query(`CREATE UNIQUE INDEX idx_org_snapshots_unique_with_unit ON organization_readiness_snapshots(org_id, unit_id, standard_id, snapshot_date, snapshot_type) WHERE unit_id IS NOT NULL`);
+    }
+    if (!(await indexExists('idx_org_snapshots_unique_org_only'))) {
+      log.info('Creating unique index for snapshots without unit...');
+      await db.query(`CREATE UNIQUE INDEX idx_org_snapshots_unique_org_only ON organization_readiness_snapshots(org_id, standard_id, snapshot_date, snapshot_type) WHERE unit_id IS NULL`);
+    }
 
     // Create indexes for efficient querying
     if (!(await indexExists('idx_org_snapshots_org'))) {
