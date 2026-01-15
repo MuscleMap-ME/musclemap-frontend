@@ -1,5 +1,5 @@
 /**
- * Migration 092: One Rep Max (1RM) Tracking System
+ * Migration 096: One Rep Max (1RM) Tracking System
  *
  * Adds comprehensive 1RM tracking features:
  * - Exercise 1RM history table for tracking progression over time
@@ -41,7 +41,7 @@ async function indexExists(indexName: string): Promise<boolean> {
 }
 
 export async function up(): Promise<void> {
-  log.info('Running migration: 092_one_rep_max_tracking');
+  log.info('Running migration: 096_one_rep_max_tracking');
 
   // ============================================
   // EXERCISE 1RM HISTORY TABLE
@@ -320,11 +320,11 @@ export async function up(): Promise<void> {
     `);
   }
 
-  log.info('Migration 092_one_rep_max_tracking complete');
+  log.info('Migration 096_one_rep_max_tracking complete');
 }
 
 export async function down(): Promise<void> {
-  log.info('Rolling back migration: 092_one_rep_max_tracking');
+  log.info('Rolling back migration: 096_one_rep_max_tracking');
 
   // Drop trigger and function
   await db.query('DROP TRIGGER IF EXISTS trg_update_compound_totals ON exercise_1rm_history');
@@ -368,7 +368,7 @@ export async function down(): Promise<void> {
     await db.query('DELETE FROM achievement_definitions WHERE key = $1', [key]);
   }
 
-  log.info('Rollback 092_one_rep_max_tracking complete');
+  log.info('Rollback 096_one_rep_max_tracking complete');
 }
 
 export const migrate = up;

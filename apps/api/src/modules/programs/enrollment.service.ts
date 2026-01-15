@@ -4,7 +4,7 @@
  * Handles user enrollment and progress tracking for training programs.
  */
 
-import { queryOne, queryAll, transaction } from '../../db/client';
+import { query, queryOne, queryAll, transaction } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { ValidationError, NotFoundError } from '../../lib/errors';
 import { ProgramsService } from './programs.service';

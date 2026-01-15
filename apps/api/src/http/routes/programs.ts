@@ -63,24 +63,9 @@ const createProgramSchema = z.object({
   equipmentRequired: z.array(z.string()).optional(),
   isPublic: z.boolean().optional(),
   imageUrl: z.string().url().optional(),
-}) satisfies z.ZodType<CreateProgramInput>;
+});
 
-const updateProgramSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(5000).optional(),
-  shortDescription: z.string().max(200).optional(),
-  durationWeeks: z.number().int().min(1).max(52).optional(),
-  daysPerWeek: z.number().int().min(1).max(7).optional(),
-  schedule: z.array(programDaySchema).optional(),
-  progressionRules: progressionRulesSchema.optional(),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced', 'elite']).optional(),
-  category: z.enum(['strength', 'hypertrophy', 'powerbuilding', 'general_fitness', 'athletic_performance']).optional(),
-  goals: z.array(z.string()).optional(),
-  targetMuscles: z.array(z.string()).optional(),
-  equipmentRequired: z.array(z.string()).optional(),
-  isPublic: z.boolean().optional(),
-  imageUrl: z.string().url().optional(),
-}) satisfies z.ZodType<UpdateProgramInput>;
+const updateProgramSchema = createProgramSchema.partial();
 
 const rateProgramSchema = z.object({
   rating: z.number().int().min(1).max(5),
