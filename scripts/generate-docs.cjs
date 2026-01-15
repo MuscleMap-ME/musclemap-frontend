@@ -8,11 +8,13 @@
  * Outputs:
  *   - Markdown files (for GitHub/web)
  *   - LaTeX files (for professional documentation/PDFs)
+ *   - Plain-text docs (synced to public/docs-plain/)
  *
  * Usage:
- *   node scripts/generate-docs.cjs           # Generate all docs
- *   node scripts/generate-docs.cjs --latex   # LaTeX only
- *   node scripts/generate-docs.cjs --md      # Markdown only
+ *   node scripts/generate-docs.cjs              # Generate all docs + sync plain-text
+ *   node scripts/generate-docs.cjs --latex      # LaTeX only
+ *   node scripts/generate-docs.cjs --md         # Markdown only
+ *   node scripts/generate-docs.cjs --sync-plain # Only sync docs-plain to public
  *   pnpm docs:generate
  *
  * What it does:
@@ -20,6 +22,7 @@
  *   2. Extracts API endpoints from route files
  *   3. Identifies features from page components
  *   4. Updates all documentation files (MD + LaTeX)
+ *   5. Syncs docs-plain/ to public/docs-plain/ for web access
  */
 
 const fs = require('fs');
@@ -28,16 +31,21 @@ const path = require('path');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DOCS_DIR = path.join(ROOT_DIR, 'docs');
 const LATEX_DIR = path.join(DOCS_DIR, 'latex');
+const DOCS_PLAIN_DIR = path.join(ROOT_DIR, 'docs-plain');
+const PUBLIC_DOCS_PLAIN_DIR = path.join(ROOT_DIR, 'public/docs-plain');
 const SRC_DIR = path.join(ROOT_DIR, 'src');
 const API_DIR = path.join(ROOT_DIR, 'apps/api/src');
 const PACKAGES_DIR = path.join(ROOT_DIR, 'packages');
+const INDEX_TEMPLATE_PATH = path.join(__dirname, 'docs-plain-index.html');
 
 // Parse CLI args
 const args = process.argv.slice(2);
 const LATEX_ONLY = args.includes('--latex');
 const MD_ONLY = args.includes('--md');
-const GENERATE_LATEX = !MD_ONLY;
-const GENERATE_MD = !LATEX_ONLY;
+const SYNC_PLAIN_ONLY = args.includes('--sync-plain');
+const GENERATE_LATEX = !MD_ONLY && !SYNC_PLAIN_ONLY;
+const GENERATE_MD = !LATEX_ONLY && !SYNC_PLAIN_ONLY;
+const SYNC_DOCS_PLAIN = !LATEX_ONLY && !MD_ONLY || SYNC_PLAIN_ONLY;
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -1566,6 +1574,54 @@ For support or inquiries: \\texttt{support@musclemap.me}
 }
 
 // ============================================
+// DOCS-PLAIN SYNC
+// ============================================
+
+function syncDocsPlain() {
+  console.log('Syncing plain-text documentation to public...\n');
+
+  // Ensure target directory exists
+  ensureDir(PUBLIC_DOCS_PLAIN_DIR);
+
+  // Count files before sync
+  const docsPlainFiles = getFiles(DOCS_PLAIN_DIR, /\.(md|json|yaml)$/);
+
+  // Copy all markdown/json/yaml files recursively
+  function copyRecursive(srcDir, destDir) {
+    ensureDir(destDir);
+    const items = fs.readdirSync(srcDir, { withFileTypes: true });
+
+    for (const item of items) {
+      if (item.name.startsWith('.')) continue; // Skip hidden files
+      if (item.name === 'index.html') continue; // Don't overwrite index
+
+      const srcPath = path.join(srcDir, item.name);
+      const destPath = path.join(destDir, item.name);
+
+      if (item.isDirectory()) {
+        copyRecursive(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+
+  copyRecursive(DOCS_PLAIN_DIR, PUBLIC_DOCS_PLAIN_DIR);
+
+  // Copy index.html template if it exists
+  if (fs.existsSync(INDEX_TEMPLATE_PATH)) {
+    fs.copyFileSync(INDEX_TEMPLATE_PATH, path.join(PUBLIC_DOCS_PLAIN_DIR, 'index.html'));
+    console.log('  ✓ Copied index.html template');
+  }
+
+  // Count files after sync
+  const syncedFiles = getFiles(PUBLIC_DOCS_PLAIN_DIR, /\.(md|json|yaml|html)$/);
+  console.log(`  ✓ Synced ${syncedFiles.length} files to public/docs-plain/\n`);
+
+  return syncedFiles.length;
+}
+
+// ============================================
 // MAIN
 // ============================================
 
@@ -1705,6 +1761,12 @@ distclean: clean
     console.log('');
   }
 
+  // Sync docs-plain to public directory
+  if (SYNC_DOCS_PLAIN) {
+    const syncedCount = syncDocsPlain();
+    generatedFiles.push(`public/docs-plain/ (${syncedCount} files)`);
+  }
+
   console.log('='.repeat(60));
   console.log('  Documentation generated successfully!');
   console.log('='.repeat(60) + '\n');
@@ -1719,6 +1781,12 @@ distclean: clean
     console.log('  cd docs/latex && make all');
     console.log('\nOr compile individual documents:');
     console.log('  cd docs/latex && pdflatex architecture.tex');
+  }
+
+  if (SYNC_DOCS_PLAIN) {
+    console.log('\nPlain-text documentation available at:');
+    console.log('  Local:      http://localhost:5173/docs-plain/');
+    console.log('  Production: https://musclemap.me/docs-plain/');
   }
 
   console.log('');

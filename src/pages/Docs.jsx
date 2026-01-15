@@ -1114,6 +1114,108 @@ export default function Docs() {
           </div>
         </motion.div>
 
+        {/* Plain-Text Documentation Repository */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="mb-16"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Plain-Text Documentation</h2>
+              <p className="text-sm text-gray-400">Browsable markdown files - perfect for AI agents, terminal users, and low-bandwidth</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 p-8 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="relative z-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <a
+                  href="/docs-plain/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-white/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">Browse All</div>
+                    <div className="text-xs text-gray-400">File index</div>
+                  </div>
+                </a>
+
+                <a
+                  href="/docs-plain/user-guide/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-blue-500/30 hover:bg-white/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">User Guide</div>
+                    <div className="text-xs text-gray-400">Getting started</div>
+                  </div>
+                </a>
+
+                <a
+                  href="/docs-plain/api-reference/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-500/30 hover:bg-white/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">API Reference</div>
+                    <div className="text-xs text-gray-400">GraphQL &amp; REST</div>
+                  </div>
+                </a>
+
+                <a
+                  href="/docs-plain/machine-readable/openapi.yaml"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/30 hover:bg-white/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">OpenAPI Spec</div>
+                    <div className="text-xs text-gray-400">Machine-readable</div>
+                  </div>
+                </a>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-sm">
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-gray-300">46 markdown files</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-gray-300">ASCII diagrams</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-gray-300">No JavaScript required</span>
+                <span className="px-2.5 py-1 rounded-full bg-white/10 text-gray-300">Agent-friendly</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Help Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
