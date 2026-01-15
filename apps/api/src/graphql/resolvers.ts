@@ -2119,7 +2119,7 @@ export const resolvers = {
 
     rateRecipe: async (_: unknown, args: { id: string; rating: number; review?: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      await recipeService.rateRecipe(userId, args.id, args.rating, args.review);
+      await recipeService.rateRecipe(args.id, userId, args.rating, args.review);
       return true;
     },
 
