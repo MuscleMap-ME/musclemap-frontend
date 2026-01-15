@@ -38,7 +38,7 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
   return parseInt(result?.count || '0') > 0;
 }
 
-async function indexExists(indexName: string): Promise<boolean> {
+async function _indexExists(indexName: string): Promise<boolean> {
   const result = await db.queryOne<{ count: string }>(
     `SELECT COUNT(*) as count FROM pg_indexes WHERE indexname = $1`,
     [indexName]
@@ -64,7 +64,7 @@ export async function up(): Promise<void> {
     log.info('Creating PostGIS extension...');
     try {
       await db.query('CREATE EXTENSION IF NOT EXISTS postgis');
-    } catch (e) {
+    } catch (_e) {
       log.warn('PostGIS extension not available, using basic lat/lng calculations');
     }
   }

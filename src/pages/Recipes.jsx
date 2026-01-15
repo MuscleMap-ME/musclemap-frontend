@@ -20,8 +20,6 @@ import {
   Star,
   ChefHat,
   X,
-  Check,
-  ChevronRight,
   Utensils,
 } from 'lucide-react';
 import { GlassSurface } from '../components/glass/GlassSurface';

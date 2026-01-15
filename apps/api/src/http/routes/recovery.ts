@@ -504,7 +504,7 @@ export async function registerRecoveryRoutes(app: FastifyInstance): Promise<void
     let data = {};
     try {
       data = recommendationFeedbackSchema.parse(request.body || {});
-    } catch (error: any) {
+    } catch (_error) {
       return reply.status(400).send({
         error: {
           code: 'VALIDATION',
@@ -519,8 +519,9 @@ export async function registerRecoveryRoutes(app: FastifyInstance): Promise<void
     try {
       await recoveryService.acknowledgeRecommendation(userId, id, followed, feedback);
       return reply.status(204).send();
-    } catch (error: any) {
-      log.error({ error: error.message, userId, recommendationId: id }, 'Failed to acknowledge recommendation');
+    } catch (_err: unknown) {
+      const errorMessage = _err instanceof Error ? _err.message : 'Unknown error';
+      log.error({ error: errorMessage, userId, recommendationId: id }, 'Failed to acknowledge recommendation');
       return reply.status(500).send({
         error: {
           code: 'ACKNOWLEDGE_ERROR',

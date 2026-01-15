@@ -381,7 +381,7 @@ export default function CareerGoalPage() {
 
   // Computed values
   const categoryMeta = goal ? (CATEGORY_META[goal.category] || CATEGORY_META.general) : CATEGORY_META.general;
-  const statusConfig = readiness ? (STATUS_COLORS[readiness.status] || STATUS_COLORS.no_data) : STATUS_COLORS.no_data;
+  const _statusConfig = readiness ? (STATUS_COLORS[readiness.status] || STATUS_COLORS.no_data) : STATUS_COLORS.no_data;
   const daysRemaining = goal?.targetDate
     ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
     : null;

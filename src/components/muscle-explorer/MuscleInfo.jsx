@@ -356,7 +356,7 @@ const MuscleInfo = ({
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {muscle.exercises.slice(0, 4).map((exercise, index) => (
+                  {muscle.exercises.slice(0, 4).map((exercise, _index) => (
                     <ExerciseCard
                       key={exercise}
                       exercise={exercise}

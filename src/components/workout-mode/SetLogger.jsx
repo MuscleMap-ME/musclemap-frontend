@@ -14,10 +14,12 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Minus, Plus, Check, Trophy, TrendingUp, ChevronUp, ChevronDown, Flame, Copy, ArrowDown, AlertTriangle } from 'lucide-react';
+import { Minus, Plus, Check, Trophy, TrendingUp, ChevronUp, ChevronDown, Flame, Copy, ArrowDown, AlertTriangle, Target } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { calculate1RM, SET_TAGS } from '../../store/workoutSessionStore';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
+import { getRPEColor } from '../workout/RPESelector';
+import { getRIRColor, rpeToRir, rirToRpe } from '../workout/RIRSelector';
 
 // Quick weight increment buttons
 const WEIGHT_INCREMENTS = [
@@ -30,13 +32,23 @@ const WEIGHT_INCREMENTS = [
 // Quick rep buttons
 const REP_PRESETS = [5, 8, 10, 12, 15];
 
-// RPE scale descriptions
+// RPE scale descriptions with RIR equivalents
 const RPE_SCALE = [
-  { value: 6, label: '6', description: 'Very Light' },
-  { value: 7, label: '7', description: 'Light' },
-  { value: 8, label: '8', description: 'Moderate' },
-  { value: 9, label: '9', description: 'Hard' },
-  { value: 10, label: '10', description: 'Max Effort' },
+  { value: 5, label: '5', rir: 5, description: 'Warm-up / light work', intensity: 'light' },
+  { value: 6, label: '6', rir: 4, description: 'Could do 4+ more reps', intensity: 'moderate' },
+  { value: 7, label: '7', rir: 3, description: 'Could do 3 more reps', intensity: 'moderate-hard' },
+  { value: 8, label: '8', rir: 2, description: 'Could do 2 more reps', intensity: 'hard' },
+  { value: 9, label: '9', rir: 1, description: 'Could do 1 more rep', intensity: 'very hard' },
+  { value: 10, label: '10', rir: 0, description: 'Maximum effort - could not do more', intensity: 'maximal' },
+];
+
+// RIR options for alternate input mode
+const RIR_SCALE = [
+  { value: 0, label: '0', rpe: 10, description: 'Total failure' },
+  { value: 1, label: '1', rpe: 9, description: 'Could do 1 more' },
+  { value: 2, label: '2', rpe: 8, description: 'Could do 2 more' },
+  { value: 3, label: '3', rpe: 7, description: 'Could do 3 more' },
+  { value: 4, label: '4+', rpe: 6, description: 'Easy reps left' },
 ];
 
 // Quick action buttons for common set logging scenarios
@@ -47,7 +59,7 @@ const QUICK_ACTIONS = [
 ];
 
 export function SetLogger({
-  exercise,
+  exercise: _exercise,
   previousSet,
   bestWeight,
   best1RM,
@@ -63,6 +75,8 @@ export function SetLogger({
   const [weight, setWeight] = useState(defaultWeight);
   const [reps, setReps] = useState(defaultReps);
   const [rpe, setRpe] = useState(null);
+  const [rir, setRir] = useState(null);
+  const [intensityMode, setIntensityMode] = useState('rpe'); // 'rpe' or 'rir'
   const [isLogging, setIsLogging] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
   const [showRPESelector, setShowRPESelector] = useState(false);
@@ -78,6 +92,7 @@ export function SetLogger({
     if (defaultWeight > 0 && weight === 0) {
       setWeight(defaultWeight);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultWeight]);
 
   // Handle swipe up to complete set
@@ -87,6 +102,7 @@ export function SetLogger({
         handleLogSet();
       }
     },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
     [weight, reps, isLogging]
   );
 
@@ -133,6 +149,7 @@ export function SetLogger({
       weight,
       reps,
       rpe: rpe || undefined,
+      rir: rir !== null ? rir : undefined,
       tag: SET_TAGS.WORKING,
     };
 
@@ -148,13 +165,14 @@ export function SetLogger({
         setJustLogged(false);
         setReps(0);
         setRpe(null);
+        setRir(null);
         setShowRPESelector(false);
         // Keep weight for next set
       }, 1500);
     } finally {
       setIsLogging(false);
     }
-  }, [weight, reps, rpe, onLogSet, onStartTimer]);
+  }, [weight, reps, rpe, rir, onLogSet, onStartTimer]);
 
   // Toggle RPE selector
   const toggleRPESelector = useCallback(() => {
@@ -162,10 +180,28 @@ export function SetLogger({
     haptic('light');
   }, []);
 
-  // Select RPE value
+  // Select RPE value and sync RIR
   const selectRPE = useCallback((value) => {
-    setRpe(value);
+    setRpe(rpe === value ? null : value);
+    // Auto-sync RIR based on RPE
+    const rpeData = RPE_SCALE.find((r) => r.value === value);
+    setRir(rpe === value ? null : (rpeData?.rir ?? null));
     haptic('selection');
+  }, [rpe]);
+
+  // Select RIR value and sync RPE
+  const selectRIR = useCallback((value) => {
+    setRir(rir === value ? null : value);
+    // Auto-sync RPE based on RIR
+    const rirData = RIR_SCALE.find((r) => r.value === value);
+    setRpe(rir === value ? null : (rirData?.rpe ?? null));
+    haptic('selection');
+  }, [rir]);
+
+  // Toggle between RPE and RIR input modes
+  const toggleIntensityMode = useCallback(() => {
+    setIntensityMode((prev) => (prev === 'rpe' ? 'rir' : 'rpe'));
+    haptic('light');
   }, []);
 
   // Use previous set values
@@ -468,23 +504,36 @@ export function SetLogger({
         </div>
       </div>
 
-      {/* RPE Selector (Optional) */}
+      {/* RPE/RIR Selector (Optional) */}
       {showRPE && (
         <div className="w-full mb-6">
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={toggleRPESelector}
             className={`w-full py-3 px-4 rounded-xl transition-colors touch-manipulation flex items-center justify-between ${
-              rpe
-                ? 'bg-orange-500/20 border border-orange-500/30'
+              rpe || rir !== null
+                ? 'border'
                 : 'bg-white/5 hover:bg-white/10'
             }`}
+            style={{
+              backgroundColor: rpe ? `${getRPEColor(rpe)}15` : 'transparent',
+              borderColor: rpe ? `${getRPEColor(rpe)}40` : 'transparent',
+            }}
           >
             <div className="flex items-center gap-2">
-              <Flame className={`w-5 h-5 ${rpe ? 'text-orange-400' : 'text-gray-400'}`} />
-              <span className={rpe ? 'text-orange-400' : 'text-gray-400'}>
-                {rpe ? `RPE ${rpe}` : 'Add RPE (optional)'}
+              {intensityMode === 'rpe' ? (
+                <Flame className="w-5 h-5" style={{ color: rpe ? getRPEColor(rpe) : '#9CA3AF' }} />
+              ) : (
+                <Target className="w-5 h-5" style={{ color: rir !== null ? getRIRColor(rir) : '#9CA3AF' }} />
+              )}
+              <span style={{ color: rpe ? getRPEColor(rpe) : rir !== null ? getRIRColor(rir) : '#9CA3AF' }}>
+                {rpe ? `RPE ${rpe}` : rir !== null ? `${rir} RIR` : 'Add intensity (optional)'}
               </span>
+              {rpe && rir !== null && (
+                <span className="text-gray-500 text-xs">
+                  ({rir} RIR)
+                </span>
+              )}
             </div>
             <ChevronDown
               className={`w-5 h-5 text-gray-400 transition-transform ${
@@ -502,31 +551,107 @@ export function SetLogger({
                 transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="flex justify-center gap-2 mt-3">
-                  {RPE_SCALE.map((item) => (
-                    <motion.button
-                      key={item.value}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => selectRPE(item.value)}
-                      className={`w-12 h-12 min-w-[48px] min-h-[48px] rounded-xl font-bold text-lg transition-colors touch-manipulation select-none ${
-                        rpe === item.value
-                          ? 'bg-orange-500/30 text-orange-400 border border-orange-500/40'
-                          : 'bg-white/5 hover:bg-white/10 active:bg-white/20 text-gray-300'
-                      }`}
-                      title={item.description}
-                    >
-                      {item.label}
-                    </motion.button>
-                  ))}
+                {/* Mode Toggle */}
+                <div className="flex bg-gray-800/50 rounded-lg p-1 mt-3 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setIntensityMode('rpe')}
+                    className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${
+                      intensityMode === 'rpe'
+                        ? 'bg-orange-500/20 text-orange-400'
+                        : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    <Flame className="w-4 h-4" />
+                    RPE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIntensityMode('rir')}
+                    className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${
+                      intensityMode === 'rir'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    <Target className="w-4 h-4" />
+                    RIR
+                  </button>
                 </div>
-                {rpe && (
-                  <motion.p
+
+                {/* RPE Buttons */}
+                {intensityMode === 'rpe' && (
+                  <div className="flex justify-center gap-2">
+                    {RPE_SCALE.filter(r => r.value >= 6).map((item) => (
+                      <motion.button
+                        key={item.value}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => selectRPE(item.value)}
+                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl font-bold text-lg transition-all touch-manipulation select-none border ${
+                          rpe === item.value
+                            ? 'scale-105'
+                            : 'bg-white/5 hover:bg-white/10 active:bg-white/20 text-gray-300 border-transparent'
+                        }`}
+                        style={{
+                          backgroundColor: rpe === item.value ? `${getRPEColor(item.value)}20` : undefined,
+                          borderColor: rpe === item.value ? `${getRPEColor(item.value)}60` : undefined,
+                          color: rpe === item.value ? getRPEColor(item.value) : undefined,
+                        }}
+                        title={item.description}
+                      >
+                        {item.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+
+                {/* RIR Buttons */}
+                {intensityMode === 'rir' && (
+                  <div className="flex justify-center gap-2">
+                    {RIR_SCALE.map((item) => (
+                      <motion.button
+                        key={item.value}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => selectRIR(item.value)}
+                        className={`w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl font-bold text-lg transition-all touch-manipulation select-none border ${
+                          rir === item.value
+                            ? 'scale-105'
+                            : 'bg-white/5 hover:bg-white/10 active:bg-white/20 text-gray-300 border-transparent'
+                        }`}
+                        style={{
+                          backgroundColor: rir === item.value ? `${getRIRColor(item.value)}20` : undefined,
+                          borderColor: rir === item.value ? `${getRIRColor(item.value)}60` : undefined,
+                          color: rir === item.value ? getRIRColor(item.value) : undefined,
+                        }}
+                        title={item.description}
+                      >
+                        {item.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Description */}
+                {(rpe || rir !== null) && (
+                  <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-center text-sm text-orange-400/70 mt-2"
+                    className="text-center mt-3 space-y-1"
                   >
-                    {RPE_SCALE.find((r) => r.value === rpe)?.description}
-                  </motion.p>
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: rpe ? getRPEColor(rpe) : getRIRColor(rir) }}
+                    >
+                      {intensityMode === 'rpe'
+                        ? RPE_SCALE.find((r) => r.value === rpe)?.description
+                        : RIR_SCALE.find((r) => r.value === rir)?.description}
+                    </p>
+                    {rpe && rir !== null && (
+                      <p className="text-xs text-gray-500">
+                        RPE {rpe} = {rir} reps in reserve
+                      </p>
+                    )}
+                  </motion.div>
                 )}
               </motion.div>
             )}

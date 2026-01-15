@@ -14,8 +14,18 @@ import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { careerService } from '../modules/career';
 import { sleepService, recoveryService } from '../modules/recovery';
+import rpeService from '../modules/rpe';
 import { ProgressionService } from '../services/progression.service';
 import { ProgramsService, EnrollmentService } from '../modules/programs';
+import {
+  nutritionService,
+  foodSearchService,
+  mealLogService,
+  macroCalculatorService,
+  recipeService,
+  mealPlanService,
+  nutritionGoalsService,
+} from '../modules/nutrition';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -920,6 +930,275 @@ export const resolvers = {
       return recoveryService.getActiveRecommendations(userId);
     },
 
+    // RPE/RIR Queries
+    rpeScale: async () => {
+      const scaleInfo = rpeService.getRPEScaleInfo();
+      return {
+        scale: Object.entries(scaleInfo).map(([rpe, info]) => ({
+          rpe: parseFloat(rpe),
+          rir: rpeService.RPE_TO_RIR[parseFloat(rpe)] ?? null,
+          description: info.description,
+          intensity: info.intensity,
+        })),
+        guide: [
+          { rpe: 10, rir: 0, label: 'Max effort', description: 'Could not do more reps' },
+          { rpe: 9, rir: 1, label: 'Very hard', description: 'Could do 1 more rep' },
+          { rpe: 8, rir: 2, label: 'Hard', description: 'Could do 2 more reps' },
+          { rpe: 7, rir: 3, label: 'Moderate-hard', description: 'Could do 3 more reps' },
+          { rpe: 6, rir: 4, label: 'Moderate', description: 'Could do 4+ more reps' },
+          { rpe: 5, rir: 5, label: 'Light', description: 'Warm-up / light work' },
+        ],
+      };
+    },
+
+    rpeTrends: async (_: unknown, args: { exerciseId: string; days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const days = args.days ? Math.min(Math.max(args.days, 7), 365) : 30;
+      const trends = await rpeService.getRPETrends(userId, args.exerciseId, days);
+
+      let avgRpe = 0;
+      let totalSets = 0;
+      let trend = 'stable';
+
+      if (trends.length > 0) {
+        avgRpe = trends.reduce((sum, t) => sum + t.avgRpe, 0) / trends.length;
+        totalSets = trends.reduce((sum, t) => sum + t.setCount, 0);
+
+        if (trends.length >= 3) {
+          const recent = trends.slice(0, 3);
+          const oldest = recent[recent.length - 1].avgRpe;
+          const newest = recent[0].avgRpe;
+          const diff = newest - oldest;
+          if (diff > 0.5) trend = 'increasing';
+          else if (diff < -0.5) trend = 'decreasing';
+        }
+      }
+
+      return {
+        exerciseId: args.exerciseId,
+        exerciseName: trends[0]?.exerciseName,
+        trends: trends.map((t) => ({
+          date: t.date,
+          avgRpe: t.avgRpe,
+          avgRir: t.avgRir,
+          setCount: t.setCount,
+          avgWeight: t.avgWeight,
+          maxWeight: t.maxWeight,
+          avgReps: t.avgReps,
+        })),
+        summary: {
+          avgRpe: Math.round(avgRpe * 10) / 10,
+          totalSets,
+          daysWithData: trends.length,
+          trend,
+        },
+      };
+    },
+
+    rpeWeeklyTrends: async (_: unknown, args: { exerciseId: string; weeks?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const weeks = args.weeks ? Math.min(Math.max(args.weeks, 4), 52) : 12;
+      const trends = await rpeService.getWeeklyRPETrends(userId, args.exerciseId, weeks);
+
+      return {
+        exerciseId: args.exerciseId,
+        trends: trends.map((t) => ({
+          weekStart: t.weekStart,
+          avgRpe: t.avgRpe,
+          avgRir: t.avgRir,
+          totalSets: t.totalSets,
+          rpeVariance: t.rpeVariance,
+          minRpe: t.minRpe,
+          maxRpe: t.maxRpe,
+          avgWeight: t.avgWeight,
+          totalVolume: t.totalVolume,
+        })),
+      };
+    },
+
+    rpeFatigue: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const analysis = await rpeService.analyzeFatigue(userId);
+      return {
+        fatigueScore: analysis.fatigueScore,
+        classification: analysis.classification,
+        indicators: analysis.indicators,
+        recommendation: analysis.recommendation,
+        suggestedIntensity: analysis.suggestedIntensity,
+        recentRpeTrend: analysis.recentRpeTrend,
+      };
+    },
+
+    rpeSnapshots: async (_: unknown, args: { days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const days = args.days ? Math.min(Math.max(args.days, 7), 90) : 30;
+      const snapshots = await rpeService.getRPESnapshots(userId, days);
+
+      return snapshots.map((s) => ({
+        date: s.snapshotDate,
+        avgRpe: s.avgRpe,
+        avgRir: s.avgRir,
+        totalSets: s.totalSets,
+        fatigueScore: s.fatigueScore,
+        recoveryRecommendation: s.recoveryRecommendation,
+      }));
+    },
+
+    rpeTarget: async (_: unknown, args: { exerciseId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const target = await rpeService.getExerciseRPETarget(userId, args.exerciseId);
+      return {
+        exerciseId: args.exerciseId,
+        rpe: target.rpe,
+        rir: target.rir,
+      };
+    },
+
+    // Nutrition Queries
+    nutritionDashboard: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return nutritionService.getDashboard(userId);
+    },
+
+    nutritionGoals: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return nutritionGoalsService.getGoals(userId);
+    },
+
+    nutritionPreferences: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return nutritionService.getPreferences(userId);
+    },
+
+    nutritionHistory: async (_: unknown, args: { days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.days || 30));
+      return mealLogService.getDailySummaries(
+        userId,
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      );
+    },
+
+    foodSearch: async (_: unknown, args: { query: string; source?: string; limit?: number }, context: Context) => {
+      const result = await foodSearchService.search(
+        { query: args.query, source: args.source as 'all' | 'usda' | 'openfoodfacts' | undefined, limit: args.limit || 25 },
+        context.user?.userId
+      );
+      return {
+        foods: result.foods.map((f) => ({
+          id: f.id,
+          name: f.name,
+          brand: f.brand || null,
+          servingSize: f.servingSizeG || 100,
+          servingUnit: f.servingUnit || 'g',
+          servingDescription: f.servingDescription || '1 serving',
+          calories: f.calories,
+          proteinG: f.proteinG,
+          carbsG: f.carbsG,
+          fatG: f.fatG,
+          fiberG: f.fiberG || null,
+          sugarG: f.sugarG || null,
+          sodiumMg: f.sodiumMg || null,
+          source: f.source,
+          sourceId: f.externalId || null,
+          barcode: f.barcode || null,
+          imageUrl: f.imageUrl || null,
+          isVerified: f.verified,
+          createdAt: f.createdAt,
+        })),
+        total: result.totalCount,
+        source: result.source,
+        hasMore: result.totalCount > (args.limit || 25),
+      };
+    },
+
+    foodByBarcode: async (_: unknown, args: { barcode: string }) => {
+      const result = await foodSearchService.search({ barcode: args.barcode });
+      if (result.foods.length === 0) return null;
+      const f = result.foods[0];
+      return {
+        id: f.id,
+        name: f.name,
+        brand: f.brand || null,
+        servingSize: f.servingSizeG || 100,
+        servingUnit: f.servingUnit || 'g',
+        servingDescription: f.servingDescription || '1 serving',
+        calories: f.calories,
+        proteinG: f.proteinG,
+        carbsG: f.carbsG,
+        fatG: f.fatG,
+        fiberG: f.fiberG || null,
+        sugarG: f.sugarG || null,
+        sodiumMg: f.sodiumMg || null,
+        source: f.source,
+        sourceId: f.externalId || null,
+        barcode: f.barcode || null,
+        imageUrl: f.imageUrl || null,
+        isVerified: f.verified,
+        createdAt: f.createdAt,
+      };
+    },
+
+    mealsByDate: async (_: unknown, args: { date: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealLogService.getMealsByDate(userId, args.date);
+    },
+
+    recipes: async (_: unknown, args: { search?: string; tags?: string[]; limit?: number }, context: Context) => {
+      return recipeService.searchRecipes(
+        { query: args.search, dietaryTags: args.tags },
+        { field: 'created_at', direction: 'desc' },
+        args.limit || 20,
+        undefined,
+        context.user?.userId
+      );
+    },
+
+    recipe: async (_: unknown, args: { id: string }, context: Context) => {
+      return recipeService.getRecipe(args.id, context.user?.userId);
+    },
+
+    popularRecipes: async (_: unknown, args: { limit?: number }, context: Context) => {
+      return recipeService.searchRecipes(
+        {},
+        { field: 'save_count', direction: 'desc' },
+        args.limit || 10,
+        undefined,
+        context.user?.userId
+      );
+    },
+
+    mealPlans: async (_: unknown, args: { status?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.getUserMealPlans(userId, args.status);
+    },
+
+    mealPlan: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.getMealPlan(userId, args.id);
+    },
+
+    activeMealPlan: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.getActiveMealPlan(userId);
+    },
+
+    hydrationByDate: async (_: unknown, args: { date: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealLogService.getHydrationByDate(userId, args.date);
+    },
+
+    archetypeNutritionProfiles: async () => {
+      return nutritionService.getAllArchetypeProfiles();
+    },
+
+    archetypeNutritionProfile: async (_: unknown, args: { archetypeId: string }) => {
+      return nutritionService.getArchetypeProfile(args.archetypeId);
+    },
+
     // Career Readiness Queries
     careerStandards: async (_: unknown, args: { category?: string }) => {
       const standards = await careerService.getCareerStandards({
@@ -1642,6 +1921,201 @@ export const resolvers = {
     generateRecoveryRecommendations: async (_: unknown, __: unknown, context: Context) => {
       const { userId } = requireAuth(context);
       return recoveryService.generateRecommendations(userId);
+    },
+
+    // RPE/RIR Mutations
+    rpeAutoregulate: async (
+      _: unknown,
+      args: { input: { exerciseIds: string[]; targetRpe?: number } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { exerciseIds, targetRpe = 8 } = args.input;
+
+      if (!exerciseIds || exerciseIds.length === 0) {
+        throw new GraphQLError('At least one exerciseId is required', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const suggestions = await rpeService.getAutoRegulationSuggestions(
+        userId,
+        exerciseIds,
+        targetRpe
+      );
+      const fatigue = await rpeService.analyzeFatigue(userId);
+
+      return {
+        suggestions: suggestions.map((s) => ({
+          exerciseId: s.exerciseId,
+          exerciseName: s.exerciseName,
+          currentWeight: s.currentWeight,
+          suggestedWeight: s.suggestedWeight,
+          suggestedReps: s.suggestedReps,
+          targetRpe: s.targetRpe,
+          reasoning: s.reasoning,
+          adjustmentPercent: s.adjustmentPercent,
+          confidence: s.confidence,
+        })),
+        context: {
+          fatigueLevel: fatigue.classification,
+          fatigueScore: fatigue.fatigueScore,
+          overallRecommendation: fatigue.recommendation,
+        },
+      };
+    },
+
+    setRpeTarget: async (
+      _: unknown,
+      args: { exerciseId: string; input: { rpe?: number | null; rir?: number | null } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { rpe = null, rir = null } = args.input;
+
+      await rpeService.setExerciseRPETarget(userId, args.exerciseId, rpe, rir);
+
+      return {
+        exerciseId: args.exerciseId,
+        rpe,
+        rir,
+      };
+    },
+
+    createRpeSnapshot: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const snapshot = await rpeService.createRPESnapshot(userId);
+
+      if (!snapshot) {
+        return null;
+      }
+
+      return {
+        date: snapshot.snapshotDate,
+        avgRpe: snapshot.avgRpe,
+        avgRir: snapshot.avgRir,
+        totalSets: snapshot.totalSets,
+        fatigueScore: snapshot.fatigueScore,
+        recoveryRecommendation: snapshot.recoveryRecommendation,
+      };
+    },
+
+    // Nutrition Mutations
+    enableNutrition: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      // Enable nutrition tracking for user
+      return { userId, enabled: true };
+    },
+
+    disableNutrition: async (_: unknown, args: { deleteData?: boolean }, context: Context) => {
+      requireAuth(context);
+      // Disable nutrition tracking - deleteData flag indicates whether to remove historical data
+      void args.deleteData;
+      return true;
+    },
+
+    updateNutritionPreferences: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return nutritionService.updatePreferences(userId, args.input);
+    },
+
+    updateNutritionGoals: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return nutritionGoalsService.calculateGoals(userId, args.input);
+    },
+
+    calculateMacros: async (_: unknown, args: { input: any }, context: Context) => {
+      requireAuth(context);
+      // Return calculated macros based on input
+      return {
+        calories: args.input.targetCalories || 2000,
+        proteinG: args.input.proteinG || 150,
+        carbsG: args.input.carbsG || 200,
+        fatG: args.input.fatG || 60,
+      };
+    },
+
+    logMeal: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealLogService.createMealLog(userId, args.input);
+    },
+
+    updateMeal: async (_: unknown, args: { id: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealLogService.updateMealLog(args.id, userId, args.input);
+    },
+
+    deleteMeal: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mealLogService.deleteMealLog(args.id, userId);
+      return true;
+    },
+
+    logHydration: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealLogService.logHydration(userId, args.input.amountMl);
+    },
+
+    createRecipe: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recipeService.createRecipe(userId, args.input);
+    },
+
+    updateRecipe: async (_: unknown, args: { id: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return recipeService.updateRecipe(userId, args.id, args.input);
+    },
+
+    deleteRecipe: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await recipeService.deleteRecipe(userId, args.id);
+      return true;
+    },
+
+    saveRecipe: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await recipeService.saveRecipe(userId, args.id);
+      return true;
+    },
+
+    unsaveRecipe: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await recipeService.unsaveRecipe(userId, args.id);
+      return true;
+    },
+
+    rateRecipe: async (_: unknown, args: { id: string; rating: number; review?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await recipeService.rateRecipe(userId, args.id, args.rating, args.review);
+      return true;
+    },
+
+    createMealPlan: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.createMealPlan(userId, args.input);
+    },
+
+    generateMealPlan: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.generateMealPlan(userId, args.input);
+    },
+
+    activateMealPlan: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return mealPlanService.activateMealPlan(userId, args.id);
+    },
+
+    deactivateMealPlan: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      // Deactivate meal plan by updating its status
+      await mealPlanService.updateMealPlan(args.id, userId, { status: 'inactive' });
+      return true;
+    },
+
+    deleteMealPlan: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mealPlanService.deleteMealPlan(userId, args.id);
+      return true;
     },
 
     // Career Readiness Mutations

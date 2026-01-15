@@ -14,7 +14,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { Play, SkipForward, Volume2, VolumeX, Plus } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
 
@@ -179,6 +179,15 @@ export function RestTimer({
   const isWarning = time > 0 && time <= 10;
   const isUrgent = time > 0 && time <= 5;
 
+  // Calculate intensity for ambient effects based on time remaining
+  // NOTE: This hook must be called before any conditional returns
+  const intensity = useMemo(() => {
+    if (!isActive) return 0;
+    if (isUrgent) return 1.5;
+    if (isWarning) return 1.2;
+    return 1;
+  }, [isActive, isWarning, isUrgent]);
+
   // Handle timer completion
   useEffect(() => {
     if (time === 0 && isActive && !hasPlayedAlertRef.current) {
@@ -277,14 +286,6 @@ export function RestTimer({
   const radius = fullscreen ? 100 : 70;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress / 100);
-
-  // Calculate intensity for ambient effects based on time remaining
-  const intensity = useMemo(() => {
-    if (!isActive) return 0;
-    if (isUrgent) return 1.5;
-    if (isWarning) return 1.2;
-    return 1;
-  }, [isActive, isWarning, isUrgent]);
 
   // Fullscreen version
   if (fullscreen) {

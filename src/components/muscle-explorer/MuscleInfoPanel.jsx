@@ -286,7 +286,7 @@ const RelatedMuscleTag = ({ muscle, type }) => (
  */
 const ActivationMiniChart = ({ data, color }) => {
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const width = 100 / data.length;
+  const _width = 100 / data.length;
 
   return (
     <div className="h-16 flex items-end gap-0.5 bg-[var(--glass-white-3)] rounded-lg p-2">

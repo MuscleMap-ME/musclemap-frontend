@@ -14,10 +14,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Calendar, Dumbbell } from 'lucide-react';

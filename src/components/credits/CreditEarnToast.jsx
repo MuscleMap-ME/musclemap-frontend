@@ -109,7 +109,7 @@ function getToastDuration(amount) {
 
 // Single toast item
 function ToastItem({ event, onDismiss }) {
-  const { id, amount, source, description, icon, color } = event;
+  const { id, amount, source, description, color } = event;
   const animationType = getAnimationType(amount);
   const duration = getToastDuration(amount);
 

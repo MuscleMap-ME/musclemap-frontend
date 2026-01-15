@@ -300,7 +300,6 @@ export class NutritionService {
   }
 
   async updateStreaks(userId: string, mealDate: string): Promise<void> {
-    const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     await db.query(`

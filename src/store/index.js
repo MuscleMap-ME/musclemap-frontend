@@ -137,6 +137,23 @@ export {
 } from './feedbackStore';
 
 // ============================================
+// OFFLINE STORE
+// ============================================
+export {
+  useOfflineStore,
+  useOnlineStatus,
+  useSyncStatus,
+  usePendingOperations,
+  useConflicts,
+  useExerciseCache,
+  useOffline,
+  SYNC_STATUS,
+  CONFLICT_RESOLUTION,
+  OPERATION_TYPES,
+  default as offlineStore,
+} from './offlineStore';
+
+// ============================================
 // STORE UTILITIES
 // ============================================
 
@@ -273,6 +290,21 @@ export const selectors = {
     selected: (s) => s.selectedMuscle,
     intensity: (s) => s.muscleIntensity,
     camera: (s) => ({ rotation: s.cameraRotation, zoom: s.cameraZoom, preset: s.cameraPreset }),
+  },
+
+  // Offline Store selectors
+  offline: {
+    isOnline: (s) => s.isOnline,
+    syncStatus: (s) => s.syncStatus,
+    pendingCount: (s) => s.pendingCount,
+    conflictCount: (s) => s.conflictCount,
+    combined: (s) => ({
+      isOnline: s.isOnline,
+      syncStatus: s.syncStatus,
+      pendingCount: s.pendingCount,
+      conflictCount: s.conflictCount,
+      hasIssues: s.pendingCount > 0 || s.conflictCount > 0,
+    }),
   },
 };
 

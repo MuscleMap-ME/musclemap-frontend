@@ -5,7 +5,6 @@
  */
 
 import { db } from '../../db/client';
-import { loggers } from '../../lib/logger';
 import { recipeService } from './recipe.service';
 import { macroCalculatorService } from './macro-calculator.service';
 import type {
@@ -16,8 +15,6 @@ import type {
   ShoppingListItem,
   MealType,
 } from './types';
-
-const log = loggers.api;
 
 export class MealPlanService {
   // ============================================

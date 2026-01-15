@@ -30,7 +30,7 @@ export async function registerMiscRoutes(app: FastifyInstance) {
 
   // Exercises
   app.get('/exercises', async (request, reply) => {
-    const params = request.query as { location?: string; equipment?: string };
+    const params = request.query as { location?: string; equipment?: string; include_videos?: string };
 
     let sql = 'SELECT * FROM exercises WHERE 1=1';
     const queryParams: any[] = [];
@@ -68,6 +68,11 @@ export async function registerMiscRoutes(app: FastifyInstance) {
             secondaryMuscles: illustration.secondaryMuscles,
           } : null,
           hasIllustration: hasExerciseIllustration(e.id),
+          // Video data
+          hasVideo: e.has_video || false,
+          videoUrl: e.video_url || null,
+          videoThumbnailUrl: e.video_thumbnail_url || null,
+          videoDurationSeconds: e.video_duration_seconds || null,
         };
       }),
     });

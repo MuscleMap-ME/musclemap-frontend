@@ -15,7 +15,7 @@ import { query as dbQuery, queryOne as dbQueryOne, queryAll as dbQueryAll } from
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 import { NotificationService } from '../../services/notification.service';
-import { EmailService, sendResolutionNotification } from '../../services/email.service';
+import { EmailService as _EmailService, sendResolutionNotification } from '../../services/email.service';
 import { bugFixQueue } from '../../jobs/bug-fix.queue';
 
 const log = loggers.api;

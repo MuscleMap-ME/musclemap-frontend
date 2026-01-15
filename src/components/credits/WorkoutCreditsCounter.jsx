@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, ChevronUp, ChevronDown, Zap, Trophy, Flame, Target } from 'lucide-react';
+import { Coins, ChevronDown, Zap, Trophy, Flame, Target } from 'lucide-react';
 
 // Category icons
 const CATEGORY_ICONS = {

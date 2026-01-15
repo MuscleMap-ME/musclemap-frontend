@@ -14,7 +14,6 @@ import {
   Mic,
   Plus,
   Minus,
-  Clock,
   Utensils,
   Coffee,
   Sun,
@@ -32,6 +31,8 @@ import {
 } from '../../store/nutritionStore';
 import { useFoodSearch, useMealLog } from '../../hooks/useNutrition';
 import { useDebounce } from '../../hooks';
+// BarcodeScanner import reserved for future barcode scanning feature
+// import { BarcodeScanner } from './BarcodeScanner';
 
 const mealTypes = [
   { id: 'breakfast', label: 'Breakfast', icon: Coffee, color: 'orange' },
@@ -120,6 +121,8 @@ export function QuickLogModal() {
   const [selectedMealType, setSelectedMealType] = useState(mealType);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Scanner state reserved for future barcode scanning feature
+  const [_isScannerOpen, _setIsScannerOpen] = useState(false);
 
   const { search, searchResults } = useFoodSearch();
   const { logMeal } = useMealLog();
@@ -197,6 +200,14 @@ export function QuickLogModal() {
       setIsSubmitting(false);
     }
   }, [selectedMealType, logMeal, closeQuickLog]);
+
+  // Handle food found from barcode scanner
+  const handleBarcodeFood = useCallback((food) => {
+    setSelectedFood(food);
+    setServings(1);
+    setStep('confirm');
+    setIsScannerOpen(false);
+  }, []);
 
   // Display foods
   const displayFoods = searchQuery.length >= 2
@@ -286,7 +297,10 @@ export function QuickLogModal() {
                       <Camera className="w-5 h-5 text-green-400" />
                       <span className="text-sm text-gray-300">Photo</span>
                     </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                    <button
+                      onClick={() => setIsScannerOpen(true)}
+                      className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                    >
                       <Barcode className="w-5 h-5 text-blue-400" />
                       <span className="text-sm text-gray-300">Scan</span>
                     </button>
@@ -387,6 +401,13 @@ export function QuickLogModal() {
               )}
             </GlassSurface>
           </motion.div>
+
+          {/* Barcode Scanner Modal */}
+          <BarcodeScanner
+            isOpen={isScannerOpen}
+            onClose={() => setIsScannerOpen(false)}
+            onFoodFound={handleBarcodeFood}
+          />
         </>
       )}
     </AnimatePresence>

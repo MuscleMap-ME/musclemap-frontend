@@ -48,7 +48,7 @@ export function QuickControls({
   isPaused = false,
   onTogglePause,
 }) {
-  const shouldReduceMotion = useShouldReduceMotion();
+  const _shouldReduceMotion = useShouldReduceMotion();
 
   // Handle button press with haptic feedback
   const handlePress = (callback) => () => {
@@ -127,7 +127,7 @@ export function QuickControlsExpanded({
   isPaused = false,
   onTogglePause,
 }) {
-  const shouldReduceMotion = useShouldReduceMotion();
+  const _shouldReduceMotion = useShouldReduceMotion();
 
   const handlePress = (callback) => () => {
     haptic('light');

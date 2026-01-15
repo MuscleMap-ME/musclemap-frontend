@@ -26,8 +26,14 @@
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
-        "com.apple.developer.healthkit.background-delivery": true
+        "com.apple.developer.healthkit.background-delivery": true,
+        "com.apple.security.application-groups": [
+          "group.com.musclemap.app"
+        ]
       },
+      "associatedDomains": [
+        "applinks:musclemap.me"
+      ],
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -59,6 +65,18 @@
         "expo-font",
         {
           "fonts": []
+        }
+      ],
+      [
+        "react-native-health-connect",
+        {
+          "requestPermissionsOnLaunch": false
+        }
+      ],
+      [
+        "@bacons/apple-targets",
+        {
+          "appleTeamId": "XXXXXXXXXX"
         }
       ]
     ],

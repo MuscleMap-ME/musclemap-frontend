@@ -125,18 +125,13 @@ const TransitionLink = forwardRef(function TransitionLink(
   },
   ref
 ) {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const motionAllowed = useMotionAllowed();
   const prefetchTimeoutRef = useRef(null);
   const hasPrefetchedRef = useRef(false);
 
-  // Try to get transition context
-  let context = null;
-  try {
-    context = useTransitionContext();
-  } catch {
-    // Context not available
-  }
+  // Get transition context (returns null if not in provider)
+  const context = useTransitionContext();
 
   // Normalize the destination path
   const normalizedPath = normalizePath(to);
@@ -257,18 +252,13 @@ const TransitionNavLink = forwardRef(function TransitionNavLink(
   },
   ref
 ) {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const motionAllowed = useMotionAllowed();
   const prefetchTimeoutRef = useRef(null);
   const hasPrefetchedRef = useRef(false);
 
-  // Try to get transition context
-  let context = null;
-  try {
-    context = useTransitionContext();
-  } catch {
-    // Context not available
-  }
+  // Get transition context (returns null if not in provider)
+  const context = useTransitionContext();
 
   const normalizedPath = normalizePath(to);
 
@@ -370,12 +360,8 @@ export function useTransitionNavigate() {
   const navigate = useNavigate();
   const motionAllowed = useMotionAllowed();
 
-  let context = null;
-  try {
-    context = useTransitionContext();
-  } catch {
-    // Context not available
-  }
+  // Get transition context (returns null if not in provider)
+  const context = useTransitionContext();
 
   return useCallback(
     (to, options = {}) => {

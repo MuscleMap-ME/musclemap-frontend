@@ -15,14 +15,13 @@ import {
   Timer,
   Play,
   Pause,
-  RotateCcw,
   Plus,
   Minus,
   Settings,
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { useRestTimer, REST_PRESETS } from '../../store/workoutSessionStore';
+import { useRestTimer } from '../../store/workoutSessionStore';
 
 // Format time as MM:SS
 const formatTime = (seconds) => {
@@ -62,7 +61,7 @@ export function RestTimerControl({ exerciseId, compact = false }) {
         if ('vibrate' in navigator) {
           navigator.vibrate([200, 100, 200]);
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore audio errors
       }
     }
@@ -103,7 +102,7 @@ export function RestTimerControl({ exerciseId, compact = false }) {
   }
 
   // Calculate progress percentage
-  const progress = isActive ? (time / defaultDuration) * 100 : 0;
+  const _progress = isActive ? (time / defaultDuration) * 100 : 0;
 
   return (
     <div className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
@@ -199,7 +198,7 @@ export function RestTimerControl({ exerciseId, compact = false }) {
       {/* Preset Buttons */}
       <div className="border-t border-gray-800 p-4">
         <div className="grid grid-cols-3 gap-2">
-          {presets.slice(0, 6).map((preset, index) => (
+          {presets.slice(0, 6).map((preset, _index) => (
             <button
               key={preset.seconds}
               onClick={() => handlePresetClick(preset)}

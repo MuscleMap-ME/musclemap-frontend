@@ -8,15 +8,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Settings,
   ArrowLeft,
   Target,
-  Scale,
   Activity,
   Flame,
   Calculator,
   Eye,
-  EyeOff,
   Trash2,
   AlertCircle,
   Check,
@@ -250,7 +247,7 @@ export default function NutritionSettings() {
 
   const { enable, disable, updatePreferences } = useNutritionPreferencesAPI();
   const { calculateGoals } = useNutritionGoalsAPI();
-  const { load, isLoading } = useNutritionDashboard();
+  const { load, isLoading: _isLoading } = useNutritionDashboard();
 
   const [showCalculator, setShowCalculator] = useState(!goals);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

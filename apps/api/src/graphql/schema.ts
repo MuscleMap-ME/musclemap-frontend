@@ -167,9 +167,35 @@ export const typeDefs = `#graphql
     recoveryHistory(days: Int): RecoveryHistory!
     recoveryRecommendations: [RecoveryRecommendation!]!
 
+    # RPE/RIR Tracking
+    rpeScale: RPEScale!
+    rpeTrends(exerciseId: ID!, days: Int): RPETrends!
+    rpeWeeklyTrends(exerciseId: ID!, weeks: Int): RPEWeeklyTrends!
+    rpeFatigue: FatigueAnalysis!
+    rpeSnapshots(days: Int): [RPESnapshot!]!
+    rpeTarget(exerciseId: ID!): RPETarget!
+
     # Health (internal)
     health: HealthStatus
     healthDetailed: DetailedHealthStatus
+
+    # Nutrition
+    nutritionDashboard: NutritionDashboard
+    nutritionGoals: NutritionGoals
+    nutritionPreferences: NutritionPreferences
+    nutritionHistory(days: Int): [NutritionHistoryEntry!]!
+    foodSearch(query: String!, source: String, limit: Int): FoodSearchResult!
+    foodByBarcode(barcode: String!): FoodItem
+    mealsByDate(date: String!): [MealLog!]!
+    recipes(search: String, tags: [String!], limit: Int): [Recipe!]!
+    recipe(id: ID!): Recipe
+    popularRecipes(limit: Int): [Recipe!]!
+    mealPlans(status: String): [MealPlan!]!
+    mealPlan(id: ID!): MealPlan
+    activeMealPlan: MealPlan
+    hydrationByDate(date: String!): HydrationSummary!
+    archetypeNutritionProfiles: [ArchetypeNutritionProfile!]!
+    archetypeNutritionProfile(archetypeId: ID!): ArchetypeNutritionProfile
   }
 
   type Mutation {
@@ -295,8 +321,35 @@ export const typeDefs = `#graphql
     acknowledgeRecommendation(id: ID!, input: RecommendationFeedbackInput): Boolean!
     generateRecoveryRecommendations: [RecoveryRecommendation!]!
 
+    # RPE/RIR Tracking
+    rpeAutoregulate(input: AutoRegulateInput!): AutoRegulationResult!
+    setRpeTarget(exerciseId: ID!, input: RPETargetInput!): RPETarget!
+    createRpeSnapshot: RPESnapshot
+
     # Logging
     logFrontendError(input: FrontendLogInput!): Boolean!
+
+    # Nutrition
+    enableNutrition: NutritionPreferences!
+    disableNutrition(deleteData: Boolean): Boolean!
+    updateNutritionPreferences(input: NutritionPreferencesInput!): NutritionPreferences!
+    updateNutritionGoals(input: NutritionGoalsInput!): NutritionGoals!
+    calculateMacros(input: MacroCalculationInput!): MacroCalculationResult!
+    logMeal(input: MealLogInput!): MealLog!
+    updateMeal(id: ID!, input: MealLogInput!): MealLog!
+    deleteMeal(id: ID!): Boolean!
+    logHydration(input: HydrationLogInput!): HydrationLog!
+    createRecipe(input: RecipeInput!): Recipe!
+    updateRecipe(id: ID!, input: RecipeInput!): Recipe!
+    deleteRecipe(id: ID!): Boolean!
+    saveRecipe(id: ID!): Boolean!
+    unsaveRecipe(id: ID!): Boolean!
+    rateRecipe(id: ID!, rating: Int!, review: String): Boolean!
+    createMealPlan(input: MealPlanInput!): MealPlan!
+    generateMealPlan(input: MealPlanGenerateInput!): MealPlan!
+    activateMealPlan(id: ID!): MealPlan!
+    deactivateMealPlan(id: ID!): Boolean!
+    deleteMealPlan(id: ID!): Boolean!
   }
 
   type Subscription {
@@ -1862,5 +1915,473 @@ export const typeDefs = `#graphql
   input RecommendationFeedbackInput {
     followed: Boolean
     feedback: String
+  }
+
+  # ============================================
+  # NUTRITION TYPES
+  # ============================================
+  type NutritionDashboard {
+    enabled: Boolean!
+    preferences: NutritionPreferences
+    goals: NutritionGoals
+    todaySummary: DailyNutritionSummary
+    streaks: NutritionStreaks
+    archetypeProfile: ArchetypeNutritionProfile
+    recentMeals: [MealLog!]!
+  }
+
+  type NutritionPreferences {
+    enabled: Boolean!
+    trackingMode: String!
+    showOnDashboard: Boolean!
+    showInCommunity: Boolean!
+    goalType: String!
+    syncWithArchetype: Boolean!
+    syncWithWorkouts: Boolean!
+    dietaryRestrictions: [String!]
+  }
+
+  type NutritionGoals {
+    id: ID!
+    userId: ID!
+    calories: Int!
+    proteinG: Int!
+    carbsG: Int!
+    fatG: Int!
+    fiberG: Int
+    workoutDayCalories: Int
+    workoutDayProteinG: Int
+    weekdayCalories: Int
+    weekendCalories: Int
+    calculationMethod: String
+    tdeeBase: Int
+    activityMultiplier: Float
+    goalAdjustment: Int
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type DailyNutritionSummary {
+    date: String!
+    totalCalories: Int!
+    totalProteinG: Float!
+    totalCarbsG: Float!
+    totalFatG: Float!
+    totalFiberG: Float
+    goalCalories: Int!
+    goalProteinG: Int!
+    goalCarbsG: Int!
+    goalFatG: Int!
+    mealCount: Int!
+    wasWorkoutDay: Boolean!
+    waterMl: Int
+    meals: [MealLog!]!
+  }
+
+  type NutritionStreaks {
+    currentLoggingStreak: Int!
+    longestLoggingStreak: Int!
+    currentGoalStreak: Int!
+    longestGoalStreak: Int!
+    lastLoggedAt: DateTime
+  }
+
+  type ArchetypeNutritionProfile {
+    archetypeId: ID!
+    archetypeName: String!
+    proteinRatio: Float!
+    carbsRatio: Float!
+    fatRatio: Float!
+    recommendedCalories: Int
+    mealTiming: [String!]
+    preworkoutRecommendations: [String!]
+    postworkoutRecommendations: [String!]
+    supplements: [String!]
+    tips: [String!]
+  }
+
+  type MealLog {
+    id: ID!
+    userId: ID!
+    foodItemId: ID
+    mealType: String!
+    servings: Float!
+    totalCalories: Int!
+    totalProteinG: Float!
+    totalCarbsG: Float!
+    totalFatG: Float!
+    totalFiberG: Float
+    quickEntryName: String
+    quickEntryCalories: Int
+    loggedVia: String!
+    loggedAt: DateTime!
+    notes: String
+    food: FoodItem
+    createdAt: DateTime!
+  }
+
+  type FoodItem {
+    id: ID!
+    name: String!
+    brand: String
+    servingSize: Float!
+    servingUnit: String!
+    servingDescription: String
+    calories: Int!
+    proteinG: Float!
+    carbsG: Float!
+    fatG: Float!
+    fiberG: Float
+    sugarG: Float
+    sodiumMg: Float
+    source: String!
+    sourceId: String
+    barcode: String
+    imageUrl: String
+    isVerified: Boolean!
+    createdAt: DateTime!
+  }
+
+  type FoodSearchResult {
+    foods: [FoodItem!]!
+    total: Int!
+    source: String
+    hasMore: Boolean!
+  }
+
+  type Recipe {
+    id: ID!
+    creatorId: ID
+    name: String!
+    description: String
+    servings: Int!
+    prepTimeMinutes: Int
+    cookTimeMinutes: Int
+    totalCalories: Int!
+    totalProteinG: Float!
+    totalCarbsG: Float!
+    totalFatG: Float!
+    ingredients: [RecipeIngredient!]!
+    instructions: [String!]!
+    tags: [String!]
+    imageUrl: String
+    rating: Float
+    ratingCount: Int!
+    isPublic: Boolean!
+    isSaved: Boolean
+    createdAt: DateTime!
+  }
+
+  type RecipeIngredient {
+    foodItemId: ID
+    name: String!
+    amount: Float!
+    unit: String!
+  }
+
+  type MealPlan {
+    id: ID!
+    userId: ID!
+    name: String!
+    description: String
+    status: String!
+    durationDays: Int!
+    mealsPerDay: Int!
+    startDate: DateTime
+    avgCalories: Int
+    avgProteinG: Int
+    avgCarbsG: Int
+    avgFatG: Int
+    preferences: [String!]
+    days: [MealPlanDay!]
+    shoppingList: [ShoppingListItem!]
+    createdAt: DateTime!
+  }
+
+  type MealPlanDay {
+    dayNumber: Int!
+    date: DateTime
+    meals: [MealPlanMeal!]!
+    totalCalories: Int!
+    totalProteinG: Float!
+    totalCarbsG: Float!
+    totalFatG: Float!
+  }
+
+  type MealPlanMeal {
+    mealType: String!
+    recipeId: ID
+    foodItemId: ID
+    name: String!
+    servings: Float!
+    calories: Int!
+    proteinG: Float!
+    carbsG: Float!
+    fatG: Float!
+  }
+
+  type ShoppingListItem {
+    category: String!
+    name: String!
+    amount: Float!
+    unit: String!
+    checked: Boolean!
+  }
+
+  type HydrationLog {
+    id: ID!
+    userId: ID!
+    amountMl: Int!
+    beverageType: String!
+    loggedAt: DateTime!
+    createdAt: DateTime!
+  }
+
+  type HydrationSummary {
+    logs: [HydrationLog!]!
+    totalMl: Int!
+    goalMl: Int!
+    percentComplete: Float!
+  }
+
+  type NutritionHistoryEntry {
+    date: String!
+    calories: Int!
+    proteinG: Float!
+    carbsG: Float!
+    fatG: Float!
+    goalCalories: Int!
+    goalMet: Boolean!
+    mealCount: Int!
+  }
+
+  type MacroCalculationResult {
+    calories: Int!
+    proteinG: Int!
+    carbsG: Int!
+    fatG: Int!
+    tdee: Int!
+    bmr: Int!
+    proteinRatio: Float!
+    carbsRatio: Float!
+    fatRatio: Float!
+    breakdown: MacroBreakdown!
+  }
+
+  type MacroBreakdown {
+    proteinCalories: Int!
+    carbsCalories: Int!
+    fatCalories: Int!
+  }
+
+  input NutritionPreferencesInput {
+    trackingMode: String
+    showOnDashboard: Boolean
+    showInCommunity: Boolean
+    goalType: String
+    syncWithArchetype: Boolean
+    syncWithWorkouts: Boolean
+    dietaryRestrictions: [String!]
+  }
+
+  input NutritionGoalsInput {
+    calories: Int
+    proteinG: Int
+    carbsG: Int
+    fatG: Int
+    fiberG: Int
+    workoutDayCalories: Int
+    workoutDayProteinG: Int
+  }
+
+  input MacroCalculationInput {
+    weightKg: Float!
+    heightCm: Float!
+    age: Int!
+    gender: String!
+    activityLevel: String!
+    goal: String!
+    archetype: String
+  }
+
+  input MealLogInput {
+    mealType: String!
+    foodId: ID
+    servings: Float
+    quickEntryName: String
+    quickEntryCalories: Int
+    quickEntryProteinG: Float
+    quickEntryCarbsG: Float
+    quickEntryFatG: Float
+    notes: String
+    loggedVia: String
+    loggedAt: DateTime
+  }
+
+  input HydrationLogInput {
+    amountMl: Int!
+    beverageType: String
+  }
+
+  input RecipeInput {
+    name: String!
+    description: String
+    servings: Int!
+    prepTimeMinutes: Int
+    cookTimeMinutes: Int
+    ingredients: [RecipeIngredientInput!]!
+    instructions: [String!]!
+    tags: [String!]
+    imageUrl: String
+    isPublic: Boolean
+  }
+
+  input RecipeIngredientInput {
+    foodItemId: ID
+    name: String!
+    amount: Float!
+    unit: String!
+    calories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+  }
+
+  input MealPlanInput {
+    name: String!
+    description: String
+    durationDays: Int!
+    mealsPerDay: Int!
+    preferences: [String!]
+    targetCalories: Int
+    excludeIngredients: [String!]
+  }
+
+  input MealPlanGenerateInput {
+    durationDays: Int!
+    mealsPerDay: Int!
+    preferences: [String!]
+    excludeIngredients: [String!]
+    targetCalories: Int
+  }
+
+  # ============================================
+  # RPE/RIR TRACKING TYPES
+  # ============================================
+  type RPEScaleEntry {
+    rpe: Float!
+    rir: Int
+    description: String!
+    intensity: String!
+  }
+
+  type RPEScale {
+    scale: [RPEScaleEntry!]!
+    guide: [RPEGuideEntry!]!
+  }
+
+  type RPEGuideEntry {
+    rpe: Int!
+    rir: Int!
+    label: String!
+    description: String!
+  }
+
+  type RPETrendEntry {
+    date: DateTime!
+    avgRpe: Float!
+    avgRir: Float
+    setCount: Int!
+    avgWeight: Float!
+    maxWeight: Float!
+    avgReps: Float!
+  }
+
+  type RPETrends {
+    exerciseId: ID!
+    exerciseName: String
+    trends: [RPETrendEntry!]!
+    summary: RPETrendSummary!
+  }
+
+  type RPETrendSummary {
+    avgRpe: Float!
+    totalSets: Int!
+    daysWithData: Int!
+    trend: String!
+  }
+
+  type RPEWeeklyTrendEntry {
+    weekStart: DateTime!
+    avgRpe: Float!
+    avgRir: Float
+    totalSets: Int!
+    rpeVariance: Float!
+    minRpe: Float!
+    maxRpe: Float!
+    avgWeight: Float!
+    totalVolume: Float!
+  }
+
+  type RPEWeeklyTrends {
+    exerciseId: ID!
+    trends: [RPEWeeklyTrendEntry!]!
+  }
+
+  type FatigueAnalysis {
+    fatigueScore: Int!
+    classification: String!
+    indicators: [String!]!
+    recommendation: String!
+    suggestedIntensity: String!
+    recentRpeTrend: String!
+  }
+
+  type AutoRegulationSuggestion {
+    exerciseId: ID!
+    exerciseName: String
+    currentWeight: Float
+    suggestedWeight: Float!
+    suggestedReps: Int!
+    targetRpe: Int!
+    reasoning: String!
+    adjustmentPercent: Int!
+    confidence: String!
+  }
+
+  type AutoRegulationContext {
+    fatigueLevel: String!
+    fatigueScore: Int!
+    overallRecommendation: String!
+  }
+
+  type AutoRegulationResult {
+    suggestions: [AutoRegulationSuggestion!]!
+    context: AutoRegulationContext!
+  }
+
+  type RPETarget {
+    exerciseId: ID!
+    rpe: Int
+    rir: Int
+  }
+
+  type RPESnapshot {
+    date: DateTime!
+    avgRpe: Float!
+    avgRir: Float
+    totalSets: Int!
+    fatigueScore: Int!
+    recoveryRecommendation: String!
+  }
+
+  input AutoRegulateInput {
+    exerciseIds: [ID!]!
+    targetRpe: Int
+  }
+
+  input RPETargetInput {
+    rpe: Int
+    rir: Int
   }
 `;

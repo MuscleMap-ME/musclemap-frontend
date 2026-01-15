@@ -74,7 +74,7 @@ function TypeSelection({ onSelect, onFaqClick }) {
     <div className="space-y-4">
       <div className="text-center mb-6">
         <h3 className="text-lg font-semibold text-white mb-2">How can we help?</h3>
-        <p className="text-sm text-gray-400">Choose what you'd like to share with us</p>
+        <p className="text-sm text-gray-400">Choose what you&apos;d like to share with us</p>
       </div>
 
       <div className="grid gap-3">
@@ -344,7 +344,7 @@ function FeedbackForm({ type, onBack, onSuccess }) {
  * Success Step
  */
 function SuccessStep({ type, onClose, onNewFeedback }) {
-  const Icon = FEEDBACK_ICONS[type];
+  const _Icon = FEEDBACK_ICONS[type];
   const messages = {
     bug_report: "We'll investigate this issue and get back to you if we need more details.",
     feature_request: "Other users can upvote your suggestion. The most popular requests get prioritized!",
@@ -390,7 +390,7 @@ function SuccessStep({ type, onClose, onNewFeedback }) {
  * FAQ Browser Step
  */
 function FAQBrowser({ onBack }) {
-  const { categories, entries, loading, searchQuery, expandedId, setSearchQuery, toggleExpanded } = useFaq();
+  const { entries, loading, expandedId, toggleExpanded } = useFaq();
   const [localSearch, setLocalSearch] = useState('');
   const debouncedSearch = useDebounce(localSearch, 300);
   const setFaqEntries = useFeedbackStore((s) => s.setFaqEntries);
@@ -421,7 +421,7 @@ function FAQBrowser({ onBack }) {
     } else {
       setSearchQuery('');
     }
-  }, [debouncedSearch, setSearchQuery]);
+  }, [debouncedSearch]); // setSearchQuery is stable
 
   const handleHelpful = async (id, helpful) => {
     try {
@@ -537,7 +537,7 @@ function FAQBrowser({ onBack }) {
  * Main Feedback Modal
  */
 export function FeedbackModal() {
-  const { isOpen, feedbackType, step, openFeedbackModal, closeFeedbackModal, setFeedbackType, setStep } = useFeedbackModal();
+  const { isOpen, feedbackType, step, closeFeedbackModal, setFeedbackType, setStep } = useFeedbackModal();
   const setSubmissionSuccess = useFeedbackStore((s) => s.setSubmissionSuccess);
   const resetFormData = useFeedbackStore((s) => s.resetFormData);
 

@@ -27,7 +27,7 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
   return parseInt(result?.count || '0') > 0;
 }
 
-async function constraintExists(constraintName: string): Promise<boolean> {
+async function _constraintExists(constraintName: string): Promise<boolean> {
   const result = await db.queryOne<{ count: string }>(
     `SELECT COUNT(*) as count FROM information_schema.table_constraints
      WHERE constraint_name = $1`,

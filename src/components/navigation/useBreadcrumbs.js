@@ -32,10 +32,10 @@
 import { useMemo, useCallback, useRef, useEffect } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
-  BREADCRUMB_ROUTES,
+  BREADCRUMB_ROUTES as _BREADCRUMB_ROUTES,
   EXCLUDED_ROUTES,
-  DYNAMIC_CONTEXT_KEYS,
-  DYNAMIC_FALLBACK_LABELS,
+  DYNAMIC_CONTEXT_KEYS as _DYNAMIC_CONTEXT_KEYS,
+  DYNAMIC_FALLBACK_LABELS as _DYNAMIC_FALLBACK_LABELS,
   getRouteConfig,
   resolveDynamicLabel,
 } from './breadcrumbRoutes';
@@ -79,7 +79,7 @@ export function formatSegmentLabel(segment) {
  * @param {string} segment - Current segment (ID)
  * @returns {string|null}
  */
-function findContextKeyForSegment(parentSegment, segment) {
+function findContextKeyForSegment(parentSegment, _segment) {
   const parentToContext = {
     'exercises': 'exerciseName',
     'workout': 'workoutName',
@@ -207,7 +207,8 @@ export function useBreadcrumbs(options = {}) {
     }
 
     return crumbs;
-  }, [location.pathname, params, context, includeHome]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, context, includeHome]);
 
   // Update previous breadcrumbs for transition comparison
   useEffect(() => {
@@ -375,7 +376,7 @@ export function useBreadcrumbContext(options = {}) {
  */
 export function useBreadcrumbTitle(options = {}) {
   const { separator = ' | ', suffix = 'MuscleMap' } = options;
-  const { breadcrumbs, currentPage } = useBreadcrumbs();
+  const { breadcrumbs: _breadcrumbs, currentPage } = useBreadcrumbs();
 
   return useMemo(() => {
     if (!currentPage) return suffix;

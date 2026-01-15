@@ -144,7 +144,7 @@ export function NutritionDashboardCard() {
             <Utensils className="w-5 h-5 text-green-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-white">Today's Nutrition</h3>
+            <h3 className="font-semibold text-white">Today&apos;s Nutrition</h3>
             <p className="text-xs text-gray-400">{Math.round(calorieProgress)}% of daily goal</p>
           </div>
         </div>

@@ -311,6 +311,47 @@ export function createLoaders() {
       const tuMap = new Map(rows.map((r) => [r.user_id, parseFloat(r.total)]));
       return userIds.map((id) => tuMap.get(id) ?? 0);
     }),
+
+    /**
+     * Load activity feed users by ID (optimized for feed N+1 problem).
+     * PERF-002: Batch loads users for activity feed to avoid N+1 queries.
+     */
+    activityFeedUser: new DataLoader<string, { id: string; username: string; display_name: string | null; avatar_url: string | null } | null>(async (userIds) => {
+      return getFromL2Cache<{ id: string; username: string; display_name: string | null; avatar_url: string | null }>(
+        CACHE_PREFIX.DATALOADER_USER,
+        userIds,
+        CACHE_TTL.DATALOADER_L2,
+        async (missingIds) => {
+          const placeholders = generatePlaceholders(missingIds.length);
+          const rows = await queryAll<{ id: string; username: string; display_name: string | null; avatar_url: string | null }>(
+            `SELECT id, username, display_name, avatar_url FROM users WHERE id IN (${placeholders})`,
+            [...missingIds]
+          );
+          return new Map(rows.map((u) => [u.id, u]));
+        }
+      );
+    }),
+
+    /**
+     * Load privacy settings by user ID (for feed filtering).
+     * PERF-002: Batch loads privacy settings to optimize feed filtering.
+     */
+    userPrivacyMode: new DataLoader<string, { minimalist_mode: boolean; opt_out_community_feed: boolean; exclude_from_activity_feed: boolean } | null>(async (userIds) => {
+      const placeholders = generatePlaceholders(userIds.length);
+      const rows = await queryAll<{ user_id: string; minimalist_mode: boolean; opt_out_community_feed: boolean; exclude_from_activity_feed: boolean }>(
+        `SELECT user_id, minimalist_mode, opt_out_community_feed, exclude_from_activity_feed
+         FROM user_privacy_mode
+         WHERE user_id IN (${placeholders})`,
+        [...userIds]
+      );
+
+      const privacyMap = new Map(rows.map((r) => [r.user_id, {
+        minimalist_mode: r.minimalist_mode,
+        opt_out_community_feed: r.opt_out_community_feed,
+        exclude_from_activity_feed: r.exclude_from_activity_feed,
+      }]));
+      return userIds.map((id) => privacyMap.get(id) ?? null);
+    }),
   };
 }
 

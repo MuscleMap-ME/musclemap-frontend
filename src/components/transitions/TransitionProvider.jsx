@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ============================================
 
 const TRANSITION_DURATION = 300; // Default transition duration in ms
-const PROGRESS_BAR_MIN_DURATION = 200; // Minimum time to show progress bar
+const _PROGRESS_BAR_MIN_DURATION = 200; // Minimum time to show progress bar
 
 // ============================================
 // CONTEXT
@@ -44,14 +44,11 @@ const TransitionContext = createContext(null);
 
 /**
  * Hook to access transition context
- * @returns {TransitionContextValue}
+ * Returns null if not within a TransitionProvider (safe to use outside provider)
+ * @returns {TransitionContextValue|null}
  */
 export function useTransitionContext() {
-  const context = useContext(TransitionContext);
-  if (!context) {
-    throw new Error('useTransitionContext must be used within a TransitionProvider');
-  }
-  return context;
+  return useContext(TransitionContext);
 }
 
 // ============================================

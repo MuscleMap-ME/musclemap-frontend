@@ -96,6 +96,17 @@ export const REST_TIMER_DEFAULTS = {
   quickAdjustAmount: 30, // seconds for +/- buttons
 };
 
+// ============================================
+// EXERCISE GROUP TYPES
+// ============================================
+export const GROUP_TYPES = {
+  SUPERSET: 'superset',
+  GIANT_SET: 'giant_set',
+  CIRCUIT: 'circuit',
+  DROP_SET: 'drop_set',
+  CLUSTER: 'cluster',
+};
+
 /**
  * Workout Session Store
  * Handles active workout state with real-time updates
@@ -166,6 +177,15 @@ export const useWorkoutSessionStore = create(
     // ============================================
     sessionPRs: [], // PRs achieved during this session
     exerciseHistory: {}, // { exerciseId: { best1RM, bestWeight, bestVolume } }
+
+    // ============================================
+    // EXERCISE GROUPS (supersets, circuits, etc.)
+    // ============================================
+    exerciseGroups: [], // Array of exercise group objects
+    activeGroup: null, // Currently executing group
+    activeGroupExerciseIndex: 0, // Current exercise within active group
+    activeGroupRound: 1, // Current round (for circuits)
+    groupSets: [], // Sets logged during group execution
 
     // ============================================
     // WORKOUT COMPLETION CALLBACKS
@@ -747,6 +767,181 @@ export const useWorkoutSessionStore = create(
     loadExerciseHistory: (history) => {
       set({ exerciseHistory: history });
     },
+
+    // ============================================
+    // EXERCISE GROUP ACTIONS
+    // ============================================
+
+    /**
+     * Set exercise groups for the workout
+     */
+    setExerciseGroups: (groups) => {
+      set({ exerciseGroups: groups });
+    },
+
+    /**
+     * Start executing an exercise group
+     */
+    startGroup: (group) => {
+      set({
+        activeGroup: group,
+        activeGroupExerciseIndex: 0,
+        activeGroupRound: 1,
+        groupSets: [],
+      });
+    },
+
+    /**
+     * Advance to next exercise in the active group
+     * Returns { completed: true/false, nextRound: true/false }
+     */
+    advanceGroupExercise: () => {
+      const { activeGroup, activeGroupExerciseIndex, activeGroupRound } = get();
+      if (!activeGroup) return { completed: true, nextRound: false };
+
+      const exerciseCount = activeGroup.exercises?.length || 0;
+      const isLastExercise = activeGroupExerciseIndex >= exerciseCount - 1;
+      const totalRounds = activeGroup.circuitRounds || 1;
+      const isLastRound = activeGroupRound >= totalRounds;
+
+      if (isLastExercise) {
+        if (isLastRound) {
+          // Group is complete
+          return { completed: true, nextRound: false };
+        } else {
+          // Start next round
+          set({
+            activeGroupExerciseIndex: 0,
+            activeGroupRound: activeGroupRound + 1,
+          });
+          return { completed: false, nextRound: true };
+        }
+      } else {
+        // Move to next exercise
+        set({
+          activeGroupExerciseIndex: activeGroupExerciseIndex + 1,
+        });
+        return { completed: false, nextRound: false };
+      }
+    },
+
+    /**
+     * Go to previous exercise in the active group
+     */
+    previousGroupExercise: () => {
+      const { activeGroupExerciseIndex } = get();
+      if (activeGroupExerciseIndex > 0) {
+        set({ activeGroupExerciseIndex: activeGroupExerciseIndex - 1 });
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Log a set within the active group
+     */
+    logGroupSet: (setData) => {
+      const { activeGroup, activeGroupExerciseIndex, activeGroupRound, groupSets } = get();
+      if (!activeGroup) return null;
+
+      const exercise = activeGroup.exercises?.[activeGroupExerciseIndex];
+      const groupSet = {
+        id: `gset_${Date.now()}`,
+        groupId: activeGroup.id,
+        exerciseId: exercise?.exerciseId,
+        exerciseIndex: activeGroupExerciseIndex,
+        round: activeGroupRound,
+        ...setData,
+        timestamp: Date.now(),
+      };
+
+      set({ groupSets: [...groupSets, groupSet] });
+      return groupSet;
+    },
+
+    /**
+     * Complete the active group and return to normal mode
+     */
+    completeGroup: () => {
+      const { activeGroup, groupSets, sets } = get();
+      if (!activeGroup) return null;
+
+      const summary = {
+        groupId: activeGroup.id,
+        groupType: activeGroup.groupType,
+        totalSets: groupSets.length,
+        completedRounds: get().activeGroupRound,
+        sets: groupSets,
+      };
+
+      // Merge group sets into main sets array
+      set({
+        sets: [...sets, ...groupSets.map(gs => ({
+          ...gs,
+          isGroupSet: true,
+          groupId: activeGroup.id,
+          groupType: activeGroup.groupType,
+        }))],
+        activeGroup: null,
+        activeGroupExerciseIndex: 0,
+        activeGroupRound: 1,
+        groupSets: [],
+      });
+
+      return summary;
+    },
+
+    /**
+     * Cancel/exit the active group without completing
+     */
+    cancelGroup: () => {
+      const { activeGroup, groupSets } = get();
+      const summary = {
+        groupId: activeGroup?.id,
+        cancelled: true,
+        setsLogged: groupSets.length,
+      };
+
+      set({
+        activeGroup: null,
+        activeGroupExerciseIndex: 0,
+        activeGroupRound: 1,
+        groupSets: [],
+      });
+
+      return summary;
+    },
+
+    /**
+     * Get current exercise in the active group
+     */
+    getCurrentGroupExercise: () => {
+      const { activeGroup, activeGroupExerciseIndex } = get();
+      if (!activeGroup) return null;
+      return activeGroup.exercises?.[activeGroupExerciseIndex] || null;
+    },
+
+    /**
+     * Get progress within the active group
+     */
+    getGroupProgress: () => {
+      const { activeGroup, activeGroupExerciseIndex, activeGroupRound, groupSets } = get();
+      if (!activeGroup) return null;
+
+      const exerciseCount = activeGroup.exercises?.length || 0;
+      const totalRounds = activeGroup.circuitRounds || 1;
+      const totalSetsExpected = exerciseCount * totalRounds;
+
+      return {
+        currentExercise: activeGroupExerciseIndex + 1,
+        totalExercises: exerciseCount,
+        currentRound: activeGroupRound,
+        totalRounds,
+        setsCompleted: groupSets.length,
+        totalSetsExpected,
+        progress: totalSetsExpected > 0 ? (groupSets.length / totalSetsExpected) * 100 : 0,
+      };
+    },
   }),
   {
     name: 'musclemap-workout-session',
@@ -1018,6 +1213,62 @@ export const useWorkoutCelebrationState = () => {
     hasCompletedSets: sets.length > 0,
     // Ready to celebrate when workout is active and has completed sets
     readyToCelebrate: isActive && sets.length > 0,
+  };
+};
+
+/**
+ * Hook for managing exercise groups (supersets, circuits, etc.)
+ *
+ * @example
+ * const { activeGroup, startGroup, advanceExercise, completeGroup } = useExerciseGroups();
+ *
+ * // Start a superset
+ * startGroup(supersetGroup);
+ *
+ * // After logging a set, advance to next exercise
+ * const { completed, nextRound } = advanceExercise();
+ */
+export const useExerciseGroups = () => {
+  const exerciseGroups = useWorkoutSessionStore((s) => s.exerciseGroups);
+  const activeGroup = useWorkoutSessionStore((s) => s.activeGroup);
+  const activeGroupExerciseIndex = useWorkoutSessionStore((s) => s.activeGroupExerciseIndex);
+  const activeGroupRound = useWorkoutSessionStore((s) => s.activeGroupRound);
+  const groupSets = useWorkoutSessionStore((s) => s.groupSets);
+
+  const setExerciseGroups = useWorkoutSessionStore((s) => s.setExerciseGroups);
+  const startGroup = useWorkoutSessionStore((s) => s.startGroup);
+  const advanceGroupExercise = useWorkoutSessionStore((s) => s.advanceGroupExercise);
+  const previousGroupExercise = useWorkoutSessionStore((s) => s.previousGroupExercise);
+  const logGroupSet = useWorkoutSessionStore((s) => s.logGroupSet);
+  const completeGroup = useWorkoutSessionStore((s) => s.completeGroup);
+  const cancelGroup = useWorkoutSessionStore((s) => s.cancelGroup);
+  const getCurrentGroupExercise = useWorkoutSessionStore((s) => s.getCurrentGroupExercise);
+  const getGroupProgress = useWorkoutSessionStore((s) => s.getGroupProgress);
+
+  return {
+    // State
+    groups: exerciseGroups,
+    activeGroup,
+    currentExerciseIndex: activeGroupExerciseIndex,
+    currentRound: activeGroupRound,
+    sets: groupSets,
+    isGroupActive: !!activeGroup,
+
+    // Computed
+    currentExercise: getCurrentGroupExercise(),
+    progress: getGroupProgress(),
+
+    // Actions
+    setGroups: setExerciseGroups,
+    start: startGroup,
+    advanceExercise: advanceGroupExercise,
+    previousExercise: previousGroupExercise,
+    logSet: logGroupSet,
+    complete: completeGroup,
+    cancel: cancelGroup,
+
+    // Group type helpers
+    groupTypes: GROUP_TYPES,
   };
 };
 

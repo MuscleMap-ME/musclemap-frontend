@@ -141,7 +141,7 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
       try {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
-      } catch (err) {
+      } catch (_err) {
         // Ignore errors on release
       }
     }
@@ -189,6 +189,7 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     } else {
       handleConfirmExit();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metrics.totalSets]);
 
   /**

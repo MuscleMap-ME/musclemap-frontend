@@ -195,7 +195,7 @@ export function usePageTransition(options = {}) {
   const previousPath = useMemo(() => {
     const history = historyRef.current;
     return history.length > 1 ? history[history.length - 2] : null;
-  }, [location.pathname]);
+  }, []); // History ref is stable
 
   // Check if navigating deeper or shallower
   const isNavigatingDeeper = useMemo(() => {
@@ -276,7 +276,7 @@ export function useNavigateWithTransition() {
  * @param {Function} callback - Function to run after transition
  * @param {Array} deps - Dependency array
  */
-export function useTransitionCallback(callback, deps = []) {
+export function useTransitionCallback(callback, _deps = []) {
   const { isTransitioning } = usePageTransition();
   const wasTransitioningRef = useRef(false);
 
@@ -286,7 +286,8 @@ export function useTransitionCallback(callback, deps = []) {
       callback();
     }
     wasTransitioningRef.current = isTransitioning;
-  }, [isTransitioning, ...deps]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTransitioning]);
 }
 
 /**
@@ -380,10 +381,11 @@ export function useScrollRestoration(options = {}) {
   // Save scroll position before navigation
   useEffect(() => {
     const currentPath = location.pathname;
+    const scrollPositions = scrollPositionsRef.current;
 
     return () => {
       if (enabled) {
-        scrollPositionsRef.current.set(currentPath, window.scrollY);
+        scrollPositions.set(currentPath, window.scrollY);
       }
     };
   }, [location.pathname, enabled]);

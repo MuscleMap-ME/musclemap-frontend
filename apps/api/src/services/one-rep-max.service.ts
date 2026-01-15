@@ -8,7 +8,7 @@
  * - 1RM-based achievement unlocking
  */
 
-import { query, queryOne, queryAll, transaction } from '../db/client';
+import { query, queryOne, queryAll } from '../db/client';
 import { loggers } from '../lib/logger';
 import { achievementService } from '../modules/achievements';
 

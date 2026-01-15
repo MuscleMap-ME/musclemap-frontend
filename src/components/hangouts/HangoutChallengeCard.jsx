@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ChevronUp,
   Dumbbell,
-  Calendar,
   Award,
   Zap,
 } from 'lucide-react';
@@ -85,7 +84,7 @@ export function HangoutChallengeCard({
   const Icon = config.icon;
 
   const isActive = new Date(challenge.endDate) > new Date();
-  const hasEnded = !isActive;
+  const _hasEnded = !isActive;
   const progressPercent = challenge.targetValue
     ? Math.min(100, (userProgress / challenge.targetValue) * 100)
     : 0;

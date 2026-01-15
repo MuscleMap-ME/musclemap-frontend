@@ -91,6 +91,10 @@ import oneRepMaxRoutes from './routes/one-rep-max';
 import workoutSetsRoutes from './routes/workout-sets';
 import { registerProgramRoutes } from './routes/programs';
 import { registerRecoveryRoutes } from './routes/recovery';
+import { registerExerciseGroupRoutes } from './routes/exercise-groups';
+import rpeRoutes from './routes/rpe';
+import { registerExerciseVideosRoutes } from './routes/exercise-videos';
+import { registerWatchRoutes } from './routes/watch';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -413,6 +417,18 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Sleep tracking and recovery scoring system
     await registerRecoveryRoutes(api);
+
+    // Exercise groups (supersets, circuits, giant sets)
+    await registerExerciseGroupRoutes(api);
+
+    // RPE/RIR tracking and auto-regulation
+    await api.register(rpeRoutes);
+
+    // Exercise video demonstrations
+    await registerExerciseVideosRoutes(api);
+
+    // Apple Watch companion app sync
+    await registerWatchRoutes(api);
   }, { prefix: '/api' });
 
   return app;

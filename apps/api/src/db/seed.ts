@@ -10,8 +10,8 @@ import { db, initializePool, closePool } from './client';
 import {
   allClimbingGymnasticsExercises,
   climbingGymnasticsActivations,
-  type ExerciseSeed,
-  type ActivationSeed
+  type ExerciseSeed as _ExerciseSeed,
+  type ActivationSeed as _ActivationSeed
 } from './seeds/climbing-gymnastics-exercises';
 import {
   allOlympicWrestlingExercises,

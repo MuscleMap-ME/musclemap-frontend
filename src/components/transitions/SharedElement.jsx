@@ -42,13 +42,8 @@ import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMotionAllowed } from '../../contexts/MotionContext';
 
-// Try to import context, handle case where it's not available
-let useTransitionContext;
-try {
-  useTransitionContext = require('./TransitionProvider').useTransitionContext;
-} catch {
-  useTransitionContext = () => null;
-}
+// Import context - will return null if not in provider
+import { useTransitionContext } from './TransitionProvider';
 
 // ============================================
 // CONSTANTS & PRESETS
@@ -150,13 +145,8 @@ function SharedElement({
   const elementRef = useRef(null);
   const motionAllowed = useMotionAllowed();
 
-  // Try to get context for registration, but don't fail if not available
-  let context = null;
-  try {
-    context = useTransitionContext();
-  } catch {
-    // Context not available
-  }
+  // Get context for registration (returns null if not in provider)
+  const context = useTransitionContext();
 
   // Resolve transition config (can be a preset name or custom config)
   const resolvedTransition = useMemo(() => {
@@ -430,13 +420,7 @@ export function SharedElementGroup({
  */
 export function useSharedElement(id) {
   const ref = useRef(null);
-  let context = null;
-
-  try {
-    context = useTransitionContext();
-  } catch {
-    // Context not available
-  }
+  const context = useTransitionContext();
 
   const isRegistered = useMemo(() => {
     return context?.hasSharedElement(id) || false;

@@ -17,7 +17,6 @@ import {
   MessageCircle,
   UserPlus,
   Search,
-  Filter,
 } from 'lucide-react';
 
 // Distance tier colors

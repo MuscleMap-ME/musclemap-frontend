@@ -3137,6 +3137,52 @@ async function testNutrition(ctx: TestContext) {
     });
     assert([200, 404].includes(res.status), 'Should return streaks');
   });
+
+  // Search by barcode
+  await runTest('Nutrition', 'Search food by barcode', async () => {
+    const res = await request('GET', '/nutrition/foods/barcode/0078742010328', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should search by barcode');
+  });
+
+  // Get nutrition history
+  await runTest('Nutrition', 'Get nutrition history', async () => {
+    const res = await request('GET', '/me/nutrition/history?days=7', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return nutrition history');
+  });
+
+  // Get frequent foods
+  await runTest('Nutrition', 'Get frequent foods', async () => {
+    const res = await request('GET', '/me/nutrition/foods/frequent', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return frequent foods');
+  });
+
+  // Get custom foods
+  await runTest('Nutrition', 'Get custom foods', async () => {
+    const res = await request('GET', '/me/nutrition/foods/custom', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return custom foods');
+  });
+
+  // Get daily summary
+  await runTest('Nutrition', 'Get daily summary', async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await request('GET', `/me/nutrition/daily?date=${today}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return daily summary');
+  });
 }
 
 // ============================================

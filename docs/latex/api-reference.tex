@@ -774,6 +774,34 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Exercise-groups}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/exercise-group-presets} \\
+\texttt{POST} & \texttt{/exercise-group-presets} \\
+\texttt{DELETE} & \texttt{/exercise-group-presets/:presetId} \\
+\texttt{POST} & \texttt{/exercise-group-presets/:presetId/apply} \\
+\texttt{POST} & \texttt{/exercise-groups} \\
+\texttt{GET} & \texttt{/exercise-groups/:groupId} \\
+\texttt{PUT} & \texttt{/exercise-groups/:groupId} \\
+\texttt{DELETE} & \texttt{/exercise-groups/:groupId} \\
+\texttt{POST} & \texttt{/exercise-groups/:groupId/exercises} \\
+\texttt{DELETE} & \texttt{/exercise-groups/:groupId/exercises/:exerciseId} \\
+\texttt{PUT} & \texttt{/exercise-groups/:groupId/reorder} \\
+\texttt{GET} & \texttt{/exercise-groups/types} \\
+\texttt{GET} & \texttt{/workouts/:workoutId/groups} \\
+\texttt{POST} & \texttt{/workouts/:workoutId/groups/:groupId/sets} \\
+\texttt{GET} & \texttt{/workouts/:workoutId/groups/:groupId/sets} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Leaderboards}
 
 \begin{table}[h]
@@ -790,6 +818,28 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/me/rank} \\
 \texttt{GET} & \texttt{/users/:id/rank} \\
 \texttt{GET} & \texttt{/virtual-hangouts/:id/leaderboard} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Exercise-videos}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/exercises/:id/videos} \\
+\texttt{POST} & \texttt{/exercises/:id/videos} \\
+\texttt{GET} & \texttt{/exercises/:id/videos/:videoId} \\
+\texttt{PATCH} & \texttt{/exercises/:id/videos/:videoId} \\
+\texttt{DELETE} & \texttt{/exercises/:id/videos/:videoId} \\
+\texttt{GET} & \texttt{/me/video-favorites} \\
+\texttt{GET} & \texttt{/me/video-history} \\
+\texttt{POST} & \texttt{/videos/:videoId/favorite} \\
+\texttt{POST} & \texttt{/videos/:videoId/watch} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1565,6 +1615,28 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Rpe}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/rpe/autoregulate} \\
+\texttt{GET} & \texttt{/rpe/fatigue} \\
+\texttt{GET} & \texttt{/rpe/scale} \\
+\texttt{POST} & \texttt{/rpe/snapshot} \\
+\texttt{GET} & \texttt{/rpe/snapshots} \\
+\texttt{GET} & \texttt{/rpe/target/:exerciseId} \\
+\texttt{PUT} & \texttt{/rpe/target/:exerciseId} \\
+\texttt{GET} & \texttt{/rpe/trends/:exerciseId} \\
+\texttt{GET} & \texttt{/rpe/weekly/:exerciseId} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Workout-sets}
 
 \begin{table}[h]
@@ -1721,6 +1793,24 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/volume/prs} \\
 \texttt{GET} & \texttt{/volume/summary} \\
 \texttt{GET} & \texttt{/volume/weekly} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Watch}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/watch/exercises} \\
+\texttt{GET} & \texttt{/watch/quick-start} \\
+\texttt{POST} & \texttt{/watch/state} \\
+\texttt{POST} & \texttt{/watch/sync} \\
+\texttt{GET} & \texttt{/watch/workout-state} \\
 \bottomrule
 \end{tabular}
 \end{table}

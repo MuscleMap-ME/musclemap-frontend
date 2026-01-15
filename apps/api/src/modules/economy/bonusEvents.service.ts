@@ -379,8 +379,8 @@ export const bonusEventsService = {
   async processWorkoutBonuses(
     userId: string,
     workoutId: string,
-    totalReps: number,
-    totalSets: number
+    _totalReps: number,
+    _totalSets: number
   ): Promise<BonusEventResult[]> {
     const results: BonusEventResult[] = [];
 

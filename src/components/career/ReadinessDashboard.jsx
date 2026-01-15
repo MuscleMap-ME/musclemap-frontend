@@ -72,7 +72,7 @@ export default function ReadinessDashboard({
   const [readiness, setReadiness] = useState(initialReadiness);
   const [exercises, setExercises] = useState(initialExercises || []);
   const [loading, setLoading] = useState(false);
-  const [showTrendChart, setShowTrendChart] = useState(false);
+  const [_showTrendChart, _setShowTrendChart] = useState(false);
 
   // Update state when props change
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function ReadinessDashboard({
   }, [initialExercises]);
 
   const categoryMeta = CATEGORY_META[goal?.category] || CATEGORY_META.general;
-  const statusConfig = STATUS_CONFIG[readiness?.status] || STATUS_CONFIG.no_data;
+  const _statusConfig = STATUS_CONFIG[readiness?.status] || STATUS_CONFIG.no_data;
 
   // Calculate days remaining
   const daysRemaining = goal?.targetDate
@@ -321,7 +321,7 @@ function ReadinessGauge({ score, status, size = 160 }) {
   const radius = (size - 16) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score !== null ? (score / 100) * circumference : 0;
-  const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.no_data;
+  const _statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.no_data;
 
   // Determine color based on score
   const getColor = () => {

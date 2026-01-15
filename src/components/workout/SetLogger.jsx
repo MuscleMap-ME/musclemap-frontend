@@ -60,8 +60,8 @@ export function SetLogger({ exercise, onSetLogged }) {
   const [recentPR, setRecentPR] = useState(null);
 
   // Hooks
-  const { log, tags } = useSetLogging();
-  const { getBestForExercise, getSuggestedWeight } = use1RM();
+  const { log, tags: _tags } = useSetLogging();
+  const { getBestForExercise, getSuggestedWeight: _getSuggestedWeight } = use1RM();
   const startRestTimer = useWorkoutSessionStore((s) => s.startRestTimer);
 
   // Calculate estimated 1RM in real-time

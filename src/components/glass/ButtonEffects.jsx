@@ -458,6 +458,7 @@ export const SuccessEffect = ({
       }, duration);
       return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, animationType, onComplete, reducedMotion]);
 
   // Create burst particles for 'burst' animation type
@@ -500,6 +501,7 @@ export const SuccessEffect = ({
     if (!animationRef.current) {
       animateBurst();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
   const animateBurst = useCallback(() => {
@@ -855,7 +857,7 @@ export function useReducedMotion() {
 
     // Check for user override in localStorage
     const MOTION_PREF_KEY = 'musclemap_motion_preference';
-    const stored = localStorage.getItem(MOTION_PREF_KEY);
+    const _stored = localStorage.getItem(MOTION_PREF_KEY);
 
     // Check system preference
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -1092,6 +1094,7 @@ export const BurstEffect = forwardRef(({ active, variant = 'primary', onComplete
     setTimeout(() => {
       onComplete?.();
     }, DURATIONS.burst);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, onComplete, reducedMotion]);
 
   const animate = useCallback(() => {

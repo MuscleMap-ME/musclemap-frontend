@@ -121,15 +121,16 @@ export function useMotion() {
  */
 export function useMotionAllowed() {
   const context = useContext(MotionContext);
+  // Always call the hook unconditionally to comply with Rules of Hooks
+  const fallback = useReducedMotion();
 
-  // If in provider, use context
+  // If in provider, use context value
   if (context) {
     return context.motionAllowed;
   }
 
   // Fallback to standalone hook for backwards compatibility
-  const { motionAllowed } = useReducedMotion();
-  return motionAllowed;
+  return fallback.motionAllowed;
 }
 
 /**
@@ -139,13 +140,14 @@ export function useMotionAllowed() {
  */
 export function useShouldReduceMotion() {
   const context = useContext(MotionContext);
+  // Always call the hook unconditionally to comply with Rules of Hooks
+  const fallback = useReducedMotion();
 
   if (context) {
     return context.shouldReduceMotion;
   }
 
-  const { motionAllowed } = useReducedMotion();
-  return !motionAllowed;
+  return !fallback.motionAllowed;
 }
 
 // Export motion preferences for external use

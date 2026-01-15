@@ -5,10 +5,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  Calendar,
   ArrowLeft,
   TrendingUp,
   TrendingDown,
@@ -17,9 +15,7 @@ import {
   ChevronRight,
   Flame,
   Target,
-  Droplets,
   Check,
-  X,
 } from 'lucide-react';
 import { GlassSurface } from '../components/glass/GlassSurface';
 import { GlassButton } from '../components/glass/GlassButton';
@@ -238,7 +234,7 @@ function StatsSummary({ data, goals }) {
     return goals && cal >= goals.calories * 0.9 && cal <= goals.calories * 1.1;
   }).length;
 
-  const streak = dates
+  const _streak = dates
     .sort()
     .reverse()
     .reduce((streak, date, i, arr) => {
@@ -251,7 +247,7 @@ function StatsSummary({ data, goals }) {
 
   return (
     <GlassSurface className="p-6 mb-6">
-      <h3 className="text-lg font-semibold text-white mb-4">This Month's Summary</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">This Month&apos;s Summary</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="text-center">
           <p className="text-2xl font-bold text-white">{avgCalories}</p>
@@ -297,7 +293,7 @@ function StatsSummary({ data, goals }) {
 export default function NutritionHistory() {
   const goals = useNutritionGoals();
   const streaks = useNutritionStreaks();
-  const { loadMealsByDate } = useMealLog();
+  const { loadMealsByDate: _loadMealsByDate } = useMealLog();
 
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());

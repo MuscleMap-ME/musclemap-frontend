@@ -8,14 +8,13 @@
  * - Overall strength progression
  */
 
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
-import { calculate1RM, get1RMPercentage } from '../store/workoutSessionStore';
+import { calculate1RM } from '../store/workoutSessionStore';
 import {
   GlassSurface,
-  GlassButton,
   GlassNav,
   GlassMobileNav,
   MeshBackground,
@@ -23,7 +22,7 @@ import {
 } from '../components/glass';
 
 // Lazy load charts
-const LineChartD3 = lazy(() =>
+const _LineChartD3 = lazy(() =>
   import('../components/d3').then(m => ({ default: m.LineChartD3 }))
 );
 

@@ -751,7 +751,7 @@ export class PrescriptionEngine {
   /**
    * Recommend reps based on phase and exercise type
    */
-  private recommendReps(exercise: Exercise, phase: TrainingPhase | null, context: UserContext): number {
+  private recommendReps(exercise: Exercise, phase: TrainingPhase | null, _context: UserContext): number {
     // Base reps by exercise type
     const typeReps: Record<string, number> = {
       'strength': 5,
@@ -780,7 +780,7 @@ export class PrescriptionEngine {
   /**
    * Recommend rest period
    */
-  private recommendRest(exercise: Exercise, phase: TrainingPhase | null): number {
+  private recommendRest(exercise: Exercise, _phase: TrainingPhase | null): number {
     const typeRest: Record<string, number> = {
       'strength': 180,
       'powerlifting': 240,
@@ -825,7 +825,8 @@ export class PrescriptionEngine {
 
     const selected: ScoredExercise[] = [];
     const selectedMuscles = new Set<string>();
-    const selectedPatterns = new Set<string>();
+    // Note: selectedPatterns is defined for future movement pattern variety tracking
+    const _selectedPatterns = new Set<string>();
 
     // For poor recovery, prefer lower-intensity exercises
     let sortedExercises = scored;
@@ -874,7 +875,7 @@ export class PrescriptionEngine {
    */
   private async generateWarmup(
     mainExercises: ScoredExercise[],
-    context: UserContext
+    _context: UserContext
   ): Promise<ScoredExercise[]> {
     // Get muscles being worked
     const targetMuscles = new Set(mainExercises.flatMap(e => e.primaryMuscles));
@@ -916,7 +917,7 @@ export class PrescriptionEngine {
    */
   private async generateCooldown(
     mainExercises: ScoredExercise[],
-    context: UserContext
+    _context: UserContext
   ): Promise<ScoredExercise[]> {
     const targetMuscles = new Set(mainExercises.flatMap(e => e.primaryMuscles));
 

@@ -4,7 +4,7 @@
  * Full nutrition tracking dashboard
  */
 
-import React, { useEffect, useState, Suspense, lazy } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -120,7 +120,7 @@ function MacroCard({ label, current, goal, unit, color, icon: Icon }) {
 /**
  * Meal item component
  */
-function MealItem({ meal, onDelete }) {
+function MealItem({ meal, onDelete: _onDelete }) {
   const name = meal.food?.name || meal.customFood?.name || meal.recipe?.name || meal.quickEntryName || 'Unknown';
 
   return (
@@ -250,7 +250,7 @@ export default function Nutrition() {
   const streaks = useNutritionStreaks();
   const archetypeProfile = useArchetypeProfile();
 
-  const { load, isLoading } = useNutritionDashboard();
+  const { load, isLoading: _isLoading } = useNutritionDashboard();
   const { deleteMeal } = useMealLog();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -417,7 +417,7 @@ export default function Nutrition() {
           {/* Today's Meals */}
           <GlassSurface className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Today's Meals</h2>
+              <h2 className="text-lg font-semibold text-white">Today&apos;s Meals</h2>
               <span className="text-sm text-gray-400">{meals.length} items</span>
             </div>
 

@@ -5,10 +5,9 @@
  * take consistently positioned photos for better comparison.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { BODY_PARTS } from './PhotoGallery';
 
 /**
  * Guide types for different poses

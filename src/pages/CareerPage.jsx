@@ -10,7 +10,7 @@
  * - /career/standards/:standardId - Individual standard detail
  */
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
@@ -28,7 +28,7 @@ import {
 import { SkeletonCard, SkeletonStats } from '../components/skeletons';
 
 // Lazy load heavy chart component
-const ReadinessTrendChart = lazy(() => import('../components/career/ReadinessTrendChart').catch(() => ({ default: () => null })));
+const _ReadinessTrendChart = lazy(() => import('../components/career/ReadinessTrendChart').catch(() => ({ default: () => null })));
 
 // ============================================
 // ICONS

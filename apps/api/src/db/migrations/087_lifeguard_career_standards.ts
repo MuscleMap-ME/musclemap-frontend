@@ -20,7 +20,7 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
 
-async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+async function _columnExists(tableName: string, columnName: string): Promise<boolean> {
   const result = await db.queryOne<{ count: string }>(
     `SELECT COUNT(*) as count FROM information_schema.columns
      WHERE table_name = $1 AND column_name = $2`,

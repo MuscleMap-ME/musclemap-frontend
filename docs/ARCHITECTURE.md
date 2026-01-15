@@ -43,6 +43,7 @@ musclemap.me/
 │   ├── public/
 │   ├── specs/
 │   ├── API_REFERENCE.md
+│   ├── APPLE-WATCH-IMPLEMENTATION.md
 │   ├── ARCHETYPE-GRAPHICS-UPGRADE-PLAN.md
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
@@ -302,7 +303,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (211 total)
+## Components (223 total)
 
 Components are organized by feature:
 
@@ -539,8 +540,14 @@ Components are organized by feature:
 - `Breadcrumbs`
 
 ### nutrition
+- `BarcodeScanner`
 - `NutritionDashboardCard`
 - `QuickLogModal`
+
+### offline
+- `ConflictResolver`
+- `OfflineIndicator`
+- `SyncStatus`
 
 ### onboarding
 - `SpotlightTour`
@@ -593,25 +600,35 @@ Components are organized by feature:
 - `TransitionLink`
 - `TransitionProvider`
 
+### video
+- `VideoPlayer`
+- `VideoThumbnail`
+
 ### workout
 - `FloatingRestTimer`
+- `RIRSelector`
+- `RPESelector`
+- `RPETrendsChart`
 - `RestTimerControl`
 - `RestTimerSettings`
 - `SetLogger`
+- `SupersetGroup`
 
 ### workout-mode
 - `ExerciseDisplay`
+- `ExerciseVideo`
 - `MusclePreview`
 - `QuickControls`
 - `RestTimer`
 - `SetLogger`
+- `SupersetMode`
 - `WorkoutMode`
 - `WorkoutProgress`
 
 ### xr
 - `XRButton`
 
-## API Endpoints (753 total)
+## API Endpoints (791 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
@@ -826,10 +843,27 @@ Components are organized by feature:
 | GET | `/equipment/types/:category` | equipment |
 | GET | `/escrow` | credits |
 | GET | `/escrow/:escrowId` | credits |
+| GET | `/exercise-group-presets` | exercise-groups |
+| POST | `/exercise-group-presets` | exercise-groups |
+| DELETE | `/exercise-group-presets/:presetId` | exercise-groups |
+| POST | `/exercise-group-presets/:presetId/apply` | exercise-groups |
+| POST | `/exercise-groups` | exercise-groups |
+| GET | `/exercise-groups/:groupId` | exercise-groups |
+| PUT | `/exercise-groups/:groupId` | exercise-groups |
+| DELETE | `/exercise-groups/:groupId` | exercise-groups |
+| POST | `/exercise-groups/:groupId/exercises` | exercise-groups |
+| DELETE | `/exercise-groups/:groupId/exercises/:exerciseId` | exercise-groups |
+| PUT | `/exercise-groups/:groupId/reorder` | exercise-groups |
+| GET | `/exercise-groups/types` | exercise-groups |
 | GET | `/exercises` | misc |
 | GET | `/exercises/:id/activations` | misc |
 | GET | `/exercises/:id/illustration` | misc |
 | GET | `/exercises/:id/metrics` | leaderboards |
+| GET | `/exercises/:id/videos` | exercise-videos |
+| POST | `/exercises/:id/videos` | exercise-videos |
+| GET | `/exercises/:id/videos/:videoId` | exercise-videos |
+| PATCH | `/exercises/:id/videos/:videoId` | exercise-videos |
+| DELETE | `/exercises/:id/videos/:videoId` | exercise-videos |
 | GET | `/exercises/:injuryId` | rehabilitation |
 | GET | `/faq` | feedback |
 | GET | `/faq/:id` | feedback |
@@ -1023,6 +1057,8 @@ Components are organized by feature:
 | GET | `/me/nutrition/summary/range` | nutrition |
 | GET | `/me/rank` | leaderboards |
 | GET | `/me/verifications` | verifications |
+| GET | `/me/video-favorites` | exercise-videos |
+| GET | `/me/video-history` | exercise-videos |
 | GET | `/me/witness-requests` | verifications |
 | PUT | `/mentor/profile` | mentorship |
 | GET | `/mentors` | mentorship |
@@ -1229,6 +1265,15 @@ Components are organized by feature:
 | GET | `/roadmap` | issues |
 | POST | `/roadmap` | issues |
 | POST | `/roadmap/:id/vote` | issues |
+| POST | `/rpe/autoregulate` | rpe |
+| GET | `/rpe/fatigue` | rpe |
+| GET | `/rpe/scale` | rpe |
+| POST | `/rpe/snapshot` | rpe |
+| GET | `/rpe/snapshots` | rpe |
+| GET | `/rpe/target/:exerciseId` | rpe |
+| PUT | `/rpe/target/:exerciseId` | rpe |
+| GET | `/rpe/trends/:exerciseId` | rpe |
+| GET | `/rpe/weekly/:exerciseId` | rpe |
 | POST | `/sets` | workout-sets |
 | DELETE | `/sets/:setId` | workout-sets |
 | POST | `/sets/bulk` | workout-sets |
@@ -1333,6 +1378,8 @@ Components are organized by feature:
 | GET | `/verifications/:id` | verifications |
 | DELETE | `/verifications/:id` | verifications |
 | POST | `/verifications/:id/witness` | verifications |
+| POST | `/videos/:videoId/favorite` | exercise-videos |
+| POST | `/videos/:videoId/watch` | exercise-videos |
 | GET | `/virtual-hangouts` | virtual-hangouts |
 | GET | `/virtual-hangouts/:id` | virtual-hangouts |
 | GET | `/virtual-hangouts/:id/activity` | virtual-hangouts |
@@ -1361,9 +1408,17 @@ Components are organized by feature:
 | GET | `/wallet/transactions` | credits |
 | POST | `/wallet/transfer` | credits |
 | GET | `/wallet/transfers` | credits |
+| GET | `/watch/exercises` | watch |
+| GET | `/watch/quick-start` | watch |
+| POST | `/watch/state` | watch |
+| POST | `/watch/sync` | watch |
+| GET | `/watch/workout-state` | watch |
 | POST | `/webhook/stripe` | economyEnhanced |
 | POST | `/workouts` | workouts |
 | GET | `/workouts/:id` | workouts |
+| GET | `/workouts/:workoutId/groups` | exercise-groups |
+| POST | `/workouts/:workoutId/groups/:groupId/sets` | exercise-groups |
+| GET | `/workouts/:workoutId/groups/:groupId/sets` | exercise-groups |
 | GET | `/workouts/me` | workouts |
 | GET | `/workouts/me/muscles` | workouts |
 | GET | `/workouts/me/stats` | workouts |

@@ -120,14 +120,20 @@ export {
   type Rival,
   type RivalStats,
   type RivalSearchResult,
-  // Wearables types
+  // Wearables / Health types
   type WearableProvider,
   type WearableConnection,
   type HeartRateSample,
   type WorkoutSample,
   type ActivitySample,
   type SleepSample,
+  type BodyMeasurementSample,
   type HealthSyncPayload,
+  type HealthSyncResult,
+  type SyncConflict,
+  type HealthSyncStatus,
+  type ConflictResolutionStrategy,
+  type SyncOptions,
   type HealthSummary,
   // Crew types
   type CrewRole,

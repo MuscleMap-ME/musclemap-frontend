@@ -155,7 +155,7 @@ HistoryBar.displayName = 'HistoryBar';
  * @param {string} props.className - Additional CSS classes
  */
 const MuscleHistory = ({
-  muscleId,
+  muscleId: _muscleId,
   history = {},
   muscleColor = '#14b8a6',
   className,
@@ -253,7 +253,7 @@ MuscleHistory.displayName = 'MuscleHistory';
  */
 export const MuscleHistoryCompact = React.memo(({
   history = {},
-  muscleColor = '#14b8a6',
+  muscleColor: _muscleColor = '#14b8a6',
   className,
 }) => {
   const days = useMemo(() => getLastNDays(DAYS_TO_SHOW), []);

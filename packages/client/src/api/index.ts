@@ -435,7 +435,7 @@ const RivalSearchResultSchema = Type.Object(
 // =====================
 // Wearables Types & Schemas
 // =====================
-export type WearableProvider = 'apple_health' | 'fitbit' | 'garmin' | 'google_fit';
+export type WearableProvider = 'apple_health' | 'fitbit' | 'garmin' | 'google_fit' | 'whoop' | 'oura';
 
 export interface WearableConnection {
   id: string;
@@ -444,6 +444,8 @@ export interface WearableConnection {
   providerUserId?: string;
   isActive: boolean;
   lastSyncAt: string | null;
+  syncError?: string | null;
+  syncStatus?: 'idle' | 'syncing' | 'success' | 'error';
   createdAt: string;
 }
 
@@ -451,6 +453,7 @@ export interface HeartRateSample {
   timestamp: string;
   bpm: number;
   source?: string;
+  context?: 'resting' | 'active' | 'workout' | 'sleep';
 }
 
 export interface WorkoutSample {
@@ -463,7 +466,11 @@ export interface WorkoutSample {
   distance?: number;
   avgHeartRate?: number;
   maxHeartRate?: number;
+  minHeartRate?: number;
+  steps?: number;
+  elevationGain?: number;
   source: WearableProvider;
+  externalId?: string;
 }
 
 export interface ActivitySample {
@@ -473,10 +480,14 @@ export interface ActivitySample {
   totalCalories?: number;
   moveMinutes?: number;
   standHours?: number;
+  exerciseMinutes?: number;
+  distanceMeters?: number;
+  floorsClimbed?: number;
   source: WearableProvider;
 }
 
 export interface SleepSample {
+  id?: string;
   startTime: string;
   endTime: string;
   duration: number;
@@ -486,6 +497,15 @@ export interface SleepSample {
     deep?: number;
     rem?: number;
   };
+  sleepScore?: number;
+  source: WearableProvider;
+}
+
+export interface BodyMeasurementSample {
+  type: 'weight' | 'body_fat' | 'height' | 'bmi' | 'lean_mass';
+  value: number;
+  unit: string;
+  measuredAt: string;
   source: WearableProvider;
 }
 
@@ -494,6 +514,53 @@ export interface HealthSyncPayload {
   workouts?: WorkoutSample[];
   activity?: ActivitySample[];
   sleep?: SleepSample[];
+  bodyMeasurements?: BodyMeasurementSample[];
+}
+
+export interface HealthSyncResult {
+  synced: {
+    heartRate: number;
+    workouts: number;
+    activity: number;
+    sleep: number;
+    bodyMeasurements: number;
+  };
+  conflicts: SyncConflict[];
+  lastSyncAt: string;
+}
+
+export interface SyncConflict {
+  type: 'workout' | 'activity' | 'bodyMeasurement';
+  localId?: string;
+  remoteId?: string;
+  field?: string;
+  localValue?: unknown;
+  remoteValue?: unknown;
+  resolution: 'local_wins' | 'remote_wins' | 'merged' | 'skipped';
+  timestamp: string;
+}
+
+export interface HealthSyncStatus {
+  provider: WearableProvider;
+  lastSyncAt: string | null;
+  syncStatus: 'idle' | 'syncing' | 'success' | 'error';
+  syncError: string | null;
+  lastSyncedCounts?: {
+    heartRate: number;
+    workouts: number;
+    activity: number;
+    sleep: number;
+    bodyMeasurements: number;
+  };
+}
+
+export type ConflictResolutionStrategy = 'local_wins' | 'remote_wins' | 'newest_wins' | 'merge';
+
+export interface SyncOptions {
+  conflictStrategy?: ConflictResolutionStrategy;
+  syncDirection?: 'upload' | 'download' | 'bidirectional';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface HealthSummary {
@@ -512,6 +579,7 @@ export interface HealthSummary {
     avgRestingHeartRate: number | null;
   };
   connections: WearableConnection[];
+  syncStatus?: HealthSyncStatus[];
 }
 
 const WearableConnectionSchema = Type.Object(
@@ -522,7 +590,19 @@ const WearableConnectionSchema = Type.Object(
     providerUserId: Type.Optional(Type.String()),
     isActive: Type.Boolean(),
     lastSyncAt: Type.Union([Type.String(), Type.Null()]),
+    syncError: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    syncStatus: Type.Optional(Type.String()),
     createdAt: Type.String(),
+  },
+  { additionalProperties: true }
+);
+
+const HealthSyncStatusSchema = Type.Object(
+  {
+    provider: Type.String(),
+    lastSyncAt: Type.Union([Type.String(), Type.Null()]),
+    syncStatus: Type.String(),
+    syncError: Type.Union([Type.String(), Type.Null()]),
   },
   { additionalProperties: true }
 );
@@ -544,6 +624,28 @@ const HealthSummarySchema = Type.Object(
       avgRestingHeartRate: Type.Union([Type.Number(), Type.Null()]),
     }),
     connections: Type.Array(WearableConnectionSchema, { default: [] }),
+    syncStatus: Type.Optional(Type.Array(HealthSyncStatusSchema, { default: [] })),
+  },
+  { additionalProperties: true }
+);
+
+const HealthSyncResultSchema = Type.Object(
+  {
+    synced: Type.Object({
+      heartRate: Type.Number(),
+      workouts: Type.Number(),
+      activity: Type.Number(),
+      sleep: Type.Number(),
+      bodyMeasurements: Type.Number(),
+    }),
+    conflicts: Type.Array(Type.Object({
+      type: Type.String(),
+      localId: Type.Optional(Type.String()),
+      remoteId: Type.Optional(Type.String()),
+      resolution: Type.String(),
+      timestamp: Type.String(),
+    }), { default: [] }),
+    lastSyncAt: Type.String(),
   },
   { additionalProperties: true }
 );
@@ -559,7 +661,11 @@ const WorkoutSampleSchema = Type.Object(
     distance: Type.Optional(Type.Number()),
     avgHeartRate: Type.Optional(Type.Number()),
     maxHeartRate: Type.Optional(Type.Number()),
+    minHeartRate: Type.Optional(Type.Number()),
+    steps: Type.Optional(Type.Number()),
+    elevationGain: Type.Optional(Type.Number()),
     source: Type.String(),
+    externalId: Type.Optional(Type.String()),
   },
   { additionalProperties: true }
 );
@@ -2009,46 +2115,62 @@ export const apiClient = {
       }),
   },
 
-  // Wearables
+  // Wearables / Health Integration
   wearables: {
+    /** Get health summary with today/week stats and connections */
     summary: () =>
       request<DataResponse<HealthSummary>>('/wearables', {
         schema: wrapInData(HealthSummarySchema),
       }),
+    /** Get sync status for all connected providers */
+    status: () =>
+      request<DataResponse<{ syncStatus: HealthSyncStatus[] }>>('/wearables/status', {
+        schema: wrapInData(Type.Object({
+          syncStatus: Type.Array(HealthSyncStatusSchema, { default: [] }),
+        })),
+      }),
+    /** Get sync status for a specific provider */
+    providerStatus: (provider: WearableProvider) =>
+      request<DataResponse<HealthSyncStatus>>(`/wearables/status/${provider}`, {
+        schema: wrapInData(HealthSyncStatusSchema),
+      }),
+    /** Connect a wearable provider */
     connect: (provider: WearableProvider, data?: { providerUserId?: string; accessToken?: string; refreshToken?: string; tokenExpiresAt?: string }) =>
       request<DataResponse<WearableConnection>>('/wearables/connect', {
         method: 'POST',
         body: { provider, ...data },
         schema: wrapInData(WearableConnectionSchema),
       }),
+    /** Disconnect a wearable provider */
     disconnect: (provider: WearableProvider) =>
       request<{ success: boolean }>('/wearables/disconnect', {
         method: 'POST',
         body: { provider },
         schema: Type.Object({ success: Type.Boolean() }, { additionalProperties: true }),
       }),
-    sync: (provider: WearableProvider, data: HealthSyncPayload) =>
-      request<DataResponse<{ synced: { heartRate: number; workouts: number; activity: number; sleep: number } }>>(
+    /** Sync health data with optional conflict resolution strategy */
+    sync: (provider: WearableProvider, data: HealthSyncPayload, options?: SyncOptions) =>
+      request<DataResponse<HealthSyncResult>>(
         '/wearables/sync',
         {
           method: 'POST',
-          body: { provider, data },
-          schema: wrapInData(
-            Type.Object({
-              synced: Type.Object({
-                heartRate: Type.Number(),
-                workouts: Type.Number(),
-                activity: Type.Number(),
-                sleep: Type.Number(),
-              }),
-            })
-          ),
+          body: { provider, data, options },
+          schema: wrapInData(HealthSyncResultSchema),
         }
       ),
+    /** Get recent workouts from wearables */
     workouts: (limit = 10) =>
       request<DataResponse<{ workouts: WorkoutSample[] }>>(`/wearables/workouts?limit=${limit}`, {
         schema: wrapInData(Type.Object({ workouts: Type.Array(WorkoutSampleSchema, { default: [] }) })),
       }),
+    /** Get workouts for export to wearable (bi-directional sync) */
+    exportWorkouts: (options?: { startDate?: string; endDate?: string; limit?: number }) =>
+      request<DataResponse<{ workouts: WorkoutSample[] }>>(
+        `/wearables/export?${new URLSearchParams(Object.entries(options || {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`,
+        {
+          schema: wrapInData(Type.Object({ workouts: Type.Array(WorkoutSampleSchema, { default: [] }) })),
+        }
+      ),
   },
 
   // Crews

@@ -37,7 +37,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get nutrition dashboard
   fastify.get('/me/nutrition', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const dashboard = await nutritionService.getDashboard(userId);
     return dashboard;
@@ -46,7 +46,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get nutrition preferences
   fastify.get('/me/nutrition/preferences', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const prefs = await nutritionService.getOrCreatePreferences(userId);
     return prefs;
@@ -55,7 +55,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Update nutrition preferences
   fastify.patch('/me/nutrition/preferences', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: UpdateNutritionPreferencesInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: UpdateNutritionPreferencesInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const prefs = await nutritionService.updatePreferences(userId, request.body);
     return prefs;
@@ -64,7 +64,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Enable nutrition
   fastify.post('/me/nutrition/enable', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const prefs = await nutritionService.enableNutrition(userId);
     return prefs;
@@ -73,7 +73,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Disable nutrition
   fastify.post('/me/nutrition/disable', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: { deleteData?: boolean } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: { deleteData?: boolean } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const deleteData = request.body?.deleteData || false;
     await nutritionService.disableNutrition(userId, deleteData);
@@ -87,7 +87,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get nutrition goals
   fastify.get('/me/nutrition/goals', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const goals = await macroCalculatorService.getGoals(userId);
     return goals || { message: 'No goals set' };
@@ -96,7 +96,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Calculate and save nutrition goals
   fastify.post('/me/nutrition/goals/calculate', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CalculateGoalsInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CalculateGoalsInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const goals = await macroCalculatorService.calculateAndSaveGoals(userId, request.body);
     return goals;
@@ -109,7 +109,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Search foods
   fastify.get('/nutrition/foods/search', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: FoodSearchOptions }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: FoodSearchOptions }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const results = await foodSearchService.search(request.query, userId);
     return results;
@@ -118,10 +118,10 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get food by ID
   fastify.get('/nutrition/foods/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const food = await foodSearchService.getFoodById(request.params.id);
     if (!food) {
-      return reply.status(404).send({ error: 'Food not found' });
+      return _reply.status(404).send({ error: 'Food not found' });
     }
     return food;
   });
@@ -129,7 +129,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Search by barcode
   fastify.get('/nutrition/foods/barcode/:barcode', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { barcode: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { barcode: string } }>, _reply: FastifyReply) => {
     const results = await foodSearchService.searchByBarcode(request.params.barcode);
     return results;
   });
@@ -137,7 +137,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get frequent foods
   fastify.get('/me/nutrition/foods/frequent', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const limit = request.query.limit || 20;
     const foods = await foodSearchService.getFrequentFoods(userId, limit);
@@ -147,7 +147,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get recent foods (from meal logs)
   fastify.get('/me/nutrition/foods/recent', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const limit = request.query.limit || 20;
     const meals = await mealLogService.getRecentMeals(userId, limit);
@@ -161,7 +161,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Create custom food
   fastify.post('/me/nutrition/foods/custom', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CreateCustomFoodInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CreateCustomFoodInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const food = await foodSearchService.createCustomFood(userId, request.body);
     return food;
@@ -170,7 +170,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get user's custom foods
   fastify.get('/me/nutrition/foods/custom', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const limit = request.query.limit || 50;
     const foods = await foodSearchService.getUserCustomFoods(userId, limit);
@@ -180,7 +180,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Delete custom food
   fastify.delete('/me/nutrition/foods/custom/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await foodSearchService.deleteCustomFood(request.params.id, userId);
     return { success: true };
@@ -193,7 +193,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Log a meal
   fastify.post('/me/nutrition/meals', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CreateMealLogInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CreateMealLogInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const meal = await mealLogService.createMealLog(userId, request.body);
     return meal;
@@ -202,7 +202,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get meals by date
   fastify.get('/me/nutrition/meals', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { date?: string; from?: string; to?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { date?: string; from?: string; to?: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const { date, from, to } = request.query;
 
@@ -223,11 +223,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get single meal
   fastify.get('/me/nutrition/meals/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const meal = await mealLogService.getMealLog(request.params.id, userId);
     if (!meal) {
-      return reply.status(404).send({ error: 'Meal not found' });
+      return _reply.status(404).send({ error: 'Meal not found' });
     }
     return meal;
   });
@@ -235,11 +235,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Update meal
   fastify.put('/me/nutrition/meals/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: UpdateMealLogInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: UpdateMealLogInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const meal = await mealLogService.updateMealLog(request.params.id, userId, request.body);
     if (!meal) {
-      return reply.status(404).send({ error: 'Meal not found' });
+      return _reply.status(404).send({ error: 'Meal not found' });
     }
     return meal;
   });
@@ -247,7 +247,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Delete meal
   fastify.delete('/me/nutrition/meals/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await mealLogService.deleteMealLog(request.params.id, userId);
     return { success: true };
@@ -256,7 +256,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Copy meals from another date
   fastify.post('/me/nutrition/meals/copy', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: { sourceDate: string; targetDate: string; mealTypes?: string[] } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: { sourceDate: string; targetDate: string; mealTypes?: string[] } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const { sourceDate, targetDate, mealTypes } = request.body;
     const meals = await mealLogService.copyMealsFromDate(userId, sourceDate, targetDate, mealTypes as any);
@@ -270,7 +270,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get daily summary
   fastify.get('/me/nutrition/summary', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { date?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { date?: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const date = request.query.date || new Date().toISOString().split('T')[0];
     const summary = await mealLogService.getDailySummary(userId, date);
@@ -280,7 +280,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get summary range
   fastify.get('/me/nutrition/summary/range', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { from: string; to: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { from: string; to: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const { from, to } = request.query;
     const summaries = await mealLogService.getDailySummaries(userId, from, to);
@@ -294,7 +294,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Log water/hydration
   fastify.post('/me/nutrition/hydration', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CreateHydrationLogInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CreateHydrationLogInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const log = await mealLogService.logHydration(userId, request.body);
     return log;
@@ -303,7 +303,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get hydration by date
   fastify.get('/me/nutrition/hydration', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { date?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { date?: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const date = request.query.date || new Date().toISOString().split('T')[0];
     const logs = await mealLogService.getHydrationByDate(userId, date);
@@ -320,7 +320,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
     preHandler: authenticate,
   }, async (request: FastifyRequest<{
     Querystring: RecipeFilter & { sort?: string; sortDir?: string; limit?: number; cursor?: string }
-  }>, reply: FastifyReply) => {
+  }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const { sort, sortDir, limit, cursor, ...filter } = request.query;
     const results = await recipeService.searchRecipes(
@@ -336,7 +336,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get popular recipes
   fastify.get('/nutrition/recipes/popular', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const limit = request.query.limit || 10;
     const recipes = await recipeService.getPopularRecipes(limit);
     return recipes;
@@ -345,7 +345,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get trending recipes
   fastify.get('/nutrition/recipes/trending', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const limit = request.query.limit || 10;
     const recipes = await recipeService.getTrendingRecipes(limit);
     return recipes;
@@ -354,7 +354,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get recipes by archetype
   fastify.get('/nutrition/recipes/archetype/:archetype', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { archetype: string }; Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { archetype: string }; Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const limit = request.query.limit || 10;
     const recipes = await recipeService.getRecipesByArchetype(request.params.archetype, limit);
     return recipes;
@@ -363,11 +363,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get single recipe
   fastify.get('/nutrition/recipes/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const recipe = await recipeService.getRecipe(request.params.id, userId);
     if (!recipe) {
-      return reply.status(404).send({ error: 'Recipe not found' });
+      return _reply.status(404).send({ error: 'Recipe not found' });
     }
     return recipe;
   });
@@ -375,7 +375,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Create recipe
   fastify.post('/me/nutrition/recipes', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CreateRecipeInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CreateRecipeInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const recipe = await recipeService.createRecipe(userId, request.body);
     return recipe;
@@ -384,7 +384,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get user's recipes
   fastify.get('/me/nutrition/recipes', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const limit = request.query.limit || 50;
     const recipes = await recipeService.getUserRecipes(userId, limit);
@@ -394,7 +394,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get saved recipes
   fastify.get('/me/nutrition/recipes/saved', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const limit = request.query.limit || 50;
     const recipes = await recipeService.getSavedRecipes(userId, limit);
@@ -404,11 +404,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Update recipe
   fastify.put('/me/nutrition/recipes/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: UpdateRecipeInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: UpdateRecipeInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const recipe = await recipeService.updateRecipe(request.params.id, userId, request.body);
     if (!recipe) {
-      return reply.status(404).send({ error: 'Recipe not found or not authorized' });
+      return _reply.status(404).send({ error: 'Recipe not found or not authorized' });
     }
     return recipe;
   });
@@ -416,7 +416,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Delete recipe
   fastify.delete('/me/nutrition/recipes/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await recipeService.deleteRecipe(request.params.id, userId);
     return { success: true };
@@ -425,7 +425,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Save recipe
   fastify.post('/me/nutrition/recipes/:id/save', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await recipeService.saveRecipe(request.params.id, userId);
     return { success: true };
@@ -434,7 +434,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Unsave recipe
   fastify.delete('/me/nutrition/recipes/:id/save', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await recipeService.unsaveRecipe(request.params.id, userId);
     return { success: true };
@@ -443,7 +443,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Rate recipe
   fastify.post('/me/nutrition/recipes/:id/rate', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { rating: number; review?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: { rating: number; review?: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const { rating, review } = request.body;
     await recipeService.rateRecipe(request.params.id, userId, rating, review);
@@ -453,7 +453,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get recipe ratings
   fastify.get('/nutrition/recipes/:id/ratings', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Querystring: { limit?: number } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Querystring: { limit?: number } }>, _reply: FastifyReply) => {
     const limit = request.query.limit || 20;
     const ratings = await recipeService.getRecipeRatings(request.params.id, limit);
     return ratings;
@@ -466,7 +466,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get user's meal plans
   fastify.get('/me/nutrition/plans', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: { status?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { status?: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plans = await mealPlanService.getUserMealPlans(userId, request.query.status);
     return plans;
@@ -475,7 +475,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get active meal plan
   fastify.get('/me/nutrition/plans/active', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.getActiveMealPlan(userId);
     return plan || { message: 'No active meal plan' };
@@ -484,7 +484,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Create meal plan
   fastify.post('/me/nutrition/plans', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: CreateMealPlanInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: CreateMealPlanInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.createMealPlan(userId, request.body);
     return plan;
@@ -493,7 +493,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Generate meal plan with AI
   fastify.post('/me/nutrition/plans/generate', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: GenerateMealPlanInput }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Body: GenerateMealPlanInput }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.generateMealPlan(userId, request.body);
     return plan;
@@ -502,11 +502,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get single meal plan
   fastify.get('/me/nutrition/plans/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.getMealPlan(request.params.id, userId);
     if (!plan) {
-      return reply.status(404).send({ error: 'Meal plan not found' });
+      return _reply.status(404).send({ error: 'Meal plan not found' });
     }
     return plan;
   });
@@ -514,11 +514,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Update meal plan
   fastify.put('/me/nutrition/plans/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Body: Partial<CreateMealPlanInput & { status: string }> }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Body: Partial<CreateMealPlanInput & { status: string }> }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.updateMealPlan(request.params.id, userId, request.body);
     if (!plan) {
-      return reply.status(404).send({ error: 'Meal plan not found' });
+      return _reply.status(404).send({ error: 'Meal plan not found' });
     }
     return plan;
   });
@@ -526,7 +526,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Delete meal plan
   fastify.delete('/me/nutrition/plans/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await mealPlanService.deleteMealPlan(request.params.id, userId);
     return { success: true };
@@ -535,11 +535,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Activate meal plan
   fastify.post('/me/nutrition/plans/:id/activate', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const plan = await mealPlanService.activateMealPlan(request.params.id, userId);
     if (!plan) {
-      return reply.status(404).send({ error: 'Meal plan not found' });
+      return _reply.status(404).send({ error: 'Meal plan not found' });
     }
     return plan;
   });
@@ -550,7 +550,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest<{
     Params: { id: string };
     Body: { planDate: string; mealType: string; recipeId?: string; foodId?: string; customDescription?: string; servings?: number }
-  }>, reply: FastifyReply) => {
+  }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const item = await mealPlanService.addMealPlanItem(request.params.id, userId, request.body as any);
     return item;
@@ -559,7 +559,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get meal plan items for a date
   fastify.get('/me/nutrition/plans/:id/items', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string }; Querystring: { date?: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string }; Querystring: { date?: string } }>, _reply: FastifyReply) => {
     const { date } = request.query;
     if (date) {
       const items = await mealPlanService.getMealPlanItemsForDate(request.params.id, date);
@@ -576,11 +576,11 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest<{
     Params: { itemId: string };
     Body: { servings?: number; completed?: boolean; completedMealLogId?: string }
-  }>, reply: FastifyReply) => {
+  }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const item = await mealPlanService.updateMealPlanItem(request.params.itemId, userId, request.body);
     if (!item) {
-      return reply.status(404).send({ error: 'Item not found' });
+      return _reply.status(404).send({ error: 'Item not found' });
     }
     return item;
   });
@@ -588,7 +588,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Delete meal plan item
   fastify.delete('/me/nutrition/plans/items/:itemId', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { itemId: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { itemId: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     await mealPlanService.deleteMealPlanItem(request.params.itemId, userId);
     return { success: true };
@@ -597,7 +597,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Generate shopping list
   fastify.post('/me/nutrition/plans/:id/shopping-list', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const list = await mealPlanService.generateShoppingList(request.params.id, userId);
     return list;
@@ -610,7 +610,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get all archetype nutrition profiles
   fastify.get('/nutrition/archetypes', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (_request: FastifyRequest, _reply: FastifyReply) => {
     const profiles = await nutritionService.getAllArchetypeProfiles();
     return profiles;
   });
@@ -618,10 +618,10 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get specific archetype profile
   fastify.get('/nutrition/archetypes/:archetype', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { archetype: string } }>, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Params: { archetype: string } }>, _reply: FastifyReply) => {
     const profile = await nutritionService.getArchetypeProfile(request.params.archetype);
     if (!profile) {
-      return reply.status(404).send({ error: 'Archetype profile not found' });
+      return _reply.status(404).send({ error: 'Archetype profile not found' });
     }
     return profile;
   });
@@ -633,7 +633,7 @@ export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
   // Get nutrition streaks
   fastify.get('/me/nutrition/streaks', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, _reply: FastifyReply) => {
     const userId = (request as any).user.id;
     const streaks = await nutritionService.getStreaks(userId);
     return streaks || { message: 'No streak data' };

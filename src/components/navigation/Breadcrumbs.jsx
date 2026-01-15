@@ -118,7 +118,7 @@ export function Breadcrumbs({
   }, []);
 
   // Calculate visible items with truncation
-  const { visibleItems, hiddenItems, hiddenCount } = useMemo(() => {
+  const { visibleItems, hiddenItems: _hiddenItems, hiddenCount: _hiddenCount } = useMemo(() => {
     if (!items || items.length === 0) {
       return { visibleItems: [], hiddenItems: [], hiddenCount: 0 };
     }
@@ -269,7 +269,7 @@ export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
   context,
   className,
 }) {
-  const { breadcrumbs: routeBreadcrumbs, goBack, isNested } = useBreadcrumbs({
+  const { breadcrumbs: routeBreadcrumbs, goBack, isNested: _isNested } = useBreadcrumbs({
     context,
   });
   const items = propItems || routeBreadcrumbs;

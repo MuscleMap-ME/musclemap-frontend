@@ -59,7 +59,7 @@ export function useChallenges({
   onAllComplete,
 } = {}) {
   // Track previous allComplete state for callback
-  const prevAllCompleteRef = { current: false };
+  const prevAllCompleteRef = useRef(false);
 
   // Wrap onChallengeComplete to check for all complete
   const handleChallengeComplete = useCallback(

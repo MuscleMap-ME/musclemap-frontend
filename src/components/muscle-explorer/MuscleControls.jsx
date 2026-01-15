@@ -23,13 +23,10 @@ import {
   Search,
   X,
   RefreshCw,
-  FlipHorizontal,
   Play,
   Pause,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react';
-import { MUSCLE_DATA, searchMuscles } from './muscleData';
+import { searchMuscles } from './muscleData';
 import { VIEW_PRESETS } from './useMuscleExplorer';
 import { useMotionAllowed } from '../../hooks/useReducedMotion';
 
@@ -440,7 +437,7 @@ const MuscleControls = ({
   className,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const motionAllowed = useMotionAllowed();
+  const _motionAllowed = useMotionAllowed();
 
   // Handle search selection
   const handleSearchSelect = useCallback((muscleId) => {

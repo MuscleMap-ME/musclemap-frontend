@@ -41,7 +41,7 @@ const SWIPE_VELOCITY_THRESHOLD = 300;
 export function WorkoutMode({ workout, onComplete, onClose }) {
   const shouldReduceMotion = useShouldReduceMotion();
   const containerRef = useRef(null);
-  const [dragDirection, setDragDirection] = useState(null);
+  const [_dragDirection, _setDragDirection] = useState(null);
 
   // Workout mode hook
   const {
@@ -57,7 +57,7 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
     restTimer,
     showExitConfirm,
     soundEnabled,
-    restDuration,
+    restDuration: _restDuration,
     initializeSession,
     handleComplete,
     handleExit,
@@ -68,7 +68,7 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
     previousExercise,
     logSet,
     setSoundEnabled,
-    setRestDuration,
+    setRestDuration: _setRestDuration,
     getExerciseHistory,
     restTimerSettings,
   } = useWorkoutMode({ workout, onComplete, onClose });
@@ -127,7 +127,7 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
   );
 
   // Handle swipe up (complete set)
-  const handleSwipeUp = useCallback(() => {
+  const _handleSwipeUp = useCallback(() => {
     // This is handled by SetLogger directly
     haptic('medium');
   }, []);

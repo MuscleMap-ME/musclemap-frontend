@@ -35,3 +35,6 @@ export { MusclePreview, MusclePreviewBadge } from './MusclePreview';
 
 // Hooks
 export { useWorkoutMode, useSwipeGestures } from './useWorkoutMode';
+
+// Superset/Circuit components
+export { SupersetMode } from './SupersetMode';

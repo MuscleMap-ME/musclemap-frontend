@@ -332,7 +332,7 @@ export class FoodSearchService {
   // FatSecret (if configured)
   // ============================================
 
-  private async searchFatSecret(query: string, limit: number): Promise<Food[]> {
+  private async searchFatSecret(_query: string, _limit: number): Promise<Food[]> {
     if (!FATSECRET_KEY || !FATSECRET_SECRET) {
       return [];
     }
@@ -407,7 +407,7 @@ export class FoodSearchService {
   }
 
   async deleteCustomFood(id: string, userId: string): Promise<boolean> {
-    const result = await db.query(
+    await db.query(
       `DELETE FROM custom_foods WHERE id = $1 AND user_id = $2`,
       [id, userId]
     );

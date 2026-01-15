@@ -490,6 +490,27 @@ Authorization: Bearer <token>
 | `GET` | `/locations/:id/equipment/verified` | Yes |
 
 
+### Exercise-groups
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/exercise-group-presets` | Yes |
+| `POST` | `/exercise-group-presets` | Yes |
+| `DELETE` | `/exercise-group-presets/:presetId` | Yes |
+| `POST` | `/exercise-group-presets/:presetId/apply` | Yes |
+| `POST` | `/exercise-groups` | Yes |
+| `GET` | `/exercise-groups/:groupId` | Yes |
+| `PUT` | `/exercise-groups/:groupId` | Yes |
+| `DELETE` | `/exercise-groups/:groupId` | Yes |
+| `POST` | `/exercise-groups/:groupId/exercises` | Yes |
+| `DELETE` | `/exercise-groups/:groupId/exercises/:exerciseId` | Yes |
+| `PUT` | `/exercise-groups/:groupId/reorder` | Yes |
+| `GET` | `/exercise-groups/types` | Yes |
+| `GET` | `/workouts/:workoutId/groups` | Yes |
+| `POST` | `/workouts/:workoutId/groups/:groupId/sets` | Yes |
+| `GET` | `/workouts/:workoutId/groups/:groupId/sets` | Yes |
+
+
 ### Leaderboards
 
 | Method | Endpoint | Auth Required |
@@ -502,6 +523,21 @@ Authorization: Bearer <token>
 | `GET` | `/me/rank` | Yes |
 | `GET` | `/users/:id/rank` | Yes |
 | `GET` | `/virtual-hangouts/:id/leaderboard` | Yes |
+
+
+### Exercise-videos
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/exercises/:id/videos` | Yes |
+| `POST` | `/exercises/:id/videos` | Yes |
+| `GET` | `/exercises/:id/videos/:videoId` | Yes |
+| `PATCH` | `/exercises/:id/videos/:videoId` | Yes |
+| `DELETE` | `/exercises/:id/videos/:videoId` | Yes |
+| `GET` | `/me/video-favorites` | Yes |
+| `GET` | `/me/video-history` | Yes |
+| `POST` | `/videos/:videoId/favorite` | Yes |
+| `POST` | `/videos/:videoId/watch` | Yes |
 
 
 ### Feedback
@@ -1043,6 +1079,21 @@ Authorization: Bearer <token>
 | `GET` | `/rivals/stats` | Yes |
 
 
+### Rpe
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/rpe/autoregulate` | Yes |
+| `GET` | `/rpe/fatigue` | Yes |
+| `GET` | `/rpe/scale` | Yes |
+| `POST` | `/rpe/snapshot` | Yes |
+| `GET` | `/rpe/snapshots` | Yes |
+| `GET` | `/rpe/target/:exerciseId` | Yes |
+| `PUT` | `/rpe/target/:exerciseId` | Yes |
+| `GET` | `/rpe/trends/:exerciseId` | Yes |
+| `GET` | `/rpe/weekly/:exerciseId` | Yes |
+
+
 ### Workout-sets
 
 | Method | Endpoint | Auth Required |
@@ -1153,6 +1204,17 @@ Authorization: Bearer <token>
 | `GET` | `/volume/prs` | Yes |
 | `GET` | `/volume/summary` | Yes |
 | `GET` | `/volume/weekly` | Yes |
+
+
+### Watch
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/watch/exercises` | Yes |
+| `GET` | `/watch/quick-start` | Yes |
+| `POST` | `/watch/state` | Yes |
+| `POST` | `/watch/sync` | Yes |
+| `GET` | `/watch/workout-state` | Yes |
 
 
 ### Workouts
