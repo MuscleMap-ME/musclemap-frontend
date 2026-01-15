@@ -31,8 +31,7 @@ import {
 } from '../../store/nutritionStore';
 import { useFoodSearch, useMealLog } from '../../hooks/useNutrition';
 import { useDebounce } from '../../hooks';
-// BarcodeScanner import reserved for future barcode scanning feature
-// import { BarcodeScanner } from './BarcodeScanner';
+import { BarcodeScanner } from './BarcodeScanner';
 
 const mealTypes = [
   { id: 'breakfast', label: 'Breakfast', icon: Coffee, color: 'orange' },
@@ -121,8 +120,7 @@ export function QuickLogModal() {
   const [selectedMealType, setSelectedMealType] = useState(mealType);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Scanner state reserved for future barcode scanning feature
-  const [_isScannerOpen, _setIsScannerOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const { search, searchResults } = useFoodSearch();
   const { logMeal } = useMealLog();

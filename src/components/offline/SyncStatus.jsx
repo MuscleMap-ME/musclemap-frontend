@@ -21,6 +21,7 @@ import {
   Clock,
   Dumbbell,
   BarChart2,
+  ChevronDown,
 } from 'lucide-react';
 import {
   useSyncStatus,

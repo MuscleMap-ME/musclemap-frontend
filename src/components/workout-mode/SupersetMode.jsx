@@ -256,7 +256,8 @@ export function SupersetMode({
   const [transitionType, setTransitionType] = useState(null); // 'next', 'round', 'complete'
 
   const config = GROUP_TYPE_CONFIG[group.groupType] || GROUP_TYPE_CONFIG.superset;
-  const exercises = group.exercises || [];
+  // Memoize exercises array to prevent useMemo dependency issues
+  const exercises = useMemo(() => group.exercises || [], [group.exercises]);
   const totalRounds = group.circuitRounds || 1;
   const isTimedCircuit = group.groupType === 'circuit' && group.circuitTimed;
   const timePerExercise = group.circuitTimePerExercise || 30;

@@ -2026,12 +2026,45 @@ export const resolvers = {
 
     calculateMacros: async (_: unknown, args: { input: any }, context: Context) => {
       requireAuth(context);
-      // Return calculated macros based on input
+      const { weightKg, heightCm, age, gender, activityLevel, goal } = args.input;
+
+      // Calculate BMR and TDEE
+      const bmr = macroCalculatorService.calculateBMR(
+        weightKg,
+        heightCm,
+        age,
+        gender as 'male' | 'female' | 'other'
+      );
+      const tdee = macroCalculatorService.calculateTDEE(
+        bmr,
+        activityLevel as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
+      );
+      const calories = macroCalculatorService.calculateTargetCalories(
+        tdee,
+        goal as 'lose' | 'maintain' | 'gain',
+        'moderate'
+      );
+      const macros = macroCalculatorService.calculateMacros(
+        calories,
+        weightKg,
+        activityLevel as 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
+      );
+
       return {
-        calories: args.input.targetCalories || 2000,
-        proteinG: args.input.proteinG || 150,
-        carbsG: args.input.carbsG || 200,
-        fatG: args.input.fatG || 60,
+        calories,
+        proteinG: macros.proteinG,
+        carbsG: macros.carbsG,
+        fatG: macros.fatG,
+        tdee,
+        bmr,
+        proteinRatio: (macros.proteinG * 4) / calories,
+        carbsRatio: (macros.carbsG * 4) / calories,
+        fatRatio: (macros.fatG * 9) / calories,
+        breakdown: {
+          proteinCalories: macros.proteinG * 4,
+          carbsCalories: macros.carbsG * 4,
+          fatCalories: macros.fatG * 9,
+        },
       };
     },
 
@@ -2053,7 +2086,7 @@ export const resolvers = {
 
     logHydration: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      return mealLogService.logHydration(userId, args.input.amountMl);
+      return mealLogService.logHydration(userId, args.input);
     },
 
     createRecipe: async (_: unknown, args: { input: any }, context: Context) => {
@@ -2063,24 +2096,24 @@ export const resolvers = {
 
     updateRecipe: async (_: unknown, args: { id: string; input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      return recipeService.updateRecipe(userId, args.id, args.input);
+      return recipeService.updateRecipe(args.id, userId, args.input);
     },
 
     deleteRecipe: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      await recipeService.deleteRecipe(userId, args.id);
+      await recipeService.deleteRecipe(args.id, userId);
       return true;
     },
 
     saveRecipe: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      await recipeService.saveRecipe(userId, args.id);
+      await recipeService.saveRecipe(args.id, userId);
       return true;
     },
 
     unsaveRecipe: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      await recipeService.unsaveRecipe(userId, args.id);
+      await recipeService.unsaveRecipe(args.id, userId);
       return true;
     },
 

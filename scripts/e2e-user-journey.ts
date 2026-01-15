@@ -406,6 +406,31 @@ async function testExercises(ctx: TestContext) {
     const res = await request('GET', '/alternatives/low-impact', { expectedStatus: [200, 404, 500] });
     assert([200, 404, 500].includes(res.status), 'Alternatives should respond');
   });
+
+  // Exercise Videos
+  await runTest('Exercises', 'Get exercise videos (bw-pushup)', async () => {
+    const res = await request('GET', '/exercises/bw-pushup/videos', { expectedStatus: [200, 404] });
+    assert([200, 404].includes(res.status), 'Exercise videos should respond');
+    if (res.ok) {
+      const data = res.data as { data?: { videos?: unknown[] } };
+      assert(data?.data?.videos !== undefined || Array.isArray(data), 'Should return videos array');
+    }
+  });
+
+  await runTest('Exercises', 'Get exercise videos (fw-squat)', async () => {
+    const res = await request('GET', '/exercises/fw-squat/videos', { expectedStatus: [200, 404] });
+    assert([200, 404].includes(res.status), 'Exercise videos should respond');
+  });
+
+  await runTest('Exercises', 'Get exercise videos with angle filter', async () => {
+    const res = await request('GET', '/exercises/bw-pushup/videos?angle=side', { expectedStatus: [200, 404] });
+    assert([200, 404].includes(res.status), 'Filtered exercise videos should respond');
+  });
+
+  await runTest('Exercises', 'Get exercise videos with type filter', async () => {
+    const res = await request('GET', '/exercises/bw-pushup/videos?type=demonstration', { expectedStatus: [200, 404] });
+    assert([200, 404].includes(res.status), 'Filtered exercise videos should respond');
+  });
 }
 
 async function testWorkouts(ctx: TestContext) {

@@ -19,7 +19,7 @@ import { haptic } from '../../utils/haptics';
 import { calculate1RM, SET_TAGS } from '../../store/workoutSessionStore';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
 import { getRPEColor } from '../workout/RPESelector';
-import { getRIRColor, rpeToRir, rirToRpe } from '../workout/RIRSelector';
+import { getRIRColor } from '../workout/RIRSelector';
 
 // Quick weight increment buttons
 const WEIGHT_INCREMENTS = [
@@ -198,8 +198,8 @@ export function SetLogger({
     haptic('selection');
   }, [rir]);
 
-  // Toggle between RPE and RIR input modes
-  const toggleIntensityMode = useCallback(() => {
+  // Toggle between RPE and RIR input modes (reserved for future use)
+  const _toggleIntensityMode = useCallback(() => {
     setIntensityMode((prev) => (prev === 'rpe' ? 'rir' : 'rpe'));
     haptic('light');
   }, []);

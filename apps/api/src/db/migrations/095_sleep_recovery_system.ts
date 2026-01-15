@@ -136,7 +136,8 @@ export async function up(): Promise<void> {
 
     // Indexes for efficient querying
     await db.query('CREATE INDEX idx_recovery_scores_user_date ON recovery_scores(user_id, calculated_at DESC)');
-    await db.query('CREATE INDEX idx_recovery_scores_active ON recovery_scores(user_id, expires_at DESC) WHERE expires_at > NOW()');
+    // Note: Cannot use partial index with NOW() - use standard index instead
+    await db.query('CREATE INDEX idx_recovery_scores_expires ON recovery_scores(user_id, expires_at DESC)');
     await db.query('CREATE INDEX idx_recovery_scores_classification ON recovery_scores(user_id, classification)');
 
     log.info('recovery_scores table created');
@@ -185,6 +186,7 @@ export async function up(): Promise<void> {
     `);
 
     await db.query('CREATE INDEX idx_recovery_recommendations_user ON recovery_recommendations(user_id, created_at DESC)');
+    // Partial index on acknowledged_at IS NULL (valid - not using NOW())
     await db.query('CREATE INDEX idx_recovery_recommendations_active ON recovery_recommendations(user_id, expires_at DESC) WHERE acknowledged_at IS NULL');
     await db.query('CREATE INDEX idx_recovery_recommendations_score ON recovery_recommendations(recovery_score_id)');
 
