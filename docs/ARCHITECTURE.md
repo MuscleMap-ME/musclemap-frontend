@@ -91,6 +91,17 @@ musclemap.me/
 │   ├── USER_GUIDE.md
 │   ├── VISUAL_ARCHITECTURE_MAPS.md
 │   └── XP-VELOCITY-LIMITS.md
+├── docs-plain/
+│   ├── api-reference/
+│   ├── checklists/
+│   ├── concepts/
+│   ├── developer-guide/
+│   ├── features/
+│   ├── machine-readable/
+│   ├── reference/
+│   ├── user-guide/
+│   ├── QUICK-START.md
+│   └── README.md
 ├── e2e/
 │   └── login.spec.ts
 ├── markdown/
