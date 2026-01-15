@@ -1805,6 +1805,12 @@ export const typeDefs = `#graphql
     daysTracked: Int!
   }
 
+  type SleepHistoryResult {
+    logs: [SleepLog!]!
+    nextCursor: String
+    hasMore: Boolean!
+  }
+
   type WeeklySleepStats {
     weekStart: DateTime!
     nightsLogged: Int!

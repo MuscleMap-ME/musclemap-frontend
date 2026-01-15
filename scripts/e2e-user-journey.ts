@@ -65,6 +65,8 @@ interface TestContext {
     crewId?: string;
     rivalryId?: string;
     buddyId?: string;
+    programId?: string;
+    enrollmentId?: string;
   };
 }
 
@@ -1637,6 +1639,332 @@ async function testWorkoutTemplates(ctx: TestContext) {
   });
 }
 
+// ============================================
+// TRAINING PROGRAMS TEST
+// ============================================
+
+async function testTrainingPrograms(ctx: TestContext) {
+  logSection('TRAINING PROGRAMS');
+
+  // Get official programs
+  await runTest('Programs', 'Get official programs', async () => {
+    const res = await request('GET', '/programs/official', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get official programs');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+    assert(data.data.length > 0, 'Should have at least one official program');
+  });
+
+  // Get featured programs
+  await runTest('Programs', 'Get featured programs', async () => {
+    const res = await request('GET', '/programs/featured', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get featured programs');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+  });
+
+  // Search programs
+  await runTest('Programs', 'Search programs', async () => {
+    const res = await request('GET', '/programs?search=strength', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should search programs');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+  });
+
+  // Filter programs by difficulty
+  await runTest('Programs', 'Filter by difficulty', async () => {
+    const res = await request('GET', '/programs?difficulty=beginner', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should filter by difficulty');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+  });
+
+  // Filter programs by category
+  await runTest('Programs', 'Filter by category', async () => {
+    const res = await request('GET', '/programs?category=strength', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should filter by category');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+  });
+
+  // Get user's programs (should be empty initially)
+  await runTest('Programs', 'Get my programs', async () => {
+    const res = await request('GET', '/programs/me', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get my programs');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return programs array');
+  });
+
+  // Create a custom program
+  let customProgramId: string | undefined;
+  await runTest('Programs', 'Create custom program', async () => {
+    const res = await request('POST', '/programs', {
+      token: ctx.token,
+      body: {
+        name: 'E2E Test Program',
+        description: 'A test program for E2E testing',
+        shortDescription: 'Test program',
+        durationWeeks: 4,
+        daysPerWeek: 3,
+        difficulty: 'beginner',
+        category: 'strength',
+        schedule: [
+          {
+            day: 1,
+            name: 'Day 1 - Full Body',
+            focus: 'full_body',
+            exercises: [
+              { exerciseId: 'squat', sets: 3, reps: '10', restSeconds: 120 },
+              { exerciseId: 'bench_press', sets: 3, reps: '10', restSeconds: 120 },
+            ],
+          },
+          {
+            day: 2,
+            name: 'Day 2 - Full Body',
+            focus: 'full_body',
+            exercises: [
+              { exerciseId: 'deadlift', sets: 3, reps: '8', restSeconds: 180 },
+              { exerciseId: 'overhead_press', sets: 3, reps: '10', restSeconds: 120 },
+            ],
+          },
+          {
+            day: 3,
+            name: 'Day 3 - Full Body',
+            focus: 'full_body',
+            exercises: [
+              { exerciseId: 'squat', sets: 3, reps: '10', restSeconds: 120 },
+              { exerciseId: 'barbell_row', sets: 3, reps: '10', restSeconds: 120 },
+            ],
+          },
+        ],
+        isPublic: false,
+      },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should create program');
+    const data = res.data as { data: { id: string; name: string } };
+    assert(data.data.id, 'Should return program ID');
+    customProgramId = data.data.id;
+    ctx.createdResources.programId = data.data.id;
+  });
+
+  // Get program by ID
+  await runTest('Programs', 'Get program by ID', async () => {
+    if (!customProgramId) return;
+    const res = await request('GET', `/programs/${customProgramId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get program');
+    const data = res.data as { data: { id: string; name: string } };
+    assert(data.data.id === customProgramId, 'Should return correct program');
+  });
+
+  // Update program
+  await runTest('Programs', 'Update program', async () => {
+    if (!customProgramId) return;
+    const res = await request('PUT', `/programs/${customProgramId}`, {
+      token: ctx.token,
+      body: {
+        name: 'E2E Test Program (Updated)',
+        isPublic: true,
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update program');
+    const data = res.data as { data: { name: string } };
+    assert(data.data.name.includes('Updated'), 'Should reflect update');
+  });
+
+  // Duplicate program
+  let duplicatedProgramId: string | undefined;
+  await runTest('Programs', 'Duplicate program', async () => {
+    if (!customProgramId) return;
+    const res = await request('POST', `/programs/${customProgramId}/duplicate`, {
+      token: ctx.token,
+      body: { newName: 'E2E Duplicated Program' },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should duplicate program');
+    const data = res.data as { data: { id: string; name: string } };
+    assert(data.data.name === 'E2E Duplicated Program', 'Should have new name');
+    duplicatedProgramId = data.data.id;
+  });
+
+  // Get user's enrollments (should be empty)
+  await runTest('Programs', 'Get my enrollments', async () => {
+    const res = await request('GET', '/programs/my-enrollments', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get enrollments');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return enrollments array');
+  });
+
+  // Enroll in a program
+  let enrollmentId: string | undefined;
+  await runTest('Programs', 'Enroll in program', async () => {
+    if (!customProgramId) return;
+    const res = await request('POST', `/programs/${customProgramId}/enroll`, {
+      token: ctx.token,
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should enroll in program');
+    const data = res.data as { data: { id: string; programId: string; currentWeek: number } };
+    assert(data.data.programId === customProgramId, 'Should be enrolled in correct program');
+    assert(data.data.currentWeek === 1, 'Should start at week 1');
+    enrollmentId = data.data.id;
+    ctx.createdResources.enrollmentId = data.data.id;
+  });
+
+  // Get active enrollment
+  await runTest('Programs', 'Get active enrollment', async () => {
+    if (!customProgramId) return;
+    const res = await request('GET', `/programs/active-enrollment?programId=${customProgramId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get active enrollment');
+    const data = res.data as { data: { id: string } | null };
+    assert(data.data?.id === enrollmentId, 'Should return correct enrollment');
+  });
+
+  // Get today's workout
+  await runTest('Programs', 'Get todays workout', async () => {
+    if (!customProgramId) return;
+    const res = await request('GET', `/programs/todays-workout?programId=${customProgramId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get todays workout');
+    const data = res.data as { data: { enrollment: object; program: object; todaysWorkout: object } };
+    assert(data.data.enrollment, 'Should return enrollment');
+    assert(data.data.program, 'Should return program');
+  });
+
+  // Record workout completion
+  await runTest('Programs', 'Record workout completion', async () => {
+    if (!customProgramId) return;
+    const res = await request('POST', `/programs/${customProgramId}/record-workout`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should record workout');
+    const data = res.data as { data: { workoutsCompleted: number; currentDay: number } };
+    assert(data.data.workoutsCompleted === 1, 'Should have 1 workout completed');
+    assert(data.data.currentDay === 2, 'Should advance to day 2');
+  });
+
+  // Get enrollment details
+  await runTest('Programs', 'Get enrollment details', async () => {
+    if (!enrollmentId) return;
+    const res = await request('GET', `/programs/enrollments/${enrollmentId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get enrollment details');
+    const data = res.data as { data: { enrollment: object; program: object; progress: object } };
+    assert(data.data.enrollment, 'Should return enrollment');
+    assert(data.data.program, 'Should return program');
+    assert(data.data.progress, 'Should return progress');
+  });
+
+  // Pause enrollment
+  await runTest('Programs', 'Pause enrollment', async () => {
+    if (!enrollmentId) return;
+    const res = await request('POST', `/programs/enrollments/${enrollmentId}/pause`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should pause enrollment');
+    const data = res.data as { data: { status: string } };
+    assert(data.data.status === 'paused', 'Should be paused');
+  });
+
+  // Resume enrollment
+  await runTest('Programs', 'Resume enrollment', async () => {
+    if (!enrollmentId) return;
+    const res = await request('POST', `/programs/enrollments/${enrollmentId}/resume`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should resume enrollment');
+    const data = res.data as { data: { status: string } };
+    assert(data.data.status === 'active', 'Should be active');
+  });
+
+  // Drop enrollment
+  await runTest('Programs', 'Drop enrollment', async () => {
+    if (!enrollmentId) return;
+    const res = await request('POST', `/programs/enrollments/${enrollmentId}/drop`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should drop enrollment');
+    const data = res.data as { data: { status: string } };
+    assert(data.data.status === 'dropped', 'Should be dropped');
+  });
+
+  // Delete duplicated program
+  await runTest('Programs', 'Delete duplicated program', async () => {
+    if (!duplicatedProgramId) return;
+    const res = await request('DELETE', `/programs/${duplicatedProgramId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should delete duplicated program');
+  });
+
+  // Delete custom program (can only delete if no active enrollments)
+  await runTest('Programs', 'Delete custom program', async () => {
+    if (!customProgramId) return;
+    const res = await request('DELETE', `/programs/${customProgramId}`, {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should delete program');
+  });
+
+  // Rate an official program (need to find one first)
+  await runTest('Programs', 'Rate official program', async () => {
+    const programsRes = await request('GET', '/programs/official', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    const programs = (programsRes.data as { data: { id: string }[] }).data;
+    if (programs.length === 0) return;
+
+    const res = await request('POST', `/programs/${programs[0].id}/rate`, {
+      token: ctx.token,
+      body: {
+        rating: 5,
+        review: 'Great program for E2E testing!',
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should rate program');
+  });
+}
+
 async function testProgressiveOverload(ctx: TestContext) {
   logSection('PROGRESSIVE OVERLOAD');
 
@@ -2899,6 +3227,7 @@ async function main() {
     await testCareerReadiness(ctx);
     await testNotifications(ctx);
     await testWorkoutTemplates(ctx);
+    await testTrainingPrograms(ctx);
     await testProgressiveOverload(ctx);
     await testOneRepMax(ctx);
     await testWearables(ctx);

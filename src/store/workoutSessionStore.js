@@ -473,7 +473,7 @@ export const useWorkoutSessionStore = create(
     // REST TIMER (Enhanced with presets and per-exercise defaults)
     // ============================================
     startRestTimer: (duration) => {
-      const { restTimerInterval, defaultRestDuration, exerciseRestDefaults, currentExercise, restTimerSettings } = get();
+      const { restTimerInterval, defaultRestDuration, exerciseRestDefaults, currentExercise } = get();
 
       // Clear existing timer
       if (restTimerInterval) {

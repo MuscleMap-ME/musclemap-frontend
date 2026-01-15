@@ -19,7 +19,6 @@ import {
   Vibrate,
   Bell,
   Clock,
-  Settings,
   ChevronDown,
   ChevronUp,
   RotateCcw,
@@ -27,11 +26,10 @@ import {
   Minus,
   Check,
 } from 'lucide-react';
-import { GlassSurface, GlassButton } from '../glass';
+import { GlassSurface } from '../glass';
 import {
   useRestTimer,
   useRestTimerSettings,
-  REST_PRESETS,
   REST_TIMER_DEFAULTS,
   useWorkoutSessionStore,
 } from '../../store/workoutSessionStore';
@@ -66,14 +64,6 @@ export function RestTimerSettings({
     settings,
     update: updateSettings,
     playSound,
-    toggleAutoStart,
-    toggleSound,
-    toggleVibration,
-    toggleFloating,
-    setSoundType,
-    setSoundVolume,
-    setWarningThreshold,
-    setQuickAdjust,
   } = useRestTimerSettings();
 
   // Get exercise defaults from store
