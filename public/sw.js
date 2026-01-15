@@ -12,7 +12,7 @@
  * - Conflict resolution support
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE = `musclemap-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `musclemap-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `musclemap-api-${CACHE_VERSION}`;
