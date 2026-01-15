@@ -133,6 +133,7 @@ musclemap.me/
 │   ├── atlases/
 │   ├── docs/
 │   ├── docs-files/
+│   ├── docs-plain/
 │   ├── illustrations/
 │   ├── images/
 │   ├── mascot/
@@ -162,6 +163,7 @@ musclemap.me/
 │   ├── competitive-analysis.sh
 │   ├── deploy-branch.sh
 │   ├── deploy.sh
+│   ├── docs-plain-index.html
 │   ├── e2e-user-journey.ts
 │   ├── errors.sh
 │   ├── generate-docs.cjs
@@ -178,6 +180,7 @@ musclemap.me/
 │   ├── repo-cleanup.sh
 │   ├── reset-devbox.sh
 │   ├── split-repos.sh
+│   ├── sync-docs-plain.sh
 │   ├── test.sh
 │   └── tidy-root-js.sh
 ├── src/
@@ -1446,7 +1449,7 @@ Components are organized by feature:
 | `deploy-branch.sh` | # deploy-branch.sh - Full deployment: commit, push, PR, merge, and deploy to production |
 | `deploy.sh` | Deployment helper for MuscleMap |
 | `errors.sh` | errors.sh |
-| `generate-docs.cjs` | MuscleMap Documentation Generator  Analyzes the codebase and regenerates all documentation to reflect the current state of the project.  Outputs: - Markdown files (for GitHub/web) - LaTeX files (for professional documentation/PDFs)  Usage: node scripts/generate-docs.cjs           # Generate all docs node scripts/generate-docs.cjs --latex   # LaTeX only node scripts/generate-docs.cjs --md      # Markdown only pnpm docs:generate  What it does: 1. Scans the codebase structure 2. Extracts API endpoints from route files 3. Identifies features from page components 4. Updates all documentation files (MD + LaTeX) / |
+| `generate-docs.cjs` | MuscleMap Documentation Generator  Analyzes the codebase and regenerates all documentation to reflect the current state of the project.  Outputs: - Markdown files (for GitHub/web) - LaTeX files (for professional documentation/PDFs) - Plain-text docs (synced to public/docs-plain/)  Usage: node scripts/generate-docs.cjs              # Generate all docs + sync plain-text node scripts/generate-docs.cjs --latex      # LaTeX only node scripts/generate-docs.cjs --md         # Markdown only node scripts/generate-docs.cjs --sync-plain # Only sync docs-plain to public pnpm docs:generate  What it does: 1. Scans the codebase structure 2. Extracts API endpoints from route files 3. Identifies features from page components 4. Updates all documentation files (MD + LaTeX) 5. Syncs docs-plain/ to public/docs-plain/ for web access / |
 | `generate-icons.cjs` | App Icon Generator for MuscleMap Mobile App  Generates all required app icons for iOS and Android from a source image. Uses sharp for image processing (cross-platform, fast).  Usage: pnpm generate:icons [source-image]  If no source image is provided, uses apps/mobile/assets/icon-source.png or falls back to apps/mobile/assets/icon.png  Requirements: - Source image should be at least 1024x1024 pixels - PNG format recommended for best quality / |
 | `logs.sh` | Unified Log Viewer for MuscleMap |
 | `maintain.sh` | --- preflight --- |
@@ -1459,6 +1462,7 @@ Components are organized by feature:
 | `repo-cleanup.sh` | If caller sets DRY_RUN/APPLY explicitly, we do not prompt. |
 | `reset-devbox.sh` | ---- toggles (set by menu) ---- |
 | `split-repos.sh` | ============================================================================= |
+| `sync-docs-plain.sh` | Sync docs-plain to public directory for static serving |
 | `test.sh` | Create a competition to get an ID (avoid hardcoded /1) |
 | `tidy-root-js.sh` | Collect file basenames referenced by systemd units + pm2 dump |
 
