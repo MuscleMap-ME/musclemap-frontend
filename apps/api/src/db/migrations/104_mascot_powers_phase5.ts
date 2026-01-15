@@ -23,7 +23,7 @@ export async function up(): Promise<void> {
   // Tutorial progress tracking
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_tutorial_progress (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       onboarding_complete BOOLEAN DEFAULT FALSE,
       completed_steps JSONB DEFAULT '[]',
       current_step VARCHAR(50),
@@ -39,7 +39,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_setting_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       setting_category VARCHAR(50) NOT NULL,
       setting_key VARCHAR(100) NOT NULL,
       current_value TEXT,
@@ -64,7 +64,7 @@ export async function up(): Promise<void> {
   // UI preference learning
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_ui_learning (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       preferred_theme VARCHAR(20) DEFAULT 'system',
       preferred_density VARCHAR(20) DEFAULT 'comfortable',
       preferred_animations BOOLEAN DEFAULT TRUE,
@@ -109,7 +109,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_data_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       alert_type VARCHAR(50) NOT NULL,
       severity VARCHAR(20) DEFAULT 'info',
       title VARCHAR(200) NOT NULL,
@@ -138,7 +138,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_data_exports (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       export_type VARCHAR(50) NOT NULL,
       data_included JSONB DEFAULT '[]',
       file_size_bytes BIGINT,
@@ -159,7 +159,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_activity_anomalies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       anomaly_type VARCHAR(50) NOT NULL,
       detected_pattern TEXT,
       baseline_pattern TEXT,
@@ -209,7 +209,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_feature_tracking (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       feature_key VARCHAR(100) NOT NULL,
       is_premium BOOLEAN DEFAULT FALSE,
       usage_count INTEGER DEFAULT 0,
@@ -233,7 +233,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_subscription_recs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       recommendation_type VARCHAR(50) NOT NULL,
       tier_recommended VARCHAR(50),
       features_highlighted JSONB DEFAULT '[]',
@@ -281,7 +281,7 @@ export async function up(): Promise<void> {
 
   // Get user's tutorial progress
   await query(`
-    CREATE OR REPLACE FUNCTION get_tutorial_status(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_tutorial_status(p_user_id TEXT)
     RETURNS TABLE(
       onboarding_complete BOOLEAN,
       current_step VARCHAR(50),
@@ -311,7 +311,7 @@ export async function up(): Promise<void> {
 
   // Check if user should get backup reminder
   await query(`
-    CREATE OR REPLACE FUNCTION should_remind_backup(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION should_remind_backup(p_user_id TEXT)
     RETURNS BOOLEAN AS $$
     DECLARE
       v_last_export TIMESTAMPTZ;
@@ -337,8 +337,8 @@ export async function up(): Promise<void> {
 export async function down(): Promise<void> {
   log.info('Rolling back migration: 104_mascot_powers_phase5');
 
-  await query(`DROP FUNCTION IF EXISTS should_remind_backup(UUID)`);
-  await query(`DROP FUNCTION IF EXISTS get_tutorial_status(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS should_remind_backup(TEXT)`);
+  await query(`DROP FUNCTION IF EXISTS get_tutorial_status(TEXT)`);
 
   await query(`DROP TABLE IF EXISTS mascot_subscription_config`);
   await query(`DROP TABLE IF EXISTS mascot_subscription_recs`);

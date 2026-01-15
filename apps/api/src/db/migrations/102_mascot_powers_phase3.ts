@@ -23,7 +23,7 @@ export async function up(): Promise<void> {
   // User preferences for scheduling
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_scheduler_prefs (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       preferred_workout_times JSONB DEFAULT '[]',
       preferred_days JSONB DEFAULT '["monday","tuesday","wednesday","thursday","friday"]',
       excluded_muscle_groups JSONB DEFAULT '[]',
@@ -44,7 +44,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS user_muscle_recovery (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       muscle_group VARCHAR(50) NOT NULL,
       last_trained_at TIMESTAMPTZ NOT NULL,
       volume_last_session INTEGER DEFAULT 0,
@@ -65,7 +65,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_workout_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       suggested_for DATE NOT NULL,
       suggestion_type VARCHAR(50) NOT NULL,
       focus_muscle_groups JSONB DEFAULT '[]',
@@ -123,7 +123,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS user_exercise_preferences (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
       preference_type VARCHAR(20) NOT NULL,
       reason VARCHAR(100),
@@ -144,7 +144,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_exercise_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       original_exercise_id UUID NOT NULL REFERENCES exercises(id),
       suggested_exercise_id UUID NOT NULL REFERENCES exercises(id),
       suggestion_reason VARCHAR(50) NOT NULL,
@@ -191,7 +191,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_milestone_predictions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       milestone_type VARCHAR(50) NOT NULL,
       milestone_name VARCHAR(100) NOT NULL,
       current_value DECIMAL(10,2),
@@ -221,7 +221,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_weakness_analysis (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       weakness_type VARCHAR(50) NOT NULL,
       area VARCHAR(100) NOT NULL,
       severity INTEGER DEFAULT 1,
@@ -249,7 +249,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_celebrations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       celebration_type VARCHAR(50) NOT NULL,
       title VARCHAR(200) NOT NULL,
       description TEXT,
@@ -296,7 +296,7 @@ export async function up(): Promise<void> {
 
   // Function to get suggested workout for today
   await query(`
-    CREATE OR REPLACE FUNCTION get_mascot_workout_suggestion(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_mascot_workout_suggestion(p_user_id TEXT)
     RETURNS TABLE(
       suggestion_id UUID,
       suggested_for DATE,
@@ -328,7 +328,7 @@ export async function up(): Promise<void> {
   // Function to update muscle recovery after workout
   await query(`
     CREATE OR REPLACE FUNCTION update_muscle_recovery(
-      p_user_id UUID,
+      p_user_id TEXT,
       p_muscle_group VARCHAR(50),
       p_volume INTEGER,
       p_intensity INTEGER
@@ -358,7 +358,7 @@ export async function up(): Promise<void> {
 
   // Function to get recovered muscle groups
   await query(`
-    CREATE OR REPLACE FUNCTION get_recovered_muscles(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_recovered_muscles(p_user_id TEXT)
     RETURNS TABLE(muscle_group VARCHAR(50), hours_since_recovery DECIMAL) AS $$
     BEGIN
       RETURN QUERY
@@ -379,9 +379,9 @@ export async function up(): Promise<void> {
 export async function down(): Promise<void> {
   log.info('Rolling back migration: 102_mascot_powers_phase3');
 
-  await query(`DROP FUNCTION IF EXISTS get_recovered_muscles(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS get_recovered_muscles(TEXT)`);
   await query(`DROP FUNCTION IF EXISTS update_muscle_recovery(UUID, VARCHAR, INTEGER, INTEGER)`);
-  await query(`DROP FUNCTION IF EXISTS get_mascot_workout_suggestion(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS get_mascot_workout_suggestion(TEXT)`);
 
   await query(`DROP TABLE IF EXISTS mascot_progress_config`);
   await query(`DROP TABLE IF EXISTS mascot_celebrations`);

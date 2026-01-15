@@ -25,7 +25,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_generated_programs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       program_name VARCHAR(200) NOT NULL,
       program_type VARCHAR(50) NOT NULL,
       duration_weeks INTEGER DEFAULT 4,
@@ -119,7 +119,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_volume_tracking (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       muscle_group VARCHAR(50) NOT NULL,
       week_start DATE NOT NULL,
       total_sets INTEGER DEFAULT 0,
@@ -141,7 +141,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_overtraining_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       alert_type VARCHAR(50) NOT NULL,
       affected_area VARCHAR(100),
       risk_level VARCHAR(20) DEFAULT 'low',
@@ -169,7 +169,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_recovery_recs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       recommendation_type VARCHAR(50) NOT NULL,
       suggested_date DATE,
       reason TEXT,
@@ -215,7 +215,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_nutrition_hints (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       hint_type VARCHAR(50) NOT NULL,
       timing VARCHAR(50),
       message TEXT NOT NULL,
@@ -324,7 +324,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS user_master_abilities (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       ability_id UUID NOT NULL REFERENCES mascot_master_abilities(id),
       unlocked_at TIMESTAMPTZ DEFAULT NOW(),
       credits_spent INTEGER DEFAULT 0,
@@ -403,7 +403,7 @@ export async function up(): Promise<void> {
 
   // Get all mascot powers for a user
   await query(`
-    CREATE OR REPLACE FUNCTION get_all_mascot_powers(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_all_mascot_powers(p_user_id TEXT)
     RETURNS JSONB AS $$
     DECLARE
       v_result JSONB;
@@ -503,7 +503,7 @@ export async function up(): Promise<void> {
 export async function down(): Promise<void> {
   log.info('Rolling back migration: 105_mascot_powers_phase6');
 
-  await query(`DROP FUNCTION IF EXISTS get_all_mascot_powers(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS get_all_mascot_powers(TEXT)`);
   await query(`DROP VIEW IF EXISTS mascot_power_summary`);
 
   await query(`DROP TABLE IF EXISTS user_master_abilities`);

@@ -24,7 +24,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_crew_coordination (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       crew_id UUID NOT NULL,
       coordination_type VARCHAR(50) NOT NULL,
       proposed_time TIMESTAMPTZ,
@@ -53,7 +53,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_crew_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       crew_id UUID NOT NULL,
       crew_name VARCHAR(100),
       match_score INTEGER DEFAULT 0,
@@ -105,9 +105,9 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_rivalry_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       rivalry_id UUID NOT NULL,
-      rival_user_id UUID NOT NULL REFERENCES users(id),
+      rival_user_id TEXT NOT NULL REFERENCES users(id),
       alert_type VARCHAR(50) NOT NULL,
       rival_action TEXT,
       your_standing TEXT,
@@ -133,7 +133,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_rivalry_strategies (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       rivalry_id UUID NOT NULL,
       strategy_type VARCHAR(50) NOT NULL,
       analysis JSONB DEFAULT '{}',
@@ -210,7 +210,7 @@ export async function up(): Promise<void> {
   // Auto high-five preferences
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_highfive_prefs (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       auto_highfive_enabled BOOLEAN DEFAULT FALSE,
       auto_highfive_close_friends BOOLEAN DEFAULT TRUE,
       auto_highfive_crew BOOLEAN DEFAULT TRUE,
@@ -226,8 +226,8 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_auto_highfives (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      target_user_id UUID NOT NULL REFERENCES users(id),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_user_id TEXT NOT NULL REFERENCES users(id),
       target_workout_id UUID,
       trigger_type VARCHAR(50) NOT NULL,
       message TEXT,
@@ -250,8 +250,8 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_motivation_targets (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      target_user_id UUID NOT NULL REFERENCES users(id),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_user_id TEXT NOT NULL REFERENCES users(id),
       reason VARCHAR(50) NOT NULL,
       days_inactive INTEGER,
       streak_at_risk BOOLEAN DEFAULT FALSE,
@@ -296,10 +296,10 @@ export async function up(): Promise<void> {
 
   // Get pending social actions for mascot to perform
   await query(`
-    CREATE OR REPLACE FUNCTION get_mascot_social_actions(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_mascot_social_actions(p_user_id TEXT)
     RETURNS TABLE(
       action_type VARCHAR(50),
-      target_user_id UUID,
+      target_user_id TEXT,
       target_username VARCHAR(100),
       action_data JSONB,
       priority INTEGER
@@ -353,7 +353,7 @@ export async function up(): Promise<void> {
 
   // Count auto high-fives sent today
   await query(`
-    CREATE OR REPLACE FUNCTION count_auto_highfives_today(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION count_auto_highfives_today(p_user_id TEXT)
     RETURNS INTEGER AS $$
     DECLARE
       v_count INTEGER;
@@ -373,8 +373,8 @@ export async function up(): Promise<void> {
 export async function down(): Promise<void> {
   log.info('Rolling back migration: 103_mascot_powers_phase4');
 
-  await query(`DROP FUNCTION IF EXISTS count_auto_highfives_today(UUID)`);
-  await query(`DROP FUNCTION IF EXISTS get_mascot_social_actions(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS count_auto_highfives_today(TEXT)`);
+  await query(`DROP FUNCTION IF EXISTS get_mascot_social_actions(TEXT)`);
 
   await query(`DROP TABLE IF EXISTS mascot_highfive_config`);
   await query(`DROP TABLE IF EXISTS mascot_motivation_targets`);

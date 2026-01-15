@@ -24,7 +24,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_credit_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       alert_type VARCHAR(50) NOT NULL,
       threshold_amount INTEGER,
       current_balance INTEGER,
@@ -83,7 +83,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_streak_saves (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       streak_type VARCHAR(50) NOT NULL,
       streak_value INTEGER NOT NULL,
       credits_spent INTEGER DEFAULT 0,
@@ -133,7 +133,7 @@ export async function up(): Promise<void> {
   // Track weekly streak save usage
   await query(`
     CREATE TABLE IF NOT EXISTS user_streak_save_usage (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       saves_used_this_week INTEGER DEFAULT 0,
       week_start DATE NOT NULL DEFAULT DATE_TRUNC('week', CURRENT_DATE),
       updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -148,7 +148,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS mascot_bonus_log (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       workout_id UUID REFERENCES workouts(id) ON DELETE SET NULL,
       bonus_type VARCHAR(50) NOT NULL,
       base_tu INTEGER NOT NULL,
@@ -203,7 +203,7 @@ export async function up(): Promise<void> {
   // Track user's consecutive workout days
   await query(`
     CREATE TABLE IF NOT EXISTS user_workout_streak_state (
-      user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       consecutive_days INTEGER DEFAULT 0,
       last_workout_date DATE,
       current_multiplier DECIMAL(4,2) DEFAULT 1.00,
@@ -254,7 +254,7 @@ export async function up(): Promise<void> {
 
   // Function to get current bonus multiplier for user
   await query(`
-    CREATE OR REPLACE FUNCTION get_user_bonus_multiplier(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION get_user_bonus_multiplier(p_user_id TEXT)
     RETURNS TABLE(
       total_multiplier DECIMAL(4,2),
       first_workout_bonus DECIMAL(4,2),
@@ -314,7 +314,7 @@ export async function up(): Promise<void> {
 
   // Function to regenerate mascot energy
   await query(`
-    CREATE OR REPLACE FUNCTION regenerate_mascot_energy(p_user_id UUID)
+    CREATE OR REPLACE FUNCTION regenerate_mascot_energy(p_user_id TEXT)
     RETURNS INTEGER AS $$
     DECLARE
       v_state RECORD;
@@ -406,8 +406,8 @@ export async function down(): Promise<void> {
   log.info('Rolling back migration: 101_mascot_powers_phase2');
 
   await query(`DROP FUNCTION IF EXISTS reset_weekly_streak_saves()`);
-  await query(`DROP FUNCTION IF EXISTS regenerate_mascot_energy(UUID)`);
-  await query(`DROP FUNCTION IF EXISTS get_user_bonus_multiplier(UUID)`);
+  await query(`DROP FUNCTION IF EXISTS regenerate_mascot_energy(TEXT)`);
+  await query(`DROP FUNCTION IF EXISTS get_user_bonus_multiplier(TEXT)`);
 
   await query(`DROP TABLE IF EXISTS mascot_energy_config`);
   await query(`DROP TABLE IF EXISTS user_workout_streak_state`);
