@@ -269,14 +269,14 @@ The API exposes 695 endpoints:
 \texttt{GET} & \texttt{/admin/escrow} & credits \\
 \texttt{POST} & \texttt{/admin/escrow/:escrowId/refund} & credits \\
 \texttt{POST} & \texttt{/admin/escrow/:escrowId/release} & credits \\
-\texttt{GET} & \texttt{/admin/fraud-flags} & credits \\
-\texttt{POST} & \texttt{/admin/fraud-flags} & credits \\
-\texttt{POST} & \texttt{/admin/fraud-flags/:flagId/review} & credits \\
-\texttt{GET} & \texttt{/admin/issues} & issues \\
-\texttt{POST} & \texttt{/admin/issues/bulk} & issues \\
-\texttt{POST} & \texttt{/admin/leaderboard-rewards/trigger} & credits \\
-\texttt{GET} & \texttt{/admin/rate-limit-status/:userId} & credits \\
-\texttt{GET} & \texttt{/admin/rate-limits} & credits \\
+\texttt{GET} & \texttt{/admin/feedback} & admin-feedback \\
+\texttt{GET} & \texttt{/admin/feedback/:id} & admin-feedback \\
+\texttt{PATCH} & \texttt{/admin/feedback/:id} & admin-feedback \\
+\texttt{POST} & \texttt{/admin/feedback/:id/cancel-autofix} & admin-feedback \\
+\texttt{POST} & \texttt{/admin/feedback/:id/confirm-bug} & admin-feedback \\
+\texttt{POST} & \texttt{/admin/feedback/:id/respond} & admin-feedback \\
+\texttt{GET} & \texttt{/admin/feedback/recent-activity} & admin-feedback \\
+\texttt{GET} & \texttt{/admin/feedback/stats} & admin-feedback \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}

@@ -342,6 +342,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Admin-feedback}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/feedback} \\
+\texttt{GET} & \texttt{/admin/feedback/:id} \\
+\texttt{PATCH} & \texttt{/admin/feedback/:id} \\
+\texttt{POST} & \texttt{/admin/feedback/:id/cancel-autofix} \\
+\texttt{POST} & \texttt{/admin/feedback/:id/confirm-bug} \\
+\texttt{POST} & \texttt{/admin/feedback/:id/respond} \\
+\texttt{GET} & \texttt{/admin/feedback/recent-activity} \\
+\texttt{GET} & \texttt{/admin/feedback/stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Issues}
 
 \begin{table}[h]
@@ -417,27 +438,6 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/trainers/me/classes} \\
 \texttt{PUT} & \texttt{/trainers/me/status} \\
 \texttt{POST} & \texttt{/trainers/profile} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\subsection{Admin-feedback}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{GET} & \texttt{/api/admin/feedback} \\
-\texttt{GET} & \texttt{/api/admin/feedback/:id} \\
-\texttt{PATCH} & \texttt{/api/admin/feedback/:id} \\
-\texttt{POST} & \texttt{/api/admin/feedback/:id/cancel-autofix} \\
-\texttt{POST} & \texttt{/api/admin/feedback/:id/confirm-bug} \\
-\texttt{POST} & \texttt{/api/admin/feedback/:id/respond} \\
-\texttt{GET} & \texttt{/api/admin/feedback/recent-activity} \\
-\texttt{GET} & \texttt{/api/admin/feedback/stats} \\
 \bottomrule
 \end{tabular}
 \end{table}

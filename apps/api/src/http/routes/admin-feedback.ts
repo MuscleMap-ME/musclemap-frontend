@@ -89,11 +89,11 @@ interface FeedbackStats {
 
 export default async function adminFeedbackRoutes(app: FastifyInstance): Promise<void> {
   /**
-   * GET /api/admin/feedback
+   * GET /admin/feedback
    * List all feedback with filters
    */
   app.get(
-    '/api/admin/feedback',
+    '/admin/feedback',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const query = listFeedbackSchema.parse(request.query);
@@ -154,11 +154,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * GET /api/admin/feedback/stats
+   * GET /admin/feedback/stats
    * Get dashboard statistics
    */
   app.get(
-    '/api/admin/feedback/stats',
+    '/admin/feedback/stats',
     { preHandler: [authenticate, requireAdmin] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const [totals, byType, byStatus, byPriority, autoFixStats] = await Promise.all([
@@ -207,11 +207,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * GET /api/admin/feedback/:id
+   * GET /admin/feedback/:id
    * Get single feedback with all details
    */
   app.get(
-    '/api/admin/feedback/:id',
+    '/admin/feedback/:id',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = request.params;
@@ -301,11 +301,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * PATCH /api/admin/feedback/:id
+   * PATCH /admin/feedback/:id
    * Update feedback status, priority, assignment, notes
    */
   app.patch(
-    '/api/admin/feedback/:id',
+    '/admin/feedback/:id',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = request.params;
@@ -400,11 +400,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * POST /api/admin/feedback/:id/confirm-bug
+   * POST /admin/feedback/:id/confirm-bug
    * Confirm a bug for auto-fix processing
    */
   app.post(
-    '/api/admin/feedback/:id/confirm-bug',
+    '/admin/feedback/:id/confirm-bug',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = request.params;
@@ -478,11 +478,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * POST /api/admin/feedback/:id/cancel-autofix
+   * POST /admin/feedback/:id/cancel-autofix
    * Cancel an in-progress auto-fix
    */
   app.post(
-    '/api/admin/feedback/:id/cancel-autofix',
+    '/admin/feedback/:id/cancel-autofix',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = request.params;
@@ -537,11 +537,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * POST /api/admin/feedback/:id/respond
+   * POST /admin/feedback/:id/respond
    * Admin response to user
    */
   app.post(
-    '/api/admin/feedback/:id/respond',
+    '/admin/feedback/:id/respond',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const { id } = request.params;
@@ -591,11 +591,11 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
   );
 
   /**
-   * GET /api/admin/feedback/recent-activity
+   * GET /admin/feedback/recent-activity
    * Get recent activity for dashboard
    */
   app.get(
-    '/api/admin/feedback/recent-activity',
+    '/admin/feedback/recent-activity',
     { preHandler: [authenticate, requireAdmin] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       // Get last 20 feedback items and responses

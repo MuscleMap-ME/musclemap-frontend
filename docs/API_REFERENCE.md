@@ -184,6 +184,20 @@ Authorization: Bearer <token>
 | `GET` | `/wallet/transfers` | Yes |
 
 
+### Admin-feedback
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/admin/feedback` | Yes |
+| `GET` | `/admin/feedback/:id` | Yes |
+| `PATCH` | `/admin/feedback/:id` | Yes |
+| `POST` | `/admin/feedback/:id/cancel-autofix` | Yes |
+| `POST` | `/admin/feedback/:id/confirm-bug` | Yes |
+| `POST` | `/admin/feedback/:id/respond` | Yes |
+| `GET` | `/admin/feedback/recent-activity` | Yes |
+| `GET` | `/admin/feedback/stats` | Yes |
+
+
 ### Issues
 
 | Method | Endpoint | Auth Required |
@@ -241,20 +255,6 @@ Authorization: Bearer <token>
 | `GET` | `/trainers/me/classes` | Yes |
 | `PUT` | `/trainers/me/status` | Yes |
 | `POST` | `/trainers/profile` | Yes |
-
-
-### Admin-feedback
-
-| Method | Endpoint | Auth Required |
-|--------|----------|---------------|
-| `GET` | `/api/admin/feedback` | Yes |
-| `GET` | `/api/admin/feedback/:id` | Yes |
-| `PATCH` | `/api/admin/feedback/:id` | Yes |
-| `POST` | `/api/admin/feedback/:id/cancel-autofix` | Yes |
-| `POST` | `/api/admin/feedback/:id/confirm-bug` | Yes |
-| `POST` | `/api/admin/feedback/:id/respond` | Yes |
-| `GET` | `/api/admin/feedback/recent-activity` | Yes |
-| `GET` | `/api/admin/feedback/stats` | Yes |
 
 
 ### Archetype-communities
