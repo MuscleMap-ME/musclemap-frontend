@@ -31,7 +31,7 @@ The current single-VPS architecture cannot handle millions of concurrent users. 
 ### 1.1 Current State vs Target State
 
 ```
-CURRENT (Single VPS - Boston)
+CURRENT (Single VPS - Boston) - OPTIMIZED January 2026
 ┌─────────────────────────────────────┐
 │  Hostinger KVM 2                    │
 │  ┌─────────┐  ┌─────────┐          │
@@ -39,12 +39,17 @@ CURRENT (Single VPS - Boston)
 │  │ (proxy) │  │ (API)   │          │
 │  └─────────┘  └────┬────┘          │
 │                    ↓                │
-│  ┌─────────┐  ┌─────────┐          │
-│  │ Redis   │  │ Postgres│          │
-│  │ (cache) │  │ (DB)    │          │
-│  └─────────┘  └─────────┘          │
+│  ┌─────────┐  ┌───────────┐        │
+│  │ Redis   │  │ pgBouncer │        │
+│  │ (cache) │  │ (pool)    │        │
+│  │ ENABLED │  └─────┬─────┘        │
+│  └─────────┘        ↓              │
+│              ┌─────────┐           │
+│              │ Postgres│           │
+│              │ (DB)    │           │
+│              └─────────┘           │
 └─────────────────────────────────────┘
-Max capacity: ~10,000 concurrent users
+Max capacity: ~15,000-25,000 concurrent users (with optimizations)
 
 
 TARGET (Global Edge Network)
@@ -105,10 +110,36 @@ Max capacity: 10,000,000+ concurrent users
 
 ### 1.2 Hardware Scaling Path
 
-#### Phase 1: Optimize Current VPS (0-10K users)
+#### Phase 1: Optimize Current VPS (0-25K users) ✅ COMPLETED
 **Cost: $0 additional**
-- Maximize current Hostinger KVM 2 capacity
-- Expected capacity: 5,000-10,000 concurrent users
+**Status: LIVE as of January 2026**
+
+Optimizations implemented:
+- ✅ **pgBouncer** - Transaction pooling mode (1000 client connections → 50 DB connections)
+- ✅ **Redis caching** - Enabled for GraphQL responses, leaderboards, presence
+- ✅ **Materialized views** - `mv_xp_rankings_v2`, `mv_leaderboard_top100`, `mv_sleep_stats`
+- ✅ **Auto-refresh** - Materialized views refresh every 5 minutes
+- ✅ **Cloudflare Free Tier** - Edge caching + DDoS protection
+- ✅ **Connection pooling** - Node.js pool (5-20 connections) → pgBouncer (1000 clients)
+
+**Current Configuration:**
+```
+pgBouncer Settings:
+  pool_mode: transaction
+  max_client_conn: 1000
+  default_pool_size: 20
+  max_db_connections: 50
+
+Redis Settings:
+  REDIS_ENABLED: true
+  Cache TTLs: Exercise (5m), User (30s), Leaderboard (1m)
+
+PostgreSQL:
+  Connection via pgBouncer port 6432
+  Materialized view refresh: 5 minutes
+```
+
+Expected capacity: **15,000-25,000 concurrent users**
 
 #### Phase 2: Vertical Scale + CDN (10K-100K users)
 **Cost: ~$50-100/month**
