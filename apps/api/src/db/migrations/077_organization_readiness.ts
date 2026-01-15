@@ -199,7 +199,7 @@ export async function migrate(): Promise<void> {
         org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
 
         -- Actor information
-        actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
         actor_email TEXT,                                -- Preserved even if user deleted
         actor_ip TEXT,                                   -- IP address of request
 

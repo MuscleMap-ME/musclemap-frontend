@@ -75,7 +75,7 @@ export async function up(): Promise<void> {
         -- Metadata
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW(),
-        created_by UUID REFERENCES users(id) ON DELETE SET NULL
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
@@ -176,7 +176,7 @@ export async function up(): Promise<void> {
       CREATE TABLE organization_members (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         unit_id UUID REFERENCES organization_units(id) ON DELETE SET NULL,
 
         -- Role & Permissions
@@ -202,7 +202,7 @@ export async function up(): Promise<void> {
         -- Metadata
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW(),
-        invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        invited_by TEXT REFERENCES users(id) ON DELETE SET NULL,
 
         CONSTRAINT unique_org_member UNIQUE (org_id, user_id)
       )
@@ -276,8 +276,8 @@ export async function up(): Promise<void> {
         -- Metadata
         created_at TIMESTAMPTZ DEFAULT NOW(),
         accepted_at TIMESTAMPTZ,
-        invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        accepted_by UUID REFERENCES users(id) ON DELETE SET NULL
+        invited_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        accepted_by TEXT REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
