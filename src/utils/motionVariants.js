@@ -12,9 +12,10 @@
  * 1. Use getMotionVariant() for simple cases
  * 2. Use safeVariants directly for more control
  * 3. Use createSafeVariant() for custom animations
+ * 4. Use transition presets (spring, bounce, smooth) for consistent timing
  *
  * @example
- * import { getMotionVariant, safeTransition } from '@/utils/motionVariants';
+ * import { getMotionVariant, safeTransition, transitionPresets } from '@/utils/motionVariants';
  *
  * // Get a variant for fade in animation
  * const variant = getMotionVariant('fadeIn', reducedMotion);
@@ -30,7 +31,61 @@
  * >
  *   Content
  * </motion.div>
+ *
+ * // Use stagger containers for lists
+ * <motion.ul variants={staggerChildren(reducedMotion)} initial="hidden" animate="visible">
+ *   {items.map(item => (
+ *     <motion.li key={item.id} variants={staggerItem(reducedMotion)}>
+ *       {item.name}
+ *     </motion.li>
+ *   ))}
+ * </motion.ul>
  */
+
+// ============================================
+// TRANSITION PRESETS
+// ============================================
+
+/**
+ * Transition presets for consistent animation timing across the app.
+ * Each preset has a full and reduced motion version.
+ */
+export const transitionPresets = {
+  /** Spring - bouncy, natural movement for interactive elements */
+  spring: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring', stiffness: 300, damping: 25 },
+
+  /** Bounce - extra bouncy for celebratory/playful animations */
+  bounce: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring', stiffness: 400, damping: 10 },
+
+  /** Smooth - gentle easing for subtle transitions */
+  smooth: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+
+  /** Quick - fast transitions for micro-interactions */
+  quick: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { duration: 0.15, ease: 'easeOut' },
+
+  /** Snappy - crisp spring for buttons and toggles */
+  snappy: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring', stiffness: 500, damping: 30 },
+
+  /** Gentle - slow and smooth for page transitions */
+  gentle: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
+
+  /** Elastic - very bouncy for attention-grabbing animations */
+  elastic: (reducedMotion) => reducedMotion
+    ? { duration: 0 }
+    : { type: 'spring', stiffness: 200, damping: 8, mass: 0.8 },
+};
 
 // ============================================
 // TRANSITION HELPERS

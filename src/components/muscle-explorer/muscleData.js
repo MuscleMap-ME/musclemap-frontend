@@ -1,13 +1,37 @@
 /**
  * Muscle Data - Comprehensive muscle metadata for the 3D Explorer
  *
- * Contains anatomical information, exercise recommendations, and tips
- * for each major muscle group.
+ * Contains anatomical information, exercise recommendations, tips,
+ * and SVG position data for interactive visualization.
  */
+
+// ============================================
+// COLOR PALETTE FOR MUSCLE ACTIVATION LEVELS
+// ============================================
+export const ACTIVATION_COLORS = {
+  none: 'rgba(71, 85, 105, 0.3)',      // Slate gray - inactive
+  low: 'rgba(34, 197, 94, 0.6)',       // Green - light work
+  moderate: 'rgba(234, 179, 8, 0.7)',   // Yellow - moderate
+  high: 'rgba(249, 115, 22, 0.8)',      // Orange - high intensity
+  max: 'rgba(239, 68, 68, 0.9)',        // Red - maximum activation
+};
+
+/**
+ * Get color based on activation percentage
+ * @param {number} activation - 0-100 activation level
+ * @returns {string} Color value
+ */
+export function getActivationColor(activation) {
+  if (activation <= 0) return ACTIVATION_COLORS.none;
+  if (activation <= 25) return ACTIVATION_COLORS.low;
+  if (activation <= 50) return ACTIVATION_COLORS.moderate;
+  if (activation <= 75) return ACTIVATION_COLORS.high;
+  return ACTIVATION_COLORS.max;
+}
 
 /**
  * Complete muscle data definitions
- * Each muscle includes anatomical, exercise, and training information
+ * Each muscle includes anatomical, exercise, training, and SVG position information
  */
 export const MUSCLE_DATA = {
   // ============================================
@@ -35,8 +59,23 @@ export const MUSCLE_DATA = {
     ],
     antagonist: 'back',
     synergists: ['shoulders', 'triceps'],
-    color: 'var(--muscle-chest)',
+    color: '#ef4444',
+    glowColor: '#ff6b6b',
     group: 'push',
+    view: 'front',
+    // SVG path data for rendering
+    paths: [
+      {
+        // Left pec
+        d: 'M 70 100 Q 55 105, 50 115 Q 48 130, 55 140 Q 70 148, 85 145 Q 95 140, 98 125 Q 98 110, 85 100 Q 78 98, 70 100',
+        side: 'left',
+      },
+      {
+        // Right pec
+        d: 'M 130 100 Q 145 105, 150 115 Q 152 130, 145 140 Q 130 148, 115 145 Q 105 140, 102 125 Q 102 110, 115 100 Q 122 98, 130 100',
+        side: 'right',
+      },
+    ],
   },
 
   // ============================================
