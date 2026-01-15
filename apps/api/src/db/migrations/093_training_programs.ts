@@ -77,14 +77,14 @@ export async function up(): Promise<void> {
       )
     `);
 
-    // Indexes
-    await db.query('CREATE INDEX idx_programs_creator ON training_programs(creator_id)');
-    await db.query('CREATE INDEX idx_programs_public ON training_programs(is_public, created_at DESC) WHERE is_public = TRUE');
-    await db.query('CREATE INDEX idx_programs_official ON training_programs(is_official) WHERE is_official = TRUE');
-    await db.query('CREATE INDEX idx_programs_featured ON training_programs(is_featured) WHERE is_featured = TRUE');
-    await db.query('CREATE INDEX idx_programs_category ON training_programs(category) WHERE is_public = TRUE');
-    await db.query('CREATE INDEX idx_programs_difficulty ON training_programs(difficulty) WHERE is_public = TRUE');
-    await db.query('CREATE INDEX idx_programs_popular ON training_programs(total_enrollments DESC) WHERE is_public = TRUE');
+    // Indexes (with IF NOT EXISTS for idempotency)
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_creator ON training_programs(creator_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_public ON training_programs(is_public, created_at DESC) WHERE is_public = TRUE');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_official ON training_programs(is_official) WHERE is_official = TRUE');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_featured ON training_programs(is_featured) WHERE is_featured = TRUE');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_category ON training_programs(category) WHERE is_public = TRUE');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_difficulty ON training_programs(difficulty) WHERE is_public = TRUE');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_programs_popular ON training_programs(total_enrollments DESC) WHERE is_public = TRUE');
 
     // Trigger for updated_at
     await db.query(`
@@ -150,11 +150,11 @@ export async function up(): Promise<void> {
       )
     `);
 
-    // Indexes
-    await db.query('CREATE INDEX idx_enrollments_user ON program_enrollments(user_id)');
-    await db.query('CREATE INDEX idx_enrollments_program ON program_enrollments(program_id)');
-    await db.query('CREATE INDEX idx_enrollments_active ON program_enrollments(user_id, status) WHERE status = \'active\'');
-    await db.query('CREATE INDEX idx_enrollments_keyset ON program_enrollments(user_id, created_at DESC, id DESC)');
+    // Indexes (with IF NOT EXISTS for idempotency)
+    await db.query('CREATE INDEX IF NOT EXISTS idx_enrollments_user ON program_enrollments(user_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_enrollments_program ON program_enrollments(program_id)');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_enrollments_active ON program_enrollments(user_id, status) WHERE status = \'active\'');
+    await db.query('CREATE INDEX IF NOT EXISTS idx_enrollments_keyset ON program_enrollments(user_id, created_at DESC, id DESC)');
 
     // Trigger for updated_at
     await db.query(`
