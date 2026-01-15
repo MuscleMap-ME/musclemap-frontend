@@ -314,7 +314,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (223 total)
+## Components (224 total)
 
 Components are organized by feature:
 
@@ -562,6 +562,9 @@ Components are organized by feature:
 
 ### onboarding
 - `SpotlightTour`
+
+### profile
+- `WealthTierBadge`
 
 ### progress-photos
 - `PhotoCompare`
