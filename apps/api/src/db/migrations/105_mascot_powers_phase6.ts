@@ -351,7 +351,7 @@ export async function up(): Promise<void> {
       ucs.max_energy,
 
       -- Phase 1: Assist
-      (SELECT ability_name FROM mascot_assist_abilities maa
+      (SELECT name FROM mascot_assist_abilities maa
        WHERE maa.min_companion_stage <= ucs.stage
        ORDER BY min_companion_stage DESC LIMIT 1) AS current_assist_ability,
 
