@@ -7,7 +7,12 @@
 import { db, initializePool, closePool } from './client';
 
 // Import additional exercise seeds
-import { allClimbingGymnasticsExercises, climbingGymnasticsActivations } from './seeds/climbing-gymnastics-exercises';
+import {
+  allClimbingGymnasticsExercises,
+  climbingGymnasticsActivations,
+  type ExerciseSeed,
+  type ActivationSeed
+} from './seeds/climbing-gymnastics-exercises';
 
 // ============================================
 // MUSCLES WITH BIAS WEIGHTS
@@ -338,6 +343,52 @@ export async function seedDatabase(): Promise<void> {
     `, [a.exerciseId, a.muscleId, a.activation]);
   }
   console.log(`✓ Inserted ${activations.length} exercise activations`);
+
+  // Seed climbing, gymnastics, and calisthenics exercises
+  console.log('🧗 Seeding climbing & gymnastics exercises...');
+  for (const e of allClimbingGymnasticsExercises) {
+    const musclesArray = e.primaryMuscles ? e.primaryMuscles.split(',').map(m => m.trim()) : [];
+    await db.query(`
+      INSERT INTO exercises (id, name, type, difficulty, primary_muscles, description, cues,
+        equipment_required, equipment_optional, locations, movement_pattern, skill_level,
+        source_methodology, regression_exercise, progression_exercise)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        difficulty = EXCLUDED.difficulty,
+        primary_muscles = EXCLUDED.primary_muscles,
+        description = EXCLUDED.description,
+        cues = EXCLUDED.cues,
+        equipment_required = EXCLUDED.equipment_required,
+        equipment_optional = EXCLUDED.equipment_optional,
+        locations = EXCLUDED.locations,
+        movement_pattern = EXCLUDED.movement_pattern,
+        skill_level = EXCLUDED.skill_level,
+        source_methodology = EXCLUDED.source_methodology,
+        regression_exercise = EXCLUDED.regression_exercise,
+        progression_exercise = EXCLUDED.progression_exercise
+    `, [
+      e.id, e.name, e.type, e.difficulty, musclesArray,
+      e.description || null, e.cues || null,
+      e.equipmentRequired || null, e.equipmentOptional || null,
+      e.locations || null, e.movementPattern || null,
+      e.skillLevel || 'fundamental', e.sourceMethodology || null,
+      e.regressionExercise || null, e.progressionExercise || null
+    ]);
+  }
+  console.log(`✓ Inserted ${allClimbingGymnasticsExercises.length} climbing/gymnastics exercises`);
+
+  // Seed climbing/gymnastics activations
+  for (const a of climbingGymnasticsActivations) {
+    await db.query(`
+      INSERT INTO exercise_activations (exercise_id, muscle_id, activation)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (exercise_id, muscle_id) DO UPDATE SET
+        activation = EXCLUDED.activation
+    `, [a.exerciseId, a.muscleId, a.activation]);
+  }
+  console.log(`✓ Inserted ${climbingGymnasticsActivations.length} climbing/gymnastics activations`);
 
   console.log('✅ Database seeded successfully!');
 }

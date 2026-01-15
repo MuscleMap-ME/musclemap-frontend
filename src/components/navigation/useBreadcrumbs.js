@@ -1,37 +1,170 @@
 /**
  * useBreadcrumbs Hook
  *
- * Generates breadcrumbs from the current route.
- * Handles dynamic segments, route hierarchy, and data fetching for labels.
+ * Auto-generates breadcrumbs from the current route.
+ * Handles dynamic segments, route hierarchy, and provides
+ * navigation utilities.
+ *
+ * @example
+ * const {
+ *   breadcrumbs,     // Array of breadcrumb items
+ *   currentPage,     // Current page label
+ *   goBack,          // Navigate to previous breadcrumb
+ *   isNested         // True if more than 1 level deep
+ * } = useBreadcrumbs();
+ *
+ * // With context for dynamic labels
+ * const { breadcrumbs } = useBreadcrumbs({
+ *   context: {
+ *     crewName: 'Iron Warriors',
+ *     exerciseName: 'Bench Press',
+ *   }
+ * });
  */
 
-import { useMemo } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useMemo, useCallback } from 'react';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
+  BREADCRUMB_ROUTES,
   EXCLUDED_ROUTES,
-  getSegmentLabel,
-  isDynamicSegment,
-  formatSegmentLabel,
-} from './breadcrumbConfig';
+  DYNAMIC_CONTEXT_KEYS,
+  DYNAMIC_FALLBACK_LABELS,
+  getRouteConfig,
+  resolveDynamicLabel,
+} from './breadcrumbRoutes';
 
 /**
- * Context object for resolving dynamic segment labels
- * Can be extended to include data from queries
+ * Check if a segment looks like a UUID
+ * @param {string} str - String to check
+ * @returns {boolean}
  */
-const defaultContext = {};
+function isUUID(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
 
 /**
- * Generate breadcrumb items from the current route
- * @param {Object} options - Hook options
- * @param {Object} options.context - Context object with entity names (e.g., { exerciseName: 'Bench Press' })
- * @param {boolean} options.includeHome - Whether to include home as the first breadcrumb
+ * Check if a segment is a dynamic ID (UUID or numeric)
+ * @param {string} segment - Route segment
+ * @returns {boolean}
+ */
+function isDynamicSegment(segment) {
+  return isUUID(segment) || /^\d+$/.test(segment);
+}
+
+/**
+ * Format a segment as a readable label
+ * @param {string} segment - Route segment
+ * @returns {string}
+ */
+function formatSegmentLabel(segment) {
+  if (isUUID(segment)) return 'Details';
+  if (/^\d+$/.test(segment)) return `#${segment}`;
+
+  return segment
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Build the breadcrumb path by walking up the route hierarchy
+ * @param {string} pathname - Current pathname
+ * @param {Object} params - Route params
+ * @param {Object} context - Context with resolved names
  * @returns {Array} Array of breadcrumb items
  */
+function buildBreadcrumbPath(pathname, params, context) {
+  const segments = pathname.split('/').filter(Boolean);
+  const breadcrumbs = [];
+
+  // Build path incrementally
+  let currentPath = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    currentPath += `/${segment}`;
+    const isLast = i === segments.length - 1;
+
+    // Try to get route config
+    const config = getRouteConfig(currentPath);
+
+    let label;
+    let icon;
+
+    if (config) {
+      // Use configured label
+      label = config.dynamic
+        ? resolveDynamicLabel(config.label, context, config.params || params)
+        : config.label;
+      icon = config.icon;
+    } else {
+      // Fall back to segment formatting
+      if (isDynamicSegment(segment)) {
+        // Try to find context key based on parent
+        const parentSegment = segments[i - 1];
+        const contextKey = findContextKeyForSegment(parentSegment, segment);
+        label = context[contextKey] || formatSegmentLabel(segment);
+      } else {
+        label = formatSegmentLabel(segment);
+      }
+    }
+
+    breadcrumbs.push({
+      label,
+      path: isLast ? undefined : currentPath,
+      icon,
+      isFirst: i === 0,
+      isLast,
+      segment,
+    });
+  }
+
+  return breadcrumbs;
+}
+
+/**
+ * Find the context key for a dynamic segment based on parent
+ * @param {string} parentSegment - Parent route segment
+ * @param {string} segment - Current segment (ID)
+ * @returns {string|null}
+ */
+function findContextKeyForSegment(parentSegment, segment) {
+  const parentToContext = {
+    'exercises': 'exerciseName',
+    'crews': 'crewName',
+    'rivals': 'rivalName',
+    'competitions': 'competitionName',
+    'messages': 'conversationName',
+    'goals': 'goalName',
+    'standards': 'standardName',
+    'skills': 'skillTreeName',
+    'martial-arts': 'disciplineName',
+    'achievements': 'achievementName',
+    'verifications': 'verificationName',
+    'issues': 'issueNumber',
+    'recipes': 'recipeName',
+    'docs': 'docTitle',
+    'profile': 'username',
+  };
+
+  return parentToContext[parentSegment] || null;
+}
+
+/**
+ * useBreadcrumbs Hook
+ *
+ * @param {Object} options - Hook options
+ * @param {Object} options.context - Context object with entity names
+ * @param {boolean} options.includeHome - Include home as first breadcrumb
+ * @returns {Object} Breadcrumb state and utilities
+ */
 export function useBreadcrumbs(options = {}) {
-  const { context = defaultContext, includeHome = false } = options;
+  const { context = {}, includeHome = false } = options;
   const location = useLocation();
   const params = useParams();
+  const navigate = useNavigate();
 
+  // Build breadcrumbs from current route
   const breadcrumbs = useMemo(() => {
     const { pathname } = location;
 
@@ -40,133 +173,83 @@ export function useBreadcrumbs(options = {}) {
       return [];
     }
 
-    // Split pathname into segments
-    const segments = pathname.split('/').filter(Boolean);
+    const crumbs = buildBreadcrumbPath(pathname, params, context);
 
-    // If no segments and not including home, return empty
-    if (segments.length === 0 && !includeHome) {
-      return [];
-    }
-
-    const items = [];
-
-    // Optionally add home
-    if (includeHome) {
-      items.push({
+    // Optionally prepend home
+    if (includeHome && crumbs.length > 0 && crumbs[0].path !== '/') {
+      crumbs.unshift({
         label: 'Home',
-        to: '/',
+        path: '/',
+        icon: 'Home',
         isFirst: true,
-        isLast: segments.length === 0,
+        isLast: false,
+        segment: '',
       });
+      // Update isFirst on the next item
+      if (crumbs[1]) crumbs[1].isFirst = false;
     }
 
-    // Build breadcrumbs from segments
-    let currentPath = '';
+    return crumbs;
+  }, [location.pathname, params, context, includeHome]);
 
-    segments.forEach((segment, index) => {
-      currentPath += `/${segment}`;
-      const isLast = index === segments.length - 1;
+  // Get current page label
+  const currentPage = useMemo(() => {
+    const lastCrumb = breadcrumbs[breadcrumbs.length - 1];
+    return lastCrumb?.label || '';
+  }, [breadcrumbs]);
 
-      // Determine label
-      let label = getSegmentLabel(segment);
-
-      // Check if this is a dynamic segment that needs resolution
-      if (isDynamicSegment(segment)) {
-        // Try to get label from context
-        const contextKey = getContextKeyForPath(currentPath, params);
-        if (contextKey && context[contextKey]) {
-          label = context[contextKey];
-        } else {
-          // Use a generic label based on the parent route
-          const parentSegment = segments[index - 1];
-          label = getDynamicLabel(parentSegment, segment);
-        }
+  // Navigate to previous breadcrumb
+  const goBack = useCallback(() => {
+    if (breadcrumbs.length > 1) {
+      const previousCrumb = breadcrumbs[breadcrumbs.length - 2];
+      if (previousCrumb?.path) {
+        navigate(previousCrumb.path);
       }
+    } else {
+      // Fall back to browser back
+      navigate(-1);
+    }
+  }, [breadcrumbs, navigate]);
 
-      items.push({
-        label,
-        to: isLast ? undefined : currentPath, // Last item is not a link
-        isFirst: items.length === 0,
-        isLast,
-        segment,
-        path: currentPath,
-      });
-    });
+  // Check if we're nested (more than 1 level deep)
+  const isNested = breadcrumbs.length > 1;
 
-    return items;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- location object reference changes but we only care about pathname
-  }, [location.pathname, context, includeHome, params]);
+  // Get parent breadcrumb (useful for back navigation)
+  const parentCrumb = useMemo(() => {
+    return breadcrumbs.length > 1
+      ? breadcrumbs[breadcrumbs.length - 2]
+      : null;
+  }, [breadcrumbs]);
 
-  return breadcrumbs;
-}
-
-/**
- * Get the context key for a dynamic path
- * @param {string} path - The current path
- * @param {Object} params - Route params
- * @returns {string|null} The context key
- */
-function getContextKeyForPath(path, params) {
-  // Map paths to context keys based on params
-  if (path.includes('/exercises/') && params.exerciseId) {
-    return 'exerciseName';
-  }
-  if (path.includes('/crews/') && params.crewId) {
-    return 'crewName';
-  }
-  if (path.includes('/issues/') && params.id) {
-    return 'issueTitle';
-  }
-  if (path.includes('/skills/') && params.treeId) {
-    return 'skillTreeName';
-  }
-  if (path.includes('/martial-arts/') && params.disciplineId) {
-    return 'disciplineName';
-  }
-  if (path.includes('/achievements/verify/') && params.achievementId) {
-    return 'achievementName';
-  }
-  if (path.includes('/verifications/') && params.verificationId) {
-    return 'verificationName';
-  }
-  if (path.includes('/docs/') && params.docId) {
-    return 'docTitle';
-  }
-
-  return null;
-}
-
-/**
- * Get a dynamic label based on parent route
- * @param {string} parentSegment - The parent route segment
- * @param {string} segment - The dynamic segment
- * @returns {string} The label
- */
-function getDynamicLabel(parentSegment, segment) {
-  const labelMap = {
-    'exercises': 'Exercise',
-    'crews': 'Crew',
-    'issues': `Issue #${segment.substring(0, 8)}`,
-    'skills': 'Skill Tree',
-    'martial-arts': 'Discipline',
-    'achievements': 'Achievement',
-    'verifications': 'Verification',
-    'docs': 'Document',
-    'verify': 'Verification',
-    'witness': 'Attestation',
+  return {
+    breadcrumbs,
+    currentPage,
+    goBack,
+    isNested,
+    parentCrumb,
   };
-
-  return labelMap[parentSegment] || formatSegmentLabel(segment);
 }
 
 /**
- * Hook to get breadcrumbs with entity data resolution
+ * useBreadcrumbsWithData - Hook with automatic data fetching context
+ *
  * Use this when you have entity data available in your component
+ * and want to pass it to breadcrumbs for label resolution.
+ *
  * @param {Object} entityData - Object containing resolved entity names
- * @returns {Array} Array of breadcrumb items with resolved labels
+ * @returns {Object} Breadcrumb state and utilities
  */
 export function useBreadcrumbsWithData(entityData) {
   return useBreadcrumbs({ context: entityData });
 }
+
+/**
+ * Utility exports for direct access
+ */
+export {
+  isUUID,
+  isDynamicSegment,
+  formatSegmentLabel,
+};
 
 export default useBreadcrumbs;

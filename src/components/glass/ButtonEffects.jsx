@@ -837,18 +837,62 @@ export function useButtonFeedback({
 /**
  * useReducedMotion - Hook to detect prefers-reduced-motion
  *
- * @returns {boolean} True if user prefers reduced motion
+ * This hook now uses the enhanced useReducedMotion from hooks/useReducedMotion.js
+ * which supports both system preference AND user override stored in localStorage.
+ *
+ * @returns {boolean} True if user prefers reduced motion (motionAllowed === false)
+ *
+ * For the full API with user preference controls, import from hooks/useReducedMotion.js:
+ * @example
+ * import { useReducedMotion as useReducedMotionFull } from '../../hooks/useReducedMotion';
+ * const { prefersReducedMotion, motionAllowed, userMotionPref, setUserMotionPref } = useReducedMotionFull();
  */
 export function useReducedMotion() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mediaQuery.matches);
+    if (typeof window === 'undefined') return;
 
-    const handler = (e) => setReducedMotion(e.matches);
+    // Check for user override in localStorage
+    const MOTION_PREF_KEY = 'musclemap_motion_preference';
+    const stored = localStorage.getItem(MOTION_PREF_KEY);
+
+    // Check system preference
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    // Determine effective preference
+    const updatePreference = () => {
+      const systemPrefers = mediaQuery.matches;
+      const currentStored = localStorage.getItem(MOTION_PREF_KEY);
+
+      if (currentStored === 'reduced') {
+        setReducedMotion(true);
+      } else if (currentStored === 'full') {
+        setReducedMotion(false);
+      } else {
+        // 'system' or null - follow system preference
+        setReducedMotion(systemPrefers);
+      }
+    };
+
+    updatePreference();
+
+    // Listen for system preference changes
+    const handler = () => updatePreference();
     mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
+
+    // Listen for localStorage changes (cross-tab sync)
+    const storageHandler = (e) => {
+      if (e.key === MOTION_PREF_KEY) {
+        updatePreference();
+      }
+    };
+    window.addEventListener('storage', storageHandler);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handler);
+      window.removeEventListener('storage', storageHandler);
+    };
   }, []);
 
   return reducedMotion;

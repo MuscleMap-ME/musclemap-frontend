@@ -2,7 +2,7 @@
  * Breadcrumbs Component
  *
  * Navigation breadcrumbs with glass styling, animated entrance,
- * and mobile-friendly design.
+ * responsive design, and automatic route generation.
  *
  * Features:
  * - Auto-generates from current route
@@ -10,175 +10,100 @@
  * - Truncates middle items when too many
  * - Animated entrance with stagger effect
  * - Glass styling with subtle separators
- * - Mobile-friendly (horizontal scroll)
+ * - Mobile-friendly with horizontal scroll or compact view
+ * - Accessible with proper ARIA attributes
  *
  * @example
  * // Auto-generated from route
  * <Breadcrumbs />
  *
+ * // With home always shown
+ * <Breadcrumbs showHome includeHome />
+ *
  * // Manual override
  * <Breadcrumbs items={[
- *   { label: 'Dashboard', to: '/dashboard' },
- *   { label: 'Community', to: '/community' },
+ *   { label: 'Dashboard', path: '/dashboard' },
+ *   { label: 'Community', path: '/community' },
  *   { label: 'Iron Warriors' }
  * ]} />
+ *
+ * // Collapsed for long paths
+ * <Breadcrumbs maxItems={3} />
  */
 
-import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { ChevronRight, Home, MoreHorizontal } from 'lucide-react';
+import BreadcrumbItem, {
+  BreadcrumbHome,
+  BreadcrumbEllipsis,
+  BreadcrumbSeparator,
+} from './BreadcrumbItem';
 import useBreadcrumbs from './useBreadcrumbs';
 
 /**
- * Default separator between breadcrumb items
- */
-const DefaultSeparator = ({ className }) => (
-  <ChevronRight
-    className={clsx('w-4 h-4 text-[var(--text-quaternary)] flex-shrink-0', className)}
-    aria-hidden="true"
-  />
-);
-
-/**
- * Truncation indicator for middle items
- */
-const TruncationIndicator = ({ hiddenCount, onClick, className }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={clsx(
-      'flex items-center justify-center px-2 py-1 rounded-md',
-      'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]',
-      'hover:bg-[var(--glass-white-5)] transition-colors duration-150',
-      'focus:outline-none focus:ring-2 focus:ring-[var(--brand-blue-500)] focus:ring-offset-2 focus:ring-offset-transparent',
-      className
-    )}
-    title={`${hiddenCount} more item${hiddenCount > 1 ? 's' : ''}`}
-    aria-label={`Show ${hiddenCount} more breadcrumb items`}
-  >
-    <MoreHorizontal className="w-4 h-4" />
-  </button>
-);
-
-/**
- * Individual breadcrumb item
- */
-const BreadcrumbItem = ({
-  item,
-  index,
-  isLast,
-  separator,
-  showHomeIcon,
-}) => {
-  const isHome = item.to === '/' || item.label === 'Home';
-  const showIcon = showHomeIcon && isHome && index === 0;
-
-  const itemContent = (
-    <span className="flex items-center gap-1.5">
-      {showIcon && <Home className="w-3.5 h-3.5" aria-hidden="true" />}
-      <span className="truncate max-w-[150px] sm:max-w-[200px]">{item.label}</span>
-    </span>
-  );
-
-  const itemAnimation = {
-    initial: { opacity: 0, x: -8 },
-    animate: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.2,
-        delay: index * 0.05,
-        ease: [0.33, 1, 0.68, 1], // ease-out
-      },
-    },
-    exit: { opacity: 0, x: -8 },
-  };
-
-  return (
-    <motion.li
-      key={item.to || item.label}
-      className="flex items-center gap-2 min-w-0"
-      {...itemAnimation}
-    >
-      {index > 0 && (
-        <span className="flex items-center" aria-hidden="true">
-          {separator || <DefaultSeparator />}
-        </span>
-      )}
-
-      {item.to && !isLast ? (
-        <Link
-          to={item.to}
-          className={clsx(
-            'flex items-center gap-1.5 px-2 py-1 rounded-md',
-            'text-sm text-[var(--text-secondary)]',
-            'hover:text-[var(--text-primary)] hover:bg-[var(--glass-white-5)]',
-            'transition-colors duration-150',
-            'focus:outline-none focus:ring-2 focus:ring-[var(--brand-blue-500)] focus:ring-offset-2 focus:ring-offset-transparent',
-            'min-w-0'
-          )}
-        >
-          {itemContent}
-        </Link>
-      ) : (
-        <span
-          className={clsx(
-            'flex items-center gap-1.5 px-2 py-1',
-            'text-sm font-medium text-[var(--text-primary)]',
-            'min-w-0'
-          )}
-          aria-current="page"
-        >
-          {itemContent}
-        </span>
-      )}
-    </motion.li>
-  );
-};
-
-/**
  * Main Breadcrumbs Component
+ *
+ * @param {Object} props
+ * @param {Array} props.items - Manual breadcrumb items (overrides auto-generation)
+ * @param {ReactNode} props.separator - Custom separator between items
+ * @param {number} props.maxItems - Max visible items before truncation (default: 4)
+ * @param {boolean} props.showHome - Always show home icon as first item
+ * @param {boolean} props.includeHome - Include home in auto-generated breadcrumbs
+ * @param {Object} props.context - Context for resolving dynamic labels
+ * @param {string} props.className - Container class name
+ * @param {string} props.itemClassName - Class name for each item
+ * @param {string} props['aria-label'] - Accessibility label (default: 'Breadcrumb navigation')
  */
 export function Breadcrumbs({
   items: propItems,
   separator,
   maxItems = 4,
-  showHomeIcon = true,
+  showHome = true,
   includeHome = false,
   context,
   className,
-  containerClassName,
+  itemClassName,
   'aria-label': ariaLabel = 'Breadcrumb navigation',
 }) {
-  // Use provided items or auto-generate from route
-  const routeBreadcrumbs = useBreadcrumbs({ context, includeHome });
+  // Auto-generate breadcrumbs from route if items not provided
+  const { breadcrumbs: routeBreadcrumbs } = useBreadcrumbs({
+    context,
+    includeHome,
+  });
   const items = propItems || routeBreadcrumbs;
 
   // State for showing all items when truncated
-  const [showAll, setShowAll] = React.useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  // Expand truncated items
+  const expandTruncation = useCallback(() => {
+    setShowAll(true);
+  }, []);
 
   // Calculate visible items with truncation
-  const visibleItems = useMemo(() => {
+  const { visibleItems, hiddenCount } = useMemo(() => {
     if (!items || items.length === 0) {
-      return [];
+      return { visibleItems: [], hiddenCount: 0 };
     }
 
     if (showAll || items.length <= maxItems) {
-      return items;
+      return { visibleItems: items, hiddenCount: 0 };
     }
 
     // Keep first, last, and truncate middle
     const first = items[0];
     const last = items[items.length - 1];
-    const hiddenCount = items.length - 2;
+    const hidden = items.length - 2;
 
-    return [
-      first,
-      { isTruncation: true, hiddenCount },
-      last,
-    ];
+    return {
+      visibleItems: [
+        first,
+        { isTruncation: true, count: hidden },
+        last,
+      ],
+      hiddenCount: hidden,
+    };
   }, [items, maxItems, showAll]);
 
   // Don't render if no items
@@ -189,22 +114,18 @@ export function Breadcrumbs({
   return (
     <nav
       aria-label={ariaLabel}
-      className={clsx('relative', containerClassName)}
+      className={clsx('relative', className)}
+      data-testid="breadcrumbs"
     >
-      {/* Mobile-friendly horizontal scroll container */}
+      {/* Scrollable container for mobile */}
       <div
         className={clsx(
           'overflow-x-auto scrollbar-hide',
-          '-mx-4 px-4 sm:mx-0 sm:px-0',
-          className
+          '-mx-4 px-4 sm:mx-0 sm:px-0'
         )}
       >
         <motion.ol
-          className={clsx(
-            'flex items-center gap-1',
-            'py-2',
-            'min-w-max'
-          )}
+          className="flex items-center gap-1 py-2 min-w-max"
           initial="initial"
           animate="animate"
           exit="exit"
@@ -216,38 +137,64 @@ export function Breadcrumbs({
                 return (
                   <motion.li
                     key="truncation"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                   >
-                    <span className="flex items-center" aria-hidden="true">
-                      {separator || <DefaultSeparator />}
-                    </span>
-                    <TruncationIndicator
-                      hiddenCount={item.hiddenCount}
-                      onClick={() => setShowAll(true)}
+                    <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
+                    <BreadcrumbEllipsis
+                      count={item.count}
+                      onClick={expandTruncation}
+                      index={index}
+                      className={itemClassName}
                     />
                   </motion.li>
                 );
               }
 
+              const isHome = item.path === '/' || item.label === 'Home';
+              const isFirst = index === 0;
+              const isLast = index === visibleItems.length - 1 ||
+                (item.isTruncation === false && item.isLast);
+
               return (
-                <BreadcrumbItem
-                  key={item.to || item.label || index}
-                  item={item}
-                  index={showAll ? index : (item === visibleItems[visibleItems.length - 1] && index > 0 ? 2 : index)}
-                  isLast={index === visibleItems.length - 1}
-                  separator={separator}
-                  showHomeIcon={showHomeIcon}
-                />
+                <motion.li
+                  key={item.path || item.label || index}
+                  className="flex items-center gap-1 min-w-0"
+                  layout
+                >
+                  {/* Separator (not before first item) */}
+                  {index > 0 && (
+                    <BreadcrumbSeparator>{separator}</BreadcrumbSeparator>
+                  )}
+
+                  {/* Home breadcrumb with special handling */}
+                  {isHome && isFirst && showHome ? (
+                    <BreadcrumbHome
+                      path={item.path}
+                      showLabel={!propItems} // Show label for auto-generated
+                      index={index}
+                      className={itemClassName}
+                    />
+                  ) : (
+                    <BreadcrumbItem
+                      label={item.label}
+                      path={item.path}
+                      icon={item.icon}
+                      isLast={isLast || item.isLast}
+                      index={index}
+                      className={itemClassName}
+                    />
+                  )}
+                </motion.li>
               );
             })}
           </AnimatePresence>
         </motion.ol>
       </div>
 
-      {/* Fade indicators for scroll on mobile */}
+      {/* Fade indicator for scroll on mobile */}
       <div
         className={clsx(
           'absolute top-0 right-0 bottom-0 w-8',
@@ -262,42 +209,51 @@ export function Breadcrumbs({
 }
 
 /**
- * Compact breadcrumbs variant for tight spaces
+ * Compact Breadcrumbs - Shows only parent and current
+ *
+ * Useful for mobile or tight spaces where full breadcrumb
+ * trail would be too long.
  */
-export function CompactBreadcrumbs({
+export const CompactBreadcrumbs = memo(function CompactBreadcrumbs({
   items: propItems,
   context,
   className,
 }) {
-  const routeBreadcrumbs = useBreadcrumbs({ context });
+  const { breadcrumbs: routeBreadcrumbs, goBack, isNested } = useBreadcrumbs({
+    context,
+  });
   const items = propItems || routeBreadcrumbs;
 
   if (!items || items.length === 0) {
     return null;
   }
 
-  // Show only current and parent
+  // Show only parent and current
   const displayItems = items.length > 1
     ? [items[items.length - 2], items[items.length - 1]]
     : items;
 
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label="Breadcrumb" className={className} data-testid="compact-breadcrumbs">
       <div className="flex items-center gap-1 text-xs">
         {displayItems.map((item, index) => (
-          <React.Fragment key={item.to || item.label}>
-            {index > 0 && (
-              <ChevronRight className="w-3 h-3 text-[var(--text-quaternary)]" aria-hidden="true" />
-            )}
-            {item.to && index < displayItems.length - 1 ? (
-              <Link
-                to={item.to}
-                className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          <React.Fragment key={item.path || item.label}>
+            {index > 0 && <BreadcrumbSeparator />}
+            {item.path && index < displayItems.length - 1 ? (
+              <button
+                type="button"
+                onClick={goBack}
+                className={clsx(
+                  'text-[var(--text-tertiary)]',
+                  'hover:text-[var(--text-secondary)]',
+                  'transition-colors duration-150',
+                  'truncate max-w-[100px]'
+                )}
               >
                 {item.label}
-              </Link>
+              </button>
             ) : (
-              <span className="text-[var(--text-secondary)] font-medium">
+              <span className="text-[var(--text-secondary)] font-medium truncate max-w-[150px]">
                 {item.label}
               </span>
             )}
@@ -306,16 +262,19 @@ export function CompactBreadcrumbs({
       </div>
     </nav>
   );
-}
+});
 
 /**
- * Breadcrumbs with glass background styling
+ * Glass Breadcrumbs - With glass background styling
+ *
+ * Wraps the standard breadcrumbs in a glass container
+ * for use on non-glass backgrounds.
  */
-export function GlassBreadcrumbs({
+export const GlassBreadcrumbs = memo(function GlassBreadcrumbs({
   items,
   separator,
   maxItems,
-  showHomeIcon,
+  showHome,
   includeHome,
   context,
   className,
@@ -332,12 +291,75 @@ export function GlassBreadcrumbs({
         items={items}
         separator={separator}
         maxItems={maxItems}
-        showHomeIcon={showHomeIcon}
+        showHome={showHome}
         includeHome={includeHome}
         context={context}
       />
     </div>
   );
-}
+});
+
+/**
+ * Responsive Breadcrumbs - Switches between full and compact on screen size
+ *
+ * Shows full breadcrumbs on desktop, compact on mobile.
+ */
+export const ResponsiveBreadcrumbs = memo(function ResponsiveBreadcrumbs({
+  items,
+  separator,
+  maxItems = 4,
+  showHome = true,
+  includeHome = false,
+  context,
+  className,
+  compactClassName,
+}) {
+  return (
+    <>
+      {/* Full breadcrumbs on md and up */}
+      <div className={clsx('hidden md:block', className)}>
+        <Breadcrumbs
+          items={items}
+          separator={separator}
+          maxItems={maxItems}
+          showHome={showHome}
+          includeHome={includeHome}
+          context={context}
+        />
+      </div>
+
+      {/* Compact breadcrumbs on mobile */}
+      <div className={clsx('md:hidden', compactClassName)}>
+        <CompactBreadcrumbs
+          items={items}
+          context={context}
+        />
+      </div>
+    </>
+  );
+});
+
+/**
+ * PageBreadcrumbs - Pre-styled breadcrumbs for page headers
+ *
+ * Common configuration for page-level breadcrumb navigation.
+ */
+export const PageBreadcrumbs = memo(function PageBreadcrumbs({
+  items,
+  context,
+  className,
+}) {
+  return (
+    <div className={clsx('mb-4', className)}>
+      <ResponsiveBreadcrumbs
+        items={items}
+        context={context}
+        showHome
+        includeHome
+        maxItems={4}
+      />
+    </div>
+  );
+});
 
 export default Breadcrumbs;
