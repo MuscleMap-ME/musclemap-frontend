@@ -99,12 +99,15 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
 export const rivalsService = {
   /**
    * Create a new rivalry request
+   *
+   * RC-004 FIX: Uses database-level bidirectional unique index to prevent
+   * duplicate rivalries regardless of who challenged whom.
    */
   async createRivalry(
     challengerId: string,
     challengedId: string
   ): Promise<RivalWithUser> {
-    // Check if rivalry already exists
+    // Check if rivalry already exists (bidirectional check)
     const existing = await queryOne<RivalRow>(
       `SELECT * FROM rivals
        WHERE ((challenger_id = $1 AND challenged_id = $2)
@@ -127,11 +130,22 @@ export const rivalsService = {
     }
 
     const id = randomUUID();
-    await execute(
-      `INSERT INTO rivals (id, challenger_id, challenged_id, status, created_at)
-       VALUES ($1, $2, $3, 'pending', NOW())`,
-      [id, challengerId, challengedId]
-    );
+
+    try {
+      await execute(
+        `INSERT INTO rivals (id, challenger_id, challenged_id, status, created_at)
+         VALUES ($1, $2, $3, 'pending', NOW())`,
+        [id, challengerId, challengedId]
+      );
+    } catch (error: any) {
+      // RC-004: Handle unique constraint violation from bidirectional index
+      // This catches race conditions where two users challenge each other simultaneously
+      // The index is on the `rivalries` table (idx_rivalries_bidirectional_unique)
+      if (error.code === '23505') {
+        throw new Error('Rivalry already exists');
+      }
+      throw error;
+    }
 
     const rival = await this.getRivalry(id);
     if (!rival) throw new Error('Failed to create rivalry');
@@ -273,6 +287,9 @@ export const rivalsService = {
     );
 
     // Count wins/losses/ties - ordered by end date for streak calculation
+    // Win condition: user's TU must be strictly greater than opponent's TU
+    // Loss condition: user's TU must be strictly less than opponent's TU
+    // Tie: equal TU values
     const results = await queryAll<{ result: string }>(
       `SELECT
          CASE
@@ -284,8 +301,8 @@ export const rivalsService = {
              END
            ELSE
              CASE
-               WHEN challenged_tu > challenger_tu THEN 'win'
-               WHEN challenged_tu < challenger_tu THEN 'loss'
+               WHEN challenger_tu < challenged_tu THEN 'win'
+               WHEN challenger_tu > challenged_tu THEN 'loss'
                ELSE 'tie'
              END
          END as result

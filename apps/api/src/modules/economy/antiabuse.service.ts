@@ -371,16 +371,22 @@ export const antiabuseService = {
   }): Promise<FraudFlag> {
     const flagId = `flag_${crypto.randomBytes(12).toString('hex')}`;
 
+    // Note: economy_fraud_flags table uses 'details' column (JSONB) instead of 'description'/'metadata'
+    // and status enum values are: 'pending', 'reviewing', 'dismissed', 'confirmed', 'actioned'
+    const details = {
+      description: params.description,
+      ...(params.metadata || {}),
+    };
+
     await query(
-      `INSERT INTO economy_fraud_flags (id, user_id, flag_type, severity, description, metadata, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open')`,
+      `INSERT INTO economy_fraud_flags (id, user_id, flag_type, severity, details, status)
+       VALUES ($1, $2, $3, $4, $5, 'pending')`,
       [
         flagId,
         params.userId,
         params.flagType,
         params.severity,
-        params.description,
-        JSON.stringify(params.metadata || {}),
+        JSON.stringify(details),
       ]
     );
 
@@ -435,17 +441,18 @@ export const antiabuseService = {
 
     params.push(limit, offset);
 
+    // Note: economy_fraud_flags uses 'details' (JSONB) instead of 'description'/'metadata'
+    // and 'resolution' instead of 'review_notes'
     const rows = await queryAll<{
       id: string;
       user_id: string;
       flag_type: string;
       severity: string;
-      description: string;
-      metadata: string;
+      details: string;
       status: string;
       reviewed_by: string | null;
       reviewed_at: Date | null;
-      review_notes: string | null;
+      resolution: string | null;
       created_at: Date;
     }>(
       `SELECT * FROM economy_fraud_flags
@@ -468,19 +475,22 @@ export const antiabuseService = {
     );
 
     return {
-      flags: rows.map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        flagType: r.flag_type as FraudFlagType,
-        severity: r.severity as FlagSeverity,
-        description: r.description,
-        metadata: JSON.parse(r.metadata || '{}'),
-        status: r.status as FlagStatus,
-        reviewedBy: r.reviewed_by ?? undefined,
-        reviewedAt: r.reviewed_at ?? undefined,
-        reviewNotes: r.review_notes ?? undefined,
-        createdAt: r.created_at,
-      })),
+      flags: rows.map((r) => {
+        const details = JSON.parse(r.details || '{}');
+        return {
+          id: r.id,
+          userId: r.user_id,
+          flagType: r.flag_type as FraudFlagType,
+          severity: r.severity as FlagSeverity,
+          description: details.description || '',
+          metadata: details,
+          status: r.status as FlagStatus,
+          reviewedBy: r.reviewed_by ?? undefined,
+          reviewedAt: r.reviewed_at ?? undefined,
+          reviewNotes: r.resolution ?? undefined,
+          createdAt: r.created_at,
+        };
+      }),
       total: parseInt(countResult?.count || '0', 10),
     };
   },
@@ -494,9 +504,11 @@ export const antiabuseService = {
     status: FlagStatus,
     notes?: string
   ): Promise<void> {
+    // Note: economy_fraud_flags uses 'resolution' instead of 'review_notes'
+    // and does not have an 'updated_at' column
     await query(
       `UPDATE economy_fraud_flags
-       SET status = $1, reviewed_by = $2, reviewed_at = NOW(), review_notes = $3, updated_at = NOW()
+       SET status = $1, reviewed_by = $2, reviewed_at = NOW(), resolution = $3
        WHERE id = $4`,
       [status, reviewerId, notes, flagId]
     );
@@ -522,17 +534,25 @@ export const antiabuseService = {
   }): Promise<void> {
     const logId = `audit_${crypto.randomBytes(12).toString('hex')}`;
 
+    // Note: admin_credit_audit_log uses 'admin_user_id' (not 'admin_id')
+    // and 'target_tx_id' instead of 'target_type'/'target_id'
+    // Store targetType/targetId in details for backwards compatibility
+    const enrichedDetails = {
+      ...params.details,
+      targetType: params.targetType,
+      targetId: params.targetId,
+    };
+
     await query(
-      `INSERT INTO admin_credit_audit_log (id, admin_id, action, target_user_id, target_type, target_id, details, reason)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO admin_credit_audit_log (id, admin_user_id, action, target_user_id, target_tx_id, details, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         logId,
         params.adminId,
         params.action,
         params.targetUserId,
-        params.targetType,
-        params.targetId,
-        JSON.stringify(params.details),
+        params.targetId, // Use targetId as target_tx_id
+        JSON.stringify(enrichedDetails),
         params.reason,
       ]
     );
@@ -578,8 +598,9 @@ export const antiabuseService = {
     const params: unknown[] = [];
     let paramIndex = 1;
 
+    // Note: admin_credit_audit_log uses 'admin_user_id' (not 'admin_id')
     if (adminId) {
-      whereClause += ` AND al.admin_id = $${paramIndex++}`;
+      whereClause += ` AND al.admin_user_id = $${paramIndex++}`;
       params.push(adminId);
     }
     if (targetUserId) {
@@ -593,22 +614,23 @@ export const antiabuseService = {
 
     params.push(limit, offset);
 
+    // Note: admin_credit_audit_log uses 'admin_user_id' and 'target_tx_id'
+    // targetType/targetId are stored in the details JSONB column
     const rows = await queryAll<{
       id: string;
-      admin_id: string;
+      admin_user_id: string;
       admin_username: string | null;
       action: string;
       target_user_id: string | null;
       target_username: string | null;
-      target_type: string;
-      target_id: string;
+      target_tx_id: string | null;
       details: string;
       reason: string | null;
       created_at: Date;
     }>(
       `SELECT al.*, admin.username as admin_username, target.username as target_username
        FROM admin_credit_audit_log al
-       LEFT JOIN users admin ON admin.id = al.admin_id
+       LEFT JOIN users admin ON admin.id = al.admin_user_id
        LEFT JOIN users target ON target.id = al.target_user_id
        WHERE ${whereClause}
        ORDER BY al.created_at DESC
@@ -622,19 +644,22 @@ export const antiabuseService = {
     );
 
     return {
-      entries: rows.map((r) => ({
-        id: r.id,
-        adminId: r.admin_id,
-        adminUsername: r.admin_username ?? undefined,
-        action: r.action,
-        targetUserId: r.target_user_id ?? undefined,
-        targetUsername: r.target_username ?? undefined,
-        targetType: r.target_type,
-        targetId: r.target_id,
-        details: JSON.parse(r.details || '{}'),
-        reason: r.reason ?? undefined,
-        createdAt: r.created_at,
-      })),
+      entries: rows.map((r) => {
+        const details = JSON.parse(r.details || '{}');
+        return {
+          id: r.id,
+          adminId: r.admin_user_id,
+          adminUsername: r.admin_username ?? undefined,
+          action: r.action,
+          targetUserId: r.target_user_id ?? undefined,
+          targetUsername: r.target_username ?? undefined,
+          targetType: details.targetType || '',
+          targetId: r.target_tx_id || details.targetId || '',
+          details,
+          reason: r.reason ?? undefined,
+          createdAt: r.created_at,
+        };
+      }),
       total: parseInt(countResult?.count || '0', 10),
     };
   },

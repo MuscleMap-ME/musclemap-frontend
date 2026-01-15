@@ -66,6 +66,20 @@ Authorization: Bearer <token>
 | `POST` | `/start` | Yes |
 
 
+### One-rep-max
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/1rm` | Yes |
+| `GET` | `/1rm/best` | Yes |
+| `POST` | `/1rm/calculate` | Yes |
+| `GET` | `/1rm/compound-total` | Yes |
+| `GET` | `/1rm/exercise/:exerciseId` | Yes |
+| `GET` | `/1rm/leaderboard/:exerciseId` | Yes |
+| `GET` | `/1rm/progression/:exerciseId` | Yes |
+| `GET` | `/1rm/summary` | Yes |
+
+
 ### Verifications
 
 | Method | Endpoint | Auth Required |
@@ -860,6 +874,20 @@ Authorization: Bearer <token>
 | `GET` | `/personalization/summary` | Yes |
 
 
+### Plugins
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/plugins` | Yes |
+| `GET` | `/plugins/:pluginId` | Yes |
+| `POST` | `/plugins/:pluginId/disable` | Yes |
+| `POST` | `/plugins/:pluginId/enable` | Yes |
+| `GET` | `/plugins/:pluginId/settings` | Yes |
+| `PUT` | `/plugins/:pluginId/settings` | Yes |
+| `DELETE` | `/plugins/:pluginId/settings` | Yes |
+| `PUT` | `/plugins/settings/bulk` | Yes |
+
+
 ### Prescription
 
 | Method | Endpoint | Auth Required |
@@ -878,6 +906,32 @@ Authorization: Bearer <token>
 | `POST` | `/privacy/disable-minimalist` | Yes |
 | `POST` | `/privacy/enable-minimalist` | Yes |
 | `GET` | `/privacy/summary` | Yes |
+
+
+### Programs
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/programs` | Yes |
+| `GET` | `/programs` | Yes |
+| `GET` | `/programs/:id` | Yes |
+| `PUT` | `/programs/:id` | Yes |
+| `DELETE` | `/programs/:id` | Yes |
+| `POST` | `/programs/:id/duplicate` | Yes |
+| `POST` | `/programs/:id/enroll` | Yes |
+| `POST` | `/programs/:id/rate` | Yes |
+| `POST` | `/programs/:id/record-workout` | Yes |
+| `GET` | `/programs/active-enrollment` | Yes |
+| `GET` | `/programs/enrollments/:enrollmentId` | Yes |
+| `POST` | `/programs/enrollments/:enrollmentId/drop` | Yes |
+| `POST` | `/programs/enrollments/:enrollmentId/pause` | Yes |
+| `POST` | `/programs/enrollments/:enrollmentId/progress` | Yes |
+| `POST` | `/programs/enrollments/:enrollmentId/resume` | Yes |
+| `GET` | `/programs/featured` | Yes |
+| `GET` | `/programs/me` | Yes |
+| `GET` | `/programs/my-enrollments` | Yes |
+| `GET` | `/programs/official` | Yes |
+| `GET` | `/programs/todays-workout` | Yes |
 
 
 ### Progress-photos
@@ -935,6 +989,29 @@ Authorization: Bearer <token>
 | `GET` | `/ranks/veteran-badge` | Yes |
 
 
+### Recovery
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/recovery/history` | Yes |
+| `GET` | `/recovery/recommendations` | Yes |
+| `POST` | `/recovery/recommendations/:id/acknowledge` | Yes |
+| `POST` | `/recovery/recommendations/generate` | Yes |
+| `GET` | `/recovery/score` | Yes |
+| `GET` | `/recovery/status` | Yes |
+| `GET` | `/sleep/:id` | Yes |
+| `PATCH` | `/sleep/:id` | Yes |
+| `DELETE` | `/sleep/:id` | Yes |
+| `GET` | `/sleep/goal` | Yes |
+| `POST` | `/sleep/goal` | Yes |
+| `DELETE` | `/sleep/goal/:id` | Yes |
+| `GET` | `/sleep/history` | Yes |
+| `GET` | `/sleep/last` | Yes |
+| `POST` | `/sleep/log` | Yes |
+| `GET` | `/sleep/stats` | Yes |
+| `GET` | `/sleep/weekly-stats` | Yes |
+
+
 ### Content-reports
 
 | Method | Endpoint | Auth Required |
@@ -964,6 +1041,17 @@ Authorization: Bearer <token>
 | `GET` | `/rivals/pending` | Yes |
 | `GET` | `/rivals/search` | Yes |
 | `GET` | `/rivals/stats` | Yes |
+
+
+### Workout-sets
+
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `POST` | `/sets` | Yes |
+| `DELETE` | `/sets/:setId` | Yes |
+| `POST` | `/sets/bulk` | Yes |
+| `GET` | `/sets/exercise/:exerciseId` | Yes |
+| `GET` | `/sets/workout/:workoutId` | Yes |
 
 
 ### Milestones

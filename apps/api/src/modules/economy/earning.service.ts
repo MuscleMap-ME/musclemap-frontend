@@ -78,6 +78,14 @@ const DEFAULT_MAX_PER_DAY: Record<string, number> = {
 // Fallback default if rule code not in map
 const FALLBACK_MAX_PER_DAY = 20;
 
+// Absolute upper bound for all earning - prevents abuse even if rule is misconfigured
+// No single rule can exceed this limit per day under any circumstances
+const ABSOLUTE_MAX_PER_DAY = 100;
+
+// Maximum credits/XP per award to prevent misconfigured rules from causing issues
+const MAX_CREDITS_PER_AWARD = 10000;
+const MAX_XP_PER_AWARD = 5000;
+
 export interface EarningContext {
   userId: string;
   ruleCode: string;
@@ -221,7 +229,15 @@ export const earningService = {
 
     // Check daily/weekly limits
     // Use rule's maxPerDay if set, otherwise use default cap to prevent abuse
-    const effectiveMaxPerDay = rule.maxPerDay ?? DEFAULT_MAX_PER_DAY[ruleCode] ?? FALLBACK_MAX_PER_DAY;
+    // Apply absolute upper bound to prevent misconfigured rules from causing unlimited earning
+    const configuredMaxPerDay = rule.maxPerDay ?? DEFAULT_MAX_PER_DAY[ruleCode] ?? FALLBACK_MAX_PER_DAY;
+    const effectiveMaxPerDay = Math.min(configuredMaxPerDay, ABSOLUTE_MAX_PER_DAY);
+
+    // Log if rule's configured limit exceeds absolute limit (indicates misconfiguration)
+    if (configuredMaxPerDay > ABSOLUTE_MAX_PER_DAY) {
+      log.warn({ ruleCode, configuredMaxPerDay, effectiveMaxPerDay }, 'Earning rule maxPerDay exceeds absolute limit');
+    }
+
     const todayCount = await this.getTodayCount(userId, ruleCode);
     if (todayCount >= effectiveMaxPerDay) {
       log.debug({ userId, ruleCode, todayCount, maxPerDay: effectiveMaxPerDay }, 'Daily limit reached');
@@ -255,8 +271,18 @@ export const earningService = {
     }
 
     // Calculate credits and XP
-    const credits = this.calculateCredits(rule, context);
-    const xp = this.calculateXp(rule, context);
+    let credits = this.calculateCredits(rule, context);
+    let xp = this.calculateXp(rule, context);
+
+    // Enforce absolute upper bounds on award amounts to prevent abuse
+    if (credits > MAX_CREDITS_PER_AWARD) {
+      log.warn({ userId, ruleCode, calculatedCredits: credits, maxAllowed: MAX_CREDITS_PER_AWARD }, 'Credits exceed max per award');
+      credits = MAX_CREDITS_PER_AWARD;
+    }
+    if (xp > MAX_XP_PER_AWARD) {
+      log.warn({ userId, ruleCode, calculatedXp: xp, maxAllowed: MAX_XP_PER_AWARD }, 'XP exceeds max per award');
+      xp = MAX_XP_PER_AWARD;
+    }
 
     if (credits <= 0 && xp <= 0) {
       log.debug({ userId, ruleCode }, 'No credits or XP to award');

@@ -106,6 +106,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{One-rep-max}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/1rm} \\
+\texttt{GET} & \texttt{/1rm/best} \\
+\texttt{POST} & \texttt{/1rm/calculate} \\
+\texttt{GET} & \texttt{/1rm/compound-total} \\
+\texttt{GET} & \texttt{/1rm/exercise/:exerciseId} \\
+\texttt{GET} & \texttt{/1rm/leaderboard/:exerciseId} \\
+\texttt{GET} & \texttt{/1rm/progression/:exerciseId} \\
+\texttt{GET} & \texttt{/1rm/summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Verifications}
 
 \begin{table}[h]
@@ -1201,6 +1222,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Plugins}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/plugins} \\
+\texttt{GET} & \texttt{/plugins/:pluginId} \\
+\texttt{POST} & \texttt{/plugins/:pluginId/disable} \\
+\texttt{POST} & \texttt{/plugins/:pluginId/enable} \\
+\texttt{GET} & \texttt{/plugins/:pluginId/settings} \\
+\texttt{PUT} & \texttt{/plugins/:pluginId/settings} \\
+\texttt{DELETE} & \texttt{/plugins/:pluginId/settings} \\
+\texttt{PUT} & \texttt{/plugins/settings/bulk} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Prescription}
 
 \begin{table}[h]
@@ -1230,6 +1272,39 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/privacy/disable-minimalist} \\
 \texttt{POST} & \texttt{/privacy/enable-minimalist} \\
 \texttt{GET} & \texttt{/privacy/summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Programs}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/programs} \\
+\texttt{GET} & \texttt{/programs} \\
+\texttt{GET} & \texttt{/programs/:id} \\
+\texttt{PUT} & \texttt{/programs/:id} \\
+\texttt{DELETE} & \texttt{/programs/:id} \\
+\texttt{POST} & \texttt{/programs/:id/duplicate} \\
+\texttt{POST} & \texttt{/programs/:id/enroll} \\
+\texttt{POST} & \texttt{/programs/:id/rate} \\
+\texttt{POST} & \texttt{/programs/:id/record-workout} \\
+\texttt{GET} & \texttt{/programs/active-enrollment} \\
+\texttt{GET} & \texttt{/programs/enrollments/:enrollmentId} \\
+\texttt{POST} & \texttt{/programs/enrollments/:enrollmentId/drop} \\
+\texttt{POST} & \texttt{/programs/enrollments/:enrollmentId/pause} \\
+\texttt{POST} & \texttt{/programs/enrollments/:enrollmentId/progress} \\
+\texttt{POST} & \texttt{/programs/enrollments/:enrollmentId/resume} \\
+\texttt{GET} & \texttt{/programs/featured} \\
+\texttt{GET} & \texttt{/programs/me} \\
+\texttt{GET} & \texttt{/programs/my-enrollments} \\
+\texttt{GET} & \texttt{/programs/official} \\
+\texttt{GET} & \texttt{/programs/todays-workout} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1318,6 +1393,36 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Recovery}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/recovery/history} \\
+\texttt{GET} & \texttt{/recovery/recommendations} \\
+\texttt{POST} & \texttt{/recovery/recommendations/:id/acknowledge} \\
+\texttt{POST} & \texttt{/recovery/recommendations/generate} \\
+\texttt{GET} & \texttt{/recovery/score} \\
+\texttt{GET} & \texttt{/recovery/status} \\
+\texttt{GET} & \texttt{/sleep/:id} \\
+\texttt{PATCH} & \texttt{/sleep/:id} \\
+\texttt{DELETE} & \texttt{/sleep/:id} \\
+\texttt{GET} & \texttt{/sleep/goal} \\
+\texttt{POST} & \texttt{/sleep/goal} \\
+\texttt{DELETE} & \texttt{/sleep/goal/:id} \\
+\texttt{GET} & \texttt{/sleep/history} \\
+\texttt{GET} & \texttt{/sleep/last} \\
+\texttt{POST} & \texttt{/sleep/log} \\
+\texttt{GET} & \texttt{/sleep/stats} \\
+\texttt{GET} & \texttt{/sleep/weekly-stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Content-reports}
 
 \begin{table}[h]
@@ -1365,6 +1470,24 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/rivals/pending} \\
 \texttt{GET} & \texttt{/rivals/search} \\
 \texttt{GET} & \texttt{/rivals/stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Workout-sets}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/sets} \\
+\texttt{DELETE} & \texttt{/sets/:setId} \\
+\texttt{POST} & \texttt{/sets/bulk} \\
+\texttt{GET} & \texttt{/sets/exercise/:exerciseId} \\
+\texttt{GET} & \texttt{/sets/workout/:workoutId} \\
 \bottomrule
 \end{tabular}
 \end{table}

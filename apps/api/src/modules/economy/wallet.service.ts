@@ -199,7 +199,12 @@ export const walletService = {
 
     try {
       const result = await serializableTransaction(async (client) => {
-        // Lock sender balance
+        // RC-001 FIX: Acquire advisory lock on sender wallet BEFORE any reads
+        // This prevents double-spend even across distributed systems
+        // The lock is automatically released when the transaction ends
+        await client.query('SELECT acquire_wallet_lock($1)', [senderId]);
+
+        // Lock sender balance with FOR UPDATE
         const sender = await client.query<{ balance: number; version: number; status: string }>(
           'SELECT balance, version, COALESCE(status, \'active\') as status FROM credit_balances WHERE user_id = $1 FOR UPDATE',
           [senderId]
@@ -269,14 +274,16 @@ export const walletService = {
           [transferId, senderId, recipientId, amount, note, senderEntryId, recipientEntryId]
         );
 
+        // RC-005 FIX: Invalidate caches INSIDE the transaction, BEFORE commit
+        // This prevents stale reads during the window between commit and cache invalidation
+        // The cache invalidation happens while we still hold the locks, ensuring no stale reads
+        await Promise.all([
+          invalidateBalanceCache(senderId),
+          invalidateBalanceCache(recipientId),
+        ]);
+
         return { senderNewBalance, recipientNewBalance };
       });
-
-      // Invalidate caches
-      await Promise.all([
-        invalidateBalanceCache(senderId),
-        invalidateBalanceCache(recipientId),
-      ]);
 
       // Update rate limits
       await this.recordTransfer(senderId);
@@ -677,9 +684,14 @@ export const walletService = {
 
   /**
    * Check transfer rate limits
-   * Uses time buffers to prevent clock sensitivity issues at boundaries
+   * Uses 60-second time buffers to prevent clock sensitivity issues at boundaries.
+   * This prevents edge cases where rapid requests could exploit the exact moment
+   * of a rate limit reset due to clock skew across distributed systems.
    */
   async checkTransferRateLimit(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    // 60-second buffer to prevent clock sensitivity at reset boundaries
+    const BUFFER_SECONDS = 60;
+
     // Ensure rate limit record exists
     await query(
       `INSERT INTO economy_rate_limits (user_id)
@@ -688,21 +700,26 @@ export const walletService = {
       [userId]
     );
 
-    // Reset if needed - add 5 second buffer to daily reset to handle clock skew
-    // This ensures the reset happens reliably even with minor time differences
+    // Reset daily counter if new day has started (with 60s buffer window)
+    // The buffer ensures we don't reset until 60s after midnight to prevent
+    // rapid requests at midnight from getting extra transfers
     await query(
       `UPDATE economy_rate_limits
        SET transfers_today = 0, daily_reset_at = CURRENT_DATE
-       WHERE user_id = $1 AND daily_reset_at < CURRENT_DATE - INTERVAL '5 seconds'`,
+       WHERE user_id = $1
+       AND daily_reset_at < CURRENT_DATE
+       AND NOW() >= CURRENT_DATE + INTERVAL '${BUFFER_SECONDS} seconds'`,
       [userId]
     );
 
-    // Reset hourly counter - add 10 second buffer for clock sensitivity
-    // Use slightly longer buffer for hourly since resets happen more frequently
+    // Reset hourly counter with 60s buffer window
+    // Only reset if we're at least 60s past the hour boundary
     await query(
       `UPDATE economy_rate_limits
-       SET transfers_this_hour = 0, hourly_reset_at = NOW()
-       WHERE user_id = $1 AND hourly_reset_at < NOW() - INTERVAL '1 hour 10 seconds'`,
+       SET transfers_this_hour = 0, hourly_reset_at = date_trunc('hour', NOW())
+       WHERE user_id = $1
+       AND hourly_reset_at < date_trunc('hour', NOW())
+       AND NOW() >= date_trunc('hour', NOW()) + INTERVAL '${BUFFER_SECONDS} seconds'`,
       [userId]
     );
 

@@ -9,7 +9,7 @@
  * Types: apps/api/src/modules/organizations/types.ts
  */
 
-import { queryOne, queryAll, transaction } from '../../db/client';
+import { query, queryOne, queryAll, transaction } from '../../db/client';
 import { NotFoundError, ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
@@ -511,14 +511,145 @@ export async function updateUnit(
   data: UpdateUnitData,
   userId: string
 ): Promise<OrgUnit> {
+  // Check if we need to recalculate level/path (parent or name change)
+  const needsPathRecalc = data.parentUnitId !== undefined || data.name !== undefined;
+
+  // Use transaction when path recalculation is needed (affects descendants)
+  if (needsPathRecalc) {
+    return await transaction(async (client) => {
+      // Get current unit info
+      const currentResult = await client.query<{ name: string; path: string; level: number; parent_unit_id: string | null }>(
+        'SELECT name, path, level, parent_unit_id FROM organization_units WHERE id = $1 AND org_id = $2',
+        [unitId, orgId]
+      );
+      if (currentResult.rows.length === 0) {
+        throw new NotFoundError('Unit not found');
+      }
+      const current = currentResult.rows[0];
+
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      // Build base updates
+      if (data.name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(data.name);
+      }
+      if (data.code !== undefined) {
+        updates.push(`code = $${paramIndex++}`);
+        values.push(data.code);
+      }
+      if (data.type !== undefined) {
+        updates.push(`type = $${paramIndex++}`);
+        values.push(data.type);
+      }
+      if (data.addressLine1 !== undefined) {
+        updates.push(`address_line1 = $${paramIndex++}`);
+        values.push(data.addressLine1);
+      }
+      if (data.city !== undefined) {
+        updates.push(`city = $${paramIndex++}`);
+        values.push(data.city);
+      }
+      if (data.state !== undefined) {
+        updates.push(`state = $${paramIndex++}`);
+        values.push(data.state);
+      }
+      if (data.settings !== undefined) {
+        updates.push(`settings = $${paramIndex++}::jsonb`);
+        values.push(JSON.stringify(data.settings));
+      }
+      if (data.active !== undefined) {
+        updates.push(`active = $${paramIndex++}`);
+        values.push(data.active);
+      }
+      if (data.parentUnitId !== undefined) {
+        updates.push(`parent_unit_id = $${paramIndex++}`);
+        values.push(data.parentUnitId);
+      }
+
+      // Calculate new level and path
+      const newName = data.name !== undefined ? data.name : current.name;
+      const newParentId = data.parentUnitId !== undefined ? data.parentUnitId : current.parent_unit_id;
+      let newLevel: number;
+      let newPath: string;
+
+      if (newParentId === null) {
+        // Root level unit
+        newLevel = 1;
+        newPath = newName;
+      } else {
+        // Get parent's level and path
+        const parentResult = await client.query<{ level: number; path: string }>(
+          'SELECT level, path FROM organization_units WHERE id = $1 AND org_id = $2',
+          [newParentId, orgId]
+        );
+        if (parentResult.rows.length === 0) {
+          throw new NotFoundError('Parent unit not found');
+        }
+        const parent = parentResult.rows[0];
+        newLevel = parent.level + 1;
+        newPath = `${parent.path}/${newName}`;
+      }
+
+      // Add level and path updates if changed
+      if (newLevel !== current.level) {
+        updates.push(`level = $${paramIndex++}`);
+        values.push(newLevel);
+      }
+      if (newPath !== current.path) {
+        updates.push(`path = $${paramIndex++}`);
+        values.push(newPath);
+      }
+
+      if (updates.length === 0) {
+        return mapUnitRow(currentResult.rows[0] as Record<string, unknown>);
+      }
+
+      // Perform the update
+      values.push(unitId, orgId);
+      const updateResult = await client.query<Record<string, unknown>>(
+        `UPDATE organization_units SET ${updates.join(', ')}
+         WHERE id = $${paramIndex} AND org_id = $${paramIndex + 1}
+         RETURNING *`,
+        values
+      );
+
+      if (updateResult.rows.length === 0) {
+        throw new NotFoundError('Unit not found');
+      }
+
+      // If path or level changed, update all descendant units
+      if (current.path !== newPath || current.level !== newLevel) {
+        const oldPathPrefix = current.path + '/';
+        const levelDiff = newLevel - current.level;
+
+        // Update all descendants: replace old path prefix with new, adjust level
+        await client.query(
+          `UPDATE organization_units
+           SET path = $1 || SUBSTRING(path FROM $2),
+               level = level + $3
+           WHERE org_id = $4 AND path LIKE $5`,
+          [newPath, oldPathPrefix.length + 1, levelDiff, orgId, oldPathPrefix + '%']
+        );
+
+        log.info(
+          { unitId, orgId, userId, oldPath: current.path, newPath, levelDiff },
+          'Unit hierarchy updated with descendants'
+        );
+      }
+
+      log.info({ unitId, orgId, userId, updates: Object.keys(data) }, 'Unit updated');
+      return mapUnitRow(updateResult.rows[0]);
+    });
+  }
+
+  // Simple update without path recalculation
   const updates: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
 
-  if (data.name !== undefined) {
-    updates.push(`name = $${paramIndex++}`);
-    values.push(data.name);
-  }
   if (data.code !== undefined) {
     updates.push(`code = $${paramIndex++}`);
     values.push(data.code);
@@ -546,11 +677,6 @@ export async function updateUnit(
   if (data.active !== undefined) {
     updates.push(`active = $${paramIndex++}`);
     values.push(data.active);
-  }
-  if (data.parentUnitId !== undefined) {
-    updates.push(`parent_unit_id = $${paramIndex++}`);
-    values.push(data.parentUnitId);
-    // TODO: Recalculate level and path
   }
 
   if (updates.length === 0) {

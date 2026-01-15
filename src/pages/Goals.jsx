@@ -412,6 +412,193 @@ function CreateGoalModal({ isOpen, onClose, onSubmit, suggestions }) {
   );
 }
 
+// Update Goal Modal
+function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
+  const [formData, setFormData] = useState({
+    currentValue: goal?.currentValue || '',
+    targetValue: goal?.targetValue || '',
+    targetDate: goal?.targetDate ? goal.targetDate.split('T')[0] : '',
+    isPrimary: goal?.isPrimary || false,
+    status: goal?.status || 'active',
+    notes: goal?.notes || '',
+  });
+
+  // Update form when goal changes
+  React.useEffect(() => {
+    if (goal) {
+      setFormData({
+        currentValue: goal.currentValue || '',
+        targetValue: goal.targetValue || '',
+        targetDate: goal.targetDate ? goal.targetDate.split('T')[0] : '',
+        isPrimary: goal.isPrimary || false,
+        status: goal.status || 'active',
+        notes: goal.notes || '',
+      });
+    }
+  }, [goal]);
+
+  if (!isOpen || !goal) return null;
+
+  const meta = GOAL_TYPE_META[goal.goalType];
+  const Icon = meta?.icon || Icons.Target;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(goal.id, {
+      currentValue: formData.currentValue ? sanitizeNumber(formData.currentValue, { min: 0 }) : null,
+      targetValue: formData.targetValue ? sanitizeNumber(formData.targetValue, { min: 0 }) : null,
+      targetDate: formData.targetDate || null,
+      isPrimary: formData.isPrimary,
+      status: formData.status,
+      notes: sanitizeText(formData.notes),
+    });
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="w-full max-w-lg bg-[var(--void-base)] border border-[var(--border-subtle)] rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-[var(--text-primary)]">Update Goal</h2>
+            <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+              <Icons.X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Goal Type Display */}
+          <div className="p-3 rounded-xl bg-[var(--glass-white-5)] border border-[var(--border-subtle)] mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${meta?.color}20` }}>
+                <Icon className="w-5 h-5" style={{ color: meta?.color }} />
+              </div>
+              <div>
+                <div className="font-semibold text-[var(--text-primary)] text-sm">{meta?.label || goal.goalType}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">{meta?.description}</div>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Current Value */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Current Value ({goal.targetUnit || 'lbs'})
+              </label>
+              <input
+                type="number"
+                value={formData.currentValue}
+                onChange={(e) => setFormData({ ...formData, currentValue: e.target.value })}
+                className="w-full px-4 py-3 bg-[var(--void-deeper)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:border-[var(--brand-blue-400)] focus:ring-1 focus:ring-[var(--brand-blue-400)] outline-none"
+                placeholder="Current progress"
+              />
+            </div>
+
+            {/* Target Value */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Target Value ({goal.targetUnit || 'lbs'})
+              </label>
+              <input
+                type="number"
+                value={formData.targetValue}
+                onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
+                className="w-full px-4 py-3 bg-[var(--void-deeper)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:border-[var(--brand-blue-400)] focus:ring-1 focus:ring-[var(--brand-blue-400)] outline-none"
+                placeholder="Your target"
+              />
+            </div>
+
+            {/* Target Date */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Target Date
+              </label>
+              <input
+                type="date"
+                value={formData.targetDate}
+                onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+                className="w-full px-4 py-3 bg-[var(--void-deeper)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:border-[var(--brand-blue-400)] focus:ring-1 focus:ring-[var(--brand-blue-400)] outline-none"
+              />
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-4 py-3 bg-[var(--void-deeper)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:border-[var(--brand-blue-400)] focus:ring-1 focus:ring-[var(--brand-blue-400)] outline-none"
+              >
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="completed">Completed</option>
+                <option value="abandoned">Abandoned</option>
+              </select>
+            </div>
+
+            {/* Primary Toggle */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isPrimary}
+                onChange={(e) => setFormData({ ...formData, isPrimary: e.target.checked })}
+                className="w-5 h-5 rounded border-[var(--border-subtle)] bg-[var(--void-deeper)] text-[var(--brand-blue-500)] focus:ring-[var(--brand-blue-400)]"
+              />
+              <span className="text-sm text-[var(--text-secondary)]">Set as primary goal</span>
+            </label>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-3 bg-[var(--void-deeper)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] focus:border-[var(--brand-blue-400)] focus:ring-1 focus:ring-[var(--brand-blue-400)] outline-none resize-none"
+                placeholder="Optional notes about this goal..."
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <GlassButton
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1"
+              >
+                Cancel
+              </GlassButton>
+              <GlassButton
+                type="submit"
+                variant="primary"
+                className="flex-1"
+              >
+                Save Changes
+              </GlassButton>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // Main Goals Page
 export default function Goals() {
   const { user: _user } = useUser();
@@ -419,6 +606,8 @@ export default function Goals() {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState(null);
   const [filter, setFilter] = useState('active');
 
   useEffect(() => {
@@ -457,9 +646,20 @@ export default function Goals() {
     }
   };
 
-  const handleUpdateGoal = async (goal) => {
-    // TODO: Implement update modal
-    console.log('Update goal:', goal);
+  const handleUpdateGoal = (goal) => {
+    setSelectedGoal(goal);
+    setShowUpdateModal(true);
+  };
+
+  const handleSubmitUpdate = async (goalId, updates) => {
+    try {
+      await api.put(`/goals/${goalId}`, updates);
+      setShowUpdateModal(false);
+      setSelectedGoal(null);
+      loadGoals();
+    } catch (error) {
+      console.error('Failed to update goal:', error);
+    }
   };
 
   const handleDeleteGoal = async (goalId) => {
@@ -617,6 +817,16 @@ export default function Goals() {
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateGoal}
         suggestions={suggestions}
+      />
+
+      <UpdateGoalModal
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false);
+          setSelectedGoal(null);
+        }}
+        onSubmit={handleSubmitUpdate}
+        goal={selectedGoal}
       />
     </div>
   );

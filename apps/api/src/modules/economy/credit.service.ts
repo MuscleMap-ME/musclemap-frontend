@@ -213,6 +213,11 @@ export const creditService = {
       userAgentHash = crypto.createHash('sha256').update(metadata.userAgent).digest().slice(0, 16);
     }
 
+    // RC-005 FIX: Invalidate cache BEFORE the transaction
+    // This ensures any reads during or after the transaction will fetch fresh data
+    // The database function handles its own transaction, so we can't invalidate inside it
+    await invalidateBalanceCache(userId);
+
     try {
       const result = await db.queryOne<{
         entry_id: string;
@@ -237,10 +242,8 @@ export const creditService = {
         throw new Error('Transaction returned no result');
       }
 
-      // Invalidate cache on success (unless duplicate)
+      // Log on success (unless duplicate)
       if (!result.was_duplicate) {
-        await invalidateBalanceCache(userId);
-
         log.info({
           userId,
           delta,
@@ -290,6 +293,10 @@ export const creditService = {
     // Generate transfer ID
     const transferId = `xfer_${crypto.randomBytes(12).toString('hex')}`;
 
+    // RC-005 FIX: Invalidate caches BEFORE the transaction
+    // This ensures any reads during or after the transaction will fetch fresh data
+    await Promise.all([invalidateBalanceCache(senderId), invalidateBalanceCache(recipientId)]);
+
     try {
       const result = await db.queryOne<{
         transfer_id: string;
@@ -300,9 +307,6 @@ export const creditService = {
       if (!result) {
         throw new Error('Transfer returned no result');
       }
-
-      // Invalidate both caches
-      await Promise.all([invalidateBalanceCache(senderId), invalidateBalanceCache(recipientId)]);
 
       log.info({
         transferId: result.transfer_id,

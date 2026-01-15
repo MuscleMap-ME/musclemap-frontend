@@ -33,6 +33,9 @@ export const typeDefs = `#graphql
     myMuscleStats: MuscleStats
     workout(id: ID!): Workout
 
+    # Exercise History (PRs and best lifts)
+    exerciseHistory(exerciseIds: [ID!]!): [ExerciseHistoryEntry!]!
+
     # Goals
     goals: [Goal!]!
     goal(id: ID!): Goal
@@ -141,6 +144,29 @@ export const typeDefs = `#graphql
     myCareerReadiness(goalId: ID): CareerReadiness
     careerExerciseRecommendations(goalId: ID!): [ExerciseRecommendation!]!
 
+    # Training Programs
+    trainingPrograms(input: ProgramSearchInput): [TrainingProgram!]!
+    trainingProgram(id: ID!): TrainingProgram
+    officialPrograms: [TrainingProgram!]!
+    featuredPrograms(limit: Int): [TrainingProgram!]!
+    myPrograms(limit: Int, offset: Int): [TrainingProgram!]!
+    myEnrollments(status: String, limit: Int, offset: Int): [ProgramEnrollment!]!
+    activeEnrollment(programId: ID): ProgramEnrollment
+    enrollment(id: ID!): EnrollmentWithProgram
+    todaysWorkout(programId: ID): TodaysWorkoutResult
+
+    # Sleep & Recovery
+    sleepLog(id: ID!): SleepLog
+    lastSleep: SleepLog
+    sleepHistory(limit: Int, cursor: String, startDate: DateTime, endDate: DateTime): SleepHistoryResult!
+    sleepStats(period: String): SleepStats!
+    weeklySleepStats(weeks: Int): [WeeklySleepStats!]!
+    sleepGoal: SleepGoal
+    recoveryScore(forceRecalculate: Boolean): RecoveryScore
+    recoveryStatus: RecoveryStatus!
+    recoveryHistory(days: Int): RecoveryHistory!
+    recoveryRecommendations: [RecoveryRecommendation!]!
+
     # Health (internal)
     health: HealthStatus
     healthDetailed: DetailedHealthStatus
@@ -246,6 +272,28 @@ export const typeDefs = `#graphql
     updateCareerGoal(goalId: ID!, input: CareerGoalUpdateInput!): CareerGoal
     deleteCareerGoal(goalId: ID!): Boolean!
     logCareerAssessment(input: CareerAssessmentInput!): CareerAssessment!
+
+    # Training Programs
+    createProgram(input: CreateProgramInput!): TrainingProgram!
+    updateProgram(id: ID!, input: UpdateProgramInput!): TrainingProgram!
+    deleteProgram(id: ID!): Boolean!
+    duplicateProgram(id: ID!, newName: String): TrainingProgram!
+    rateProgram(id: ID!, rating: Int!, review: String): Boolean!
+    enrollInProgram(programId: ID!): ProgramEnrollment!
+    recordProgramWorkout(programId: ID!): ProgramEnrollment!
+    pauseEnrollment(enrollmentId: ID!): ProgramEnrollment!
+    resumeEnrollment(enrollmentId: ID!): ProgramEnrollment!
+    dropEnrollment(enrollmentId: ID!): ProgramEnrollment!
+
+    # Sleep & Recovery
+    logSleep(input: SleepLogInput!): SleepLog!
+    updateSleepLog(id: ID!, input: UpdateSleepLogInput!): SleepLog!
+    deleteSleepLog(id: ID!): Boolean!
+    createSleepGoal(input: SleepGoalInput!): SleepGoal!
+    updateSleepGoal(id: ID!, input: SleepGoalInput!): SleepGoal!
+    deleteSleepGoal(id: ID!): Boolean!
+    acknowledgeRecommendation(id: ID!, input: RecommendationFeedbackInput): Boolean!
+    generateRecoveryRecommendations: [RecoveryRecommendation!]!
 
     # Logging
     logFrontendError(input: FrontendLogInput!): Boolean!
@@ -380,6 +428,19 @@ export const typeDefs = `#graphql
     group: String!
     subGroup: String
     description: String
+  }
+
+  # ============================================
+  # EXERCISE HISTORY TYPES
+  # ============================================
+  type ExerciseHistoryEntry {
+    exerciseId: ID!
+    exerciseName: String
+    bestWeight: Float!
+    best1RM: Float!
+    bestVolume: Float!
+    lastPerformedAt: DateTime
+    totalSessions: Int!
   }
 
   # ============================================
@@ -1409,6 +1470,174 @@ export const typeDefs = `#graphql
   }
 
   # ============================================
+  # TRAINING PROGRAMS TYPES
+  # ============================================
+  type TrainingProgram {
+    id: ID!
+    creatorId: ID
+    creatorUsername: String
+    creatorDisplayName: String
+    name: String!
+    description: String
+    shortDescription: String
+    durationWeeks: Int!
+    daysPerWeek: Int!
+    schedule: [ProgramDay!]!
+    progressionRules: JSON
+    difficulty: String
+    category: String
+    goals: [String!]!
+    targetMuscles: [String!]!
+    equipmentRequired: [String!]!
+    isPublic: Boolean!
+    isOfficial: Boolean!
+    isFeatured: Boolean!
+    totalEnrollments: Int!
+    activeEnrollments: Int!
+    completionRate: Float!
+    averageRating: Float!
+    ratingCount: Int!
+    imageUrl: String
+    thumbnailUrl: String
+    isEnrolled: Boolean
+    userRating: Int
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type ProgramDay {
+    day: Int!
+    name: String!
+    focus: String
+    exercises: [ProgramExercise!]!
+    notes: String
+  }
+
+  type ProgramExercise {
+    exerciseId: ID!
+    name: String
+    sets: Int!
+    reps: String!
+    restSeconds: Int!
+    notes: String
+    weight: Float
+    rpe: Float
+  }
+
+  type ProgramEnrollment {
+    id: ID!
+    userId: ID!
+    programId: ID!
+    program: TrainingProgram
+    currentWeek: Int!
+    currentDay: Int!
+    status: String!
+    startedAt: DateTime!
+    pausedAt: DateTime
+    completedAt: DateTime
+    expectedEndDate: DateTime
+    workoutsCompleted: Int!
+    totalWorkouts: Int!
+    streakCurrent: Int!
+    streakLongest: Int!
+    progressData: JSON
+    userRating: Int
+    userReview: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type EnrollmentProgress {
+    weekProgress: Float!
+    totalProgress: Float!
+    daysRemaining: Int!
+    onTrack: Boolean!
+    nextWorkout: ProgramDay
+  }
+
+  type TodaysWorkoutResult {
+    enrollment: ProgramEnrollment!
+    program: TrainingProgram!
+    todaysWorkout: ProgramDay
+  }
+
+  type EnrollmentWithProgram {
+    enrollment: ProgramEnrollment!
+    program: TrainingProgram!
+    progress: EnrollmentProgress!
+  }
+
+  input CreateProgramInput {
+    name: String!
+    description: String
+    shortDescription: String
+    durationWeeks: Int!
+    daysPerWeek: Int!
+    schedule: [ProgramDayInput!]!
+    progressionRules: JSON
+    difficulty: String
+    category: String
+    goals: [String!]
+    targetMuscles: [String!]
+    equipmentRequired: [String!]
+    isPublic: Boolean
+    imageUrl: String
+  }
+
+  input UpdateProgramInput {
+    name: String
+    description: String
+    shortDescription: String
+    durationWeeks: Int
+    daysPerWeek: Int
+    schedule: [ProgramDayInput!]
+    progressionRules: JSON
+    difficulty: String
+    category: String
+    goals: [String!]
+    targetMuscles: [String!]
+    equipmentRequired: [String!]
+    isPublic: Boolean
+    imageUrl: String
+  }
+
+  input ProgramDayInput {
+    day: Int!
+    name: String!
+    focus: String
+    exercises: [ProgramExerciseInput!]!
+    notes: String
+  }
+
+  input ProgramExerciseInput {
+    exerciseId: ID!
+    name: String
+    sets: Int!
+    reps: String!
+    restSeconds: Int!
+    notes: String
+    weight: Float
+    rpe: Float
+  }
+
+  input ProgramSearchInput {
+    search: String
+    category: String
+    difficulty: String
+    minRating: Float
+    durationWeeks: Int
+    daysPerWeek: Int
+    official: Boolean
+    featured: Boolean
+    goals: [String!]
+    equipment: [String!]
+    creator: ID
+    sortBy: String
+    limit: Int
+    offset: Int
+  }
+
+  # ============================================
   # MISC TYPES
   # ============================================
   input FrontendLogInput {
@@ -1418,5 +1647,214 @@ export const typeDefs = `#graphql
     stack: String
     url: String
     userAgent: String
+  }
+
+  # ============================================
+  # SLEEP & RECOVERY TYPES
+  # ============================================
+  type SleepLog {
+    id: ID!
+    userId: ID!
+    bedTime: DateTime!
+    wakeTime: DateTime!
+    sleepDurationMinutes: Int!
+    quality: Int!
+    sleepEnvironment: SleepEnvironment
+    timeToFallAsleepMinutes: Int
+    wakeCount: Int
+    notes: String
+    source: String!
+    externalId: String
+    loggedAt: DateTime!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type SleepEnvironment {
+    dark: Boolean
+    quiet: Boolean
+    temperature: String
+    screenBeforeBed: Boolean
+    caffeineAfter6pm: Boolean
+    alcoholConsumed: Boolean
+  }
+
+  type RecoveryScore {
+    id: ID!
+    userId: ID!
+    score: Int!
+    classification: String!
+    factors: RecoveryFactors!
+    recommendedIntensity: String!
+    recommendedWorkoutTypes: [String!]!
+    trend: String
+    trendConfidence: Float
+    calculatedAt: DateTime!
+    expiresAt: DateTime!
+    dataSources: [String!]!
+  }
+
+  type RecoveryFactors {
+    sleepDurationScore: Int!
+    sleepQualityScore: Int!
+    restDaysScore: Int!
+    hrvBonus: Int
+    strainPenalty: Int
+    consistencyBonus: Int
+    sleepDetails: SleepDetails
+    restDetails: RestDetails
+    hrvDetails: HrvDetails
+  }
+
+  type SleepDetails {
+    hoursSlept: Float!
+    targetHours: Float!
+    qualityRating: Int!
+  }
+
+  type RestDetails {
+    daysSinceLastWorkout: Int!
+    workoutsThisWeek: Int!
+    averageIntensity: Float!
+  }
+
+  type HrvDetails {
+    currentHrv: Float
+    baselineHrv: Float
+    percentOfBaseline: Int
+  }
+
+  type RecoveryRecommendation {
+    id: ID!
+    userId: ID!
+    recoveryScoreId: ID
+    type: String!
+    priority: Int!
+    title: String!
+    description: String!
+    actionItems: [ActionItem!]!
+    relatedExerciseIds: [ID!]!
+    relatedTipIds: [ID!]!
+    acknowledgedAt: DateTime
+    followed: Boolean
+    feedback: String
+    createdAt: DateTime!
+    expiresAt: DateTime!
+  }
+
+  type ActionItem {
+    action: String!
+    completed: Boolean!
+  }
+
+  type SleepGoal {
+    id: ID!
+    userId: ID!
+    targetHours: Float!
+    targetBedTime: String
+    targetWakeTime: String
+    targetQuality: Int
+    consistencyTarget: Int!
+    isActive: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type SleepStats {
+    period: String!
+    nightsLogged: Int!
+    avgDurationMinutes: Float!
+    avgDurationHours: Float!
+    avgQuality: Float!
+    minDurationMinutes: Int!
+    maxDurationMinutes: Int!
+    consistency: Int!
+    targetMet: Int!
+    qualityDistribution: QualityDistribution!
+  }
+
+  type QualityDistribution {
+    terrible: Int!
+    poor: Int!
+    fair: Int!
+    good: Int!
+    excellent: Int!
+  }
+
+  type RecoveryStatus {
+    currentScore: RecoveryScore
+    lastSleep: SleepLog
+    sleepStats: SleepStats!
+    recommendations: [RecoveryRecommendation!]!
+    sleepGoal: SleepGoal
+    nextWorkoutSuggestion: WorkoutSuggestion!
+  }
+
+  type WorkoutSuggestion {
+    intensity: String!
+    types: [String!]!
+    reason: String!
+  }
+
+  type RecoveryHistory {
+    scores: [RecoveryScore!]!
+    averageScore: Int!
+    trend: String!
+    bestScore: Int!
+    worstScore: Int!
+    daysTracked: Int!
+  }
+
+  type WeeklySleepStats {
+    weekStart: DateTime!
+    nightsLogged: Int!
+    avgDurationMinutes: Float!
+    avgQuality: Float!
+    minDurationMinutes: Int!
+    maxDurationMinutes: Int!
+    stddevDuration: Float!
+  }
+
+  input SleepLogInput {
+    bedTime: DateTime!
+    wakeTime: DateTime!
+    quality: Int!
+    sleepEnvironment: SleepEnvironmentInput
+    timeToFallAsleepMinutes: Int
+    wakeCount: Int
+    notes: String
+    source: String
+    externalId: String
+    loggedAt: DateTime
+  }
+
+  input SleepEnvironmentInput {
+    dark: Boolean
+    quiet: Boolean
+    temperature: String
+    screenBeforeBed: Boolean
+    caffeineAfter6pm: Boolean
+    alcoholConsumed: Boolean
+  }
+
+  input UpdateSleepLogInput {
+    quality: Int
+    sleepEnvironment: SleepEnvironmentInput
+    timeToFallAsleepMinutes: Int
+    wakeCount: Int
+    notes: String
+  }
+
+  input SleepGoalInput {
+    targetHours: Float!
+    targetBedTime: String
+    targetWakeTime: String
+    targetQuality: Int
+    consistencyTarget: Int
+  }
+
+  input RecommendationFeedbackInput {
+    followed: Boolean
+    feedback: String
   }
 `;

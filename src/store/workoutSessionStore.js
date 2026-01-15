@@ -82,6 +82,20 @@ export const REST_PRESETS = [
   { label: '5m', seconds: 300, description: 'Full recovery (max strength/powerlifting)' },
 ];
 
+// ============================================
+// REST TIMER SETTINGS DEFAULTS
+// ============================================
+export const REST_TIMER_DEFAULTS = {
+  autoStartAfterSet: true,
+  soundEnabled: true,
+  vibrationEnabled: true,
+  soundType: 'beep', // 'beep' | 'chime' | 'bell'
+  soundVolume: 0.5,
+  showFloatingTimer: true,
+  countdownWarningAt: 10, // seconds - when to show warning state
+  quickAdjustAmount: 30, // seconds for +/- buttons
+};
+
 /**
  * Workout Session Store
  * Handles active workout state with real-time updates
@@ -119,9 +133,25 @@ export const useWorkoutSessionStore = create(
     // ============================================
     restTimer: 0,
     restTimerActive: false,
+    restTimerStartedAt: null, // timestamp when timer started (for total duration calc)
+    restTimerTotalDuration: 0, // total duration this timer was started with
     defaultRestDuration: 90, // seconds
     restTimerInterval: null,
     exerciseRestDefaults: {}, // { exerciseId: seconds }
+
+    // ============================================
+    // REST TIMER SETTINGS (user preferences)
+    // ============================================
+    restTimerSettings: {
+      autoStartAfterSet: true,
+      soundEnabled: true,
+      vibrationEnabled: true,
+      soundType: 'beep', // 'beep' | 'chime' | 'bell'
+      soundVolume: 0.5,
+      showFloatingTimer: true,
+      countdownWarningAt: 10,
+      quickAdjustAmount: 30,
+    },
 
     // ============================================
     // WORKOUT METRICS
@@ -443,7 +473,7 @@ export const useWorkoutSessionStore = create(
     // REST TIMER (Enhanced with presets and per-exercise defaults)
     // ============================================
     startRestTimer: (duration) => {
-      const { restTimerInterval, defaultRestDuration, exerciseRestDefaults, currentExercise } = get();
+      const { restTimerInterval, defaultRestDuration, exerciseRestDefaults, currentExercise, restTimerSettings } = get();
 
       // Clear existing timer
       if (restTimerInterval) {
@@ -453,20 +483,134 @@ export const useWorkoutSessionStore = create(
       // Priority: explicit duration > exercise default > global default
       const exerciseDefault = currentExercise?.id ? exerciseRestDefaults[currentExercise.id] : null;
       const timerDuration = duration || exerciseDefault || defaultRestDuration;
-      set({ restTimer: timerDuration, restTimerActive: true });
+
+      set({
+        restTimer: timerDuration,
+        restTimerActive: true,
+        restTimerStartedAt: Date.now(),
+        restTimerTotalDuration: timerDuration,
+      });
 
       const interval = setInterval(() => {
         const current = get().restTimer;
+        const settings = get().restTimerSettings;
+
         if (current <= 1) {
           clearInterval(interval);
-          set({ restTimer: 0, restTimerActive: false, restTimerInterval: null });
-          // Could trigger haptic/notification here
+          set({
+            restTimer: 0,
+            restTimerActive: false,
+            restTimerInterval: null,
+            restTimerStartedAt: null,
+            restTimerTotalDuration: 0,
+          });
+
+          // Trigger sound/vibration alerts when timer ends
+          if (settings.soundEnabled) {
+            get().playTimerSound('complete');
+          }
+          if (settings.vibrationEnabled && 'vibrate' in navigator) {
+            navigator.vibrate([200, 100, 200, 100, 300]);
+          }
         } else {
           set({ restTimer: current - 1 });
+
+          // Warning sound at countdown threshold
+          if (current === settings.countdownWarningAt && settings.soundEnabled) {
+            get().playTimerSound('warning');
+          }
         }
       }, 1000);
 
       set({ restTimerInterval: interval });
+    },
+
+    /**
+     * Play timer sound effect
+     * @param {string} type - 'warning' | 'complete'
+     */
+    playTimerSound: (type) => {
+      const { restTimerSettings } = get();
+      const volume = restTimerSettings.soundVolume;
+
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        gainNode.gain.value = volume;
+
+        if (type === 'warning') {
+          // Single short beep for warning
+          oscillator.frequency.value = 660;
+          oscillator.type = 'sine';
+          oscillator.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+          setTimeout(() => {
+            oscillator.stop();
+            audioContext.close();
+          }, 150);
+        } else if (type === 'complete') {
+          // Triple beep for completion based on sound type
+          const soundType = restTimerSettings.soundType;
+          let frequencies = [880, 880, 1100]; // default beep
+          let durations = [150, 150, 300];
+
+          if (soundType === 'chime') {
+            frequencies = [523, 659, 784]; // C-E-G chord
+            durations = [200, 200, 400];
+          } else if (soundType === 'bell') {
+            frequencies = [440, 554, 659]; // A-C#-E
+            durations = [300, 300, 500];
+          }
+
+          oscillator.frequency.value = frequencies[0];
+          oscillator.type = 'sine';
+          oscillator.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + durations[0] / 1000);
+
+          setTimeout(() => {
+            oscillator.stop();
+            audioContext.close();
+
+            // Second beep
+            const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+            const osc2 = ctx2.createOscillator();
+            const gain2 = ctx2.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx2.destination);
+            gain2.gain.value = volume;
+            osc2.frequency.value = frequencies[1];
+            osc2.type = 'sine';
+            osc2.start();
+            gain2.gain.exponentialRampToValueAtTime(0.01, ctx2.currentTime + durations[1] / 1000);
+            setTimeout(() => {
+              osc2.stop();
+              ctx2.close();
+
+              // Third beep
+              const ctx3 = new (window.AudioContext || window.webkitAudioContext)();
+              const osc3 = ctx3.createOscillator();
+              const gain3 = ctx3.createGain();
+              osc3.connect(gain3);
+              gain3.connect(ctx3.destination);
+              gain3.gain.value = volume;
+              osc3.frequency.value = frequencies[2];
+              osc3.type = 'sine';
+              osc3.start();
+              gain3.gain.exponentialRampToValueAtTime(0.01, ctx3.currentTime + durations[2] / 1000);
+              setTimeout(() => {
+                osc3.stop();
+                ctx3.close();
+              }, durations[2]);
+            }, durations[1] + 50);
+          }, durations[0] + 50);
+        }
+      } catch {
+        // Audio not supported or blocked
+      }
     },
 
     // Start timer with a preset
@@ -482,13 +626,47 @@ export const useWorkoutSessionStore = create(
       if (restTimerInterval) {
         clearInterval(restTimerInterval);
       }
-      set({ restTimer: 0, restTimerActive: false, restTimerInterval: null });
+      set({
+        restTimer: 0,
+        restTimerActive: false,
+        restTimerInterval: null,
+        restTimerStartedAt: null,
+        restTimerTotalDuration: 0,
+      });
     },
 
     adjustRestTimer: (delta) => {
+      const { restTimer, restTimerTotalDuration } = get();
+      const newTime = Math.max(0, restTimer + delta);
+      // Also update total duration if we're adding time
+      const newTotal = delta > 0 ? Math.max(restTimerTotalDuration, newTime) : restTimerTotalDuration;
+      set({
+        restTimer: newTime,
+        restTimerTotalDuration: newTotal,
+      });
+    },
+
+    /**
+     * Update rest timer settings (preferences)
+     * @param {Object} updates - Partial settings to update
+     */
+    updateRestTimerSettings: (updates) => {
       set((s) => ({
-        restTimer: Math.max(0, s.restTimer + delta),
+        restTimerSettings: {
+          ...s.restTimerSettings,
+          ...updates,
+        },
       }));
+    },
+
+    /**
+     * Get the progress percentage of the current rest timer
+     * @returns {number} Progress 0-100
+     */
+    getRestTimerProgress: () => {
+      const { restTimer, restTimerTotalDuration } = get();
+      if (!restTimerTotalDuration || restTimerTotalDuration === 0) return 0;
+      return ((restTimerTotalDuration - restTimer) / restTimerTotalDuration) * 100;
     },
 
     setDefaultRestDuration: (duration) => {
@@ -577,6 +755,7 @@ export const useWorkoutSessionStore = create(
       defaultRestDuration: state.defaultRestDuration,
       exerciseRestDefaults: state.exerciseRestDefaults,
       exerciseHistory: state.exerciseHistory,
+      restTimerSettings: state.restTimerSettings,
     }),
   }
 )
@@ -589,6 +768,7 @@ export const useWorkoutSessionStore = create(
 export const useRestTimer = () => {
   const restTimer = useWorkoutSessionStore((s) => s.restTimer);
   const restTimerActive = useWorkoutSessionStore((s) => s.restTimerActive);
+  const restTimerTotalDuration = useWorkoutSessionStore((s) => s.restTimerTotalDuration);
   const defaultRestDuration = useWorkoutSessionStore((s) => s.defaultRestDuration);
   const startRestTimer = useWorkoutSessionStore((s) => s.startRestTimer);
   const startRestTimerWithPreset = useWorkoutSessionStore((s) => s.startRestTimerWithPreset);
@@ -596,10 +776,17 @@ export const useRestTimer = () => {
   const adjustRestTimer = useWorkoutSessionStore((s) => s.adjustRestTimer);
   const setDefaultRestDuration = useWorkoutSessionStore((s) => s.setDefaultRestDuration);
   const setExerciseRestDefault = useWorkoutSessionStore((s) => s.setExerciseRestDefault);
+  const getRestTimerProgress = useWorkoutSessionStore((s) => s.getRestTimerProgress);
+
+  // Calculate progress percentage
+  const progress = restTimerTotalDuration > 0
+    ? ((restTimerTotalDuration - restTimer) / restTimerTotalDuration) * 100
+    : 0;
 
   return {
     time: restTimer,
     isActive: restTimerActive,
+    totalDuration: restTimerTotalDuration,
     defaultDuration: defaultRestDuration,
     presets: REST_PRESETS,
     start: startRestTimer,
@@ -608,7 +795,33 @@ export const useRestTimer = () => {
     adjust: adjustRestTimer,
     setDefault: setDefaultRestDuration,
     setExerciseDefault: setExerciseRestDefault,
+    getProgress: getRestTimerProgress,
+    progress,
     formatted: `${Math.floor(restTimer / 60)}:${(restTimer % 60).toString().padStart(2, '0')}`,
+  };
+};
+
+/**
+ * Hook for rest timer settings
+ */
+export const useRestTimerSettings = () => {
+  const settings = useWorkoutSessionStore((s) => s.restTimerSettings);
+  const updateRestTimerSettings = useWorkoutSessionStore((s) => s.updateRestTimerSettings);
+  const playTimerSound = useWorkoutSessionStore((s) => s.playTimerSound);
+
+  return {
+    settings,
+    update: updateRestTimerSettings,
+    playSound: playTimerSound,
+    // Convenience toggles
+    toggleAutoStart: () => updateRestTimerSettings({ autoStartAfterSet: !settings.autoStartAfterSet }),
+    toggleSound: () => updateRestTimerSettings({ soundEnabled: !settings.soundEnabled }),
+    toggleVibration: () => updateRestTimerSettings({ vibrationEnabled: !settings.vibrationEnabled }),
+    toggleFloating: () => updateRestTimerSettings({ showFloatingTimer: !settings.showFloatingTimer }),
+    setSoundType: (type) => updateRestTimerSettings({ soundType: type }),
+    setSoundVolume: (volume) => updateRestTimerSettings({ soundVolume: volume }),
+    setWarningThreshold: (seconds) => updateRestTimerSettings({ countdownWarningAt: seconds }),
+    setQuickAdjust: (seconds) => updateRestTimerSettings({ quickAdjustAmount: seconds }),
   };
 };
 

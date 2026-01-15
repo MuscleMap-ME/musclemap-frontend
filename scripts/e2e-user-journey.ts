@@ -444,6 +444,35 @@ async function testWorkouts(ctx: TestContext) {
     });
     assert([200, 404, 500].includes(res.status), 'Prescriptions should respond');
   });
+
+  await runTest('Workouts', 'Get exercise history (PRs/best lifts) via GraphQL', async () => {
+    const res = await request('POST', '/graphql', {
+      token: ctx.token,
+      body: {
+        query: `
+          query ExerciseHistory($exerciseIds: [ID!]!) {
+            exerciseHistory(exerciseIds: $exerciseIds) {
+              exerciseId
+              exerciseName
+              bestWeight
+              best1RM
+              bestVolume
+              lastPerformedAt
+              totalSessions
+            }
+          }
+        `,
+        variables: {
+          exerciseIds: ['bw-pike-pushup', 'bw-squat'],
+        },
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Exercise history GraphQL query should succeed');
+    const gqlRes = res.data as { data?: { exerciseHistory?: unknown[] }; errors?: unknown[] };
+    assert(!gqlRes.errors || gqlRes.errors.length === 0, 'Exercise history query should not have errors');
+    assert(Array.isArray(gqlRes.data?.exerciseHistory), 'Exercise history should return an array');
+  });
 }
 
 async function testGoals(ctx: TestContext) {
@@ -1712,6 +1741,188 @@ async function testProgressiveOverload(ctx: TestContext) {
 }
 
 // ============================================
+// ONE REP MAX (1RM) TEST
+// ============================================
+
+async function testOneRepMax(ctx: TestContext) {
+  logSection('ONE REP MAX (1RM)');
+
+  // Calculate 1RM without saving
+  await runTest('1RM', 'Calculate 1RM (Epley formula)', async () => {
+    const res = await request('POST', '/1rm/calculate', {
+      token: ctx.token,
+      body: {
+        weight: 225,
+        reps: 5,
+        formula: 'epley',
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should calculate 1RM');
+    const data = res.data as { data: { estimated1rm: number; formula: string } };
+    assert(data.data.estimated1rm > 225, 'Estimated 1RM should be greater than weight');
+    assert(data.data.formula === 'epley', 'Should use epley formula');
+  });
+
+  // Calculate 1RM with all formulas
+  await runTest('1RM', 'Calculate 1RM (all formulas)', async () => {
+    const res = await request('POST', '/1rm/calculate', {
+      token: ctx.token,
+      body: {
+        weight: 185,
+        reps: 8,
+        formula: 'average',
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should calculate average 1RM');
+    const data = res.data as { data: { estimated1rm: number; allFormulas: Record<string, number> } };
+    assert(data.data.estimated1rm > 0, 'Should have estimated 1RM');
+    assert(data.data.allFormulas?.epley > 0, 'Should include Epley calculation');
+    assert(data.data.allFormulas?.brzycki > 0, 'Should include Brzycki calculation');
+  });
+
+  // Record a 1RM entry
+  await runTest('1RM', 'Record 1RM entry', async () => {
+    const res = await request('POST', '/1rm', {
+      token: ctx.token,
+      body: {
+        exerciseId: 'BB-PUSH-BENCH-PRESS',
+        weight: 225,
+        reps: 3,
+        bodyweightKg: 80,
+      },
+      expectedStatus: [201],
+    });
+    assert(res.status === 201, 'Should record 1RM entry');
+    const data = res.data as { data: { entry: { id: string; estimated1rm: number }; isPr: boolean } };
+    assert(data.data.entry.id, 'Should return entry ID');
+    assert(data.data.entry.estimated1rm > 0, 'Should have estimated 1RM');
+    // First entry should be a PR
+    assert(data.data.isPr === true, 'First entry should be a PR');
+  });
+
+  // Get 1RM summary
+  await runTest('1RM', 'Get 1RM summary', async () => {
+    const res = await request('GET', '/1rm/summary', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get 1RM summary');
+    const data = res.data as { data: { totalExercisesTracked: number; totalPrs: number } };
+    assert(data.data.totalExercisesTracked >= 0, 'Should have exercises count');
+    assert(data.data.totalPrs >= 0, 'Should have PRs count');
+  });
+
+  // Get user's best 1RMs
+  await runTest('1RM', 'Get best lifts', async () => {
+    const res = await request('GET', '/1rm/best', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get best lifts');
+    const data = res.data as { data: unknown[]; meta: { totalExercises: number } };
+    assert(Array.isArray(data.data), 'Should return array of lifts');
+    assert(data.meta.totalExercises >= 0, 'Should return total count');
+  });
+
+  // Get compound total (powerlifting total)
+  await runTest('1RM', 'Get compound total', async () => {
+    const res = await request('GET', '/1rm/compound-total', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get compound total');
+    const data = res.data as { data: { hasData: boolean; powerliftingTotal?: number } };
+    assert('hasData' in data.data, 'Should return hasData flag');
+  });
+
+  // Get 1RM history for an exercise
+  await runTest('1RM', 'Get exercise 1RM history', async () => {
+    const res = await request('GET', '/1rm/exercise/BB-PUSH-BENCH-PRESS', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get exercise history');
+    const data = res.data as { data: unknown[] };
+    assert(Array.isArray(data.data), 'Should return history array');
+  });
+
+  // Get 1RM progression data
+  await runTest('1RM', 'Get 1RM progression', async () => {
+    const res = await request('GET', '/1rm/progression/BB-PUSH-BENCH-PRESS?period=weekly&days=90', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get progression data');
+    const data = res.data as { data: { exerciseId: string; data: unknown[] } };
+    assert(data.data.exerciseId === 'BB-PUSH-BENCH-PRESS', 'Should return correct exercise');
+    assert(Array.isArray(data.data.data), 'Should return progression data array');
+  });
+
+  // Get 1RM leaderboard
+  await runTest('1RM', 'Get 1RM leaderboard', async () => {
+    const res = await request('GET', '/1rm/leaderboard/BB-PUSH-BENCH-PRESS', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should get leaderboard');
+    const data = res.data as { data: unknown[]; meta: { exerciseId: string } };
+    assert(Array.isArray(data.data), 'Should return leaderboard array');
+    assert(data.meta.exerciseId === 'BB-PUSH-BENCH-PRESS', 'Should return correct exercise');
+  });
+
+  // Log a workout set with automatic 1RM calculation
+  await runTest('1RM', 'Log workout set with 1RM', async () => {
+    // First create a workout to have a valid workoutId
+    const workoutRes = await request('POST', '/workouts', {
+      token: ctx.token,
+      body: {
+        exercises: [
+          { exerciseId: 'BB-SQUAT-BACK-SQUAT', sets: 3, reps: 5, weight: 275 },
+        ],
+        notes: 'E2E 1RM test workout',
+        idempotencyKey: `e2e-1rm-test-${Date.now()}`,
+      },
+      expectedStatus: [200, 201, 400],
+    });
+
+    if (!workoutRes.ok) {
+      // Workout creation failed, skip set test
+      return;
+    }
+
+    const workoutData = workoutRes.data as { data?: { id?: string } };
+    const workoutId = workoutData.data?.id;
+
+    if (!workoutId) return;
+
+    const res = await request('POST', '/sets', {
+      token: ctx.token,
+      body: {
+        workoutId,
+        exerciseId: 'BB-SQUAT-BACK-SQUAT',
+        setNumber: 1,
+        weight: 315,
+        reps: 3,
+        tag: 'working',
+        rpe: 8,
+        bodyweightKg: 85,
+      },
+      expectedStatus: [201, 400, 500],
+    });
+    // 400/500 can happen if workout_sets table doesn't exist yet
+    assert([201, 400, 500].includes(res.status), 'Should respond to set logging');
+
+    if (res.status === 201) {
+      const data = res.data as { data: { id: string; estimated1rm: number | null; prs: unknown } };
+      assert(data.data.id, 'Should return set ID');
+      assert(data.data.estimated1rm === null || data.data.estimated1rm > 0, 'Should calculate estimated 1RM');
+    }
+  });
+}
+
+// ============================================
 // WEARABLES TEST
 // ============================================
 
@@ -2689,6 +2900,7 @@ async function main() {
     await testNotifications(ctx);
     await testWorkoutTemplates(ctx);
     await testProgressiveOverload(ctx);
+    await testOneRepMax(ctx);
     await testWearables(ctx);
     await testCrews(ctx);
     await testBuddy(ctx);

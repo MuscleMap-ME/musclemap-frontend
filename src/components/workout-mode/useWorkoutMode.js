@@ -12,15 +12,18 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useLazyQuery } from '@apollo/client';
 import { haptic } from '../../utils/haptics';
 import {
   useWorkoutSessionStore,
   useCurrentExercise,
   useRestTimer,
+  useRestTimerSettings,
   useSetLogging,
   useWorkoutMetrics,
   useSessionPRs,
 } from '../../store/workoutSessionStore';
+import { EXERCISE_HISTORY_QUERY } from '../../graphql/queries';
 
 // Swipe thresholds
 const SWIPE_HORIZONTAL_THRESHOLD = 50;
@@ -74,6 +77,9 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
   // Rest timer hooks
   const restTimer = useRestTimer();
 
+  // Rest timer settings (from persisted store)
+  const { settings: restTimerSettings, toggleAutoStart, toggleSound, toggleVibration, toggleFloating } = useRestTimerSettings();
+
   // Set logging hooks
   const setLogging = useSetLogging();
 
@@ -81,7 +87,30 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
   const metrics = useWorkoutMetrics();
 
   // PR tracking
-  const { prs: sessionPRs, hasPRs } = useSessionPRs();
+  const { prs: sessionPRs, hasPRs, getExerciseHistory, loadHistory } = useSessionPRs();
+
+  // Fetch exercise history from server using Apollo lazy query
+  const [fetchExerciseHistory] = useLazyQuery(EXERCISE_HISTORY_QUERY, {
+    fetchPolicy: 'network-only', // Always fetch fresh data for workout sessions
+    onCompleted: (data) => {
+      if (data?.exerciseHistory) {
+        // Convert the array of history entries into the store format
+        const historyMap = {};
+        data.exerciseHistory.forEach((entry) => {
+          historyMap[entry.exerciseId] = {
+            best1RM: entry.best1RM || 0,
+            bestWeight: entry.bestWeight || 0,
+            bestVolume: entry.bestVolume || 0,
+          };
+        });
+        loadHistory(historyMap);
+      }
+    },
+    onError: (error) => {
+      console.warn('Failed to fetch exercise history:', error.message);
+      // Continue without history - the store will use defaults
+    },
+  });
 
   // ============================================
   // WAKE LOCK MANAGEMENT
@@ -130,8 +159,16 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
       startSession(workout);
       requestWakeLock();
       haptic('success');
+
+      // Fetch exercise history for all exercises in this workout
+      const exerciseIds = workout?.exercises
+        ?.map((e) => e.exerciseId || e.id)
+        .filter(Boolean);
+      if (exerciseIds?.length > 0) {
+        fetchExerciseHistory({ variables: { exerciseIds } });
+      }
     }
-  }, [workout, isActive, startSession, requestWakeLock]);
+  }, [workout, isActive, startSession, requestWakeLock, fetchExerciseHistory]);
 
   /**
    * Handle workout completion
@@ -217,21 +254,21 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
   // ============================================
 
   /**
-   * Log a set and auto-start rest timer
+   * Log a set and auto-start rest timer based on settings
    */
   const logSet = useCallback(
     (setData) => {
       const result = setLogging.log(setData);
       haptic('success');
 
-      // Auto-start rest timer
-      if (soundEnabled) {
+      // Auto-start rest timer after logging set (if enabled in settings)
+      if (restTimerSettings.autoStartAfterSet) {
         restTimer.start(restDuration);
       }
 
       return result;
     },
-    [setLogging, restTimer, restDuration, soundEnabled]
+    [setLogging, restTimer, restDuration, restTimerSettings.autoStartAfterSet]
   );
 
   // ============================================
@@ -463,6 +500,7 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     // PRs
     sessionPRs,
     hasPRs,
+    getExerciseHistory,
 
     // Rest timer
     restTimer,
@@ -504,6 +542,13 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
     // Settings
     setSoundEnabled,
     setRestDuration,
+
+    // Rest timer settings (from persisted store)
+    restTimerSettings,
+    toggleAutoStart,
+    toggleSound,
+    toggleVibration,
+    toggleFloating,
   };
 }
 

@@ -86,6 +86,11 @@ import { registerOrganizationsRoutes } from './routes/organizations';
 import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
 import adminFeedbackRoutes from './routes/admin-feedback';
+import { registerPluginRoutes } from './routes/plugins';
+import oneRepMaxRoutes from './routes/one-rep-max';
+import workoutSetsRoutes from './routes/workout-sets';
+import { registerProgramRoutes } from './routes/programs';
+import { registerRecoveryRoutes } from './routes/recovery';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -393,6 +398,21 @@ export async function createServer(): Promise<FastifyInstance> {
     // User feedback system (bug reports, suggestions, questions, FAQ)
     await registerFeedbackRoutes(api);
     await adminFeedbackRoutes(api);
+
+    // Plugin settings management
+    await registerPluginRoutes(api);
+
+    // One Rep Max (1RM) tracking and progression
+    await api.register(oneRepMaxRoutes);
+
+    // Workout sets logging with 1RM calculation
+    await api.register(workoutSetsRoutes);
+
+    // Training programs and enrollment
+    await registerProgramRoutes(api);
+
+    // Sleep tracking and recovery scoring system
+    await registerRecoveryRoutes(api);
   }, { prefix: '/api' });
 
   return app;

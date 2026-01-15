@@ -66,6 +66,7 @@ musclemap.me/
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
 │   ├── mascot_system.md
 │   ├── MASTER-IMPLEMENTATION-PLAN.md
+│   ├── MISSING-FEATURES-IMPLEMENTATION-PLAN.md
 │   ├── NATIVE_EXTENSIONS.md
 │   ├── NUTRITION-SYSTEM-PLAN.md
 │   ├── PLUGIN-DEVELOPMENT.md
@@ -85,6 +86,7 @@ musclemap.me/
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
 │   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
 │   ├── UI-UX-ENHANCEMENT-PLAN.md
+│   ├── UNFINISHED-WORK-COMPLETION-PLAN.md
 │   ├── USER_GUIDE.md
 │   ├── VISUAL_ARCHITECTURE_MAPS.md
 │   └── XP-VELOCITY-LIMITS.md
@@ -218,7 +220,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (73 total)
+## Frontend Pages (76 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -271,11 +273,13 @@ musclemap.me/
 | NutritionHistory | No | Nutrition History Page  View historical nutrition data and trends / |
 | NutritionSettings | No | Nutrition Settings Page  Configure nutrition tracking preferences and goals / |
 | Onboarding | Yes | Handle archetype selection from ArchetypeSelector The selector already calls the API, so we just update state and move to step 2 / |
+| PersonalRecords | No | Personal Records Page  Track and visualize personal records (PRs) including: - 1RM estimates for all exercises - PR history and progression charts - Exercise-specific records - Overall strength progression / |
 | PluginGuide | No | Plugin Development Guide  A visual, step-by-step guide for creating MuscleMap plugins with interactive diagrams and code examples |
 | PluginMarketplace | No | PluginMarketplace - Browse and install community plugins  Features: - Browse available plugins - Search and filter - Install/uninstall plugins - View plugin details / |
 | PluginSettings | No | PluginSettings - Manage installed plugins  Features: - View installed plugins - Enable/disable plugins - Configure plugin settings - Uninstall plugins - View plugin permissions / |
 | Privacy | No | Privacy Policy Page  Required for App Store submission |
 | Profile | No | Profile page |
+| Progress-photos | No | Progress Photos Page  Complete progress photo tracking with: - Photo capture with positioning guides - Before/after comparison slider - Timeline gallery with thumbnails - Body part categorization - Image compression before upload - Local-only storage option (privacy mode) / |
 | Progression | No | Progression page |
 | PTTests | Yes | PT Tests Page - MuscleMap Liquid Glass Design  Physical fitness tests for military, first responders, and occupational training |
 | Recipes | No | Recipes Page  Browse, create, and manage recipes / |
@@ -283,6 +287,7 @@ musclemap.me/
 | Roadmap | No | Roadmap Page  Public roadmap showing: - Planned features - In progress work - Completed features - Voting on priorities / |
 | Science | No | Science Page  Explains the science behind MuscleMap's Training Units and muscle activation system |
 | Settings | No | Settings page |
+| ShoppingList | No | Shopping List Page  Displays aggregated shopping list from a meal plan / |
 | Signup | Yes | Signup page |
 | Skills | No | Skills page |
 | SkinsStore | No | SkinsStore page |
@@ -296,7 +301,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (206 total)
+## Components (211 total)
 
 Components are organized by feature:
 
@@ -539,6 +544,11 @@ Components are organized by feature:
 ### onboarding
 - `SpotlightTour`
 
+### progress-photos
+- `PhotoCompare`
+- `PhotoGallery`
+- `PhotoGuide`
+
 ### ranks
 - `RankBadge`
 - `VeteranBadge`
@@ -583,7 +593,9 @@ Components are organized by feature:
 - `TransitionProvider`
 
 ### workout
+- `FloatingRestTimer`
 - `RestTimerControl`
+- `RestTimerSettings`
 - `SetLogger`
 
 ### workout-mode
@@ -598,12 +610,20 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (695 total)
+## API Endpoints (753 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | `/__routes` | misc |
 | DELETE | `/:injuryId` | rehabilitation |
+| POST | `/1rm` | one-rep-max |
+| GET | `/1rm/best` | one-rep-max |
+| POST | `/1rm/calculate` | one-rep-max |
+| GET | `/1rm/compound-total` | one-rep-max |
+| GET | `/1rm/exercise/:exerciseId` | one-rep-max |
+| GET | `/1rm/leaderboard/:exerciseId` | one-rep-max |
+| GET | `/1rm/progression/:exerciseId` | one-rep-max |
+| GET | `/1rm/summary` | one-rep-max |
 | GET | `/achievements/:id/can-verify` | verifications |
 | POST | `/achievements/:id/verify` | verifications |
 | GET | `/achievements/categories` | achievements |
@@ -1110,6 +1130,14 @@ Components are organized by feature:
 | GET | `/personalization/plan` | personalization |
 | GET | `/personalization/recommendations` | personalization |
 | GET | `/personalization/summary` | personalization |
+| GET | `/plugins` | plugins |
+| GET | `/plugins/:pluginId` | plugins |
+| POST | `/plugins/:pluginId/disable` | plugins |
+| POST | `/plugins/:pluginId/enable` | plugins |
+| GET | `/plugins/:pluginId/settings` | plugins |
+| PUT | `/plugins/:pluginId/settings` | plugins |
+| DELETE | `/plugins/:pluginId/settings` | plugins |
+| PUT | `/plugins/settings/bulk` | plugins |
 | GET | `/prescription/:id` | prescription |
 | POST | `/prescription/generate` | prescription |
 | GET | `/privacy` | privacy |
@@ -1121,6 +1149,26 @@ Components are organized by feature:
 | PUT | `/profile` | auth |
 | GET | `/profiles` | rehabilitation |
 | GET | `/profiles/:id` | rehabilitation |
+| POST | `/programs` | programs |
+| GET | `/programs` | programs |
+| GET | `/programs/:id` | programs |
+| PUT | `/programs/:id` | programs |
+| DELETE | `/programs/:id` | programs |
+| POST | `/programs/:id/duplicate` | programs |
+| POST | `/programs/:id/enroll` | programs |
+| POST | `/programs/:id/rate` | programs |
+| POST | `/programs/:id/record-workout` | programs |
+| GET | `/programs/active-enrollment` | programs |
+| GET | `/programs/enrollments/:enrollmentId` | programs |
+| POST | `/programs/enrollments/:enrollmentId/drop` | programs |
+| POST | `/programs/enrollments/:enrollmentId/pause` | programs |
+| POST | `/programs/enrollments/:enrollmentId/progress` | programs |
+| POST | `/programs/enrollments/:enrollmentId/resume` | programs |
+| GET | `/programs/featured` | programs |
+| GET | `/programs/me` | programs |
+| GET | `/programs/my-enrollments` | programs |
+| GET | `/programs/official` | programs |
+| GET | `/programs/todays-workout` | programs |
 | GET | `/progress-photos` | progress-photos |
 | POST | `/progress-photos` | progress-photos |
 | GET | `/progress-photos/:id` | progress-photos |
@@ -1158,6 +1206,12 @@ Components are organized by feature:
 | POST | `/ranks/update-veterans` | ranks |
 | GET | `/ranks/user/:userId` | ranks |
 | GET | `/ranks/veteran-badge` | ranks |
+| GET | `/recovery/history` | recovery |
+| GET | `/recovery/recommendations` | recovery |
+| POST | `/recovery/recommendations/:id/acknowledge` | recovery |
+| POST | `/recovery/recommendations/generate` | recovery |
+| GET | `/recovery/score` | recovery |
+| GET | `/recovery/status` | recovery |
 | GET | `/reports` | content-reports |
 | GET | `/reports/my` | content-reports |
 | GET | `/reports/stats` | content-reports |
@@ -1174,6 +1228,11 @@ Components are organized by feature:
 | GET | `/roadmap` | issues |
 | POST | `/roadmap` | issues |
 | POST | `/roadmap/:id/vote` | issues |
+| POST | `/sets` | workout-sets |
+| DELETE | `/sets/:setId` | workout-sets |
+| POST | `/sets/bulk` | workout-sets |
+| GET | `/sets/exercise/:exerciseId` | workout-sets |
+| GET | `/sets/workout/:workoutId` | workout-sets |
 | GET | `/settings` | misc |
 | PATCH | `/settings` | misc |
 | GET | `/settings/themes` | misc |
@@ -1199,6 +1258,17 @@ Components are organized by feature:
 | GET | `/skills/trees` | skills |
 | GET | `/skills/trees/:treeId` | skills |
 | GET | `/skills/trees/:treeId/progress` | skills |
+| GET | `/sleep/:id` | recovery |
+| PATCH | `/sleep/:id` | recovery |
+| DELETE | `/sleep/:id` | recovery |
+| GET | `/sleep/goal` | recovery |
+| POST | `/sleep/goal` | recovery |
+| DELETE | `/sleep/goal/:id` | recovery |
+| GET | `/sleep/history` | recovery |
+| GET | `/sleep/last` | recovery |
+| POST | `/sleep/log` | recovery |
+| GET | `/sleep/stats` | recovery |
+| GET | `/sleep/weekly-stats` | recovery |
 | POST | `/social/boost` | economyEnhanced |
 | GET | `/social/boost/check` | economyEnhanced |
 | GET | `/social/boost/options` | economyEnhanced |

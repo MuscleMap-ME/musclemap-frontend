@@ -13,6 +13,8 @@ import { config } from '../config';
 import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { careerService } from '../modules/career';
+import { ProgressionService } from '../services/progression.service';
+import { ProgramsService, EnrollmentService } from '../modules/programs';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -410,6 +412,59 @@ export const resolvers = {
       };
     },
 
+    // Exercise History (PRs and best lifts for workout mode)
+    exerciseHistory: async (_: unknown, args: { exerciseIds: string[] }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { exerciseIds } = args;
+
+      if (!exerciseIds || exerciseIds.length === 0) {
+        return [];
+      }
+
+      // Limit to 50 exercises per request to prevent abuse
+      const limitedIds = exerciseIds.slice(0, 50);
+
+      // Fetch exercise history for all requested exercises in parallel
+      const historyPromises = limitedIds.map(async (exerciseId) => {
+        try {
+          const stats = await ProgressionService.getExerciseStats(userId, exerciseId);
+          if (!stats) {
+            return {
+              exerciseId,
+              exerciseName: null,
+              bestWeight: 0,
+              best1RM: 0,
+              bestVolume: 0,
+              lastPerformedAt: null,
+              totalSessions: 0,
+            };
+          }
+          return {
+            exerciseId,
+            exerciseName: stats.exerciseName,
+            bestWeight: stats.maxWeight || 0,
+            best1RM: stats.estimated1RM || 0,
+            bestVolume: stats.weeklyVolume || 0,
+            lastPerformedAt: stats.lastWorkoutDate || null,
+            totalSessions: stats.totalSessions,
+          };
+        } catch (err) {
+          log.warn({ err, exerciseId, userId }, 'Failed to get exercise history');
+          return {
+            exerciseId,
+            exerciseName: null,
+            bestWeight: 0,
+            best1RM: 0,
+            bestVolume: 0,
+            lastPerformedAt: null,
+            totalSessions: 0,
+          };
+        }
+      });
+
+      return Promise.all(historyPromises);
+    },
+
     // Goals
     goals: async (_: unknown, __: unknown, context: Context) => {
       const { userId } = requireAuth(context);
@@ -723,6 +778,81 @@ export const resolvers = {
         percentage: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100,
       },
     }),
+
+    // Training Programs Queries
+    trainingPrograms: async (
+      _: unknown,
+      args: { input?: {
+        search?: string;
+        category?: string;
+        difficulty?: string;
+        minRating?: number;
+        durationWeeks?: number;
+        daysPerWeek?: number;
+        official?: boolean;
+        featured?: boolean;
+        goals?: string[];
+        equipment?: string[];
+        creator?: string;
+        sortBy?: string;
+        limit?: number;
+        offset?: number;
+      } },
+      context: Context
+    ) => {
+      const result = await ProgramsService.search(args.input || {}, context.user?.userId);
+      return result.programs;
+    },
+
+    trainingProgram: async (_: unknown, args: { id: string }, context: Context) => {
+      return ProgramsService.getById(args.id, context.user?.userId);
+    },
+
+    officialPrograms: async (_: unknown, __: unknown, context: Context) => {
+      return ProgramsService.getOfficialPrograms(context.user?.userId);
+    },
+
+    featuredPrograms: async (_: unknown, args: { limit?: number }, context: Context) => {
+      return ProgramsService.getFeaturedPrograms(args.limit || 10, context.user?.userId);
+    },
+
+    myPrograms: async (_: unknown, args: { limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await ProgramsService.getUserPrograms(userId, {
+        limit: args.limit || 20,
+        offset: args.offset || 0,
+      });
+      return result.programs;
+    },
+
+    myEnrollments: async (
+      _: unknown,
+      args: { status?: string; limit?: number; offset?: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const result = await EnrollmentService.getUserEnrollments(userId, {
+        status: args.status as 'active' | 'paused' | 'completed' | 'dropped' | undefined,
+        limit: args.limit || 20,
+        offset: args.offset || 0,
+      });
+      return result.enrollments;
+    },
+
+    activeEnrollment: async (_: unknown, args: { programId?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.getActiveEnrollment(userId, args.programId);
+    },
+
+    enrollment: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.getEnrollmentWithProgram(args.id, userId);
+    },
+
+    todaysWorkout: async (_: unknown, args: { programId?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.getTodaysWorkout(userId, args.programId);
+    },
 
     // Career Readiness Queries
     careerStandards: async (_: unknown, args: { category?: string }) => {
@@ -1261,6 +1391,63 @@ export const resolvers = {
     logFrontendError: async (_: unknown, args: { input: any }) => {
       log.error({ frontendError: args.input }, 'Frontend error reported');
       return true;
+    },
+
+    // Training Programs Mutations
+    createProgram: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return ProgramsService.create(userId, args.input);
+    },
+
+    updateProgram: async (_: unknown, args: { id: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return ProgramsService.update(args.id, userId, args.input);
+    },
+
+    deleteProgram: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await ProgramsService.delete(args.id, userId);
+      return true;
+    },
+
+    duplicateProgram: async (_: unknown, args: { id: string; newName?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return ProgramsService.duplicate(args.id, userId, args.newName);
+    },
+
+    rateProgram: async (
+      _: unknown,
+      args: { id: string; rating: number; review?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await ProgramsService.rate(args.id, userId, args.rating, args.review);
+      return true;
+    },
+
+    enrollInProgram: async (_: unknown, args: { programId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.enroll(userId, args.programId);
+    },
+
+    recordProgramWorkout: async (_: unknown, args: { programId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.recordWorkout(userId, args.programId);
+    },
+
+    pauseEnrollment: async (_: unknown, args: { enrollmentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.pause(args.enrollmentId, userId);
+    },
+
+    resumeEnrollment: async (_: unknown, args: { enrollmentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.resume(args.enrollmentId, userId);
+    },
+
+    dropEnrollment: async (_: unknown, args: { enrollmentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return EnrollmentService.drop(args.enrollmentId, userId);
     },
 
     // Career Readiness Mutations

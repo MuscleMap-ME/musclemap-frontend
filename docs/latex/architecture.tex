@@ -152,7 +152,7 @@ The monorepo contains 6 packages:
 \section{Frontend Pages}
 % ============================================
 
-The application contains 73 pages:
+The application contains 76 pages:
 
 \begin{longtable}{@{}lcc@{}}
 \toprule
@@ -208,11 +208,13 @@ Nutrition & No & Nutrition Page  Full nutrition tracking  \\
 NutritionHistory & No & Nutrition History Page  View historical  \\
 NutritionSettings & No & Nutrition Settings Page  Configure nutri \\
 Onboarding & Yes & Handle archetype selection from Archetyp \\
+PersonalRecords & No & Personal Records Page  Track and visuali \\
 PluginGuide & No & Plugin Development Guide  A visual, step \\
 PluginMarketplace & No & PluginMarketplace - Browse and install c \\
 PluginSettings & No & PluginSettings - Manage installed plugin \\
 Privacy & No & Privacy Policy Page  Required for App St \\
 Profile & No & Profile page \\
+Progress-photos & No & Progress Photos Page  Complete progress  \\
 Progression & No & Progression page \\
 PTTests & Yes & PT Tests Page - MuscleMap Liquid Glass D \\
 Recipes & No & Recipes Page  Browse, create, and manage \\
@@ -220,6 +222,7 @@ Rivals & Yes & Rivals Page  1v1 rivalry competition sys \\
 Roadmap & No & Roadmap Page  Public roadmap showing: -  \\
 Science & No & Science Page  Explains the science behin \\
 Settings & No & Settings page \\
+ShoppingList & No & Shopping List Page  Displays aggregated  \\
 Signup & Yes & Signup page \\
 Skills & No & Skills page \\
 SkinsStore & No & SkinsStore page \\
@@ -240,7 +243,7 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 695 endpoints:
+The API exposes 753 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
@@ -249,6 +252,14 @@ The API exposes 695 endpoints:
 \endhead
 \texttt{GET} & \texttt{/\_\_routes} & misc \\
 \texttt{DELETE} & \texttt{/:injuryId} & rehabilitation \\
+\texttt{POST} & \texttt{/1rm} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/best} & one-rep-max \\
+\texttt{POST} & \texttt{/1rm/calculate} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/compound-total} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/exercise/:exerciseId} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/leaderboard/:exerciseId} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/progression/:exerciseId} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/summary} & one-rep-max \\
 \texttt{GET} & \texttt{/achievements/:id/can-verify} & verifications \\
 \texttt{POST} & \texttt{/achievements/:id/verify} & verifications \\
 \texttt{GET} & \texttt{/achievements/categories} & achievements \\
@@ -269,14 +280,6 @@ The API exposes 695 endpoints:
 \texttt{GET} & \texttt{/admin/escrow} & credits \\
 \texttt{POST} & \texttt{/admin/escrow/:escrowId/refund} & credits \\
 \texttt{POST} & \texttt{/admin/escrow/:escrowId/release} & credits \\
-\texttt{GET} & \texttt{/admin/feedback} & admin-feedback \\
-\texttt{GET} & \texttt{/admin/feedback/:id} & admin-feedback \\
-\texttt{PATCH} & \texttt{/admin/feedback/:id} & admin-feedback \\
-\texttt{POST} & \texttt{/admin/feedback/:id/cancel-autofix} & admin-feedback \\
-\texttt{POST} & \texttt{/admin/feedback/:id/confirm-bug} & admin-feedback \\
-\texttt{POST} & \texttt{/admin/feedback/:id/respond} & admin-feedback \\
-\texttt{GET} & \texttt{/admin/feedback/recent-activity} & admin-feedback \\
-\texttt{GET} & \texttt{/admin/feedback/stats} & admin-feedback \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}

@@ -218,7 +218,7 @@ export const useFeedbackStore = create(
             userAgent: navigator.userAgent,
             screenSize: `${window.innerWidth}x${window.innerHeight}`,
             platform: navigator.platform,
-            appVersion: '1.0.0', // TODO: Get from config
+            appVersion: import.meta.env.VITE_APP_VERSION,
           };
         },
       }),

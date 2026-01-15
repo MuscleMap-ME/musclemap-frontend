@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+
+// Read package.json to get version
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
 
 export default defineConfig({
+  // Define environment variables from package.json
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     // Bundle visualizer - generates stats.html when ANALYZE=true

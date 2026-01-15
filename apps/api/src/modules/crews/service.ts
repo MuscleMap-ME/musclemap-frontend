@@ -585,8 +585,12 @@ export async function getCrewStats(crewId: string): Promise<CrewStats> {
   );
 
   // Calculate current win streak from completed wars
-  // Only count sequential (non-overlapping) wars for streak calculation
-  // A war is sequential if it started after the previous war ended
+  // Wars are ordered by end_date DESC (most recent first)
+  // For streak calculation:
+  // - A win increases the streak
+  // - A loss (winner_id is opponent) breaks the streak
+  // - A tie (winner_id is null) does NOT break a win streak
+  // - Overlapping wars are tracked but don't count toward streak
   const warResults = await queryAll<{
     winner_id: string | null;
     start_date: string;
@@ -601,24 +605,35 @@ export async function getCrewStats(crewId: string): Promise<CrewStats> {
   );
 
   let currentStreak = 0;
-  let lastWarEndDate: Date | null = null;
+  let lastProcessedWarStart: Date | null = null;
 
   for (const war of warResults) {
-    // Skip parallel wars - only count wars that started after the previous one ended
-    // (or the first war in the sequence)
-    if (lastWarEndDate !== null) {
-      const warStartDate = new Date(war.start_date);
-      // If this war overlapped with the previous one, skip it for streak purposes
-      if (warStartDate < lastWarEndDate) {
-        continue;
+    const warEndDate = new Date(war.end_date);
+    const warStartDate = new Date(war.start_date);
+
+    // Check for overlapping wars (this war ended after a more recent war started)
+    // Since we're iterating most recent first, if this war's end overlaps with
+    // the previous war's start, skip it for streak counting
+    if (lastProcessedWarStart !== null && warEndDate > lastProcessedWarStart) {
+      // This war overlapped - check if it was a loss that should break streak
+      if (war.winner_id !== null && war.winner_id !== crewId) {
+        break; // Overlapping loss still breaks the streak
       }
+      // Overlapping win or tie - skip counting but continue checking
+      continue;
     }
 
+    // Non-overlapping war - check result
     if (war.winner_id === crewId) {
+      // Win - increment streak
       currentStreak++;
-      lastWarEndDate = new Date(war.end_date);
+      lastProcessedWarStart = warStartDate;
+    } else if (war.winner_id === null) {
+      // Tie - doesn't count toward streak but doesn't break it either
+      lastProcessedWarStart = warStartDate;
     } else {
-      break; // Streak broken by a loss (or tie if winner_id is null)
+      // Loss - streak broken
+      break;
     }
   }
 

@@ -109,7 +109,7 @@ function MealPlanCard({ plan, onActivate, isActive }) {
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              // TODO: View shopping list
+              navigate(`/nutrition/plans/${plan.id}/shopping-list`);
             }}
           >
             <ShoppingCart className="w-3 h-3 mr-1" />

@@ -26,6 +26,7 @@ import { SetLogger } from './SetLogger';
 import { RestTimer } from './RestTimer';
 import { WorkoutProgress } from './WorkoutProgress';
 import { QuickControls } from './QuickControls';
+import { FloatingRestTimer } from '../workout/FloatingRestTimer';
 import { GlassSurface } from '../glass';
 import { useShouldReduceMotion } from '../../contexts/MotionContext';
 import { haptic } from '../../utils/haptics';
@@ -68,7 +69,12 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
     logSet,
     setSoundEnabled,
     setRestDuration,
+    getExerciseHistory,
+    restTimerSettings,
   } = useWorkoutMode({ workout, onComplete, onClose });
+
+  // Get exercise history for current exercise
+  const exerciseHistory = currentExercise?.id ? getExerciseHistory(currentExercise.id) : null;
 
   // Motion values for swipe gestures
   const dragX = useMotionValue(0);
@@ -317,8 +323,8 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
               <SetLogger
                 exercise={currentExercise}
                 previousSet={previousSet}
-                bestWeight={0} // TODO: Connect to exercise history
-                best1RM={0} // TODO: Connect to exercise history
+                bestWeight={exerciseHistory?.bestWeight || 0}
+                best1RM={exerciseHistory?.best1RM || 0}
                 onLogSet={logSet}
                 onStartTimer={() => restTimer.start(restDuration)}
                 defaultWeight={previousSet?.weight || 0}
@@ -418,6 +424,12 @@ export function WorkoutMode({ workout, onComplete, onClose }) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Floating Rest Timer - visible when timer is active but user is browsing */}
+          <FloatingRestTimer
+            enabled={restTimerSettings?.showFloatingTimer}
+            onTimerEnd={() => haptic('success')}
+          />
         </motion.div>
       )}
     </AnimatePresence>

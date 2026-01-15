@@ -697,6 +697,7 @@ export const geoHangoutsService = {
       max_participants: number | null;
       status: string;
       created_by: string | null;
+      participant_count: string; // COUNT() returns string in pg
     }>(
       `SELECT c.*,
          (SELECT COUNT(*) FROM hangout_challenge_participants WHERE challenge_id = c.id) as participant_count
@@ -721,7 +722,7 @@ export const geoHangoutsService = {
       totalPrize: r.base_prize + r.contributed_prize,
       entryFee: r.entry_fee,
       maxParticipants: r.max_participants || undefined,
-      participantCount: 0, // TODO: add join
+      participantCount: parseInt(r.participant_count, 10) || 0,
       status: r.status as HangoutChallenge['status'],
       createdBy: r.created_by || undefined,
     }));

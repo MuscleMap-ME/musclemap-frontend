@@ -484,6 +484,53 @@ export function useMealPlans() {
 }
 
 /**
+ * Hook for shopping list management
+ */
+export function useShoppingList() {
+  const { setLoading, setError, isLoading, error } = useNutritionStore();
+
+  const getShoppingList = useCallback(async (planId) => {
+    setLoading(true);
+    try {
+      // First get the meal plan to get the shopping list
+      const plan = await fetchAPI(`/me/nutrition/plans/${planId}`);
+      return {
+        shoppingList: plan.shoppingList || [],
+        planName: plan.name,
+        planId: plan.id,
+      };
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError]);
+
+  const generateShoppingList = useCallback(async (planId) => {
+    setLoading(true);
+    try {
+      const list = await fetchAPI(`/me/nutrition/plans/${planId}/shopping-list`, {
+        method: 'POST',
+      });
+      return list;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError]);
+
+  return {
+    getShoppingList,
+    generateShoppingList,
+    isLoading,
+    error,
+  };
+}
+
+/**
  * Hook for archetype nutrition profiles
  */
 export function useArchetypeNutrition() {
@@ -535,6 +582,7 @@ export default {
   useHydration,
   useRecipes,
   useMealPlans,
+  useShoppingList,
   useArchetypeNutrition,
   useNutritionAutoLoad,
 };

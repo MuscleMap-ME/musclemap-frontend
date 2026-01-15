@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { RestTimerSettings } from '../components/workout/RestTimerSettings';
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -131,9 +132,15 @@ export default function Settings() {
           </div>
         </section>
 
+        {/* Workout Settings */}
+        <section className="bg-gray-800 rounded-2xl p-4">
+          <h2 className="font-bold mb-4">Rest Timer</h2>
+          <RestTimerSettings compact className="bg-transparent border-0 p-0" />
+        </section>
+
         {/* Privacy */}
         <section className="bg-gray-800 rounded-2xl p-4">
-          <h2 className="font-bold mb-4">🔒 Privacy</h2>
+          <h2 className="font-bold mb-4">Privacy</h2>
           <div className="space-y-4">
             {/* Link to full privacy settings */}
             <Link

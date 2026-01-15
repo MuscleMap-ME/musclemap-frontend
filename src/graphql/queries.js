@@ -96,6 +96,24 @@ export const MUSCLES_QUERY = gql`
 `;
 
 // ============================================
+// EXERCISE HISTORY (PRs and Best Lifts)
+// ============================================
+
+export const EXERCISE_HISTORY_QUERY = gql`
+  query ExerciseHistory($exerciseIds: [ID!]!) {
+    exerciseHistory(exerciseIds: $exerciseIds) {
+      exerciseId
+      exerciseName
+      bestWeight
+      best1RM
+      bestVolume
+      lastPerformedAt
+      totalSessions
+    }
+  }
+`;
+
+// ============================================
 // WORKOUTS
 // ============================================
 

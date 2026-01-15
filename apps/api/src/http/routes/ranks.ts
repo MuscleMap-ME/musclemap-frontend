@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import { rankService, xpService, RankName } from '../../modules/ranks';
 import { loggers } from '../../lib/logger';
+import { queryOne } from '../../db/client';
 
 const _log = loggers.economy;
 
@@ -123,8 +124,19 @@ export async function registerRanksRoutes(app: FastifyInstance) {
     // Check if viewing own profile (always allowed)
     const isOwnProfile = viewerId === userId;
 
-    // TODO: Check user_field_visibility.show_rank for privacy
-    // For now, rank is public by default
+    // Check user_field_visibility.show_rank for privacy
+    if (!isOwnProfile) {
+      const visibility = await queryOne<{ show_rank: boolean }>(
+        'SELECT show_rank FROM user_field_visibility WHERE user_id = $1',
+        [userId]
+      );
+      // If visibility record exists and show_rank is false, hide rank info
+      if (visibility && visibility.show_rank === false) {
+        return reply.status(403).send({
+          error: { code: 'PRIVATE', message: 'User rank information is private', statusCode: 403 },
+        });
+      }
+    }
 
     return reply.send({
       data: {
