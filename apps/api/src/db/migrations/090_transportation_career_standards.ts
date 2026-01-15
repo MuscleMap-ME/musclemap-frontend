@@ -62,11 +62,11 @@ export async function migrate(): Promise<void> {
     // Also try the common auto-generated name pattern
     await db.query(`ALTER TABLE pt_tests DROP CONSTRAINT IF EXISTS pt_tests_category_check`);
 
-    // Add new constraint with transportation category
+    // Add new constraint with all categories
     await db.query(`
       ALTER TABLE pt_tests
       ADD CONSTRAINT pt_tests_category_check
-      CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'transportation'))
+      CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'corrections', 'ems_paramedic', 'trades_construction', 'lifeguard', 'public_service', 'park_ranger', 'transportation'))
     `);
   }
 
