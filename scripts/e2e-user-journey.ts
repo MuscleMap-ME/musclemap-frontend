@@ -1387,6 +1387,267 @@ async function testMascot(ctx: TestContext) {
     assert(res.status === 200, 'Mascot assist history should respond');
     // History may or may not have entries depending on previous test
   });
+
+  // ============================================
+  // MASCOT POWERS TESTS (Phases 2-6)
+  // ============================================
+
+  // Get comprehensive mascot powers summary
+  await runTest('Mascot', 'Get mascot powers summary', async () => {
+    const res = await request('GET', '/mascot/companion/powers', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot powers summary should respond');
+    const data = res.data as {
+      data?: {
+        companionStage?: number;
+        energy?: { current?: number; max?: number };
+        phase2?: { bonusMultiplier?: unknown };
+        phase3?: unknown;
+        phase4?: unknown;
+        phase5?: unknown;
+        phase6?: unknown;
+      };
+    };
+    assert(data?.data?.companionStage !== undefined, 'Should have companion stage');
+    assert(data?.data?.energy !== undefined, 'Should have energy');
+    assert(data?.data?.phase2 !== undefined, 'Should have phase2 data');
+  });
+
+  // Get all mascot powers (raw)
+  await runTest('Mascot', 'Get all mascot powers raw', async () => {
+    const res = await request('GET', '/mascot/companion/powers/all', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'All mascot powers should respond');
+  });
+
+  // Get mascot energy
+  await runTest('Mascot', 'Get mascot energy', async () => {
+    const res = await request('GET', '/mascot/companion/energy', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Mascot energy should respond');
+    const data = res.data as { data?: { current?: number; max?: number; regenPerHour?: number } };
+    assert(data?.data?.current !== undefined, 'Should have current energy');
+    assert(data?.data?.max !== undefined, 'Should have max energy');
+  });
+
+  // ============================================
+  // PHASE 2: CREDIT & ECONOMY
+  // ============================================
+
+  // Get bonus multiplier
+  await runTest('Mascot', 'Get bonus multiplier', async () => {
+    const res = await request('GET', '/mascot/companion/bonus', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Bonus multiplier should respond');
+    const data = res.data as {
+      data?: {
+        totalMultiplier?: number;
+        firstWorkoutBonus?: number;
+        consecutiveDays?: number;
+      };
+    };
+    assert(data?.data?.totalMultiplier !== undefined, 'Should have total multiplier');
+    assert(data?.data?.totalMultiplier >= 1, 'Multiplier should be at least 1.0');
+  });
+
+  // Get streak saver status
+  await runTest('Mascot', 'Get streak saver status', async () => {
+    const res = await request('GET', '/mascot/companion/streak-saver', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Streak saver status should respond');
+    const data = res.data as {
+      data?: {
+        weeklySaves?: number;
+        savesUsed?: number;
+        savesRemaining?: number;
+        creditCost?: number;
+      };
+    };
+    assert(data?.data?.weeklySaves !== undefined, 'Should have weekly saves limit');
+  });
+
+  // Get credit alerts
+  await runTest('Mascot', 'Get credit alerts', async () => {
+    const res = await request('GET', '/mascot/companion/credit-alerts', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Credit alerts should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have alerts array');
+  });
+
+  // ============================================
+  // PHASE 3: JOURNEY & PROGRESS
+  // ============================================
+
+  // Get workout suggestion
+  await runTest('Mascot', 'Get workout suggestion', async () => {
+    const res = await request('GET', '/mascot/companion/workout-suggestion', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Workout suggestion should respond');
+    // May be null for new users
+  });
+
+  // Get recovered muscles
+  await runTest('Mascot', 'Get recovered muscles', async () => {
+    const res = await request('GET', '/mascot/companion/recovered-muscles', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Recovered muscles should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have muscles array');
+  });
+
+  // Get milestones
+  await runTest('Mascot', 'Get milestone predictions', async () => {
+    const res = await request('GET', '/mascot/companion/milestones', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Milestones should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have milestones array');
+  });
+
+  // ============================================
+  // PHASE 4: SOCIAL & COMMUNITY
+  // ============================================
+
+  // Get social actions
+  await runTest('Mascot', 'Get social actions', async () => {
+    const res = await request('GET', '/mascot/companion/social-actions', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Social actions should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have actions array');
+  });
+
+  // Get highfive prefs
+  await runTest('Mascot', 'Get highfive preferences', async () => {
+    const res = await request('GET', '/mascot/companion/highfive-prefs', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Highfive prefs should respond');
+    const data = res.data as {
+      data?: {
+        enabled?: boolean;
+        dailyLimit?: number;
+        usedToday?: number;
+      };
+    };
+    assert(data?.data?.dailyLimit !== undefined, 'Should have daily limit');
+  });
+
+  // Update highfive prefs
+  await runTest('Mascot', 'Update highfive preferences', async () => {
+    const res = await request('PUT', '/mascot/companion/highfive-prefs', {
+      token: ctx.token,
+      body: { enabled: false, dailyLimit: 25 },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update highfive prefs');
+  });
+
+  // ============================================
+  // PHASE 5: ACCOUNT & META
+  // ============================================
+
+  // Get tutorial status
+  await runTest('Mascot', 'Get tutorial status', async () => {
+    const res = await request('GET', '/mascot/companion/tutorial', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Tutorial status should respond');
+    const data = res.data as {
+      data?: {
+        complete?: boolean;
+        currentStep?: string;
+      };
+    };
+    assert(data?.data?.complete !== undefined, 'Should have completion status');
+  });
+
+  // Get data alerts
+  await runTest('Mascot', 'Get data alerts', async () => {
+    const res = await request('GET', '/mascot/companion/data-alerts', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Data alerts should respond');
+    const data = res.data as {
+      data?: {
+        alerts?: unknown[];
+        shouldRemindBackup?: boolean;
+      };
+    };
+    assert(data?.data?.alerts !== undefined, 'Should have alerts');
+    assert(data?.data?.shouldRemindBackup !== undefined, 'Should have backup reminder flag');
+  });
+
+  // ============================================
+  // PHASE 6: ADVANCED AI
+  // ============================================
+
+  // Get generated programs
+  await runTest('Mascot', 'Get generated programs', async () => {
+    const res = await request('GET', '/mascot/companion/programs', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Programs should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have programs array');
+  });
+
+  // Get overtraining alerts
+  await runTest('Mascot', 'Get overtraining alerts', async () => {
+    const res = await request('GET', '/mascot/companion/overtraining-alerts', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Overtraining alerts should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have alerts array');
+  });
+
+  // Get nutrition hint
+  await runTest('Mascot', 'Get nutrition hint', async () => {
+    const res = await request('GET', '/mascot/companion/nutrition-hint?timing=anytime', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Nutrition hint should respond');
+    // Hint may be null for low stage users
+  });
+
+  // Get master abilities
+  await runTest('Mascot', 'Get master abilities', async () => {
+    const res = await request('GET', '/mascot/companion/master-abilities', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Master abilities should respond');
+    const data = res.data as { data?: unknown[] };
+    assert(Array.isArray(data?.data), 'Should have abilities array');
+  });
 }
 
 async function testCareerReadiness(ctx: TestContext) {

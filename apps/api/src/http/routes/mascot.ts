@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { queryOne, queryAll, query } from '../../db/client';
 import { economyService } from '../../modules/economy';
-import { companionEventsService, mascotAssistService } from '../../modules/mascot';
+import { companionEventsService, mascotAssistService, mascotPowersService } from '../../modules/mascot';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.db;
@@ -740,6 +740,452 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       log.error({ error, userId }, 'Failed to get assist abilities');
       return reply.status(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Failed to get abilities', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // MASCOT POWERS ROUTES (Phases 2-6)
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/powers
+   * Get comprehensive mascot powers summary for user
+   */
+  app.get('/mascot/companion/powers', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const summary = await mascotPowersService.getPowersSummary(userId);
+      return reply.send({ data: summary });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get mascot powers summary');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get powers', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/powers/all
+   * Get all mascot powers (raw from DB function)
+   */
+  app.get('/mascot/companion/powers/all', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const powers = await mascotPowersService.getAllPowers(userId);
+      return reply.send({ data: powers });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get all mascot powers');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get powers', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/energy
+   * Get current mascot energy
+   */
+  app.get('/mascot/companion/energy', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const energy = await mascotPowersService.getEnergy(userId);
+      return reply.send({ data: energy });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get mascot energy');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get energy', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PHASE 2: CREDIT & ECONOMY ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/bonus
+   * Get current bonus multiplier status
+   */
+  app.get('/mascot/companion/bonus', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const bonus = await mascotPowersService.getBonusMultiplier(userId);
+      return reply.send({ data: bonus });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get bonus multiplier');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get bonus', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/streak-saver
+   * Get streak saver configuration and usage
+   */
+  app.get('/mascot/companion/streak-saver', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const streakSaver = await mascotPowersService.getStreakSaverStatus(userId);
+      return reply.send({ data: streakSaver });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get streak saver status');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get streak saver', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/streak-saver/use
+   * Use streak saver to protect a streak
+   */
+  app.post('/mascot/companion/streak-saver/use', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { streakType, streakValue } = request.body as { streakType: string; streakValue: number };
+
+    if (!streakType || typeof streakValue !== 'number') {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'streakType and streakValue required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await mascotPowersService.saveStreak(
+        userId,
+        streakType as 'workout_streak' | 'login_streak' | 'goal_streak' | 'challenge_streak',
+        streakValue
+      );
+
+      if (!result.success) {
+        return reply.status(400).send({
+          error: { code: result.error, message: 'Failed to save streak', statusCode: 400 },
+        });
+      }
+
+      return reply.send({ data: { success: true, saveId: result.saveId } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to use streak saver');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to save streak', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/credit-alerts
+   * Get active credit alerts
+   */
+  app.get('/mascot/companion/credit-alerts', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const alerts = await mascotPowersService.getCreditAlerts(userId);
+      return reply.send({ data: alerts });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get credit alerts');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get alerts', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/credit-alerts/:alertId/dismiss
+   * Dismiss a credit alert
+   */
+  app.post('/mascot/companion/credit-alerts/:alertId/dismiss', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { alertId } = request.params as { alertId: string };
+
+    try {
+      await mascotPowersService.dismissCreditAlert(userId, alertId);
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, alertId }, 'Failed to dismiss credit alert');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to dismiss alert', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PHASE 3: JOURNEY & PROGRESS ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/workout-suggestion
+   * Get today's workout suggestion
+   */
+  app.get('/mascot/companion/workout-suggestion', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const suggestion = await mascotPowersService.getWorkoutSuggestion(userId);
+      return reply.send({ data: suggestion });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get workout suggestion');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get suggestion', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/recovered-muscles
+   * Get recovered muscle groups ready to train
+   */
+  app.get('/mascot/companion/recovered-muscles', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const muscles = await mascotPowersService.getRecoveredMuscles(userId);
+      return reply.send({ data: muscles });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get recovered muscles');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get recovery status', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/milestones
+   * Get active milestone predictions
+   */
+  app.get('/mascot/companion/milestones', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const milestones = await mascotPowersService.getMilestones(userId);
+      return reply.send({ data: milestones });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get milestones');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get milestones', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PHASE 4: SOCIAL & COMMUNITY ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/social-actions
+   * Get pending social actions for mascot to perform
+   */
+  app.get('/mascot/companion/social-actions', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const actions = await mascotPowersService.getSocialActions(userId);
+      return reply.send({ data: actions });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get social actions');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get social actions', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/highfive-prefs
+   * Get auto-highfive preferences
+   */
+  app.get('/mascot/companion/highfive-prefs', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const prefs = await mascotPowersService.getHighfivePrefs(userId);
+      return reply.send({ data: prefs });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get highfive prefs');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get preferences', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * PUT /mascot/companion/highfive-prefs
+   * Update auto-highfive preferences
+   */
+  app.put('/mascot/companion/highfive-prefs', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const prefs = request.body as {
+      enabled?: boolean;
+      closeFriends?: boolean;
+      crew?: boolean;
+      allFollowing?: boolean;
+      dailyLimit?: number;
+    };
+
+    try {
+      await mascotPowersService.updateHighfivePrefs(userId, prefs);
+      const updated = await mascotPowersService.getHighfivePrefs(userId);
+      return reply.send({ data: updated });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to update highfive prefs');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to update preferences', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PHASE 5: ACCOUNT & META ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/tutorial
+   * Get tutorial progress
+   */
+  app.get('/mascot/companion/tutorial', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const status = await mascotPowersService.getTutorialStatus(userId);
+      return reply.send({ data: status });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get tutorial status');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get tutorial', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/data-alerts
+   * Get data integrity alerts
+   */
+  app.get('/mascot/companion/data-alerts', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const alerts = await mascotPowersService.getDataAlerts(userId);
+      const shouldRemindBackup = await mascotPowersService.shouldRemindBackup(userId);
+      return reply.send({ data: { alerts, shouldRemindBackup } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get data alerts');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get alerts', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PHASE 6: ADVANCED AI ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/programs
+   * Get generated workout programs
+   */
+  app.get('/mascot/companion/programs', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const programs = await mascotPowersService.getPrograms(userId);
+      return reply.send({ data: programs });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get programs');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get programs', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/overtraining-alerts
+   * Get overtraining/injury prevention alerts
+   */
+  app.get('/mascot/companion/overtraining-alerts', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const alerts = await mascotPowersService.getOvertrainingAlerts(userId);
+      return reply.send({ data: alerts });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get overtraining alerts');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get alerts', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/nutrition-hint
+   * Get a nutrition hint
+   */
+  app.get('/mascot/companion/nutrition-hint', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { timing } = request.query as { timing?: string };
+
+    try {
+      const hint = await mascotPowersService.getNutritionHint(userId, timing || 'anytime');
+      return reply.send({ data: { hint } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get nutrition hint');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get hint', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // MASTER ABILITIES ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/master-abilities
+   * Get available master abilities (stage 6 only)
+   */
+  app.get('/mascot/companion/master-abilities', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const abilities = await mascotPowersService.getMasterAbilities(userId);
+      return reply.send({ data: abilities });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get master abilities');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get abilities', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/master-abilities/:abilityKey/unlock
+   * Unlock a master ability
+   */
+  app.post('/mascot/companion/master-abilities/:abilityKey/unlock', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { abilityKey } = request.params as { abilityKey: string };
+
+    try {
+      const result = await mascotPowersService.unlockMasterAbility(userId, abilityKey);
+
+      if (!result.success) {
+        const statusCode = result.error === 'STAGE_6_REQUIRED' ? 403 :
+                          result.error === 'ALREADY_UNLOCKED' ? 409 :
+                          result.error === 'ABILITY_NOT_FOUND' ? 404 : 400;
+        return reply.status(statusCode).send({
+          error: { code: result.error, message: 'Failed to unlock ability', statusCode },
+        });
+      }
+
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, abilityKey }, 'Failed to unlock master ability');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to unlock ability', statusCode: 500 },
       });
     }
   });
