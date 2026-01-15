@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Auto-generated on 2026-01-14
+> Auto-generated on 2026-01-15
 
 ## Overview
 

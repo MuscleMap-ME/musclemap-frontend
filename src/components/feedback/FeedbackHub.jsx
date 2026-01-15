@@ -8,10 +8,12 @@
  * - Pulsing animation to draw attention
  * - Quick access to bug reports, suggestions, and help
  * - Expandable menu on hover/click
- * - Mobile-friendly touch target
+ * - Mobile-friendly touch target (min 48px)
+ * - Compatible with older browsers (graceful degradation)
+ * - Safe area aware for mobile devices
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageCircleQuestion,
@@ -22,6 +24,28 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { useFeedbackModal } from '../../store/feedbackStore';
+
+/**
+ * Check if reduced motion is preferred (for accessibility and older devices)
+ */
+const useReducedMotion = () => {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (mediaQuery) {
+      setPrefersReducedMotion(mediaQuery.matches);
+      const handler = (e) => setPrefersReducedMotion(e.matches);
+      mediaQuery.addEventListener?.('change', handler) || mediaQuery.addListener?.(handler);
+      return () => {
+        mediaQuery.removeEventListener?.('change', handler) || mediaQuery.removeListener?.(handler);
+      };
+    }
+  }, []);
+
+  return prefersReducedMotion;
+};
 
 const QUICK_ACTIONS = [
   {
@@ -56,10 +80,14 @@ const QUICK_ACTIONS = [
 
 /**
  * Feedback Hub Component
+ *
+ * Positioned with safe-area-inset for iOS and increased z-index for visibility.
+ * Falls back gracefully on older browsers without backdrop-blur support.
  */
 export function FeedbackHub() {
   const [isExpanded, setIsExpanded] = useState(false);
   const { openFeedbackModal, setStep } = useFeedbackModal();
+  const reducedMotion = useReducedMotion();
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -84,45 +112,70 @@ export function FeedbackHub() {
     }
   }, [isExpanded]);
 
+  // Animation variants - disabled for reduced motion
+  const containerVariants = reducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 20, scale: 0.8 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 20, scale: 0.8 },
+      };
+
+  const itemVariants = reducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, x: 20 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: 20 },
+      };
+
   return (
     <>
       {/* Backdrop for click away */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={reducedMotion ? undefined : { opacity: 0 }}
+            animate={reducedMotion ? undefined : { opacity: 1 }}
+            exit={reducedMotion ? undefined : { opacity: 0 }}
             onClick={handleClickAway}
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[998]"
+            style={{ touchAction: 'none' }}
           />
         )}
       </AnimatePresence>
 
-      {/* Floating Hub */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3">
+      {/* Floating Hub - z-[999] ensures it's above everything including mobile nav */}
+      <div
+        className="fixed z-[999] flex flex-col-reverse items-end gap-3"
+        style={{
+          bottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+          right: 'max(24px, env(safe-area-inset-right, 24px))',
+        }}
+      >
         {/* Quick Actions */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
+              {...containerVariants}
+              transition={reducedMotion ? undefined : { duration: 0.2 }}
               className="flex flex-col gap-2 mb-2"
             >
               {QUICK_ACTIONS.map((action, index) => (
                 <motion.button
                   key={action.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: index * 0.05 }}
+                  {...itemVariants}
+                  transition={reducedMotion ? undefined : { delay: index * 0.05 }}
                   onClick={() => handleAction(action.id)}
-                  className="flex items-center gap-3 pl-4 pr-5 py-3 rounded-full bg-gray-900/95 backdrop-blur-lg border border-white/10 shadow-lg hover:bg-gray-800 transition-all group"
+                  className="flex items-center gap-3 pl-4 pr-5 py-3 rounded-full bg-gray-900 border border-white/10 shadow-xl hover:bg-gray-800 transition-colors"
+                  style={{
+                    minHeight: '48px',
+                    // Fallback for older browsers without backdrop-blur
+                    backgroundColor: 'rgba(17, 24, 39, 0.98)',
+                  }}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full bg-gradient-to-br ${action.color} flex items-center justify-center`}
+                    className={`w-8 h-8 rounded-full bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0`}
                   >
                     <action.icon className="w-4 h-4 text-white" />
                   </div>
@@ -135,22 +188,37 @@ export function FeedbackHub() {
           )}
         </AnimatePresence>
 
-        {/* Main FAB */}
+        {/* Main FAB - increased size for better touch target (56px) */}
         <motion.button
           onClick={handleToggle}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`relative w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+          whileHover={reducedMotion ? undefined : { scale: 1.05 }}
+          whileTap={reducedMotion ? undefined : { scale: 0.95 }}
+          className={`relative w-14 h-14 min-w-[56px] min-h-[56px] rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${
             isExpanded
-              ? 'bg-gray-900 border border-white/20'
-              : 'bg-gradient-to-br from-blue-500 to-blue-600'
+              ? 'bg-gray-900 border-2 border-white/30'
+              : 'bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-400/50'
           }`}
+          style={{
+            // Ensure visibility even if gradients don't work
+            backgroundColor: isExpanded ? '#111827' : '#2563eb',
+            boxShadow: isExpanded
+              ? '0 10px 25px rgba(0,0,0,0.5)'
+              : '0 10px 25px rgba(37, 99, 235, 0.5)',
+          }}
+          aria-label={isExpanded ? 'Close feedback menu' : 'Open feedback menu'}
+          aria-expanded={isExpanded}
         >
-          {/* Pulse animation when not expanded */}
-          {!isExpanded && (
+          {/* Pulse animation when not expanded - uses CSS animation for better compatibility */}
+          {!isExpanded && !reducedMotion && (
             <>
-              <span className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-25" />
-              <span className="absolute inset-0 rounded-full bg-blue-400 animate-pulse opacity-20" />
+              <span
+                className="absolute inset-0 rounded-full animate-ping opacity-30"
+                style={{ backgroundColor: '#3b82f6' }}
+              />
+              <span
+                className="absolute inset-0 rounded-full animate-pulse opacity-20"
+                style={{ backgroundColor: '#60a5fa' }}
+              />
             </>
           )}
 
@@ -158,38 +226,26 @@ export function FeedbackHub() {
             {isExpanded ? (
               <motion.div
                 key="close"
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: 90, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={reducedMotion ? undefined : { rotate: -90, opacity: 0 }}
+                animate={reducedMotion ? undefined : { rotate: 0, opacity: 1 }}
+                exit={reducedMotion ? undefined : { rotate: 90, opacity: 0 }}
+                transition={reducedMotion ? undefined : { duration: 0.2 }}
               >
                 <X className="w-6 h-6 text-white" />
               </motion.div>
             ) : (
               <motion.div
                 key="open"
-                initial={{ rotate: 90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: -90, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={reducedMotion ? undefined : { rotate: 90, opacity: 0 }}
+                animate={reducedMotion ? undefined : { rotate: 0, opacity: 1 }}
+                exit={reducedMotion ? undefined : { rotate: -90, opacity: 0 }}
+                transition={reducedMotion ? undefined : { duration: 0.2 }}
               >
                 <MessageCircleQuestion className="w-6 h-6 text-white" />
               </motion.div>
             )}
           </AnimatePresence>
         </motion.button>
-
-        {/* Tooltip when not expanded */}
-        {!isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 2, duration: 0.3 }}
-            className="absolute right-16 bottom-2 px-3 py-1.5 rounded-lg bg-gray-900/95 border border-white/10 text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none"
-          >
-            Need help?
-          </motion.div>
-        )}
       </div>
     </>
   );

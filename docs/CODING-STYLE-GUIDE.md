@@ -15,6 +15,8 @@ This guide synthesizes patterns from:
 
 ## Table of Contents
 
+**⚠️ [CLAUDE AGENT: MANDATORY PRE-DEPLOYMENT CHECKLIST](#claude-agent-mandatory-pre-deployment-checklist)** ← Run this after EVERY code change!
+
 1. [Core Principles](#1-core-principles)
 2. [TypeScript Standards](#2-typescript-standards)
 3. [React & Frontend Patterns](#3-react--frontend-patterns)
@@ -61,6 +63,291 @@ Follow Google's consistency principle:
 2. Module/feature consistency second
 3. Package/project consistency third
 4. Codebase-wide patterns fourth
+
+---
+
+## CLAUDE AGENT: MANDATORY PRE-DEPLOYMENT CHECKLIST
+
+> **⚠️ CRITICAL: This checklist is MANDATORY for all Claude agents working on this codebase.**
+>
+> After EVERY code change, idea implementation, or chunk of work, Claude MUST systematically work through this checklist before considering the task complete. This is not optional - it is a reflexive quality gate.
+
+### When to Run This Checklist
+
+Run this checklist:
+- After implementing ANY feature or fix
+- After modifying ANY existing code
+- After adding ANY new file
+- Before committing ANY changes
+- Before deploying ANY changes
+- When you think you're "done" with a task
+
+### The Checklist (Execute In Order)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 1: CODE CORRECTNESS (Run immediately after writing code)             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 1.1 RE-READ ALL MODIFIED CODE                                          │
+│      • Open each file you changed and read it line by line                  │
+│      • Look for typos, copy-paste errors, missing characters                │
+│      • Verify variable names match their intended purpose                   │
+│      • Check that all brackets, parentheses, quotes are balanced            │
+│                                                                             │
+│  [ ] 1.2 VERIFY LOGIC CORRECTNESS                                           │
+│      • Trace through the code mentally with sample inputs                   │
+│      • Check boundary conditions (empty arrays, null values, zero, max)     │
+│      • Verify loop termination conditions                                   │
+│      • Check off-by-one errors in indexes and ranges                        │
+│      • Verify conditional logic (&&, ||, !) is correct                      │
+│                                                                             │
+│  [ ] 1.3 CHECK ALGORITHM CORRECTNESS                                        │
+│      • Does the algorithm solve the actual problem?                         │
+│      • Are there edge cases not handled?                                    │
+│      • Is the time complexity acceptable? (O(n²) in a hot path = bad)       │
+│      • Is the space complexity acceptable?                                  │
+│      • Could this cause infinite loops or stack overflow?                   │
+│                                                                             │
+│  [ ] 1.4 VERIFY IMPORTS AND DEPENDENCIES                                    │
+│      • All imports are used (no unused imports)                             │
+│      • All used symbols are imported                                        │
+│      • Import paths are correct (no typos)                                  │
+│      • No circular dependencies introduced                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 2: TYPE SAFETY (After Phase 1)                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 2.1 RUN TYPE CHECKER                                                   │
+│      Execute: pnpm typecheck                                                │
+│      • Fix ALL type errors before proceeding                                │
+│      • Do not use `any` to silence errors                                   │
+│      • Do not use @ts-ignore without explicit justification                 │
+│                                                                             │
+│  [ ] 2.2 VERIFY TYPE ANNOTATIONS                                            │
+│      • All function parameters have explicit types                          │
+│      • All function return types are explicit (especially public APIs)      │
+│      • Generic types are properly constrained                               │
+│      • Union types handle all variants                                      │
+│                                                                             │
+│  [ ] 2.3 CHECK FOR TYPE ASSERTION ABUSE                                     │
+│      • Search for `as ` in your changes                                     │
+│      • Each assertion must have validation before it                        │
+│      • Prefer type guards over assertions                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 3: SECURITY VERIFICATION (After Phase 2)                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 3.1 INPUT VALIDATION                                                   │
+│      • ALL user input is validated with Zod schemas                         │
+│      • Validation happens at the boundary (route handler)                   │
+│      • Bounds are set on all numeric fields (min/max)                       │
+│      • String lengths have maximums                                         │
+│      • Array sizes have limits                                              │
+│                                                                             │
+│  [ ] 3.2 SQL INJECTION PREVENTION                                           │
+│      • Search for template literals containing SQL                          │
+│      • ALL queries use parameterized arguments ($1, $2, etc.)               │
+│      • NO string interpolation in queries                                   │
+│      • Table/column names are NOT from user input                           │
+│                                                                             │
+│  [ ] 3.3 AUTHORIZATION CHECKS                                               │
+│      • Protected routes have `authenticate` middleware                      │
+│      • Resource access verifies ownership/permissions                       │
+│      • Role checks use proper middleware                                    │
+│      • No authorization bypass possible                                     │
+│                                                                             │
+│  [ ] 3.4 SENSITIVE DATA HANDLING                                            │
+│      • Passwords are hashed (never stored plain)                            │
+│      • Tokens are not logged                                                │
+│      • PII is not exposed in error messages                                 │
+│      • Secrets are not in code (use environment variables)                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 4: PERFORMANCE VERIFICATION (After Phase 3)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 4.1 DATABASE QUERY EFFICIENCY                                          │
+│      • No N+1 queries (queries in loops)                                    │
+│      • Uses keyset pagination (NOT OFFSET)                                  │
+│      • SELECT lists specific columns (NOT SELECT *)                         │
+│      • JOINs are indexed appropriately                                      │
+│      • Large result sets are paginated                                      │
+│                                                                             │
+│  [ ] 4.2 FRONTEND PERFORMANCE                                               │
+│      • New routes are lazy loaded                                           │
+│      • Heavy components use React.memo                                      │
+│      • Expensive calculations use useMemo                                   │
+│      • Callbacks passed to children use useCallback                         │
+│      • Zustand uses selectors (not entire store subscription)               │
+│                                                                             │
+│  [ ] 4.3 MEMORY AND RESOURCES                                               │
+│      • Event listeners are cleaned up in useEffect return                   │
+│      • Subscriptions are unsubscribed on unmount                            │
+│      • Large objects are not kept in closure unnecessarily                  │
+│      • AbortController used for cancellable fetch requests                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 5: CODE QUALITY (After Phase 4)                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 5.1 RUN LINTER                                                         │
+│      Execute: pnpm lint                                                     │
+│      • Fix ALL linting errors                                               │
+│      • Review and address warnings                                          │
+│                                                                             │
+│  [ ] 5.2 CODE CLEANLINESS                                                   │
+│      • No console.log statements left in (use proper logger)                │
+│      • No debugger statements                                               │
+│      • No commented-out code blocks                                         │
+│      • No TODO comments for things done in this change                      │
+│      • No dead code (unreachable or unused)                                 │
+│                                                                             │
+│  [ ] 5.3 NAMING AND READABILITY                                             │
+│      • Variable names are descriptive and accurate                          │
+│      • Function names describe what they do (verb-first)                    │
+│      • No single-letter variables except loop counters                      │
+│      • Complex logic has explanatory comments                               │
+│                                                                             │
+│  [ ] 5.4 ERROR HANDLING                                                     │
+│      • All async operations have try/catch or .catch()                      │
+│      • Errors are not swallowed silently                                    │
+│      • Error messages are helpful and actionable                            │
+│      • Failed operations don't leave state corrupted                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 6: TESTING (After Phase 5)                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 6.1 RUN TEST SUITE                                                     │
+│      Execute: pnpm test                                                     │
+│      • ALL tests must pass                                                  │
+│      • No skipped tests unless explicitly documented                        │
+│                                                                             │
+│  [ ] 6.2 TEST COVERAGE CHECK                                                │
+│      • New code has corresponding tests                                     │
+│      • Edge cases are tested                                                │
+│      • Error paths are tested                                               │
+│      • Critical paths have high coverage                                    │
+│                                                                             │
+│  [ ] 6.3 INTEGRATION VERIFICATION                                           │
+│      • Changes work with existing code                                      │
+│      • API contracts are maintained                                         │
+│      • Database migrations are tested                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 7: BUILD VERIFICATION (After Phase 6)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 7.1 BUILD SUCCESS                                                      │
+│      Execute: pnpm build:all                                                │
+│      • Build completes without errors                                       │
+│      • Build completes without warnings (or warnings are understood)        │
+│                                                                             │
+│  [ ] 7.2 DEPENDENCY CHECK                                                   │
+│      • No new vulnerabilities introduced (pnpm audit)                       │
+│      • Dependencies are in correct package.json (not root for backend)      │
+│      • No duplicate dependencies                                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 8: DOCUMENTATION (After Phase 7)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 8.1 UPDATE DOCUMENTATION                                               │
+│      • README updated if public API changed                                 │
+│      • JSDoc added for new public functions                                 │
+│      • CHANGELOG updated for user-facing changes                            │
+│      • Architecture docs updated if structure changed                       │
+│                                                                             │
+│  [ ] 8.2 UPDATE PROJECT FILES                                               │
+│      • ROADMAP.md updated if features completed                             │
+│      • Implementation plans marked complete                                 │
+│      • E2E test script updated for new endpoints                            │
+│      Execute: pnpm docs:generate                                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  PHASE 9: DEPLOYMENT (After Phase 8)                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [ ] 9.1 PRE-DEPLOYMENT                                                     │
+│      • All previous phases completed successfully                           │
+│      • Changes committed with descriptive message                           │
+│      • Branch merged to main (if using branches)                            │
+│                                                                             │
+│  [ ] 9.2 DEPLOY                                                             │
+│      Execute: ./deploy.sh "description of changes"                          │
+│      • Deploy script completes without errors                               │
+│                                                                             │
+│  [ ] 9.3 POST-DEPLOYMENT VERIFICATION                                       │
+│      Execute: curl https://musclemap.me/health                              │
+│      • Health check returns OK                                              │
+│      • Test affected endpoints manually                                     │
+│      • Verify changes are visible on live site                              │
+│      • Monitor for errors for 5-10 minutes                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Commands Reference
+
+```bash
+# Phase 2: Type Safety
+pnpm typecheck
+
+# Phase 5: Code Quality
+pnpm lint
+
+# Phase 6: Testing
+pnpm test
+pnpm test:e2e:api
+
+# Phase 7: Build
+pnpm build:all
+
+# Phase 8: Documentation
+pnpm docs:generate
+
+# Phase 9: Deployment
+./deploy.sh "description"
+curl https://musclemap.me/health
+```
+
+### Checklist Failure Protocol
+
+If ANY phase fails:
+
+1. **STOP** - Do not proceed to next phase
+2. **FIX** - Address the issue completely
+3. **RE-RUN** - Run the failed phase again from the beginning
+4. **CONTINUE** - Only after the phase passes completely
+
+### Self-Verification Questions
+
+Before marking a task complete, ask yourself:
+
+1. "If I were reviewing this code, would I approve it?"
+2. "Could this code cause a production incident?"
+3. "Have I actually tested this, or am I assuming it works?"
+4. "Is there any scenario I haven't considered?"
+5. "Would I be comfortable explaining every line of this code?"
 
 ---
 

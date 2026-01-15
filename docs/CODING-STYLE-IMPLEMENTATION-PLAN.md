@@ -23,7 +23,7 @@ This plan outlines the concrete steps to implement the coding style guide across
 | `083_trades_career_standards.ts` | `089_trades_career_standards.ts` |
 | `084_transportation_career_standards.ts` | `090_transportation_career_standards.ts` |
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
 ### 1.2 Fix N+1 Query in Messaging
 **Issue:** `apps/api/src/http/routes/messaging.ts` lines 54-95 makes 4 queries per conversation.
@@ -37,9 +37,9 @@ for (const conv of conversations) {
 }
 ```
 
-**Fix:** Single query with JOINs and aggregation.
+**Fix:** Single query with JOINs and aggregation using CTEs.
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
 ---
 
@@ -80,7 +80,7 @@ export function paginatedResponse<T>(data: T[], cursor?: string, hasMore?: boole
 }
 ```
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
 ### 2.3 Fix Unused Imports (Linter Warnings)
 **Files with unused imports:**
@@ -99,7 +99,7 @@ export function paginatedResponse<T>(data: T[], cursor?: string, hasMore?: boole
 - `src/pages/MealPlans.jsx`
 - `src/pages/Nutrition.jsx`
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed (partial - key files cleaned)
 
 ---
 
@@ -122,7 +122,7 @@ export function err<E>(error: E): Result<never, E> {
 }
 ```
 
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
 ### 3.2 Add Zod Validation to Services
 **Issue:** Services trust input from routes without additional validation.
@@ -272,12 +272,13 @@ pnpm test:coverage
 ### Completed
 - [x] Create CODING-STYLE-GUIDE.md
 - [x] Add reference to CLAUDE.md
-- [ ] Fix duplicate migrations
-- [ ] Fix N+1 query in messaging
+- [x] Add Claude Agent Pre-Deployment Checklist to style guide
+- [x] Fix duplicate migrations
+- [x] Fix N+1 query in messaging
 - [ ] Standardize response format
-- [ ] Add response helpers
-- [ ] Fix unused imports
-- [ ] Add Result pattern
+- [x] Add response helpers
+- [x] Fix unused imports (partial)
+- [x] Add Result pattern
 - [ ] Add service validation
 - [ ] Add DataLoaders to REST
 - [ ] Add refresh scheduler
