@@ -1192,11 +1192,36 @@ export const resolvers = {
     },
 
     archetypeNutritionProfiles: async () => {
-      return nutritionService.getAllArchetypeProfiles();
+      const profiles = await nutritionService.getAllArchetypeProfiles();
+      return profiles.map((p) => ({
+        archetypeId: p.archetype,
+        archetypeName: p.name,
+        proteinRatio: p.proteinPct / 100,
+        carbsRatio: p.carbsPct / 100,
+        fatRatio: p.fatPct / 100,
+        recommendedCalories: p.calorieAdjustment,
+        mealTiming: p.mealTiming ? [p.mealTiming] : [],
+        preworkoutRecommendations: p.suggestedFoods?.slice(0, 3) || [],
+        postworkoutRecommendations: p.suggestedFoods?.slice(3, 6) || [],
+        supplements: p.priorityNutrients || [],
+      }));
     },
 
     archetypeNutritionProfile: async (_: unknown, args: { archetypeId: string }) => {
-      return nutritionService.getArchetypeProfile(args.archetypeId);
+      const p = await nutritionService.getArchetypeProfile(args.archetypeId);
+      if (!p) return null;
+      return {
+        archetypeId: p.archetype,
+        archetypeName: p.name,
+        proteinRatio: p.proteinPct / 100,
+        carbsRatio: p.carbsPct / 100,
+        fatRatio: p.fatPct / 100,
+        recommendedCalories: p.calorieAdjustment,
+        mealTiming: p.mealTiming ? [p.mealTiming] : [],
+        preworkoutRecommendations: p.suggestedFoods?.slice(0, 3) || [],
+        postworkoutRecommendations: p.suggestedFoods?.slice(3, 6) || [],
+        supplements: p.priorityNutrients || [],
+      };
     },
 
     // Career Readiness Queries
