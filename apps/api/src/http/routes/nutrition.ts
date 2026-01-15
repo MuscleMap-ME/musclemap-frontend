@@ -28,8 +28,12 @@ import type {
   GenerateMealPlanInput,
   CreateHydrationLogInput,
 } from '../../modules/nutrition/types';
+import { loggers } from '../../lib/logger';
+
+const log = loggers.http;
 
 export async function nutritionRoutes(fastify: FastifyInstance): Promise<void> {
+  log.info({ module: 'nutrition-routes' }, 'Registering nutrition routes');
   // ============================================
   // Preferences & Dashboard
   // ============================================
