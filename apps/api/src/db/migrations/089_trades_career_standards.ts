@@ -40,11 +40,11 @@ export async function up(): Promise<void> {
     await db.query(`ALTER TABLE pt_tests DROP CONSTRAINT ${constraintResult.constraint_name}`);
   }
 
-  // Add new constraint with trades_construction
+  // Add new constraint with all categories
   await db.query(`
     ALTER TABLE pt_tests
     ADD CONSTRAINT pt_tests_category_check
-    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'trades_construction'))
+    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'corrections', 'ems_paramedic', 'trades_construction', 'lifeguard', 'public_service', 'park_ranger', 'transportation'))
   `);
 
   // =============================================
@@ -409,7 +409,7 @@ export async function down(): Promise<void> {
   await db.query(`
     ALTER TABLE pt_tests
     ADD CONSTRAINT pt_tests_category_check
-    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general'))
+    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'corrections', 'ems_paramedic', 'trades_construction', 'lifeguard', 'public_service', 'park_ranger', 'transportation'))
   `);
 
   log.info('Rollback 074_trades_career_standards complete');

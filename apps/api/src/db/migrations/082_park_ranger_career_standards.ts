@@ -42,7 +42,7 @@ export async function migrate(): Promise<void> {
   await db.query(`
     ALTER TABLE pt_tests
     ADD CONSTRAINT pt_tests_category_check
-    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'park_ranger'))
+    CHECK (category IN ('military', 'firefighter', 'law_enforcement', 'special_operations', 'civil_service', 'general', 'corrections', 'ems_paramedic', 'trades_construction', 'lifeguard', 'public_service', 'park_ranger', 'transportation'))
   `);
 
   // ============================================
