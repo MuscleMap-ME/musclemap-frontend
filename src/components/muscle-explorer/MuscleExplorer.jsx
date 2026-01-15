@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import {
   MUSCLE_DATA,

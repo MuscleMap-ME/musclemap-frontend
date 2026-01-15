@@ -64,7 +64,12 @@ export const COLOR_SCHEMES = {
     getColor: (activation, muscleColor) => {
       if (activation <= 0) return 'rgba(71, 85, 105, 0.2)';
       const opacity = 0.4 + (activation / 100) * 0.6;
-      return muscleColor ? muscleColor.replace(')', `, ${opacity})`.replace('rgb', 'rgba').replace('rgba(', 'rgba(') : `rgba(0, 255, 180, ${opacity})`;
+      if (!muscleColor) return `rgba(0, 255, 180, ${opacity})`;
+      // Convert rgb to rgba with opacity
+      const rgbaColor = muscleColor
+        .replace(')', `, ${opacity})`)
+        .replace('rgb', 'rgba');
+      return rgbaColor;
     },
     getGlow: (activation, muscleColor) => {
       if (activation <= 0) return 'transparent';
