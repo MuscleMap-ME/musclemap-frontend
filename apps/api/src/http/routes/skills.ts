@@ -34,9 +34,9 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   });
 
   // Get a specific skill tree with nodes
-  app.get(
+  app.get<{ Params: { treeId: string } }>(
     '/skills/trees/:treeId',
-    async (request: FastifyRequest<{ Params: { treeId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { treeId } = request.params;
         const tree = await skillService.getSkillTree(treeId);
@@ -54,10 +54,10 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Get user progress for a skill tree (requires auth)
-  app.get(
+  app.get<{ Params: { treeId: string } }>(
     '/skills/trees/:treeId/progress',
     { preHandler: authenticate },
-    async (request: FastifyRequest<{ Params: { treeId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { treeId } = request.params;
         const userId = request.user!.userId;
@@ -81,9 +81,9 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Get a specific skill node
-  app.get(
+  app.get<{ Params: { nodeId: string } }>(
     '/skills/nodes/:nodeId',
-    async (request: FastifyRequest<{ Params: { nodeId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { nodeId } = request.params;
         const node = await skillService.getSkillNode(nodeId);
@@ -101,15 +101,9 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Get leaderboard for a skill
-  app.get(
+  app.get<{ Params: { nodeId: string }; Querystring: { limit?: string } }>(
     '/skills/nodes/:nodeId/leaderboard',
-    async (
-      request: FastifyRequest<{
-        Params: { nodeId: string };
-        Querystring: { limit?: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const { nodeId } = request.params;
         const limit = parseInt(request.query.limit || '10');
@@ -140,20 +134,10 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Log a practice session (requires auth)
-  app.post(
+  app.post<{ Body: { skillNodeId: string; durationMinutes: number; valueAchieved?: number; notes?: string } }>(
     '/skills/practice',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Body: {
-          skillNodeId: string;
-          durationMinutes: number;
-          valueAchieved?: number;
-          notes?: string;
-        };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { skillNodeId, durationMinutes, valueAchieved, notes } = request.body;
@@ -179,18 +163,10 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Mark a skill as achieved (requires auth)
-  app.post(
+  app.post<{ Body: { skillNodeId: string; verificationVideoUrl?: string } }>(
     '/skills/achieve',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Body: {
-          skillNodeId: string;
-          verificationVideoUrl?: string;
-        };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { skillNodeId, verificationVideoUrl } = request.body;
@@ -218,15 +194,10 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Get practice history (requires auth)
-  app.get(
+  app.get<{ Querystring: { limit?: string; offset?: string; skillNodeId?: string } }>(
     '/skills/history',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Querystring: { limit?: string; offset?: string; skillNodeId?: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const limit = parseInt(request.query.limit || '20');
@@ -248,16 +219,10 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // Update notes for a skill (requires auth)
-  app.put(
+  app.put<{ Params: { nodeId: string }; Body: { notes: string } }>(
     '/skills/nodes/:nodeId/notes',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Params: { nodeId: string };
-        Body: { notes: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { nodeId } = request.params;

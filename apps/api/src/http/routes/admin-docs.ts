@@ -568,7 +568,7 @@ function countFiles(files: FileInfo[]): number {
 function calculateStats(files: FileInfo[]): { files: number; totalSize: number; lastModified: string | null } {
   let fileCount = 0;
   let totalSize = 0;
-  let lastModified: Date | null = null;
+  let lastModified: Date | null = null as Date | null;
 
   function traverse(items: FileInfo[]) {
     for (const item of items) {

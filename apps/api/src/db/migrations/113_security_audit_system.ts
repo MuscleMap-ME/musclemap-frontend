@@ -128,10 +128,10 @@ export async function up(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_failed_login_attempts_keyset
     ON failed_login_attempts(created_at DESC, id DESC);
 
-    -- Partial index for recent attempts (useful for brute force detection)
+    -- Index for recent attempts lookup (useful for brute force detection)
+    -- Note: Removed partial index with NOW() - INTERVAL as it's not immutable
     CREATE INDEX IF NOT EXISTS idx_failed_login_attempts_recent
-    ON failed_login_attempts(ip_address, created_at DESC)
-    WHERE created_at > NOW() - INTERVAL '24 hours';
+    ON failed_login_attempts(ip_address, created_at DESC);
   `);
 
   // ============================================
@@ -173,10 +173,10 @@ export async function up(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_user_sessions_keyset
     ON user_sessions(last_active_at DESC, id DESC);
 
-    -- Partial index for active sessions only
+    -- Index for active sessions lookup
+    -- Note: Removed partial index with NOW() as it's not immutable
     CREATE INDEX IF NOT EXISTS idx_user_sessions_active
-    ON user_sessions(user_id, last_active_at DESC)
-    WHERE expires_at > NOW();
+    ON user_sessions(user_id, expires_at DESC, last_active_at DESC);
   `);
 
   // ============================================

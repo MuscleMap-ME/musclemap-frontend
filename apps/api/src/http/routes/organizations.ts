@@ -165,10 +165,11 @@ const exportReportSchema = z.object({
  * Get user's membership in an organization
  */
 async function getMembership(orgId: string, userId: string): Promise<OrganizationMember | null> {
-  return db.queryOne<OrganizationMember>(
+  const result = await db.queryOne<OrganizationMember>(
     `SELECT * FROM organization_members WHERE org_id = $1 AND user_id = $2`,
     [orgId, userId]
   );
+  return result ?? null;
 }
 
 /**

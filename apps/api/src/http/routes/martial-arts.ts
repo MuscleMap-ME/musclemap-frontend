@@ -24,12 +24,9 @@ const log = loggers.http;
 
 export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<void> {
   // Get all disciplines
-  app.get(
+  app.get<{ Querystring: { military?: string } }>(
     '/martial-arts/disciplines',
-    async (
-      request: FastifyRequest<{ Querystring: { military?: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const militaryOnly = request.query.military === 'true';
         const disciplines = await martialArtsService.getDisciplines({ militaryOnly });
@@ -42,9 +39,9 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get a specific discipline with categories
-  app.get(
+  app.get<{ Params: { disciplineId: string } }>(
     '/martial-arts/disciplines/:disciplineId',
-    async (request: FastifyRequest<{ Params: { disciplineId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { disciplineId } = request.params;
         const discipline = await martialArtsService.getDiscipline(disciplineId);
@@ -62,9 +59,9 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get techniques for a discipline
-  app.get(
+  app.get<{ Params: { disciplineId: string } }>(
     '/martial-arts/disciplines/:disciplineId/techniques',
-    async (request: FastifyRequest<{ Params: { disciplineId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { disciplineId } = request.params;
         const techniques = await martialArtsService.getTechniques(disciplineId);
@@ -77,10 +74,10 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get user progress for a discipline (requires auth)
-  app.get(
+  app.get<{ Params: { disciplineId: string } }>(
     '/martial-arts/disciplines/:disciplineId/progress',
     { preHandler: authenticate },
-    async (request: FastifyRequest<{ Params: { disciplineId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { disciplineId } = request.params;
         const userId = request.user!.userId;
@@ -104,15 +101,9 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get discipline leaderboard
-  app.get(
+  app.get<{ Params: { disciplineId: string }; Querystring: { limit?: string } }>(
     '/martial-arts/disciplines/:disciplineId/leaderboard',
-    async (
-      request: FastifyRequest<{
-        Params: { disciplineId: string };
-        Querystring: { limit?: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const { disciplineId } = request.params;
         const limit = parseInt(request.query.limit || '10');
@@ -127,9 +118,9 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get a specific technique
-  app.get(
+  app.get<{ Params: { techniqueId: string } }>(
     '/martial-arts/techniques/:techniqueId',
-    async (request: FastifyRequest<{ Params: { techniqueId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { techniqueId } = request.params;
         const technique = await martialArtsService.getTechnique(techniqueId);
@@ -163,22 +154,10 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Log a practice session (requires auth)
-  app.post(
+  app.post<{ Body: { techniqueId: string; durationMinutes: number; repsPerformed?: number; roundsPerformed?: number; partnerDrill?: boolean; notes?: string } }>(
     '/martial-arts/practice',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Body: {
-          techniqueId: string;
-          durationMinutes: number;
-          repsPerformed?: number;
-          roundsPerformed?: number;
-          partnerDrill?: boolean;
-          notes?: string;
-        };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { techniqueId, durationMinutes, repsPerformed, roundsPerformed, partnerDrill, notes } = request.body;
@@ -206,17 +185,10 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Mark a technique as mastered (requires auth)
-  app.post(
+  app.post<{ Body: { techniqueId: string } }>(
     '/martial-arts/master',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Body: {
-          techniqueId: string;
-        };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { techniqueId } = request.body;
@@ -243,15 +215,10 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Get practice history (requires auth)
-  app.get(
+  app.get<{ Querystring: { limit?: string; offset?: string; disciplineId?: string } }>(
     '/martial-arts/history',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Querystring: { limit?: string; offset?: string; disciplineId?: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const limit = parseInt(request.query.limit || '20');
@@ -273,16 +240,10 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   );
 
   // Update notes for a technique (requires auth)
-  app.put(
+  app.put<{ Params: { techniqueId: string }; Body: { notes: string } }>(
     '/martial-arts/techniques/:techniqueId/notes',
     { preHandler: authenticate },
-    async (
-      request: FastifyRequest<{
-        Params: { techniqueId: string };
-        Body: { notes: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const { techniqueId } = request.params;

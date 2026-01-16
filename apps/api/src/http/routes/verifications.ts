@@ -51,17 +51,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Submit verification for an achievement (with video upload)
    * POST /achievements/:id/verify
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/achievements/:id/verify',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Params: { id: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const achievementId = request.params.id;
 
@@ -157,17 +152,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Submit verification without video (for optional verification achievements)
    * POST /verifications
    */
-  app.post(
+  app.post<{ Body: z.infer<typeof submitVerificationSchema> }>(
     '/verifications',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Body: z.infer<typeof submitVerificationSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const parsed = submitVerificationSchema.safeParse(request.body);
 
@@ -216,17 +206,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Get a specific verification
    * GET /verifications/:id
    */
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/verifications/:id',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Params: { id: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       try {
         const verification = await verificationService.getVerification(request.params.id);
 
@@ -254,17 +239,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Get current user's verifications
    * GET /me/verifications
    */
-  app.get(
+  app.get<{ Querystring: z.infer<typeof listQuerySchema> }>(
     '/me/verifications',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Querystring: z.infer<typeof listQuerySchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const parsed = listQuerySchema.safeParse(request.query);
 
@@ -301,17 +281,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Cancel a pending verification
    * DELETE /verifications/:id
    */
-  app.delete(
+  app.delete<{ Params: { id: string } }>(
     '/verifications/:id',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Params: { id: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
 
       try {
@@ -342,17 +317,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Check if user can submit verification for an achievement
    * GET /achievements/:id/can-verify
    */
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/achievements/:id/can-verify',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Params: { id: string };
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const result = await verificationService.canSubmitVerification(userId, request.params.id);
       return reply.send({ data: result });
@@ -367,17 +337,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Get pending witness requests for current user
    * GET /me/witness-requests
    */
-  app.get(
+  app.get<{ Querystring: z.infer<typeof witnessListQuerySchema> }>(
     '/me/witness-requests',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Querystring: z.infer<typeof witnessListQuerySchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const parsed = witnessListQuerySchema.safeParse(request.query);
 
@@ -414,18 +379,12 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Submit witness attestation
    * POST /verifications/:id/witness
    */
-  app.post(
+  app.post<{ Params: { id: string }; Body: z.infer<typeof witnessAttestationSchema> }>(
     '/verifications/:id/witness',
     {
       preHandler: authenticate,
     },
-    async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: z.infer<typeof witnessAttestationSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const userId = (request.user as { userId: string }).userId;
       const parsed = witnessAttestationSchema.safeParse(request.body);
 

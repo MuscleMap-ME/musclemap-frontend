@@ -221,8 +221,12 @@ async function runPgDump(
         outputFile = await fs.open(filepath, 'w');
         const writeStream = outputFile.createWriteStream();
 
-        dumpProcess.stdout.pipe(gzipProcess.stdin);
-        gzipProcess.stdout.pipe(writeStream);
+        if (dumpProcess.stdout && gzipProcess.stdin) {
+          dumpProcess.stdout.pipe(gzipProcess.stdin);
+        }
+        if (gzipProcess.stdout) {
+          gzipProcess.stdout.pipe(writeStream);
+        }
 
         let errorOutput = '';
         dumpProcess.stderr.on('data', (data) => {

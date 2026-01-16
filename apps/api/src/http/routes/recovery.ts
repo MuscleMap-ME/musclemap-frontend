@@ -100,7 +100,8 @@ export async function registerRecoveryRoutes(app: FastifyInstance): Promise<void
     }
 
     try {
-      const sleepLog = await sleepService.logSleep(userId, data);
+      // Type assertion is safe because Zod schema validates quality is 1-5
+      const sleepLog = await sleepService.logSleep(userId, data as Parameters<typeof sleepService.logSleep>[1]);
       log.info({ userId, sleepId: sleepLog.id }, 'Sleep logged via API');
 
       return reply.status(201).send({ data: sleepLog });
@@ -206,7 +207,8 @@ export async function registerRecoveryRoutes(app: FastifyInstance): Promise<void
       });
     }
 
-    const sleepLog = await sleepService.updateSleepLog(userId, id, data);
+    // Type assertion is safe because Zod schema validates quality is 1-5
+    const sleepLog = await sleepService.updateSleepLog(userId, id, data as Parameters<typeof sleepService.updateSleepLog>[2]);
 
     if (!sleepLog) {
       return reply.status(404).send({

@@ -55,9 +55,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get leaderboard entries
    * GET /leaderboards
    */
-  app.get('/leaderboards', {
+  app.get<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>('/leaderboards', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = leaderboardQuerySchema.parse(request.query);
 
     const result = await leaderboardService.getLeaderboard({
@@ -89,9 +89,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get global leaderboard (no hangout filter)
    * GET /leaderboards/global
    */
-  app.get('/leaderboards/global', {
+  app.get<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>('/leaderboards/global', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = leaderboardQuerySchema.parse(request.query);
 
     const result = await leaderboardService.getLeaderboard({
@@ -122,12 +122,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get hangout-specific leaderboard
    * GET /hangouts/:id/leaderboard
    */
-  app.get('/hangouts/:id/leaderboard', {
+  app.get<{ Params: { id: string }; Querystring: Omit<z.infer<typeof leaderboardQuerySchema>, 'hangoutId'> }>('/hangouts/:id/leaderboard', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: Omit<z.infer<typeof leaderboardQuerySchema>, 'hangoutId'>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
       return reply.status(400).send({
@@ -165,12 +162,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get virtual hangout leaderboard
    * GET /virtual-hangouts/:id/leaderboard
    */
-  app.get('/virtual-hangouts/:id/leaderboard', {
+  app.get<{ Params: { id: string }; Querystring: Omit<z.infer<typeof leaderboardQuerySchema>, 'virtualHangoutId'> }>('/virtual-hangouts/:id/leaderboard', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: Omit<z.infer<typeof leaderboardQuerySchema>, 'virtualHangoutId'>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const virtualHangoutId = parseInt(request.params.id, 10);
     if (isNaN(virtualHangoutId)) {
       return reply.status(400).send({
@@ -212,9 +206,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get current user's rank
    * GET /me/rank
    */
-  app.get('/me/rank', {
+  app.get<{ Querystring: z.infer<typeof userRankQuerySchema> }>('/me/rank', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof userRankQuerySchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = userRankQuerySchema.parse(request.query);
 
     const rank = await leaderboardService.getUserRank(request.user!.userId, {
@@ -241,12 +235,9 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get a user's rank
    * GET /users/:id/rank
    */
-  app.get('/users/:id/rank', {
+  app.get<{ Params: { id: string }; Querystring: z.infer<typeof userRankQuerySchema> }>('/users/:id/rank', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: z.infer<typeof userRankQuerySchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = userRankQuerySchema.parse(request.query);
 
     const rank = await leaderboardService.getUserRank(request.params.id, {
@@ -277,9 +268,7 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get available exercise metrics for leaderboards
    * GET /leaderboards/metrics
    */
-  app.get('/leaderboards/metrics', async (request: FastifyRequest<{
-    Querystring: z.infer<typeof availableMetricsQuerySchema>;
-  }>, reply: FastifyReply) => {
+  app.get<{ Querystring: z.infer<typeof availableMetricsQuerySchema> }>('/leaderboards/metrics', async (request, reply) => {
     const query = availableMetricsQuerySchema.parse(request.query);
 
     const metrics = await leaderboardService.getAvailableMetrics(query.hangoutId, query.virtualHangoutId);
@@ -291,9 +280,7 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
    * Get metrics for a specific exercise
    * GET /exercises/:id/metrics
    */
-  app.get('/exercises/:id/metrics', async (request: FastifyRequest<{
-    Params: { id: string };
-  }>, reply: FastifyReply) => {
+  app.get<{ Params: { id: string } }>('/exercises/:id/metrics', async (request, reply) => {
     const metrics = await leaderboardService.getMetricDefinitions(request.params.id);
 
     return reply.send({ data: metrics });
