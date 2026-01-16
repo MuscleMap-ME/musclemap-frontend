@@ -32,7 +32,7 @@ export interface HealthMultiplier {
 export interface DailyHealthMetrics {
   userId: string;
   date: string;
-  workoutCompleted: boolean;
+  workoutCompleted?: boolean;
   workoutIntensity?: 'low' | 'medium' | 'high';
   sleepHours?: number;
   sleepQuality?: number;

@@ -14,7 +14,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { query, queryOne, queryAll, transaction } from '../../db/client';
+import { queryOne, queryAll, transaction } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 

@@ -8,18 +8,18 @@ import { PoolClient } from 'pg';
 export interface CreateTradeInput {
   initiatorId: string;
   receiverId: string;
-  initiatorItems: string[]; // user_spirit_cosmetics IDs
-  initiatorCredits: number;
-  receiverItems: string[]; // user_spirit_cosmetics IDs (requested)
-  receiverCredits: number;
+  initiatorItems?: string[]; // user_spirit_cosmetics IDs
+  initiatorCredits?: number;
+  receiverItems?: string[]; // user_spirit_cosmetics IDs (requested)
+  receiverCredits?: number;
   message?: string;
 }
 
 export interface CounterTradeInput {
-  initiatorItems: string[];
-  initiatorCredits: number;
-  receiverItems: string[];
-  receiverCredits: number;
+  initiatorItems?: string[];
+  initiatorCredits?: number;
+  receiverItems?: string[];
+  receiverCredits?: number;
   message?: string;
 }
 
@@ -79,10 +79,10 @@ export const tradingService = {
     const {
       initiatorId,
       receiverId,
-      initiatorItems,
-      initiatorCredits,
-      receiverItems,
-      receiverCredits,
+      initiatorItems = [],
+      initiatorCredits = 0,
+      receiverItems = [],
+      receiverCredits = 0,
       message,
     } = input;
 
@@ -473,10 +473,10 @@ export const tradingService = {
 
   async counterTrade(tradeId: string, receiverId: string, counter: CounterTradeInput) {
     const {
-      initiatorItems,
-      initiatorCredits,
-      receiverItems,
-      receiverCredits,
+      initiatorItems = [],
+      initiatorCredits = 0,
+      receiverItems = [],
+      receiverCredits = 0,
       message,
     } = counter;
 

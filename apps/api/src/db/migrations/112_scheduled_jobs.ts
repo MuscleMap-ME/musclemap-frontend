@@ -97,11 +97,11 @@ export async function up(): Promise<void> {
     ON scheduled_job_history(status)
   `);
 
-  // Partial index for recent history queries
+  // Note: Removed partial index with NOW() - INTERVAL as it's not immutable
+  // Using a regular index instead
   await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_job_history_recent
     ON scheduled_job_history(started_at DESC)
-    WHERE started_at > NOW() - INTERVAL '7 days'
   `);
 
   log.info('Creating updated_at trigger...');

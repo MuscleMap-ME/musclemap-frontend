@@ -7,7 +7,7 @@
  * - Quick bug report with enhanced context
  */
 
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
 

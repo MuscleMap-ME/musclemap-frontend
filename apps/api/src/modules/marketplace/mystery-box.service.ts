@@ -55,6 +55,7 @@ interface Cosmetic {
   rarity: string;
   base_price: number;
   preview_url: string | null;
+  [key: string]: unknown;
 }
 
 // =====================================================
