@@ -119,25 +119,27 @@ export async function up(): Promise<void> {
   // =====================================================
   log.info('Creating form finder tables...');
 
-  // User exercise preferences (what they like/avoid)
+  // User exercise avoidances for mascot form finder (what they like/avoid)
+  // NOTE: user_exercise_preferences already exists from 083_periodization_engine
+  // so we use a separate table for mascot-specific avoidance tracking
   await query(`
-    CREATE TABLE IF NOT EXISTS user_exercise_preferences (
+    CREATE TABLE IF NOT EXISTS mascot_exercise_avoidances (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       exercise_id TEXT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-      preference_type VARCHAR(20) NOT NULL,
+      avoidance_type VARCHAR(20) NOT NULL,
       reason VARCHAR(100),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(user_id, exercise_id),
-      CONSTRAINT valid_preference CHECK (preference_type IN (
+      CONSTRAINT valid_avoidance_type CHECK (avoidance_type IN (
         'favorite', 'avoid', 'injured', 'no_equipment', 'too_difficult', 'too_easy'
       ))
     )
   `);
 
   await query(`
-    CREATE INDEX IF NOT EXISTS idx_exercise_prefs_user
-    ON user_exercise_preferences(user_id, preference_type)
+    CREATE INDEX IF NOT EXISTS idx_mascot_exercise_avoidances_user
+    ON mascot_exercise_avoidances(user_id, avoidance_type)
   `);
 
   // Exercise alternative suggestions log
@@ -389,7 +391,7 @@ export async function down(): Promise<void> {
   await query(`DROP TABLE IF EXISTS mascot_milestone_predictions`);
   await query(`DROP TABLE IF EXISTS mascot_form_finder_config`);
   await query(`DROP TABLE IF EXISTS mascot_exercise_suggestions`);
-  await query(`DROP TABLE IF EXISTS user_exercise_preferences`);
+  await query(`DROP TABLE IF EXISTS mascot_exercise_avoidances`);
   await query(`DROP TABLE IF EXISTS mascot_scheduler_config`);
   await query(`DROP TABLE IF EXISTS mascot_workout_suggestions`);
   await query(`DROP TABLE IF EXISTS user_muscle_recovery`);

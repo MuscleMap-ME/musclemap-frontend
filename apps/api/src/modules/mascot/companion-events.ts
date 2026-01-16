@@ -180,11 +180,13 @@ export const companionEventsService = {
       throw new Error(`Failed to create companion state for user ${userId}`);
     }
 
+    // Note: PostgreSQL returns JSONB columns as already-parsed objects
+    // so we don't need JSON.parse here - just ensure defaults
     return {
       ...state,
-      unlocked_upgrades: JSON.parse(state.unlocked_upgrades || '[]'),
-      equipped_cosmetics: JSON.parse(state.equipped_cosmetics || '{}'),
-      abilities: JSON.parse(state.abilities || '[]'),
+      unlocked_upgrades: (state.unlocked_upgrades as unknown as string[]) || [],
+      equipped_cosmetics: (state.equipped_cosmetics as unknown as Record<string, string>) || {},
+      abilities: (state.abilities as unknown as string[]) || [],
     };
   },
 

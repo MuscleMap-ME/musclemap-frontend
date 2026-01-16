@@ -261,7 +261,8 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       data: {
         balance,
         upgrades: upgrades.map((u) => {
-          const prereqs = JSON.parse(u.prerequisite_upgrades || '[]') as string[];
+          // PostgreSQL JSONB returns parsed objects, not strings
+          const prereqs = (u.prerequisite_upgrades || []) as string[];
           const isUnlocked = state.unlocked_upgrades.includes(u.id);
           const meetsStage = state.stage >= u.prerequisite_stage;
           const meetsPrereqs = prereqs.every((r) => state.unlocked_upgrades.includes(r));
@@ -330,8 +331,8 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
       });
     }
 
-    // Check prerequisites
-    const prereqs = JSON.parse(upgrade.prerequisite_upgrades || '[]') as string[];
+    // Check prerequisites - PostgreSQL JSONB returns parsed objects
+    const prereqs = (upgrade.prerequisite_upgrades || []) as string[];
     if (!prereqs.every((r) => state.unlocked_upgrades.includes(r))) {
       return reply.status(400).send({
         error: { code: 'PREREQ_REQUIRED', message: 'Missing prerequisites', statusCode: 400 },
@@ -471,9 +472,10 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
     }>(queryStr, [userId, maxLimit]);
 
     return reply.send({
+      // PostgreSQL JSONB returns parsed objects, not strings
       data: events.map((e) => ({
         ...e,
-        event_data: JSON.parse(e.event_data || '{}'),
+        event_data: e.event_data || {},
       })),
     });
   });
