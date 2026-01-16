@@ -123,23 +123,8 @@ async function findMatchingPattern(
   errorType: string,
   message: string
 ): Promise<ErrorPattern | null> {
-  // Look for patterns that match this error
+  // Look for patterns that match this error message
   const patterns = await db.query<ErrorPattern>(
-    `SELECT * FROM error_patterns
-     WHERE error_type = $1
-       AND status = 'active'
-       AND message ILIKE '%' || message_pattern || '%'
-     ORDER BY occurrence_count DESC
-     LIMIT 1`,
-    [errorType]
-  );
-
-  if (patterns.rows.length > 0) {
-    return patterns.rows[0];
-  }
-
-  // Fallback: check for substring match
-  const substringPatterns = await db.query<ErrorPattern>(
     `SELECT * FROM error_patterns
      WHERE error_type = $1
        AND status = 'active'
@@ -149,7 +134,7 @@ async function findMatchingPattern(
     [errorType, message]
   );
 
-  return substringPatterns.rows[0] || null;
+  return patterns.rows[0] || null;
 }
 
 /**
