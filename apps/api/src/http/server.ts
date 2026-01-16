@@ -109,7 +109,7 @@ import { registerExerciseGroupRoutes } from './routes/exercise-groups';
 import rpeRoutes from './routes/rpe';
 import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
-// TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
+// TODO: Marketplace module disabled - services need rewrite to use pg client instead of Knex
 // import { marketplaceRoutes } from './routes/marketplace';
 
 // GraphQL

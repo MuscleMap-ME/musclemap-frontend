@@ -68,6 +68,12 @@ const Wallet = lazy(() => import('./pages/Wallet'));
 const SkinsStore = lazy(() => import('./pages/SkinsStore'));
 const Trainers = lazy(() => import('./pages/Trainers'));
 
+// Marketplace & Trading pages
+const Marketplace = lazy(() => import('./pages/Marketplace'));
+const Trading = lazy(() => import('./pages/Trading'));
+const Collection = lazy(() => import('./pages/Collection'));
+const MysteryBoxes = lazy(() => import('./pages/MysteryBoxes'));
+
 // Health pages
 const Health = lazy(() => import('./pages/Health'));
 const Recovery = lazy(() => import('./pages/Recovery'));
@@ -475,6 +481,12 @@ function AppRoutes() {
           <Route path="/wallet" element={<ProtectedRoute name="Wallet"><Wallet /></ProtectedRoute>} />
           <Route path="/skins" element={<ProtectedRoute name="SkinsStore"><SkinsStore /></ProtectedRoute>} />
           <Route path="/trainers" element={<ProtectedRoute name="Trainers"><Trainers /></ProtectedRoute>} />
+
+          {/* Marketplace & Trading routes */}
+          <Route path="/marketplace" element={<ProtectedRoute name="Marketplace"><Marketplace /></ProtectedRoute>} />
+          <Route path="/trading" element={<ProtectedRoute name="Trading"><Trading /></ProtectedRoute>} />
+          <Route path="/collection" element={<ProtectedRoute name="Collection"><Collection /></ProtectedRoute>} />
+          <Route path="/mystery-boxes" element={<ProtectedRoute name="MysteryBoxes"><MysteryBoxes /></ProtectedRoute>} />
           <Route path="/exercises" element={<ProtectedRoute name="Exercises"><Exercises /></ProtectedRoute>} />
           <Route path="/stats" element={<ProtectedRoute name="Stats"><Stats /></ProtectedRoute>} />
           <Route path="/personal-records" element={<ProtectedRoute name="PersonalRecords"><PersonalRecords /></ProtectedRoute>} />

@@ -24,7 +24,10 @@ const createListingSchema = z.object({
   allowOffers: z.boolean().optional(),
   reservedForUserId: z.string().optional(),
   sellerNote: z.string().max(500).optional(),
-});
+}).transform((data) => ({
+  ...data,
+  durationHours: data.durationHours ?? 168,
+}));
 
 const browseListingsSchema = z.object({
   category: z.string().optional(),

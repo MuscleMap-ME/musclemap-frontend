@@ -1,4 +1,12 @@
-import { db, queryOne, queryAll, query, serializableTransaction } from '../../db/client';
+/**
+ * Marketplace Service
+ *
+ * Handles marketplace listings, offers, watchlist, and transactions.
+ * Uses raw pg queries for all database operations.
+ */
+
+import { queryOne, queryAll, query, serializableTransaction } from '../../db/client';
+import { PoolClient } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 
 // =====================================================
@@ -15,7 +23,7 @@ export interface CreateListingInput {
   reservePrice?: number;
   buyNowPrice?: number;
   bidIncrement?: number;
-  durationHours: number;
+  durationHours?: number;
   allowOffers?: boolean;
   reservedForUserId?: string;
   sellerNote?: string;
@@ -42,12 +50,16 @@ export interface MakeOfferInput {
 }
 
 // =====================================================
-// MARKETPLACE SERVICE
+// CONSTANTS
 // =====================================================
 
 const PLATFORM_FEE_PERCENT = 5;
 const DEFAULT_LISTING_DURATION_HOURS = 168; // 7 days
 const MAX_ACTIVE_LISTINGS_DEFAULT = 10;
+
+// =====================================================
+// SERVICE
+// =====================================================
 
 export const marketplaceService = {
   // =====================================================
@@ -72,90 +84,118 @@ export const marketplaceService = {
     } = input;
 
     // Verify user owns the cosmetic
-    const userCosmetic = await db('user_spirit_cosmetics')
-      .where({ id: userCosmeticId, user_id: sellerId })
-      .first();
+    const userCosmetic = await queryOne<{ id: string; user_id: string }>(
+      `SELECT id, user_id FROM user_spirit_cosmetics
+       WHERE id = $1 AND user_id = $2`,
+      [userCosmeticId, sellerId]
+    );
 
     if (!userCosmetic) {
       throw new Error('You do not own this cosmetic');
     }
 
     // Check if item is tradeable
-    const cosmetic = await db('spirit_animal_cosmetics')
-      .where({ id: cosmeticId })
-      .first();
+    const cosmetic = await queryOne<{ id: string; is_tradeable: boolean }>(
+      `SELECT id, is_tradeable FROM spirit_animal_cosmetics WHERE id = $1`,
+      [cosmeticId]
+    );
 
     if (!cosmetic?.is_tradeable) {
       throw new Error('This item cannot be traded');
     }
 
     // Check if item is already listed
-    const existingListing = await db('marketplace_listings')
-      .where({ user_cosmetic_id: userCosmeticId, status: 'active' })
-      .first();
+    const existingListing = await queryOne<{ id: string }>(
+      `SELECT id FROM marketplace_listings
+       WHERE user_cosmetic_id = $1 AND status = 'active'`,
+      [userCosmeticId]
+    );
 
     if (existingListing) {
       throw new Error('This item is already listed');
     }
 
-    // Check user's active listing count
-    const activeCount = await db('marketplace_listings')
-      .where({ seller_id: sellerId, status: 'active' })
-      .count('id as count')
-      .first();
+    // Check seller's active listing count
+    const activeListingCount = await queryOne<{ count: string }>(
+      `SELECT COUNT(*)::text as count FROM marketplace_listings
+       WHERE seller_id = $1 AND status = 'active'`,
+      [sellerId]
+    );
 
-    const stats = await this.getUserStats(sellerId);
-    const maxListings = this.getMaxListingsForLevel(stats?.total_sales || 0);
+    const sellerLevel = await this.getSellerLevel(sellerId);
+    const maxListings = MAX_ACTIVE_LISTINGS_DEFAULT + (sellerLevel * 5);
 
-    if (Number(activeCount?.count || 0) >= maxListings) {
-      throw new Error(`You can only have ${maxListings} active listings`);
+    if (parseInt(activeListingCount?.count || '0') >= maxListings) {
+      throw new Error(`You can only have ${maxListings} active listings at your seller level`);
     }
 
+    // Calculate expiration
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + durationHours);
 
-    const auctionEndTime = listingType === 'auction' ? expiresAt : null;
+    // Create listing
+    const listingId = uuidv4();
+    const listing = await queryOne<{ id: string }>(
+      `INSERT INTO marketplace_listings (
+        id, seller_id, cosmetic_id, user_cosmetic_id, listing_type,
+        price, min_offer, reserve_price, buy_now_price, bid_increment,
+        allow_offers, reserved_for_user_id, seller_note, expires_at, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'active')
+      RETURNING id`,
+      [
+        listingId, sellerId, cosmeticId, userCosmeticId, listingType,
+        price, minOffer, reservePrice, buyNowPrice, bidIncrement,
+        allowOffers, reservedForUserId, sellerNote, expiresAt,
+      ]
+    );
 
-    const [listing] = await db('marketplace_listings')
-      .insert({
-        seller_id: sellerId,
-        cosmetic_id: cosmeticId,
-        user_cosmetic_id: userCosmeticId,
-        listing_type: listingType,
-        price,
-        min_offer: minOffer,
-        reserve_price: reservePrice,
-        buy_now_price: buyNowPrice,
-        bid_increment: bidIncrement,
-        auction_end_time: auctionEndTime,
-        allow_offers: allowOffers,
-        reserved_for_user_id: reservedForUserId,
-        seller_note: sellerNote,
-        expires_at: expiresAt,
-      })
-      .returning('*');
+    // Mark cosmetic as listed
+    await query(
+      `UPDATE user_spirit_cosmetics SET is_listed = true WHERE id = $1`,
+      [userCosmeticId]
+    );
 
-    // Update user stats
-    await this.updateUserStats(sellerId, { activeListings: 1 });
-
-    return this.enrichListing(listing);
+    return this.getListing(listing!.id);
   },
 
   async getListing(listingId: string) {
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId })
-      .first();
+    const listing = await queryOne<{
+      id: string;
+      seller_id: string;
+      cosmetic_id: string;
+      user_cosmetic_id: string;
+      listing_type: string;
+      price: number;
+      min_offer: number;
+      reserve_price: number;
+      buy_now_price: number;
+      current_bid: number;
+      bid_count: number;
+      allow_offers: boolean;
+      seller_note: string;
+      status: string;
+      expires_at: string;
+      created_at: string;
+      cosmetic_name: string;
+      cosmetic_description: string;
+      cosmetic_icon: string;
+      rarity: string;
+      category: string;
+      seller_username: string;
+      view_count: number;
+    }>(
+      `SELECT l.*,
+        c.name as cosmetic_name, c.description as cosmetic_description,
+        c.icon as cosmetic_icon, c.rarity, c.category,
+        u.username as seller_username
+       FROM marketplace_listings l
+       JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
+       JOIN users u ON l.seller_id = u.id
+       WHERE l.id = $1`,
+      [listingId]
+    );
 
-    if (!listing) {
-      return null;
-    }
-
-    // Increment view count
-    await db('marketplace_listings')
-      .where({ id: listingId })
-      .increment('view_count', 1);
-
-    return this.enrichListing(listing);
+    return listing;
   },
 
   async browseListings(filters: ListingFilters) {
@@ -169,108 +209,116 @@ export const marketplaceService = {
       search,
       sortBy = 'newest',
       cursor,
-      limit = 20,
+      limit = 24,
     } = filters;
 
-    let query = db('marketplace_listings as ml')
-      .join('spirit_animal_cosmetics as sac', 'ml.cosmetic_id', 'sac.id')
-      .join('users as u', 'ml.seller_id', 'u.id')
-      .where('ml.status', 'active')
-      .select(
-        'ml.*',
-        'sac.name as cosmetic_name',
-        'sac.description as cosmetic_description',
-        'sac.category',
-        'sac.rarity',
-        'sac.preview_url',
-        'sac.asset_url',
-        'u.username as seller_username',
-        'u.avatar_url as seller_avatar'
-      );
+    const conditions: string[] = ["l.status = 'active'"];
+    const params: unknown[] = [];
+    let paramIndex = 1;
 
-    // Apply filters
     if (category) {
-      query = query.where('sac.category', category);
-    }
-    if (rarity) {
-      query = query.where('sac.rarity', rarity);
-    }
-    if (minPrice !== undefined) {
-      query = query.where('ml.price', '>=', minPrice);
-    }
-    if (maxPrice !== undefined) {
-      query = query.where('ml.price', '<=', maxPrice);
-    }
-    if (listingType) {
-      query = query.where('ml.listing_type', listingType);
-    }
-    if (sellerId) {
-      query = query.where('ml.seller_id', sellerId);
-    }
-    if (search) {
-      query = query.where(function () {
-        this.whereILike('sac.name', `%${search}%`)
-          .orWhereILike('sac.description', `%${search}%`)
-          .orWhereILike('ml.seller_note', `%${search}%`);
-      });
+      conditions.push(`c.category = $${paramIndex++}`);
+      params.push(category);
     }
 
-    // Apply sorting
+    if (rarity) {
+      conditions.push(`c.rarity = $${paramIndex++}`);
+      params.push(rarity);
+    }
+
+    if (minPrice !== undefined) {
+      conditions.push(`l.price >= $${paramIndex++}`);
+      params.push(minPrice);
+    }
+
+    if (maxPrice !== undefined) {
+      conditions.push(`l.price <= $${paramIndex++}`);
+      params.push(maxPrice);
+    }
+
+    if (listingType) {
+      conditions.push(`l.listing_type = $${paramIndex++}`);
+      params.push(listingType);
+    }
+
+    if (sellerId) {
+      conditions.push(`l.seller_id = $${paramIndex++}`);
+      params.push(sellerId);
+    }
+
+    if (search) {
+      conditions.push(`(c.name ILIKE $${paramIndex++} OR c.description ILIKE $${paramIndex++})`);
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    // Sort order
+    let orderBy = 'l.created_at DESC';
     switch (sortBy) {
       case 'price_asc':
-        query = query.orderBy('ml.price', 'asc');
+        orderBy = 'l.price ASC NULLS LAST';
         break;
       case 'price_desc':
-        query = query.orderBy('ml.price', 'desc');
+        orderBy = 'l.price DESC NULLS LAST';
         break;
       case 'ending_soon':
-        query = query.orderBy('ml.expires_at', 'asc');
+        orderBy = 'l.expires_at ASC';
         break;
       case 'popular':
-        query = query.orderBy('ml.view_count', 'desc');
+        orderBy = 'l.view_count DESC, l.created_at DESC';
         break;
-      case 'newest':
-      default:
-        query = query.orderBy('ml.created_at', 'desc');
     }
 
-    // Keyset pagination
+    // Cursor for pagination (using created_at, id)
     if (cursor) {
-      const [createdAt, id] = cursor.split('_');
-      query = query.where(function () {
-        this.where('ml.created_at', '<', new Date(createdAt))
-          .orWhere(function () {
-            this.where('ml.created_at', '=', new Date(createdAt))
-              .andWhere('ml.id', '<', id);
-          });
-      });
+      try {
+        const [createdAt, id] = cursor.split('_');
+        conditions.push(`(l.created_at, l.id) < ($${paramIndex++}, $${paramIndex++})`);
+        params.push(createdAt, id);
+      } catch {
+        // Invalid cursor, ignore
+      }
     }
 
-    query = query.orderBy('ml.id', 'desc').limit(limit + 1);
+    params.push(limit + 1); // Fetch one extra to check for more
 
-    const listings = await query;
+    const listings = await queryAll<{
+      id: string;
+      seller_id: string;
+      listing_type: string;
+      price: number;
+      current_bid: number;
+      bid_count: number;
+      expires_at: string;
+      created_at: string;
+      cosmetic_name: string;
+      cosmetic_icon: string;
+      rarity: string;
+      category: string;
+      seller_username: string;
+    }>(
+      `SELECT l.id, l.seller_id, l.listing_type, l.price, l.current_bid,
+        l.bid_count, l.expires_at, l.created_at,
+        c.name as cosmetic_name, c.icon as cosmetic_icon, c.rarity, c.category,
+        u.username as seller_username
+       FROM marketplace_listings l
+       JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
+       JOIN users u ON l.seller_id = u.id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ${orderBy}
+       LIMIT $${paramIndex}`,
+      params
+    );
 
     const hasMore = listings.length > limit;
-    const results = hasMore ? listings.slice(0, -1) : listings;
-
-    let nextCursor: string | undefined;
-    if (hasMore && results.length > 0) {
-      const last = results[results.length - 1];
-      nextCursor = `${last.created_at.toISOString()}_${last.id}`;
-    }
-
-    // Get total count
-    const totalQuery = db('marketplace_listings')
-      .where('status', 'active')
-      .count('id as count')
-      .first();
-
-    const total = await totalQuery;
+    const resultListings = hasMore ? listings.slice(0, -1) : listings;
+    const nextCursor = hasMore && resultListings.length > 0
+      ? `${resultListings[resultListings.length - 1].created_at}_${resultListings[resultListings.length - 1].id}`
+      : null;
 
     return {
-      listings: results,
+      listings: resultListings,
       nextCursor,
-      total: Number(total?.count || 0),
+      hasMore,
     };
   },
 
@@ -279,79 +327,112 @@ export const marketplaceService = {
     sellerId: string,
     updates: { price?: number; sellerNote?: string; allowOffers?: boolean }
   ) {
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId, seller_id: sellerId, status: 'active' })
-      .first();
+    // Verify ownership
+    const listing = await queryOne<{ id: string; seller_id: string; status: string }>(
+      `SELECT id, seller_id, status FROM marketplace_listings WHERE id = $1`,
+      [listingId]
+    );
 
-    if (!listing) {
-      throw new Error('Listing not found or you are not the seller');
+    if (!listing || listing.seller_id !== sellerId) {
+      throw new Error('Listing not found or not authorized');
     }
 
-    // Cannot update auction with bids
-    if (listing.listing_type === 'auction' && listing.bid_count > 0) {
-      throw new Error('Cannot modify auction with existing bids');
+    if (listing.status !== 'active') {
+      throw new Error('Cannot update inactive listing');
     }
 
-    const [updated] = await db('marketplace_listings')
-      .where({ id: listingId })
-      .update({
-        ...updates,
-        updated_at: new Date(),
-      })
-      .returning('*');
+    const setClauses: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
 
-    return this.enrichListing(updated);
+    if (updates.price !== undefined) {
+      setClauses.push(`price = $${paramIndex++}`);
+      params.push(updates.price);
+    }
+
+    if (updates.sellerNote !== undefined) {
+      setClauses.push(`seller_note = $${paramIndex++}`);
+      params.push(updates.sellerNote);
+    }
+
+    if (updates.allowOffers !== undefined) {
+      setClauses.push(`allow_offers = $${paramIndex++}`);
+      params.push(updates.allowOffers);
+    }
+
+    if (setClauses.length === 0) {
+      return this.getListing(listingId);
+    }
+
+    setClauses.push(`updated_at = NOW()`);
+    params.push(listingId);
+
+    await query(
+      `UPDATE marketplace_listings SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+      params
+    );
+
+    return this.getListing(listingId);
   },
 
   async cancelListing(listingId: string, sellerId: string) {
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId, seller_id: sellerId, status: 'active' })
-      .first();
+    const listing = await queryOne<{ id: string; seller_id: string; status: string; user_cosmetic_id: string }>(
+      `SELECT id, seller_id, status, user_cosmetic_id FROM marketplace_listings WHERE id = $1`,
+      [listingId]
+    );
 
-    if (!listing) {
-      throw new Error('Listing not found or you are not the seller');
+    if (!listing || listing.seller_id !== sellerId) {
+      throw new Error('Listing not found or not authorized');
     }
 
-    // Cannot cancel auction with bids
-    if (listing.listing_type === 'auction' && listing.bid_count > 0) {
-      throw new Error('Cannot cancel auction with existing bids');
+    if (listing.status !== 'active') {
+      throw new Error('Listing is already inactive');
     }
 
-    await db('marketplace_listings')
-      .where({ id: listingId })
-      .update({ status: 'cancelled', updated_at: new Date() });
+    // Cancel listing and unlock cosmetic
+    await query(
+      `UPDATE marketplace_listings SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+      [listingId]
+    );
 
-    // Update user stats
-    await this.updateUserStats(sellerId, { activeListings: -1 });
+    await query(
+      `UPDATE user_spirit_cosmetics SET is_listed = false WHERE id = $1`,
+      [listing.user_cosmetic_id]
+    );
 
-    return { success: true };
+    // Decline pending offers
+    await query(
+      `UPDATE marketplace_offers SET status = 'declined', updated_at = NOW()
+       WHERE listing_id = $1 AND status = 'pending'`,
+      [listingId]
+    );
   },
 
-  // =====================================================
-  // PURCHASES
-  // =====================================================
-
   async buyNow(listingId: string, buyerId: string) {
-    return db.transaction(async (trx) => {
-      const listing = await trx('marketplace_listings')
-        .where({ id: listingId, status: 'active' })
-        .forUpdate()
-        .first();
+    return await serializableTransaction(async (client: PoolClient) => {
+      // Get listing with lock
+      const result = await client.query(
+        `SELECT l.*, u.credit_balance as seller_balance
+         FROM marketplace_listings l
+         JOIN users u ON l.seller_id = u.id
+         WHERE l.id = $1
+         FOR UPDATE`,
+        [listingId]
+      );
+      const listing = result.rows[0];
 
       if (!listing) {
-        throw new Error('Listing not found or no longer available');
+        throw new Error('Listing not found');
+      }
+
+      if (listing.status !== 'active') {
+        throw new Error('Listing is no longer active');
       }
 
       if (listing.seller_id === buyerId) {
-        throw new Error('Cannot buy your own listing');
+        throw new Error('You cannot buy your own listing');
       }
 
-      // Check if reserved for someone else
-      if (listing.reserved_for_user_id && listing.reserved_for_user_id !== buyerId) {
-        throw new Error('This listing is reserved for another user');
-      }
-
-      // Get price (could be buy_now_price for auctions)
       const price = listing.listing_type === 'auction'
         ? listing.buy_now_price
         : listing.price;
@@ -360,83 +441,73 @@ export const marketplaceService = {
         throw new Error('This listing does not support buy now');
       }
 
-      // Check buyer's balance
-      const buyerBalance = await trx('credit_balances')
-        .where({ user_id: buyerId })
-        .first();
+      // Check buyer balance
+      const buyerResult = await client.query(
+        `SELECT credit_balance FROM users WHERE id = $1 FOR UPDATE`,
+        [buyerId]
+      );
+      const buyer = buyerResult.rows[0];
 
-      if (!buyerBalance || buyerBalance.balance < price) {
+      if (!buyer || buyer.credit_balance < price) {
         throw new Error('Insufficient credits');
       }
 
       // Calculate fees
       const platformFee = Math.floor(price * PLATFORM_FEE_PERCENT / 100);
-      const sellerReceives = price - platformFee;
+      const sellerProceeds = price - platformFee;
 
-      // Deduct from buyer
-      await trx('credit_balances')
-        .where({ user_id: buyerId })
-        .decrement('balance', price);
+      // Transfer credits
+      await client.query(
+        `UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2`,
+        [price, buyerId]
+      );
 
-      // Credit seller
-      await trx('credit_balances')
-        .where({ user_id: listing.seller_id })
-        .increment('balance', sellerReceives);
+      await client.query(
+        `UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2`,
+        [sellerProceeds, listing.seller_id]
+      );
 
       // Transfer cosmetic ownership
-      await trx('user_spirit_cosmetics')
-        .where({ id: listing.user_cosmetic_id })
-        .update({
-          user_id: buyerId,
-          acquired_at: new Date(),
-          acquisition_method: 'purchase',
-          credits_spent: price,
-        });
+      await client.query(
+        `UPDATE user_spirit_cosmetics SET user_id = $1, is_listed = false, acquired_at = NOW()
+         WHERE id = $2`,
+        [buyerId, listing.user_cosmetic_id]
+      );
 
-      // Update listing status
-      await trx('marketplace_listings')
-        .where({ id: listingId })
-        .update({
-          status: 'sold',
-          sold_at: new Date(),
-          sold_to_id: buyerId,
-          sold_price: price,
-        });
+      // Update listing
+      await client.query(
+        `UPDATE marketplace_listings SET status = 'sold', buyer_id = $1, final_price = $2,
+         platform_fee = $3, updated_at = NOW() WHERE id = $4`,
+        [buyerId, price, platformFee, listingId]
+      );
 
       // Record transaction
-      const [transaction] = await trx('marketplace_transactions')
-        .insert({
-          listing_id: listingId,
-          seller_id: listing.seller_id,
-          buyer_id: buyerId,
-          cosmetic_id: listing.cosmetic_id,
-          sale_price: price,
-          platform_fee: platformFee,
-          seller_received: sellerReceives,
-          transaction_type: 'buy_now',
-        })
-        .returning('*');
-
-      // Update user stats
-      await this.updateUserStatsInTransaction(trx, listing.seller_id, {
-        totalSales: 1,
-        totalRevenue: sellerReceives,
-        activeListings: -1,
-      });
-      await this.updateUserStatsInTransaction(trx, buyerId, {
-        totalPurchases: 1,
-        totalSpent: price,
-      });
+      await client.query(
+        `INSERT INTO marketplace_transactions (
+          id, listing_id, seller_id, buyer_id, cosmetic_id,
+          sale_price, platform_fee, seller_proceeds, transaction_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'buy_now')`,
+        [
+          uuidv4(), listingId, listing.seller_id, buyerId, listing.cosmetic_id,
+          price, platformFee, sellerProceeds,
+        ]
+      );
 
       // Record price history
-      await this.recordPriceHistory(trx, listing.cosmetic_id, price);
+      await client.query(
+        `INSERT INTO price_history (cosmetic_id, sale_price, listing_type)
+         VALUES ($1, $2, $3)`,
+        [listing.cosmetic_id, price, listing.listing_type]
+      );
 
-      return {
-        transaction,
-        cosmetic: await trx('user_spirit_cosmetics')
-          .where({ id: listing.user_cosmetic_id })
-          .first(),
-      };
+      // Decline pending offers
+      await client.query(
+        `UPDATE marketplace_offers SET status = 'declined', updated_at = NOW()
+         WHERE listing_id = $1 AND status = 'pending'`,
+        [listingId]
+      );
+
+      return { success: true, price, platformFee, sellerProceeds };
     });
   },
 
@@ -447,63 +518,58 @@ export const marketplaceService = {
   async makeOffer(input: MakeOfferInput) {
     const { listingId, offererId, amount, message } = input;
 
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId, status: 'active' })
-      .first();
+    const listing = await queryOne<{
+      id: string;
+      seller_id: string;
+      status: string;
+      allow_offers: boolean;
+      min_offer: number;
+      listing_type: string;
+    }>(
+      `SELECT id, seller_id, status, allow_offers, min_offer, listing_type
+       FROM marketplace_listings WHERE id = $1`,
+      [listingId]
+    );
 
     if (!listing) {
       throw new Error('Listing not found');
     }
 
-    if (!listing.allow_offers && listing.listing_type !== 'offer_only') {
-      throw new Error('This listing does not accept offers');
+    if (listing.status !== 'active') {
+      throw new Error('Listing is no longer active');
     }
 
     if (listing.seller_id === offererId) {
-      throw new Error('Cannot make offer on your own listing');
+      throw new Error('You cannot make an offer on your own listing');
+    }
+
+    if (listing.listing_type !== 'offer_only' && !listing.allow_offers) {
+      throw new Error('This listing does not accept offers');
     }
 
     if (listing.min_offer && amount < listing.min_offer) {
-      throw new Error(`Minimum offer is ${listing.min_offer} credits`);
+      throw new Error(`Offer must be at least ${listing.min_offer} credits`);
     }
 
-    // Check if user already has pending offer
-    const existingOffer = await db('marketplace_offers')
-      .where({
-        listing_id: listingId,
-        offerer_id: offererId,
-        status: 'pending',
-      })
-      .first();
+    // Check offerer balance
+    const offerer = await queryOne<{ credit_balance: number }>(
+      `SELECT credit_balance FROM users WHERE id = $1`,
+      [offererId]
+    );
 
-    if (existingOffer) {
-      throw new Error('You already have a pending offer on this listing');
+    if (!offerer || offerer.credit_balance < amount) {
+      throw new Error('Insufficient credits for this offer');
     }
 
-    // Check buyer's balance
-    const buyerBalance = await db('credit_balances')
-      .where({ user_id: offererId })
-      .first();
+    // Create offer
+    const offerId = uuidv4();
+    await query(
+      `INSERT INTO marketplace_offers (id, listing_id, offerer_id, amount, message, status)
+       VALUES ($1, $2, $3, $4, $5, 'pending')`,
+      [offerId, listingId, offererId, amount, message]
+    );
 
-    if (!buyerBalance || buyerBalance.balance < amount) {
-      throw new Error('Insufficient credits');
-    }
-
-    const [offer] = await db('marketplace_offers')
-      .insert({
-        listing_id: listingId,
-        offerer_id: offererId,
-        offer_amount: amount,
-        message,
-      })
-      .returning('*');
-
-    // Update listing offer count
-    await db('marketplace_listings')
-      .where({ id: listingId })
-      .increment('offer_count', 1);
-
-    return offer;
+    return queryOne(`SELECT * FROM marketplace_offers WHERE id = $1`, [offerId]);
   },
 
   async respondToOffer(
@@ -513,528 +579,355 @@ export const marketplaceService = {
     counterAmount?: number,
     counterMessage?: string
   ) {
-    const offer = await db('marketplace_offers')
-      .join('marketplace_listings', 'marketplace_offers.listing_id', 'marketplace_listings.id')
-      .where('marketplace_offers.id', offerId)
-      .where('marketplace_listings.seller_id', sellerId)
-      .where('marketplace_offers.status', 'pending')
-      .select('marketplace_offers.*', 'marketplace_listings.cosmetic_id', 'marketplace_listings.user_cosmetic_id')
-      .first();
+    const offer = await queryOne<{
+      id: string;
+      listing_id: string;
+      offerer_id: string;
+      amount: number;
+      status: string;
+    }>(
+      `SELECT o.*, l.seller_id FROM marketplace_offers o
+       JOIN marketplace_listings l ON o.listing_id = l.id
+       WHERE o.id = $1`,
+      [offerId]
+    );
 
-    if (!offer) {
-      throw new Error('Offer not found or you are not the seller');
+    if (!offer || (offer as any).seller_id !== sellerId) {
+      throw new Error('Offer not found or not authorized');
     }
 
-    if (action === 'accept') {
-      // Process the sale
-      return db.transaction(async (trx) => {
-        const price = offer.offer_amount;
-        const platformFee = Math.floor(price * PLATFORM_FEE_PERCENT / 100);
-        const sellerReceives = price - platformFee;
+    if (offer.status !== 'pending') {
+      throw new Error('Offer has already been processed');
+    }
 
-        // Check buyer still has funds
-        const buyerBalance = await trx('credit_balances')
-          .where({ user_id: offer.offerer_id })
-          .first();
+    if (action === 'decline') {
+      await query(
+        `UPDATE marketplace_offers SET status = 'declined', updated_at = NOW() WHERE id = $1`,
+        [offerId]
+      );
+      return { success: true, action: 'declined' };
+    }
 
-        if (!buyerBalance || buyerBalance.balance < price) {
-          throw new Error('Buyer no longer has sufficient credits');
-        }
-
-        // Process payment
-        await trx('credit_balances')
-          .where({ user_id: offer.offerer_id })
-          .decrement('balance', price);
-
-        await trx('credit_balances')
-          .where({ user_id: sellerId })
-          .increment('balance', sellerReceives);
-
-        // Transfer ownership
-        await trx('user_spirit_cosmetics')
-          .where({ id: offer.user_cosmetic_id })
-          .update({
-            user_id: offer.offerer_id,
-            acquired_at: new Date(),
-            acquisition_method: 'purchase',
-            credits_spent: price,
-          });
-
-        // Update offer status
-        await trx('marketplace_offers')
-          .where({ id: offerId })
-          .update({ status: 'accepted', responded_at: new Date() });
-
-        // Update listing status
-        await trx('marketplace_listings')
-          .where({ id: offer.listing_id })
-          .update({
-            status: 'sold',
-            sold_at: new Date(),
-            sold_to_id: offer.offerer_id,
-            sold_price: price,
-          });
-
-        // Decline all other offers
-        await trx('marketplace_offers')
-          .where({ listing_id: offer.listing_id })
-          .whereNot({ id: offerId })
-          .update({ status: 'declined', responded_at: new Date() });
-
-        // Record transaction
-        const [transaction] = await trx('marketplace_transactions')
-          .insert({
-            listing_id: offer.listing_id,
-            seller_id: sellerId,
-            buyer_id: offer.offerer_id,
-            cosmetic_id: offer.cosmetic_id,
-            sale_price: price,
-            platform_fee: platformFee,
-            seller_received: sellerReceives,
-            transaction_type: 'offer_accepted',
-          })
-          .returning('*');
-
-        return { offer: { ...offer, status: 'accepted' }, transaction };
-      });
-    } else if (action === 'decline') {
-      await db('marketplace_offers')
-        .where({ id: offerId })
-        .update({ status: 'declined', responded_at: new Date() });
-
-      return { offer: { ...offer, status: 'declined' } };
-    } else if (action === 'counter') {
+    if (action === 'counter') {
       if (!counterAmount) {
         throw new Error('Counter amount is required');
       }
 
-      await db('marketplace_offers')
-        .where({ id: offerId })
-        .update({
-          status: 'countered',
-          counter_amount: counterAmount,
-          counter_message: counterMessage,
-          responded_at: new Date(),
-        });
+      const counterOfferId = uuidv4();
+      await query(
+        `INSERT INTO marketplace_offers (id, listing_id, offerer_id, amount, message, status, parent_offer_id)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+        [counterOfferId, offer.listing_id, sellerId, counterAmount, counterMessage, offerId]
+      );
 
-      return {
-        offer: {
-          ...offer,
-          status: 'countered',
-          counter_amount: counterAmount,
-          counter_message: counterMessage,
-        },
-      };
+      await query(
+        `UPDATE marketplace_offers SET status = 'countered', updated_at = NOW() WHERE id = $1`,
+        [offerId]
+      );
+
+      return { success: true, action: 'countered', counterOfferId };
     }
 
-    throw new Error('Invalid action');
+    // Accept offer - execute transaction
+    return await serializableTransaction(async (client: PoolClient) => {
+      // Get listing with lock
+      const listingResult = await client.query(
+        `SELECT * FROM marketplace_listings WHERE id = $1 FOR UPDATE`,
+        [offer.listing_id]
+      );
+      const listing = listingResult.rows[0];
+
+      if (!listing || listing.status !== 'active') {
+        throw new Error('Listing is no longer active');
+      }
+
+      // Check offerer balance
+      const offererResult = await client.query(
+        `SELECT credit_balance FROM users WHERE id = $1 FOR UPDATE`,
+        [offer.offerer_id]
+      );
+      const offerer = offererResult.rows[0];
+
+      if (!offerer || offerer.credit_balance < offer.amount) {
+        throw new Error('Offerer has insufficient credits');
+      }
+
+      // Calculate fees
+      const platformFee = Math.floor(offer.amount * PLATFORM_FEE_PERCENT / 100);
+      const sellerProceeds = offer.amount - platformFee;
+
+      // Transfer credits
+      await client.query(
+        `UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2`,
+        [offer.amount, offer.offerer_id]
+      );
+
+      await client.query(
+        `UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2`,
+        [sellerProceeds, sellerId]
+      );
+
+      // Transfer cosmetic ownership
+      await client.query(
+        `UPDATE user_spirit_cosmetics SET user_id = $1, is_listed = false, acquired_at = NOW()
+         WHERE id = $2`,
+        [offer.offerer_id, listing.user_cosmetic_id]
+      );
+
+      // Update listing and offer
+      await client.query(
+        `UPDATE marketplace_listings SET status = 'sold', buyer_id = $1, final_price = $2,
+         platform_fee = $3, updated_at = NOW() WHERE id = $4`,
+        [offer.offerer_id, offer.amount, platformFee, offer.listing_id]
+      );
+
+      await client.query(
+        `UPDATE marketplace_offers SET status = 'accepted', updated_at = NOW() WHERE id = $1`,
+        [offerId]
+      );
+
+      // Decline other pending offers
+      await client.query(
+        `UPDATE marketplace_offers SET status = 'declined', updated_at = NOW()
+         WHERE listing_id = $1 AND id != $2 AND status = 'pending'`,
+        [offer.listing_id, offerId]
+      );
+
+      // Record transaction
+      await client.query(
+        `INSERT INTO marketplace_transactions (
+          id, listing_id, seller_id, buyer_id, cosmetic_id,
+          sale_price, platform_fee, seller_proceeds, transaction_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'offer_accepted')`,
+        [
+          uuidv4(), offer.listing_id, sellerId, offer.offerer_id, listing.cosmetic_id,
+          offer.amount, platformFee, sellerProceeds,
+        ]
+      );
+
+      return { success: true, action: 'accepted', price: offer.amount };
+    });
   },
 
   async getListingOffers(listingId: string, sellerId: string) {
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId, seller_id: sellerId })
-      .first();
+    // Verify seller owns listing
+    const listing = await queryOne<{ seller_id: string }>(
+      `SELECT seller_id FROM marketplace_listings WHERE id = $1`,
+      [listingId]
+    );
 
-    if (!listing) {
-      throw new Error('Listing not found or you are not the seller');
+    if (!listing || listing.seller_id !== sellerId) {
+      throw new Error('Listing not found or not authorized');
     }
 
-    const offers = await db('marketplace_offers')
-      .join('users', 'marketplace_offers.offerer_id', 'users.id')
-      .where('marketplace_offers.listing_id', listingId)
-      .select(
-        'marketplace_offers.*',
-        'users.username as offerer_username',
-        'users.avatar_url as offerer_avatar'
-      )
-      .orderBy('marketplace_offers.created_at', 'desc');
-
-    return offers;
+    return queryAll(
+      `SELECT o.*, u.username as offerer_username
+       FROM marketplace_offers o
+       JOIN users u ON o.offerer_id = u.id
+       WHERE o.listing_id = $1
+       ORDER BY o.created_at DESC`,
+      [listingId]
+    );
   },
 
   async getUserOffers(userId: string) {
-    const offers = await db('marketplace_offers')
-      .join('marketplace_listings', 'marketplace_offers.listing_id', 'marketplace_listings.id')
-      .join('spirit_animal_cosmetics', 'marketplace_listings.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .join('users', 'marketplace_listings.seller_id', 'users.id')
-      .where('marketplace_offers.offerer_id', userId)
-      .select(
-        'marketplace_offers.*',
-        'spirit_animal_cosmetics.name as cosmetic_name',
-        'spirit_animal_cosmetics.preview_url',
-        'users.username as seller_username'
-      )
-      .orderBy('marketplace_offers.created_at', 'desc');
-
-    return offers;
+    return queryAll(
+      `SELECT o.*, l.cosmetic_id, c.name as cosmetic_name, c.icon as cosmetic_icon,
+        u.username as seller_username
+       FROM marketplace_offers o
+       JOIN marketplace_listings l ON o.listing_id = l.id
+       JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
+       JOIN users u ON l.seller_id = u.id
+       WHERE o.offerer_id = $1
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
   },
 
   async withdrawOffer(offerId: string, offererId: string) {
-    const offer = await db('marketplace_offers')
-      .where({ id: offerId, offerer_id: offererId, status: 'pending' })
-      .first();
+    const offer = await queryOne<{ id: string; offerer_id: string; status: string }>(
+      `SELECT id, offerer_id, status FROM marketplace_offers WHERE id = $1`,
+      [offerId]
+    );
 
-    if (!offer) {
-      throw new Error('Offer not found or cannot be withdrawn');
+    if (!offer || offer.offerer_id !== offererId) {
+      throw new Error('Offer not found or not authorized');
     }
 
-    await db('marketplace_offers')
-      .where({ id: offerId })
-      .update({ status: 'withdrawn' });
+    if (offer.status !== 'pending') {
+      throw new Error('Offer cannot be withdrawn');
+    }
 
-    return { success: true };
+    await query(
+      `UPDATE marketplace_offers SET status = 'withdrawn', updated_at = NOW() WHERE id = $1`,
+      [offerId]
+    );
   },
 
   // =====================================================
   // WATCHLIST
   // =====================================================
 
+  async getUserWatchlist(userId: string) {
+    return queryAll(
+      `SELECT w.*, l.price, l.listing_type, l.expires_at, l.status,
+        c.name as cosmetic_name, c.icon as cosmetic_icon, c.rarity
+       FROM user_watchlist w
+       JOIN marketplace_listings l ON w.listing_id = l.id
+       JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
+       WHERE w.user_id = $1
+       ORDER BY w.created_at DESC`,
+      [userId]
+    );
+  },
+
   async addToWatchlist(userId: string, listingId: string, priceAlert?: number) {
-    const listing = await db('marketplace_listings')
-      .where({ id: listingId, status: 'active' })
-      .first();
+    // Verify listing exists
+    const listing = await queryOne<{ id: string }>(
+      `SELECT id FROM marketplace_listings WHERE id = $1`,
+      [listingId]
+    );
 
     if (!listing) {
       throw new Error('Listing not found');
     }
 
-    await db('marketplace_watchlist')
-      .insert({
-        user_id: userId,
-        listing_id: listingId,
-        price_alert: priceAlert,
-      })
-      .onConflict(['user_id', 'listing_id'])
-      .merge({ price_alert: priceAlert });
-
-    // Update listing watchlist count
-    await db('marketplace_listings')
-      .where({ id: listingId })
-      .increment('watchlist_count', 1);
-
-    // Update user stats
-    await this.updateUserStats(userId, { watchlistCount: 1 });
-
-    return { success: true };
+    await query(
+      `INSERT INTO user_watchlist (user_id, listing_id, price_alert_threshold)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, listing_id) DO UPDATE SET price_alert_threshold = $3`,
+      [userId, listingId, priceAlert]
+    );
   },
 
   async removeFromWatchlist(userId: string, listingId: string) {
-    const deleted = await db('marketplace_watchlist')
-      .where({ user_id: userId, listing_id: listingId })
-      .delete();
-
-    if (deleted) {
-      await db('marketplace_listings')
-        .where({ id: listingId })
-        .decrement('watchlist_count', 1);
-
-      await this.updateUserStats(userId, { watchlistCount: -1 });
-    }
-
-    return { success: true };
-  },
-
-  async getUserWatchlist(userId: string) {
-    const items = await db('marketplace_watchlist')
-      .join('marketplace_listings', 'marketplace_watchlist.listing_id', 'marketplace_listings.id')
-      .join('spirit_animal_cosmetics', 'marketplace_listings.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .join('users', 'marketplace_listings.seller_id', 'users.id')
-      .where('marketplace_watchlist.user_id', userId)
-      .select(
-        'marketplace_watchlist.*',
-        'marketplace_listings.price',
-        'marketplace_listings.status',
-        'marketplace_listings.listing_type',
-        'marketplace_listings.expires_at',
-        'spirit_animal_cosmetics.name as cosmetic_name',
-        'spirit_animal_cosmetics.rarity',
-        'spirit_animal_cosmetics.preview_url',
-        'users.username as seller_username'
-      )
-      .orderBy('marketplace_watchlist.created_at', 'desc');
-
-    return items;
+    await query(
+      `DELETE FROM user_watchlist WHERE user_id = $1 AND listing_id = $2`,
+      [userId, listingId]
+    );
   },
 
   // =====================================================
-  // USER STATS
+  // USER STATS & LEVELS
   // =====================================================
 
   async getUserStats(userId: string) {
-    let stats = await db('user_marketplace_stats')
-      .where({ user_id: userId })
-      .first();
+    const stats = await queryOne<{
+      total_sales: string;
+      total_purchases: string;
+      total_revenue: string;
+      avg_rating: number;
+    }>(
+      `SELECT
+        COALESCE(COUNT(*) FILTER (WHERE seller_id = $1), 0)::text as total_sales,
+        COALESCE(COUNT(*) FILTER (WHERE buyer_id = $1), 0)::text as total_purchases,
+        COALESCE(SUM(sale_price) FILTER (WHERE seller_id = $1), 0)::text as total_revenue,
+        AVG(seller_rating) as avg_rating
+       FROM marketplace_transactions
+       WHERE seller_id = $1 OR buyer_id = $1`,
+      [userId]
+    );
 
-    if (!stats) {
-      // Create default stats
-      [stats] = await db('user_marketplace_stats')
-        .insert({ user_id: userId })
-        .returning('*');
-    }
+    const sellerLevel = await this.getSellerLevel(userId);
 
-    return stats;
+    return {
+      totalSales: parseInt(stats?.total_sales || '0'),
+      totalPurchases: parseInt(stats?.total_purchases || '0'),
+      totalRevenue: parseInt(stats?.total_revenue || '0'),
+      avgRating: stats?.avg_rating || 0,
+      sellerLevel,
+      feeDiscount: sellerLevel * 0.5, // 0.5% discount per level
+    };
   },
 
-  async updateUserStats(
-    userId: string,
-    updates: {
-      totalSales?: number;
-      totalRevenue?: number;
-      totalPurchases?: number;
-      totalSpent?: number;
-      activeListings?: number;
-      watchlistCount?: number;
-    }
-  ) {
-    const incrementUpdates: Record<string, number> = {};
+  async getSellerLevel(userId: string): Promise<number> {
+    const result = await queryOne<{ total_sales: string }>(
+      `SELECT COUNT(*)::text as total_sales FROM marketplace_transactions WHERE seller_id = $1`,
+      [userId]
+    );
 
-    if (updates.totalSales) incrementUpdates.total_sales = updates.totalSales;
-    if (updates.totalRevenue) incrementUpdates.total_revenue = updates.totalRevenue;
-    if (updates.totalPurchases) incrementUpdates.total_purchases = updates.totalPurchases;
-    if (updates.totalSpent) incrementUpdates.total_spent = updates.totalSpent;
-    if (updates.activeListings) incrementUpdates.active_listings = updates.activeListings;
-    if (updates.watchlistCount) incrementUpdates.watchlist_count = updates.watchlistCount;
+    const sales = parseInt(result?.total_sales || '0');
 
-    // Ensure stats row exists
-    await db('user_marketplace_stats')
-      .insert({ user_id: userId })
-      .onConflict('user_id')
-      .ignore();
-
-    // Apply increments
-    let query = db('user_marketplace_stats').where({ user_id: userId });
-
-    for (const [field, value] of Object.entries(incrementUpdates)) {
-      if (value > 0) {
-        query = query.increment(field, value);
-      } else if (value < 0) {
-        query = query.decrement(field, Math.abs(value));
-      }
-    }
-
-    await query.update({ updated_at: new Date() });
-  },
-
-  async updateUserStatsInTransaction(
-    trx: typeof db,
-    userId: string,
-    updates: {
-      totalSales?: number;
-      totalRevenue?: number;
-      totalPurchases?: number;
-      totalSpent?: number;
-      activeListings?: number;
-    }
-  ) {
-    // Ensure stats row exists
-    await trx('user_marketplace_stats')
-      .insert({ user_id: userId })
-      .onConflict('user_id')
-      .ignore();
-
-    const incrementUpdates: Record<string, number> = {};
-
-    if (updates.totalSales) incrementUpdates.total_sales = updates.totalSales;
-    if (updates.totalRevenue) incrementUpdates.total_revenue = updates.totalRevenue;
-    if (updates.totalPurchases) incrementUpdates.total_purchases = updates.totalPurchases;
-    if (updates.totalSpent) incrementUpdates.total_spent = updates.totalSpent;
-    if (updates.activeListings) incrementUpdates.active_listings = updates.activeListings;
-
-    let query = trx('user_marketplace_stats').where({ user_id: userId });
-
-    for (const [field, value] of Object.entries(incrementUpdates)) {
-      if (value > 0) {
-        query = query.increment(field, value);
-      } else if (value < 0) {
-        query = query.decrement(field, Math.abs(value));
-      }
-    }
-
-    await query.update({ updated_at: new Date() });
+    // Level tiers based on sales
+    if (sales >= 1000) return 5;
+    if (sales >= 500) return 4;
+    if (sales >= 100) return 3;
+    if (sales >= 25) return 2;
+    if (sales >= 5) return 1;
+    return 0;
   },
 
   // =====================================================
   // PRICE HISTORY
   // =====================================================
 
-  async recordPriceHistory(trx: typeof db, cosmeticId: string, price: number) {
-    const today = new Date().toISOString().split('T')[0];
+  async getPriceHistory(cosmeticId: string, period: '7d' | '30d' | '90d' | 'all' = '30d') {
+    let intervalClause = "created_at >= NOW() - INTERVAL '30 days'";
+    if (period === '7d') intervalClause = "created_at >= NOW() - INTERVAL '7 days'";
+    else if (period === '90d') intervalClause = "created_at >= NOW() - INTERVAL '90 days'";
+    else if (period === 'all') intervalClause = '1=1';
 
-    const existing = await trx('price_history')
-      .where({ cosmetic_id: cosmeticId, date: today })
-      .first();
-
-    if (existing) {
-      await trx('price_history')
-        .where({ cosmetic_id: cosmeticId, date: today })
-        .update({
-          min_price: trx.raw('LEAST(min_price, ?)', [price]),
-          max_price: trx.raw('GREATEST(max_price, ?)', [price]),
-          avg_price: trx.raw('((avg_price * volume) + ?) / (volume + 1)', [price]),
-          volume: trx.raw('volume + 1'),
-          total_value: trx.raw('total_value + ?', [price]),
-        });
-    } else {
-      await trx('price_history').insert({
-        cosmetic_id: cosmeticId,
-        date: today,
-        avg_price: price,
-        min_price: price,
-        max_price: price,
-        volume: 1,
-        total_value: price,
-        active_listings: 1,
-      });
-    }
+    return queryAll(
+      `SELECT sale_price, listing_type, created_at
+       FROM price_history
+       WHERE cosmetic_id = $1 AND ${intervalClause}
+       ORDER BY created_at ASC`,
+      [cosmeticId]
+    );
   },
 
-  async getPriceHistory(
-    cosmeticId: string,
-    period: '7d' | '30d' | '90d' | 'all' = '30d'
-  ) {
-    let query = db('price_history')
-      .where({ cosmetic_id: cosmeticId })
-      .orderBy('date', 'desc');
+  async getPriceSuggestion(cosmeticId: string) {
+    const stats = await queryOne<{
+      avg_price: number;
+      min_price: number;
+      max_price: number;
+      recent_count: string;
+    }>(
+      `SELECT
+        AVG(sale_price)::numeric as avg_price,
+        MIN(sale_price) as min_price,
+        MAX(sale_price) as max_price,
+        COUNT(*)::text as recent_count
+       FROM price_history
+       WHERE cosmetic_id = $1 AND created_at >= NOW() - INTERVAL '30 days'`,
+      [cosmeticId]
+    );
 
-    if (period !== 'all') {
-      const days = parseInt(period);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      query = query.where('date', '>=', startDate.toISOString().split('T')[0]);
-    }
-
-    const history = await query;
-
-    // Calculate stats
-    const stats = {
-      avgPrice: 0,
-      minPrice: Infinity,
-      maxPrice: 0,
-      totalVolume: 0,
-      priceChange: 0,
+    return {
+      suggestedPrice: Math.round(stats?.avg_price || 100),
+      minRecentPrice: stats?.min_price || 0,
+      maxRecentPrice: stats?.max_price || 0,
+      recentSales: parseInt(stats?.recent_count || '0'),
     };
-
-    if (history.length > 0) {
-      stats.avgPrice = Math.round(
-        history.reduce((sum, h) => sum + h.avg_price, 0) / history.length
-      );
-      stats.minPrice = Math.min(...history.map((h) => h.min_price));
-      stats.maxPrice = Math.max(...history.map((h) => h.max_price));
-      stats.totalVolume = history.reduce((sum, h) => sum + h.volume, 0);
-
-      if (history.length >= 2) {
-        const latest = history[0].avg_price;
-        const earliest = history[history.length - 1].avg_price;
-        stats.priceChange = Math.round(((latest - earliest) / earliest) * 100);
-      }
-    }
-
-    return { history: history.reverse(), stats };
   },
-
-  // =====================================================
-  // MARKET OVERVIEW
-  // =====================================================
 
   async getMarketOverview() {
-    const [hotItems, recentSales, volume24h] = await Promise.all([
-      // Hot items (most viewed in last 24h)
-      db('marketplace_listings as ml')
-        .join('spirit_animal_cosmetics as sac', 'ml.cosmetic_id', 'sac.id')
-        .where('ml.status', 'active')
-        .where('ml.created_at', '>', new Date(Date.now() - 24 * 60 * 60 * 1000))
-        .orderBy('ml.view_count', 'desc')
-        .limit(10)
-        .select('ml.*', 'sac.name', 'sac.rarity', 'sac.preview_url'),
+    const overview = await queryOne<{
+      total_active: string;
+      total_volume_24h: string;
+      total_sales_24h: string;
+    }>(
+      `SELECT
+        (SELECT COUNT(*) FROM marketplace_listings WHERE status = 'active')::text as total_active,
+        COALESCE((SELECT SUM(sale_price) FROM marketplace_transactions WHERE created_at >= NOW() - INTERVAL '24 hours'), 0)::text as total_volume_24h,
+        (SELECT COUNT(*) FROM marketplace_transactions WHERE created_at >= NOW() - INTERVAL '24 hours')::text as total_sales_24h`
+    );
 
-      // Recent sales
-      db('marketplace_transactions as mt')
-        .join('spirit_animal_cosmetics as sac', 'mt.cosmetic_id', 'sac.id')
-        .orderBy('mt.created_at', 'desc')
-        .limit(10)
-        .select('mt.*', 'sac.name', 'sac.rarity', 'sac.preview_url'),
-
-      // 24h volume
-      db('marketplace_transactions')
-        .where('created_at', '>', new Date(Date.now() - 24 * 60 * 60 * 1000))
-        .sum('sale_price as total')
-        .first(),
-    ]);
+    const trending = await queryAll<{ cosmetic_id: string; name: string; icon: string; sales: string }>(
+      `SELECT c.id as cosmetic_id, c.name, c.icon, COUNT(*)::text as sales
+       FROM marketplace_transactions t
+       JOIN spirit_animal_cosmetics c ON t.cosmetic_id = c.id
+       WHERE t.created_at >= NOW() - INTERVAL '24 hours'
+       GROUP BY c.id, c.name, c.icon
+       ORDER BY COUNT(*) DESC
+       LIMIT 5`
+    );
 
     return {
-      hotItems,
-      recentSales,
-      volume24h: Number(volume24h?.total || 0),
-    };
-  },
-
-  // =====================================================
-  // HELPERS
-  // =====================================================
-
-  async enrichListing(listing: Record<string, unknown>) {
-    const [cosmetic, seller] = await Promise.all([
-      db('spirit_animal_cosmetics').where({ id: listing.cosmetic_id }).first(),
-      db('users')
-        .where({ id: listing.seller_id })
-        .select('id', 'username', 'avatar_url')
-        .first(),
-    ]);
-
-    return {
-      ...listing,
-      cosmetic,
-      seller,
-    };
-  },
-
-  getMaxListingsForLevel(totalSales: number): number {
-    if (totalSales >= 501) return 999; // Unlimited
-    if (totalSales >= 201) return 100;
-    if (totalSales >= 51) return 50;
-    if (totalSales >= 11) return 25;
-    return MAX_ACTIVE_LISTINGS_DEFAULT;
-  },
-
-  getSellerLevel(totalSales: number): { level: number; name: string; feePercent: number } {
-    if (totalSales >= 501) return { level: 5, name: 'Tycoon', feePercent: 3 };
-    if (totalSales >= 201) return { level: 4, name: 'Dealer', feePercent: 4 };
-    if (totalSales >= 51) return { level: 3, name: 'Merchant', feePercent: 5 };
-    if (totalSales >= 11) return { level: 2, name: 'Seller', feePercent: 6 };
-    return { level: 1, name: 'Newcomer', feePercent: 7 };
-  },
-
-  // Get price suggestion based on recent sales
-  async getPriceSuggestion(cosmeticId: string) {
-    const recentSales = await db('marketplace_transactions')
-      .where({ cosmetic_id: cosmeticId })
-      .where('created_at', '>', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-      .orderBy('created_at', 'desc')
-      .limit(10);
-
-    const activeListings = await db('marketplace_listings')
-      .where({ cosmetic_id: cosmeticId, status: 'active' })
-      .count('id as count')
-      .first();
-
-    let suggestedPrice = 0;
-
-    if (recentSales.length > 0) {
-      suggestedPrice = Math.round(
-        recentSales.reduce((sum, s) => sum + s.sale_price, 0) / recentSales.length
-      );
-    } else {
-      // Fall back to base price from cosmetic
-      const cosmetic = await db('spirit_animal_cosmetics')
-        .where({ id: cosmeticId })
-        .first();
-      suggestedPrice = cosmetic?.base_price || 100;
-    }
-
-    return {
-      suggestedPrice,
-      recentSales,
-      activeListings: Number(activeListings?.count || 0),
+      totalActiveListings: parseInt(overview?.total_active || '0'),
+      volume24h: parseInt(overview?.total_volume_24h || '0'),
+      sales24h: parseInt(overview?.total_sales_24h || '0'),
+      trending,
     };
   },
 };

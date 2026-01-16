@@ -1,4 +1,5 @@
-import { db } from '../../db';
+import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { PoolClient } from 'pg';
 
 // =====================================================
 // TYPES
@@ -20,6 +21,27 @@ export interface SetReward {
   };
 }
 
+interface CollectionSet {
+  id: string;
+  name: string;
+  description: string | null;
+  theme: string | null;
+  items: string[];
+  rewards: SetReward[];
+  is_limited: boolean;
+  expiration_date: Date | null;
+  created_at: Date;
+}
+
+interface UserCollectionProgress {
+  user_id: string;
+  set_id: string;
+  owned_items: string[];
+  completion_percent: number;
+  rewards_claimed: number[];
+  updated_at: Date;
+}
+
 // =====================================================
 // COLLECTION SERVICE
 // =====================================================
@@ -31,47 +53,50 @@ export const collectionService = {
 
   async getUserCollectionStats(userId: string): Promise<CollectionStats> {
     // Get total owned count
-    const totalOwned = await db('user_spirit_cosmetics')
-      .where({ user_id: userId })
-      .count('* as count')
-      .first();
+    const totalOwned = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM user_spirit_cosmetics WHERE user_id = $1`,
+      [userId]
+    );
 
     // Get total estimated value
-    const valueResult = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .sum('spirit_animal_cosmetics.base_price as total')
-      .first();
+    const valueResult = await queryOne<{ total: string | null }>(
+      `SELECT SUM(c.base_price) as total
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1`,
+      [userId]
+    );
 
     // Get rarity breakdown
-    const rarityBreakdown = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .select('spirit_animal_cosmetics.rarity')
-      .count('* as count')
-      .groupBy('spirit_animal_cosmetics.rarity');
+    const rarityBreakdown = await queryAll<{ rarity: string; count: string }>(
+      `SELECT c.rarity, COUNT(*) as count
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1
+       GROUP BY c.rarity`,
+      [userId]
+    );
 
     // Get category breakdown
-    const categoryBreakdown = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .select('spirit_animal_cosmetics.category')
-      .count('* as count')
-      .groupBy('spirit_animal_cosmetics.category');
+    const categoryBreakdown = await queryAll<{ category: string; count: string }>(
+      `SELECT c.category, COUNT(*) as count
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1
+       GROUP BY c.category`,
+      [userId]
+    );
 
     // Get recent acquisitions
-    const recentAcquisitions = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .orderBy('user_spirit_cosmetics.acquired_at', 'desc')
-      .limit(10)
-      .select(
-        'user_spirit_cosmetics.*',
-        'spirit_animal_cosmetics.name',
-        'spirit_animal_cosmetics.rarity',
-        'spirit_animal_cosmetics.category',
-        'spirit_animal_cosmetics.preview_url'
-      );
+    const recentAcquisitions = await queryAll<Record<string, unknown>>(
+      `SELECT u.*, c.name, c.rarity, c.category, c.preview_url
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1
+       ORDER BY u.acquired_at DESC
+       LIMIT 10`,
+      [userId]
+    );
 
     return {
       totalOwned: Number(totalOwned?.count || 0),
@@ -100,38 +125,14 @@ export const collectionService = {
   ) {
     const { category, rarity, sortBy = 'acquired', limit = 50, offset = 0 } = filters || {};
 
-    let query = db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .select(
-        'user_spirit_cosmetics.*',
-        'spirit_animal_cosmetics.name',
-        'spirit_animal_cosmetics.description',
-        'spirit_animal_cosmetics.rarity',
-        'spirit_animal_cosmetics.category',
-        'spirit_animal_cosmetics.slot',
-        'spirit_animal_cosmetics.base_price',
-        'spirit_animal_cosmetics.preview_url',
-        'spirit_animal_cosmetics.asset_url',
-        'spirit_animal_cosmetics.is_tradeable',
-        'spirit_animal_cosmetics.is_giftable'
-      );
-
-    if (category) {
-      query = query.where('spirit_animal_cosmetics.category', category);
-    }
-
-    if (rarity) {
-      query = query.where('spirit_animal_cosmetics.rarity', rarity);
-    }
-
+    let orderClause = '';
     switch (sortBy) {
       case 'name':
-        query = query.orderBy('spirit_animal_cosmetics.name', 'asc');
+        orderClause = 'ORDER BY c.name ASC';
         break;
       case 'rarity':
-        query = query.orderByRaw(`
-          CASE spirit_animal_cosmetics.rarity
+        orderClause = `ORDER BY
+          CASE c.rarity
             WHEN 'divine' THEN 1
             WHEN 'mythic' THEN 2
             WHEN 'legendary' THEN 3
@@ -139,23 +140,49 @@ export const collectionService = {
             WHEN 'rare' THEN 5
             WHEN 'uncommon' THEN 6
             WHEN 'common' THEN 7
-          END
-        `);
+          END`;
         break;
       case 'value':
-        query = query.orderBy('spirit_animal_cosmetics.base_price', 'desc');
+        orderClause = 'ORDER BY c.base_price DESC';
         break;
       case 'acquired':
       default:
-        query = query.orderBy('user_spirit_cosmetics.acquired_at', 'desc');
+        orderClause = 'ORDER BY u.acquired_at DESC';
     }
 
-    const items = await query.limit(limit).offset(offset);
+    const conditions: string[] = ['u.user_id = $1'];
+    const params: unknown[] = [userId];
+    let paramIndex = 2;
 
-    const totalCount = await db('user_spirit_cosmetics')
-      .where({ user_id: userId })
-      .count('* as count')
-      .first();
+    if (category) {
+      conditions.push(`c.category = $${paramIndex}`);
+      params.push(category);
+      paramIndex++;
+    }
+
+    if (rarity) {
+      conditions.push(`c.rarity = $${paramIndex}`);
+      params.push(rarity);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const items = await queryAll<Record<string, unknown>>(
+      `SELECT u.*, c.name, c.description, c.rarity, c.category, c.slot,
+              c.base_price, c.preview_url, c.asset_url, c.is_tradeable, c.is_giftable
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE ${whereClause}
+       ${orderClause}
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+
+    const totalCount = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM user_spirit_cosmetics WHERE user_id = $1`,
+      [userId]
+    );
 
     return {
       items,
@@ -169,32 +196,39 @@ export const collectionService = {
   // =====================================================
 
   async getCollectionSets() {
-    const sets = await db('collection_sets')
-      .where(function () {
-        this.whereNull('expiration_date').orWhere('expiration_date', '>', new Date());
-      })
-      .orderBy('created_at', 'asc');
+    const sets = await queryAll<CollectionSet>(
+      `SELECT * FROM collection_sets
+       WHERE expiration_date IS NULL OR expiration_date > NOW()
+       ORDER BY created_at ASC`
+    );
 
     return sets;
   },
 
   async getSetWithProgress(setId: string, userId: string) {
-    const set = await db('collection_sets').where({ id: setId }).first();
+    const set = await queryOne<CollectionSet>(
+      `SELECT * FROM collection_sets WHERE id = $1`,
+      [setId]
+    );
 
     if (!set) {
       return null;
     }
 
     // Get user's progress
-    let progress = await db('user_collection_progress')
-      .where({ user_id: userId, set_id: setId })
-      .first();
+    let progress = await queryOne<UserCollectionProgress>(
+      `SELECT * FROM user_collection_progress WHERE user_id = $1 AND set_id = $2`,
+      [userId, setId]
+    );
 
     if (!progress) {
       progress = {
+        user_id: userId,
+        set_id: setId,
         owned_items: [],
         completion_percent: 0,
         rewards_claimed: [],
+        updated_at: new Date(),
       };
     }
 
@@ -203,22 +237,23 @@ export const collectionService = {
     let itemsWithOwnership: Record<string, unknown>[] = [];
 
     if (setItems.length > 0) {
-      itemsWithOwnership = await db('spirit_animal_cosmetics')
-        .whereIn('id', setItems)
-        .select('*')
-        .then(async (items) => {
-          const userCosmetics = await db('user_spirit_cosmetics')
-            .where({ user_id: userId })
-            .whereIn('cosmetic_id', setItems)
-            .select('cosmetic_id');
+      const items = await queryAll<Record<string, unknown>>(
+        `SELECT * FROM spirit_animal_cosmetics WHERE id = ANY($1)`,
+        [setItems]
+      );
 
-          const ownedIds = new Set(userCosmetics.map((c) => c.cosmetic_id));
+      const userCosmetics = await queryAll<{ cosmetic_id: string }>(
+        `SELECT cosmetic_id FROM user_spirit_cosmetics
+         WHERE user_id = $1 AND cosmetic_id = ANY($2)`,
+        [userId, setItems]
+      );
 
-          return items.map((item) => ({
-            ...item,
-            owned: ownedIds.has(item.id),
-          }));
-        });
+      const ownedIds = new Set(userCosmetics.map((c) => c.cosmetic_id));
+
+      itemsWithOwnership = items.map((item) => ({
+        ...item,
+        owned: ownedIds.has(item.id as string),
+      }));
     }
 
     // Calculate current progress
@@ -227,11 +262,10 @@ export const collectionService = {
     const completionPercent = totalCount > 0 ? (ownedCount / totalCount) * 100 : 0;
 
     // Get claimable rewards
-    const rewards = set.rewards as SetReward[];
+    const rewards = (set.rewards || []) as SetReward[];
+    const claimedRewards = (progress.rewards_claimed || []) as number[];
     const claimableRewards = rewards.filter(
-      (r) =>
-        completionPercent >= r.threshold &&
-        !((progress.rewards_claimed as number[]) || []).includes(r.threshold)
+      (r) => completionPercent >= r.threshold && !claimedRewards.includes(r.threshold)
     );
 
     return {
@@ -275,7 +309,7 @@ export const collectionService = {
       throw new Error('Set not found');
     }
 
-    const { set, progress, claimableRewards } = setData;
+    const { progress, claimableRewards } = setData;
 
     // Find the reward at this threshold
     const reward = claimableRewards.find((r: SetReward) => r.threshold === threshold);
@@ -285,74 +319,64 @@ export const collectionService = {
     }
 
     // Process the reward
-    await db.transaction(async (trx) => {
+    await transaction(async (client: PoolClient) => {
       switch (reward.reward.type) {
         case 'credits':
-          await trx('credit_balances')
-            .where({ user_id: userId })
-            .increment('balance', reward.reward.value as number);
+          await client.query(
+            `UPDATE credit_balances SET balance = balance + $1 WHERE user_id = $2`,
+            [reward.reward.value as number, userId]
+          );
           break;
 
         case 'xp':
-          await trx('users')
-            .where({ id: userId })
-            .increment('xp', reward.reward.value as number);
+          await client.query(
+            `UPDATE users SET xp = xp + $1 WHERE id = $2`,
+            [reward.reward.value as number, userId]
+          );
           break;
 
         case 'title':
           // Award title cosmetic or update user's custom title
-          await trx('user_equipped_cosmetics')
-            .insert({
-              user_id: userId,
-              custom_title: reward.reward.value as string,
-            })
-            .onConflict('user_id')
-            .merge({ custom_title: reward.reward.value as string });
+          await client.query(
+            `INSERT INTO user_equipped_cosmetics (user_id, custom_title)
+             VALUES ($1, $2)
+             ON CONFLICT (user_id) DO UPDATE SET custom_title = $2`,
+            [userId, reward.reward.value as string]
+          );
           break;
 
         case 'badge':
           // Create a badge achievement
-          await trx('user_achievements')
-            .insert({
-              user_id: userId,
-              achievement_key: reward.reward.value as string,
-              unlocked_at: new Date(),
-            })
-            .onConflict(['user_id', 'achievement_key'])
-            .ignore();
+          await client.query(
+            `INSERT INTO user_achievements (user_id, achievement_key, unlocked_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id, achievement_key) DO NOTHING`,
+            [userId, reward.reward.value as string]
+          );
           break;
 
         case 'cosmetic':
           // Award the cosmetic
-          await trx('user_spirit_cosmetics')
-            .insert({
-              user_id: userId,
-              cosmetic_id: reward.reward.value as string,
-              acquisition_method: 'reward',
-              is_new: true,
-            })
-            .onConflict(['user_id', 'cosmetic_id'])
-            .ignore();
+          await client.query(
+            `INSERT INTO user_spirit_cosmetics (user_id, cosmetic_id, acquisition_method, is_new)
+             VALUES ($1, $2, 'reward', true)
+             ON CONFLICT (user_id, cosmetic_id) DO NOTHING`,
+            [userId, reward.reward.value as string]
+          );
           break;
       }
 
       // Update progress to mark reward as claimed
       const claimedRewards = [...((progress.rewardsClaimed as number[]) || []), threshold];
 
-      await trx('user_collection_progress')
-        .insert({
-          user_id: userId,
-          set_id: setId,
-          owned_items: [],
-          completion_percent: progress.completionPercent,
-          rewards_claimed: JSON.stringify(claimedRewards),
-          updated_at: new Date(),
-        })
-        .onConflict(['user_id', 'set_id'])
-        .merge({
-          rewards_claimed: JSON.stringify(claimedRewards),
-          updated_at: new Date(),
-        });
+      await client.query(
+        `INSERT INTO user_collection_progress (user_id, set_id, owned_items, completion_percent, rewards_claimed, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (user_id, set_id) DO UPDATE SET
+           rewards_claimed = $5,
+           updated_at = NOW()`,
+        [userId, setId, [], progress.completionPercent, JSON.stringify(claimedRewards)]
+      );
     });
 
     return { success: true, reward };
@@ -364,40 +388,47 @@ export const collectionService = {
 
   async getUserShowcase(userId: string) {
     // Get showcase configuration from user profile
-    const showcase = await db('user_spirit_loadout')
-      .where({ user_id: userId })
-      .first();
+    const showcase = await queryOne<Record<string, unknown>>(
+      `SELECT * FROM user_spirit_loadout WHERE user_id = $1`,
+      [userId]
+    );
 
-    // Get featured items
-    const featuredItemIds: string[] = []; // Could be stored in a separate showcase table
+    // Get featured items (could be stored in a separate showcase table)
+    const featuredItemIds: string[] = [];
 
-    const featuredItems = featuredItemIds.length > 0
-      ? await db('user_spirit_cosmetics')
-          .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-          .whereIn('user_spirit_cosmetics.id', featuredItemIds)
-          .select('user_spirit_cosmetics.*', 'spirit_animal_cosmetics.*')
-      : [];
+    let featuredItems: Record<string, unknown>[] = [];
+    if (featuredItemIds.length > 0) {
+      featuredItems = await queryAll<Record<string, unknown>>(
+        `SELECT u.*, c.*
+         FROM user_spirit_cosmetics u
+         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         WHERE u.id = ANY($1)`,
+        [featuredItemIds]
+      );
+    }
 
     // Get collection summary
     const stats = await this.getUserCollectionStats(userId);
 
     // Get rarest items for auto-showcase
-    const rarestItems = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .orderByRaw(`
-        CASE spirit_animal_cosmetics.rarity
-          WHEN 'divine' THEN 1
-          WHEN 'mythic' THEN 2
-          WHEN 'legendary' THEN 3
-          WHEN 'epic' THEN 4
-          WHEN 'rare' THEN 5
-          WHEN 'uncommon' THEN 6
-          WHEN 'common' THEN 7
-        END
-      `)
-      .limit(3)
-      .select('user_spirit_cosmetics.*', 'spirit_animal_cosmetics.*');
+    const rarestItems = await queryAll<Record<string, unknown>>(
+      `SELECT u.*, c.*
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1
+       ORDER BY
+         CASE c.rarity
+           WHEN 'divine' THEN 1
+           WHEN 'mythic' THEN 2
+           WHEN 'legendary' THEN 3
+           WHEN 'epic' THEN 4
+           WHEN 'rare' THEN 5
+           WHEN 'uncommon' THEN 6
+           WHEN 'common' THEN 7
+         END
+       LIMIT 3`,
+      [userId]
+    );
 
     return {
       loadout: showcase,
@@ -409,14 +440,15 @@ export const collectionService = {
   async updateShowcase(
     userId: string,
     featuredItemIds: string[],
-    layout?: string,
-    showcaseEffect?: string
+    _layout?: string,
+    _showcaseEffect?: string
   ) {
     // Verify user owns all featured items
     if (featuredItemIds.length > 0) {
-      const owned = await db('user_spirit_cosmetics')
-        .whereIn('id', featuredItemIds)
-        .where({ user_id: userId });
+      const owned = await queryAll<{ id: string }>(
+        `SELECT id FROM user_spirit_cosmetics WHERE id = ANY($1) AND user_id = $2`,
+        [featuredItemIds, userId]
+      );
 
       if (owned.length !== featuredItemIds.length) {
         throw new Error('You do not own all featured items');
@@ -448,22 +480,24 @@ export const collectionService = {
     for (const milestone of milestones) {
       if (stats.totalOwned >= milestone.threshold) {
         // Check if already awarded
-        const existing = await db('user_achievements')
-          .where({ user_id: userId, achievement_key: milestone.key })
-          .first();
+        const existing = await queryOne<{ id: string }>(
+          `SELECT id FROM user_achievements WHERE user_id = $1 AND achievement_key = $2`,
+          [userId, milestone.key]
+        );
 
         if (!existing) {
           // Award milestone
-          await db.transaction(async (trx) => {
-            await trx('user_achievements').insert({
-              user_id: userId,
-              achievement_key: milestone.key,
-              unlocked_at: new Date(),
-            });
+          await transaction(async (client: PoolClient) => {
+            await client.query(
+              `INSERT INTO user_achievements (user_id, achievement_key, unlocked_at)
+               VALUES ($1, $2, NOW())`,
+              [userId, milestone.key]
+            );
 
-            await trx('credit_balances')
-              .where({ user_id: userId })
-              .increment('balance', milestone.reward);
+            await client.query(
+              `UPDATE credit_balances SET balance = balance + $1 WHERE user_id = $2`,
+              [milestone.reward, userId]
+            );
           });
 
           milestonesAwarded.push(milestone.key);
@@ -477,16 +511,17 @@ export const collectionService = {
     const hasAllRarities = allRarities.every((r) => raritySet.has(r));
 
     if (hasAllRarities) {
-      const existing = await db('user_achievements')
-        .where({ user_id: userId, achievement_key: 'rarity_hunter' })
-        .first();
+      const existing = await queryOne<{ id: string }>(
+        `SELECT id FROM user_achievements WHERE user_id = $1 AND achievement_key = $2`,
+        [userId, 'rarity_hunter']
+      );
 
       if (!existing) {
-        await db('user_achievements').insert({
-          user_id: userId,
-          achievement_key: 'rarity_hunter',
-          unlocked_at: new Date(),
-        });
+        await query(
+          `INSERT INTO user_achievements (user_id, achievement_key, unlocked_at)
+           VALUES ($1, $2, NOW())`,
+          [userId, 'rarity_hunter']
+        );
 
         milestonesAwarded.push('rarity_hunter');
       }
@@ -499,7 +534,7 @@ export const collectionService = {
   // DUPLICATES
   // =====================================================
 
-  async getUserDuplicates(userId: string) {
+  async getUserDuplicates(_userId: string) {
     // Find cosmetics the user has multiple of (if we track duplicates separately)
     // For now, this is a placeholder since each cosmetic is unique
 
@@ -511,9 +546,10 @@ export const collectionService = {
   // =====================================================
 
   async toggleFavorite(userId: string, userCosmeticId: string) {
-    const item = await db('user_spirit_cosmetics')
-      .where({ id: userCosmeticId, user_id: userId })
-      .first();
+    const item = await queryOne<{ id: string; is_favorite: boolean }>(
+      `SELECT id, is_favorite FROM user_spirit_cosmetics WHERE id = $1 AND user_id = $2`,
+      [userCosmeticId, userId]
+    );
 
     if (!item) {
       throw new Error('Item not found');
@@ -521,19 +557,22 @@ export const collectionService = {
 
     const newFavoriteStatus = !item.is_favorite;
 
-    await db('user_spirit_cosmetics')
-      .where({ id: userCosmeticId })
-      .update({ is_favorite: newFavoriteStatus });
+    await query(
+      `UPDATE user_spirit_cosmetics SET is_favorite = $1 WHERE id = $2`,
+      [newFavoriteStatus, userCosmeticId]
+    );
 
     return { isFavorite: newFavoriteStatus };
   },
 
   async getUserFavorites(userId: string) {
-    const favorites = await db('user_spirit_cosmetics')
-      .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-      .where('user_spirit_cosmetics.user_id', userId)
-      .where('user_spirit_cosmetics.is_favorite', true)
-      .select('user_spirit_cosmetics.*', 'spirit_animal_cosmetics.*');
+    const favorites = await queryAll<Record<string, unknown>>(
+      `SELECT u.*, c.*
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       WHERE u.user_id = $1 AND u.is_favorite = true`,
+      [userId]
+    );
 
     return favorites;
   },
@@ -543,26 +582,28 @@ export const collectionService = {
   // =====================================================
 
   async markItemAsSeen(userId: string, userCosmeticId: string) {
-    await db('user_spirit_cosmetics')
-      .where({ id: userCosmeticId, user_id: userId })
-      .update({ is_new: false });
+    await query(
+      `UPDATE user_spirit_cosmetics SET is_new = false WHERE id = $1 AND user_id = $2`,
+      [userCosmeticId, userId]
+    );
 
     return { success: true };
   },
 
   async markAllAsSeen(userId: string) {
-    await db('user_spirit_cosmetics')
-      .where({ user_id: userId, is_new: true })
-      .update({ is_new: false });
+    await query(
+      `UPDATE user_spirit_cosmetics SET is_new = false WHERE user_id = $1 AND is_new = true`,
+      [userId]
+    );
 
     return { success: true };
   },
 
   async getNewItemsCount(userId: string) {
-    const count = await db('user_spirit_cosmetics')
-      .where({ user_id: userId, is_new: true })
-      .count('* as count')
-      .first();
+    const count = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM user_spirit_cosmetics WHERE user_id = $1 AND is_new = true`,
+      [userId]
+    );
 
     return Number(count?.count || 0);
   },

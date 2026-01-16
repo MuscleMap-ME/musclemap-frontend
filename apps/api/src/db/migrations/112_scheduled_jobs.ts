@@ -1,5 +1,5 @@
 /**
- * Migration 108: Scheduled Jobs System
+ * Migration 112: Scheduled Jobs System
  *
  * Creates tables for the admin scheduler feature:
  * - scheduled_jobs: Stores cron job definitions
@@ -12,13 +12,18 @@
  * - Keyset pagination indexes
  */
 
-import type { PoolClient } from 'pg';
+import { db } from '../client';
+import { loggers } from '../../lib/logger';
 
-export async function up(client: PoolClient): Promise<void> {
+const log = loggers.db;
+
+export async function up(): Promise<void> {
+  log.info('Creating scheduled_jobs table...');
+
   // ============================================
   // scheduled_jobs table
   // ============================================
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS scheduled_jobs (
       id VARCHAR(36) PRIMARY KEY,
       name VARCHAR(100) NOT NULL UNIQUE,
@@ -35,29 +40,31 @@ export async function up(client: PoolClient): Promise<void> {
   `);
 
   // Index for listing jobs with pagination
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_keyset
     ON scheduled_jobs(created_at DESC, id DESC)
   `);
 
   // Index for enabled jobs lookup
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_enabled
     ON scheduled_jobs(enabled)
     WHERE enabled = true
   `);
 
   // Index for finding jobs due to run
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_next_run
     ON scheduled_jobs(next_run)
     WHERE enabled = true AND next_run IS NOT NULL
   `);
 
+  log.info('Creating scheduled_job_history table...');
+
   // ============================================
   // scheduled_job_history table
   // ============================================
-  await client.query(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS scheduled_job_history (
       id VARCHAR(36) PRIMARY KEY,
       job_id VARCHAR(36) NOT NULL REFERENCES scheduled_jobs(id) ON DELETE CASCADE,
@@ -73,34 +80,36 @@ export async function up(client: PoolClient): Promise<void> {
   `);
 
   // Index for listing history by job
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_job_history_job_id
     ON scheduled_job_history(job_id, started_at DESC)
   `);
 
   // Keyset pagination index for history
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_job_history_keyset
     ON scheduled_job_history(started_at DESC, id DESC)
   `);
 
   // Index for filtering by status
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_job_history_status
     ON scheduled_job_history(status)
   `);
 
   // Partial index for recent history queries
-  await client.query(`
+  await db.query(`
     CREATE INDEX IF NOT EXISTS idx_scheduled_job_history_recent
     ON scheduled_job_history(started_at DESC)
     WHERE started_at > NOW() - INTERVAL '7 days'
   `);
 
+  log.info('Creating updated_at trigger...');
+
   // ============================================
   // updated_at trigger
   // ============================================
-  await client.query(`
+  await db.query(`
     CREATE OR REPLACE FUNCTION update_scheduled_jobs_updated_at()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -110,21 +119,23 @@ export async function up(client: PoolClient): Promise<void> {
     $$ LANGUAGE plpgsql
   `);
 
-  await client.query(`
+  await db.query(`
     DROP TRIGGER IF EXISTS trigger_scheduled_jobs_updated_at ON scheduled_jobs
   `);
 
-  await client.query(`
+  await db.query(`
     CREATE TRIGGER trigger_scheduled_jobs_updated_at
       BEFORE UPDATE ON scheduled_jobs
       FOR EACH ROW
       EXECUTE FUNCTION update_scheduled_jobs_updated_at()
   `);
 
+  log.info('Seeding default scheduled jobs...');
+
   // ============================================
   // Seed some default scheduled jobs
   // ============================================
-  await client.query(`
+  await db.query(`
     INSERT INTO scheduled_jobs (id, name, description, cron_expression, command, enabled, metadata)
     VALUES
       ('job_refresh_leaderboards', 'refresh-leaderboards', 'Refresh materialized views for leaderboards', '*/5 * * * *', 'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_leaderboard', true, '{"category": "performance"}'::jsonb),
@@ -136,22 +147,24 @@ export async function up(client: PoolClient): Promise<void> {
   `);
 
   // Add comment for documentation
-  await client.query(`
+  await db.query(`
     COMMENT ON TABLE scheduled_jobs IS 'Stores cron job definitions for the admin scheduler'
   `);
 
-  await client.query(`
+  await db.query(`
     COMMENT ON TABLE scheduled_job_history IS 'Stores execution history for scheduled jobs'
   `);
 
-  await client.query(`
+  await db.query(`
     COMMENT ON COLUMN scheduled_jobs.cron_expression IS 'node-cron format: minute hour day-of-month month day-of-week (second optional)'
   `);
+
+  log.info('Migration 112_scheduled_jobs completed successfully');
 }
 
-export async function down(client: PoolClient): Promise<void> {
-  await client.query('DROP TRIGGER IF EXISTS trigger_scheduled_jobs_updated_at ON scheduled_jobs');
-  await client.query('DROP FUNCTION IF EXISTS update_scheduled_jobs_updated_at()');
-  await client.query('DROP TABLE IF EXISTS scheduled_job_history');
-  await client.query('DROP TABLE IF EXISTS scheduled_jobs');
+export async function down(): Promise<void> {
+  await db.query('DROP TRIGGER IF EXISTS trigger_scheduled_jobs_updated_at ON scheduled_jobs');
+  await db.query('DROP FUNCTION IF EXISTS update_scheduled_jobs_updated_at()');
+  await db.query('DROP TABLE IF EXISTS scheduled_job_history');
+  await db.query('DROP TABLE IF EXISTS scheduled_jobs');
 }

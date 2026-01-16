@@ -1,4 +1,5 @@
-import { queryOne, queryAll, execute, transaction } from '../../db/client';
+import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { PoolClient } from 'pg';
 
 // =====================================================
 // TYPES
@@ -22,6 +23,45 @@ export interface CounterTradeInput {
   message?: string;
 }
 
+interface TradeRequest {
+  id: string;
+  initiator_id: string;
+  receiver_id: string;
+  initiator_items: string[];
+  initiator_credits: number;
+  receiver_items: string[];
+  receiver_credits: number;
+  initiator_estimated_value: number;
+  receiver_estimated_value: number;
+  status: string;
+  message: string | null;
+  counter_count: number;
+  expires_at: Date;
+  created_at: Date;
+  updated_at: Date;
+  completed_at: Date | null;
+}
+
+interface UserCosmetic {
+  id: string;
+  user_id: string;
+  cosmetic_id: string;
+}
+
+interface Cosmetic {
+  id: string;
+  name: string;
+  rarity: string;
+  is_tradeable: boolean;
+  base_price: number;
+}
+
+interface UserBasic {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+}
+
 // =====================================================
 // TRADING SERVICE
 // =====================================================
@@ -29,7 +69,6 @@ export interface CounterTradeInput {
 const TRADE_EXPIRATION_HOURS = 48;
 const MAX_ITEMS_PER_SIDE = 10;
 const MAX_VALUE_DIFFERENCE_PERCENT = 50;
-const HIGH_VALUE_THRESHOLD = 10000;
 
 export const tradingService = {
   // =====================================================
@@ -66,21 +105,23 @@ export const tradingService = {
 
     // Verify initiator owns all items they're offering
     if (initiatorItems.length > 0) {
-      const ownedItems = await db('user_spirit_cosmetics')
-        .whereIn('id', initiatorItems)
-        .where({ user_id: initiatorId });
+      const ownedItems = await queryAll<UserCosmetic>(
+        `SELECT id, user_id, cosmetic_id FROM user_spirit_cosmetics
+         WHERE id = ANY($1) AND user_id = $2`,
+        [initiatorItems, initiatorId]
+      );
 
       if (ownedItems.length !== initiatorItems.length) {
         throw new Error('You do not own all the items you are offering');
       }
 
       // Check items are tradeable
-      const cosmetics = await db('spirit_animal_cosmetics')
-        .whereIn(
-          'id',
-          ownedItems.map((i) => i.cosmetic_id)
-        )
-        .select('id', 'is_tradeable');
+      const cosmeticIds = ownedItems.map((i) => i.cosmetic_id);
+      const cosmetics = await queryAll<Cosmetic>(
+        `SELECT id, is_tradeable FROM spirit_animal_cosmetics
+         WHERE id = ANY($1)`,
+        [cosmeticIds]
+      );
 
       const nonTradeable = cosmetics.filter((c) => !c.is_tradeable);
       if (nonTradeable.length > 0) {
@@ -88,18 +129,23 @@ export const tradingService = {
       }
 
       // Check items are not currently in trade or listed
-      const inTrade = await db('trade_requests')
-        .where({ initiator_id: initiatorId })
-        .whereIn('status', ['pending', 'countered'])
-        .whereRaw('initiator_items && ?', [initiatorItems]);
+      const inTrade = await queryAll<{ id: string }>(
+        `SELECT id FROM trade_requests
+         WHERE initiator_id = $1
+         AND status IN ('pending', 'countered')
+         AND initiator_items && $2::uuid[]`,
+        [initiatorId, initiatorItems]
+      );
 
       if (inTrade.length > 0) {
         throw new Error('Some items are already in a pending trade');
       }
 
-      const listed = await db('marketplace_listings')
-        .whereIn('user_cosmetic_id', initiatorItems)
-        .where({ status: 'active' });
+      const listed = await queryAll<{ id: string }>(
+        `SELECT id FROM marketplace_listings
+         WHERE user_cosmetic_id = ANY($1) AND status = 'active'`,
+        [initiatorItems]
+      );
 
       if (listed.length > 0) {
         throw new Error('Some items are currently listed on the marketplace');
@@ -108,21 +154,23 @@ export const tradingService = {
 
     // Verify receiver owns items they're being asked for
     if (receiverItems.length > 0) {
-      const receiverOwned = await db('user_spirit_cosmetics')
-        .whereIn('id', receiverItems)
-        .where({ user_id: receiverId });
+      const receiverOwned = await queryAll<UserCosmetic>(
+        `SELECT id, user_id, cosmetic_id FROM user_spirit_cosmetics
+         WHERE id = ANY($1) AND user_id = $2`,
+        [receiverItems, receiverId]
+      );
 
       if (receiverOwned.length !== receiverItems.length) {
         throw new Error('Receiver does not own all requested items');
       }
 
       // Check items are tradeable
-      const receiverCosmetics = await db('spirit_animal_cosmetics')
-        .whereIn(
-          'id',
-          receiverOwned.map((i) => i.cosmetic_id)
-        )
-        .select('id', 'is_tradeable');
+      const receiverCosmeticIds = receiverOwned.map((i) => i.cosmetic_id);
+      const receiverCosmetics = await queryAll<Cosmetic>(
+        `SELECT id, is_tradeable FROM spirit_animal_cosmetics
+         WHERE id = ANY($1)`,
+        [receiverCosmeticIds]
+      );
 
       const nonTradeable = receiverCosmetics.filter((c) => !c.is_tradeable);
       if (nonTradeable.length > 0) {
@@ -132,9 +180,10 @@ export const tradingService = {
 
     // Check initiator has enough credits
     if (initiatorCredits > 0) {
-      const balance = await db('credit_balances')
-        .where({ user_id: initiatorId })
-        .first();
+      const balance = await queryOne<{ balance: number }>(
+        `SELECT balance FROM credit_balances WHERE user_id = $1`,
+        [initiatorId]
+      );
 
       if (!balance || balance.balance < initiatorCredits) {
         throw new Error('Insufficient credits');
@@ -153,23 +202,22 @@ export const tradingService = {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + TRADE_EXPIRATION_HOURS);
 
-    const [trade] = await db('trade_requests')
-      .insert({
-        initiator_id: initiatorId,
-        receiver_id: receiverId,
-        initiator_items: initiatorItems,
-        initiator_credits: initiatorCredits,
-        receiver_items: receiverItems,
-        receiver_credits: receiverCredits,
-        message,
-        initiator_estimated_value: initiatorValue,
-        receiver_estimated_value: receiverValue,
-        expires_at: expiresAt,
-      })
-      .returning('*');
+    const trade = await queryOne<TradeRequest>(
+      `INSERT INTO trade_requests (
+        initiator_id, receiver_id, initiator_items, initiator_credits,
+        receiver_items, receiver_credits, message,
+        initiator_estimated_value, receiver_estimated_value, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [
+        initiatorId, receiverId, initiatorItems, initiatorCredits,
+        receiverItems, receiverCredits, message,
+        initiatorValue, receiverValue, expiresAt
+      ]
+    );
 
     return {
-      trade: await this.enrichTrade(trade),
+      trade: await this.enrichTrade(trade!),
       valueWarning:
         diffPercent > MAX_VALUE_DIFFERENCE_PERCENT
           ? `Warning: This trade has a ${Math.round(diffPercent)}% value difference`
@@ -178,12 +226,11 @@ export const tradingService = {
   },
 
   async getTradeRequest(tradeId: string, userId: string) {
-    const trade = await db('trade_requests')
-      .where({ id: tradeId })
-      .where(function () {
-        this.where({ initiator_id: userId }).orWhere({ receiver_id: userId });
-      })
-      .first();
+    const trade = await queryOne<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE id = $1 AND (initiator_id = $2 OR receiver_id = $2)`,
+      [tradeId, userId]
+    );
 
     if (!trade) {
       return null;
@@ -193,30 +240,35 @@ export const tradingService = {
   },
 
   async getIncomingTrades(userId: string) {
-    const trades = await db('trade_requests')
-      .where({ receiver_id: userId })
-      .whereIn('status', ['pending', 'countered'])
-      .orderBy('created_at', 'desc');
+    const trades = await queryAll<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE receiver_id = $1 AND status IN ('pending', 'countered')
+       ORDER BY created_at DESC`,
+      [userId]
+    );
 
     return Promise.all(trades.map((t) => this.enrichTrade(t)));
   },
 
   async getOutgoingTrades(userId: string) {
-    const trades = await db('trade_requests')
-      .where({ initiator_id: userId })
-      .whereIn('status', ['pending', 'countered'])
-      .orderBy('created_at', 'desc');
+    const trades = await queryAll<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE initiator_id = $1 AND status IN ('pending', 'countered')
+       ORDER BY created_at DESC`,
+      [userId]
+    );
 
     return Promise.all(trades.map((t) => this.enrichTrade(t)));
   },
 
   async getTradeHistory(userId: string, limit = 50) {
-    const trades = await db('trade_history')
-      .where(function () {
-        this.where({ user1_id: userId }).orWhere({ user2_id: userId });
-      })
-      .orderBy('completed_at', 'desc')
-      .limit(limit);
+    const trades = await queryAll<Record<string, unknown>>(
+      `SELECT * FROM trade_history
+       WHERE user1_id = $1 OR user2_id = $1
+       ORDER BY completed_at DESC
+       LIMIT $2`,
+      [userId, limit]
+    );
 
     return trades;
   },
@@ -226,62 +278,73 @@ export const tradingService = {
   // =====================================================
 
   async acceptTrade(tradeId: string, receiverId: string) {
-    return db.transaction(async (trx) => {
-      const trade = await trx('trade_requests')
-        .where({ id: tradeId, receiver_id: receiverId })
-        .whereIn('status', ['pending', 'countered'])
-        .forUpdate()
-        .first();
+    return transaction(async (client: PoolClient) => {
+      const tradeResult = await client.query<TradeRequest>(
+        `SELECT * FROM trade_requests
+         WHERE id = $1 AND receiver_id = $2 AND status IN ('pending', 'countered')
+         FOR UPDATE`,
+        [tradeId, receiverId]
+      );
 
+      const trade = tradeResult.rows[0];
       if (!trade) {
         throw new Error('Trade not found or already processed');
       }
 
       // Check trade hasn't expired
       if (new Date(trade.expires_at) < new Date()) {
-        await trx('trade_requests')
-          .where({ id: tradeId })
-          .update({ status: 'expired' });
+        await client.query(
+          `UPDATE trade_requests SET status = 'expired' WHERE id = $1`,
+          [tradeId]
+        );
         throw new Error('Trade has expired');
       }
 
       // Verify ownership again (items may have been traded/sold since)
-      if (trade.initiator_items.length > 0) {
-        const initiatorOwns = await trx('user_spirit_cosmetics')
-          .whereIn('id', trade.initiator_items)
-          .where({ user_id: trade.initiator_id });
+      if (trade.initiator_items && trade.initiator_items.length > 0) {
+        const initiatorOwnsResult = await client.query<UserCosmetic>(
+          `SELECT id FROM user_spirit_cosmetics
+           WHERE id = ANY($1) AND user_id = $2`,
+          [trade.initiator_items, trade.initiator_id]
+        );
 
-        if (initiatorOwns.length !== trade.initiator_items.length) {
+        if (initiatorOwnsResult.rows.length !== trade.initiator_items.length) {
           throw new Error('Initiator no longer owns all offered items');
         }
       }
 
-      if (trade.receiver_items.length > 0) {
-        const receiverOwns = await trx('user_spirit_cosmetics')
-          .whereIn('id', trade.receiver_items)
-          .where({ user_id: receiverId });
+      if (trade.receiver_items && trade.receiver_items.length > 0) {
+        const receiverOwnsResult = await client.query<UserCosmetic>(
+          `SELECT id FROM user_spirit_cosmetics
+           WHERE id = ANY($1) AND user_id = $2`,
+          [trade.receiver_items, receiverId]
+        );
 
-        if (receiverOwns.length !== trade.receiver_items.length) {
+        if (receiverOwnsResult.rows.length !== trade.receiver_items.length) {
           throw new Error('You no longer own all requested items');
         }
       }
 
       // Verify credits
       if (trade.initiator_credits > 0) {
-        const initiatorBalance = await trx('credit_balances')
-          .where({ user_id: trade.initiator_id })
-          .first();
+        const initiatorBalanceResult = await client.query<{ balance: number }>(
+          `SELECT balance FROM credit_balances WHERE user_id = $1`,
+          [trade.initiator_id]
+        );
 
+        const initiatorBalance = initiatorBalanceResult.rows[0];
         if (!initiatorBalance || initiatorBalance.balance < trade.initiator_credits) {
           throw new Error('Initiator no longer has sufficient credits');
         }
       }
 
       if (trade.receiver_credits > 0) {
-        const receiverBalance = await trx('credit_balances')
-          .where({ user_id: receiverId })
-          .first();
+        const receiverBalanceResult = await client.query<{ balance: number }>(
+          `SELECT balance FROM credit_balances WHERE user_id = $1`,
+          [receiverId]
+        );
 
+        const receiverBalance = receiverBalanceResult.rows[0];
         if (!receiverBalance || receiverBalance.balance < trade.receiver_credits) {
           throw new Error('You do not have sufficient credits');
         }
@@ -290,108 +353,120 @@ export const tradingService = {
       // Execute the trade
 
       // Transfer initiator's items to receiver
-      if (trade.initiator_items.length > 0) {
-        await trx('user_spirit_cosmetics')
-          .whereIn('id', trade.initiator_items)
-          .update({
-            user_id: receiverId,
-            acquired_at: new Date(),
-            acquisition_method: 'trade',
-          });
+      if (trade.initiator_items && trade.initiator_items.length > 0) {
+        await client.query(
+          `UPDATE user_spirit_cosmetics
+           SET user_id = $1, acquired_at = NOW(), acquisition_method = 'trade'
+           WHERE id = ANY($2)`,
+          [receiverId, trade.initiator_items]
+        );
       }
 
       // Transfer receiver's items to initiator
-      if (trade.receiver_items.length > 0) {
-        await trx('user_spirit_cosmetics')
-          .whereIn('id', trade.receiver_items)
-          .update({
-            user_id: trade.initiator_id,
-            acquired_at: new Date(),
-            acquisition_method: 'trade',
-          });
+      if (trade.receiver_items && trade.receiver_items.length > 0) {
+        await client.query(
+          `UPDATE user_spirit_cosmetics
+           SET user_id = $1, acquired_at = NOW(), acquisition_method = 'trade'
+           WHERE id = ANY($2)`,
+          [trade.initiator_id, trade.receiver_items]
+        );
       }
 
       // Transfer credits
       if (trade.initiator_credits > 0) {
-        await trx('credit_balances')
-          .where({ user_id: trade.initiator_id })
-          .decrement('balance', trade.initiator_credits);
-
-        await trx('credit_balances')
-          .where({ user_id: receiverId })
-          .increment('balance', trade.initiator_credits);
+        await client.query(
+          `UPDATE credit_balances SET balance = balance - $1 WHERE user_id = $2`,
+          [trade.initiator_credits, trade.initiator_id]
+        );
+        await client.query(
+          `UPDATE credit_balances SET balance = balance + $1 WHERE user_id = $2`,
+          [trade.initiator_credits, receiverId]
+        );
       }
 
       if (trade.receiver_credits > 0) {
-        await trx('credit_balances')
-          .where({ user_id: receiverId })
-          .decrement('balance', trade.receiver_credits);
-
-        await trx('credit_balances')
-          .where({ user_id: trade.initiator_id })
-          .increment('balance', trade.receiver_credits);
+        await client.query(
+          `UPDATE credit_balances SET balance = balance - $1 WHERE user_id = $2`,
+          [trade.receiver_credits, receiverId]
+        );
+        await client.query(
+          `UPDATE credit_balances SET balance = balance + $1 WHERE user_id = $2`,
+          [trade.receiver_credits, trade.initiator_id]
+        );
       }
 
       // Update trade status
-      await trx('trade_requests')
-        .where({ id: tradeId })
-        .update({
-          status: 'completed',
-          completed_at: new Date(),
-          updated_at: new Date(),
-        });
+      await client.query(
+        `UPDATE trade_requests
+         SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [tradeId]
+      );
 
       // Record in trade history
-      const totalValue =
-        trade.initiator_estimated_value + trade.receiver_estimated_value;
+      const totalValue = trade.initiator_estimated_value + trade.receiver_estimated_value;
 
       // Get item details for history
-      const initiatorItemDetails = trade.initiator_items.length > 0
-        ? await trx('user_spirit_cosmetics')
-            .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-            .whereIn('user_spirit_cosmetics.id', trade.initiator_items)
-            .select('spirit_animal_cosmetics.name', 'spirit_animal_cosmetics.rarity')
-        : [];
+      let initiatorItemDetails: { name: string; rarity: string }[] = [];
+      if (trade.initiator_items && trade.initiator_items.length > 0) {
+        const detailsResult = await client.query<{ name: string; rarity: string }>(
+          `SELECT c.name, c.rarity
+           FROM user_spirit_cosmetics u
+           JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+           WHERE u.id = ANY($1)`,
+          [trade.initiator_items]
+        );
+        initiatorItemDetails = detailsResult.rows;
+      }
 
-      const receiverItemDetails = trade.receiver_items.length > 0
-        ? await trx('user_spirit_cosmetics')
-            .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-            .whereIn('user_spirit_cosmetics.id', trade.receiver_items)
-            .select('spirit_animal_cosmetics.name', 'spirit_animal_cosmetics.rarity')
-        : [];
+      let receiverItemDetails: { name: string; rarity: string }[] = [];
+      if (trade.receiver_items && trade.receiver_items.length > 0) {
+        const detailsResult = await client.query<{ name: string; rarity: string }>(
+          `SELECT c.name, c.rarity
+           FROM user_spirit_cosmetics u
+           JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+           WHERE u.id = ANY($1)`,
+          [trade.receiver_items]
+        );
+        receiverItemDetails = detailsResult.rows;
+      }
 
-      await trx('trade_history').insert({
-        trade_id: tradeId,
-        user1_id: trade.initiator_id,
-        user2_id: receiverId,
-        user1_items: JSON.stringify(initiatorItemDetails),
-        user1_credits: trade.initiator_credits,
-        user2_items: JSON.stringify(receiverItemDetails),
-        user2_credits: trade.receiver_credits,
-        total_value: totalValue,
-      });
+      await client.query(
+        `INSERT INTO trade_history (
+          trade_id, user1_id, user2_id, user1_items, user1_credits,
+          user2_items, user2_credits, total_value
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          tradeId, trade.initiator_id, receiverId,
+          JSON.stringify(initiatorItemDetails), trade.initiator_credits,
+          JSON.stringify(receiverItemDetails), trade.receiver_credits,
+          totalValue
+        ]
+      );
 
       // Update user marketplace stats
-      await this.updateTradeStats(trx, trade.initiator_id, totalValue / 2);
-      await this.updateTradeStats(trx, receiverId, totalValue / 2);
+      await this.updateTradeStatsWithClient(client, trade.initiator_id, totalValue / 2);
+      await this.updateTradeStatsWithClient(client, receiverId, totalValue / 2);
 
       return { success: true, trade: { ...trade, status: 'completed' } };
     });
   },
 
   async declineTrade(tradeId: string, receiverId: string) {
-    const trade = await db('trade_requests')
-      .where({ id: tradeId, receiver_id: receiverId })
-      .whereIn('status', ['pending', 'countered'])
-      .first();
+    const trade = await queryOne<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE id = $1 AND receiver_id = $2 AND status IN ('pending', 'countered')`,
+      [tradeId, receiverId]
+    );
 
     if (!trade) {
       throw new Error('Trade not found or already processed');
     }
 
-    await db('trade_requests')
-      .where({ id: tradeId })
-      .update({ status: 'declined', updated_at: new Date() });
+    await query(
+      `UPDATE trade_requests SET status = 'declined', updated_at = NOW() WHERE id = $1`,
+      [tradeId]
+    );
 
     return { success: true };
   },
@@ -405,10 +480,11 @@ export const tradingService = {
       message,
     } = counter;
 
-    const trade = await db('trade_requests')
-      .where({ id: tradeId, receiver_id: receiverId })
-      .whereIn('status', ['pending', 'countered'])
-      .first();
+    const trade = await queryOne<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE id = $1 AND receiver_id = $2 AND status IN ('pending', 'countered')`,
+      [tradeId, receiverId]
+    );
 
     if (!trade) {
       throw new Error('Trade not found or already processed');
@@ -421,9 +497,11 @@ export const tradingService = {
 
     // Verify receiver owns counter items
     if (receiverItems.length > 0) {
-      const owned = await db('user_spirit_cosmetics')
-        .whereIn('id', receiverItems)
-        .where({ user_id: receiverId });
+      const owned = await queryAll<UserCosmetic>(
+        `SELECT id FROM user_spirit_cosmetics
+         WHERE id = ANY($1) AND user_id = $2`,
+        [receiverItems, receiverId]
+      );
 
       if (owned.length !== receiverItems.length) {
         throw new Error('You do not own all the items in your counter offer');
@@ -432,9 +510,11 @@ export const tradingService = {
 
     // Verify initiator owns requested items
     if (initiatorItems.length > 0) {
-      const initiatorOwns = await db('user_spirit_cosmetics')
-        .whereIn('id', initiatorItems)
-        .where({ user_id: trade.initiator_id });
+      const initiatorOwns = await queryAll<UserCosmetic>(
+        `SELECT id FROM user_spirit_cosmetics
+         WHERE id = ANY($1) AND user_id = $2`,
+        [initiatorItems, trade.initiator_id]
+      );
 
       if (initiatorOwns.length !== initiatorItems.length) {
         throw new Error('The other user does not own all requested items');
@@ -449,43 +529,54 @@ export const tradingService = {
     expiresAt.setHours(expiresAt.getHours() + TRADE_EXPIRATION_HOURS);
 
     // Swap initiator/receiver roles for counter
-    await db('trade_requests')
-      .where({ id: tradeId })
-      .update({
-        status: 'countered',
-        // Swap who is the initiator for the counter
-        initiator_id: receiverId,
-        receiver_id: trade.initiator_id,
-        initiator_items: receiverItems,
-        initiator_credits: receiverCredits,
-        receiver_items: initiatorItems,
-        receiver_credits: initiatorCredits,
-        initiator_estimated_value: receiverValue,
-        receiver_estimated_value: initiatorValue,
-        message,
-        counter_count: trade.counter_count + 1,
-        expires_at: expiresAt,
-        updated_at: new Date(),
-      });
+    await query(
+      `UPDATE trade_requests SET
+        status = 'countered',
+        initiator_id = $1,
+        receiver_id = $2,
+        initiator_items = $3,
+        initiator_credits = $4,
+        receiver_items = $5,
+        receiver_credits = $6,
+        initiator_estimated_value = $7,
+        receiver_estimated_value = $8,
+        message = $9,
+        counter_count = counter_count + 1,
+        expires_at = $10,
+        updated_at = NOW()
+      WHERE id = $11`,
+      [
+        receiverId, trade.initiator_id,
+        receiverItems, receiverCredits,
+        initiatorItems, initiatorCredits,
+        receiverValue, initiatorValue,
+        message, expiresAt, tradeId
+      ]
+    );
 
-    const updatedTrade = await db('trade_requests').where({ id: tradeId }).first();
+    const updatedTrade = await queryOne<TradeRequest>(
+      `SELECT * FROM trade_requests WHERE id = $1`,
+      [tradeId]
+    );
 
-    return { trade: await this.enrichTrade(updatedTrade) };
+    return { trade: await this.enrichTrade(updatedTrade!) };
   },
 
   async cancelTrade(tradeId: string, initiatorId: string) {
-    const trade = await db('trade_requests')
-      .where({ id: tradeId, initiator_id: initiatorId })
-      .whereIn('status', ['pending', 'countered'])
-      .first();
+    const trade = await queryOne<TradeRequest>(
+      `SELECT * FROM trade_requests
+       WHERE id = $1 AND initiator_id = $2 AND status IN ('pending', 'countered')`,
+      [tradeId, initiatorId]
+    );
 
     if (!trade) {
       throw new Error('Trade not found or you are not the initiator');
     }
 
-    await db('trade_requests')
-      .where({ id: tradeId })
-      .update({ status: 'cancelled', updated_at: new Date() });
+    await query(
+      `UPDATE trade_requests SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+      [tradeId]
+    );
 
     return { success: true };
   },
@@ -498,18 +589,21 @@ export const tradingService = {
     let itemValue = 0;
 
     if (itemIds.length > 0) {
-      const items = await db('user_spirit_cosmetics')
-        .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-        .whereIn('user_spirit_cosmetics.id', itemIds)
-        .select('spirit_animal_cosmetics.id', 'spirit_animal_cosmetics.base_price');
+      const items = await queryAll<{ id: string; base_price: number }>(
+        `SELECT c.id, c.base_price
+         FROM user_spirit_cosmetics u
+         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         WHERE u.id = ANY($1)`,
+        [itemIds]
+      );
 
       // Get average sale prices for these items
       for (const item of items) {
-        const avgSale = await db('marketplace_transactions')
-          .where({ cosmetic_id: item.id })
-          .where('created_at', '>', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-          .avg('sale_price as avg')
-          .first();
+        const avgSale = await queryOne<{ avg: number | null }>(
+          `SELECT AVG(sale_price) as avg FROM marketplace_transactions
+           WHERE cosmetic_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+          [item.id]
+        );
 
         itemValue += avgSale?.avg || item.base_price || 100;
       }
@@ -522,19 +616,21 @@ export const tradingService = {
     const values: { itemId: string; name: string; estimatedValue: number }[] = [];
 
     for (const itemId of itemIds) {
-      const item = await db('user_spirit_cosmetics')
-        .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-        .where('user_spirit_cosmetics.id', itemId)
-        .select('spirit_animal_cosmetics.*')
-        .first();
+      const item = await queryOne<Cosmetic & { user_cosmetic_id: string }>(
+        `SELECT c.*, u.id as user_cosmetic_id
+         FROM user_spirit_cosmetics u
+         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         WHERE u.id = $1`,
+        [itemId]
+      );
 
       if (!item) continue;
 
-      const avgSale = await db('marketplace_transactions')
-        .where({ cosmetic_id: item.id })
-        .where('created_at', '>', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-        .avg('sale_price as avg')
-        .first();
+      const avgSale = await queryOne<{ avg: number | null }>(
+        `SELECT AVG(sale_price) as avg FROM marketplace_transactions
+         WHERE cosmetic_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+        [item.id]
+      );
 
       values.push({
         itemId,
@@ -552,35 +648,39 @@ export const tradingService = {
   // HELPERS
   // =====================================================
 
-  async enrichTrade(trade: Record<string, unknown>) {
-    const [initiator, receiver, initiatorItemDetails, receiverItemDetails] = await Promise.all([
-      db('users')
-        .where({ id: trade.initiator_id })
-        .select('id', 'username', 'avatar_url')
-        .first(),
-      db('users')
-        .where({ id: trade.receiver_id })
-        .select('id', 'username', 'avatar_url')
-        .first(),
-      trade.initiator_items && (trade.initiator_items as string[]).length > 0
-        ? db('user_spirit_cosmetics')
-            .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-            .whereIn('user_spirit_cosmetics.id', trade.initiator_items as string[])
-            .select(
-              'user_spirit_cosmetics.id as user_cosmetic_id',
-              'spirit_animal_cosmetics.*'
-            )
-        : [],
-      trade.receiver_items && (trade.receiver_items as string[]).length > 0
-        ? db('user_spirit_cosmetics')
-            .join('spirit_animal_cosmetics', 'user_spirit_cosmetics.cosmetic_id', 'spirit_animal_cosmetics.id')
-            .whereIn('user_spirit_cosmetics.id', trade.receiver_items as string[])
-            .select(
-              'user_spirit_cosmetics.id as user_cosmetic_id',
-              'spirit_animal_cosmetics.*'
-            )
-        : [],
+  async enrichTrade(trade: TradeRequest) {
+    const [initiator, receiver] = await Promise.all([
+      queryOne<UserBasic>(
+        `SELECT id, username, avatar_url FROM users WHERE id = $1`,
+        [trade.initiator_id]
+      ),
+      queryOne<UserBasic>(
+        `SELECT id, username, avatar_url FROM users WHERE id = $1`,
+        [trade.receiver_id]
+      ),
     ]);
+
+    let initiatorItemDetails: Record<string, unknown>[] = [];
+    if (trade.initiator_items && trade.initiator_items.length > 0) {
+      initiatorItemDetails = await queryAll<Record<string, unknown>>(
+        `SELECT u.id as user_cosmetic_id, c.*
+         FROM user_spirit_cosmetics u
+         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         WHERE u.id = ANY($1)`,
+        [trade.initiator_items]
+      );
+    }
+
+    let receiverItemDetails: Record<string, unknown>[] = [];
+    if (trade.receiver_items && trade.receiver_items.length > 0) {
+      receiverItemDetails = await queryAll<Record<string, unknown>>(
+        `SELECT u.id as user_cosmetic_id, c.*
+         FROM user_spirit_cosmetics u
+         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         WHERE u.id = ANY($1)`,
+        [trade.receiver_items]
+      );
+    }
 
     return {
       ...trade,
@@ -591,26 +691,33 @@ export const tradingService = {
     };
   },
 
-  async updateTradeStats(trx: typeof db, userId: string, valueExchanged: number) {
-    await trx('user_marketplace_stats')
-      .insert({ user_id: userId })
-      .onConflict('user_id')
-      .ignore();
+  async updateTradeStatsWithClient(client: PoolClient, userId: string, valueExchanged: number) {
+    // Upsert user marketplace stats
+    await client.query(
+      `INSERT INTO user_marketplace_stats (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId]
+    );
 
-    await trx('user_marketplace_stats')
-      .where({ user_id: userId })
-      .increment('total_trades', 1)
-      .increment('trade_value_exchanged', Math.round(valueExchanged))
-      .update({ updated_at: new Date() });
+    await client.query(
+      `UPDATE user_marketplace_stats
+       SET total_trades = total_trades + 1,
+           trade_value_exchanged = trade_value_exchanged + $1,
+           updated_at = NOW()
+       WHERE user_id = $2`,
+      [Math.round(valueExchanged), userId]
+    );
   },
 
   // Expire old trades
   async expireOldTrades() {
-    const expired = await db('trade_requests')
-      .whereIn('status', ['pending', 'countered'])
-      .where('expires_at', '<', new Date())
-      .update({ status: 'expired', updated_at: new Date() });
+    const result = await query(
+      `UPDATE trade_requests
+       SET status = 'expired', updated_at = NOW()
+       WHERE status IN ('pending', 'countered') AND expires_at < NOW()`
+    );
 
-    return expired;
+    return result.rowCount || 0;
   },
 };

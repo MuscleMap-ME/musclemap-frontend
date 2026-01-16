@@ -1,4 +1,5 @@
-import { queryOne, queryAll, execute, transaction } from '../../db/client';
+import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { PoolClient } from 'pg';
 
 // =====================================================
 // TYPES
@@ -24,6 +25,38 @@ export interface BoxOpeningResult {
   };
 }
 
+interface MysteryBox {
+  id: string;
+  name: string;
+  description: string | null;
+  box_type: string;
+  price: number;
+  drop_rates: DropRates;
+  item_pool: Array<{ id: string; rarity: string }> | string[];
+  available_from: Date | null;
+  available_until: Date | null;
+  max_purchases_per_day: number | null;
+  created_at: Date;
+}
+
+interface PityCounters {
+  user_id: string;
+  box_type: string;
+  epic_counter: number;
+  legendary_counter: number;
+  last_epic_at: Date | null;
+  last_legendary_at: Date | null;
+  updated_at: Date;
+}
+
+interface Cosmetic {
+  id: string;
+  name: string;
+  rarity: string;
+  base_price: number;
+  preview_url: string | null;
+}
+
 // =====================================================
 // MYSTERY BOX SERVICE
 // =====================================================
@@ -39,48 +72,52 @@ export const mysteryBoxService = {
   // =====================================================
 
   async getAvailableBoxes() {
-    const now = new Date();
-
-    const boxes = await db('mystery_boxes')
-      .where(function () {
-        this.whereNull('available_from').orWhere('available_from', '<=', now);
-      })
-      .where(function () {
-        this.whereNull('available_until').orWhere('available_until', '>', now);
-      })
-      .orderBy('price', 'asc');
+    const boxes = await queryAll<MysteryBox>(
+      `SELECT * FROM mystery_boxes
+       WHERE (available_from IS NULL OR available_from <= NOW())
+         AND (available_until IS NULL OR available_until > NOW())
+       ORDER BY price ASC`
+    );
 
     return boxes;
   },
 
   async getBoxDetails(boxId: string) {
-    const box = await db('mystery_boxes').where({ id: boxId }).first();
+    const box = await queryOne<MysteryBox>(
+      `SELECT * FROM mystery_boxes WHERE id = $1`,
+      [boxId]
+    );
 
     if (!box) {
       return null;
     }
 
     // Get recent drops for this box
-    const recentDrops = await db('mystery_box_openings')
-      .join('spirit_animal_cosmetics', 'mystery_box_openings.cosmetic_received_id', 'spirit_animal_cosmetics.id')
-      .join('users', 'mystery_box_openings.user_id', 'users.id')
-      .where('mystery_box_openings.box_id', boxId)
-      .orderBy('mystery_box_openings.opened_at', 'desc')
-      .limit(20)
-      .select(
-        'mystery_box_openings.rarity_received',
-        'mystery_box_openings.opened_at',
-        'spirit_animal_cosmetics.name',
-        'spirit_animal_cosmetics.preview_url',
-        'users.username'
-      );
+    const recentDrops = await queryAll<{
+      rarity_received: string;
+      opened_at: Date;
+      name: string;
+      preview_url: string | null;
+      username: string;
+    }>(
+      `SELECT o.rarity_received, o.opened_at, c.name, c.preview_url, u.username
+       FROM mystery_box_openings o
+       JOIN spirit_animal_cosmetics c ON o.cosmetic_received_id = c.id
+       JOIN users u ON o.user_id = u.id
+       WHERE o.box_id = $1
+       ORDER BY o.opened_at DESC
+       LIMIT 20`,
+      [boxId]
+    );
 
     // Get drop rate statistics
-    const dropStats = await db('mystery_box_openings')
-      .where({ box_id: boxId })
-      .select('rarity_received')
-      .count('* as count')
-      .groupBy('rarity_received');
+    const dropStats = await queryAll<{ rarity_received: string; count: string }>(
+      `SELECT rarity_received, COUNT(*) as count
+       FROM mystery_box_openings
+       WHERE box_id = $1
+       GROUP BY rarity_received`,
+      [boxId]
+    );
 
     return {
       box,
@@ -95,7 +132,10 @@ export const mysteryBoxService = {
 
   async openBox(userId: string, boxId: string, quantity = 1): Promise<BoxOpeningResult[]> {
     // Validate box
-    const box = await db('mystery_boxes').where({ id: boxId }).first();
+    const box = await queryOne<MysteryBox>(
+      `SELECT * FROM mystery_boxes WHERE id = $1`,
+      [boxId]
+    );
 
     if (!box) {
       throw new Error('Mystery box not found');
@@ -113,11 +153,11 @@ export const mysteryBoxService = {
     // Check purchase limits
     if (box.max_purchases_per_day) {
       const today = new Date().toISOString().split('T')[0];
-      const todayOpenings = await db('mystery_box_openings')
-        .where({ user_id: userId, box_id: boxId })
-        .whereRaw("DATE(opened_at) = ?", [today])
-        .count('* as count')
-        .first();
+      const todayOpenings = await queryOne<{ count: string }>(
+        `SELECT COUNT(*) as count FROM mystery_box_openings
+         WHERE user_id = $1 AND box_id = $2 AND DATE(opened_at) = $3`,
+        [userId, boxId, today]
+      );
 
       if (Number(todayOpenings?.count || 0) + quantity > box.max_purchases_per_day) {
         throw new Error(`You can only open ${box.max_purchases_per_day} of this box per day`);
@@ -128,136 +168,126 @@ export const mysteryBoxService = {
     const totalCost = box.price * quantity;
 
     // Check user balance
-    const balance = await db('credit_balances')
-      .where({ user_id: userId })
-      .first();
+    const balance = await queryOne<{ balance: number }>(
+      `SELECT balance FROM credit_balances WHERE user_id = $1`,
+      [userId]
+    );
 
     if (!balance || balance.balance < totalCost) {
       throw new Error('Insufficient credits');
     }
 
     // Get item pool
-    let itemPool = box.item_pool || [];
+    let itemPool: Array<{ id: string; rarity: string }> = [];
+    if (box.item_pool && Array.isArray(box.item_pool) && box.item_pool.length > 0) {
+      // Convert to proper format if needed
+      itemPool = box.item_pool.map((item) =>
+        typeof item === 'string' ? { id: item, rarity: 'common' } : item
+      );
+    }
 
     // If item pool is empty, get all tradeable items of appropriate rarities
     if (itemPool.length === 0) {
       const dropRates = box.drop_rates as DropRates;
       const rarities = Object.keys(dropRates);
 
-      const items = await db('spirit_animal_cosmetics')
-        .whereIn('rarity', rarities)
-        .where({ is_purchasable: true })
-        .select('id', 'rarity');
+      const items = await queryAll<{ id: string; rarity: string }>(
+        `SELECT id, rarity FROM spirit_animal_cosmetics
+         WHERE rarity = ANY($1) AND is_purchasable = true`,
+        [rarities]
+      );
 
-      itemPool = items.map((i) => ({ id: i.id, rarity: i.rarity }));
+      itemPool = items;
     }
 
     // Get pity counters
-    let pityCounters = await db('user_pity_counters')
-      .where({ user_id: userId, box_type: box.box_type })
-      .first();
+    let pityCounters = await queryOne<PityCounters>(
+      `SELECT * FROM user_pity_counters WHERE user_id = $1 AND box_type = $2`,
+      [userId, box.box_type]
+    );
 
     if (!pityCounters) {
       pityCounters = {
+        user_id: userId,
+        box_type: box.box_type,
         epic_counter: 0,
         legendary_counter: 0,
+        last_epic_at: null,
+        last_legendary_at: null,
+        updated_at: new Date(),
       };
     }
 
     const results: BoxOpeningResult[] = [];
 
     // Process in transaction
-    await db.transaction(async (trx) => {
+    await transaction(async (client: PoolClient) => {
       // Deduct credits
-      await trx('credit_balances')
-        .where({ user_id: userId })
-        .decrement('balance', totalCost);
+      await client.query(
+        `UPDATE credit_balances SET balance = balance - $1 WHERE user_id = $2`,
+        [totalCost, userId]
+      );
+
+      let currentEpicCounter = pityCounters!.epic_counter;
+      let currentLegendaryCounter = pityCounters!.legendary_counter;
 
       for (let i = 0; i < quantity; i++) {
         // Roll for rarity
         const { rarity, wasPityReward, newCounters } = this.rollRarity(
           box.drop_rates as DropRates,
-          pityCounters.epic_counter,
-          pityCounters.legendary_counter
+          currentEpicCounter,
+          currentLegendaryCounter
         );
 
         // Select random item of that rarity
-        const itemsOfRarity = Array.isArray(itemPool)
-          ? itemPool.filter((item: { rarity?: string }) => item.rarity === rarity)
-          : [];
+        const itemsOfRarity = itemPool.filter((item) => item.rarity === rarity);
 
+        let selectedItem: { id: string; rarity: string };
         if (itemsOfRarity.length === 0) {
           // Fallback to any item
-          const fallbackItems = Array.isArray(itemPool) ? itemPool : [];
-          if (fallbackItems.length === 0) {
+          if (itemPool.length === 0) {
             throw new Error('No items available in box');
           }
-          const randomItem = fallbackItems[Math.floor(Math.random() * fallbackItems.length)];
-          const cosmetic = await trx('spirit_animal_cosmetics')
-            .where({ id: randomItem.id || randomItem })
-            .first();
-
-          // Award item
-          await this.awardCosmetic(trx, userId, cosmetic.id, box.price, boxId);
-
-          results.push({
-            cosmetic,
-            rarity: cosmetic.rarity,
-            wasPityReward,
-            pityCounters: newCounters,
-          });
+          selectedItem = itemPool[Math.floor(Math.random() * itemPool.length)];
         } else {
-          const randomItem = itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
-          const itemId = randomItem.id || randomItem;
-
-          const cosmetic = await trx('spirit_animal_cosmetics')
-            .where({ id: itemId })
-            .first();
-
-          // Award item
-          await this.awardCosmetic(trx, userId, cosmetic.id, box.price, boxId);
-
-          // Record opening
-          await trx('mystery_box_openings').insert({
-            user_id: userId,
-            box_id: boxId,
-            cosmetic_received_id: cosmetic.id,
-            rarity_received: rarity,
-            credits_spent: box.price,
-            pity_counter_at_open: pityCounters.legendary_counter,
-            was_pity_reward: wasPityReward,
-          });
-
-          results.push({
-            cosmetic,
-            rarity,
-            wasPityReward,
-            pityCounters: newCounters,
-          });
+          selectedItem = itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
         }
 
+        const cosmeticResult = await client.query<Cosmetic>(
+          `SELECT * FROM spirit_animal_cosmetics WHERE id = $1`,
+          [selectedItem.id]
+        );
+        const cosmetic = cosmeticResult.rows[0];
+
+        if (!cosmetic) {
+          throw new Error('Cosmetic not found');
+        }
+
+        // Award item
+        await this.awardCosmeticWithClient(client, userId, cosmetic.id, box.price, boxId, rarity, wasPityReward, currentLegendaryCounter);
+
+        results.push({
+          cosmetic,
+          rarity: cosmetic.rarity,
+          wasPityReward,
+          pityCounters: newCounters,
+        });
+
         // Update pity counters for next iteration
-        pityCounters = {
-          epic_counter: newCounters.epic,
-          legendary_counter: newCounters.legendary,
-        };
+        currentEpicCounter = newCounters.epic;
+        currentLegendaryCounter = newCounters.legendary;
       }
 
       // Save final pity counters
-      await trx('user_pity_counters')
-        .insert({
-          user_id: userId,
-          box_type: box.box_type,
-          epic_counter: pityCounters.epic_counter,
-          legendary_counter: pityCounters.legendary_counter,
-          updated_at: new Date(),
-        })
-        .onConflict(['user_id', 'box_type'])
-        .merge({
-          epic_counter: pityCounters.epic_counter,
-          legendary_counter: pityCounters.legendary_counter,
-          updated_at: new Date(),
-        });
+      await client.query(
+        `INSERT INTO user_pity_counters (user_id, box_type, epic_counter, legendary_counter, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (user_id, box_type) DO UPDATE SET
+           epic_counter = $3,
+           legendary_counter = $4,
+           updated_at = NOW()`,
+        [userId, box.box_type, currentEpicCounter, currentLegendaryCounter]
+      );
     });
 
     return results;
@@ -357,8 +387,10 @@ export const mysteryBoxService = {
   // =====================================================
 
   async getUserPityCounters(userId: string) {
-    const counters = await db('user_pity_counters')
-      .where({ user_id: userId });
+    const counters = await queryAll<PityCounters>(
+      `SELECT * FROM user_pity_counters WHERE user_id = $1`,
+      [userId]
+    );
 
     return counters.map((c) => ({
       boxType: c.box_type,
@@ -376,19 +408,16 @@ export const mysteryBoxService = {
   // =====================================================
 
   async getUserOpeningHistory(userId: string, limit = 50) {
-    const history = await db('mystery_box_openings')
-      .join('mystery_boxes', 'mystery_box_openings.box_id', 'mystery_boxes.id')
-      .join('spirit_animal_cosmetics', 'mystery_box_openings.cosmetic_received_id', 'spirit_animal_cosmetics.id')
-      .where('mystery_box_openings.user_id', userId)
-      .orderBy('mystery_box_openings.opened_at', 'desc')
-      .limit(limit)
-      .select(
-        'mystery_box_openings.*',
-        'mystery_boxes.name as box_name',
-        'spirit_animal_cosmetics.name as cosmetic_name',
-        'spirit_animal_cosmetics.preview_url',
-        'spirit_animal_cosmetics.rarity'
-      );
+    const history = await queryAll<Record<string, unknown>>(
+      `SELECT o.*, b.name as box_name, c.name as cosmetic_name, c.preview_url, c.rarity
+       FROM mystery_box_openings o
+       JOIN mystery_boxes b ON o.box_id = b.id
+       JOIN spirit_animal_cosmetics c ON o.cosmetic_received_id = c.id
+       WHERE o.user_id = $1
+       ORDER BY o.opened_at DESC
+       LIMIT $2`,
+      [userId, limit]
+    );
 
     return history;
   },
@@ -397,80 +426,98 @@ export const mysteryBoxService = {
   // HELPERS
   // =====================================================
 
-  async awardCosmetic(
-    trx: typeof db,
+  async awardCosmeticWithClient(
+    client: PoolClient,
     userId: string,
     cosmeticId: string,
     creditsSpent: number,
-    boxId: string
+    boxId: string,
+    rarityReceived: string,
+    wasPityReward: boolean,
+    pityCounter: number
   ) {
     // Check if user already owns this cosmetic
-    const existing = await trx('user_spirit_cosmetics')
-      .where({ user_id: userId, cosmetic_id: cosmeticId })
-      .first();
+    const existingResult = await client.query<{ id: string }>(
+      `SELECT id FROM user_spirit_cosmetics WHERE user_id = $1 AND cosmetic_id = $2`,
+      [userId, cosmeticId]
+    );
+
+    const existing = existingResult.rows[0];
 
     if (existing) {
       // Convert to credits instead (50% of base price)
-      const cosmetic = await trx('spirit_animal_cosmetics')
-        .where({ id: cosmeticId })
-        .first();
+      const cosmeticResult = await client.query<{ base_price: number; rarity: string }>(
+        `SELECT base_price, rarity FROM spirit_animal_cosmetics WHERE id = $1`,
+        [cosmeticId]
+      );
+      const cosmetic = cosmeticResult.rows[0];
 
       const refundAmount = Math.floor((cosmetic?.base_price || 100) * 0.5);
 
-      await trx('credit_balances')
-        .where({ user_id: userId })
-        .increment('balance', refundAmount);
+      await client.query(
+        `UPDATE credit_balances SET balance = balance + $1 WHERE user_id = $2`,
+        [refundAmount, userId]
+      );
 
       // Still record the opening but mark as duplicate
-      await trx('mystery_box_openings').insert({
-        user_id: userId,
-        box_id: boxId,
-        cosmetic_received_id: cosmeticId,
-        rarity_received: cosmetic?.rarity || 'common',
-        credits_spent: creditsSpent,
-        was_pity_reward: false,
-      });
+      await client.query(
+        `INSERT INTO mystery_box_openings (
+          user_id, box_id, cosmetic_received_id, rarity_received,
+          credits_spent, pity_counter_at_open, was_pity_reward
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, boxId, cosmeticId, cosmetic?.rarity || 'common', creditsSpent, pityCounter, false]
+      );
 
       return { duplicate: true, refundAmount };
     }
 
     // Award the cosmetic
-    await trx('user_spirit_cosmetics').insert({
-      user_id: userId,
-      cosmetic_id: cosmeticId,
-      acquisition_method: 'mystery_box',
-      credits_spent: creditsSpent,
-      is_new: true,
-    });
+    await client.query(
+      `INSERT INTO user_spirit_cosmetics (user_id, cosmetic_id, acquisition_method, credits_spent, is_new)
+       VALUES ($1, $2, 'mystery_box', $3, true)`,
+      [userId, cosmeticId, creditsSpent]
+    );
+
+    // Record opening
+    await client.query(
+      `INSERT INTO mystery_box_openings (
+        user_id, box_id, cosmetic_received_id, rarity_received,
+        credits_spent, pity_counter_at_open, was_pity_reward
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, boxId, cosmeticId, rarityReceived, creditsSpent, pityCounter, wasPityReward]
+    );
 
     return { duplicate: false };
   },
 
   // Get statistics for a box
   async getBoxStatistics(boxId: string) {
-    const totalOpenings = await db('mystery_box_openings')
-      .where({ box_id: boxId })
-      .count('* as count')
-      .first();
+    const totalOpenings = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM mystery_box_openings WHERE box_id = $1`,
+      [boxId]
+    );
 
-    const rarityDistribution = await db('mystery_box_openings')
-      .where({ box_id: boxId })
-      .select('rarity_received')
-      .count('* as count')
-      .groupBy('rarity_received');
+    const rarityDistribution = await queryAll<{ rarity_received: string; count: string }>(
+      `SELECT rarity_received, COUNT(*) as count
+       FROM mystery_box_openings
+       WHERE box_id = $1
+       GROUP BY rarity_received`,
+      [boxId]
+    );
 
-    const pityTriggers = await db('mystery_box_openings')
-      .where({ box_id: boxId, was_pity_reward: true })
-      .count('* as count')
-      .first();
+    const pityTriggers = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM mystery_box_openings
+       WHERE box_id = $1 AND was_pity_reward = true`,
+      [boxId]
+    );
+
+    const totalCount = Number(totalOpenings?.count || 0);
+    const pityCount = Number(pityTriggers?.count || 0);
 
     return {
-      totalOpenings: Number(totalOpenings?.count || 0),
+      totalOpenings: totalCount,
       rarityDistribution,
-      pityTriggerRate:
-        Number(totalOpenings?.count || 0) > 0
-          ? (Number(pityTriggers?.count || 0) / Number(totalOpenings?.count || 0)) * 100
-          : 0,
+      pityTriggerRate: totalCount > 0 ? (pityCount / totalCount) * 100 : 0,
     };
   },
 };
