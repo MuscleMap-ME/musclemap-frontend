@@ -329,7 +329,6 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
 
       setCategories(fetchedCategories);
     } catch (err) {
-      console.error('Failed to fetch archetype data:', err);
       setError(err.message || 'Failed to load archetypes');
     } finally {
       setLoading(false);
@@ -415,7 +414,6 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
       // Call onComplete callback
       onComplete?.(selectedArchetype.id, selectedArchetype);
     } catch (err) {
-      console.error('Failed to confirm archetype:', err);
       showError?.(err.message || 'Failed to select archetype');
     } finally {
       setConfirmLoading(false);

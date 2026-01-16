@@ -103,8 +103,8 @@ export default function Wallet() {
       setWallet(walletData);
       setEntitlements(entitlementsData);
       setTransactions(historyData.transactions || []);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }

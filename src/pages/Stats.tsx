@@ -81,7 +81,7 @@ const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance
 // ============================================
 // RADAR CHART COMPONENT
 // ============================================
-function RadarChart({ stats, size = 300 }) { // eslint-disable-line no-unused-vars
+function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-eslint/no-unused-vars
   const center = size / 2;
   const maxRadius = size * 0.32; // Reduced to leave room for labels
   const levels = [0.25, 0.5, 0.75, 1.0];
@@ -332,8 +332,8 @@ function Leaderboard({ userLocation }) {
 
       const response = await api.characterStats.leaderboard(options);
       setLeaderboard(response.data || []);
-    } catch (err) {
-      console.error('Failed to load leaderboard:', err);
+    } catch {
+      // Failed to load leaderboard
     } finally {
       setLoading(false);
     }
@@ -663,9 +663,8 @@ export default function Stats() {
                 showLegend
                 activationHistory={muscleHistory}
                 onFindExercises={handleFindExercises}
-                onViewHistory={(muscleId) => {
+                onViewHistory={() => {
                   // Could navigate to a dedicated muscle history page
-                  console.log('View history for', muscleId);
                 }}
                 onExerciseClick={(exercise) => {
                   navigate(`/exercises?search=${encodeURIComponent(exercise)}`);

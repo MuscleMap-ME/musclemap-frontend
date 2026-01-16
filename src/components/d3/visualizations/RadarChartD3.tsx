@@ -10,11 +10,10 @@
  * - Beautiful axis styling
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { D3Container } from '../core/D3Container';
-import { createRadialGradient, createGlowFilter, withOpacity } from '../core/gradients';
-import { easings, transitions, springAnimation, springPresets } from '../core/animations';
+import { easings } from '../core/animations';
 
 // ============================================
 // TYPES
@@ -78,7 +77,7 @@ export function RadarChartD3({
   onAxisClick,
   onAxisHover,
   height = 400,
-  width = '100%',
+  width: _width = '100%',
   className = '',
   levels = 5,
   maxValue = 100,

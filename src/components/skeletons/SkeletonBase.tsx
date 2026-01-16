@@ -223,7 +223,7 @@ function SkeletonBase({
   animation = 'shimmer',
   // Legacy API props (still supported for backward compatibility)
   shape, // Legacy: 'rect'|'circle'|'text' -> maps to variant
-  // eslint-disable-next-line no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   animate, // Legacy: boolean -> maps to animation !== 'none'
   shimmer, // Legacy: boolean -> if false, animation='none'
   circle = false, // Legacy: boolean -> variant='circular'

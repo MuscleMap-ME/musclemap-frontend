@@ -534,7 +534,7 @@ export function MyWidget({ user, stats }) {
 // Plugin entry point
 export default {
   onLoad(ctx) {
-    console.log('Plugin loaded!', ctx.pluginId);
+    // Plugin loaded
 
     // Subscribe to events
     ctx.on('workout:completed', (data) => {
@@ -543,7 +543,7 @@ export default {
   },
 
   onUnload() {
-    console.log('Plugin unloaded');
+    // Plugin unloaded
   },
 
   // Register widgets

@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ExternalLink, Copy, Check, Upload } from 'lucide-react';
+import { ExternalLink, Copy, Check } from 'lucide-react';
 
 const GITHUB_REPO = 'https://github.com/musclemap/musclemap-frontend';
 

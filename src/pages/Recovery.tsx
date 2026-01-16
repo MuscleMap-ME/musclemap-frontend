@@ -195,8 +195,8 @@ function LogSleepModal({ isOpen, onClose, onSubmit }) {
         notes: notes || undefined,
       });
       onClose();
-    } catch (err) {
-      console.error('Failed to log sleep:', err);
+    } catch {
+      // Failed to log sleep
     } finally {
       setSubmitting(false);
     }

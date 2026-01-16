@@ -120,7 +120,7 @@ function applyThemeToDocument(theme) {
 /**
  * Reset theme to default
  */
-function resetTheme() { // eslint-disable-line no-unused-vars
+function resetTheme() { // eslint-disable-line @typescript-eslint/no-unused-vars
   applyThemeToDocument(DEFAULT_THEME)
 }
 

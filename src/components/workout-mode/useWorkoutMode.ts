@@ -106,8 +106,7 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
         loadHistory(historyMap);
       }
     },
-    onError: (error) => {
-      console.warn('Failed to fetch exercise history:', error.message);
+    onError: () => {
       // Continue without history - the store will use defaults
     },
   });
@@ -126,9 +125,8 @@ export function useWorkoutMode({ workout, onComplete, onClose }) {
         wakeLockRef.current.addEventListener('release', () => {
           // Wake lock was released (e.g., tab became inactive)
         });
-      } catch (err) {
+      } catch {
         // Wake lock request failed (e.g., low battery)
-        console.warn('Wake lock failed:', err.message);
       }
     }
   }, []);

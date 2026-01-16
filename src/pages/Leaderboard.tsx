@@ -83,8 +83,8 @@ export default function Leaderboard() {
         ...prev,
         [selectedType]: rankData.data,
       }));
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }

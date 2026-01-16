@@ -96,11 +96,9 @@ export const useAuthStore = create(
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {
-          console.error('Auth state rehydration error:', error);
           // Clear corrupted state
           safeStorage.removeItem('musclemap-auth');
         } else if (state?.token) {
-          console.log('Auth state restored from storage');
           // Sync to legacy keys for @musclemap/client compatibility
           localStorage.setItem('musclemap_token', state.token);
           if (state.user) {
@@ -122,7 +120,6 @@ if (typeof window !== 'undefined') {
   setTimeout(() => {
     const state = useAuthStore.getState();
     if (!state._hasHydrated) {
-      console.log('Forcing hydration completion (fallback)');
       state.setHasHydrated(true);
     }
   }, 100);

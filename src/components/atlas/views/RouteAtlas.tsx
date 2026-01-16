@@ -25,7 +25,7 @@ import { AtlasLegend } from '../core/AtlasLegend';
 import { AtlasSearch } from '../core/AtlasSearch';
 import { useAtlasSearch } from '../hooks/useAtlasSearch';
 import { useAtlasData } from '../hooks/useAtlasData';
-import type { RouteAtlasManifest, RouteNodeData, RouteCategory } from '../atlasTypes';
+import type { RouteAtlasManifest, RouteNodeData } from '../atlasTypes';
 
 // Fallback static data if fetch fails
 const STATIC_ROUTE_ATLAS: RouteAtlasManifest = {
@@ -154,7 +154,7 @@ function generateLayout(
 
   visibleCategories.forEach((category) => {
     const visibleRoutes = category.routes;
-    const rows = Math.ceil(visibleRoutes.length / MAX_NODES_PER_ROW);
+    const _rows = Math.ceil(visibleRoutes.length / MAX_NODES_PER_ROW);
     const categoryWidth = Math.min(visibleRoutes.length, MAX_NODES_PER_ROW) * NODE_SPACING_X;
 
     // Category header node
@@ -219,7 +219,7 @@ function RouteAtlasInner({
 }: RouteAtlasProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { fitView } = useReactFlow();
+  const { fitView: _fitView } = useReactFlow();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   const hasInitialized = useRef(false);
 

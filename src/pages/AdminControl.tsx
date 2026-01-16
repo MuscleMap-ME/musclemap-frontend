@@ -61,8 +61,8 @@ export default function AdminControl() {
       });
       const data = await res.json();
       setEmergencyStatus(data.status || {});
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 
@@ -85,8 +85,8 @@ export default function AdminControl() {
       });
       const result = await res.json();
       setData(result);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }
@@ -100,8 +100,8 @@ export default function AdminControl() {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchEmergencyStatus();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 
@@ -113,8 +113,8 @@ export default function AdminControl() {
         headers: { Authorization: `Bearer ${token}`, 'X-Scope': scope }
       });
       fetchSectionData();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 

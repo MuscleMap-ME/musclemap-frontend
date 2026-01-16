@@ -65,8 +65,8 @@ export default function Messages() {
       } else {
         setConversations(convs.filter(c => !c.archived));
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }
@@ -93,8 +93,8 @@ export default function Messages() {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       }).catch(() => {});
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   }, [token]);
 
@@ -133,8 +133,8 @@ export default function Messages() {
         }]);
         setNewMessage('');
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 
@@ -146,8 +146,8 @@ export default function Messages() {
       });
       const data = await res.json();
       setUserResults(data.users || []);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 
@@ -164,8 +164,8 @@ export default function Messages() {
         fetchConversations();
         setActiveConversation({ id: data.data.id, ...data.data });
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     }
   };
 

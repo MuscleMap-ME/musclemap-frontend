@@ -14,13 +14,10 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import * as d3 from 'd3';
 import { D3Container } from '../core/D3Container';
 import {
-  createGlowFilter,
   createLinearGradient,
   createMuscleActivationScale,
-  withOpacity,
-  gradientPresets,
 } from '../core/gradients';
-import { easings, transitions } from '../core/animations';
+import { easings } from '../core/animations';
 
 // ============================================
 // TYPES

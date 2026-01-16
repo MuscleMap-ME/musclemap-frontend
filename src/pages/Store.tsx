@@ -105,8 +105,8 @@ export default function Store() {
       setFeaturedItems(featuredData.data || []);
       setInventory(inventoryData.data || []);
       setWallet(walletData.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }

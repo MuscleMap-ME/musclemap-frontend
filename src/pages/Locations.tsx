@@ -32,7 +32,7 @@ export default function Locations() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => console.log('Geo denied')
+        () => {} // Geo denied
       );
     }
   }, []);
@@ -132,7 +132,7 @@ export default function Locations() {
                   { initials: 'MK', color: 'from-blue-500 to-cyan-500' },
                 ]}
                 icon="🏋️"
-                onJoin={() => console.log('Joining hangout')}
+                onJoin={() => {}}
               />
               <HangoutCard
                 title="CrossFit WOD"
@@ -145,7 +145,7 @@ export default function Locations() {
                   { initials: 'AK', color: 'from-yellow-500 to-orange-500' },
                 ]}
                 icon="⚡"
-                onJoin={() => console.log('Joining hangout')}
+                onJoin={() => {}}
               />
             </div>
           </div>

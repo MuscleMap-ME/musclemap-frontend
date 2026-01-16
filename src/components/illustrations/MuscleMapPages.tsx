@@ -1,7 +1,7 @@
 // MuscleMap Complete Page Templates
 // All application screens with full functionality
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HOME PAGE

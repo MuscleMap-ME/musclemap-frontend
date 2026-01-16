@@ -283,8 +283,8 @@ export const useWorkoutSessionStore = create(
       if (onWorkoutComplete) {
         try {
           onWorkoutComplete(completionData);
-        } catch (err) {
-          console.error('Error in onWorkoutComplete callback:', err);
+        } catch {
+          // Error in onWorkoutComplete callback
         }
       }
 
@@ -295,8 +295,8 @@ export const useWorkoutSessionStore = create(
             newLevel: options.newLevel,
             xpEarned: completionData.xpEarned,
           });
-        } catch (err) {
-          console.error('Error in onLevelUp callback:', err);
+        } catch {
+          // Error in onLevelUp callback
         }
       }
 
@@ -456,8 +456,8 @@ export const useWorkoutSessionStore = create(
               exerciseName: currentExercise?.name,
               set: newSet,
             });
-          } catch (err) {
-            console.error('Error in onPRAchieved callback:', err);
+          } catch {
+            // Error in onPRAchieved callback
           }
         }
       }

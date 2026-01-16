@@ -68,7 +68,6 @@ export const OPERATION_TYPES = {
  */
 function postToServiceWorker(type, payload = {}) {
   if (!navigator.serviceWorker?.controller) {
-    console.warn('[OfflineStore] Service worker not available');
     return Promise.resolve(null);
   }
 
@@ -252,8 +251,8 @@ export const useOfflineStore = create(
                 conflicts: queueStatus.conflicts || [],
               });
             }
-          } catch (error) {
-            console.error('[OfflineStore] Failed to refresh sync status:', error);
+          } catch {
+            // Failed to refresh sync status
           }
         },
 
@@ -262,7 +261,6 @@ export const useOfflineStore = create(
          */
         triggerSync: async () => {
           if (!get().isOnline) {
-            console.log('[OfflineStore] Cannot sync while offline');
             return false;
           }
 
@@ -370,8 +368,7 @@ export const useOfflineStore = create(
             }
 
             return true;
-          } catch (error) {
-            console.error('[OfflineStore] Failed to resolve conflict:', error);
+          } catch {
             return false;
           }
         },
@@ -409,8 +406,7 @@ export const useOfflineStore = create(
             }
 
             return result?.count || 0;
-          } catch (error) {
-            console.error('[OfflineStore] Failed to cache exercises:', error);
+          } catch {
             return 0;
           }
         },
@@ -427,8 +423,8 @@ export const useOfflineStore = create(
                 exerciseCacheCount: result.count,
               });
             }
-          } catch (error) {
-            console.error('[OfflineStore] Failed to get exercise cache status:', error);
+          } catch {
+            // Failed to get exercise cache status
           }
         },
 
@@ -511,8 +507,6 @@ export const useOfflineStore = create(
           // Initial status refresh
           get().refreshSyncStatus();
           get().refreshExerciseCacheStatus();
-
-          console.log('[OfflineStore] Initialized');
         },
       }),
       {

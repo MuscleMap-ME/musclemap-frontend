@@ -10,7 +10,7 @@
  * - Local-only storage option (privacy mode)
  */
 
-import React, { useState, useCallback, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -18,17 +18,14 @@ import { useAuth } from '../store/authStore';
 import { useToast } from '../store';
 import { api } from '../utils/api';
 import {
-  compressImage,
   compressWithPreset,
   createThumbnail,
   validateImage,
-  formatFileSize,
-  type CompressedImage,
   type CompressionPreset,
 } from '../utils/imageCompression';
 import { PhotoCompare, PhotoCompareSideBySide } from '../components/progress-photos/PhotoCompare';
 import { PhotoGallery, BODY_PARTS } from '../components/progress-photos/PhotoGallery';
-import { PhotoGuide, PhotoGuideOverlay } from '../components/progress-photos/PhotoGuide';
+import { PhotoGuideOverlay } from '../components/progress-photos/PhotoGuide';
 
 /**
  * Progress photo data structure
@@ -141,7 +138,7 @@ function openPhotoDB(): Promise<IDBDatabase> {
  * Progress Photos Page Component
  */
 export default function ProgressPhotos() {
-  const { token, user } = useAuth();
+  const { token, user: _user } = useAuth();
   const { toast, error: showError, success } = useToast();
 
   // State

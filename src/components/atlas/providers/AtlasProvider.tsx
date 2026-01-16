@@ -65,7 +65,7 @@ export function AtlasProvider({ children }: AtlasProviderProps) {
   const [routeAtlas, setRouteAtlas] = useState<RouteAtlasManifest | null>(null);
   const [docsAtlas, setDocsAtlas] = useState<DocsAtlasManifest | null>(null);
   const [roadmapAtlas, setRoadmapAtlas] = useState<RoadmapAtlasManifest | null>(null);
-  const [architectureAtlas, setArchitectureAtlas] = useState<ArchitectureAtlasManifest | null>(null);
+  const [architectureAtlas, _setArchitectureAtlas] = useState<ArchitectureAtlasManifest | null>(null);
   const [userContext, setUserContext] = useState<UserAtlasContext | null>(null);
 
   // Loading state

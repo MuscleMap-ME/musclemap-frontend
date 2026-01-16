@@ -208,7 +208,7 @@ export function useDeviceCapabilities() {
  * useVisualizationQuality - Specific settings for 3D visualizations
  */
 export function useVisualizationQuality() {
-  const { modelQuality, enable3D, enableAnimations, deviceTier } = useDeviceCapabilities();
+  const { modelQuality, enable3D, enableAnimations, deviceTier: _deviceTier } = useDeviceCapabilities();
 
   return useMemo(() => {
     if (!enable3D) {

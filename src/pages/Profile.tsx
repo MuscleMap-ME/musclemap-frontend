@@ -52,8 +52,8 @@ export default function Profile() {
       setProfile({ ...p, limitations: JSON.parse(p.limitations || '[]'), equipment_inventory: JSON.parse(p.equipment_inventory || '[]') });
       setAvatars(a.avatars || []);
       setThemes(t.themes || []);
-    } catch (err) {
-      console.error('Failed to load profile:', err);
+    } catch {
+      // Failed to load profile
     } finally {
       setLoading(false);
     }
@@ -79,8 +79,8 @@ export default function Profile() {
       login({ ...user, ...profile }, token);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
-    } catch(e) {
-      console.error('Failed to save profile:', e);
+    } catch {
+      // Failed to save profile
     }
     setSaving(false);
   }

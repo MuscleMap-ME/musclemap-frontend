@@ -1301,7 +1301,7 @@ export default function Dashboard() {
                   { id: '2', title: 'Log 5,000 lbs volume', xpReward: 75, completed: false, progress: 2500, total: 5000, icon: '💪' },
                   { id: '3', title: 'Hit a personal record', xpReward: 100, completed: false, progress: 0, total: 1, icon: '🏆' },
                 ]}
-                onClaimReward={(questId) => console.log('Claimed:', questId)}
+                onClaimReward={() => {}}
                 resetTime="6h 30m"
               />
             </div>

@@ -273,8 +273,8 @@ export default function EmpireControl() {
         const parsed = JSON.parse(authData);
         return { Authorization: `Bearer ${parsed?.state?.token}` };
       }
-    } catch (err) {
-      console.error('Failed to parse auth data from localStorage:', err);
+    } catch {
+      // Failed to parse auth data
     }
     return {};
   }, []);
@@ -298,8 +298,8 @@ export default function EmpireControl() {
           return [...prev, newPoint].slice(-30);
         });
       }
-    } catch (e) {
-      console.error('Failed to fetch metrics:', e);
+    } catch {
+      // Failed to fetch metrics
     }
   }, []);
 
@@ -313,8 +313,8 @@ export default function EmpireControl() {
         const data = await res.json();
         setUsers(data.data || data.users || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch users:', e);
+    } catch {
+      // Failed to fetch users
     }
   }, [getAuthHeader]);
 
@@ -328,8 +328,8 @@ export default function EmpireControl() {
         const data = await res.json();
         setEconomyStats(data);
       }
-    } catch (e) {
-      console.error('Failed to fetch economy stats:', e);
+    } catch {
+      // Failed to fetch economy stats
     }
   }, [getAuthHeader]);
 
@@ -352,8 +352,8 @@ export default function EmpireControl() {
           unreadCount: conv.unreadCount,
         })));
       }
-    } catch (e) {
-      console.error('Failed to fetch messages:', e);
+    } catch {
+      // Failed to fetch messages
     }
   }, [getAuthHeader]);
 
@@ -367,8 +367,8 @@ export default function EmpireControl() {
         const data = await res.json();
         setFeedbackStats(data);
       }
-    } catch (e) {
-      console.error('Failed to fetch feedback stats:', e);
+    } catch {
+      // Failed to fetch feedback stats
     }
   }, [getAuthHeader]);
 
@@ -386,8 +386,8 @@ export default function EmpireControl() {
         const data = await res.json();
         setFeedbackItems(data.items || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch feedback:', e);
+    } catch {
+      // Failed to fetch feedback
     }
   }, [getAuthHeader, feedbackFilter]);
 
@@ -402,8 +402,8 @@ export default function EmpireControl() {
         setSelectedFeedback(data);
         setFeedbackDetailOpen(true);
       }
-    } catch (e) {
-      console.error('Failed to fetch feedback detail:', e);
+    } catch {
+      // Failed to fetch feedback detail
     }
   }, [getAuthHeader]);
 
@@ -420,8 +420,8 @@ export default function EmpireControl() {
         fetchFeedbackItems();
         fetchFeedbackStats();
       }
-    } catch (e) {
-      console.error('Failed to confirm bug:', e);
+    } catch {
+      // Failed to confirm bug
     }
   };
 
@@ -443,8 +443,8 @@ export default function EmpireControl() {
           fetchFeedbackDetail(id);
         }
       }
-    } catch (e) {
-      console.error('Failed to update feedback:', e);
+    } catch {
+      // Failed to update feedback
     }
   };
 
@@ -469,8 +469,8 @@ export default function EmpireControl() {
         setRespondInternal(false);
         fetchFeedbackDetail(selectedFeedback.id);
       }
-    } catch (e) {
-      console.error('Failed to respond:', e);
+    } catch {
+      // Failed to respond
     }
   };
 
@@ -500,8 +500,8 @@ export default function EmpireControl() {
         // Show success notification
         alert(`Gifted ${giftAmount} credits to ${selectedUser.username}!`);
       }
-    } catch (e) {
-      console.error('Failed to gift credits:', e);
+    } catch {
+      // Failed to gift credits
     }
   };
 
@@ -517,7 +517,7 @@ export default function EmpireControl() {
         window.location.href = `/messages?user=${targetUser.id}`;
         break;
       default:
-        console.log('Action:', action, targetUser);
+        // Unhandled action
     }
   };
 
@@ -729,7 +729,7 @@ export default function EmpireControl() {
                           icon={power.icon}
                           label={power.name}
                           color={power.color}
-                          onClick={() => console.log('Power:', power.id)}
+                          onClick={() => {}}
                         />
                       ))}
                     </div>

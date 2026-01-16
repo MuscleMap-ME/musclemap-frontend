@@ -84,8 +84,8 @@ export default function Achievements() {
       setDefinitions(defsData.data || []);
       setUserAchievements(userData.data || []);
       setSummary(summaryData.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }

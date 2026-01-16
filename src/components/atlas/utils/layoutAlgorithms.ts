@@ -5,7 +5,7 @@
  */
 
 import type { Node, Edge } from 'reactflow';
-import type { RouteAtlasManifest, RouteCategory, RouteNode, RouteNodeData } from '../atlasTypes';
+import type { RouteAtlasManifest, RouteNodeData } from '../atlasTypes';
 
 const CATEGORY_SPACING = 300; // Horizontal spacing between categories
 const NODE_SPACING_X = 180;   // Horizontal spacing within category
@@ -26,7 +26,7 @@ export function generateRouteLayout(
 
   let categoryX = 0;
 
-  manifest.categories.forEach((category, categoryIndex) => {
+  manifest.categories.forEach((category, _categoryIndex) => {
     const categoryWidth = Math.min(category.routes.length, MAX_NODES_PER_ROW) * NODE_SPACING_X;
 
     // Add category header node

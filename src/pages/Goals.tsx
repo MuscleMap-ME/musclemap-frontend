@@ -620,8 +620,8 @@ export default function Goals() {
     try {
       const response = await api.get(`/goals${filter !== 'all' ? `?status=${filter}` : ''}`);
       setGoals(response.data?.goals || []);
-    } catch (error) {
-      console.error('Failed to load goals:', error);
+    } catch {
+      // Failed to load goals
     } finally {
       setLoading(false);
     }
@@ -631,8 +631,8 @@ export default function Goals() {
     try {
       const response = await api.get('/goals/suggestions');
       setSuggestions(response.data?.suggestions || []);
-    } catch (error) {
-      console.error('Failed to load suggestions:', error);
+    } catch {
+      // Failed to load suggestions
     }
   };
 
@@ -641,8 +641,8 @@ export default function Goals() {
       await api.post('/goals', goalData);
       setShowCreateModal(false);
       loadGoals();
-    } catch (error) {
-      console.error('Failed to create goal:', error);
+    } catch {
+      // Failed to create goal
     }
   };
 
@@ -657,8 +657,8 @@ export default function Goals() {
       setShowUpdateModal(false);
       setSelectedGoal(null);
       loadGoals();
-    } catch (error) {
-      console.error('Failed to update goal:', error);
+    } catch {
+      // Failed to update goal
     }
   };
 
@@ -667,8 +667,8 @@ export default function Goals() {
     try {
       await api.delete(`/goals/${goalId}`);
       loadGoals();
-    } catch (error) {
-      console.error('Failed to delete goal:', error);
+    } catch {
+      // Failed to delete goal
     }
   };
 

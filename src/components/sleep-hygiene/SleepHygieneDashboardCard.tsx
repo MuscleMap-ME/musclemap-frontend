@@ -184,7 +184,7 @@ export function SleepHygieneDashboardCard() {
   const sleepLoggedStreak = streaks.find(s => s.streakType === 'sleep_logged');
   const hygieneStreak = streaks.find(s => s.streakType === 'hygiene_checklist');
   const currentStreak = sleepLoggedStreak?.currentStreak || 0;
-  const hygieneCurrentStreak = hygieneStreak?.currentStreak || 0;
+  const _hygieneCurrentStreak = hygieneStreak?.currentStreak || 0;
 
   // Calculate overall progress
   const overallScore = todayAssessment?.overallScore || 0;

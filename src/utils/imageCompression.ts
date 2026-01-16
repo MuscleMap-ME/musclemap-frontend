@@ -225,7 +225,7 @@ export async function extractExifDate(file: File): Promise<Date | null> {
 
       // Look for APP1 marker (EXIF)
       if (marker === 0xFFE1) {
-        const length = dataView.getUint16(offset);
+        const _length = dataView.getUint16(offset);
 
         // Check for "Exif" identifier
         const exifHeader = new TextDecoder().decode(

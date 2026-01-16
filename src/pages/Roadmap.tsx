@@ -42,7 +42,7 @@ const CATEGORY_ICONS = {
 };
 
 function RoadmapCard({ item, onVote, votingId }) {
-  const navigate = useNavigate(); // eslint-disable-line no-unused-vars
+  const _navigate = useNavigate();
   const status = ROADMAP_STATUSES[item.status] || ROADMAP_STATUSES[0];
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
 

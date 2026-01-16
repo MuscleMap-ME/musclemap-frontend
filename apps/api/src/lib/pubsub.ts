@@ -165,7 +165,7 @@ export function subscribe<T>(channel: string, filter?: (data: T) => boolean): As
   return {
     next(): Promise<IteratorResult<T>> {
       if (done) {
-        return Promise.resolve({ value: undefined as any, done: true });
+        return Promise.resolve({ value: undefined, done: true } as IteratorReturnResult<undefined>);
       }
 
       if (queue.length > 0) {
@@ -180,7 +180,7 @@ export function subscribe<T>(channel: string, filter?: (data: T) => boolean): As
       done = true;
       localEmitter.off(channel, handler);
       activeSubscriptions.get(channel)?.delete(handler as (data: unknown) => void);
-      return Promise.resolve({ value: undefined as any, done: true });
+      return Promise.resolve({ value: undefined, done: true } as IteratorReturnResult<undefined>);
     },
     throw(error: Error): Promise<IteratorResult<T>> {
       done = true;

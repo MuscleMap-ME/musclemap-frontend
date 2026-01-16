@@ -91,7 +91,7 @@ export function withAlpha(color: string, alpha: number): string {
  */
 export function getEdgeColor(sourceCategory: string, targetCategory: string): string {
   const sourceColor = getCategoryColor(sourceCategory);
-  const targetColor = getCategoryColor(targetCategory);
+  const _targetColor = getCategoryColor(targetCategory);
 
   // If same category, use that color
   if (sourceCategory === targetCategory) {

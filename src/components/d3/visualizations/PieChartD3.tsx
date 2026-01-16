@@ -10,11 +10,10 @@
  * - Beautiful glow effects
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { D3Container } from '../core/D3Container';
-import { createGlowFilter, withOpacity } from '../core/gradients';
-import { easings, transitions } from '../core/animations';
+import { easings } from '../core/animations';
 
 // ============================================
 // TYPES
@@ -333,7 +332,7 @@ export function PieChartD3({
           setHoveredSegment(d.data.label);
           onSegmentHover?.(d.data);
         })
-        .on('mouseleave', function (event, d) {
+        .on('mouseleave', function (_event, _d) {
           d3.select(this)
             .transition()
             .duration(200)

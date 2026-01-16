@@ -23,8 +23,8 @@ export default function Competitions() {
       ]);
       setCompetitions(c.competitions || []);
       setMyEntries(e.entries || []);
-    } catch (err) {
-      console.error('Failed to load competitions:', err);
+    } catch {
+      // Failed to load competitions
     }
     setLoading(false);
   };

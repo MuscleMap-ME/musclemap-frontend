@@ -37,8 +37,8 @@ export default function HighFives() {
       setReceived(r.encouragements || []);
       setSent(s.encouragements || []);
       setStats(st);
-    } catch (err) {
-      console.error('Failed to load high fives data:', err);
+    } catch {
+      // Failed to load high fives data
     }
     setLoading(false);
   };

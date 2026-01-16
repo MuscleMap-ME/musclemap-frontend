@@ -146,7 +146,6 @@ export default function Workout() {
       setCurrentExerciseIndex(0);
       setMode('workout');
     } catch (err) {
-      console.error('Prescription error:', err);
       setError(err.message || 'Failed to generate workout. Try different constraints.');
     } finally {
       setLoading(false);
@@ -228,8 +227,7 @@ export default function Workout() {
       } else {
         alert(data.error?.message || data.error || 'Failed to complete workout');
       }
-    } catch(e) {
-      console.error('Workout completion error:', e);
+    } catch {
       alert('Error completing workout. Please try again.');
     } finally {
       completingRef.current = false;
@@ -256,8 +254,8 @@ export default function Workout() {
       setSuccess(adding.name);
       setTimeout(() => setSuccess(null), 2000);
       setAdding(null);
-    } catch (err) {
-      console.error('Failed to log exercise:', err);
+    } catch {
+      // Failed to log exercise
     }
   }
 
@@ -316,8 +314,8 @@ export default function Workout() {
       if (currentExerciseIndex < allExercises.length - 1) {
         setCurrentExerciseIndex(currentExerciseIndex + 1);
       }
-    } catch(e) {
-      console.error('Failed to log exercise:', e);
+    } catch {
+      // Failed to log exercise
     }
   };
 

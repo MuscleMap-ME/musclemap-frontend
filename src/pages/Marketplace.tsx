@@ -211,7 +211,7 @@ export default function Marketplace() {
       } else {
         showSnackbar(data.error?.message || 'Purchase failed', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Purchase failed', 'error');
     } finally {
       setSubmitting(false);
@@ -247,7 +247,7 @@ export default function Marketplace() {
       } else {
         showSnackbar(data.error?.message || 'Failed to submit offer', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to submit offer', 'error');
     } finally {
       setSubmitting(false);

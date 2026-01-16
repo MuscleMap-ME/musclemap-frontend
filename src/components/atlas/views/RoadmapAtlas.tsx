@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import type { RoadmapAtlasManifest, RoadmapPhase, FeatureCluster } from '../atlasTypes';
+import type { RoadmapAtlasManifest, FeatureCluster } from '../atlasTypes';
 
 // Static roadmap data derived from git history
 const STATIC_ROADMAP: RoadmapAtlasManifest = {
@@ -215,7 +215,7 @@ const statusConfig = {
   planned: { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30', label: 'Planned' },
 };
 
-const sizeConfig = {
+const _sizeConfig = {
   small: { width: 'col-span-1' },
   medium: { width: 'col-span-1 md:col-span-2' },
   large: { width: 'col-span-1 md:col-span-2 lg:col-span-3' },
@@ -333,7 +333,7 @@ interface RoadmapAtlasProps {
   viewMode?: 'timeline' | 'list';
 }
 
-export function RoadmapAtlas({ className = '', viewMode = 'timeline' }: RoadmapAtlasProps) {
+export function RoadmapAtlas({ className = '', viewMode: _viewMode = 'timeline' }: RoadmapAtlasProps) {
   const navigate = useNavigate();
   const [expandedPhase, setExpandedPhase] = useState<string | null>('phase-5'); // Default to latest
 

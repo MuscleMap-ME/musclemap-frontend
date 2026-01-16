@@ -77,7 +77,7 @@ export default function Collection() {
   const [viewMode, setViewMode] = useState('grid');
   const [category, setCategory] = useState('all');
   const [rarity, setRarity] = useState('all');
-  const [sortBy, setSortBy] = useState('acquired');
+  const [sortBy, _setSortBy] = useState('acquired');
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
   // =====================================================
@@ -113,8 +113,8 @@ export default function Collection() {
       setSets(setsData.data || []);
       setShowcase(showcaseData.data || []);
       setNewCount(newData.data?.count || 0);
-    } catch (err) {
-      console.error('Failed to fetch collection:', err);
+    } catch {
+      // Failed to fetch collection
     } finally {
       setLoading(false);
     }
@@ -149,7 +149,7 @@ export default function Collection() {
         }
         showSnackbar(data.data.isFavorite ? 'Added to favorites' : 'Removed from favorites');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to update favorite', 'error');
     }
   };
@@ -161,8 +161,8 @@ export default function Collection() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNewCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to mark as seen:', err);
+    } catch {
+      // Failed to mark as seen
     }
   };
 
@@ -174,7 +174,7 @@ export default function Collection() {
       });
       setNewCount(0);
       showSnackbar('All items marked as seen');
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to mark all as seen', 'error');
     }
   };
@@ -198,7 +198,7 @@ export default function Collection() {
       } else {
         showSnackbar(data.error?.message || 'Failed to claim reward', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to claim reward', 'error');
     }
   };

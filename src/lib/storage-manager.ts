@@ -30,8 +30,8 @@ export async function getStorageQuota() {
         isCritical: usage / quota > STORAGE_CRITICAL_THRESHOLD,
       };
     }
-  } catch (error) {
-    console.warn('[Storage] Failed to get quota:', error);
+  } catch {
+    // Failed to get storage quota
   }
 
   return null;
@@ -46,16 +46,14 @@ export async function requestPersistentStorage() {
     if (navigator.storage?.persist) {
       const isPersisted = await navigator.storage.persisted();
       if (isPersisted) {
-        console.info('[Storage] Already persisted');
         return true;
       }
 
       const result = await navigator.storage.persist();
-      console.info('[Storage] Persistence requested:', result);
       return result;
     }
-  } catch (error) {
-    console.warn('[Storage] Failed to request persistence:', error);
+  } catch {
+    // Failed to request persistence
   }
 
   return false;
@@ -69,20 +67,15 @@ export async function checkAndPruneStorage() {
   const quota = await getStorageQuota();
 
   if (!quota) {
-    console.info('[Storage] Quota API not available');
     return { pruned: false };
   }
 
-  console.info(`[Storage] Usage: ${quota.usageMB}MB / ${quota.quotaMB}MB (${quota.percentUsed}%)`);
-
   if (quota.isCritical) {
-    console.warn('[Storage] Critical storage level, pruning aggressively');
     await pruneAllStaleData(7); // 7 days for critical
     return { pruned: true, level: 'critical' };
   }
 
   if (quota.isWarning) {
-    console.warn('[Storage] Storage warning level, pruning old data');
     await pruneAllStaleData(PRUNE_AGE_DAYS);
     return { pruned: true, level: 'warning' };
   }
@@ -107,9 +100,9 @@ async function pruneAllStaleData(maxAgeDays) {
     // Prune old cache entries
     await pruneCacheEntries(cutoffDate);
 
-    console.info(`[Storage] Pruned data older than ${maxAgeDays} days`);
-  } catch (error) {
-    console.warn('[Storage] Error during pruning:', error);
+    // Pruned data older than maxAgeDays days
+  } catch {
+    // Error during pruning
   }
 }
 
@@ -125,24 +118,18 @@ async function pruneOfflineQueue(cutoffDate) {
     const store = tx.objectStore('queue');
     const items = await store.getAll();
 
-    let prunedCount = 0;
+    let _prunedCount = 0;
     for (const item of items) {
       const itemDate = new Date(item.timestamp || item.createdAt);
       if (itemDate < cutoffDate) {
         await store.delete(item.id);
-        prunedCount++;
+        _prunedCount++;
       }
     }
 
     await tx.done;
-    if (prunedCount > 0) {
-      console.info(`[Storage] Pruned ${prunedCount} old queue items`);
-    }
-  } catch (error) {
+  } catch {
     // Database may not exist yet
-    if (error.name !== 'InvalidStateError') {
-      console.warn('[Storage] Failed to prune offline queue:', error);
-    }
   }
 }
 
@@ -150,7 +137,7 @@ async function pruneOfflineQueue(cutoffDate) {
  * Prune old workout data from cache
  * Keep only last N workouts
  */
-async function pruneWorkoutCache(maxAgeDays) {
+async function pruneWorkoutCache(_maxAgeDays) {
   const MAX_CACHED_WORKOUTS = 100;
 
   try {
@@ -173,14 +160,11 @@ async function pruneWorkoutCache(maxAgeDays) {
       for (const item of toDelete) {
         await store.delete(item.id);
       }
-      console.info(`[Storage] Pruned ${toDelete.length} old cached workouts`);
     }
 
     await tx.done;
-  } catch (error) {
-    if (error.name !== 'InvalidStateError') {
-      console.warn('[Storage] Failed to prune workout cache:', error);
-    }
+  } catch {
+    // Database may not exist yet
   }
 }
 
@@ -196,7 +180,7 @@ async function pruneCacheEntries(cutoffDate) {
     const store = tx.objectStore('entries');
     const items = await store.getAll();
 
-    let prunedCount = 0;
+    let _prunedCount = 0;
     for (const item of items) {
       // Check if expired based on TTL or age
       const itemDate = new Date(item.timestamp || item.createdAt);
@@ -205,18 +189,13 @@ async function pruneCacheEntries(cutoffDate) {
 
       if (isExpired || isTooOld) {
         await store.delete(item.key);
-        prunedCount++;
+        _prunedCount++;
       }
     }
 
     await tx.done;
-    if (prunedCount > 0) {
-      console.info(`[Storage] Pruned ${prunedCount} expired cache entries`);
-    }
-  } catch (error) {
-    if (error.name !== 'InvalidStateError') {
-      console.warn('[Storage] Failed to prune cache entries:', error);
-    }
+  } catch {
+    // Database may not exist yet
   }
 }
 
@@ -254,10 +233,8 @@ export async function clearAllCaches() {
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
 
-    console.info('[Storage] All caches cleared');
     return true;
-  } catch (error) {
-    console.error('[Storage] Failed to clear caches:', error);
+  } catch {
     return false;
   }
 }

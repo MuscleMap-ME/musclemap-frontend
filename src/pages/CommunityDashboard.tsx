@@ -171,8 +171,8 @@ export default function CommunityDashboard() {
       if (!res.ok) return;
       const json = await res.json();
       setPresenceData(json.data?.byGeoBucket || []);
-    } catch (err) {
-      console.error('Failed to fetch presence:', err);
+    } catch {
+      // Failed to fetch presence
     }
   }, []);
 

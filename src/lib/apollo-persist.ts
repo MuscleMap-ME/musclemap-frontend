@@ -5,7 +5,7 @@
  * This is critical for low-end devices and poor network conditions.
  */
 
-import { persistCache, LocalForageWrapper } from 'apollo3-cache-persist';
+import { persistCache } from 'apollo3-cache-persist';
 import { openDB } from 'idb';
 
 // Database name and store
@@ -25,8 +25,7 @@ class IndexedDBStorage {
   async getItem(key) {
     try {
       return await this.db.get(STORE_NAME, key);
-    } catch (error) {
-      console.warn('[Apollo Persist] Failed to get cache:', error);
+    } catch {
       return null;
     }
   }
@@ -34,10 +33,9 @@ class IndexedDBStorage {
   async setItem(key, value) {
     try {
       await this.db.put(STORE_NAME, value, key);
-    } catch (error) {
-      console.warn('[Apollo Persist] Failed to set cache:', error);
+    } catch (error: unknown) {
       // If storage is full, try to clear and retry
-      if (error.name === 'QuotaExceededError') {
+      if ((error as {name: string})?.name === 'QuotaExceededError') {
         await this.clearOldData();
         await this.db.put(STORE_NAME, value, key);
       }
@@ -47,17 +45,16 @@ class IndexedDBStorage {
   async removeItem(key) {
     try {
       await this.db.delete(STORE_NAME, key);
-    } catch (error) {
-      console.warn('[Apollo Persist] Failed to remove cache:', error);
+    } catch {
+      // Failed to remove cache
     }
   }
 
   async clearOldData() {
     try {
       await this.db.clear(STORE_NAME);
-      console.info('[Apollo Persist] Cleared old cache data');
-    } catch (error) {
-      console.warn('[Apollo Persist] Failed to clear old data:', error);
+    } catch {
+      // Failed to clear old data
     }
   }
 }
@@ -92,10 +89,8 @@ export async function initializeCachePersistence(cache) {
       debug: process.env.NODE_ENV !== 'production',
     });
 
-    console.info('[Apollo Persist] Cache persistence initialized');
     return true;
-  } catch (error) {
-    console.error('[Apollo Persist] Failed to initialize persistence:', error);
+  } catch {
     // Don't block app startup if persistence fails
     return false;
   }
@@ -109,9 +104,8 @@ export async function clearPersistedCache() {
   try {
     const db = await openDB(DB_NAME, 1);
     await db.clear(STORE_NAME);
-    console.info('[Apollo Persist] Persisted cache cleared');
-  } catch (error) {
-    console.warn('[Apollo Persist] Failed to clear persisted cache:', error);
+  } catch {
+    // Failed to clear persisted cache
   }
 }
 
@@ -136,8 +130,7 @@ export async function getCacheStats() {
       maxSizeMB: (MAX_CACHE_SIZE / (1024 * 1024)).toFixed(2),
       percentUsed: ((totalSize / MAX_CACHE_SIZE) * 100).toFixed(1),
     };
-  } catch (error) {
-    console.warn('[Apollo Persist] Failed to get cache stats:', error);
+  } catch {
     return null;
   }
 }

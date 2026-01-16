@@ -10,11 +10,10 @@
  * - Beautiful glow effects
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { D3Container } from '../core/D3Container';
-import { createGlowFilter, withOpacity } from '../core/gradients';
-import { easings, transitions } from '../core/animations';
+import { easings } from '../core/animations';
 
 // ============================================
 // TYPES
@@ -56,7 +55,7 @@ export interface WorldMapD3Props {
 // ============================================
 
 // We'll use a simplified world outline
-const WORLD_OUTLINE: GeoJSON.Feature = {
+const _WORLD_OUTLINE: GeoJSON.Feature = {
   type: 'Feature',
   properties: {},
   geometry: {

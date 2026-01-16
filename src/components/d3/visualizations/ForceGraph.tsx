@@ -13,8 +13,8 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { D3Container } from '../core/D3Container';
-import { createGlowFilter, createLinearGradient, withOpacity } from '../core/gradients';
-import { easings, transitions } from '../core/animations';
+import { createLinearGradient } from '../core/gradients';
+import { easings } from '../core/animations';
 
 // ============================================
 // TYPES
@@ -127,7 +127,7 @@ export function ForceGraph({
   onNodeClick,
   onNodeHover,
   height = 600,
-  width = '100%',
+  width: _width = '100%',
   className = '',
   nodeRadius = 20,
   linkDistance = 100,
@@ -217,7 +217,7 @@ export function ForceGraph({
     const defs = svg.append('defs');
 
     // Create glow filters
-    ['blue', 'green', 'amber', 'pink', 'purple', 'red'].forEach((color, i) => {
+    ['blue', 'green', 'amber', 'pink', 'purple', 'red'].forEach((color, _i) => {
       const colors: Record<string, string> = {
         blue: '#3b82f6',
         green: '#22c55e',
@@ -544,7 +544,7 @@ export function ForceGraph({
       nodeContainers
         .on('mouseenter', function (event, d) {
           const colorName = getColorName(getNodeColor(d));
-          const size = d.size || nodeRadius;
+          const _size = d.size || nodeRadius;
 
           // Scale up the whole node group
           d3.select(this)

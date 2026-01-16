@@ -75,23 +75,23 @@ async function initializeApp() {
   try {
     // Request persistent storage (prevents browser eviction)
     await requestPersistentStorage()
-  } catch (e) {
-    console.warn('[MuscleMap] Persistent storage request failed:', e)
+  } catch {
+    // Persistent storage request failed - non-critical
   }
 
   try {
     // Initialize Apollo cache persistence
     // This restores cached data from IndexedDB for instant loads
     await initializeApolloCache()
-  } catch (e) {
-    console.warn('[MuscleMap] Apollo cache initialization failed:', e)
+  } catch {
+    // Apollo cache initialization failed - app will work without persistence
   }
 
   try {
     // Check and prune storage if needed
     await checkAndPruneStorage()
-  } catch (e) {
-    console.warn('[MuscleMap] Storage pruning failed:', e)
+  } catch {
+    // Storage pruning failed - non-critical
   }
 
   // Render the app - always succeeds
@@ -99,9 +99,8 @@ async function initializeApp() {
 }
 
 // Start initialization, but ensure we render even if it fails completely
-initializeApp().catch((e) => {
-  console.error('[MuscleMap] Critical initialization error:', e)
-  // Render anyway - the app should work without cache persistence
+initializeApp().catch(() => {
+  // Critical initialization error - render anyway, app should work without cache persistence
   renderApp()
 })
 

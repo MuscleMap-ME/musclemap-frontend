@@ -89,8 +89,8 @@ export default function Buddy() {
         const evoData = await evoRes.json();
         setEvolutionPath(evoData.data || []);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Error occurred
     } finally {
       setLoading(false);
     }

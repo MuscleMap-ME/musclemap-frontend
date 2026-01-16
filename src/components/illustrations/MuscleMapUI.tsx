@@ -588,7 +588,7 @@ export const WorkoutCard = ({
   duration,
   exercises,
   muscleGroups = [],
-  difficulty,
+  _difficulty,
   completedCount,
   lastCompleted,
   onClick,
@@ -1274,7 +1274,7 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md', showClose
 };
 
 export const BottomSheet = ({ isOpen, onClose, title, children, snapPoints = ['50%', '90%'] }) => {
-  const [currentSnap, setCurrentSnap] = useState(0);
+  const [currentSnap, _setCurrentSnap] = useState(0);
 
   if (!isOpen) return null;
 

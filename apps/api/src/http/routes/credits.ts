@@ -13,11 +13,11 @@ import { z } from 'zod';
 import { authenticate, requireRole } from './auth';
 import { walletService } from '../../modules/economy/wallet.service';
 import { storeService } from '../../modules/economy/store.service';
-import { buddyService, BUDDY_SPECIES } from '../../modules/economy/buddy.service';
+import { buddyService, BUDDY_SPECIES, type BuddySpecies } from '../../modules/economy/buddy.service';
 import { earningService } from '../../modules/economy/earning.service';
-import { antiabuseService, FlagStatus } from '../../modules/economy/antiabuse.service';
+import { antiabuseService, FlagStatus, type FraudFlagType, type FlagSeverity } from '../../modules/economy/antiabuse.service';
 import { trustService } from '../../modules/economy/trust.service';
-import { escrowService } from '../../modules/economy/escrow.service';
+import { escrowService, type EscrowStatus } from '../../modules/economy/escrow.service';
 import { disputeService } from '../../modules/economy/dispute.service';
 import { loggers } from '../../lib/logger';
 
@@ -658,7 +658,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
 
     const buddy = await buddyService.createBuddy(
       request.user!.userId,
-      data.species as any,
+      data.species as BuddySpecies,
       data.nickname
     );
 
@@ -669,7 +669,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
   app.put('/buddy/species', { preHandler: authenticate }, async (request, reply) => {
     const data = z.object({ species: z.enum(BUDDY_SPECIES as unknown as [string, ...string[]]) }).parse(request.body);
 
-    const buddy = await buddyService.changeSpecies(request.user!.userId, data.species as any);
+    const buddy = await buddyService.changeSpecies(request.user!.userId, data.species as BuddySpecies);
 
     return reply.send({ data: buddy });
   });
@@ -720,13 +720,13 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
   app.get('/buddy/evolution/:species', async (request, reply) => {
     const { species } = request.params as { species: string };
 
-    if (!BUDDY_SPECIES.includes(species as any)) {
+    if (!BUDDY_SPECIES.includes(species as BuddySpecies)) {
       return reply.status(400).send({
         error: { code: 'INVALID_SPECIES', message: 'Invalid species', statusCode: 400 },
       });
     }
 
-    const path = await buddyService.getEvolutionPath(species as any);
+    const path = await buddyService.getEvolutionPath(species as BuddySpecies);
     return reply.send({ data: path });
   });
 
@@ -735,7 +735,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     const queryParams = request.query as { species?: string; limit?: string; cursor?: string };
     const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const species = queryParams.species as any;
+    const species = queryParams.species as BuddySpecies | undefined;
     if (species && !BUDDY_SPECIES.includes(species)) {
       return reply.status(400).send({
         error: { code: 'INVALID_SPECIES', message: 'Invalid species', statusCode: 400 },
@@ -797,7 +797,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     // Get stage names for each entry
     const entries = await Promise.all(
       items.map(async (r, i) => {
-        const stageInfo = await buddyService.getStageInfo(r.species as any, r.stage);
+        const stageInfo = await buddyService.getStageInfo(r.species as BuddySpecies, r.stage);
         return {
           rank: i + 1, // Note: Keyset pagination doesn't provide global rank, only relative position
           userId: r.user_id,
@@ -1178,8 +1178,8 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
 
     const flag = await antiabuseService.createFlag({
       userId: data.userId,
-      flagType: data.flagType as any,
-      severity: data.severity as any,
+      flagType: data.flagType as FraudFlagType,
+      severity: data.severity as FlagSeverity,
       description: data.description,
       metadata: data.metadata,
     });
@@ -1255,7 +1255,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
       ? [query.action]
       : ['transfer', 'purchase', 'workout', 'earn'];
 
-    const statuses: Record<string, any> = {};
+    const statuses: Record<string, Awaited<ReturnType<typeof antiabuseService.checkRateLimit>>> = {};
     for (const action of actions) {
       statuses[action] = await antiabuseService.checkRateLimit(userId, action);
     }
@@ -1591,7 +1591,7 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     const query = request.query as { status?: string };
     const holds = await escrowService.getUserHolds(
       request.user!.userId,
-      query.status as any
+      query.status as EscrowStatus | undefined
     );
     return reply.send({ data: holds });
   });
@@ -1655,7 +1655,22 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     // Fetch one extra to determine if there are more results
     params.push(limit + 1);
 
-    const rows = await queryAll(
+    const rows = await queryAll<{
+      id: string;
+      user_id: string;
+      amount: number;
+      purpose: string;
+      reference_type: string;
+      reference_id: string;
+      status: string;
+      release_to: string | null;
+      release_amount: number | null;
+      fee_amount: number;
+      hold_until: Date | null;
+      auto_release: boolean;
+      created_at: Date;
+      updated_at: Date;
+    }>(
       `SELECT * FROM escrow_holds WHERE ${whereClause} ORDER BY created_at DESC, id DESC LIMIT $${paramIndex}`,
       params
     );
@@ -1666,8 +1681,8 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     // Build next cursor
     const nextCursor = items.length > 0 && hasMore
       ? Buffer.from(JSON.stringify({
-          createdAt: (items[items.length - 1] as any).created_at,
-          id: (items[items.length - 1] as any).id
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
         })).toString('base64')
       : null;
 

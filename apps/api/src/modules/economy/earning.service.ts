@@ -15,7 +15,7 @@ import crypto from 'crypto';
 import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { creditService } from './credit.service';
-import { xpService } from '../ranks/xp.service';
+import { xpService, type XpSourceType } from '../ranks/xp.service';
 
 const log = loggers.economy;
 
@@ -487,7 +487,7 @@ export const earningService = {
       await xpService.awardXp({
         userId,
         amount: xp,
-        sourceType: (sourceType as any) || 'workout',
+        sourceType: (sourceType as XpSourceType) || 'workout',
         sourceId,
         reason: reason || 'Earning reward',
         bypassLimits: false, // Respect velocity limits

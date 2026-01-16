@@ -13,7 +13,14 @@ import { config } from '../config';
 import { economyService } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { careerService } from '../modules/career';
-import { sleepService, recoveryService } from '../modules/recovery';
+import {
+  sleepService,
+  recoveryService,
+  type CreateSleepLogInput,
+  type UpdateSleepLogInput,
+  type CreateSleepGoalInput,
+  type UpdateSleepGoalInput,
+} from '../modules/recovery';
 import rpeService from '../modules/rpe';
 import { ProgressionService } from '../services/progression.service';
 import { ProgramsService, EnrollmentService } from '../modules/programs';
@@ -1847,7 +1854,7 @@ export const resolvers = {
       context: Context
     ) => {
       const { userId } = requireAuth(context);
-      return sleepService.logSleep(userId, args.input as any);
+      return sleepService.logSleep(userId, args.input as CreateSleepLogInput);
     },
 
     updateSleepLog: async (
@@ -1872,7 +1879,7 @@ export const resolvers = {
       context: Context
     ) => {
       const { userId } = requireAuth(context);
-      const result = await sleepService.updateSleepLog(userId, args.id, args.input as any);
+      const result = await sleepService.updateSleepLog(userId, args.id, args.input as UpdateSleepLogInput);
       if (!result) {
         throw new GraphQLError('Sleep log not found', { extensions: { code: 'NOT_FOUND' } });
       }
@@ -1898,7 +1905,7 @@ export const resolvers = {
       context: Context
     ) => {
       const { userId } = requireAuth(context);
-      return sleepService.upsertSleepGoal(userId, args.input as any);
+      return sleepService.upsertSleepGoal(userId, args.input as CreateSleepGoalInput);
     },
 
     updateSleepGoal: async (
@@ -1916,7 +1923,7 @@ export const resolvers = {
       context: Context
     ) => {
       const { userId } = requireAuth(context);
-      const result = await sleepService.updateSleepGoal(userId, args.id, args.input as any);
+      const result = await sleepService.updateSleepGoal(userId, args.id, args.input as UpdateSleepGoalInput);
       if (!result) {
         throw new GraphQLError('Sleep goal not found', { extensions: { code: 'NOT_FOUND' } });
       }

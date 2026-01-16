@@ -133,7 +133,7 @@ export default function MysteryBoxes() {
       } else {
         showSnackbar(data.error?.message || 'Failed to open box', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to open box', 'error');
     } finally {
       setOpeningBox(false);

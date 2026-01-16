@@ -108,8 +108,8 @@ export default function Trading() {
         const trade = allTrades.find(t => t.id === tradeId);
         if (trade) setSelectedTrade(trade);
       }
-    } catch (err) {
-      console.error('Failed to fetch trades:', err);
+    } catch {
+      // Failed to fetch trades
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function Trading() {
       } else {
         showSnackbar(data.error?.message || 'Failed to accept trade', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to accept trade', 'error');
     } finally {
       setSubmitting(false);
@@ -167,7 +167,7 @@ export default function Trading() {
       } else {
         showSnackbar(data.error?.message || 'Failed to decline trade', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to decline trade', 'error');
     } finally {
       setSubmitting(false);
@@ -190,7 +190,7 @@ export default function Trading() {
       } else {
         showSnackbar(data.error?.message || 'Failed to cancel trade', 'error');
       }
-    } catch (err) {
+    } catch (_err) {
       showSnackbar('Failed to cancel trade', 'error');
     } finally {
       setSubmitting(false);
@@ -649,9 +649,9 @@ function NewTradeModal({ token, wallet, onSuccess, onError, onClose }) {
   const [searchResults, setSearchResults] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [myCollection, setMyCollection] = useState([]);
-  const [theirWishlist, setTheirWishlist] = useState([]);
+  const [_theirWishlist, _setTheirWishlist] = useState([]);
   const [myItems, setMyItems] = useState([]);
-  const [theirItems, setTheirItems] = useState([]);
+  const [_theirItems, _setTheirItems] = useState([]);
   const [myCredits, setMyCredits] = useState(0);
   const [theirCredits, setTheirCredits] = useState(0);
   const [message, setMessage] = useState('');
@@ -739,7 +739,7 @@ function NewTradeModal({ token, wallet, onSuccess, onError, onClose }) {
       } else {
         onError(data.error?.message || 'Failed to create trade');
       }
-    } catch (err) {
+    } catch (_err) {
       onError('Failed to create trade');
     } finally {
       setSubmitting(false);

@@ -112,6 +112,14 @@ import { registerWatchRoutes } from './routes/watch';
 // TODO: Marketplace module disabled - services need rewrite to use pg client instead of Knex
 // import { marketplaceRoutes } from './routes/marketplace';
 
+// Engagement system routes
+import { registerDailyLoginRoutes } from './routes/daily-login';
+import { registerStreakRoutes } from './routes/streaks';
+import { registerChallengeRoutes } from './routes/challenges';
+import { registerEventRoutes } from './routes/events';
+import { registerEngagementRecoveryRoutes } from './routes/engagement-recovery';
+import { registerPushNotificationRoutes } from './routes/push-notifications';
+
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
 
@@ -173,7 +181,7 @@ export async function createServer(): Promise<FastifyInstance> {
 
     return reply.status(statusCode).send({
       error: {
-        code: (error as any).code || 'ERROR',
+        code: error.code || 'ERROR',
         message,
         statusCode,
       },
@@ -491,6 +499,17 @@ export async function createServer(): Promise<FastifyInstance> {
     // Marketplace, trading, collections, mystery boxes
     // TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
     // await marketplaceRoutes(api);
+
+    // ========================================
+    // ENGAGEMENT SYSTEM
+    // Daily login, streaks, challenges, events, recovery, push notifications
+    // ========================================
+    await registerDailyLoginRoutes(api);
+    await registerStreakRoutes(api);
+    await registerChallengeRoutes(api);
+    await registerEventRoutes(api);
+    await registerEngagementRecoveryRoutes(api);
+    await registerPushNotificationRoutes(api);
   }, { prefix: '/api' });
 
   return app as unknown as FastifyInstance;

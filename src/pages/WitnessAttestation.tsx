@@ -23,7 +23,7 @@ const TIER_CONFIG = {
 
 export default function WitnessAttestation() {
   const { verificationId } = useParams();
-  const navigate = useNavigate(); // eslint-disable-line no-unused-vars
+  const _navigate = useNavigate();
   const { token } = useAuth();
 
   const [verification, setVerification] = useState(null);

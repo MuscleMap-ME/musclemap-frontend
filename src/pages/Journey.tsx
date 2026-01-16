@@ -73,8 +73,8 @@ export default function Journey() {
         const d = await res.json();
         setData(d.data);
       }
-    } catch(e) {
-      console.error("Failed to load journey data:", e);
+    } catch {
+      // Failed to load journey data
     }
     setLoading(false);
   }, [token]);
@@ -97,8 +97,8 @@ export default function Journey() {
         setTimeout(() => setSuccess(null), 2000);
         await load();
       }
-    } catch(e) {
-      console.error("Failed to switch archetype:", e);
+    } catch {
+      // Failed to switch archetype
     }
     setSwitching(null);
   }

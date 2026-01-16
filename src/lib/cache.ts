@@ -161,8 +161,7 @@ class LocalStorageCache {
       }
 
       return entry.value;
-    } catch (e) {
-      console.warn('[Cache] LocalStorage get error:', e);
+    } catch {
       return null;
     }
   }
@@ -190,11 +189,9 @@ class LocalStorageCache {
           localStorage.setItem(this._key(key), JSON.stringify(entry));
           return true;
         } catch {
-          console.warn('[Cache] LocalStorage quota exceeded');
           return false;
         }
       }
-      console.warn('[Cache] LocalStorage set error:', e);
       return false;
     }
   }
@@ -322,8 +319,7 @@ class IndexedDBCache {
 
         request.onerror = () => resolve(null);
       });
-    } catch (e) {
-      console.warn('[Cache] IndexedDB get error:', e);
+    } catch {
       return null;
     }
   }
@@ -348,8 +344,7 @@ class IndexedDBCache {
         request.onsuccess = () => resolve(true);
         request.onerror = () => reject(request.error);
       });
-    } catch (e) {
-      console.warn('[Cache] IndexedDB set error:', e);
+    } catch {
       return false;
     }
   }

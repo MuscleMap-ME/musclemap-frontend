@@ -17,7 +17,7 @@ export function AnimatePresenceLite({ children, mode = 'sync', initial = true })
   const [displayedChildren, setDisplayedChildren] = useState(
     initial ? Children.toArray(children) : []
   );
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [_isAnimating, _setIsAnimating] = useState(false);
   const previousChildrenRef = useRef(Children.toArray(children));
 
   useEffect(() => {

@@ -43,8 +43,8 @@ const authLink = setContext((_, { headers }) => {
         };
       }
     }
-  } catch (e) {
-    console.error('Error reading auth token:', e);
+  } catch {
+    // Error reading auth token
   }
   return { headers };
 });
@@ -71,14 +71,10 @@ const retryLink = new RetryLink({
 /**
  * Error Link - handles GraphQL and network errors
  */
-const errorLink = onError(({ graphQLErrors, networkError, operation: _operation }) => {
+const errorLink = onError(({ graphQLErrors, networkError: _networkError, operation: _operation }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
-      const { message, locations, path, extensions } = err;
-
-      console.error(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
-      );
+      const { extensions } = err;
 
       // Handle authentication errors
       if (extensions?.code === 'UNAUTHENTICATED') {
@@ -87,10 +83,6 @@ const errorLink = onError(({ graphQLErrors, networkError, operation: _operation 
         window.location.href = '/login';
       }
     }
-  }
-
-  if (networkError) {
-    console.error(`[Network error]: ${networkError}`);
   }
 });
 
@@ -271,9 +263,8 @@ export async function initializeApolloCache() {
   try {
     await initializeCachePersistence(cache);
     persistenceInitialized = true;
-    console.info('[Apollo] Cache persistence ready');
-  } catch (error) {
-    console.warn('[Apollo] Cache persistence failed, continuing without:', error);
+  } catch {
+    // Cache persistence failed - continuing without persistence
   }
 }
 
@@ -285,9 +276,8 @@ export async function clearApolloCache() {
   try {
     await apolloClient.clearStore();
     await clearPersistedCache();
-    console.info('[Apollo] All cache cleared');
-  } catch (error) {
-    console.warn('[Apollo] Failed to clear cache:', error);
+  } catch {
+    // Failed to clear cache
   }
 }
 
