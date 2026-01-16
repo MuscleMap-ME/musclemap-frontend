@@ -55,6 +55,15 @@ import {
   Zap,
   TrendingUp,
   ExternalLink,
+  Database,
+  Calendar,
+  FileCode,
+  Rocket,
+  AlertTriangle,
+  Lock,
+  ToggleLeft,
+  FileSearch,
+  Archive,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -69,6 +78,16 @@ import {
 // Lazy load heavy components (available for future use)
 const _ActivityFeed = lazy(() => import('../components/community/ActivityFeed'));
 const ServerControl = lazy(() => import('../components/admin/ServerControl'));
+const DatabasePanel = lazy(() => import('../components/admin/DatabasePanel'));
+const SchedulerPanel = lazy(() => import('../components/admin/SchedulerPanel'));
+const EnvPanel = lazy(() => import('../components/admin/EnvPanel'));
+const DeployPanel = lazy(() => import('../components/admin/DeployPanel'));
+const MetricsPanel = lazy(() => import('../components/admin/MetricsPanel'));
+const AlertsPanel = lazy(() => import('../components/admin/AlertsPanel'));
+const SecurityPanel = lazy(() => import('../components/admin/SecurityPanel'));
+const FeatureFlagsPanel = lazy(() => import('../components/admin/FeatureFlagsPanel'));
+const LogsPanel = lazy(() => import('../components/admin/LogsPanel'));
+const BackupPanel = lazy(() => import('../components/admin/BackupPanel'));
 
 // ============================================
 // CONSTANTS
@@ -86,6 +105,16 @@ const OWNER_POWERS = [
 const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'server', label: 'Server Control', icon: Server },
+  { id: 'database', label: 'Database', icon: Database },
+  { id: 'scheduler', label: 'Scheduler', icon: Calendar },
+  { id: 'env', label: 'Environment', icon: FileCode },
+  { id: 'deploy', label: 'Deployments', icon: Rocket },
+  { id: 'realtime-metrics', label: 'Real-time Metrics', icon: Activity },
+  { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
+  { id: 'security', label: 'Security', icon: Lock },
+  { id: 'feature-flags', label: 'Feature Flags', icon: ToggleLeft },
+  { id: 'logs', label: 'Log Analysis', icon: FileSearch },
+  { id: 'backup', label: 'Backup & Recovery', icon: Archive },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
@@ -774,6 +803,116 @@ export default function EmpireControl() {
                   </div>
                 }>
                   <ServerControl />
+                </Suspense>
+              )}
+
+              {/* Database Panel Section */}
+              {activeSection === 'database' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <DatabasePanel />
+                </Suspense>
+              )}
+
+              {/* Scheduler Panel Section */}
+              {activeSection === 'scheduler' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <SchedulerPanel />
+                </Suspense>
+              )}
+
+              {/* Environment Panel Section */}
+              {activeSection === 'env' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <EnvPanel />
+                </Suspense>
+              )}
+
+              {/* Deployments Panel Section */}
+              {activeSection === 'deploy' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <DeployPanel />
+                </Suspense>
+              )}
+
+              {/* Real-time Metrics Panel Section */}
+              {activeSection === 'realtime-metrics' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <MetricsPanel />
+                </Suspense>
+              )}
+
+              {/* Alerts Panel Section */}
+              {activeSection === 'alerts' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <AlertsPanel />
+                </Suspense>
+              )}
+
+              {/* Security Panel Section */}
+              {activeSection === 'security' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <SecurityPanel />
+                </Suspense>
+              )}
+
+              {/* Feature Flags Panel Section */}
+              {activeSection === 'feature-flags' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <FeatureFlagsPanel />
+                </Suspense>
+              )}
+
+              {/* Logs Panel Section */}
+              {activeSection === 'logs' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <LogsPanel />
+                </Suspense>
+              )}
+
+              {/* Backup Panel Section */}
+              {activeSection === 'backup' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <BackupPanel />
                 </Suspense>
               )}
 

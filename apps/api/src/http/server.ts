@@ -88,6 +88,16 @@ import { registerFeedbackRoutes } from './routes/feedback';
 import adminFeedbackRoutes from './routes/admin-feedback';
 import adminBetaTesterRoutes from './routes/admin-beta-testers';
 import adminServerRoutes from './routes/admin-server';
+import adminDeployRoutes from './routes/admin-deploy';
+import adminSchedulerRoutes from './routes/admin-scheduler';
+import adminLogsRoutes from './routes/admin-logs';
+import adminSecurityRoutes from './routes/admin-security';
+import adminBackupRoutes from './routes/admin-backup';
+import adminEnvRoutes from './routes/admin-env';
+import adminDatabaseRoutes from './routes/admin-database';
+import adminFeaturesRoutes from './routes/admin-features';
+import adminMetricsRoutes from './routes/admin-metrics';
+import adminAlertsRoutes from './routes/admin-alerts';
 import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
@@ -411,6 +421,36 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Server control (admin only - scripts, logs, processes)
     await adminServerRoutes(api);
+
+    // Deployment pipeline management (admin only - deploy, rollback, branches)
+    await adminDeployRoutes(api);
+
+    // Scheduled tasks management (admin only - cron jobs, execution history)
+    await adminSchedulerRoutes(api);
+
+    // Log analysis (admin only - search, aggregations, patterns, export, streaming)
+    await adminLogsRoutes(api);
+
+    // Security audit (admin only - login attempts, sessions, blocklist, audit log, security scan)
+    await adminSecurityRoutes(api);
+
+    // Backup management (admin only - create, restore, schedule, verify backups)
+    await adminBackupRoutes(api);
+
+    // Environment config management (admin only - env vars, compare, audit, validate)
+    await adminEnvRoutes(api);
+
+    // Database management (admin only - stats, queries, indexes, vacuum)
+    await adminDatabaseRoutes(api);
+
+    // Feature flags management (admin only - flags, rollout, targeting)
+    await adminFeaturesRoutes(api);
+
+    // Real-time metrics (admin only - requests, latency, websockets)
+    await adminMetricsRoutes(api);
+
+    // Alert configuration (admin only - rules, channels, history)
+    await adminAlertsRoutes(api);
 
     // Beta tester user features (journal, snapshots, quick bug reporting)
     await api.register(betaTesterRoutes, { prefix: '/beta-tester' });
