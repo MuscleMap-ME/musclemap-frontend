@@ -340,3 +340,46 @@ export function useOptimistic(serverValue) {
 
 // Import React for hooks
 import React from 'react';
+
+// ============================================
+// ADAPTIVE LOADING & DEVICE CAPABILITIES
+// ============================================
+
+export {
+  useAdaptiveLoading,
+  useAdaptiveImage,
+  useAdaptivePollingInterval,
+  useLazyLoad,
+} from './useAdaptiveLoading';
+
+export {
+  useDeviceCapabilities,
+  useVisualizationQuality,
+  useAnimationConfig,
+} from './useDeviceCapabilities';
+
+// ============================================
+// VIRTUAL LIST COMPONENTS
+// ============================================
+
+export {
+  VirtualList,
+  VirtualListItem,
+  useVirtualListScroll,
+} from '../components/virtual';
+
+// ============================================
+// 3D MEMORY MANAGEMENT
+// ============================================
+
+export {
+  use3DMemoryManager,
+  use3DVisibility,
+  useMemoryPressure,
+  useThreeJSCleanup,
+} from './use3DMemoryManager';
+
+export {
+  Managed3DContainer,
+  Lazy3DLoader,
+} from '../components/virtual';
