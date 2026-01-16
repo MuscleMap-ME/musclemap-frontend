@@ -578,8 +578,22 @@ export default function FeatureFlagsPanel() {
 
   // Get auth token
   const getAuthHeader = useCallback(() => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      // Try musclemap-auth (Zustand store)
+      const authData = localStorage.getItem('musclemap-auth');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        if (parsed?.state?.token) {
+          return { Authorization: `Bearer ${parsed.state.token}` };
+        }
+      }
+      // Fallback to legacy token
+      const token = localStorage.getItem('musclemap_token');
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch (e) {
+      console.error('Failed to get auth header:', e);
+      return {};
+    }
   }, []);
 
   // Fetch flags

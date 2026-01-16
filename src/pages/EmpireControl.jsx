@@ -331,15 +331,24 @@ export default function EmpireControl() {
     }
   }, [getAuthHeader]);
 
-  // Fetch messages
+  // Fetch messages (conversations)
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch('/api/messages', {
+      const res = await fetch('/api/messaging/conversations', {
         headers: getAuthHeader(),
       });
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.data || []);
+        // Extract conversations and flatten recent messages
+        const conversations = data.data || [];
+        // Just show conversations as messages for now
+        setMessages(conversations.map(conv => ({
+          id: conv.id,
+          content: conv.lastMessage?.content || 'No messages yet',
+          createdAt: conv.lastMessage?.createdAt || conv.createdAt,
+          participant: conv.participant,
+          unreadCount: conv.unreadCount,
+        })));
       }
     } catch (e) {
       console.error('Failed to fetch messages:', e);
@@ -1421,20 +1430,36 @@ export default function EmpireControl() {
                   <GlassSurface className="p-4">
                     <h3 className="font-semibold mb-4 flex items-center gap-2">
                       <Mail className="w-5 h-5 text-blue-400" />
-                      Recent Messages
+                      Recent Conversations
                     </h3>
                     {messages.length === 0 ? (
                       <div className="text-center py-8 text-gray-400">
                         <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>No messages yet</p>
+                        <p>No conversations yet</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {messages.slice(0, 10).map((msg, i) => (
-                          <div key={i} className="p-3 bg-white/5 rounded-lg">
-                            <div className="text-sm">{msg.content || msg.message}</div>
-                            <div className="text-xs text-gray-500 mt-1">{msg.createdAt || 'Just now'}</div>
-                          </div>
+                        {messages.slice(0, 10).map((msg) => (
+                          <Link
+                            key={msg.id}
+                            to={`/messages?conversation=${msg.id}`}
+                            className="block p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-sm">
+                                {msg.participant?.displayName || msg.participant?.username || 'Unknown'}
+                              </span>
+                              {msg.unreadCount > 0 && (
+                                <span className="bg-violet-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                  {msg.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-400 truncate">{msg.content}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString() : 'Just now'}
+                            </div>
+                          </Link>
                         ))}
                       </div>
                     )}

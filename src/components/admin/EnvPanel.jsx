@@ -514,8 +514,22 @@ export default function EnvPanel() {
 
   // Get auth token
   const getAuthHeader = useCallback(() => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    try {
+      // Try musclemap-auth (Zustand store)
+      const authData = localStorage.getItem('musclemap-auth');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        if (parsed?.state?.token) {
+          return { Authorization: `Bearer ${parsed.state.token}` };
+        }
+      }
+      // Fallback to legacy token
+      const token = localStorage.getItem('musclemap_token');
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch (e) {
+      console.error('Failed to get auth header:', e);
+      return {};
+    }
   }, []);
 
   // Fetch variables
@@ -523,7 +537,7 @@ export default function EnvPanel() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/admin/env`, {
+      const res = await fetch(`${API_BASE}/admin/env/variables`, {
         headers: getAuthHeader(),
       });
 
@@ -532,8 +546,10 @@ export default function EnvPanel() {
       }
 
       const data = await res.json();
-      setVariables(data.variables || []);
-      setFilteredVariables(data.variables || []);
+      // Handle the response format from the backend
+      const vars = data.databaseOverrides || data.variables || [];
+      setVariables(vars);
+      setFilteredVariables(vars);
     } catch (err) {
       setError(err.message);
       console.error('Failed to fetch variables:', err);
@@ -563,23 +579,21 @@ export default function EnvPanel() {
     async (data) => {
       try {
         setSaving(true);
-        const isNew = !editModal?.key || editModal.key !== data.key;
-        const url = isNew
-          ? `${API_BASE}/admin/env`
-          : `${API_BASE}/admin/env/${encodeURIComponent(data.key)}`;
+        // Always use PUT to /admin/env/variables/:key - backend handles create vs update
+        const url = `${API_BASE}/admin/env/variables/${encodeURIComponent(data.key)}`;
 
         const res = await fetch(url, {
-          method: isNew ? 'POST' : 'PUT',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             ...getAuthHeader(),
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ value: data.value, environment: 'production' }),
         });
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || `Failed to save: ${res.status}`);
+          throw new Error(errorData.error?.message || errorData.message || `Failed to save: ${res.status}`);
         }
 
         await fetchVariables();
@@ -591,7 +605,7 @@ export default function EnvPanel() {
         setSaving(false);
       }
     },
-    [editModal, getAuthHeader, fetchVariables]
+    [getAuthHeader, fetchVariables]
   );
 
   // Delete variable
@@ -603,7 +617,7 @@ export default function EnvPanel() {
 
       try {
         const res = await fetch(
-          `${API_BASE}/admin/env/${encodeURIComponent(variable.key)}`,
+          `${API_BASE}/admin/env/variables/${encodeURIComponent(variable.key)}?environment=production`,
           {
             method: 'DELETE',
             headers: getAuthHeader(),
