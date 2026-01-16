@@ -630,10 +630,10 @@ export default async function adminBackupRoutes(fastify: FastifyInstance): Promi
    * POST /admin/backup/restore/:id
    * Restore from a backup
    */
-  fastify.post(
+  fastify.post<{ Params: { id: string } }>(
     '/admin/backup/restore/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
       const body = restoreBackupSchema.parse(request.body || {});
@@ -705,10 +705,10 @@ export default async function adminBackupRoutes(fastify: FastifyInstance): Promi
    * DELETE /admin/backup/:id
    * Delete a backup
    */
-  fastify.delete(
+  fastify.delete<{ Params: { id: string } }>(
     '/admin/backup/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -908,10 +908,10 @@ export default async function adminBackupRoutes(fastify: FastifyInstance): Promi
    * POST /admin/backup/test-restore/:id
    * Test restore to verify backup integrity
    */
-  fastify.post(
+  fastify.post<{ Params: { id: string } }>(
     '/admin/backup/test-restore/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -970,10 +970,10 @@ export default async function adminBackupRoutes(fastify: FastifyInstance): Promi
    * GET /admin/backup/:id
    * Get single backup details
    */
-  fastify.get(
+  fastify.get<{ Params: { id: string } }>(
     '/admin/backup/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
 
       const backup = await queryOne<BackupRow & { created_by_username: string | null }>(

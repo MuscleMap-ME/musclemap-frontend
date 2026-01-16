@@ -234,3 +234,206 @@ export interface RecoveryStatus {
     reason: string;
   };
 }
+
+// ============================================
+// SLEEP HYGIENE TYPES
+// ============================================
+
+export interface SleepHygienePreferences {
+  id: string;
+  userId: string;
+  enabled: boolean;
+  showOnDashboard: boolean;
+  showTips: boolean;
+  showAssessments: boolean;
+  bedtimeReminderEnabled: boolean;
+  bedtimeReminderMinutesBefore?: number;
+  morningCheckInEnabled: boolean;
+  weeklyReportEnabled: boolean;
+  earnCreditsEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSleepHygienePreferencesInput {
+  enabled?: boolean;
+  showOnDashboard?: boolean;
+  showTips?: boolean;
+  showAssessments?: boolean;
+  bedtimeReminderEnabled?: boolean;
+  bedtimeReminderMinutesBefore?: number;
+  morningCheckInEnabled?: boolean;
+  weeklyReportEnabled?: boolean;
+  earnCreditsEnabled?: boolean;
+}
+
+export type SleepHygieneTipCategory =
+  | 'environment'
+  | 'routine'
+  | 'nutrition'
+  | 'activity'
+  | 'mental'
+  | 'technology'
+  | 'timing'
+  | 'general';
+
+export type EvidenceLevel = 'strong' | 'moderate' | 'emerging' | 'anecdotal';
+
+export interface SleepHygieneTip {
+  id: string;
+  category: SleepHygieneTipCategory;
+  priority: number;
+  title: string;
+  description: string;
+  detailedExplanation?: string;
+  icon: string;
+  evidenceLevel?: EvidenceLevel;
+  sourceReferences?: string[];
+  applicableToArchetypes?: string[];
+  applicableToIssues?: string[];
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SleepHygieneTipWithInteraction extends SleepHygieneTip {
+  isBookmarked: boolean;
+  isDismissed: boolean;
+  isFollowing: boolean;
+  timesShown: number;
+}
+
+export interface PreSleepChecklist {
+  avoidedCaffeine?: boolean;
+  avoidedAlcohol?: boolean;
+  avoidedScreens1hr?: boolean;
+  coolRoom?: boolean;
+  darkRoom?: boolean;
+  windDownRoutine?: boolean;
+  consistentBedtime?: boolean;
+  lightDinner?: boolean;
+  noLateExercise?: boolean;
+  relaxationPractice?: boolean;
+}
+
+export interface PostSleepChecklist {
+  fellAsleepEasily?: boolean;
+  stayedAsleep?: boolean;
+  wokeRefreshed?: boolean;
+  noGrogginess?: boolean;
+  goodEnergy?: boolean;
+  noMidnightWaking?: boolean;
+}
+
+export interface SleepHygieneAssessment {
+  id: string;
+  userId: string;
+  assessmentDate: string;
+  preSleepChecklist: PreSleepChecklist;
+  postSleepChecklist: PostSleepChecklist;
+  preSleepScore?: number;
+  postSleepScore?: number;
+  overallScore?: number;
+  creditsAwarded: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSleepHygieneAssessmentInput {
+  assessmentDate?: string;
+  preSleepChecklist?: PreSleepChecklist;
+  postSleepChecklist?: PostSleepChecklist;
+  notes?: string;
+}
+
+export interface UpdateSleepHygieneAssessmentInput {
+  preSleepChecklist?: PreSleepChecklist;
+  postSleepChecklist?: PostSleepChecklist;
+  notes?: string;
+}
+
+export type SleepStreakType =
+  | 'sleep_logged'
+  | 'target_duration_met'
+  | 'good_quality'
+  | 'excellent_quality'
+  | 'hygiene_checklist'
+  | 'perfect_hygiene'
+  | 'consistent_bedtime'
+  | 'no_screens';
+
+export interface SleepHygieneStreak {
+  id: string;
+  userId: string;
+  streakType: SleepStreakType;
+  currentStreak: number;
+  currentStreakStart?: string;
+  bestStreak: number;
+  bestStreakStart?: string;
+  bestStreakEnd?: string;
+  lastActivityDate?: string;
+  totalCreditsEarned: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SleepCreditAwardType =
+  | 'daily_log'
+  | 'target_met'
+  | 'good_quality'
+  | 'excellent_quality'
+  | 'hygiene_checklist'
+  | 'perfect_hygiene'
+  | 'streak_milestone_7'
+  | 'streak_milestone_14'
+  | 'streak_milestone_30'
+  | 'streak_milestone_60'
+  | 'streak_milestone_90'
+  | 'weekly_consistency';
+
+export interface SleepCreditAward {
+  id: string;
+  userId: string;
+  awardDate: string;
+  awardType: SleepCreditAwardType;
+  credits: number;
+  sleepLogId?: string;
+  assessmentId?: string;
+  streakId?: string;
+  metadata?: Record<string, unknown>;
+  ledgerEntryId?: string;
+  createdAt: string;
+}
+
+export interface SleepHygieneDashboard {
+  preferences: SleepHygienePreferences;
+  todayAssessment?: SleepHygieneAssessment;
+  streaks: SleepHygieneStreak[];
+  recentTips: SleepHygieneTipWithInteraction[];
+  bookmarkedTips: SleepHygieneTipWithInteraction[];
+  todayCreditsEarned: number;
+  totalCreditsEarned: number;
+  weeklyStats: {
+    daysLogged: number;
+    avgHygieneScore: number;
+    creditsEarned: number;
+  };
+}
+
+// Credit amounts for sleep hygiene rewards
+export const SLEEP_CREDIT_AMOUNTS: Record<SleepCreditAwardType, number> = {
+  daily_log: 5,
+  target_met: 10,
+  good_quality: 5,
+  excellent_quality: 10,
+  hygiene_checklist: 5,
+  perfect_hygiene: 15,
+  streak_milestone_7: 25,
+  streak_milestone_14: 50,
+  streak_milestone_30: 100,
+  streak_milestone_60: 200,
+  streak_milestone_90: 350,
+  weekly_consistency: 20,
+};

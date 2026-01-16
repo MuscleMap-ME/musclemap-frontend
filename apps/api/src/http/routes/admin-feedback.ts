@@ -210,10 +210,10 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
    * GET /admin/feedback/:id
    * Get single feedback with all details
    */
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/admin/feedback/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
 
       const feedback = await dbQueryOne<FeedbackRow>(`
@@ -304,10 +304,10 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
    * PATCH /admin/feedback/:id
    * Update feedback status, priority, assignment, notes
    */
-  app.patch(
+  app.patch<{ Params: { id: string } }>(
     '/admin/feedback/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
       const updates = updateFeedbackSchema.parse(request.body);
@@ -403,10 +403,10 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
    * POST /admin/feedback/:id/confirm-bug
    * Confirm a bug for auto-fix processing
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/admin/feedback/:id/confirm-bug',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -481,10 +481,10 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
    * POST /admin/feedback/:id/cancel-autofix
    * Cancel an in-progress auto-fix
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/admin/feedback/:id/cancel-autofix',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -540,10 +540,10 @@ export default async function adminFeedbackRoutes(app: FastifyInstance): Promise
    * POST /admin/feedback/:id/respond
    * Admin response to user
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/admin/feedback/:id/respond',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
       const body = respondSchema.parse(request.body);

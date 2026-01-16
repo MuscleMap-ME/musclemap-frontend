@@ -46,11 +46,11 @@ export function registerCrewsRoutes(fastify: FastifyInstance): void {
   });
 
   // Search crews
-  fastify.get('/crews/search', {
-    preHandler: [authenticate],
-  }, async (request: FastifyRequest<{
+  fastify.get<{
     Querystring: { q?: string; limit?: string };
-  }>, _reply: FastifyReply) => {
+  }>('/crews/search', {
+    preHandler: [authenticate],
+  }, async (request, _reply) => {
     const query = request.query.q || '';
     const limit = parseInt(request.query.limit || '20', 10);
     const crews = await crewsService.searchCrews(query, limit);

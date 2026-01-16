@@ -10,8 +10,10 @@ import { authenticate } from './auth';
 import {
   sleepService,
   recoveryService,
+  sleepHygieneService,
 } from '../../modules/recovery';
 import { loggers } from '../../lib/logger';
+import type { SleepHygieneTipCategory } from '../../modules/recovery/types';
 
 const log = loggers.api;
 
@@ -548,6 +550,602 @@ export async function registerRecoveryRoutes(app: FastifyInstance): Promise<void
         error: {
           code: 'RECOMMENDATION_ERROR',
           message: 'Failed to generate recommendations',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  // ============================================
+  // SLEEP HYGIENE ENDPOINTS
+  // ============================================
+
+  const sleepHygienePreferencesSchema = z.object({
+    enabled: z.boolean().optional(),
+    showOnDashboard: z.boolean().optional(),
+    showTips: z.boolean().optional(),
+    showAssessments: z.boolean().optional(),
+    bedtimeReminderEnabled: z.boolean().optional(),
+    bedtimeReminderMinutesBefore: z.number().int().min(5).max(120).optional(),
+    morningCheckInEnabled: z.boolean().optional(),
+    weeklyReportEnabled: z.boolean().optional(),
+    earnCreditsEnabled: z.boolean().optional(),
+  });
+
+  const preSleepChecklistSchema = z.object({
+    avoidedCaffeine: z.boolean().optional(),
+    avoidedAlcohol: z.boolean().optional(),
+    avoidedScreens1hr: z.boolean().optional(),
+    coolRoom: z.boolean().optional(),
+    darkRoom: z.boolean().optional(),
+    windDownRoutine: z.boolean().optional(),
+    consistentBedtime: z.boolean().optional(),
+    lightDinner: z.boolean().optional(),
+    noLateExercise: z.boolean().optional(),
+    relaxationPractice: z.boolean().optional(),
+  });
+
+  const postSleepChecklistSchema = z.object({
+    fellAsleepEasily: z.boolean().optional(),
+    stayedAsleep: z.boolean().optional(),
+    wokeRefreshed: z.boolean().optional(),
+    noGrogginess: z.boolean().optional(),
+    goodEnergy: z.boolean().optional(),
+    noMidnightWaking: z.boolean().optional(),
+  });
+
+  const sleepHygieneAssessmentSchema = z.object({
+    assessmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    preSleepChecklist: preSleepChecklistSchema.optional(),
+    postSleepChecklist: postSleepChecklistSchema.optional(),
+    notes: z.string().max(1000).optional(),
+  });
+
+  /**
+   * GET /api/sleep-hygiene
+   * Get sleep hygiene dashboard
+   */
+  app.get('/sleep-hygiene', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const dashboard = await sleepHygieneService.getDashboard(userId);
+      return reply.send({ data: dashboard });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get sleep hygiene dashboard');
+      return reply.status(500).send({
+        error: {
+          code: 'SLEEP_HYGIENE_ERROR',
+          message: 'Failed to get sleep hygiene dashboard',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * GET /api/sleep-hygiene/preferences
+   * Get sleep hygiene preferences
+   */
+  app.get('/sleep-hygiene/preferences', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const preferences = await sleepHygieneService.getOrCreatePreferences(userId);
+      return reply.send({ data: preferences });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get sleep hygiene preferences');
+      return reply.status(500).send({
+        error: {
+          code: 'PREFERENCES_ERROR',
+          message: 'Failed to get preferences',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * PATCH /api/sleep-hygiene/preferences
+   * Update sleep hygiene preferences
+   */
+  app.patch('/sleep-hygiene/preferences', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    let data;
+    try {
+      data = sleepHygienePreferencesSchema.parse(request.body);
+    } catch (error: any) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Invalid preferences data',
+          details: error.errors,
+          statusCode: 400,
+        },
+      });
+    }
+
+    try {
+      const preferences = await sleepHygieneService.updatePreferences(userId, data);
+      return reply.send({ data: preferences });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to update sleep hygiene preferences');
+      return reply.status(500).send({
+        error: {
+          code: 'PREFERENCES_ERROR',
+          message: 'Failed to update preferences',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/enable
+   * Enable sleep hygiene feature
+   */
+  app.post('/sleep-hygiene/enable', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const preferences = await sleepHygieneService.enableSleepHygiene(userId);
+      return reply.send({ data: preferences });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to enable sleep hygiene');
+      return reply.status(500).send({
+        error: {
+          code: 'ENABLE_ERROR',
+          message: 'Failed to enable sleep hygiene',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/disable
+   * Disable sleep hygiene feature
+   */
+  app.post('/sleep-hygiene/disable', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const preferences = await sleepHygieneService.disableSleepHygiene(userId);
+      return reply.send({ data: preferences });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to disable sleep hygiene');
+      return reply.status(500).send({
+        error: {
+          code: 'DISABLE_ERROR',
+          message: 'Failed to disable sleep hygiene',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  // ============================================
+  // SLEEP HYGIENE TIPS ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /api/sleep-hygiene/tips
+   * Get sleep hygiene tips for user
+   */
+  app.get('/sleep-hygiene/tips', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const query = request.query as { category?: string; limit?: string };
+
+    try {
+      const tips = await sleepHygieneService.getTipsForUser(userId, {
+        category: query.category as SleepHygieneTipCategory | undefined,
+        limit: query.limit ? parseInt(query.limit) : undefined,
+      });
+      return reply.send({ data: tips });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get sleep hygiene tips');
+      return reply.status(500).send({
+        error: {
+          code: 'TIPS_ERROR',
+          message: 'Failed to get tips',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * GET /api/sleep-hygiene/tips/bookmarked
+   * Get bookmarked tips
+   */
+  app.get('/sleep-hygiene/tips/bookmarked', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const tips = await sleepHygieneService.getBookmarkedTips(userId);
+      return reply.send({ data: tips });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get bookmarked tips');
+      return reply.status(500).send({
+        error: {
+          code: 'TIPS_ERROR',
+          message: 'Failed to get bookmarked tips',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/tips/:tipId/bookmark
+   * Bookmark a tip
+   */
+  app.post('/sleep-hygiene/tips/:tipId/bookmark', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+
+    try {
+      await sleepHygieneService.bookmarkTip(userId, tipId);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to bookmark tip');
+      return reply.status(500).send({
+        error: {
+          code: 'BOOKMARK_ERROR',
+          message: 'Failed to bookmark tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/sleep-hygiene/tips/:tipId/bookmark
+   * Remove bookmark from tip
+   */
+  app.delete('/sleep-hygiene/tips/:tipId/bookmark', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+
+    try {
+      await sleepHygieneService.unbookmarkTip(userId, tipId);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to unbookmark tip');
+      return reply.status(500).send({
+        error: {
+          code: 'BOOKMARK_ERROR',
+          message: 'Failed to unbookmark tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/tips/:tipId/follow
+   * Start following a tip
+   */
+  app.post('/sleep-hygiene/tips/:tipId/follow', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+
+    try {
+      await sleepHygieneService.followTip(userId, tipId);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to follow tip');
+      return reply.status(500).send({
+        error: {
+          code: 'FOLLOW_ERROR',
+          message: 'Failed to follow tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * DELETE /api/sleep-hygiene/tips/:tipId/follow
+   * Stop following a tip
+   */
+  app.delete('/sleep-hygiene/tips/:tipId/follow', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+
+    try {
+      await sleepHygieneService.unfollowTip(userId, tipId);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to unfollow tip');
+      return reply.status(500).send({
+        error: {
+          code: 'FOLLOW_ERROR',
+          message: 'Failed to unfollow tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/tips/:tipId/helpful
+   * Mark tip as helpful/not helpful
+   */
+  app.post('/sleep-hygiene/tips/:tipId/helpful', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+    const { helpful } = request.body as { helpful: boolean };
+
+    try {
+      await sleepHygieneService.markTipHelpful(userId, tipId, helpful);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to mark tip helpful');
+      return reply.status(500).send({
+        error: {
+          code: 'HELPFUL_ERROR',
+          message: 'Failed to mark tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/tips/:tipId/dismiss
+   * Dismiss a tip
+   */
+  app.post('/sleep-hygiene/tips/:tipId/dismiss', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { tipId } = request.params as { tipId: string };
+
+    try {
+      await sleepHygieneService.dismissTip(userId, tipId);
+      return reply.status(204).send();
+    } catch (error: any) {
+      log.error({ error: error.message, userId, tipId }, 'Failed to dismiss tip');
+      return reply.status(500).send({
+        error: {
+          code: 'DISMISS_ERROR',
+          message: 'Failed to dismiss tip',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  // ============================================
+  // SLEEP HYGIENE ASSESSMENT ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /api/sleep-hygiene/assessments
+   * Get assessment history
+   */
+  app.get('/sleep-hygiene/assessments', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const query = request.query as { limit?: string };
+
+    try {
+      const assessments = await sleepHygieneService.getAssessmentHistory(
+        userId,
+        query.limit ? parseInt(query.limit) : undefined
+      );
+      return reply.send({ data: assessments });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get assessments');
+      return reply.status(500).send({
+        error: {
+          code: 'ASSESSMENT_ERROR',
+          message: 'Failed to get assessments',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * GET /api/sleep-hygiene/assessments/today
+   * Get today's assessment
+   */
+  app.get('/sleep-hygiene/assessments/today', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const assessment = await sleepHygieneService.getTodayAssessment(userId);
+      if (!assessment) {
+        return reply.status(404).send({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'No assessment for today',
+            statusCode: 404,
+          },
+        });
+      }
+      return reply.send({ data: assessment });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get today assessment');
+      return reply.status(500).send({
+        error: {
+          code: 'ASSESSMENT_ERROR',
+          message: 'Failed to get assessment',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /api/sleep-hygiene/assessments
+   * Create or update sleep hygiene assessment
+   */
+  app.post('/sleep-hygiene/assessments', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    let data;
+    try {
+      data = sleepHygieneAssessmentSchema.parse(request.body);
+    } catch (error: any) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Invalid assessment data',
+          details: error.errors,
+          statusCode: 400,
+        },
+      });
+    }
+
+    try {
+      const result = await sleepHygieneService.upsertAssessment(userId, data);
+      log.info({ userId, creditsAwarded: result.creditsAwarded }, 'Sleep hygiene assessment created');
+      return reply.status(201).send({
+        data: result.assessment,
+        meta: {
+          creditsAwarded: result.creditsAwarded,
+        },
+      });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to create assessment');
+      return reply.status(500).send({
+        error: {
+          code: 'ASSESSMENT_ERROR',
+          message: 'Failed to create assessment',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * PATCH /api/sleep-hygiene/assessments/:date
+   * Update assessment for a specific date
+   */
+  app.patch('/sleep-hygiene/assessments/:date', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { date } = request.params as { date: string };
+
+    let data;
+    try {
+      data = sleepHygieneAssessmentSchema.parse(request.body);
+    } catch (error: any) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Invalid assessment data',
+          details: error.errors,
+          statusCode: 400,
+        },
+      });
+    }
+
+    try {
+      const assessment = await sleepHygieneService.updateAssessment(userId, date, data);
+      if (!assessment) {
+        return reply.status(404).send({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Assessment not found',
+            statusCode: 404,
+          },
+        });
+      }
+      return reply.send({ data: assessment });
+    } catch (error: any) {
+      log.error({ error: error.message, userId, date }, 'Failed to update assessment');
+      return reply.status(500).send({
+        error: {
+          code: 'ASSESSMENT_ERROR',
+          message: 'Failed to update assessment',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  // ============================================
+  // SLEEP HYGIENE STREAKS ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /api/sleep-hygiene/streaks
+   * Get all streaks for user
+   */
+  app.get('/sleep-hygiene/streaks', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const streaks = await sleepHygieneService.getStreaks(userId);
+      return reply.send({ data: streaks });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get streaks');
+      return reply.status(500).send({
+        error: {
+          code: 'STREAKS_ERROR',
+          message: 'Failed to get streaks',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  // ============================================
+  // SLEEP HYGIENE CREDIT ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /api/sleep-hygiene/credits
+   * Get credit awards history
+   */
+  app.get('/sleep-hygiene/credits', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const query = request.query as { limit?: string; startDate?: string; endDate?: string };
+
+    try {
+      const awards = await sleepHygieneService.getCreditAwards(userId, {
+        limit: query.limit ? parseInt(query.limit) : undefined,
+        startDate: query.startDate,
+        endDate: query.endDate,
+      });
+      return reply.send({ data: awards });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get credit awards');
+      return reply.status(500).send({
+        error: {
+          code: 'CREDITS_ERROR',
+          message: 'Failed to get credit awards',
+          statusCode: 500,
+        },
+      });
+    }
+  });
+
+  /**
+   * GET /api/sleep-hygiene/credits/total
+   * Get total credits earned from sleep hygiene
+   */
+  app.get('/sleep-hygiene/credits/total', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const [total, today] = await Promise.all([
+        sleepHygieneService.getTotalCreditsEarned(userId),
+        sleepHygieneService.getTodayCreditsEarned(userId),
+      ]);
+      return reply.send({
+        data: {
+          total,
+          today,
+        },
+      });
+    } catch (error: any) {
+      log.error({ error: error.message, userId }, 'Failed to get credit totals');
+      return reply.status(500).send({
+        error: {
+          code: 'CREDITS_ERROR',
+          message: 'Failed to get credit totals',
           statusCode: 500,
         },
       });

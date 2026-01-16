@@ -246,13 +246,10 @@ export default async function adminEnvRoutes(fastify: FastifyInstance): Promise<
    * PUT /admin/env/variables/:key
    * Update an environment variable override (stored in database)
    */
-  fastify.put(
+  fastify.put<{ Params: { key: string } }>(
     '/admin/env/variables/:key',
     { preHandler: [authenticate, requireAdmin] },
-    async (
-      request: FastifyRequest<{ Params: { key: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { key } = request.params;
       const user = request.user as { userId: string };
       const body = UpdateEnvVarSchema.parse(request.body);
@@ -350,13 +347,10 @@ export default async function adminEnvRoutes(fastify: FastifyInstance): Promise<
    * DELETE /admin/env/variables/:key
    * Delete an environment variable override
    */
-  fastify.delete(
+  fastify.delete<{ Params: { key: string }; Querystring: { environment?: string } }>(
     '/admin/env/variables/:key',
     { preHandler: [authenticate, requireAdmin] },
-    async (
-      request: FastifyRequest<{ Params: { key: string }; Querystring: { environment?: string } }>,
-      reply: FastifyReply
-    ) => {
+    async (request, reply) => {
       const { key } = request.params;
       const environment = (request.query as { environment?: string }).environment || 'production';
       const user = request.user as { userId: string };

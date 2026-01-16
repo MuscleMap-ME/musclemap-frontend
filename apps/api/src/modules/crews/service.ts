@@ -169,9 +169,9 @@ export async function getUserCrew(userId: string): Promise<{ crew: Crew; members
       joinedAt: membership.joined_at,
       weeklyTU: membership.weekly_tu,
       totalTU: membership.total_tu,
-      username: membership.username ?? undefined,
-      avatar: membership.avatar_url ?? undefined,
-      archetype: membership.archetype ?? undefined,
+      username: membership.username ?? '',
+      avatar: membership.avatar_url ?? null,
+      archetype: membership.archetype ?? null,
     },
   };
 }
@@ -208,9 +208,9 @@ export async function getCrewMembers(crewId: string): Promise<CrewMember[]> {
     joinedAt: row.joined_at,
     weeklyTU: row.weekly_tu,
     totalTU: row.total_tu,
-    username: row.username ?? undefined,
-    avatar: row.avatar_url ?? undefined,
-    archetype: row.archetype ?? undefined,
+    username: row.username ?? '',
+    avatar: row.avatar_url ?? null,
+    archetype: row.archetype ?? null,
   }));
 }
 
@@ -331,9 +331,9 @@ export async function acceptInvite(inviteId: string, userId: string): Promise<Cr
       joinedAt: now,
       weeklyTU: 0,
       totalTU: 0,
-      username: user?.username ?? undefined,
-      avatar: user?.avatar_url ?? undefined,
-      archetype: user?.archetype ?? undefined,
+      username: user?.username ?? '',
+      avatar: user?.avatar_url ?? null,
+      archetype: user?.archetype ?? null,
     };
   });
 }
@@ -646,8 +646,8 @@ export async function getCrewStats(crewId: string): Promise<CrewStats> {
     currentStreak,
     topContributors: topContributors.map((c) => ({
       userId: c.user_id,
-      username: c.username ?? undefined,
-      avatar: c.avatar ?? undefined,
+      username: c.username ?? '',
+      avatar: c.avatar ?? null,
       weeklyTU: c.weekly_tu,
     })),
   };

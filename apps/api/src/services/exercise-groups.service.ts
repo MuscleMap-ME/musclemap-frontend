@@ -195,7 +195,7 @@ class ExerciseGroupsService {
    * Get a single exercise group by ID
    */
   async getGroup(groupId: string, userId: string): Promise<ExerciseGroup | null> {
-    return queryOne<ExerciseGroup>(
+    const result = await queryOne<ExerciseGroup>(
       `SELECT
         id, workout_id as "workoutId", template_id as "templateId",
         program_day_id as "programDayId", user_id as "userId",
@@ -212,6 +212,7 @@ class ExerciseGroupsService {
       WHERE id = $1 AND user_id = $2`,
       [groupId, userId]
     );
+    return result ?? null;
   }
 
   /**
@@ -347,7 +348,7 @@ class ExerciseGroupsService {
       log.info({ groupId, userId }, 'Exercise group updated');
     }
 
-    return result;
+    return result ?? null;
   }
 
   /**

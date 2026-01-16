@@ -310,7 +310,7 @@ export const tipsService = {
     `, [userId]);
 
     // Calculate exercises done and total reps from exercise_data
-    const workouts = await queryAll<{ exercise_data: string | null }>(`
+    const workouts = await queryAll<{ exercise_data: Array<{ reps?: number; sets?: number }> | null }>(`
       SELECT exercise_data FROM workouts WHERE user_id = $1
     `, [userId]);
 
@@ -319,15 +319,11 @@ export const tipsService = {
 
     for (const workout of workouts) {
       if (workout.exercise_data) {
-        try {
-          const exercises = JSON.parse(workout.exercise_data);
-          exercisesDone += exercises.length;
-          for (const ex of exercises) {
-            const reps = (ex.reps || 0) * (ex.sets || 1);
-            totalReps += reps;
-          }
-        } catch {
-          // Skip invalid JSON
+        const exercises = workout.exercise_data;
+        exercisesDone += exercises.length;
+        for (const ex of exercises) {
+          const reps = (ex.reps || 0) * (ex.sets || 1);
+          totalReps += reps;
         }
       }
     }

@@ -238,9 +238,9 @@ export async function registerTestScorecardRoutes(app: FastifyInstance): Promise
         passed: number;
         failed: number;
         skipped: number;
-        categories: string;
-        failed_tests: string;
-        recommendations: string;
+        categories: TestScorecard['categories'] | null;
+        failed_tests: TestResult[] | null;
+        recommendations: string[] | null;
         target_url: string;
         environment: string;
         duration: number;
@@ -270,9 +270,9 @@ export async function registerTestScorecardRoutes(app: FastifyInstance): Promise
           passed: scorecard.passed,
           failed: scorecard.failed,
           skipped: scorecard.skipped,
-          categories: JSON.parse(scorecard.categories),
-          failedTests: JSON.parse(scorecard.failed_tests),
-          recommendations: JSON.parse(scorecard.recommendations),
+          categories: scorecard.categories || { core: { passed: 0, failed: 0, score: 0 }, edge: { passed: 0, failed: 0, score: 0 }, security: { passed: 0, failed: 0, score: 0 }, performance: { passed: 0, failed: 0, score: 0 } },
+          failedTests: scorecard.failed_tests || [],
+          recommendations: scorecard.recommendations || [],
           targetUrl: scorecard.target_url,
           environment: scorecard.environment,
           duration: scorecard.duration,

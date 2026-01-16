@@ -786,14 +786,15 @@ export async function recalculateAllStats(userId: string): Promise<CharacterStat
   );
 
   // Get all workouts
-  const workouts = await queryAll<{ exercise_data: string }>(
+  const workouts = await queryAll<{ exercise_data: WorkoutExercise[] | null }>(
     `SELECT exercise_data FROM workouts WHERE user_id = $1 ORDER BY date ASC`,
     [userId]
   );
 
   // Recalculate from each workout
   for (const workout of workouts) {
-    const exercises = JSON.parse(workout.exercise_data || '[]') as WorkoutExercise[];
+    // JSONB columns return JavaScript objects, not strings
+    const exercises = (workout.exercise_data || []) as WorkoutExercise[];
     if (exercises.length > 0) {
       await updateStatsFromWorkout(userId, exercises);
     }

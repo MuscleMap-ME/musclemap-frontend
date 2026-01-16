@@ -578,6 +578,243 @@ This roadmap prioritizes features that maximize MuscleMap's differentiation in t
 
 ---
 
+## Phase 6: Marketplace & Cosmetics Economy
+
+**Theme:** Create a thriving cosmetics economy that incentivizes healthy behavior through collection, trading, and social engagement
+
+*Full specification: See `docs/MARKETPLACE-TRADING-SYSTEM-PLAN.md`*
+
+### Feature 23: Marketplace Foundation
+
+**User story:** As a user, I want to buy and sell cosmetics with other users so that I can collect rare items and monetize my duplicates.
+
+**Acceptance criteria:**
+- [ ] Player-to-player marketplace with buy now and offer system
+- [ ] Auction house with standard, Dutch, and blind auctions
+- [ ] Watchlist and price alert notifications
+- [ ] Price history charts and market analytics
+- [ ] Seller reputation and rating system
+- [ ] 5% marketplace fee as credit sink
+
+**Telemetry events:**
+- `marketplace.listing_created` - User listed an item
+- `marketplace.item_sold` - Item sold through marketplace
+- `marketplace.offer_made` - User made an offer
+- `marketplace.auction_bid` - User placed auction bid
+
+**Privacy defaults:** Listings are public, purchase history private
+
+**Effort:** XL
+
+**Dependencies:** Credit economy system, Cosmetics catalog
+
+---
+
+### Feature 24: P2P Trading System
+
+**User story:** As a user, I want to trade items directly with other users so that I can negotiate deals and exchange items + credits.
+
+**Acceptance criteria:**
+- [ ] Item + credits trades in single transaction
+- [ ] Multi-item trades (up to 10 items per side)
+- [ ] Trade value calculator with market estimates
+- [ ] Counter-offer negotiation system
+- [ ] Trade history and reputation tracking
+- [ ] Scam prevention with value warnings
+
+**Telemetry events:**
+- `trade.request_sent` - Trade request initiated
+- `trade.completed` - Trade completed
+- `trade.countered` - Counter-offer made
+- `trade.declined` - Trade declined
+
+**Privacy defaults:** Trade history visible to participants only
+
+**Effort:** L
+
+**Dependencies:** Marketplace foundation
+
+---
+
+### Feature 25: Collection & Showcase System
+
+**User story:** As a collector, I want to track my progress toward completing cosmetic sets and show off my best items on my profile.
+
+**Acceptance criteria:**
+- [ ] Collection progress tracking by category and rarity
+- [ ] Collection sets with themed items and completion rewards
+- [ ] Profile showcase with 3 featured items
+- [ ] Collection value estimation
+- [ ] Collection milestones and achievements
+- [ ] Set completion badges and titles
+
+**Telemetry events:**
+- `collection.set_progress` - User progressed in a set
+- `collection.set_completed` - User completed a set
+- `collection.showcase_updated` - User updated showcase
+- `collection.milestone_reached` - Collection milestone achieved
+
+**Privacy defaults:** Collection visible, showcase customizable
+
+**Effort:** M
+
+**Dependencies:** Cosmetics catalog
+
+---
+
+### Feature 26: Mystery Box System
+
+**User story:** As a user, I want to open mystery boxes for a chance at rare cosmetics so that I have an exciting way to acquire new items.
+
+**Acceptance criteria:**
+- [ ] Multiple box tiers (Standard, Premium, Legendary)
+- [ ] Transparent drop rates
+- [ ] Pity system guaranteeing epic at 30 opens, legendary at 100
+- [ ] Animated opening experience
+- [ ] Workout-earned boxes (daily workout, weekly streak)
+- [ ] Box history and statistics
+
+**Telemetry events:**
+- `mystery_box.opened` - User opened a box
+- `mystery_box.pity_triggered` - Pity system activated
+- `mystery_box.rare_drop` - Epic+ item obtained
+
+**Privacy defaults:** Opening history private by default
+
+**Effort:** M
+
+**Dependencies:** Cosmetics catalog, Credit economy
+
+---
+
+### Feature 27: Health-Based Earning Multipliers
+
+**User story:** As a user who exercises regularly, I want to earn credits faster so that I'm rewarded for maintaining healthy habits.
+
+**Acceptance criteria:**
+- [ ] Base earning multiplier from health score
+- [ ] Workout streak bonus (+10% per day, max 70%)
+- [ ] Sleep quality bonus (+5% per 10 points above 70)
+- [ ] Nutrition tracking bonus (+15% max)
+- [ ] Health tier system (5 tiers) with escalating benefits
+- [ ] Maximum 2.1x earning multiplier
+
+**Telemetry events:**
+- `health.multiplier_updated` - Multiplier changed
+- `health.tier_changed` - User changed health tier
+- `health.daily_complete` - All daily health goals met
+
+**Privacy defaults:** Health metrics private by default
+
+**Effort:** L
+
+**Dependencies:** Health metrics logging, Nutrition tracking
+
+---
+
+### Feature 28: Workout-Gated Cosmetics
+
+**User story:** As a dedicated athlete, I want access to exclusive cosmetics that require workout achievements so that my dedication is visually recognized.
+
+**Acceptance criteria:**
+- [ ] Cosmetics requiring lifetime workout counts
+- [ ] Cosmetics requiring workout streaks
+- [ ] Cosmetics requiring weight lifted milestones
+- [ ] Cosmetics requiring competition victories
+- [ ] Cosmetics requiring health tier maintenance
+- [ ] Progressive unlock visibility
+
+**Telemetry events:**
+- `workout_gated.unlocked` - User unlocked gated cosmetic
+- `workout_gated.progress` - User progressed toward unlock
+- `workout_gated.purchased` - User purchased after unlock
+
+**Privacy defaults:** Unlock progress visible on profile (opt-out)
+
+**Effort:** M
+
+**Dependencies:** Achievement system, Workout logging
+
+---
+
+### Feature 29: Crew Treasury & Group Economy
+
+**User story:** As a crew leader, I want to manage a shared treasury so that we can pool resources for group purchases and rewards.
+
+**Acceptance criteria:**
+- [ ] Crew treasury with deposit/withdrawal controls
+- [ ] Crew cosmetics (banner, badge, aura) usable by all members
+- [ ] Shared inventory for crew-owned items
+- [ ] Group challenge rewards paid to treasury
+- [ ] Treasury transaction history and audit log
+- [ ] Crew-only marketplace listings (no fees)
+
+**Telemetry events:**
+- `crew_economy.deposit` - Credits deposited to treasury
+- `crew_economy.withdrawal` - Credits withdrawn
+- `crew_economy.purchase` - Crew purchased cosmetic
+- `crew_economy.item_shared` - Item added to shared inventory
+
+**Privacy defaults:** Treasury visible to crew members only
+
+**Effort:** L
+
+**Dependencies:** Crews system, Marketplace
+
+---
+
+### Feature 30: Enhanced Gifting System
+
+**User story:** As a user, I want to send cosmetics and credits as gifts to friends so that I can celebrate their achievements and build community.
+
+**Acceptance criteria:**
+- [ ] Gift wrapping styles (standard, birthday, holiday, congrats)
+- [ ] Personal messages with gifts
+- [ ] Anonymous gifting option
+- [ ] Scheduled future delivery
+- [ ] Gift return/exchange system
+- [ ] Gift opening animation
+
+**Telemetry events:**
+- `gift.sent` - Gift sent
+- `gift.received` - Gift delivered
+- `gift.opened` - Gift opened
+- `gift.returned` - Gift returned
+
+**Privacy defaults:** Gifts visible to sender/recipient only
+
+**Effort:** S
+
+**Dependencies:** Cosmetics catalog
+
+---
+
+### Feature 31: Seasonal Battle Pass
+
+**User story:** As an active user, I want to progress through a seasonal battle pass so that I have long-term goals and exclusive rewards.
+
+**Acceptance criteria:**
+- [ ] 100 level progression per season
+- [ ] Free track with basic rewards
+- [ ] Premium track (500 credits) with exclusive cosmetics
+- [ ] Season duration: 3 months
+- [ ] XP earned from workouts, daily tasks, challenges
+- [ ] Season-exclusive items (never return)
+
+**Telemetry events:**
+- `battle_pass.level_up` - User leveled up
+- `battle_pass.premium_purchased` - User bought premium
+- `battle_pass.reward_claimed` - User claimed reward
+- `battle_pass.completed` - User reached level 100
+
+**Privacy defaults:** Battle pass progress visible on profile
+
+**Effort:** L
+
+**Dependencies:** XP system, Cosmetics catalog
+
+---
+
 ## Later: Future Considerations
 
 ### Not Prioritized (Build Only If Demanded)
@@ -588,6 +825,8 @@ This roadmap prioritizes features that maximize MuscleMap's differentiation in t
 | Virtual Races | Commodity feature, not differentiator | Partnership opportunity |
 | Nutrition Tracking | Different domain expertise needed | Acquisition opportunity |
 | Social Graph | Feeds algorithm complexity | Community growth stalls |
+| Crafting System | Complexity overhead | High engagement with trading |
+| Item Fusion | Balancing difficulty | Mature economy |
 
 ### Possible Future Features
 
@@ -597,6 +836,9 @@ This roadmap prioritizes features that maximize MuscleMap's differentiation in t
 | Certification API | Issue digital certificates for standards | Partner with certification bodies |
 | VR Training | VisionOS training simulations | VisionOS adoption |
 | AI Coach | Natural language training advice | LLM cost reduction |
+| Item Crafting | Combine items to create new ones | Economy reaches maturity |
+| Limited Drops | Time-limited exclusive releases | Strong collector engagement |
+| Creator Program | Users design cosmetics for revenue share | 10k+ active traders |
 
 ---
 
@@ -627,6 +869,18 @@ This roadmap prioritizes features that maximize MuscleMap's differentiation in t
 - [ ] 5000+ Garmin connections
 - [ ] 3000+ HealthKit connections
 - [ ] 100+ third-party apps using Public API
+
+### Phase 6 (Marketplace & Economy)
+- [ ] 10,000+ marketplace listings created
+- [ ] 50,000+ trades completed
+- [ ] 70% of active users own 10+ cosmetics
+- [ ] 30% of users complete at least one collection set
+- [ ] Health-based multiplier users workout 40% more than baseline
+- [ ] 25% of crews actively use treasury
+- [ ] Battle pass completion rate >60% for premium purchasers
+- [ ] Average 5+ gifts sent per user per month
+- [ ] Marketplace fee revenue covers 20%+ of infrastructure costs
+- [ ] Workout-gated cosmetics increase average workouts by 25%
 
 ---
 

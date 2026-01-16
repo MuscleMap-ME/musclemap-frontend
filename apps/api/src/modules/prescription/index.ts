@@ -360,7 +360,7 @@ export class PrescriptionEngine {
       )
     `, [userId]);
 
-    return phase;
+    return phase ?? null;
   }
 
   /**

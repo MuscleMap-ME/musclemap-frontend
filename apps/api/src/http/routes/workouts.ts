@@ -464,19 +464,9 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
         [workoutId]
       );
 
-      // Safely parse JSON fields
-      let exerciseData = [];
-      let muscleActivationsData = {};
-      try {
-        exerciseData = JSON.parse((workout as any)?.exercise_data || '[]');
-      } catch (parseError) {
-        log.error({ parseError, workoutId }, 'Failed to parse exercise_data');
-      }
-      try {
-        muscleActivationsData = JSON.parse((workout as any)?.muscle_activations || '{}');
-      } catch (parseError) {
-        log.error({ parseError, workoutId }, 'Failed to parse muscle_activations');
-      }
+      // JSONB columns are returned as objects by PostgreSQL - no parsing needed
+      const exerciseData = (workout as any)?.exercise_data || [];
+      const muscleActivationsData = (workout as any)?.muscle_activations || {};
 
       return reply.status(201).send({
         data: {
@@ -553,8 +543,9 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
       data: workouts.map((w: any) => ({
         ...w,
         isPublic: Boolean(w.isPublic),
-        exerciseData: JSON.parse(w.exercise_data || '[]'),
-        muscleActivations: JSON.parse(w.muscle_activations || '{}'),
+        // JSONB columns are returned as objects by PostgreSQL - no parsing needed
+        exerciseData: w.exercise_data || [],
+        muscleActivations: w.muscle_activations || {},
       })),
       meta: {
         limit,
@@ -595,7 +586,8 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
     const query_params = request.query as { days?: string };
     const days = Math.min(parseInt(query_params.days || '7'), 365);
 
-    const workouts = await queryAll<{ muscle_activations: string }>(
+    // JSONB columns are returned as objects by PostgreSQL - no parsing needed
+    const workouts = await queryAll<{ muscle_activations: Record<string, number> | null }>(
       `SELECT muscle_activations FROM workouts
        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'`,
       [request.user!.userId]
@@ -603,7 +595,7 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
 
     const totals: Record<string, number> = {};
     for (const row of workouts) {
-      const activations = JSON.parse(row.muscle_activations || '{}');
+      const activations = row.muscle_activations || {};
       for (const [muscleId, value] of Object.entries(activations)) {
         totals[muscleId] = (totals[muscleId] || 0) + (value as number);
       }
@@ -647,8 +639,9 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
       data: {
         ...w,
         isPublic: Boolean(w.isPublic),
-        exerciseData: JSON.parse(w.exercise_data || '[]'),
-        muscleActivations: JSON.parse(w.muscle_activations || '{}'),
+        // JSONB columns are returned as objects by PostgreSQL - no parsing needed
+        exerciseData: w.exercise_data || [],
+        muscleActivations: w.muscle_activations || {},
       },
     });
   });

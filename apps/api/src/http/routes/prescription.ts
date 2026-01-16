@@ -226,10 +226,10 @@ export async function registerPrescriptionRoutes(app: FastifyInstance) {
     if (constraints.idempotencyKey) {
       const existing = await queryOne<{
         id: string;
-        exercises: string;
-        warmup: string | null;
-        cooldown: string | null;
-        muscle_coverage: string | null;
+        exercises: unknown;
+        warmup: unknown;
+        cooldown: unknown;
+        muscle_coverage: unknown;
         estimated_duration: number;
       }>(
         'SELECT id, exercises, warmup, cooldown, muscle_coverage, estimated_duration FROM prescriptions WHERE id = $1',
@@ -239,10 +239,10 @@ export async function registerPrescriptionRoutes(app: FastifyInstance) {
         return reply.send({
           data: {
             id: existing.id,
-            exercises: JSON.parse(existing.exercises),
-            warmup: JSON.parse(existing.warmup || '[]'),
-            cooldown: JSON.parse(existing.cooldown || '[]'),
-            muscleCoverage: JSON.parse(existing.muscle_coverage || '{}'),
+            exercises: existing.exercises || [],
+            warmup: existing.warmup || [],
+            cooldown: existing.cooldown || [],
+            muscleCoverage: existing.muscle_coverage || {},
             estimatedDuration: existing.estimated_duration,
           },
         });
@@ -302,11 +302,11 @@ export async function registerPrescriptionRoutes(app: FastifyInstance) {
     const prescription = await queryOne<{
       id: string;
       user_id: string;
-      constraints: string;
-      exercises: string;
-      warmup: string;
-      cooldown: string;
-      muscle_coverage: string;
+      constraints: unknown;
+      exercises: unknown;
+      warmup: unknown;
+      cooldown: unknown;
+      muscle_coverage: unknown;
       estimated_duration: number;
       created_at: Date;
     }>(
@@ -323,11 +323,11 @@ export async function registerPrescriptionRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         id: prescription.id,
-        constraints: JSON.parse(prescription.constraints || '{}'),
-        exercises: JSON.parse(prescription.exercises || '[]'),
-        warmup: JSON.parse(prescription.warmup || '[]'),
-        cooldown: JSON.parse(prescription.cooldown || '[]'),
-        muscleCoverage: JSON.parse(prescription.muscle_coverage || '{}'),
+        constraints: prescription.constraints || {},
+        exercises: prescription.exercises || [],
+        warmup: prescription.warmup || [],
+        cooldown: prescription.cooldown || [],
+        muscleCoverage: prescription.muscle_coverage || {},
         estimatedDuration: prescription.estimated_duration ?? 0,
         createdAt: prescription.created_at,
       },

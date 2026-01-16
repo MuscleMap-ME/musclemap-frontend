@@ -156,7 +156,7 @@ export const disputeService = {
       amount_disputed: number | null;
       escrow_id: string | null;
       description: string;
-      evidence: string;
+      evidence: Array<{ type: string; url?: string; text?: string; uploadedAt: string }> | null;
       status: string;
       resolution: string | null;
       resolution_amount: number | null;
@@ -179,7 +179,7 @@ export const disputeService = {
       amountDisputed: row.amount_disputed ?? undefined,
       escrowId: row.escrow_id ?? undefined,
       description: row.description,
-      evidence: JSON.parse(row.evidence || '[]'),
+      evidence: row.evidence || [],
       status: row.status as DisputeStatus,
       resolution: row.resolution ?? undefined,
       resolutionAmount: row.resolution_amount ?? undefined,
@@ -228,7 +228,7 @@ export const disputeService = {
       amount_disputed: number | null;
       escrow_id: string | null;
       description: string;
-      evidence: string;
+      evidence: Array<{ type: string; url?: string; text?: string; uploadedAt: string }> | null;
       status: string;
       resolution: string | null;
       resolution_amount: number | null;
@@ -258,7 +258,7 @@ export const disputeService = {
         amountDisputed: row.amount_disputed ?? undefined,
         escrowId: row.escrow_id ?? undefined,
         description: row.description,
-        evidence: JSON.parse(row.evidence || '[]'),
+        evidence: row.evidence || [],
         status: row.status as DisputeStatus,
         resolution: row.resolution ?? undefined,
         resolutionAmount: row.resolution_amount ?? undefined,
@@ -328,7 +328,7 @@ export const disputeService = {
       sender_id: string;
       is_admin: boolean;
       message: string;
-      attachments: string;
+      attachments: string[] | null;
       created_at: Date;
     }>(
       `SELECT * FROM dispute_messages WHERE dispute_id = $1 ORDER BY created_at ASC`,
@@ -341,7 +341,7 @@ export const disputeService = {
       senderId: row.sender_id,
       isAdmin: row.is_admin,
       message: row.message,
-      attachments: JSON.parse(row.attachments || '[]'),
+      attachments: row.attachments || [],
       createdAt: row.created_at,
     }));
   },
@@ -477,7 +477,7 @@ export const disputeService = {
       amount_disputed: number | null;
       escrow_id: string | null;
       description: string;
-      evidence: string;
+      evidence: Array<{ type: string; url?: string; text?: string; uploadedAt: string }> | null;
       status: string;
       resolution: string | null;
       resolution_amount: number | null;
@@ -507,7 +507,7 @@ export const disputeService = {
         amountDisputed: row.amount_disputed ?? undefined,
         escrowId: row.escrow_id ?? undefined,
         description: row.description,
-        evidence: JSON.parse(row.evidence || '[]'),
+        evidence: row.evidence || [],
         status: row.status as DisputeStatus,
         resolution: row.resolution ?? undefined,
         resolutionAmount: row.resolution_amount ?? undefined,

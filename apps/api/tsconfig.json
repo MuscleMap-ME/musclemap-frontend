@@ -17,5 +17,5 @@
     "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/modules/organizations"]
+  "exclude": ["node_modules", "dist", "src/modules/organizations", "src/modules/marketplace", "src/http/routes/marketplace.ts", "src/db/migrations/114_marketplace_trading_system.ts"]
 }

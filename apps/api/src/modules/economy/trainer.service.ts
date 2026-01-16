@@ -705,11 +705,12 @@ export const trainerService = {
       const chargeResult = await walletService.charge({
         userId,
         amount: classData.creditsPerStudent,
-        reasonCode: 'class_enrollment',
-        description: `Enrollment: ${classData.title}`,
+        action: 'class_enrollment',
+        metadata: { classId, classTitle: classData.title },
+        idempotencyKey: `class_enrollment:${userId}:${classId}:${Date.now()}`,
       });
 
-      paymentTxId = chargeResult.transactionId;
+      paymentTxId = chargeResult.ledgerEntryId;
     }
 
     await serializableTransaction(async (client) => {

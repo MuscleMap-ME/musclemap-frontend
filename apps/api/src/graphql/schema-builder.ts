@@ -83,12 +83,12 @@ export class SchemaRegistry {
    * Check for schema conflicts.
    */
   private checkConflicts(pluginId: string, extension: GraphQLSchemaExtension): void {
-    const newTypes = this.extractTypeNames(extension.typeDefs);
-    const newFields = this.extractFieldExtensions(extension.typeDefs);
+    const newTypes = this.extractTypeNames(extension.typeDefs ?? '');
+    const newFields = this.extractFieldExtensions(extension.typeDefs ?? '');
 
     for (const existing of this.extensions) {
-      const existingTypes = this.extractTypeNames(existing.extension.typeDefs);
-      const existingFields = this.extractFieldExtensions(existing.extension.typeDefs);
+      const existingTypes = this.extractTypeNames(existing.extension.typeDefs ?? '');
+      const existingFields = this.extractFieldExtensions(existing.extension.typeDefs ?? '');
 
       // Check for type conflicts (non-extension)
       for (const type of newTypes) {
@@ -201,7 +201,9 @@ export class SchemaRegistry {
     const merged: Resolvers = {};
 
     for (const { extension } of this.extensions) {
-      this.deepMergeResolvers(merged, extension.resolvers);
+      if (extension.resolvers) {
+        this.deepMergeResolvers(merged, extension.resolvers);
+      }
     }
 
     return merged;

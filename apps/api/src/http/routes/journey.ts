@@ -91,7 +91,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     );
 
     // Get muscle balance
-    const muscleActivations = await queryAll<{ muscle_activations: string }>(
+    const muscleActivations = await queryAll<{ muscle_activations: Record<string, number> | null }>(
       `SELECT muscle_activations FROM workouts
        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'`,
       [userId]
@@ -99,7 +99,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
 
     const muscleBalance: Record<string, number> = {};
     for (const row of muscleActivations) {
-      const activations = JSON.parse(row.muscle_activations || '{}');
+      const activations = row.muscle_activations || {};
       for (const [muscleId, value] of Object.entries(activations)) {
         muscleBalance[muscleId] = (muscleBalance[muscleId] || 0) + (value as number);
       }
@@ -297,7 +297,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       name: string;
       total_tu: number;
       description: string;
-      muscle_targets: string;
+      muscle_targets: Record<string, unknown> | null;
     }>(
       'SELECT level, name, total_tu, description, muscle_targets FROM archetype_levels WHERE archetype_id = $1 ORDER BY level',
       [id]
@@ -306,7 +306,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
     return reply.send({
       data: levels.map((l) => ({
         ...l,
-        muscleTargets: JSON.parse(l.muscle_targets || '{}'),
+        muscleTargets: l.muscle_targets || {},
       })),
     });
   });

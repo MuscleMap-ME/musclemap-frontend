@@ -50,7 +50,7 @@ export async function registerEconomyRoutes(app: FastifyInstance) {
     return reply.send({
       data: transactions.map((t) => ({
         ...t,
-        metadata: t.metadata ? JSON.parse(t.metadata) : null,
+        metadata: t.metadata || null,
       })),
       meta: { limit, offset, total },
     });
@@ -113,7 +113,7 @@ export async function registerEconomyRoutes(app: FastifyInstance) {
     return reply.send({
       data: transactions.map((t) => ({
         ...t,
-        metadata: t.metadata ? JSON.parse(t.metadata) : null,
+        metadata: t.metadata || null,
       })),
       meta: { limit, offset },
     });

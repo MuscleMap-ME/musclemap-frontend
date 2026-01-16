@@ -268,10 +268,10 @@ export default async function adminSecurityRoutes(app: FastifyInstance): Promise
    * DELETE /admin/security/sessions/:id
    * Terminate a specific session
    */
-  app.delete(
+  app.delete<{ Params: { id: string } }>(
     '/admin/security/sessions/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -396,10 +396,10 @@ export default async function adminSecurityRoutes(app: FastifyInstance): Promise
    * DELETE /admin/security/blocklist/:ip
    * Remove an IP from the blocklist
    */
-  app.delete(
+  app.delete<{ Params: { ip: string } }>(
     '/admin/security/blocklist/:ip',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { ip: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { ip } = request.params;
       const user = request.user as { userId: string };
 

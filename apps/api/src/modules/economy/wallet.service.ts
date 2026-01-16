@@ -585,7 +585,7 @@ export const walletService = {
       action: string;
       amount: number;
       balance_after: number;
-      metadata: string | null;
+      metadata: Record<string, unknown> | null;
       created_at: Date;
     }>(
       `SELECT id, action, amount, balance_after, metadata, created_at
@@ -607,7 +607,7 @@ export const walletService = {
         action: row.action,
         amount: row.amount,
         balanceAfter: row.balance_after,
-        metadata: row.metadata ? JSON.parse(row.metadata) : null,
+        metadata: row.metadata || null,
         createdAt: row.created_at,
       })),
       total: parseInt(countResult?.count || '0', 10),

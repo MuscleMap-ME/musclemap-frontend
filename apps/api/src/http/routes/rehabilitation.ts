@@ -503,7 +503,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
         }
 
         // Get current protocol
-        const protocol = await db.queryOne<{ exercises: string }>(
+        const protocol = await db.queryOne<{ exercises: unknown[] | null }>(
           `SELECT exercises FROM rehab_protocols
            WHERE injury_profile_id = $1 AND phase = $2`,
           [injury.injury_profile_id, injury.current_phase]
@@ -513,7 +513,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
           return reply.status(404).send({ success: false, error: 'Protocol not found' });
         }
 
-        const exercises = JSON.parse(protocol.exercises || '[]');
+        const exercises = protocol.exercises || [];
 
         return reply.send({
           success: true,

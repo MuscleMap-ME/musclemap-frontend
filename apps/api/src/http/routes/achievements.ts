@@ -75,9 +75,9 @@ export async function registerAchievementRoutes(app: FastifyInstance) {
    * Get current user's achievements
    * GET /me/achievements
    */
-  app.get('/me/achievements', {
+  app.get<{ Querystring: z.infer<typeof achievementsQuerySchema> }>('/me/achievements', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof achievementsQuerySchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = achievementsQuerySchema.parse(request.query);
 
     const result = await achievementService.getUserAchievements(request.user!.userId, {
@@ -113,12 +113,12 @@ export async function registerAchievementRoutes(app: FastifyInstance) {
    * Get a user's achievements
    * GET /users/:id/achievements
    */
-  app.get('/users/:id/achievements', {
-    preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
+  app.get<{
     Params: { id: string };
     Querystring: z.infer<typeof achievementsQuerySchema>;
-  }>, reply: FastifyReply) => {
+  }>('/users/:id/achievements', {
+    preHandler: optionalAuth,
+  }, async (request, reply) => {
     const query = achievementsQuerySchema.parse(request.query);
 
     const result = await achievementService.getUserAchievements(request.params.id, {
@@ -142,11 +142,9 @@ export async function registerAchievementRoutes(app: FastifyInstance) {
    * Get a user's achievement summary
    * GET /users/:id/achievements/summary
    */
-  app.get('/users/:id/achievements/summary', {
+  app.get<{ Params: { id: string } }>('/users/:id/achievements/summary', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const summary = await achievementService.getUserSummary(request.params.id);
 
     return reply.send({ data: summary });
@@ -160,12 +158,12 @@ export async function registerAchievementRoutes(app: FastifyInstance) {
    * Get achievement feed for a hangout
    * GET /hangouts/:id/achievements
    */
-  app.get('/hangouts/:id/achievements', {
-    preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
+  app.get<{
     Params: { id: string };
     Querystring: z.infer<typeof hangoutFeedQuerySchema>;
-  }>, reply: FastifyReply) => {
+  }>('/hangouts/:id/achievements', {
+    preHandler: optionalAuth,
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
       return reply.status(400).send({

@@ -45,17 +45,30 @@ interface Photo {
 }
 
 const progressPhotosRoutes: FastifyPluginAsync = async (fastify) => {
-  // Get all photos for user
+  // Get all photos for user (keyset pagination for O(1) performance)
   fastify.get(
     '/progress-photos',
     { preHandler: authenticate },
     async (request, reply) => {
       const userId = (request as any).userId;
-      const { limit = 50, offset = 0, photo_type } = request.query as {
+      const { limit = 50, cursor, photo_type } = request.query as {
         limit?: number;
-        offset?: number;
+        cursor?: string;
         photo_type?: string;
       };
+
+      // Parse cursor for keyset pagination
+      let cursorData: { photoDate: string; id: string } | null = null;
+      if (cursor) {
+        try {
+          cursorData = JSON.parse(Buffer.from(cursor, 'base64').toString());
+        } catch {
+          // Invalid cursor, start from beginning
+        }
+      }
+
+      // Fetch one extra to determine if there are more results
+      const fetchLimit = Math.min(limit, 100) + 1;
 
       let query = `
         SELECT * FROM progress_photos
@@ -68,12 +81,37 @@ const progressPhotosRoutes: FastifyPluginAsync = async (fastify) => {
         params.push(photo_type);
       }
 
-      query += ` ORDER BY photo_date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      params.push(limit, offset);
+      // Keyset pagination: get rows after the cursor position
+      if (cursorData) {
+        query += ` AND (photo_date, id) < ($${params.length + 1}, $${params.length + 2})`;
+        params.push(cursorData.photoDate, cursorData.id);
+      }
 
-      const photos = await db.queryAll<Photo>(query, params);
+      query += ` ORDER BY photo_date DESC, id DESC LIMIT $${params.length + 1}`;
+      params.push(fetchLimit);
 
-      return reply.send({ photos });
+      const results = await db.queryAll<Photo>(query, params);
+
+      // Determine if there are more results
+      const hasMore = results.length > Math.min(limit, 100);
+      const photos = hasMore ? results.slice(0, -1) : results;
+
+      // Generate next cursor from the last item
+      const nextCursor = photos.length > 0
+        ? Buffer.from(JSON.stringify({
+            photoDate: photos[photos.length - 1].photo_date,
+            id: photos[photos.length - 1].id
+          })).toString('base64')
+        : null;
+
+      return reply.send({
+        photos,
+        pagination: {
+          hasMore,
+          nextCursor,
+          count: photos.length
+        }
+      });
     }
   );
 

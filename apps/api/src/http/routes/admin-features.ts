@@ -225,10 +225,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * GET /admin/features/flags/:id
    * Get a single feature flag by ID
    */
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/admin/features/flags/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
 
       const flag = await queryOne<FeatureFlagRow>(`
@@ -252,10 +252,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * PUT /admin/features/flags/:id
    * Update a feature flag
    */
-  app.put(
+  app.put<{ Params: { id: string } }>(
     '/admin/features/flags/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as JwtPayload;
       const updates = updateFeatureFlagSchema.parse(request.body);
@@ -339,10 +339,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * DELETE /admin/features/flags/:id
    * Delete a feature flag
    */
-  app.delete(
+  app.delete<{ Params: { id: string } }>(
     '/admin/features/flags/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as JwtPayload;
 
@@ -375,10 +375,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * POST /admin/features/flags/:id/toggle
    * Quick toggle a feature flag on/off
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/admin/features/flags/:id/toggle',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as JwtPayload;
 
@@ -413,10 +413,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * GET /admin/features/flags/:id/usage
    * Get usage statistics for a feature flag
    */
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/admin/features/flags/:id/usage',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
 
       // Check flag exists
@@ -432,7 +432,7 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
       }
 
       // Try to get usage stats - table may not exist yet
-      let usage: FlagUsageStats | null = null;
+      let usage: FlagUsageStats | undefined;
       try {
         usage = await queryOne<FlagUsageStats>(`
           SELECT
@@ -479,10 +479,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * PUT /admin/features/flags/:id/rollout
    * Set gradual rollout percentage for a feature flag
    */
-  app.put(
+  app.put<{ Params: { id: string } }>(
     '/admin/features/flags/:id/rollout',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as JwtPayload;
       const body = rolloutSchema.parse(request.body);
@@ -518,10 +518,10 @@ export default async function adminFeaturesRoutes(app: FastifyInstance): Promise
    * PUT /admin/features/flags/:id/targeting
    * Set user segment targeting rules for a feature flag
    */
-  app.put(
+  app.put<{ Params: { id: string } }>(
     '/admin/features/flags/:id/targeting',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as JwtPayload;
       const targeting = targetingRulesSchema.parse(request.body);

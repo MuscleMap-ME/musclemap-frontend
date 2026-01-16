@@ -28,10 +28,34 @@ const linkWorkoutSchema = z.object({
   workoutId: z.string().min(1),
 });
 
-const paginationSchema = z.object({
+const keysetPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  cursor: z.string().optional(),
 });
+
+// Cursor types for keyset pagination
+interface CheckInCursor {
+  checkedInAt: string; // ISO date string
+  id: string;
+}
+
+// Helper to decode cursor
+function decodeCursor(cursor: string | undefined): CheckInCursor | null {
+  if (!cursor) return null;
+  try {
+    return JSON.parse(Buffer.from(cursor, 'base64').toString());
+  } catch {
+    return null;
+  }
+}
+
+// Helper to encode cursor
+function encodeCursor(checkedInAt: Date, id: string): string {
+  return Buffer.from(JSON.stringify({
+    checkedInAt: checkedInAt.toISOString(),
+    id,
+  })).toString('base64');
+}
 
 // Types
 interface CheckIn {
@@ -63,12 +87,12 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
    * Check into a hangout
    * POST /hangouts/:id/check-in
    */
-  app.post('/hangouts/:id/check-in', {
-    preHandler: authenticate,
-  }, async (request: FastifyRequest<{
+  app.post<{
     Params: { id: string };
     Body: z.infer<typeof checkInSchema>;
-  }>, reply: FastifyReply) => {
+  }>('/hangouts/:id/check-in', {
+    preHandler: authenticate,
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
       return reply.status(400).send({
@@ -181,11 +205,9 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
    * Check out from a hangout
    * POST /hangouts/:id/check-out
    */
-  app.post('/hangouts/:id/check-out', {
+  app.post<{ Params: { id: string } }>('/hangouts/:id/check-out', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
       return reply.status(400).send({
@@ -230,12 +252,12 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
    * Link a workout to current check-in
    * POST /hangouts/:id/check-in/link-workout
    */
-  app.post('/hangouts/:id/check-in/link-workout', {
-    preHandler: authenticate,
-  }, async (request: FastifyRequest<{
+  app.post<{
     Params: { id: string };
     Body: z.infer<typeof linkWorkoutSchema>;
-  }>, reply: FastifyReply) => {
+  }>('/hangouts/:id/check-in/link-workout', {
+    preHandler: authenticate,
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
       return reply.status(400).send({
@@ -290,10 +312,12 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
   /**
    * Get active check-ins at a hangout
    * GET /hangouts/:id/check-ins/active
+   *
+   * Uses keyset pagination for O(1) performance
    */
   app.get('/hangouts/:id/check-ins/active', async (request: FastifyRequest<{
     Params: { id: string };
-    Querystring: z.infer<typeof paginationSchema>;
+    Querystring: z.infer<typeof keysetPaginationSchema>;
   }>, reply: FastifyReply) => {
     const hangoutId = parseInt(request.params.id, 10);
     if (isNaN(hangoutId)) {
@@ -302,8 +326,10 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
       });
     }
 
-    const query_params = paginationSchema.parse(request.query);
+    const { limit = 20, cursor } = keysetPaginationSchema.parse(request.query);
+    const cursorData = decodeCursor(cursor);
 
+    // Keyset pagination query - O(1) performance
     const rows = await queryAll<{
       id: string;
       hangout_id: number;
@@ -312,22 +338,37 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
       username: string;
       checked_in_at: Date;
     }>(
-      `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.user_id, u.username, hc.checked_in_at
-       FROM hangout_checkins hc
-       JOIN hangouts h ON h.id = hc.hangout_id
-       JOIN users u ON u.id = hc.user_id
-       WHERE hc.hangout_id = $1 AND hc.checked_out_at IS NULL
-       ORDER BY hc.checked_in_at DESC
-       LIMIT $2 OFFSET $3`,
-      [hangoutId, query_params.limit, query_params.offset]
+      cursorData
+        ? `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.user_id, u.username, hc.checked_in_at
+           FROM hangout_checkins hc
+           JOIN hangouts h ON h.id = hc.hangout_id
+           JOIN users u ON u.id = hc.user_id
+           WHERE hc.hangout_id = $1 AND hc.checked_out_at IS NULL
+             AND (hc.checked_in_at, hc.id) < ($2, $3)
+           ORDER BY hc.checked_in_at DESC, hc.id DESC
+           LIMIT $4`
+        : `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.user_id, u.username, hc.checked_in_at
+           FROM hangout_checkins hc
+           JOIN hangouts h ON h.id = hc.hangout_id
+           JOIN users u ON u.id = hc.user_id
+           WHERE hc.hangout_id = $1 AND hc.checked_out_at IS NULL
+           ORDER BY hc.checked_in_at DESC, hc.id DESC
+           LIMIT $2`,
+      cursorData
+        ? [hangoutId, cursorData.checkedInAt, cursorData.id, limit + 1]
+        : [hangoutId, limit + 1]
     );
 
-    const countResult = await queryOne<{ count: string }>(
-      'SELECT COUNT(*) as count FROM hangout_checkins WHERE hangout_id = $1 AND checked_out_at IS NULL',
-      [hangoutId]
-    );
+    // Check if there's more data
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
 
-    const checkIns: CheckIn[] = rows.map((r) => ({
+    // Generate next cursor
+    const nextCursor = items.length > 0
+      ? encodeCursor(items[items.length - 1].checked_in_at, items[items.length - 1].id)
+      : null;
+
+    const checkIns: CheckIn[] = items.map((r) => ({
       id: r.id,
       hangoutId: r.hangout_id,
       hangoutName: r.hangout_name,
@@ -340,10 +381,9 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
     return reply.send({
       data: checkIns,
       pagination: {
-        total: parseInt(countResult?.count || '0'),
-        limit: query_params.limit,
-        offset: query_params.offset,
-        hasMore: query_params.offset + checkIns.length < parseInt(countResult?.count || '0'),
+        cursor: nextCursor,
+        hasMore,
+        limit,
       },
     });
   });
@@ -392,15 +432,17 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
   /**
    * Get current user's check-in history
    * GET /me/check-ins
+   *
+   * Uses keyset pagination for O(1) performance
    */
-  app.get('/me/check-ins', {
+  app.get<{ Querystring: z.infer<typeof keysetPaginationSchema> }>('/me/check-ins', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Querystring: z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const userId = request.user!.userId;
-    const query_params = paginationSchema.parse(request.query);
+    const { limit = 20, cursor } = keysetPaginationSchema.parse(request.query);
+    const cursorData = decodeCursor(cursor);
 
+    // Keyset pagination query - O(1) performance
     const rows = await queryAll<{
       id: string;
       hangout_id: number;
@@ -409,21 +451,35 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
       checked_out_at: Date | null;
       workout_id: string | null;
     }>(
-      `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.checked_in_at, hc.checked_out_at, hc.workout_id
-       FROM hangout_checkins hc
-       JOIN hangouts h ON h.id = hc.hangout_id
-       WHERE hc.user_id = $1
-       ORDER BY hc.checked_in_at DESC
-       LIMIT $2 OFFSET $3`,
-      [userId, query_params.limit, query_params.offset]
+      cursorData
+        ? `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.checked_in_at, hc.checked_out_at, hc.workout_id
+           FROM hangout_checkins hc
+           JOIN hangouts h ON h.id = hc.hangout_id
+           WHERE hc.user_id = $1
+             AND (hc.checked_in_at, hc.id) < ($2, $3)
+           ORDER BY hc.checked_in_at DESC, hc.id DESC
+           LIMIT $4`
+        : `SELECT hc.id, hc.hangout_id, h.name as hangout_name, hc.checked_in_at, hc.checked_out_at, hc.workout_id
+           FROM hangout_checkins hc
+           JOIN hangouts h ON h.id = hc.hangout_id
+           WHERE hc.user_id = $1
+           ORDER BY hc.checked_in_at DESC, hc.id DESC
+           LIMIT $2`,
+      cursorData
+        ? [userId, cursorData.checkedInAt, cursorData.id, limit + 1]
+        : [userId, limit + 1]
     );
 
-    const countResult = await queryOne<{ count: string }>(
-      'SELECT COUNT(*) as count FROM hangout_checkins WHERE user_id = $1',
-      [userId]
-    );
+    // Check if there's more data
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
 
-    const checkIns: CheckIn[] = rows.map((r) => ({
+    // Generate next cursor
+    const nextCursor = items.length > 0
+      ? encodeCursor(items[items.length - 1].checked_in_at, items[items.length - 1].id)
+      : null;
+
+    const checkIns: CheckIn[] = items.map((r) => ({
       id: r.id,
       hangoutId: r.hangout_id,
       hangoutName: r.hangout_name,
@@ -438,10 +494,9 @@ export async function registerCheckInRoutes(app: FastifyInstance) {
     return reply.send({
       data: checkIns,
       pagination: {
-        total: parseInt(countResult?.count || '0'),
-        limit: query_params.limit,
-        offset: query_params.offset,
-        hasMore: query_params.offset + checkIns.length < parseInt(countResult?.count || '0'),
+        cursor: nextCursor,
+        hasMore,
+        limit,
       },
     });
   });

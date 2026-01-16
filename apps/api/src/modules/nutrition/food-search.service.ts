@@ -109,14 +109,16 @@ export class FoodSearchService {
         const data = await response.json() as { status: number; product?: Record<string, unknown> };
         if (data.status === 1 && data.product) {
           const food = this.parseOpenFoodFactsProduct(data.product, barcode);
-          // Cache it
-          await this.cacheFood(food);
-          return {
-            foods: [food],
-            source: 'openfoodfacts',
-            totalCount: 1,
-            cached: false,
-          };
+          if (food) {
+            // Cache it
+            await this.cacheFood(food);
+            return {
+              foods: [food],
+              source: 'openfoodfacts',
+              totalCount: 1,
+              cached: false,
+            };
+          }
         }
       }
     } catch (error) {

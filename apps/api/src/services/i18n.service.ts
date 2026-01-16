@@ -342,7 +342,7 @@ export const i18nService = {
       };
 
       // Store in database for persistence
-      await this.storeTranslation(contentType, contentId, fieldName, targetLang, translation);
+      await this.saveTranslation({ contentType, contentId, fieldName, originalText, sourceLang, targetLang }, translation);
 
       return translation;
     }
@@ -405,7 +405,10 @@ export const i18nService = {
           };
 
           // Store for caching
-          await this.storeTranslation(contentType, contentId, field.fieldName, targetLang, translation);
+          await this.saveTranslation(
+            { contentType, contentId, fieldName: field.fieldName, originalText: field.text, sourceLang, targetLang },
+            translation
+          );
           result[field.fieldName] = translation;
         } else {
           // Fallback to original

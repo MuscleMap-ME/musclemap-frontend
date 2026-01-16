@@ -314,10 +314,10 @@ export default async function adminAlertsRoutes(app: FastifyInstance): Promise<v
    * PUT /admin/alerts/rules/:id
    * Update an alert rule
    */
-  app.put(
+  app.put<{ Params: { id: string } }>(
     '/admin/alerts/rules/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const body = UpdateAlertRuleSchema.parse(request.body);
       const user = request.user as { userId: string };
@@ -407,10 +407,10 @@ export default async function adminAlertsRoutes(app: FastifyInstance): Promise<v
    * DELETE /admin/alerts/rules/:id
    * Delete an alert rule
    */
-  app.delete(
+  app.delete<{ Params: { id: string } }>(
     '/admin/alerts/rules/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -488,10 +488,10 @@ export default async function adminAlertsRoutes(app: FastifyInstance): Promise<v
    * POST /admin/alerts/test/:id
    * Test fire an alert (doesn't respect cooldown, for testing only)
    */
-  app.post(
+  app.post<{ Params: { id: string } }>(
     '/admin/alerts/test/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -610,10 +610,10 @@ export default async function adminAlertsRoutes(app: FastifyInstance): Promise<v
    * DELETE /admin/alerts/channels/:id
    * Delete a notification channel
    */
-  app.delete(
+  app.delete<{ Params: { id: string } }>(
     '/admin/alerts/channels/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 

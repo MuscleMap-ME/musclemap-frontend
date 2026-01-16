@@ -109,6 +109,8 @@ import { registerExerciseGroupRoutes } from './routes/exercise-groups';
 import rpeRoutes from './routes/rpe';
 import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
+// TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
+// import { marketplaceRoutes } from './routes/marketplace';
 
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
@@ -485,6 +487,10 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Apple Watch companion app sync
     await registerWatchRoutes(api);
+
+    // Marketplace, trading, collections, mystery boxes
+    // TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
+    // await marketplaceRoutes(api);
   }, { prefix: '/api' });
 
   return app;

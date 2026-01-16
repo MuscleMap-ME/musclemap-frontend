@@ -604,7 +604,7 @@ export const creditService = {
       reason: number | null;
       ref_type: number | null;
       ref_id: string | null;
-      metadata: string | null;
+      metadata: Record<string, unknown> | null;
       created_at: Date;
     }>(
       `SELECT id, action, amount, balance_after, reason, ref_type, ref_id, metadata, created_at
@@ -629,7 +629,7 @@ export const creditService = {
         reason: row.reason as CreditReason | undefined,
         refType: row.ref_type as RefType | undefined,
         refId: row.ref_id ?? undefined,
-        metadata: row.metadata ? JSON.parse(row.metadata) : null,
+        metadata: row.metadata || null,
         createdAt: row.created_at,
       })),
       total: parseInt(countResult?.count || '0', 10),

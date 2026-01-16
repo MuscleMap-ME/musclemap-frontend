@@ -79,21 +79,78 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: wallet });
   });
 
-  // Get transaction history
+  // Get transaction history (keyset pagination)
   app.get('/wallet/transactions', { preHandler: authenticate }, async (request, reply) => {
-    const query = request.query as { limit?: string; offset?: string; action?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { limit?: string; cursor?: string; action?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await walletService.getTransactionHistory(request.user!.userId, {
-      limit,
-      offset,
-      action: query.action,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = 'user_id = $1';
+    const params: unknown[] = [request.user!.userId];
+    let paramIndex = 2;
+
+    if (queryParams.action) {
+      whereClause += ` AND action = $${paramIndex++}`;
+      params.push(queryParams.action);
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (created_at, id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      action: string;
+      amount: number;
+      balance_after: number;
+      metadata: Record<string, unknown> | null;
+      created_at: Date;
+    }>(
+      `SELECT id, action, amount, balance_after, metadata, created_at
+       FROM credit_ledger
+       WHERE ${whereClause}
+       ORDER BY created_at DESC, id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.transactions,
-      meta: { limit, offset, total: result.total },
+      data: items.map((row) => ({
+        id: row.id,
+        action: row.action,
+        amount: row.amount,
+        balanceAfter: row.balance_after,
+        metadata: row.metadata || null,
+        createdAt: row.created_at,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -112,40 +169,165 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: result });
   });
 
-  // Get transfer history
+  // Get transfer history (keyset pagination)
   app.get('/wallet/transfers', { preHandler: authenticate }, async (request, reply) => {
-    const query = request.query as { direction?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
-    const direction = query.direction as 'sent' | 'received' | 'all' | undefined;
+    const queryParams = request.query as { direction?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
+    const direction = queryParams.direction as 'sent' | 'received' | 'all' | undefined;
 
-    const result = await walletService.getTransferHistory(request.user!.userId, {
-      direction: direction || 'all',
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = direction === 'sent'
+      ? 'sender_id = $1'
+      : direction === 'received'
+        ? 'recipient_id = $1'
+        : '(sender_id = $1 OR recipient_id = $1)';
+
+    const params: unknown[] = [request.user!.userId];
+    let paramIndex = 2;
+
+    if (cursorData) {
+      whereClause += ` AND (created_at, id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      sender_id: string;
+      recipient_id: string;
+      amount: number;
+      note: string | null;
+      status: string;
+      created_at: Date;
+    }>(
+      `SELECT id, sender_id, recipient_id, amount, note, status, created_at
+       FROM credit_transfers
+       WHERE ${whereClause}
+       ORDER BY created_at DESC, id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.transfers,
-      meta: { limit, offset, total: result.total },
+      data: items.map((row) => ({
+        id: row.id,
+        senderId: row.sender_id,
+        recipientId: row.recipient_id,
+        amount: row.amount,
+        note: row.note ?? undefined,
+        status: row.status,
+        createdAt: row.created_at,
+        direction: row.sender_id === request.user!.userId ? 'sent' : 'received',
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
-  // Get earning history
+  // Get earning history (keyset pagination)
   app.get('/wallet/earnings', { preHandler: authenticate }, async (request, reply) => {
-    const query = request.query as { limit?: string; offset?: string; category?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { limit?: string; cursor?: string; category?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await earningService.getHistory(request.user!.userId, {
-      limit,
-      offset,
-      category: query.category,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = 'ea.user_id = $1';
+    const params: unknown[] = [request.user!.userId];
+    let paramIndex = 2;
+
+    if (queryParams.category) {
+      whereClause += ` AND er.category = $${paramIndex++}`;
+      params.push(queryParams.category);
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (ea.created_at, ea.id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      rule_code: string;
+      rule_name: string;
+      category: string;
+      source_type: string;
+      source_id: string;
+      credits_awarded: number;
+      xp_awarded: number;
+      created_at: Date;
+    }>(
+      `SELECT ea.id, ea.rule_code, er.name as rule_name, er.category,
+              ea.source_type, ea.source_id, ea.credits_awarded, ea.xp_awarded, ea.created_at
+       FROM earning_awards ea
+       JOIN earning_rules er ON er.code = ea.rule_code
+       WHERE ${whereClause}
+       ORDER BY ea.created_at DESC, ea.id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.awards,
-      meta: { limit, offset, total: result.total },
+      data: items.map((r) => ({
+        id: r.id,
+        ruleCode: r.rule_code,
+        ruleName: r.rule_name,
+        category: r.category,
+        sourceType: r.source_type,
+        sourceId: r.source_id,
+        creditsAwarded: r.credits_awarded,
+        xpAwarded: r.xp_awarded,
+        createdAt: r.created_at,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -159,30 +341,126 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: categories });
   });
 
-  // Get store items
+  // Get store items (keyset pagination)
   app.get('/store/items', async (request, reply) => {
-    const query = request.query as {
+    const queryParams = request.query as {
       category?: string;
       rarity?: string;
       featured?: string;
       limit?: string;
-      offset?: string;
+      cursor?: string;
     };
 
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await storeService.getItems({
-      category: query.category,
-      rarity: query.rarity,
-      featured: query.featured === 'true',
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { sortOrder: number; sku: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = 'enabled = TRUE';
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (queryParams.category) {
+      whereClause += ` AND category = $${paramIndex++}`;
+      params.push(queryParams.category);
+    }
+
+    if (queryParams.rarity) {
+      whereClause += ` AND rarity = $${paramIndex++}`;
+      params.push(queryParams.rarity);
+    }
+
+    if (queryParams.featured === 'true') {
+      whereClause += ` AND featured = TRUE`;
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (sort_order, sku) > ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.sortOrder, cursorData.sku);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      sku: string;
+      name: string;
+      description: string | null;
+      category: string;
+      subcategory: string | null;
+      price_credits: number;
+      rarity: string;
+      limited_quantity: number | null;
+      sold_count: number;
+      requires_level: number;
+      requires_items: unknown;
+      metadata: unknown;
+      enabled: boolean;
+      featured: boolean;
+      sort_order: number;
+    }>(
+      `SELECT * FROM store_items
+       WHERE ${whereClause}
+       ORDER BY sort_order ASC, sku ASC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Safe JSON parse helper
+    const safeJsonParse = <T>(value: unknown, defaultValue: T): T => {
+      if (value === null || value === undefined) return defaultValue;
+      if (typeof value === 'object') return value as T;
+      if (typeof value === 'string') {
+        if (value.trim() === '') return defaultValue;
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          return defaultValue;
+        }
+      }
+      return defaultValue;
+    };
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          sortOrder: items[items.length - 1].sort_order,
+          sku: items[items.length - 1].sku
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.items,
-      meta: { limit, offset, total: result.total },
+      data: items.map((r) => ({
+        sku: r.sku,
+        name: r.name,
+        description: r.description ?? undefined,
+        category: r.category,
+        subcategory: r.subcategory ?? undefined,
+        priceCredits: r.price_credits,
+        rarity: r.rarity,
+        limitedQuantity: r.limited_quantity ?? undefined,
+        soldCount: r.sold_count,
+        requiresLevel: r.requires_level,
+        requiresItems: safeJsonParse<string[]>(r.requires_items, []),
+        metadata: safeJsonParse<Record<string, unknown>>(r.metadata, {}),
+        enabled: r.enabled,
+        featured: r.featured,
+        sortOrder: r.sort_order,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -235,21 +513,120 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     }
   });
 
-  // Get user inventory
+  // Get user inventory (keyset pagination)
   app.get('/store/inventory', { preHandler: authenticate }, async (request, reply) => {
-    const query = request.query as { category?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '100'), 200);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { category?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '100'), 200);
 
-    const result = await storeService.getInventory(request.user!.userId, {
-      category: query.category,
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { purchasedAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = 'ui.user_id = $1';
+    const params: unknown[] = [request.user!.userId];
+    let paramIndex = 2;
+
+    if (queryParams.category) {
+      whereClause += ` AND si.category = $${paramIndex++}`;
+      params.push(queryParams.category);
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (ui.purchased_at, ui.id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.purchasedAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      user_id: string;
+      sku: string;
+      quantity: number;
+      purchased_at: Date;
+      expires_at: Date | null;
+      item_name: string;
+      item_description: string | null;
+      item_category: string;
+      item_subcategory: string | null;
+      item_price: number;
+      item_rarity: string;
+      item_metadata: unknown;
+    }>(
+      `SELECT ui.id, ui.user_id, ui.sku, ui.quantity, ui.purchased_at, ui.expires_at,
+              si.name as item_name, si.description as item_description, si.category as item_category,
+              si.subcategory as item_subcategory, si.price_credits as item_price, si.rarity as item_rarity,
+              si.metadata as item_metadata
+       FROM user_inventory ui
+       JOIN store_items si ON si.sku = ui.sku
+       WHERE ${whereClause}
+       ORDER BY ui.purchased_at DESC, ui.id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Safe JSON parse helper
+    const safeJsonParse = <T>(value: unknown, defaultValue: T): T => {
+      if (value === null || value === undefined) return defaultValue;
+      if (typeof value === 'object') return value as T;
+      if (typeof value === 'string') {
+        if (value.trim() === '') return defaultValue;
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          return defaultValue;
+        }
+      }
+      return defaultValue;
+    };
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          purchasedAt: items[items.length - 1].purchased_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.items,
-      meta: { limit, offset, total: result.total },
+      data: items.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        sku: r.sku,
+        item: {
+          sku: r.sku,
+          name: r.item_name,
+          description: r.item_description ?? undefined,
+          category: r.item_category,
+          subcategory: r.item_subcategory ?? undefined,
+          priceCredits: r.item_price,
+          rarity: r.item_rarity,
+          soldCount: 0,
+          requiresLevel: 1,
+          requiresItems: [],
+          metadata: safeJsonParse<Record<string, unknown>>(r.item_metadata, {}),
+          enabled: true,
+          featured: false,
+          sortOrder: 0,
+        },
+        quantity: r.quantity,
+        purchasedAt: r.purchased_at,
+        expiresAt: r.expires_at ?? undefined,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -353,24 +730,99 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: path });
   });
 
-  // Get buddy leaderboard
+  // Get buddy leaderboard (keyset pagination)
   app.get('/buddy/leaderboard', async (request, reply) => {
-    const query = request.query as { species?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { species?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const species = query.species as any;
+    const species = queryParams.species as any;
     if (species && !BUDDY_SPECIES.includes(species)) {
       return reply.status(400).send({
         error: { code: 'INVALID_SPECIES', message: 'Invalid species', statusCode: 400 },
       });
     }
 
-    const result = await buddyService.getLeaderboard({ species, limit, offset });
+    // Parse cursor for keyset pagination
+    let cursorData: { level: number; totalXpEarned: number; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = 'tb.visible = TRUE';
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (species) {
+      whereClause += ` AND tb.species = $${paramIndex++}`;
+      params.push(species);
+    }
+
+    if (cursorData) {
+      // Composite keyset for (level DESC, total_xp_earned DESC, user_id ASC)
+      whereClause += ` AND (tb.level, tb.total_xp_earned, tb.user_id) < ($${paramIndex++}, $${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.level, cursorData.totalXpEarned, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      user_id: string;
+      username: string;
+      species: string;
+      nickname: string | null;
+      level: number;
+      stage: number;
+      total_xp_earned: number;
+    }>(
+      `SELECT tb.user_id, u.username, tb.species, tb.nickname, tb.level, tb.stage, tb.total_xp_earned
+       FROM training_buddies tb
+       JOIN users u ON u.id = tb.user_id
+       WHERE ${whereClause}
+       ORDER BY tb.level DESC, tb.total_xp_earned DESC, tb.user_id ASC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Get stage names for each entry
+    const entries = await Promise.all(
+      items.map(async (r, i) => {
+        const stageInfo = await buddyService.getStageInfo(r.species as any, r.stage);
+        return {
+          rank: i + 1, // Note: Keyset pagination doesn't provide global rank, only relative position
+          userId: r.user_id,
+          username: r.username,
+          species: r.species,
+          nickname: r.nickname ?? undefined,
+          level: r.level,
+          stage: r.stage,
+          stageName: stageInfo?.stageName || `${r.species} Stage ${r.stage}`,
+        };
+      })
+    );
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          level: items[items.length - 1].level,
+          totalXpEarned: items[items.length - 1].total_xp_earned,
+          id: items[items.length - 1].user_id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.entries,
-      meta: { limit, offset, total: result.total },
+      data: entries,
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -467,29 +919,106 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: { success: true } });
   });
 
-  // Admin: Get audit log
+  // Admin: Get audit log (keyset pagination)
   app.get('/admin/credits/audit', { preHandler: [authenticate, requireRole('admin')] }, async (request, reply) => {
-    const query = request.query as {
+    const queryParams = request.query as {
       adminId?: string;
       targetUserId?: string;
       action?: string;
       limit?: string;
-      offset?: string;
+      cursor?: string;
     };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await antiabuseService.getAuditLog({
-      adminId: query.adminId,
-      targetUserId: query.targetUserId,
-      action: query.action,
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = '1=1';
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (queryParams.adminId) {
+      whereClause += ` AND al.admin_user_id = $${paramIndex++}`;
+      params.push(queryParams.adminId);
+    }
+    if (queryParams.targetUserId) {
+      whereClause += ` AND al.target_user_id = $${paramIndex++}`;
+      params.push(queryParams.targetUserId);
+    }
+    if (queryParams.action) {
+      whereClause += ` AND al.action = $${paramIndex++}`;
+      params.push(queryParams.action);
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (al.created_at, al.id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      admin_user_id: string;
+      admin_username: string | null;
+      action: string;
+      target_user_id: string | null;
+      target_username: string | null;
+      target_tx_id: string | null;
+      details: string;
+      reason: string | null;
+      created_at: Date;
+    }>(
+      `SELECT al.*, admin.username as admin_username, target.username as target_username
+       FROM admin_credit_audit_log al
+       LEFT JOIN users admin ON admin.id = al.admin_user_id
+       LEFT JOIN users target ON target.id = al.target_user_id
+       WHERE ${whereClause}
+       ORDER BY al.created_at DESC, al.id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.entries,
-      meta: { limit, offset, total: result.total },
+      data: items.map((r) => {
+        const details = JSON.parse(r.details || '{}');
+        return {
+          id: r.id,
+          adminId: r.admin_user_id,
+          adminUsername: r.admin_username ?? undefined,
+          action: r.action,
+          targetUserId: r.target_user_id ?? undefined,
+          targetUsername: r.target_username ?? undefined,
+          targetType: details.targetType || '',
+          targetId: r.target_tx_id || details.targetId || '',
+          details,
+          reason: r.reason ?? undefined,
+          createdAt: r.created_at,
+        };
+      }),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -497,29 +1026,125 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
   // ANTI-ABUSE ADMIN ROUTES
   // ============================================
 
-  // Admin: Get fraud flags
+  // Admin: Get fraud flags (keyset pagination)
   app.get('/admin/fraud-flags', { preHandler: [authenticate, requireRole('admin')] }, async (request, reply) => {
-    const query = request.query as {
+    const queryParams = request.query as {
       userId?: string;
       status?: string;
       severity?: string;
       limit?: string;
-      offset?: string;
+      cursor?: string;
     };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await antiabuseService.getFlags({
-      userId: query.userId,
-      status: query.status as FlagStatus,
-      severity: query.severity as any,
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { severity: string; createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    // Build keyset query
+    let whereClause = '1=1';
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (queryParams.userId) {
+      whereClause += ` AND user_id = $${paramIndex++}`;
+      params.push(queryParams.userId);
+    }
+    if (queryParams.status) {
+      whereClause += ` AND status = $${paramIndex++}`;
+      params.push(queryParams.status);
+    }
+    if (queryParams.severity) {
+      whereClause += ` AND severity = $${paramIndex++}`;
+      params.push(queryParams.severity);
+    }
+
+    // Severity order mapping for keyset pagination
+    const severityOrder = { 'critical': 1, 'high': 2, 'medium': 3, 'low': 4 };
+
+    if (cursorData) {
+      const cursorSeverityOrder = severityOrder[cursorData.severity as keyof typeof severityOrder] || 4;
+      whereClause += ` AND (
+        CASE severity
+          WHEN 'critical' THEN 1
+          WHEN 'high' THEN 2
+          WHEN 'medium' THEN 3
+          WHEN 'low' THEN 4
+        END,
+        created_at DESC,
+        id DESC
+      ) > ($${paramIndex++}, $${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorSeverityOrder, cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      user_id: string;
+      flag_type: string;
+      severity: string;
+      details: string;
+      status: string;
+      reviewed_by: string | null;
+      reviewed_at: Date | null;
+      resolution: string | null;
+      created_at: Date;
+    }>(
+      `SELECT * FROM economy_fraud_flags
+       WHERE ${whereClause}
+       ORDER BY
+         CASE severity
+           WHEN 'critical' THEN 1
+           WHEN 'high' THEN 2
+           WHEN 'medium' THEN 3
+           WHEN 'low' THEN 4
+         END,
+         created_at DESC,
+         id DESC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          severity: items[items.length - 1].severity,
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.flags,
-      meta: { limit, offset, total: result.total },
+      data: items.map((r) => {
+        const details = JSON.parse(r.details || '{}');
+        return {
+          id: r.id,
+          userId: r.user_id,
+          flagType: r.flag_type as FlagStatus,
+          severity: r.severity,
+          description: details.description || '',
+          metadata: details,
+          status: r.status as FlagStatus,
+          reviewedBy: r.reviewed_by ?? undefined,
+          reviewedAt: r.reviewed_at ?? undefined,
+          reviewNotes: r.resolution ?? undefined,
+          createdAt: r.created_at,
+        };
+      }),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -662,30 +1287,106 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
   });
 
   // NOTE: Trainer routes are registered in trainers.ts
-  // Browse all classes (added here since classes route may not exist in trainers.ts)
+  // Browse all classes (keyset pagination)
   app.get('/classes/browse', async (request, reply) => {
-    const query = request.query as {
+    const queryParams = request.query as {
       category?: string;
       upcoming?: string;
       limit?: string;
-      offset?: string;
+      cursor?: string;
     };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const { trainerService } = await import('../../modules/economy/trainer.service');
+    // Parse cursor for keyset pagination
+    let cursorData: { startAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
 
-    const result = await trainerService.listClasses({
-      category: query.category,
-      upcoming: query.upcoming !== 'false', // Default to upcoming
-      status: 'scheduled',
-      limit,
-      offset,
-    });
+    const { queryAll } = await import('../../db/client');
+
+    const upcoming = queryParams.upcoming !== 'false';
+
+    // Build keyset query
+    let whereClause = 'status = $1';
+    const params: unknown[] = ['scheduled'];
+    let paramIndex = 2;
+
+    if (queryParams.category) {
+      whereClause += ` AND category = $${paramIndex++}`;
+      params.push(queryParams.category);
+    }
+
+    if (upcoming) {
+      whereClause += ` AND start_at >= NOW()`;
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (start_at, id) > ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.startAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      trainer_id: string;
+      title: string;
+      description: string | null;
+      category: string;
+      max_participants: number;
+      credits_price: number;
+      duration_minutes: number;
+      start_at: Date;
+      location_type: string;
+      location_details: unknown;
+      status: string;
+      recurring_rule: string | null;
+      created_at: Date;
+      updated_at: Date;
+    }>(
+      `SELECT * FROM trainer_classes
+       WHERE ${whereClause}
+       ORDER BY start_at ASC, id ASC
+       LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          startAt: items[items.length - 1].start_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.classes,
-      meta: { limit, offset, total: result.total },
+      data: items.map((row) => ({
+        id: row.id,
+        trainerId: row.trainer_id,
+        title: row.title,
+        description: row.description ?? undefined,
+        category: row.category,
+        maxParticipants: row.max_participants,
+        creditsPrice: row.credits_price,
+        durationMinutes: row.duration_minutes,
+        startAt: row.start_at,
+        locationType: row.location_type,
+        locationDetails: row.location_details,
+        status: row.status,
+        recurringRule: row.recurring_rule ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -916,42 +1617,63 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: hold });
   });
 
-  // Admin: Get all escrow holds
+  // Admin: Get all escrow holds (keyset pagination)
   app.get('/admin/escrow', { preHandler: [authenticate, requireRole('admin')] }, async (request, reply) => {
-    const query = request.query as { userId?: string; status?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { userId?: string; status?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const { queryAll, queryOne } = await import('../../db/client');
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
 
     let whereClause = '1=1';
     const params: unknown[] = [];
     let paramIndex = 1;
 
-    if (query.userId) {
+    if (queryParams.userId) {
       whereClause += ` AND user_id = $${paramIndex++}`;
-      params.push(query.userId);
+      params.push(queryParams.userId);
     }
-    if (query.status) {
+    if (queryParams.status) {
       whereClause += ` AND status = $${paramIndex++}`;
-      params.push(query.status);
+      params.push(queryParams.status);
     }
 
-    params.push(limit, offset);
+    if (cursorData) {
+      whereClause += ` AND (created_at, id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
 
     const rows = await queryAll(
-      `SELECT * FROM escrow_holds WHERE ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      `SELECT * FROM escrow_holds WHERE ${whereClause} ORDER BY created_at DESC, id DESC LIMIT $${paramIndex}`,
       params
     );
 
-    const countResult = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM escrow_holds WHERE ${whereClause}`,
-      params.slice(0, -2)
-    );
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: (items[items.length - 1] as any).created_at,
+          id: (items[items.length - 1] as any).id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: rows,
-      meta: { limit, offset, total: parseInt(countResult?.count || '0') },
+      data: items,
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -993,22 +1715,103 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
   // DISPUTE ROUTES
   // ============================================
 
-  // Get user's disputes
+  // Get user's disputes (keyset pagination)
   app.get('/disputes', { preHandler: authenticate }, async (request, reply) => {
-    const query = request.query as { role?: string; status?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { role?: string; status?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const result = await disputeService.getUserDisputes(request.user!.userId, {
-      role: query.role as any,
-      status: query.status as any,
-      limit,
-      offset,
-    });
+    // Parse cursor for keyset pagination
+    let cursorData: { createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
+
+    const { queryAll } = await import('../../db/client');
+
+    const role = queryParams.role as 'reporter' | 'respondent' | 'all' | undefined;
+    let whereClause = role === 'reporter'
+      ? 'reporter_id = $1'
+      : role === 'respondent'
+        ? 'respondent_id = $1'
+        : '(reporter_id = $1 OR respondent_id = $1)';
+
+    const params: unknown[] = [request.user!.userId];
+    let paramIndex = 2;
+
+    if (queryParams.status) {
+      whereClause += ` AND status = $${paramIndex++}`;
+      params.push(queryParams.status);
+    }
+
+    if (cursorData) {
+      whereClause += ` AND (created_at, id) < ($${paramIndex++}, $${paramIndex++})`;
+      params.push(cursorData.createdAt, cursorData.id);
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      reporter_id: string;
+      respondent_id: string;
+      dispute_type: string;
+      reference_type: string;
+      reference_id: string;
+      amount_disputed: number | null;
+      escrow_id: string | null;
+      description: string;
+      evidence: Array<{ type: string; url?: string; text?: string; uploadedAt: string }> | null;
+      status: string;
+      resolution: string | null;
+      resolution_amount: number | null;
+      resolved_by: string | null;
+      resolved_at: Date | null;
+      deadline: Date | null;
+      created_at: Date;
+      updated_at: Date;
+    }>(
+      `SELECT * FROM economy_disputes WHERE ${whereClause} ORDER BY created_at DESC, id DESC LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.disputes,
-      meta: { limit, offset, total: result.total },
+      data: items.map((row) => ({
+        id: row.id,
+        reporterId: row.reporter_id,
+        respondentId: row.respondent_id,
+        disputeType: row.dispute_type,
+        referenceType: row.reference_type,
+        referenceId: row.reference_id,
+        amountDisputed: row.amount_disputed ?? undefined,
+        escrowId: row.escrow_id ?? undefined,
+        description: row.description,
+        evidence: row.evidence || [],
+        status: row.status,
+        resolution: row.resolution ?? undefined,
+        resolutionAmount: row.resolution_amount ?? undefined,
+        resolvedBy: row.resolved_by ?? undefined,
+        resolvedAt: row.resolved_at ?? undefined,
+        deadline: row.deadline ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 
@@ -1106,24 +1909,113 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.status(201).send({ data: message });
   });
 
-  // Admin: Get pending disputes
+  // Admin: Get pending disputes (keyset pagination)
   app.get('/admin/disputes', { preHandler: [authenticate, requireRole('admin')] }, async (request, reply) => {
-    const query = request.query as { status?: string; disputeType?: string; limit?: string; offset?: string };
-    const limit = Math.min(parseInt(query.limit || '50'), 100);
-    const offset = parseInt(query.offset || '0');
+    const queryParams = request.query as { status?: string; disputeType?: string; limit?: string; cursor?: string };
+    const limit = Math.min(parseInt(queryParams.limit || '50'), 100);
 
-    const statuses = query.status ? [query.status] : undefined;
+    // Parse cursor for keyset pagination
+    let cursorData: { deadline: string | null; createdAt: string; id: string } | null = null;
+    if (queryParams.cursor) {
+      try {
+        cursorData = JSON.parse(Buffer.from(queryParams.cursor, 'base64').toString());
+      } catch {
+        // Invalid cursor, start from beginning
+      }
+    }
 
-    const result = await disputeService.getPendingDisputes({
-      status: statuses as any,
-      disputeType: query.disputeType as any,
-      limit,
-      offset,
-    });
+    const { queryAll } = await import('../../db/client');
+
+    const statuses = queryParams.status ? [queryParams.status] : ['open', 'investigating', 'pending_response'];
+
+    let whereClause = `status = ANY($1)`;
+    const params: unknown[] = [statuses];
+    let paramIndex = 2;
+
+    if (queryParams.disputeType) {
+      whereClause += ` AND dispute_type = $${paramIndex++}`;
+      params.push(queryParams.disputeType);
+    }
+
+    if (cursorData) {
+      // Complex keyset for (deadline ASC NULLS LAST, created_at ASC)
+      if (cursorData.deadline === null) {
+        // Cursor points to a row with NULL deadline
+        whereClause += ` AND (
+          deadline IS NOT NULL
+          OR (deadline IS NULL AND (created_at, id) > ($${paramIndex++}, $${paramIndex++}))
+        )`;
+        params.push(cursorData.createdAt, cursorData.id);
+      } else {
+        whereClause += ` AND (
+          (deadline IS NOT NULL AND (deadline, created_at, id) > ($${paramIndex++}, $${paramIndex++}, $${paramIndex++}))
+          OR deadline IS NULL
+        )`;
+        params.push(cursorData.deadline, cursorData.createdAt, cursorData.id);
+      }
+    }
+
+    // Fetch one extra to determine if there are more results
+    params.push(limit + 1);
+
+    const rows = await queryAll<{
+      id: string;
+      reporter_id: string;
+      respondent_id: string;
+      dispute_type: string;
+      reference_type: string;
+      reference_id: string;
+      amount_disputed: number | null;
+      escrow_id: string | null;
+      description: string;
+      evidence: Array<{ type: string; url?: string; text?: string; uploadedAt: string }> | null;
+      status: string;
+      resolution: string | null;
+      resolution_amount: number | null;
+      resolved_by: string | null;
+      resolved_at: Date | null;
+      deadline: Date | null;
+      created_at: Date;
+      updated_at: Date;
+    }>(
+      `SELECT * FROM economy_disputes WHERE ${whereClause} ORDER BY deadline ASC NULLS LAST, created_at ASC, id ASC LIMIT $${paramIndex}`,
+      params
+    );
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, -1) : rows;
+
+    // Build next cursor
+    const nextCursor = items.length > 0 && hasMore
+      ? Buffer.from(JSON.stringify({
+          deadline: items[items.length - 1].deadline,
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id
+        })).toString('base64')
+      : null;
 
     return reply.send({
-      data: result.disputes,
-      meta: { limit, offset, total: result.total },
+      data: items.map((row) => ({
+        id: row.id,
+        reporterId: row.reporter_id,
+        respondentId: row.respondent_id,
+        disputeType: row.dispute_type,
+        referenceType: row.reference_type,
+        referenceId: row.reference_id,
+        amountDisputed: row.amount_disputed ?? undefined,
+        escrowId: row.escrow_id ?? undefined,
+        description: row.description,
+        evidence: row.evidence || [],
+        status: row.status,
+        resolution: row.resolution ?? undefined,
+        resolutionAmount: row.resolution_amount ?? undefined,
+        resolvedBy: row.resolved_by ?? undefined,
+        resolvedAt: row.resolved_at ?? undefined,
+        deadline: row.deadline ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      meta: { limit, hasMore, nextCursor },
     });
   });
 

@@ -448,7 +448,7 @@ export const moderationService = {
       target_entry_id: string | null;
       action_type: string;
       reason: string | null;
-      metadata: string;
+      metadata: Record<string, unknown>; // JSONB returns object, not string
       created_at: Date;
     }>(
       `SELECT ma.*, m.username as moderator_username, t.username as target_username
@@ -478,7 +478,8 @@ export const moderationService = {
         targetEntryId: r.target_entry_id ?? undefined,
         actionType: r.action_type as ActionType,
         reason: r.reason ?? undefined,
-        metadata: JSON.parse(r.metadata || '{}'),
+        // JSONB columns return JavaScript objects, not strings
+        metadata: r.metadata || {},
         createdAt: r.created_at,
       })),
       total: parseInt(countResult?.count || '0'),
@@ -504,7 +505,7 @@ export const moderationService = {
       target_entry_id: string | null;
       action_type: string;
       reason: string | null;
-      metadata: string;
+      metadata: Record<string, unknown>; // JSONB returns object, not string
       created_at: Date;
     }>(
       `SELECT ma.*, m.username as moderator_username
@@ -532,7 +533,8 @@ export const moderationService = {
         targetEntryId: r.target_entry_id ?? undefined,
         actionType: r.action_type as ActionType,
         reason: r.reason ?? undefined,
-        metadata: JSON.parse(r.metadata || '{}'),
+        // JSONB columns return JavaScript objects, not strings
+        metadata: r.metadata || {},
         createdAt: r.created_at,
       })),
       total: parseInt(countResult?.count || '0'),
@@ -576,7 +578,7 @@ export const moderationService = {
     // and verify mute hasn't expired
     const lastMuteAction = await queryOne<{
       action_type: string;
-      metadata: string;
+      metadata: Record<string, unknown>; // JSONB returns object, not string
       created_at: Date;
     }>(
       `SELECT action_type, metadata, created_at
@@ -593,8 +595,9 @@ export const moderationService = {
     let mutedUntil: Date | undefined;
 
     if (lastMuteAction && lastMuteAction.action_type === 'mute_user') {
-      const metadata = JSON.parse(lastMuteAction.metadata || '{}');
-      if (metadata.muteUntil) {
+      // JSONB columns return JavaScript objects, not strings
+      const metadata = lastMuteAction.metadata || {};
+      if (metadata.muteUntil && typeof metadata.muteUntil === 'string') {
         const expiry = new Date(metadata.muteUntil);
         if (expiry > new Date()) {
           // Mute is still active

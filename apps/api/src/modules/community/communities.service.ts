@@ -318,8 +318,8 @@ export const communitiesService = {
       institutionType: undefined, // Column doesn't exist in schema
       archetypeId: row.archetype_id ?? undefined,
       privacy: row.privacy as CommunityPrivacy,
-      iconEmoji: undefined,
-      accentColor: row.primary_color ?? undefined,
+      iconEmoji: '',
+      accentColor: row.primary_color ?? '',
       bannerImageUrl: row.banner_url ?? undefined,
       logoImageUrl: row.avatar_url ?? undefined,
       rules: undefined,
@@ -447,8 +447,8 @@ export const communitiesService = {
         institutionType: undefined, // Column doesn't exist in schema
         archetypeId: r.archetype_id ?? undefined,
         privacy: r.privacy as CommunityPrivacy,
-        iconEmoji: undefined,
-        accentColor: r.primary_color ?? undefined,
+        iconEmoji: '',
+        accentColor: r.primary_color ?? '',
         bannerImageUrl: r.banner_url ?? undefined,
         logoImageUrl: r.avatar_url ?? undefined,
         memberCount: r.member_count,

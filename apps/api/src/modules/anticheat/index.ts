@@ -350,7 +350,7 @@ export const antiCheatService = {
       workout_id: string | null;
       flag_type: string;
       severity: string;
-      details: string;
+      details: Record<string, unknown>; // JSONB returns object, not string
       status: string;
       reviewed_by: string | null;
       reviewed_at: Date | null;
@@ -378,7 +378,8 @@ export const antiCheatService = {
         workoutId: r.workout_id ?? undefined,
         flagType: r.flag_type as FlagType,
         severity: r.severity as Severity,
-        details: JSON.parse(r.details || '{}'),
+        // JSONB columns return JavaScript objects, not strings
+        details: r.details || {},
         status: r.status as FlagStatus,
         reviewedBy: r.reviewed_by ?? undefined,
         reviewedAt: r.reviewed_at ?? undefined,
@@ -417,7 +418,7 @@ export const antiCheatService = {
       workout_id: string | null;
       flag_type: string;
       severity: string;
-      details: string;
+      details: Record<string, unknown>; // JSONB returns object, not string
       status: string;
       reviewed_by: string | null;
       reviewed_at: Date | null;
@@ -434,7 +435,8 @@ export const antiCheatService = {
       workoutId: r.workout_id ?? undefined,
       flagType: r.flag_type as FlagType,
       severity: r.severity as Severity,
-      details: JSON.parse(r.details || '{}'),
+      // JSONB columns return JavaScript objects, not strings
+      details: r.details || {},
       status: r.status as FlagStatus,
       reviewedBy: r.reviewed_by ?? undefined,
       reviewedAt: r.reviewed_at ?? undefined,

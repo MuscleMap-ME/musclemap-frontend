@@ -3794,6 +3794,252 @@ async function testNutrition(ctx: TestContext) {
 }
 
 // ============================================
+// SLEEP HYGIENE
+// ============================================
+
+async function testSleepHygiene(ctx: TestContext) {
+  logSection('SLEEP HYGIENE');
+
+  // Get sleep hygiene dashboard
+  await runTest('SleepHygiene', 'Get sleep hygiene dashboard', async () => {
+    const res = await request('GET', '/me/sleep-hygiene', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return sleep hygiene dashboard');
+  });
+
+  // Get preferences
+  await runTest('SleepHygiene', 'Get sleep hygiene preferences', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/preferences', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return preferences');
+  });
+
+  // Enable sleep hygiene
+  await runTest('SleepHygiene', 'Enable sleep hygiene', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/enable', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should enable sleep hygiene');
+  });
+
+  // Update preferences
+  await runTest('SleepHygiene', 'Update sleep hygiene preferences', async () => {
+    const res = await request('PATCH', '/me/sleep-hygiene/preferences', {
+      token: ctx.token,
+      body: {
+        showOnDashboard: true,
+        showTips: true,
+        showAssessments: true,
+        bedtimeReminderEnabled: true,
+        bedtimeReminderMinutesBefore: 30,
+        earnCreditsEnabled: true,
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update preferences');
+  });
+
+  // Get all tips
+  await runTest('SleepHygiene', 'Get all sleep hygiene tips', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/tips', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return tips');
+  });
+
+  // Get tips by category
+  await runTest('SleepHygiene', 'Get tips by category', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/tips?category=environment', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return environment tips');
+  });
+
+  // Get tips with limit
+  await runTest('SleepHygiene', 'Get tips with limit', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/tips?limit=5', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return limited tips');
+  });
+
+  // Create assessment with pre-sleep checklist
+  await runTest('SleepHygiene', 'Create assessment with pre-sleep checklist', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/assessments', {
+      token: ctx.token,
+      body: {
+        preSleepChecklist: {
+          avoidedCaffeine: true,
+          avoidedAlcohol: true,
+          avoidedScreens1hr: false,
+          coolRoom: true,
+          darkRoom: true,
+          windDownRoutine: true,
+          consistentBedtime: true,
+          lightDinner: true,
+          noLateExercise: true,
+          relaxationPractice: false,
+        },
+        notes: 'E2E test assessment',
+      },
+      expectedStatus: [200, 201],
+    });
+    assert([200, 201].includes(res.status), 'Should create assessment');
+  });
+
+  // Update assessment with post-sleep checklist
+  await runTest('SleepHygiene', 'Update assessment with post-sleep checklist', async () => {
+    const res = await request('PATCH', '/me/sleep-hygiene/assessments/today', {
+      token: ctx.token,
+      body: {
+        postSleepChecklist: {
+          fellAsleepEasily: true,
+          stayedAsleep: true,
+          wokeRefreshed: true,
+          noGrogginess: false,
+          goodEnergy: true,
+          noMidnightWaking: true,
+        },
+      },
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should update assessment');
+  });
+
+  // Get today's assessment
+  await runTest('SleepHygiene', 'Get today assessment', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/assessments/today', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should return today assessment');
+  });
+
+  // Get assessment history
+  await runTest('SleepHygiene', 'Get assessment history', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/assessments?limit=10', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return assessment history');
+  });
+
+  // Get streaks
+  await runTest('SleepHygiene', 'Get sleep hygiene streaks', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/streaks', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return streaks');
+  });
+
+  // Get today's credits
+  await runTest('SleepHygiene', 'Get today credits', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/credits', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return today credits');
+  });
+
+  // Get total credits earned
+  await runTest('SleepHygiene', 'Get total credits earned', async () => {
+    const res = await request('GET', '/me/sleep-hygiene/credits/total', {
+      token: ctx.token,
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should return total credits');
+  });
+
+  // Bookmark a tip
+  await runTest('SleepHygiene', 'Bookmark a tip', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/tips/dark-room/bookmark', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should bookmark tip');
+  });
+
+  // Mark tip as helpful
+  await runTest('SleepHygiene', 'Mark tip as helpful', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/tips/dark-room/helpful', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should mark tip helpful');
+  });
+
+  // Follow a tip
+  await runTest('SleepHygiene', 'Follow a tip', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/tips/dark-room/follow', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should follow tip');
+  });
+
+  // Unfollow a tip
+  await runTest('SleepHygiene', 'Unfollow a tip', async () => {
+    const res = await request('DELETE', '/me/sleep-hygiene/tips/dark-room/follow', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should unfollow tip');
+  });
+
+  // Remove bookmark
+  await runTest('SleepHygiene', 'Remove bookmark from tip', async () => {
+    const res = await request('DELETE', '/me/sleep-hygiene/tips/dark-room/bookmark', {
+      token: ctx.token,
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should remove bookmark');
+  });
+
+  // Dismiss a tip
+  await runTest('SleepHygiene', 'Dismiss a tip', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/tips/dark-room/dismiss', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200, 404],
+    });
+    assert([200, 404].includes(res.status), 'Should dismiss tip');
+  });
+
+  // Disable sleep hygiene
+  await runTest('SleepHygiene', 'Disable sleep hygiene', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/disable', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should disable sleep hygiene');
+  });
+
+  // Re-enable for remaining tests
+  await runTest('SleepHygiene', 'Re-enable sleep hygiene', async () => {
+    const res = await request('POST', '/me/sleep-hygiene/enable', {
+      token: ctx.token,
+      body: {},
+      expectedStatus: [200],
+    });
+    assert(res.status === 200, 'Should re-enable sleep hygiene');
+  });
+}
+
+// ============================================
 // CLEANUP
 // ============================================
 
@@ -3900,6 +4146,7 @@ async function main() {
     await testCohortPreferences(ctx);
     await testAdminDisputes(ctx);
     await testNutrition(ctx);
+    await testSleepHygiene(ctx);
 
     await cleanup(ctx);
   } catch (error) {

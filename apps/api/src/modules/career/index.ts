@@ -840,7 +840,7 @@ export async function getTeamReadiness(hangoutId: string): Promise<TeamReadiness
       weakEvents: permission.share_weak_events ? readiness?.weakEvents || [] : [],
     });
 
-    if (readiness?.readinessScore !== null) {
+    if (readiness && readiness.readinessScore !== null) {
       totalReadiness += readiness.readinessScore;
       readinessCount++;
     }

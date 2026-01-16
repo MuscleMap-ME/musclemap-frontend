@@ -256,7 +256,7 @@ export const bulletinService = {
       content: string;
       content_lang: string;
       post_type: string;
-      media_urls: string;
+      media_urls: string[] | null;
       linked_workout_id: string | null;
       linked_milestone_id: string | null;
       upvotes: number;
@@ -304,7 +304,7 @@ export const bulletinService = {
         content: r.content,
         contentLang: r.content_lang,
         postType: r.post_type as PostType,
-        mediaUrls: r.media_urls ? JSON.parse(r.media_urls) : [],
+        mediaUrls: r.media_urls || [],
         linkedWorkoutId: r.linked_workout_id ?? undefined,
         linkedMilestoneId: r.linked_milestone_id ?? undefined,
         upvotes: r.upvotes,
@@ -343,7 +343,7 @@ export const bulletinService = {
       content: string;
       content_lang: string;
       post_type: string;
-      media_urls: string;
+      media_urls: string[] | null;
       linked_workout_id: string | null;
       linked_milestone_id: string | null;
       upvotes: number;
@@ -388,7 +388,7 @@ export const bulletinService = {
       content: row.content,
       contentLang: row.content_lang,
       postType: row.post_type as PostType,
-      mediaUrls: row.media_urls ? JSON.parse(row.media_urls) : [],
+      mediaUrls: row.media_urls || [],
       linkedWorkoutId: row.linked_workout_id ?? undefined,
       linkedMilestoneId: row.linked_milestone_id ?? undefined,
       upvotes: row.upvotes,

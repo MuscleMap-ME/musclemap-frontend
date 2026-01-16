@@ -211,10 +211,10 @@ export default async function adminSchedulerRoutes(fastify: FastifyInstance): Pr
    * GET /admin/scheduler/jobs/:id
    * Get a single job by ID
    */
-  fastify.get(
+  fastify.get<{ Params: { id: string } }>(
     '/admin/scheduler/jobs/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
 
       const job = await queryOne<ScheduledJob>(
@@ -296,10 +296,10 @@ export default async function adminSchedulerRoutes(fastify: FastifyInstance): Pr
    * PUT /admin/scheduler/jobs/:id
    * Update an existing scheduled job
    */
-  fastify.put(
+  fastify.put<{ Params: { id: string } }>(
     '/admin/scheduler/jobs/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
       const body = updateJobSchema.parse(request.body);
@@ -389,10 +389,10 @@ export default async function adminSchedulerRoutes(fastify: FastifyInstance): Pr
    * DELETE /admin/scheduler/jobs/:id
    * Delete a scheduled job
    */
-  fastify.delete(
+  fastify.delete<{ Params: { id: string } }>(
     '/admin/scheduler/jobs/:id',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -423,10 +423,10 @@ export default async function adminSchedulerRoutes(fastify: FastifyInstance): Pr
    * POST /admin/scheduler/jobs/:id/run
    * Run a job immediately (manual trigger)
    */
-  fastify.post(
+  fastify.post<{ Params: { id: string } }>(
     '/admin/scheduler/jobs/:id/run',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 
@@ -486,10 +486,10 @@ export default async function adminSchedulerRoutes(fastify: FastifyInstance): Pr
    * PUT /admin/scheduler/jobs/:id/toggle
    * Enable or disable a job
    */
-  fastify.put(
+  fastify.put<{ Params: { id: string } }>(
     '/admin/scheduler/jobs/:id/toggle',
     { preHandler: [authenticate, requireAdmin] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       const { id } = request.params;
       const user = request.user as { userId: string };
 

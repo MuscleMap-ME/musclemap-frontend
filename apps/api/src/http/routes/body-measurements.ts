@@ -43,23 +43,67 @@ const MEASUREMENT_FIELDS = [
 ];
 
 const bodyMeasurementsRoutes: FastifyPluginAsync = async (fastify) => {
-  // Get all measurements for user
+  // Get all measurements for user (keyset pagination)
   fastify.get(
     '/body-measurements',
     { preHandler: authenticate },
     async (request, reply) => {
       const userId = (request as any).userId;
-      const { limit = 50, offset = 0 } = request.query as { limit?: number; offset?: number };
+      const { limit = 50, cursor } = request.query as { limit?: number; cursor?: string };
 
-      const measurements = await db.queryAll(
-        `SELECT * FROM body_measurements
-         WHERE user_id = $1
-         ORDER BY measurement_date DESC
-         LIMIT $2 OFFSET $3`,
-        [userId, limit, offset]
-      );
+      // Decode cursor for keyset pagination
+      let cursorData: { measurementDate: string; id: string } | null = null;
+      if (cursor) {
+        try {
+          cursorData = JSON.parse(Buffer.from(cursor, 'base64').toString());
+        } catch {
+          // Invalid cursor, start from beginning
+        }
+      }
 
-      return reply.send({ measurements });
+      // Fetch one extra to determine if there are more results
+      const fetchLimit = Math.min(limit, 100) + 1;
+
+      let measurements;
+      if (cursorData) {
+        measurements = await db.queryAll(
+          `SELECT * FROM body_measurements
+           WHERE user_id = $1
+             AND (measurement_date, id) < ($2, $3)
+           ORDER BY measurement_date DESC, id DESC
+           LIMIT $4`,
+          [userId, cursorData.measurementDate, cursorData.id, fetchLimit]
+        );
+      } else {
+        measurements = await db.queryAll(
+          `SELECT * FROM body_measurements
+           WHERE user_id = $1
+           ORDER BY measurement_date DESC, id DESC
+           LIMIT $2`,
+          [userId, fetchLimit]
+        );
+      }
+
+      // Determine if there are more results
+      const hasMore = measurements.length > limit;
+      const items = hasMore ? measurements.slice(0, -1) : measurements;
+
+      // Generate next cursor from last item
+      const nextCursor = items.length > 0
+        ? Buffer.from(JSON.stringify({
+            measurementDate: items[items.length - 1].measurement_date,
+            id: items[items.length - 1].id
+          })).toString('base64')
+        : null;
+
+      return reply.send({
+        measurements: items,
+        pagination: {
+          hasMore,
+          nextCursor,
+          count: items.length
+        }
+      });
     }
   );
 
