@@ -42,7 +42,15 @@
     "deploy:dry": "sh ./scripts/deploy-branch.sh --dry-run",
     "deploy:merge": "sh ./scripts/deploy-branch.sh --merge-now",
     "competitive-analysis": "sh ./scripts/competitive-analysis.sh",
-    "competitive-analysis:check": "sh ./scripts/competitive-analysis.sh --check"
+    "competitive-analysis:check": "sh ./scripts/competitive-analysis.sh --check",
+    "bug-hunter": "tsx scripts/bug-hunter/index.ts",
+    "bug-hunter:daemon": "tsx scripts/bug-hunter/index.ts --daemon",
+    "bug-hunter:aggressive": "tsx scripts/bug-hunter/index.ts --aggressive",
+    "bug-hunter:production": "tsx scripts/bug-hunter/index.ts --production",
+    "bug-hunter:status": "tsx scripts/bug-hunter/index.ts --status",
+    "bug-hunter:coverage": "tsx scripts/bug-hunter/index.ts --coverage",
+    "bug-hunter:queue": "tsx scripts/bug-hunter/index.ts --queue",
+    "bug-hunter:process": "tsx scripts/bug-hunter/index.ts --process-queue"
   },
   "dependencies": {
     "@apollo/client": "^4.0.11",
