@@ -193,6 +193,12 @@ export {
 } from './useNetworkStatus';
 
 // ============================================
+// ERROR HANDLING HOOKS
+// ============================================
+
+export { useCockatriceError } from './useCockatriceError';
+
+// ============================================
 // PERFORMANCE HOOKS
 // ============================================
 

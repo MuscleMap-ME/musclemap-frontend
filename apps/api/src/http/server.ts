@@ -85,6 +85,7 @@ import economyEnhancedRoutes from './routes/economyEnhanced';
 import { registerOrganizationsRoutes } from './routes/organizations';
 import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
+import { registerErrorRoutes } from './routes/errors';
 import adminFeedbackRoutes from './routes/admin-feedback';
 import adminBetaTesterRoutes from './routes/admin-beta-testers';
 import adminServerRoutes from './routes/admin-server';
@@ -426,6 +427,9 @@ export async function createServer(): Promise<FastifyInstance> {
     // User feedback system (bug reports, suggestions, questions, FAQ)
     await registerFeedbackRoutes(api);
     await adminFeedbackRoutes(api);
+
+    // Frontend error reporting (Cockatrice error system, auto-healing)
+    await registerErrorRoutes(api);
 
     // Beta tester management (admin only)
     await api.register(adminBetaTesterRoutes, { prefix: '/admin/beta-testers' });
