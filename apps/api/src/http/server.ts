@@ -431,10 +431,12 @@ export async function createServer(): Promise<FastifyInstance> {
     await api.register(adminBetaTesterRoutes, { prefix: '/admin/beta-testers' });
 
     // Server control (admin only - scripts, logs, processes)
-    await adminServerRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminServerRoutes);
 
     // Deployment pipeline management (admin only - deploy, rollback, branches)
-    await adminDeployRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminDeployRoutes);
 
     // Scheduled tasks management (admin only - cron jobs, execution history)
     await adminSchedulerRoutes(api);
@@ -452,7 +454,8 @@ export async function createServer(): Promise<FastifyInstance> {
     await adminEnvRoutes(api);
 
     // Database management (admin only - stats, queries, indexes, vacuum)
-    await adminDatabaseRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminDatabaseRoutes);
 
     // Feature flags management (admin only - flags, rollout, targeting)
     await adminFeaturesRoutes(api);
@@ -464,7 +467,8 @@ export async function createServer(): Promise<FastifyInstance> {
     await adminAlertsRoutes(api);
 
     // Documentation management (admin only - browse, edit, create markdown files)
-    await adminDocsRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminDocsRoutes);
 
     // Beta tester user features (journal, snapshots, quick bug reporting)
     await api.register(betaTesterRoutes, { prefix: '/beta-tester' });
