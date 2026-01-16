@@ -406,7 +406,7 @@ const ProgressSummaryCard = ({ summary }) => {
         </div>
         <div className="text-center">
           <div className="text-3xl font-bold text-purple-400">
-            {Math.floor(summary.totalPracticeMinutes / 60)}h
+            {Math.floor((summary.totalPracticeMinutes ?? 0) / 60)}h
           </div>
           <div className="text-gray-400 text-sm">Training Time</div>
         </div>

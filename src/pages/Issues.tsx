@@ -269,7 +269,7 @@ function FilterSidebar({ filters, setFilters, labels, stats }) {
 
 export default function Issues() {
   const { token } = useAuth();
-  const { user: _user } = useUser();
+  const { user } = useUser();
   const navigate = useNavigate();
   const [searchParams, _setSearchParams] = useSearchParams();
 

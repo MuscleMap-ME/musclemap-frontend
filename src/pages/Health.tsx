@@ -106,13 +106,23 @@ export default function Health() {
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const [summaryRes, connectionsRes] = await Promise.all([
-        api.get('/wearables/summary').catch(() => ({ data: null })),
-        api.get('/wearables/connections').catch(() => ({ data: [] })),
+      // Use correct API endpoints:
+      // - /wearables returns health summary
+      // - /wearables/status returns sync status with provider connections
+      const [summaryRes, statusRes] = await Promise.all([
+        api.get('/wearables').catch(() => ({ data: null })),
+        api.get('/wearables/status').catch(() => ({ data: { syncStatus: [] } })),
       ]);
 
       setSummary(summaryRes.data);
-      setConnections(connectionsRes.data || []);
+      // Transform syncStatus into connections format expected by the component
+      const syncStatus = statusRes.data?.syncStatus || [];
+      const connections = syncStatus.map((status: { provider: string; lastSyncAt?: string; isConnected?: boolean }) => ({
+        provider: status.provider,
+        lastSyncAt: status.lastSyncAt,
+        isConnected: status.isConnected ?? true,
+      }));
+      setConnections(connections);
     } catch (err) {
       setError(err.message || 'Failed to load health data');
     } finally {
