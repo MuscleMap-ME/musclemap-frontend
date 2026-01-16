@@ -1,6 +1,6 @@
 # MuscleMap API Reference
 
-> Auto-generated on 2026-01-15
+> Auto-generated on 2026-01-16
 
 ## Base URL
 

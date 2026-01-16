@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Auto-generated on 2026-01-15
+> Auto-generated on 2026-01-16
 
 ## Overview
 
@@ -326,7 +326,7 @@ musclemap.me/
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (227 total)
+## Components (229 total)
 
 Components are organized by feature:
 
@@ -634,6 +634,10 @@ Components are organized by feature:
 ### video
 - `VideoPlayer`
 - `VideoThumbnail`
+
+### virtual
+- `Managed3DContainer`
+- `VirtualList`
 
 ### workout
 - `FloatingRestTimer`
