@@ -64,6 +64,7 @@ import {
   ToggleLeft,
   FileSearch,
   Archive,
+  BookOpen,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -88,6 +89,7 @@ const SecurityPanel = lazy(() => import('../components/admin/SecurityPanel'));
 const FeatureFlagsPanel = lazy(() => import('../components/admin/FeatureFlagsPanel'));
 const LogsPanel = lazy(() => import('../components/admin/LogsPanel'));
 const BackupPanel = lazy(() => import('../components/admin/BackupPanel'));
+const MarkdownEditor = lazy(() => import('../components/admin/MarkdownEditor'));
 
 // ============================================
 // CONSTANTS
@@ -115,6 +117,7 @@ const NAV_SECTIONS = [
   { id: 'feature-flags', label: 'Feature Flags', icon: ToggleLeft },
   { id: 'logs', label: 'Log Analysis', icon: FileSearch },
   { id: 'backup', label: 'Backup & Recovery', icon: Archive },
+  { id: 'docs', label: 'Documentation', icon: BookOpen },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
@@ -913,6 +916,17 @@ export default function EmpireControl() {
                   </div>
                 }>
                   <BackupPanel />
+                </Suspense>
+              )}
+
+              {/* Documentation Editor Section */}
+              {activeSection === 'docs' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <MarkdownEditor />
                 </Suspense>
               )}
 

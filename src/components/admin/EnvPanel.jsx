@@ -21,7 +21,6 @@ import {
   Edit3,
   Eye,
   EyeOff,
-  FileText,
   GitCompare,
   History,
   Key,
@@ -108,7 +107,7 @@ function getChangeTypeColor(type) {
 // SUBCOMPONENTS
 // ============================================
 
-function VariableRow({ variable, onEdit, onDelete, environment }) {
+function VariableRow({ variable, onEdit, onDelete, environment: _environment }) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const sensitive = isSensitiveKey(variable.key);

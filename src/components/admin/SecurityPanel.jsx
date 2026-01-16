@@ -669,7 +669,7 @@ export default function SecurityPanel() {
   }, [getAuthHeader]);
 
   // Investigate alert
-  const investigateAlert = useCallback((alertId) => {
+  const investigateAlert = useCallback((_alertId) => {
     // For now, just expand the audit log section with relevant filters
     setExpandedSection('audit');
     // In a full implementation, this would filter the audit log or open a detail view

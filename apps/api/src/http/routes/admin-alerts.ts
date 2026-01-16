@@ -172,7 +172,7 @@ function formatAlertHistory(row: AlertHistoryRow) {
 /**
  * Evaluate if an alert condition is met
  */
-function evaluateCondition(
+function _evaluateCondition(
   condition: string,
   threshold: number,
   actualValue: number,

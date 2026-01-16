@@ -23,7 +23,6 @@ import {
   HardDrive,
   Layers,
   Loader2,
-  Play,
   RefreshCw,
   Search,
   Server,
@@ -45,7 +44,7 @@ const API_BASE = '/api';
 // HELPER FUNCTIONS
 // ============================================
 
-function formatBytes(bytes) {
+function _formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
   if (typeof bytes === 'string') {
     // Handle PostgreSQL size strings like "8192 bytes" or "16 kB"

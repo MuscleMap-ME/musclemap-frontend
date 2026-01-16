@@ -98,6 +98,7 @@ import adminDatabaseRoutes from './routes/admin-database';
 import adminFeaturesRoutes from './routes/admin-features';
 import adminMetricsRoutes from './routes/admin-metrics';
 import adminAlertsRoutes from './routes/admin-alerts';
+import adminDocsRoutes from './routes/admin-docs';
 import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
@@ -451,6 +452,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Alert configuration (admin only - rules, channels, history)
     await adminAlertsRoutes(api);
+
+    // Documentation management (admin only - browse, edit, create markdown files)
+    await adminDocsRoutes(api);
 
     // Beta tester user features (journal, snapshots, quick bug reporting)
     await api.register(betaTesterRoutes, { prefix: '/beta-tester' });

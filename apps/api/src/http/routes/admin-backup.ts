@@ -19,7 +19,7 @@ import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
-import { query, queryOne, queryAll, transaction } from '../../db/client';
+import { query, queryOne, queryAll, transaction as _transaction } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 import { config } from '../../config';
@@ -33,7 +33,7 @@ const log = loggers.api;
 
 const BACKUP_DIR = process.env.BACKUP_DIR || '/var/backups/musclemap';
 const PG_DUMP_PATH = process.env.PG_DUMP_PATH || 'pg_dump';
-const PG_RESTORE_PATH = process.env.PG_RESTORE_PATH || 'pg_restore';
+const _PG_RESTORE_PATH = process.env.PG_RESTORE_PATH || 'pg_restore';
 const PSQL_PATH = process.env.PSQL_PATH || 'psql';
 
 // ============================================

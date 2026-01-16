@@ -32,7 +32,6 @@ import {
   Search,
   Terminal,
   TrendingUp,
-  X,
   Zap,
 } from 'lucide-react';
 import GlassSurface from '../glass/GlassSurface';
@@ -110,7 +109,7 @@ function SearchBar({ value, onChange, isRegex, onRegexToggle, placeholder }) {
       try {
         new RegExp(newValue);
         setError(null);
-      } catch (err) {
+      } catch (_err) {
         setError('Invalid regex');
       }
     } else {

@@ -271,7 +271,7 @@ function FlagModal({ flag, onSave, onClose, loading }) {
       const parsed = JSON.parse(json);
       setFormData((prev) => ({ ...prev, targetingRules: parsed }));
       setJsonError(null);
-    } catch (err) {
+    } catch (_err) {
       setJsonError('Invalid JSON');
     }
   };
@@ -626,7 +626,7 @@ export default function FeatureFlagsPanel() {
   }, [getAuthHeader]);
 
   // Update flag (quick update like rollout percentage)
-  const handleQuickUpdate = useCallback(async (flagId, updates) => {
+  const _handleQuickUpdate = useCallback(async (flagId, updates) => {
     setActionLoading(true);
     try {
       const res = await fetch(`${API_BASE}/${flagId}`, {

@@ -163,7 +163,7 @@ function Sparkline({ data, color, height = 40, width = 100 }) {
 /**
  * Metrics card with value, trend, and sparkline
  */
-function MetricCard({ title, value, unit, trend, trendValue, sparklineData, color, icon: Icon, isLoading }) {
+function MetricCard({ title, value, unit, trend: _trend, trendValue, sparklineData, color, icon: Icon, isLoading }) {
   const trendDirection = getTrendDirection(value, trendValue);
   const TrendIcon = trendDirection === 'up' ? TrendingUp : trendDirection === 'down' ? TrendingDown : Activity;
 
