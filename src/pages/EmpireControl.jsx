@@ -10,7 +10,7 @@
  * - Real-time activity feeds
  */
 
-import React, { useState, useEffect, useCallback, lazy } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import GlassSurface from '../components/glass/GlassSurface';
@@ -68,6 +68,7 @@ import {
 
 // Lazy load heavy components (available for future use)
 const _ActivityFeed = lazy(() => import('../components/community/ActivityFeed'));
+const ServerControl = lazy(() => import('../components/admin/ServerControl'));
 
 // ============================================
 // CONSTANTS
@@ -84,6 +85,7 @@ const OWNER_POWERS = [
 
 const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'server', label: 'Server Control', icon: Server },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
@@ -762,6 +764,17 @@ export default function EmpireControl() {
                     </div>
                   </GlassSurface>
                 </div>
+              )}
+
+              {/* Server Control Section */}
+              {activeSection === 'server' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <ServerControl />
+                </Suspense>
               )}
 
               {/* Feedback Queue Section */}

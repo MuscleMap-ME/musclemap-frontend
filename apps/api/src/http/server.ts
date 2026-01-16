@@ -87,6 +87,7 @@ import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
 import adminFeedbackRoutes from './routes/admin-feedback';
 import adminBetaTesterRoutes from './routes/admin-beta-testers';
+import adminServerRoutes from './routes/admin-server';
 import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
@@ -407,6 +408,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Beta tester management (admin only)
     await api.register(adminBetaTesterRoutes, { prefix: '/admin/beta-testers' });
+
+    // Server control (admin only - scripts, logs, processes)
+    await adminServerRoutes(api);
 
     // Beta tester user features (journal, snapshots, quick bug reporting)
     await api.register(betaTesterRoutes, { prefix: '/beta-tester' });
