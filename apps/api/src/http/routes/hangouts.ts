@@ -72,9 +72,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Find nearby hangouts
    */
-  app.get('/hangouts/nearby', {
+  app.get<{ Querystring: z.infer<typeof nearbyQuerySchema> }>('/hangouts/nearby', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof nearbyQuerySchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = nearbyQuerySchema.parse(request.query);
 
     const result = await geoService.findNearby({
@@ -99,9 +99,7 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Get geo stats for a region
    */
-  app.get('/hangouts/stats', async (request: FastifyRequest<{
-    Querystring: { lat: string; lng: string; radius?: string };
-  }>, reply: FastifyReply) => {
+  app.get<{ Querystring: { lat: string; lng: string; radius?: string } }>('/hangouts/stats', async (request, reply) => {
     const lat = parseFloat(request.query.lat);
     const lng = parseFloat(request.query.lng);
     const radius = parseFloat(request.query.radius || '5000');
@@ -123,9 +121,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Create a new hangout
    */
-  app.post('/hangouts', {
+  app.post<{ Body: z.infer<typeof createHangoutSchema> }>('/hangouts', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof createHangoutSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const body = createHangoutSchema.parse(request.body);
 
     const hangout = await hangoutService.create({
@@ -150,9 +148,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Get hangout by ID
    */
-  app.get('/hangouts/:id', {
+  app.get<{ Params: { id: string } }>('/hangouts/:id', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -179,9 +177,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Join a hangout
    */
-  app.post('/hangouts/:id/join', {
+  app.post<{ Params: { id: string } }>('/hangouts/:id/join', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -211,9 +209,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Leave a hangout
    */
-  app.post('/hangouts/:id/leave', {
+  app.post<{ Params: { id: string } }>('/hangouts/:id/leave', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -243,10 +241,7 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Get hangout members
    */
-  app.get('/hangouts/:id/members', async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  app.get<{ Params: { id: string }; Querystring: z.infer<typeof paginationSchema> }>('/hangouts/:id/members', async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -276,12 +271,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Create a post in a hangout (costs 1 credit)
    */
-  app.post('/hangouts/:id/posts', {
+  app.post<{ Params: { id: string }; Body: z.infer<typeof createPostSchema> }>('/hangouts/:id/posts', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Body: z.infer<typeof createPostSchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -320,10 +312,7 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Get posts from a hangout
    */
-  app.get('/hangouts/:id/posts', async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  app.get<{ Params: { id: string }; Querystring: z.infer<typeof paginationSchema> }>('/hangouts/:id/posts', async (request, reply) => {
     const hangoutId = parseInt(request.params.id, 10);
 
     if (isNaN(hangoutId)) {
@@ -351,11 +340,9 @@ export async function registerHangoutRoutes(app: FastifyInstance) {
   /**
    * Get current user's hangout memberships
    */
-  app.get('/me/hangouts', {
+  app.get<{ Querystring: z.infer<typeof paginationSchema> }>('/me/hangouts', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Querystring: z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = paginationSchema.parse(request.query);
     const result = await hangoutService.getUserMemberships(request.user!.userId, query);
 

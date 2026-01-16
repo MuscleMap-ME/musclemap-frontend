@@ -125,9 +125,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * List issues
    */
-  app.get('/issues', {
+  app.get<{ Querystring: z.infer<typeof listIssuesSchema> }>('/issues', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof listIssuesSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = listIssuesSchema.parse(request.query);
 
     const result = await issuesService.listIssues({
@@ -149,9 +149,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Get issue by ID or number
    */
-  app.get('/issues/:id', {
+  app.get<{ Params: { id: string } }>('/issues/:id', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const issue = await issuesService.getIssueById(request.params.id, request.user?.userId);
 
     if (!issue) {
@@ -176,9 +176,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Create a new issue
    */
-  app.post('/issues', {
+  app.post<{ Body: z.infer<typeof createIssueSchema> }>('/issues', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof createIssueSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const body = createIssueSchema.parse(request.body);
       const issue = await issuesService.createIssue(request.user!.userId, {
@@ -209,12 +209,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Update an issue
    */
-  app.patch('/issues/:id', {
+  app.patch<{ Params: { id: string }; Body: z.infer<typeof updateIssueSchema> }>('/issues/:id', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Body: z.infer<typeof updateIssueSchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const body = updateIssueSchema.parse(request.body);
       const issue = await issuesService.updateIssue(
@@ -252,9 +249,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Vote/unvote an issue
    */
-  app.post('/issues/:id/vote', {
+  app.post<{ Params: { id: string } }>('/issues/:id/vote', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const result = await issuesService.vote(request.params.id, request.user!.userId);
       return reply.send({ data: result });
@@ -275,9 +272,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Subscribe/unsubscribe to an issue
    */
-  app.post('/issues/:id/subscribe', {
+  app.post<{ Params: { id: string } }>('/issues/:id/subscribe', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const result = await issuesService.subscribe(request.params.id, request.user!.userId);
       return reply.send({ data: result });
@@ -298,10 +295,7 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Get comments for an issue
    */
-  app.get('/issues/:id/comments', async (request: FastifyRequest<{
-    Params: { id: string };
-    Querystring: z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  app.get<{ Params: { id: string }; Querystring: z.infer<typeof paginationSchema> }>('/issues/:id/comments', async (request, reply) => {
     const query = paginationSchema.parse(request.query);
     const result = await issuesService.getComments(request.params.id, query);
 
@@ -319,12 +313,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Add a comment to an issue
    */
-  app.post('/issues/:id/comments', {
+  app.post<{ Params: { id: string }; Body: z.infer<typeof createCommentSchema> }>('/issues/:id/comments', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Params: { id: string };
-    Body: z.infer<typeof createCommentSchema>;
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const body = createCommentSchema.parse(request.body);
       const comment = await issuesService.createComment(
@@ -359,11 +350,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Mark a comment as solution (admin/moderator only)
    */
-  app.post('/issues/:issueId/comments/:commentId/solution', {
+  app.post<{ Params: { issueId: string; commentId: string } }>('/issues/:issueId/comments/:commentId/solution', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Params: { issueId: string; commentId: string };
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     if (!isModerator(request)) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Only moderators can mark solutions', statusCode: 403 },
@@ -386,9 +375,7 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * List dev updates
    */
-  app.get('/updates', async (request: FastifyRequest<{
-    Querystring: { type?: string } & z.infer<typeof paginationSchema>;
-  }>, reply: FastifyReply) => {
+  app.get<{ Querystring: { type?: string } & z.infer<typeof paginationSchema> }>('/updates', async (request, reply) => {
     const query = paginationSchema.parse(request.query);
     const type = request.query.type !== undefined ? parseInt(request.query.type, 10) : undefined;
 
@@ -412,9 +399,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Create a dev update (admin only)
    */
-  app.post('/updates', {
+  app.post<{ Body: z.infer<typeof createDevUpdateSchema> }>('/updates', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof createDevUpdateSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     if (!isAdmin(request)) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Only admins can create updates', statusCode: 403 },
@@ -440,11 +427,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * List roadmap items
    */
-  app.get('/roadmap', {
+  app.get<{ Querystring: { status?: string; quarter?: string } }>('/roadmap', {
     preHandler: optionalAuth,
-  }, async (request: FastifyRequest<{
-    Querystring: { status?: string; quarter?: string };
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const status = request.query.status !== undefined
       ? parseInt(request.query.status, 10)
       : undefined;
@@ -461,9 +446,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Create a roadmap item (admin only)
    */
-  app.post('/roadmap', {
+  app.post<{ Body: z.infer<typeof createRoadmapItemSchema> }>('/roadmap', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof createRoadmapItemSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     if (!isAdmin(request)) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Only admins can create roadmap items', statusCode: 403 },
@@ -509,9 +494,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Vote on a roadmap item
    */
-  app.post('/roadmap/:id/vote', {
+  app.post<{ Params: { id: string } }>('/roadmap/:id/vote', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     try {
       const result = await issuesService.voteRoadmapItem(request.params.id, request.user!.userId);
       return reply.send({ data: result });
@@ -544,9 +529,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Get current user's submitted issues
    */
-  app.get('/me/issues', {
+  app.get<{ Querystring: z.infer<typeof listIssuesSchema> }>('/me/issues', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof listIssuesSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const query = listIssuesSchema.parse(request.query);
 
     const result = await issuesService.listIssues({
@@ -573,9 +558,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Admin: Get all issues including private ones
    */
-  app.get('/admin/issues', {
+  app.get<{ Querystring: z.infer<typeof listIssuesSchema> }>('/admin/issues', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Querystring: z.infer<typeof listIssuesSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     if (!isAdmin(request)) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Admin access required', statusCode: 403 },
@@ -637,14 +622,9 @@ export async function registerIssuesRoutes(app: FastifyInstance) {
   /**
    * Admin: Bulk update issues
    */
-  app.post('/admin/issues/bulk', {
+  app.post<{ Body: { issueIds: string[]; update: { status?: number; priority?: number; assigneeId?: string; labelIds?: string[] } } }>('/admin/issues/bulk', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{
-    Body: {
-      issueIds: string[];
-      update: { status?: number; priority?: number; assigneeId?: string; labelIds?: string[] };
-    };
-  }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     if (!isAdmin(request)) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Admin access required', statusCode: 403 },
