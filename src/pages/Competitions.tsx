@@ -23,7 +23,9 @@ export default function Competitions() {
       ]);
       setCompetitions(c.competitions || []);
       setMyEntries(e.entries || []);
-    } catch(_err) {}
+    } catch (err) {
+      console.error('Failed to load competitions:', err);
+    }
     setLoading(false);
   };
   const join = async (id) => { await fetch('/api/competitions/' + id + '/join', { method: 'POST', headers }); load(); };

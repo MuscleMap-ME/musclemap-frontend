@@ -67,7 +67,9 @@ class FrontendLogger {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.userId || payload.id;
       }
-    } catch {}
+    } catch (err) {
+      console.error('Failed to parse user ID from token:', err);
+    }
     return null;
   }
 

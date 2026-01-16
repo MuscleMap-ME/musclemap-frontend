@@ -458,7 +458,9 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
           if (message.type === 'ping') {
             socket.send(JSON.stringify({ type: 'pong' }));
           }
-        } catch {}
+        } catch (err) {
+          log.warn({ error: err }, 'Invalid WebSocket message format');
+        }
       });
 
       socket.on('close', () => {

@@ -52,7 +52,9 @@ export default function AdminMonitoring() {
         const token = parsed?.state?.token;
         if (token) return { Authorization: `Bearer ${token}` };
       }
-    } catch (_e) {}
+    } catch (err) {
+      console.error('Failed to parse auth data from localStorage:', err);
+    }
     return {};
   }, []);
 

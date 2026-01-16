@@ -273,7 +273,9 @@ export default function EmpireControl() {
         const parsed = JSON.parse(authData);
         return { Authorization: `Bearer ${parsed?.state?.token}` };
       }
-    } catch (_e) {}
+    } catch (err) {
+      console.error('Failed to parse auth data from localStorage:', err);
+    }
     return {};
   }, []);
 

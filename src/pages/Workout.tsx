@@ -256,7 +256,9 @@ export default function Workout() {
       setSuccess(adding.name);
       setTimeout(() => setSuccess(null), 2000);
       setAdding(null);
-    } catch(_e) {}
+    } catch (err) {
+      console.error('Failed to log exercise:', err);
+    }
   }
 
   const getCat = (e) => CATEGORY[e.type] || CATEGORY.default;

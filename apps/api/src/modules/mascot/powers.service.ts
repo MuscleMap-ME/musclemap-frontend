@@ -11,6 +11,7 @@
 
 import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { economyService } from '../economy';
 
 const log = loggers.economy;
 
@@ -838,14 +839,33 @@ export const mascotPowersService = {
       return { success: false, error: 'ALREADY_UNLOCKED' };
     }
 
-    // TODO: Check and deduct credits here
+    // Check balance and deduct credits
+    const balance = await economyService.getBalance(userId);
+    if (balance < ability.credit_cost) {
+      return { success: false, error: 'INSUFFICIENT_CREDITS' };
+    }
+
+    const chargeResult = await economyService.charge({
+      userId,
+      action: 'master_ability_unlock',
+      amount: ability.credit_cost,
+      metadata: {
+        abilityKey,
+        abilityId: ability.id,
+      },
+      idempotencyKey: `master-ability-${userId}-${ability.id}-${Date.now()}`,
+    });
+
+    if (!chargeResult.success) {
+      return { success: false, error: chargeResult.error || 'CHARGE_FAILED' };
+    }
 
     await query(`
       INSERT INTO user_master_abilities (user_id, ability_id, credits_spent)
       VALUES ($1, $2, $3)
     `, [userId, ability.id, ability.credit_cost]);
 
-    log.info({ userId, abilityKey }, 'Master ability unlocked');
+    log.info({ userId, abilityKey, creditCost: ability.credit_cost }, 'Master ability unlocked');
 
     return { success: true };
   },
