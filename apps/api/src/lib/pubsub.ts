@@ -160,7 +160,7 @@ export function subscribe<T>(channel: string, filter?: (data: T) => boolean): As
   if (!activeSubscriptions.has(channel)) {
     activeSubscriptions.set(channel, new Set());
   }
-  activeSubscriptions.get(channel)!.add(handler);
+  activeSubscriptions.get(channel)!.add(handler as (data: unknown) => void);
 
   return {
     next(): Promise<IteratorResult<T>> {
@@ -179,13 +179,13 @@ export function subscribe<T>(channel: string, filter?: (data: T) => boolean): As
     return(): Promise<IteratorResult<T>> {
       done = true;
       localEmitter.off(channel, handler);
-      activeSubscriptions.get(channel)?.delete(handler);
+      activeSubscriptions.get(channel)?.delete(handler as (data: unknown) => void);
       return Promise.resolve({ value: undefined as any, done: true });
     },
     throw(error: Error): Promise<IteratorResult<T>> {
       done = true;
       localEmitter.off(channel, handler);
-      activeSubscriptions.get(channel)?.delete(handler);
+      activeSubscriptions.get(channel)?.delete(handler as (data: unknown) => void);
       return Promise.reject(error);
     },
     [Symbol.asyncIterator]() {

@@ -81,7 +81,7 @@ interface TransferResult {
   recipientNewBalance: number;
 }
 
-interface ChargeRequest {
+export interface ChargeRequest {
   userId: string;
   action: string;
   amount?: number;
@@ -89,7 +89,7 @@ interface ChargeRequest {
   idempotencyKey: string;
 }
 
-interface ChargeResult {
+export interface ChargeResult {
   success: boolean;
   ledgerEntryId?: string;
   newBalance?: number;

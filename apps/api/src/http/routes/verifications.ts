@@ -7,7 +7,7 @@
  * - Manage verifications
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from './auth';
 import { verificationService } from '../../modules/verification';
@@ -457,7 +457,7 @@ export async function registerVerificationRoutes(app: FastifyInstance) {
    * Get achievements that require verification
    * GET /achievements/verification-required
    */
-  app.get('/achievements/verification-required', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/achievements/verification-required', async (_request, reply) => {
     const achievements = await verificationService.getVerificationRequiredAchievements();
     return reply.send({ data: achievements });
   });

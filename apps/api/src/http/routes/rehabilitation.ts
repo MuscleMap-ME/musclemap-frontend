@@ -5,7 +5,7 @@
  * and progress tracking based on evidence-based rehabilitation science.
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { db } from '../../db/client';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
@@ -65,10 +65,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // GET /api/rehabilitation/profiles
   // Get all injury profiles, optionally filtered by body region
   // ============================================
-  fastify.get(
+  fastify.get<{ Querystring: { bodyRegion?: string } }>(
     '/profiles',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Querystring: { bodyRegion?: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { bodyRegion } = request.query;
 
@@ -100,10 +100,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // GET /api/rehabilitation/profiles/:id
   // Get a specific injury profile with its protocols
   // ============================================
-  fastify.get(
+  fastify.get<{ Params: { id: string } }>(
     '/profiles/:id',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const { id } = request.params;
 
@@ -143,7 +143,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   fastify.get(
     '/body-regions',
     { preHandler: [authenticate] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (_request, reply) => {
       try {
         const regions = await db.queryAll<{ body_region: string; count: string }>(
           `SELECT body_region, COUNT(*) as count
@@ -170,10 +170,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // POST /api/rehabilitation/start
   // Start a new rehabilitation journey
   // ============================================
-  fastify.post(
+  fastify.post<{ Body: StartRehabInput }>(
     '/start',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Body: StartRehabInput }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryProfileId, severity, onsetDate, isSurgical, surgeryDate, painLevel, notes } = request.body;
@@ -244,7 +244,7 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   fastify.get(
     '/my-injuries',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
 
@@ -288,10 +288,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // GET /api/rehabilitation/progress/:injuryId
   // Get progress history for an injury
   // ============================================
-  fastify.get(
+  fastify.get<{ Params: { injuryId: string } }>(
     '/progress/:injuryId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { injuryId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryId } = request.params;
@@ -340,10 +340,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // POST /api/rehabilitation/log
   // Log a rehab session
   // ============================================
-  fastify.post(
+  fastify.post<{ Body: LogProgressInput }>(
     '/log',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Body: LogProgressInput }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryId, painBefore, painAfter, romAchieved, exercisesCompleted, notes } = request.body;
@@ -413,10 +413,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // POST /api/rehabilitation/advance-phase/:injuryId
   // Advance to the next rehabilitation phase
   // ============================================
-  fastify.post(
+  fastify.post<{ Params: { injuryId: string } }>(
     '/advance-phase/:injuryId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { injuryId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryId } = request.params;
@@ -484,10 +484,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // GET /api/rehabilitation/exercises/:injuryId
   // Get exercises for current rehabilitation phase
   // ============================================
-  fastify.get(
+  fastify.get<{ Params: { injuryId: string } }>(
     '/exercises/:injuryId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { injuryId: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryId } = request.params;
@@ -531,10 +531,10 @@ export default async function rehabilitationRoutes(fastify: FastifyInstance): Pr
   // DELETE /api/rehabilitation/:injuryId
   // End or abandon a rehabilitation journey
   // ============================================
-  fastify.delete(
+  fastify.delete<{ Params: { injuryId: string }; Querystring: { status?: string } }>(
     '/:injuryId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { injuryId: string }; Querystring: { status?: string } }>, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = (request as any).userId;
         const { injuryId } = request.params;

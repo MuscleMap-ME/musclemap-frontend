@@ -1,6 +1,8 @@
 import globals from 'globals';
 import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
 
 // Three.js / React-Three-Fiber JSX properties that are valid
 const threeJsProperties = [
@@ -17,10 +19,11 @@ const threeJsProperties = [
 
 export default [
   {
-    files: ['src/**/*.{js,jsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      parser: tsParser,
       globals: {
         ...globals.browser,
         ...globals.es2021,
@@ -34,6 +37,7 @@ export default [
     plugins: {
       react: pluginReact,
       'react-hooks': pluginReactHooks,
+      '@typescript-eslint': tseslint,
     },
     settings: {
       react: {
@@ -44,11 +48,12 @@ export default [
       ...pluginReact.configs.recommended.rules,
       ...pluginReactHooks.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
-      'react/prop-types': 'off', // Disabled - using runtime validation instead of PropTypes
+      'react/prop-types': 'off',
       'react/no-unescaped-entities': 'warn',
       'react/no-unknown-property': ['error', { ignore: threeJsProperties }],
       'react-hooks/exhaustive-deps': 'warn',
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off',
     },
   },

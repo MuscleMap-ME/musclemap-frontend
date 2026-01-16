@@ -10,7 +10,7 @@
  * - Admin management
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import {

@@ -23,8 +23,14 @@ const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 const CSRF_COOKIE_MAX_AGE = 86400; // 24 hours
 
-// Rate limiters for different endpoints
-const rateLimiters = {
+// Rate limiter type (from native module)
+interface RateLimiter {
+  check(key: string, tokens: number): boolean;
+  remaining(key: string): number;
+}
+
+// Rate limiters for different endpoints (typed to avoid declaration file issues)
+const rateLimiters: Record<string, RateLimiter> = {
   auth: createRateLimiter(10, 60), // 10 requests per minute for auth
   api: createRateLimiter(100, 60), // 100 requests per minute for general API
   heavy: createRateLimiter(10, 60), // 10 requests per minute for heavy operations

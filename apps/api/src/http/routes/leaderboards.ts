@@ -7,7 +7,7 @@
  * - Get available metrics for exercises
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import { leaderboardService, PeriodType } from '../../modules/leaderboards';

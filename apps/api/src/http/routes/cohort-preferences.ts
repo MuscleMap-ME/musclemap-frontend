@@ -7,7 +7,7 @@
  * - Manage achievement display settings
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from './auth';
 import { queryOne, query } from '../../db/client';
@@ -108,7 +108,7 @@ export async function registerCohortPreferencesRoutes(app: FastifyInstance) {
    */
   app.get('/me/cohort-preferences', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const prefs = await getOrCreatePreferences(request.user!.userId);
     return reply.send({ data: prefs });
   });
@@ -117,9 +117,9 @@ export async function registerCohortPreferencesRoutes(app: FastifyInstance) {
    * Update current user's cohort preferences
    * PATCH /me/cohort-preferences
    */
-  app.patch('/me/cohort-preferences', {
+  app.patch<{ Body: z.infer<typeof updateCohortPreferencesSchema> }>('/me/cohort-preferences', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest<{ Body: z.infer<typeof updateCohortPreferencesSchema> }>, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const userId = request.user!.userId;
     const body = updateCohortPreferencesSchema.parse(request.body);
 
@@ -186,7 +186,7 @@ export async function registerCohortPreferencesRoutes(app: FastifyInstance) {
    * Get available cohort options
    * GET /cohort-options
    */
-  app.get('/cohort-options', async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/cohort-options', async (_request, reply) => {
     const options = {
       genderCategories: [
         { value: 'open', label: 'Open (All)' },
@@ -228,7 +228,7 @@ export async function registerCohortPreferencesRoutes(app: FastifyInstance) {
    */
   app.post('/me/leaderboard-opt-out', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const userId = request.user!.userId;
 
     await getOrCreatePreferences(userId);
@@ -248,7 +248,7 @@ export async function registerCohortPreferencesRoutes(app: FastifyInstance) {
    */
   app.post('/me/leaderboard-opt-in', {
     preHandler: authenticate,
-  }, async (request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request, reply) => {
     const userId = request.user!.userId;
 
     await getOrCreatePreferences(userId);

@@ -323,10 +323,10 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // Register security middleware
-  registerSecurityMiddleware(app);
+  registerSecurityMiddleware(app as unknown as FastifyInstance);
 
   // Register metrics routes (/metrics endpoint)
-  await registerMetricsRoutes(app);
+  await registerMetricsRoutes(app as unknown as FastifyInstance);
 
   // Initialize PubSub for GraphQL subscriptions
   await initializePubSub();
@@ -493,7 +493,7 @@ export async function createServer(): Promise<FastifyInstance> {
     // await marketplaceRoutes(api);
   }, { prefix: '/api' });
 
-  return app;
+  return app as unknown as FastifyInstance;
 }
 
 /**

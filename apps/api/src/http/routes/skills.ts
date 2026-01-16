@@ -14,7 +14,7 @@
  * - PUT /skills/nodes/:nodeId/notes - Update notes for a skill
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { skillService } from '../../modules/skills';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
@@ -23,7 +23,7 @@ const log = loggers.http;
 
 export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> {
   // Get all skill trees
-  app.get('/skills/trees', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/skills/trees', async (_request, reply) => {
     try {
       const trees = await skillService.getSkillTrees();
       return { trees };
@@ -121,7 +121,7 @@ export async function registerSkillsRoutes(app: FastifyInstance): Promise<void> 
   app.get(
     '/skills/progress',
     { preHandler: authenticate },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const summary = await skillService.getUserSkillSummary(userId);

@@ -15,7 +15,7 @@
  * - PUT /martial-arts/techniques/:id/notes - Update notes for a technique
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { martialArtsService } from '../../modules/martial-arts';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
@@ -141,7 +141,7 @@ export async function registerMartialArtsRoutes(app: FastifyInstance): Promise<v
   app.get(
     '/martial-arts/progress',
     { preHandler: authenticate },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
         const userId = request.user!.userId;
         const summary = await martialArtsService.getUserSummary(userId);

@@ -8,7 +8,7 @@
  * - Membership management
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import { hangoutService } from '../../services/hangout.service';
