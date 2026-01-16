@@ -154,6 +154,21 @@ export {
 } from './offlineStore';
 
 // ============================================
+// ENGAGEMENT STORE
+// ============================================
+export {
+  useEngagementStore,
+  useDailyLogin,
+  useStreaks,
+  useChallenges,
+  useEvents,
+  useRecovery,
+  useEngagementModals,
+  useMultipliers,
+  default as engagementStore,
+} from './engagementStore';
+
+// ============================================
 // STORE UTILITIES
 // ============================================
 
