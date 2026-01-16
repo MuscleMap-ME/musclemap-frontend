@@ -14,6 +14,7 @@ import {
   GlassCard,
   GlassButton,
 } from '../components/glass';
+import { InsightCard, WeeklyHeatmap, MiniChart } from '../components/analytics';
 
 // Lazy load heavy D3 chart component
 const RadarChartD3 = lazy(() =>
@@ -573,6 +574,47 @@ export default function Stats() {
             {error}
           </div>
         )}
+
+        {/* Weekly Activity & Insights Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Weekly Heatmap */}
+          <GlassCard className="p-4">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">This Week</h3>
+            <WeeklyHeatmap
+              data={profile?.weeklyActivity || [2, 1, 3, 0, 2, 1, 0]}
+              colorScheme="teal"
+            />
+          </GlassCard>
+
+          {/* Volume Chart */}
+          <GlassCard className="p-4">
+            <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-3">Volume Trend</h3>
+            <MiniChart
+              data={profile?.volumeTrend || [
+                { label: 'M', value: 4500 },
+                { label: 'T', value: 0 },
+                { label: 'W', value: 6200 },
+                { label: 'T', value: 5800 },
+                { label: 'F', value: 7100 },
+                { label: 'S', value: 8500 },
+                { label: 'S', value: 0 },
+              ]}
+              colorScheme="purple"
+              height={60}
+            />
+          </GlassCard>
+
+          {/* Insight Card */}
+          <InsightCard
+            type={stats?.strength > (profile?.previousStrength || 0) ? 'positive' : 'info'}
+            title={stats?.strength > (profile?.previousStrength || 0) ? 'Getting Stronger!' : 'Keep Pushing'}
+            message={stats?.strength > (profile?.previousStrength || 0)
+              ? `Your strength increased ${Math.round(((stats?.strength || 0) / (profile?.previousStrength || 1) - 1) * 100)}% this week`
+              : 'Consistency is key - keep showing up!'
+            }
+            icon={stats?.strength > (profile?.previousStrength || 0) ? '📈' : '💪'}
+          />
+        </div>
 
         {/* Muscle Explorer Section - Full Width */}
         <GlassCard className="p-6">

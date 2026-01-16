@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
+import compression from 'vite-plugin-compression'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
@@ -23,6 +24,23 @@ export default defineConfig({
       gzipSize: true,
       brotliSize: true,
       template: 'treemap', // 'sunburst', 'treemap', 'network'
+    }),
+    // Pre-compress assets with Brotli for faster serving
+    // Cloudflare can serve these directly instead of compressing on-the-fly
+    compression({
+      algorithm: 'brotliCompress',
+      ext: '.br',
+      threshold: 1024, // Only compress files > 1KB
+      deleteOriginFile: false,
+      filter: /\.(js|css|html|svg|json)$/i,
+    }),
+    // Also generate gzip for older clients
+    compression({
+      algorithm: 'gzip',
+      ext: '.gz',
+      threshold: 1024,
+      deleteOriginFile: false,
+      filter: /\.(js|css|html|svg|json)$/i,
     }),
   ].filter(Boolean),
   publicDir: 'public',

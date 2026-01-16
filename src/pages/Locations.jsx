@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/authStore';
+import { HangoutCard } from '../components/social';
 
 const TYPES = [
   { id: 'gym', name: 'Gym', icon: '🏋️' },
@@ -114,6 +115,41 @@ export default function Locations() {
             <button key={t.id} onClick={() => setFilterType(t.id)} className={'px-3 py-1 rounded-full whitespace-nowrap ' + (filterType === t.id ? 'bg-purple-600' : 'bg-gray-700')}>{t.icon} {t.name}</button>
           ))}
         </div>
+
+        {/* Upcoming Hangouts Section */}
+        {tab === 'nearby' && (
+          <div className="mb-6">
+            <h3 className="text-lg font-bold mb-3">Upcoming Hangouts</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <HangoutCard
+                title="Morning Leg Day"
+                location="Iron Fitness Gym, Downtown"
+                time="Tomorrow, 7:00 AM"
+                status="upcoming"
+                participantCount={5}
+                participants={[
+                  { initials: 'JD', color: 'from-purple-500 to-pink-500' },
+                  { initials: 'MK', color: 'from-blue-500 to-cyan-500' },
+                ]}
+                icon="🏋️"
+                onJoin={() => console.log('Joining hangout')}
+              />
+              <HangoutCard
+                title="CrossFit WOD"
+                location="CrossFit Box, Midtown"
+                time="Saturday, 9:00 AM"
+                status="upcoming"
+                participantCount={8}
+                participants={[
+                  { initials: 'TR', color: 'from-green-500 to-emerald-500' },
+                  { initials: 'AK', color: 'from-yellow-500 to-orange-500' },
+                ]}
+                icon="⚡"
+                onJoin={() => console.log('Joining hangout')}
+              />
+            </div>
+          </div>
+        )}
 
         {loading ? <div className="text-center py-8">Loading...</div> : (
           <div className="space-y-3">

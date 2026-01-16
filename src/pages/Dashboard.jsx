@@ -40,6 +40,10 @@ import { FeatureDiscovery } from '../components/discovery';
 // Daily Challenges Component
 import { DailyChallenges } from '../components/challenges';
 
+// New Gamification & Analytics Components
+import { XPProgress, DailyQuests } from '../components/gamification';
+import { InsightCard } from '../components/analytics';
+
 // Celebration hooks
 import { useCelebrationCallbacks } from '../store';
 
@@ -1281,6 +1285,49 @@ export default function Dashboard() {
                   delay={0.2}
                 />
               </div>
+            </div>
+
+            {/* XP Progress & Daily Quests */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <XPProgress
+                currentXP={stats?.xp || 0}
+                xpForNextLevel={1000}
+                level={stats?.level || 1}
+                levelTitle={stats?.levelName || 'Beginner'}
+              />
+              <DailyQuests
+                quests={[
+                  { id: '1', title: 'Complete a workout', xpReward: 50, completed: false, progress: 0, total: 1, icon: '🏋️' },
+                  { id: '2', title: 'Log 5,000 lbs volume', xpReward: 75, completed: false, progress: 2500, total: 5000, icon: '💪' },
+                  { id: '3', title: 'Hit a personal record', xpReward: 100, completed: false, progress: 0, total: 1, icon: '🏆' },
+                ]}
+                onClaimReward={(questId) => console.log('Claimed:', questId)}
+                resetTime="6h 30m"
+              />
+            </div>
+
+            {/* Smart Insights */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <InsightCard
+                type="positive"
+                title="Strength Gains!"
+                message="Your bench press improved 12% this month"
+                icon="💪"
+                action={{ label: 'View Progress', onClick: () => navigate('/progression') }}
+              />
+              <InsightCard
+                type="info"
+                title="New Exercises"
+                message="5 new exercises match your goals"
+                icon="🎯"
+                action={{ label: 'Explore', onClick: () => navigate('/exercises') }}
+              />
+              <InsightCard
+                type={stats?.streak >= 3 ? 'positive' : 'warning'}
+                title={stats?.streak >= 3 ? 'Great Streak!' : 'Keep Going!'}
+                message={stats?.streak >= 3 ? `${stats.streak} day streak - you're on fire!` : 'Get back on track with a workout today'}
+                icon={stats?.streak >= 3 ? '🔥' : '⚡'}
+              />
             </div>
 
             {/* Daily Challenges Section */}

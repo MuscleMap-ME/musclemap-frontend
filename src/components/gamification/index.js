@@ -117,6 +117,15 @@ export { LevelUpEffect } from '../celebrations/LevelUpEffect';
 export { useCelebration } from '../celebrations/useCelebration';
 
 // ============================================
+// NEW GAMIFICATION COMPONENTS (TypeScript)
+// ============================================
+
+export { XPProgress } from './XPProgress';
+export { DailyQuests } from './DailyQuests';
+export { LevelUpModal } from './LevelUpModal';
+export { ChallengeCard as ChallengeCardNew } from './ChallengeCard.tsx';
+
+// ============================================
 // DEFAULT EXPORT
 // ============================================
 

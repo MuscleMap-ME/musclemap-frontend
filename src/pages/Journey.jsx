@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../store/authStore";
 import { ArchetypeCard } from "../components/archetypes";
+import { ChallengeCard, XPProgress } from "../components/gamification";
 
 // Archetype icons and colors
 const ARC = {
@@ -160,21 +161,15 @@ export default function Journey() {
             </div>
           </div>
 
-          {/* Progress to next level */}
-          <div className="mb-2">
-            <div className="flex justify-between text-sm mb-1">
-              <span>Progress to next level</span>
-              <span>{data.progressToNextLevel.toFixed(1)}%</span>
-            </div>
-            <div className="bg-white/20 rounded-full h-3 overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full transition-all duration-500"
-                style={{ width: `${data.progressToNextLevel}%` }}
-              />
-            </div>
-            <div className="text-xs opacity-70 mt-1 text-right">
-              {data.nextLevelTU.toLocaleString()} TU to next level
-            </div>
+          {/* XP Progress Component */}
+          <div className="mb-4">
+            <XPProgress
+              currentXP={data.totalTU}
+              xpForNextLevel={data.nextLevelTU + data.totalTU}
+              level={data.currentLevel}
+              levelTitle={data.currentLevelName}
+              colorScheme="light"
+            />
           </div>
 
           {/* Quick Stats Row */}
@@ -285,6 +280,33 @@ export default function Journey() {
                 </div>
               </div>
             )}
+
+            {/* Journey Challenges */}
+            <div className="bg-gray-800 rounded-2xl p-4">
+              <h3 className="text-sm text-gray-400 uppercase mb-4">Active Challenges</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ChallengeCard
+                  title="Volume Master"
+                  description={`Lift ${(25000).toLocaleString()} lbs this week`}
+                  progress={data.stats?.weekly?.tu || 0}
+                  total={25000}
+                  xpReward={150}
+                  difficulty="medium"
+                  icon="🏋️"
+                  timeRemaining="5d 12h"
+                />
+                <ChallengeCard
+                  title="Streak Builder"
+                  description="Maintain a 7-day workout streak"
+                  progress={data.streak || 0}
+                  total={7}
+                  xpReward={200}
+                  difficulty="hard"
+                  icon="🔥"
+                  timeRemaining="Ongoing"
+                />
+              </div>
+            </div>
 
             {/* Level Milestones */}
             {data.levels?.length > 0 && (

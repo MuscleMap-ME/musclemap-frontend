@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { RestTimerSettings } from '../components/workout/RestTimerSettings';
+import { EquipmentSelector, UnitToggle } from '../components/settings';
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -136,6 +137,51 @@ export default function Settings() {
         <section className="bg-gray-800 rounded-2xl p-4">
           <h2 className="font-bold mb-4">Rest Timer</h2>
           <RestTimerSettings compact className="bg-transparent border-0 p-0" />
+        </section>
+
+        {/* Units */}
+        <section className="bg-gray-800 rounded-2xl p-4">
+          <h2 className="font-bold mb-4">Units</h2>
+          <div className="space-y-4">
+            <UnitToggle
+              label="Weight Units"
+              value={settings.weight_unit || 'lbs'}
+              options={[
+                { value: 'lbs', label: 'lbs' },
+                { value: 'kg', label: 'kg' },
+              ]}
+              onChange={(value) => save({ weight_unit: value })}
+            />
+            <UnitToggle
+              label="Distance Units"
+              value={settings.distance_unit || 'mi'}
+              options={[
+                { value: 'mi', label: 'mi' },
+                { value: 'km', label: 'km' },
+              ]}
+              onChange={(value) => save({ distance_unit: value })}
+            />
+          </div>
+        </section>
+
+        {/* Equipment */}
+        <section className="bg-gray-800 rounded-2xl p-4">
+          <h2 className="font-bold mb-4">Available Equipment</h2>
+          <p className="text-sm text-gray-400 mb-4">Select equipment you have access to for personalized workout recommendations</p>
+          <EquipmentSelector
+            selected={settings.equipment || []}
+            onChange={(equipment) => save({ equipment })}
+            equipment={[
+              { id: 'barbell', name: 'Barbell', icon: '🏋️' },
+              { id: 'dumbbells', name: 'Dumbbells', icon: '💪' },
+              { id: 'cables', name: 'Cables', icon: '🔗' },
+              { id: 'bench', name: 'Bench', icon: '🪑' },
+              { id: 'kettlebell', name: 'Kettlebell', icon: '⚡' },
+              { id: 'resistance', name: 'Resistance Bands', icon: '🎯' },
+              { id: 'pullup_bar', name: 'Pull-up Bar', icon: '📏' },
+              { id: 'machines', name: 'Machines', icon: '🔧' },
+            ]}
+          />
         </section>
 
         {/* Privacy */}

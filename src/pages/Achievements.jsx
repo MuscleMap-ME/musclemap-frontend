@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
+import { ChallengeCard, LevelUpModal } from '../components/gamification';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -56,6 +57,8 @@ export default function Achievements() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -198,6 +201,43 @@ export default function Achievements() {
             </div>
           </div>
         </motion.div>
+
+        {/* Active Challenges */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-4">Active Challenges</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ChallengeCard
+              title="Achievement Hunter"
+              description="Unlock 5 achievements this week"
+              progress={earnedSet.size % 5}
+              total={5}
+              xpReward={250}
+              difficulty="medium"
+              icon="🏆"
+              timeRemaining="4d 8h"
+            />
+            <ChallengeCard
+              title="Consistency King"
+              description="Log workouts 5 days in a row"
+              progress={3}
+              total={5}
+              xpReward={150}
+              difficulty="easy"
+              icon="🔥"
+              timeRemaining="2d 12h"
+            />
+            <ChallengeCard
+              title="Master Collector"
+              description="Earn 1,000 credits from achievements"
+              progress={totalCredits}
+              total={1000}
+              xpReward={500}
+              difficulty="hard"
+              icon="💎"
+              timeRemaining="6d 23h"
+            />
+          </div>
+        </div>
 
         {/* Filter Tabs */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-4">
@@ -451,6 +491,18 @@ export default function Achievements() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Level Up Modal */}
+      <LevelUpModal
+        isOpen={showLevelUpModal}
+        onClose={() => setShowLevelUpModal(false)}
+        level={levelUpData?.level || 1}
+        rewards={levelUpData?.rewards || []}
+        onContinue={() => {
+          setShowLevelUpModal(false);
+          setLevelUpData(null);
+        }}
+      />
     </div>
   );
 }

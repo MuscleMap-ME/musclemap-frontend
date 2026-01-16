@@ -23,6 +23,7 @@ import {
   HardDrive,
   Layers,
   Loader2,
+  Play,
   RefreshCw,
   Search,
   Server,

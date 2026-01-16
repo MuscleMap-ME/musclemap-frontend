@@ -84,6 +84,9 @@ const CareerStandardPage = lazy(() => import('./pages/CareerStandardPage'));
 // Public documentation pages
 const DesignSystem = lazy(() => import('./pages/DesignSystem'));
 const Features = lazy(() => import('./pages/Features'));
+
+// UI Illustration Previews
+const UIShowcase = lazy(() => import('./components/illustrations/MuscleMapUIShowcase'));
 const Technology = lazy(() => import('./pages/Technology'));
 const Science = lazy(() => import('./pages/Science'));
 const Design = lazy(() => import('./pages/Design'));
@@ -434,6 +437,7 @@ function AppRoutes() {
           <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
           <Route path="/signup" element={<ErrorBoundary name="Signup"><Signup /></ErrorBoundary>} />
           <Route path="/design-system" element={<ErrorBoundary name="DesignSystem"><DesignSystem /></ErrorBoundary>} />
+          <Route path="/ui-showcase" element={<ErrorBoundary name="UIShowcase"><UIShowcase /></ErrorBoundary>} />
           <Route path="/features" element={<ErrorBoundary name="Features"><Features /></ErrorBoundary>} />
           <Route path="/technology" element={<ErrorBoundary name="Technology"><Technology /></ErrorBoundary>} />
           <Route path="/science" element={<ErrorBoundary name="Science"><Science /></ErrorBoundary>} />

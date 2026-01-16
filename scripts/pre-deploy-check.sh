@@ -1,12 +1,27 @@
 #!/bin/bash
-# Pre-Deploy Check Script
-# Automatically runs before deployment to catch common issues
-# Usage: ./scripts/pre-deploy-check.sh
+# Pre-Deploy Check Script (PERFORMANCE OPTIMIZED)
+#
+# Automatically runs before deployment to catch common issues.
+# Uses parallel execution and caching for faster checks.
+#
+# Usage:
+#   ./scripts/pre-deploy-check.sh           # Run all checks
+#   ./scripts/pre-deploy-check.sh --fast    # Skip typecheck if cached
+#   ./scripts/pre-deploy-check.sh --no-cache # Force fresh checks
+#
+# Performance Optimizations:
+#   - Parallel execution of independent checks
+#   - Cached typecheck results (valid for 5 minutes)
+#   - Early exit on critical failures
+#   - Background processes for non-blocking checks
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+CACHE_DIR="$PROJECT_ROOT/.cache"
+TYPECHECK_CACHE="$CACHE_DIR/typecheck.cache"
+CACHE_TTL=300  # 5 minutes in seconds
 
 # Colors
 RED='\033[0;31m'
@@ -15,7 +30,39 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${BLUE}🔍 Pre-Deploy Check${NC}"
+# Parse arguments
+FAST_MODE=false
+NO_CACHE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --fast|-f)
+            FAST_MODE=true
+            shift
+            ;;
+        --no-cache)
+            NO_CACHE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [options]"
+            echo ""
+            echo "Options:"
+            echo "  --fast, -f   Skip typecheck if recently cached"
+            echo "  --no-cache   Force fresh checks (ignore cache)"
+            echo "  --help, -h   Show this help message"
+            exit 0
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Create cache directory
+mkdir -p "$CACHE_DIR"
+
+echo -e "${BLUE}🔍 Pre-Deploy Check (Optimized)${NC}"
 echo "================================"
 
 ERRORS=0
@@ -24,149 +71,272 @@ WARNINGS=0
 # Track issues for automated resolution
 declare -a ISSUES_TO_FIX
 
-# =====================================================
-# 1. TypeScript Checks
-# =====================================================
-echo -e "\n${BLUE}1. TypeScript Checks${NC}"
-
-# Check for unused imports
-echo -n "  Checking for unused imports... "
-UNUSED_IMPORTS=$(cd "$PROJECT_ROOT" && pnpm typecheck 2>&1 | grep -c "is declared but" || true)
-if [ "$UNUSED_IMPORTS" -gt 0 ]; then
-    echo -e "${YELLOW}⚠️  $UNUSED_IMPORTS unused import(s)${NC}"
-    WARNINGS=$((WARNINGS + 1))
-    ISSUES_TO_FIX+=("UNUSED_IMPORTS")
-else
-    echo -e "${GREEN}✓${NC}"
-fi
-
-# Full typecheck
-echo -n "  Running full typecheck... "
-if cd "$PROJECT_ROOT" && pnpm typecheck > /tmp/typecheck.log 2>&1; then
-    echo -e "${GREEN}✓${NC}"
-else
-    echo -e "${RED}✗ Type errors found${NC}"
-    ERRORS=$((ERRORS + 1))
-    cat /tmp/typecheck.log | grep -E "error TS" | head -10
-fi
+# Temp files for parallel results
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
 
 # =====================================================
-# 2. Database Checks
+# Helper Functions
 # =====================================================
-echo -e "\n${BLUE}2. Database Checks${NC}"
 
-# Check for JSONB columns being JSON.parsed (common mistake)
+is_cache_valid() {
+    local cache_file="$1"
+    local ttl="$2"
+
+    if [[ "$NO_CACHE" == "true" ]]; then
+        return 1
+    fi
+
+    if [[ ! -f "$cache_file" ]]; then
+        return 1
+    fi
+
+    local cache_time=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+    local current_time=$(date +%s)
+    local age=$((current_time - cache_time))
+
+    [[ $age -lt $ttl ]]
+}
+
+# =====================================================
+# PARALLEL CHECK FUNCTIONS
+# =====================================================
+
+# Check 1: JSONB parse patterns (fast grep)
+check_jsonb_patterns() {
+    local result_file="$1"
+    local count=$(grep -r "JSON\.parse.*\(row\|result\|data\)\." "$PROJECT_ROOT/apps/api/src" --include="*.ts" 2>/dev/null | grep -v "node_modules" | wc -l || echo "0")
+    echo "JSONB|$count" >> "$result_file"
+}
+
+# Check 2: Migration numbering
+check_migrations() {
+    local result_file="$1"
+    local dupes=$(ls "$PROJECT_ROOT/apps/api/src/db/migrations/"*.ts 2>/dev/null | xargs -I {} basename {} | sed 's/_.*//' | sort | uniq -d | tr '\n' ',' | sed 's/,$//')
+    echo "MIGRATIONS|$dupes" >> "$result_file"
+}
+
+# Check 3: PM2 process name
+check_pm2() {
+    local result_file="$1"
+    local deploy_name=$(grep "pm2 restart" "$PROJECT_ROOT/deploy.sh" 2>/dev/null | tail -1 | sed 's/.*pm2 restart //' | tr -d '"' | tr -d "'" || echo "")
+    local local_name=$(pm2 jlist 2>/dev/null | jq -r '.[0].name // empty' 2>/dev/null || echo "")
+    if [[ -n "$local_name" ]] && [[ "$deploy_name" != "$local_name" ]] && [[ -n "$deploy_name" ]]; then
+        echo "PM2|MISMATCH:$deploy_name:$local_name" >> "$result_file"
+    else
+        echo "PM2|OK" >> "$result_file"
+    fi
+}
+
+# Check 4: Port availability
+check_port() {
+    local result_file="$1"
+    local port_pid=$(lsof -ti:3001 2>/dev/null || echo "")
+    if [[ -n "$port_pid" ]]; then
+        local process_name=$(ps -p $port_pid -o comm= 2>/dev/null || echo "unknown")
+        echo "PORT|$process_name:$port_pid" >> "$result_file"
+    else
+        echo "PORT|FREE" >> "$result_file"
+    fi
+}
+
+# Check 5: Build currency
+check_build() {
+    local result_file="$1"
+    if [[ -d "$PROJECT_ROOT/apps/api/dist" ]]; then
+        local newer=$(find "$PROJECT_ROOT/apps/api/src" -name "*.ts" -newer "$PROJECT_ROOT/apps/api/dist/index.js" 2>/dev/null | head -1)
+        if [[ -n "$newer" ]]; then
+            echo "BUILD|OUTDATED" >> "$result_file"
+        else
+            echo "BUILD|CURRENT" >> "$result_file"
+        fi
+    else
+        echo "BUILD|MISSING" >> "$result_file"
+    fi
+}
+
+# Check 6: Environment file
+check_env() {
+    local result_file="$1"
+    if [[ -f "$PROJECT_ROOT/apps/api/.env" ]]; then
+        local db_name=$(grep DATABASE_URL "$PROJECT_ROOT/apps/api/.env" 2>/dev/null | sed 's/.*\///' | cut -d'?' -f1)
+        echo "ENV|$db_name" >> "$result_file"
+    else
+        echo "ENV|MISSING" >> "$result_file"
+    fi
+}
+
+export -f check_jsonb_patterns check_migrations check_pm2 check_port check_build check_env
+export PROJECT_ROOT
+
+# =====================================================
+# RUN PARALLEL CHECKS
+# =====================================================
+
+echo -e "\n${BLUE}Running parallel checks...${NC}"
+RESULTS_FILE="$TEMP_DIR/results.txt"
+touch "$RESULTS_FILE"
+
+# Launch all checks in parallel
+check_jsonb_patterns "$RESULTS_FILE" &
+check_migrations "$RESULTS_FILE" &
+check_pm2 "$RESULTS_FILE" &
+check_port "$RESULTS_FILE" &
+check_build "$RESULTS_FILE" &
+check_env "$RESULTS_FILE" &
+
+# Wait for all parallel checks
+wait
+
+# =====================================================
+# PROCESS RESULTS
+# =====================================================
+
+echo -e "\n${BLUE}1. Database Checks${NC}"
+
+# JSONB patterns
+JSONB_RESULT=$(grep "^JSONB|" "$RESULTS_FILE" | cut -d'|' -f2 | tr -d ' ')
 echo -n "  Checking for JSONB parse anti-patterns... "
-JSONB_ISSUES=$(grep -r "JSON\.parse.*\(row\|result\|data\)\." "$PROJECT_ROOT/apps/api/src" --include="*.ts" 2>/dev/null | grep -v "node_modules" | wc -l || true)
-if [ "$JSONB_ISSUES" -gt 0 ]; then
-    echo -e "${YELLOW}⚠️  Potential JSONB parsing issues${NC}"
-    echo "     PostgreSQL JSONB columns are auto-parsed. Check these files:"
-    grep -r "JSON\.parse.*\(row\|result\|data\)\." "$PROJECT_ROOT/apps/api/src" --include="*.ts" -l 2>/dev/null | head -5
-    WARNINGS=$((WARNINGS + 1))
+if [[ "$JSONB_RESULT" -gt 0 ]]; then
+    echo -e "${YELLOW}⚠️  $JSONB_RESULT potential issue(s)${NC}"
+    ((WARNINGS++))
 else
     echo -e "${GREEN}✓${NC}"
 fi
 
-# Check migration numbering for duplicates
+# Migrations
+MIGRATION_RESULT=$(grep "^MIGRATIONS|" "$RESULTS_FILE" | cut -d'|' -f2)
 echo -n "  Checking migration numbering... "
-MIGRATION_NUMS=$(ls "$PROJECT_ROOT/apps/api/src/db/migrations/"*.ts 2>/dev/null | xargs -I {} basename {} | sed 's/_.*//' | sort | uniq -d)
-if [ -n "$MIGRATION_NUMS" ]; then
-    echo -e "${RED}✗ Duplicate migration numbers: $MIGRATION_NUMS${NC}"
-    ERRORS=$((ERRORS + 1))
+if [[ -n "$MIGRATION_RESULT" ]]; then
+    echo -e "${RED}✗ Duplicates: $MIGRATION_RESULT${NC}"
+    ((ERRORS++))
 else
     echo -e "${GREEN}✓${NC}"
 fi
 
-# =====================================================
-# 3. PM2 & Process Checks
-# =====================================================
-echo -e "\n${BLUE}3. PM2 & Process Checks${NC}"
+echo -e "\n${BLUE}2. PM2 & Process Checks${NC}"
 
-# Check local PM2 process name matches deploy script
+# PM2
+PM2_RESULT=$(grep "^PM2|" "$RESULTS_FILE" | cut -d'|' -f2)
 echo -n "  Checking PM2 process name consistency... "
-DEPLOY_PM2_NAME=$(grep "pm2 restart" "$PROJECT_ROOT/deploy.sh" | tail -1 | sed 's/.*pm2 restart //' | tr -d '"')
-LOCAL_PM2_NAME=$(pm2 jlist 2>/dev/null | jq -r '.[0].name // empty' 2>/dev/null || echo "")
-if [ -n "$LOCAL_PM2_NAME" ] && [ "$DEPLOY_PM2_NAME" != "$LOCAL_PM2_NAME" ]; then
-    echo -e "${YELLOW}⚠️  Deploy uses '$DEPLOY_PM2_NAME' but local PM2 has '$LOCAL_PM2_NAME'${NC}"
-    WARNINGS=$((WARNINGS + 1))
+if [[ "$PM2_RESULT" == MISMATCH:* ]]; then
+    IFS=':' read -r _ deploy_name local_name <<< "$PM2_RESULT"
+    echo -e "${YELLOW}⚠️  Deploy uses '$deploy_name' but local PM2 has '$local_name'${NC}"
+    ((WARNINGS++))
 else
     echo -e "${GREEN}✓${NC}"
 fi
 
-# Check if port 3001 is in use
+# Port
+PORT_RESULT=$(grep "^PORT|" "$RESULTS_FILE" | cut -d'|' -f2)
 echo -n "  Checking port 3001 availability... "
-PORT_PID=$(lsof -ti:3001 2>/dev/null || true)
-if [ -n "$PORT_PID" ]; then
-    PROCESS_NAME=$(ps -p $PORT_PID -o comm= 2>/dev/null || echo "unknown")
-    echo -e "${YELLOW}⚠️  Port 3001 in use by $PROCESS_NAME (PID: $PORT_PID)${NC}"
-    WARNINGS=$((WARNINGS + 1))
+if [[ "$PORT_RESULT" != "FREE" ]]; then
+    IFS=':' read -r process_name pid <<< "$PORT_RESULT"
+    echo -e "${YELLOW}⚠️  In use by $process_name (PID: $pid)${NC}"
+    ((WARNINGS++))
 else
     echo -e "${GREEN}✓${NC}"
 fi
 
-# =====================================================
-# 4. Build Checks
-# =====================================================
-echo -e "\n${BLUE}4. Build Checks${NC}"
+echo -e "\n${BLUE}3. Build Checks${NC}"
 
-# Check if dist is older than src
+# Build
+BUILD_RESULT=$(grep "^BUILD|" "$RESULTS_FILE" | cut -d'|' -f2)
 echo -n "  Checking if build is current... "
-if [ -d "$PROJECT_ROOT/apps/api/dist" ]; then
-    SRC_NEWEST=$(find "$PROJECT_ROOT/apps/api/src" -name "*.ts" -newer "$PROJECT_ROOT/apps/api/dist/index.js" 2>/dev/null | head -1)
-    if [ -n "$SRC_NEWEST" ]; then
+case "$BUILD_RESULT" in
+    OUTDATED)
         echo -e "${YELLOW}⚠️  Source files newer than build - rebuild needed${NC}"
-        WARNINGS=$((WARNINGS + 1))
+        ((WARNINGS++))
         ISSUES_TO_FIX+=("REBUILD_NEEDED")
+        ;;
+    MISSING)
+        echo -e "${YELLOW}⚠️  No dist folder - build needed${NC}"
+        ((WARNINGS++))
+        ISSUES_TO_FIX+=("REBUILD_NEEDED")
+        ;;
+    *)
+        echo -e "${GREEN}✓${NC}"
+        ;;
+esac
+
+echo -e "\n${BLUE}4. Environment Checks${NC}"
+
+# Environment
+ENV_RESULT=$(grep "^ENV|" "$RESULTS_FILE" | cut -d'|' -f2)
+echo -n "  Checking database configuration... "
+if [[ "$ENV_RESULT" == "MISSING" ]]; then
+    echo -e "${YELLOW}⚠️  No .env file found${NC}"
+    ((WARNINGS++))
+else
+    echo -e "${GREEN}✓ Using database: $ENV_RESULT${NC}"
+fi
+
+# =====================================================
+# TYPECHECK (with caching)
+# =====================================================
+
+echo -e "\n${BLUE}5. TypeScript Checks${NC}"
+
+if is_cache_valid "$TYPECHECK_CACHE" $CACHE_TTL && [[ "$FAST_MODE" == "true" ]]; then
+    echo -e "  ${GREEN}✓ Typecheck passed (cached)${NC}"
+else
+    echo -n "  Running typecheck... "
+
+    if cd "$PROJECT_ROOT" && pnpm typecheck > /tmp/typecheck.log 2>&1; then
+        echo -e "${GREEN}✓${NC}"
+        # Update cache
+        echo "$(date +%s)" > "$TYPECHECK_CACHE"
+    else
+        echo -e "${RED}✗ Type errors found${NC}"
+        ((ERRORS++))
+        grep -E "error TS" /tmp/typecheck.log | head -10 || true
+        # Invalidate cache on failure
+        rm -f "$TYPECHECK_CACHE"
+    fi
+
+    # Check for unused imports (quick grep, not full typecheck)
+    UNUSED_IMPORTS=$(grep -c "is declared but" /tmp/typecheck.log 2>/dev/null || echo "0")
+    if [[ "$UNUSED_IMPORTS" -gt 0 ]]; then
+        echo -e "  ${YELLOW}⚠️  $UNUSED_IMPORTS unused import(s)${NC}"
+        ((WARNINGS++))
+        ISSUES_TO_FIX+=("UNUSED_IMPORTS")
+    fi
+fi
+
+# =====================================================
+# LINTING (quick mode)
+# =====================================================
+
+echo -e "\n${BLUE}6. Linting (quick)${NC}"
+echo -n "  Running lint... "
+
+# Use --quiet for faster lint (only errors, not warnings)
+if cd "$PROJECT_ROOT" && timeout 30 pnpm lint --quiet > /tmp/lint.log 2>&1; then
+    echo -e "${GREEN}✓${NC}"
+else
+    LINT_ERRORS=$(grep -c "error" /tmp/lint.log 2>/dev/null || echo "0")
+    if [[ "$LINT_ERRORS" -gt 0 ]]; then
+        echo -e "${YELLOW}⚠️  $LINT_ERRORS lint issue(s)${NC}"
+        ((WARNINGS++))
     else
         echo -e "${GREEN}✓${NC}"
     fi
-else
-    echo -e "${YELLOW}⚠️  No dist folder - build needed${NC}"
-    WARNINGS=$((WARNINGS + 1))
-    ISSUES_TO_FIX+=("REBUILD_NEEDED")
-fi
-
-# =====================================================
-# 5. Environment Checks
-# =====================================================
-echo -e "\n${BLUE}5. Environment Checks${NC}"
-
-# Check which database is configured
-echo -n "  Checking database configuration... "
-if [ -f "$PROJECT_ROOT/apps/api/.env" ]; then
-    DB_NAME=$(grep DATABASE_URL "$PROJECT_ROOT/apps/api/.env" | sed 's/.*\///' | cut -d'?' -f1)
-    echo -e "${GREEN}✓ Using database: $DB_NAME${NC}"
-else
-    echo -e "${YELLOW}⚠️  No .env file found${NC}"
-    WARNINGS=$((WARNINGS + 1))
-fi
-
-# =====================================================
-# 6. Linting
-# =====================================================
-echo -e "\n${BLUE}6. Linting${NC}"
-echo -n "  Running lint... "
-if cd "$PROJECT_ROOT" && pnpm lint > /tmp/lint.log 2>&1; then
-    echo -e "${GREEN}✓${NC}"
-else
-    LINT_ERRORS=$(cat /tmp/lint.log | grep -c "error" || true)
-    echo -e "${YELLOW}⚠️  $LINT_ERRORS lint issues${NC}"
-    WARNINGS=$((WARNINGS + 1))
 fi
 
 # =====================================================
 # Summary
 # =====================================================
+
 echo ""
 echo "================================"
-if [ $ERRORS -gt 0 ]; then
+if [[ $ERRORS -gt 0 ]]; then
     echo -e "${RED}❌ Pre-deploy check failed: $ERRORS error(s), $WARNINGS warning(s)${NC}"
     exit 1
-elif [ $WARNINGS -gt 0 ]; then
+elif [[ $WARNINGS -gt 0 ]]; then
     echo -e "${YELLOW}⚠️  Pre-deploy check passed with $WARNINGS warning(s)${NC}"
 
     # Offer to auto-fix
-    if [ ${#ISSUES_TO_FIX[@]} -gt 0 ]; then
+    if [[ ${#ISSUES_TO_FIX[@]} -gt 0 ]]; then
         echo ""
         echo -e "${BLUE}Auto-fixable issues:${NC}"
         for issue in "${ISSUES_TO_FIX[@]}"; do

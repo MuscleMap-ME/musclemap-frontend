@@ -14,6 +14,7 @@ import {
   GlassCard,
   GlassButton,
 } from '../components/glass';
+import { InsightCard } from '../components/analytics';
 
 // ============================================
 // ICONS
@@ -589,6 +590,41 @@ export default function Recovery() {
             </GlassCard>
           </motion.div>
         )}
+
+        {/* Recovery Insights */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
+          <InsightCard
+            type={currentScore?.score >= 70 ? 'positive' : currentScore?.score >= 50 ? 'info' : 'warning'}
+            title={currentScore?.score >= 70 ? 'Well Rested!' : currentScore?.score >= 50 ? 'Moderate Recovery' : 'Need More Rest'}
+            message={currentScore?.score >= 70
+              ? 'You\'re fully recovered and ready for an intense workout'
+              : currentScore?.score >= 50
+                ? 'Consider a moderate workout today'
+                : 'Take it easy or consider a rest day'}
+            icon={currentScore?.score >= 70 ? '💪' : currentScore?.score >= 50 ? '😊' : '😴'}
+          />
+          <InsightCard
+            type={sleepStats?.avgDurationHours >= 7 ? 'positive' : 'warning'}
+            title="Sleep Duration"
+            message={sleepStats?.avgDurationHours >= 7
+              ? `Averaging ${sleepStats.avgDurationHours}h per night - great!`
+              : `Averaging ${sleepStats?.avgDurationHours || 0}h per night - try for 7-9h`}
+            icon="🌙"
+          />
+          <InsightCard
+            type={sleepStats?.consistency >= 80 ? 'positive' : 'info'}
+            title="Sleep Consistency"
+            message={sleepStats?.consistency >= 80
+              ? 'Excellent sleep schedule consistency!'
+              : 'Try to maintain a more consistent sleep schedule'}
+            icon="📊"
+          />
+        </motion.div>
 
         {/* Sleep Stats & History */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

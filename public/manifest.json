@@ -6,12 +6,114 @@
   "display": "standalone",
   "background_color": "#0A0E27",
   "theme_color": "#0066FF",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["fitness", "health", "sports"],
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon-48.webp",
+      "sizes": "48x48",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-72.webp",
+      "sizes": "72x72",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-96.webp",
+      "sizes": "96x96",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-128.webp",
+      "sizes": "128x128",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-144.webp",
+      "sizes": "144x144",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-152.webp",
+      "sizes": "152x152",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-384.webp",
+      "sizes": "384x384",
+      "type": "image/webp"
+    },
+    {
+      "src": "/icon-512.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.webp",
+      "sizes": "1280x720",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Dashboard with muscle visualization"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Workout",
+      "short_name": "Workout",
+      "description": "Begin a new workout session",
+      "url": "/workout",
+      "icons": [{ "src": "/icon-96.webp", "sizes": "96x96" }]
+    },
+    {
+      "name": "View Stats",
+      "short_name": "Stats",
+      "description": "Check your progress and statistics",
+      "url": "/stats",
+      "icons": [{ "src": "/icon-96.webp", "sizes": "96x96" }]
+    },
+    {
+      "name": "Exercises",
+      "short_name": "Exercises",
+      "description": "Browse exercise library",
+      "url": "/exercises",
+      "icons": [{ "src": "/icon-96.webp", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

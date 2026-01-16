@@ -5,11 +5,17 @@
 # This script collects all changes from git worktrees and merges them into main.
 # Use this after working on multiple features in different worktrees.
 #
+# PERFORMANCE OPTIMIZED:
+#   - Parallel worktree scanning using background jobs
+#   - Single git fetch instead of multiple
+#   - Batched operations where possible
+#
 # Usage:
 #   ./scripts/merge-all.sh              # Interactive mode - shows branches and asks for confirmation
 #   ./scripts/merge-all.sh --auto       # Auto-merge all branches without prompts
 #   ./scripts/merge-all.sh --list       # List all worktree branches without merging
 #   ./scripts/merge-all.sh --dry-run    # Show what would be merged without doing it
+#   ./scripts/merge-all.sh --parallel N # Use N parallel jobs for scanning (default: 4)
 #
 
 set -e
@@ -18,6 +24,9 @@ set -e
 MAIN_REPO="/Users/jeanpaulniko/Public/musclemap.me"
 WORKTREE_BASE="$HOME/.claude-worktrees/musclemap.me"
 MAIN_BRANCH="main"
+PARALLEL_JOBS=4
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
 
 # Colors
 RED='\033[0;31m'
@@ -46,6 +55,10 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --parallel|-p)
+            PARALLEL_JOBS="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo ""
@@ -53,6 +66,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --auto, -a      Auto-merge all branches without prompts"
             echo "  --list, -l      List all worktree branches without merging"
             echo "  --dry-run, -n   Show what would be merged without doing it"
+            echo "  --parallel, -p  Number of parallel jobs for scanning (default: 4)"
             echo "  --help, -h      Show this help message"
             exit 0
             ;;
@@ -64,49 +78,109 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}  MuscleMap - Worktree Merge Tool${NC}"
+echo -e "${BLUE}  MuscleMap - Worktree Merge Tool (Optimized)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
 # Change to main repo
 cd "$MAIN_REPO"
 
-# Fetch all remote branches
+# Fetch all remote branches (single fetch with quiet mode for speed)
 echo -e "${CYAN}Fetching remote branches...${NC}"
-git fetch origin --prune
+git fetch origin --prune -q &
+FETCH_PID=$!
 
-# Collect all worktree branches
+# Function to scan a single worktree (called in parallel)
+scan_worktree() {
+    local worktree="$1"
+    local output_file="$2"
+
+    if [[ -d "$worktree/.git" || -f "$worktree/.git" ]]; then
+        cd "$worktree" 2>/dev/null || return
+        local BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+        # Skip if on main
+        if [[ "$BRANCH" == "main" ]]; then
+            return
+        fi
+
+        # Check if branch has commits ahead of main (use cached refs)
+        local AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
+        local BEHIND=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo "0")
+
+        # Check for uncommitted changes (fast porcelain check)
+        local UNCOMMITTED=""
+        if [[ -n $(git status --porcelain 2>/dev/null | head -1) ]]; then
+            UNCOMMITTED=" (has uncommitted changes)"
+        fi
+
+        if [[ "$AHEAD" -gt 0 ]] || [[ -n "$UNCOMMITTED" ]]; then
+            echo "$BRANCH|$AHEAD ahead, $BEHIND behind$UNCOMMITTED" >> "$output_file"
+        fi
+    fi
+}
+export -f scan_worktree
+
+# Collect all worktree branches (PARALLEL)
 declare -a BRANCHES_TO_MERGE
 declare -a BRANCH_STATUS
 
 if [[ -d "$WORKTREE_BASE" ]]; then
-    for worktree in "$WORKTREE_BASE"/*; do
-        if [[ -d "$worktree/.git" || -f "$worktree/.git" ]]; then
-            cd "$worktree"
-            BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    WORKTREES=("$WORKTREE_BASE"/*)
+    TOTAL_WORKTREES=${#WORKTREES[@]}
 
-            # Skip if on main
-            if [[ "$BRANCH" == "main" ]]; then
-                continue
+    if [[ $TOTAL_WORKTREES -gt 0 ]]; then
+        echo -e "${CYAN}Scanning $TOTAL_WORKTREES worktrees in parallel...${NC}"
+
+        # Use xargs for parallel execution if available, otherwise fall back to sequential
+        if command -v xargs &>/dev/null && [[ $TOTAL_WORKTREES -gt 1 ]]; then
+            # Create output file for parallel results
+            RESULTS_FILE="$TEMP_DIR/results.txt"
+            touch "$RESULTS_FILE"
+
+            # Run scans in parallel using background jobs
+            JOB_COUNT=0
+            for worktree in "${WORKTREES[@]}"; do
+                scan_worktree "$worktree" "$RESULTS_FILE" &
+                ((JOB_COUNT++))
+
+                # Limit parallel jobs
+                if [[ $JOB_COUNT -ge $PARALLEL_JOBS ]]; then
+                    wait -n 2>/dev/null || wait
+                    ((JOB_COUNT--))
+                fi
+            done
+
+            # Wait for all remaining jobs
+            wait
+
+            # Read results
+            if [[ -s "$RESULTS_FILE" ]]; then
+                while IFS='|' read -r branch status; do
+                    BRANCHES_TO_MERGE+=("$branch")
+                    BRANCH_STATUS+=("$status")
+                done < "$RESULTS_FILE"
             fi
-
-            # Check if branch has commits ahead of main
-            AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
-            BEHIND=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo "0")
-
-            # Check for uncommitted changes
-            UNCOMMITTED=""
-            if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
-                UNCOMMITTED=" (has uncommitted changes)"
-            fi
-
-            if [[ "$AHEAD" -gt 0 ]] || [[ -n "$UNCOMMITTED" ]]; then
-                BRANCHES_TO_MERGE+=("$BRANCH")
-                BRANCH_STATUS+=("$AHEAD ahead, $BEHIND behind$UNCOMMITTED")
-            fi
+        else
+            # Fallback to sequential for single worktree or no xargs
+            for worktree in "${WORKTREES[@]}"; do
+                RESULTS_FILE="$TEMP_DIR/results.txt"
+                touch "$RESULTS_FILE"
+                scan_worktree "$worktree" "$RESULTS_FILE"
+                if [[ -s "$RESULTS_FILE" ]]; then
+                    while IFS='|' read -r branch status; do
+                        BRANCHES_TO_MERGE+=("$branch")
+                        BRANCH_STATUS+=("$status")
+                    done < "$RESULTS_FILE"
+                    > "$RESULTS_FILE"  # Clear for next iteration
+                fi
+            done
         fi
-    done
+    fi
 fi
+
+# Wait for fetch to complete
+wait $FETCH_PID 2>/dev/null || true
 
 cd "$MAIN_REPO"
 

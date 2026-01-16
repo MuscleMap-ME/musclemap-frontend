@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../store/authStore';
 import { api } from '../utils/api';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
+import { XPProgress } from '../components/gamification';
+import { WeeklyHeatmap } from '../components/analytics';
 
 const LIMITATIONS = [
   { id: 'back_pain', name: 'Back Pain', icon: '🤴' },
@@ -109,8 +111,23 @@ export default function Profile() {
         <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-center">
           <div className="text-6xl mb-2">{profile?.avatar_id ? '🐉' : '👀'}</div>
           <div className="text-2xl font-bold">{profile?.username}</div>
-          <div className="text-lg opacity-90">Level {level} • {profile?.xp || 0} XP</div>
-          <div className="bg-white/20 rounded-full h-3 mt-3 overflow-hidden"><div className="h-full bg-white rounded-full" style={{width: `${(profile?.xp || 0) % 100}%`}}></div></div>
+          <XPProgress
+            currentXP={profile?.xp || 0}
+            xpForNextLevel={1000}
+            level={level}
+            levelTitle={level <= 5 ? 'Beginner' : level <= 15 ? 'Intermediate' : level <= 30 ? 'Advanced' : 'Elite'}
+            colorScheme="light"
+          />
+        </div>
+
+        {/* Weekly Activity */}
+        <div className="bg-gray-800 rounded-2xl p-4 mb-6">
+          <h3 className="text-sm text-gray-400 uppercase mb-3">This Week's Activity</h3>
+          <WeeklyHeatmap
+            data={profile?.weeklyActivity || [2, 1, 3, 0, 2, 1, 0]}
+            colorScheme="purple"
+            showTooltip={true}
+          />
         </div>
 
         {/* Tabs */}

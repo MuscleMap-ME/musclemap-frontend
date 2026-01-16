@@ -22,7 +22,6 @@ import {
   FileArchive,
   HardDrive,
   Loader2,
-  Play,
   RefreshCw,
   RotateCcw,
   Settings,

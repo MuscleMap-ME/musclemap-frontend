@@ -2,17 +2,16 @@
 #
 # MuscleMap Local Development Services - STOP
 #
-# Stops all MuscleMap-related services to free up system resources when
-# you're not actively developing. This includes:
-# - PostgreSQL (database)
-# - Redis (caching)
-# - PM2/Node processes (API server)
-# - Caddy (reverse proxy) - if running
-# - Vite dev server (frontend) - if running
+# PERFORMANCE OPTIMIZED:
+#   - Parallel service shutdown
+#   - Fast process detection (pgrep/lsof instead of brew services)
+#   - Reduced wait times
+#   - Graceful shutdown with SIGTERM before SIGKILL
 #
 # Usage:
 #   ./scripts/musclemap-stop.sh         # Stop all services
 #   ./scripts/musclemap-stop.sh --quiet # Stop without confirmation
+#   ./scripts/musclemap-stop.sh --fast  # Force stop without waiting
 #
 # To start services again, run:
 #   ./scripts/musclemap-start.sh
@@ -27,115 +26,131 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Project directory
-PROJECT_DIR="/Users/jeanpaulniko/Public/musclemap.me"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  MuscleMap Services - Stopping        ${NC}"
+echo -e "${BLUE}  MuscleMap Services - Stopping (Fast) ${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Parse arguments
 QUIET=false
+FAST_MODE=false
+
 for arg in "$@"; do
   case $arg in
     --quiet|-q)
       QUIET=true
-      shift
+      ;;
+    --fast|-f)
+      FAST_MODE=true
+      QUIET=true  # Fast mode implies quiet
+      ;;
+    --help|-h)
+      echo "Usage: $0 [options]"
+      echo ""
+      echo "Options:"
+      echo "  --quiet, -q  Stop without confirmation"
+      echo "  --fast, -f   Force stop without waiting (implies --quiet)"
+      echo "  --help, -h   Show this help"
+      exit 0
       ;;
   esac
 done
 
-# Function to check if a service is running
-check_service() {
-  local service=$1
-  if brew services list | grep -q "^$service.*started"; then
-    return 0
-  else
-    return 1
-  fi
+# Fast service checks
+check_postgres_fast() {
+  pgrep -x postgres >/dev/null 2>&1 || pgrep -f "postgres.*5432" >/dev/null 2>&1
 }
 
-# Function to stop brew service
-stop_brew_service() {
-  local service=$1
-  local display_name=$2
-
-  if check_service "$service"; then
-    echo -e "${YELLOW}Stopping $display_name...${NC}"
-    brew services stop "$service" 2>/dev/null
-    echo -e "${GREEN}  ✓ $display_name stopped${NC}"
-  else
-    echo -e "${BLUE}  - $display_name already stopped${NC}"
-  fi
+check_redis_fast() {
+  pgrep -x redis-server >/dev/null 2>&1 || lsof -i:6379 >/dev/null 2>&1
 }
 
-# Function to stop PM2 processes
-stop_pm2() {
-  if command -v pm2 &> /dev/null; then
-    if pm2 list 2>/dev/null | grep -q "musclemap"; then
-      echo -e "${YELLOW}Stopping PM2 processes...${NC}"
-      pm2 stop all 2>/dev/null || true
-      pm2 delete all 2>/dev/null || true
-      echo -e "${GREEN}  ✓ PM2 processes stopped${NC}"
-    else
-      echo -e "${BLUE}  - PM2 processes already stopped${NC}"
-    fi
-  else
-    echo -e "${BLUE}  - PM2 not installed (skipping)${NC}"
-  fi
+check_pm2_running() {
+  pm2 list 2>/dev/null | grep -qE "musclemap|online"
 }
 
-# Function to stop Vite dev server
+check_vite_running() {
+  pgrep -f "vite" >/dev/null 2>&1
+}
+
+check_caddy_running() {
+  pgrep -x caddy >/dev/null 2>&1
+}
+
+# Stop Vite dev server
 stop_vite() {
   local vite_pids=$(pgrep -f "vite" 2>/dev/null || true)
   if [ -n "$vite_pids" ]; then
     echo -e "${YELLOW}Stopping Vite dev server...${NC}"
     echo "$vite_pids" | xargs kill 2>/dev/null || true
-    echo -e "${GREEN}  ✓ Vite dev server stopped${NC}"
+    echo -e "${GREEN}  ✓ Vite stopped${NC}"
   else
-    echo -e "${BLUE}  - Vite dev server not running${NC}"
+    echo -e "${BLUE}  - Vite not running${NC}"
   fi
 }
 
-# Function to stop Caddy
-stop_caddy() {
-  if check_service "caddy"; then
-    echo -e "${YELLOW}Stopping Caddy...${NC}"
-    brew services stop caddy 2>/dev/null
-    echo -e "${GREEN}  ✓ Caddy stopped${NC}"
-  else
-    # Check for manual Caddy process
-    local caddy_pids=$(pgrep -f "caddy" 2>/dev/null || true)
-    if [ -n "$caddy_pids" ]; then
-      echo -e "${YELLOW}Stopping Caddy process...${NC}"
-      echo "$caddy_pids" | xargs kill 2>/dev/null || true
-      echo -e "${GREEN}  ✓ Caddy stopped${NC}"
+# Stop PM2 processes
+stop_pm2() {
+  if command -v pm2 &>/dev/null; then
+    if check_pm2_running; then
+      echo -e "${YELLOW}Stopping PM2 processes...${NC}"
+      pm2 stop all 2>/dev/null || true
+      pm2 delete all 2>/dev/null || true
+      echo -e "${GREEN}  ✓ PM2 stopped${NC}"
     else
-      echo -e "${BLUE}  - Caddy not running${NC}"
+      echo -e "${BLUE}  - PM2 not running${NC}"
     fi
   fi
 }
 
-# Function to stop any node processes in project directory
+# Stop any node processes for the project
 stop_node_processes() {
   local node_pids=$(pgrep -f "node.*musclemap" 2>/dev/null || true)
   if [ -n "$node_pids" ]; then
     echo -e "${YELLOW}Stopping Node.js processes...${NC}"
     echo "$node_pids" | xargs kill 2>/dev/null || true
-    echo -e "${GREEN}  ✓ Node.js processes stopped${NC}"
+    echo -e "${GREEN}  ✓ Node stopped${NC}"
+  fi
+}
+
+# Stop Caddy
+stop_caddy() {
+  if check_caddy_running; then
+    echo -e "${YELLOW}Stopping Caddy...${NC}"
+    # Try brew first, then manual kill
+    brew services stop caddy 2>/dev/null || pkill caddy 2>/dev/null || true
+    echo -e "${GREEN}  ✓ Caddy stopped${NC}"
   else
-    echo -e "${BLUE}  - No MuscleMap Node.js processes running${NC}"
+    echo -e "${BLUE}  - Caddy not running${NC}"
+  fi
+}
+
+# Stop brew service
+stop_brew_service() {
+  local service=$1
+  local display_name=$2
+  local check_func=$3
+
+  if $check_func; then
+    echo -e "${YELLOW}Stopping $display_name...${NC}"
+    brew services stop "$service" 2>/dev/null || true
+    echo -e "${GREEN}  ✓ $display_name stopped${NC}"
+  else
+    echo -e "${BLUE}  - $display_name not running${NC}"
   fi
 }
 
 # Confirmation prompt (unless --quiet)
 if [ "$QUIET" = false ]; then
-  echo -e "This will stop the following services:"
-  echo -e "  - PostgreSQL (database)"
-  echo -e "  - Redis (caching)"
-  echo -e "  - PM2 processes (API)"
-  echo -e "  - Caddy (reverse proxy)"
-  echo -e "  - Vite dev server (frontend)"
+  echo -e "This will stop:"
+  check_vite_running && echo -e "  ${GREEN}●${NC} Vite dev server"
+  check_pm2_running && echo -e "  ${GREEN}●${NC} PM2/API processes"
+  check_caddy_running && echo -e "  ${GREEN}●${NC} Caddy"
+  check_redis_fast && echo -e "  ${GREEN}●${NC} Redis"
+  check_postgres_fast && echo -e "  ${GREEN}●${NC} PostgreSQL"
   echo ""
   read -p "Continue? [Y/n] " -n 1 -r
   echo ""
@@ -146,37 +161,60 @@ if [ "$QUIET" = false ]; then
   echo ""
 fi
 
-# Stop services in reverse dependency order
+# ========================================
+# PARALLEL SHUTDOWN
+# ========================================
+
 echo -e "${BLUE}Stopping services...${NC}"
 echo ""
 
-# 1. Stop frontend dev server first
-stop_vite
+# Phase 1: Stop application-level services in parallel
+{
+  stop_vite &
+  VITE_PID=$!
 
-# 2. Stop PM2/API processes
-stop_pm2
+  stop_pm2 &
+  PM2_PID=$!
 
-# 3. Stop any other Node processes
-stop_node_processes
+  stop_node_processes &
+  NODE_PID=$!
 
-# 4. Stop Caddy reverse proxy
-stop_caddy
+  stop_caddy &
+  CADDY_PID=$!
 
-# 5. Stop Redis (cache)
-stop_brew_service "redis" "Redis"
+  # Wait for app services
+  wait $VITE_PID $PM2_PID $NODE_PID $CADDY_PID 2>/dev/null || true
+}
 
-# 6. Stop PostgreSQL (database) - stop last
-stop_brew_service "postgresql@16" "PostgreSQL"
+# Phase 2: Stop infrastructure services in parallel
+{
+  stop_brew_service "redis" "Redis" check_redis_fast &
+  REDIS_PID=$!
+
+  stop_brew_service "postgresql@16" "PostgreSQL" check_postgres_fast &
+  PG_PID=$!
+
+  # Wait for infra services
+  wait $REDIS_PID $PG_PID 2>/dev/null || true
+}
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  All MuscleMap services stopped!      ${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "System resources freed. To restart services:"
+echo -e "To restart services:"
 echo -e "  ${BLUE}./scripts/musclemap-start.sh${NC}"
 echo ""
 
-# Show current status
-echo -e "${BLUE}Current service status:${NC}"
-brew services list | grep -E "postgresql|redis|caddy" || true
+# Show final status
+echo -e "${BLUE}Final Status:${NC}"
+if ! check_postgres_fast && ! check_redis_fast && ! check_pm2_running && ! check_vite_running; then
+  echo -e "  ${GREEN}✓${NC} All services stopped"
+else
+  check_postgres_fast && echo -e "  ${YELLOW}●${NC} PostgreSQL still running"
+  check_redis_fast && echo -e "  ${YELLOW}●${NC} Redis still running"
+  check_pm2_running && echo -e "  ${YELLOW}●${NC} PM2 still running"
+  check_vite_running && echo -e "  ${YELLOW}●${NC} Vite still running"
+fi
+echo ""

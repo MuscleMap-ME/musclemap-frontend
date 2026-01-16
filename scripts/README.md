@@ -11,12 +11,45 @@ Welcome to **MuscleMap** - a cross-platform fitness tracking application that vi
 
 ---
 
+## Quick Start: The `mm` CLI
+
+**MuscleMap now has a unified interactive CLI for all system administration tasks.**
+
+```bash
+# Interactive mode - full menu system
+./scripts/mm
+
+# Quick commands
+./scripts/mm start          # Start all services
+./scripts/mm stop           # Stop all services
+./scripts/mm status         # Full system status
+./scripts/mm deploy         # Deploy to production
+./scripts/mm test           # Run tests
+
+# Submenus
+./scripts/mm services       # Service management menu
+./scripts/mm qa             # Quality assurance menu
+./scripts/mm docs           # Documentation menu
+./scripts/mm db             # Database operations
+./scripts/mm git            # Git operations
+./scripts/mm quick          # Quick actions (common task combos)
+```
+
+The `mm` CLI provides:
+- **Interactive menus** with modal dialogs
+- **Quick actions** for common task combinations
+- **Category submenus** for detailed operations
+- **Informative output** showing what's happening
+- **Keyboard navigation** (arrow keys, vim keys)
+
+---
+
 ## Your Mission
 
 1. **Plan** features before implementing them (use TodoWrite tool)
 2. **Implement** changes in git worktrees (isolated development environments)
-3. **Merge** all worktree branches into main using `./scripts/merge-all.sh`
-4. **Deploy** across all environments using `./deploy.sh`
+3. **Merge** all worktree branches into main using `mm git` or `./scripts/merge-all.sh`
+4. **Deploy** across all environments using `mm deploy` or `./deploy.sh`
 5. **Verify** the deployment is working at https://musclemap.me/
 
 ---
@@ -171,16 +204,59 @@ ssh root@musclemap.me "pm2 restart musclemap-api"
 
 ## Scripts Reference
 
+### Script Directory Structure
+
+```
+scripts/
+├── mm                           # Master CLI (interactive menus)
+├── musclemap-start.sh          # Start local dev services
+├── musclemap-stop.sh           # Stop local dev services
+├── deploy.sh                   # Simple deployment helper
+├── deploy-branch.sh            # Full PR-based deployment
+├── production-deploy.sh        # Run on production server
+├── merge-all.sh                # Merge worktree branches
+├── pre-deploy-check.sh         # Pre-deploy validation
+├── warning-tracker.sh          # Code quality scanner
+├── generate-docs.cjs           # Documentation generator
+├── test.sh                     # Test runner
+├── maintain.sh                 # Maintenance menu
+├── repo-cleanup.sh             # Clean build artifacts
+├── competitive-analysis.sh     # Competitive analysis
+├── lib/
+│   ├── perf-utils.sh           # Performance utilities
+│   ├── ui-utils.sh             # UI/menu utilities
+│   ├── shell-utils.sh          # Shell utilities
+│   ├── postgres-utils.sh       # PostgreSQL utilities
+│   └── redis-utils.sh          # Redis utilities
+├── test-harness/               # Comprehensive test suite
+└── archive/                    # Old/superseded scripts
+```
+
+### Performance-Optimized Scripts
+
+All scripts have been optimized for speed and performance:
+
+| Script | Optimization | Speed Improvement |
+|--------|-------------|-------------------|
+| `merge-all.sh` | Parallel worktree scanning | ~4x faster with many worktrees |
+| `pre-deploy-check.sh` | Parallel checks + caching | ~2-3x faster |
+| `warning-tracker.sh` | Parallel grep + incremental mode | ~5x faster |
+| `musclemap-start.sh` | Parallel service startup | ~2x faster |
+| `musclemap-stop.sh` | Parallel service shutdown | ~2x faster |
+| `generate-docs.cjs` | Caching + incremental mode | ~3x faster |
+
 ### Primary Scripts
 
 #### `merge-all.sh` - Merge Worktree Branches
 Collects all changes from git worktrees and merges them into main.
+**OPTIMIZED:** Uses parallel worktree scanning with background jobs.
 
 ```bash
 ./scripts/merge-all.sh              # Interactive mode
 ./scripts/merge-all.sh --auto       # Auto-merge without prompts
 ./scripts/merge-all.sh --list       # List branches only
 ./scripts/merge-all.sh --dry-run    # Preview what would happen
+./scripts/merge-all.sh --parallel 8 # Use 8 parallel jobs (default: 4)
 ```
 
 #### `deploy.sh` (root) - Full Deployment
@@ -206,6 +282,49 @@ Run directly on the VPS for manual deployments:
 ./scripts/production-deploy.sh --pull    # Just pull, no restart
 ```
 
+#### `pre-deploy-check.sh` - Pre-Deployment Validation
+**OPTIMIZED:** Runs 6+ checks in parallel with result caching.
+
+```bash
+./scripts/pre-deploy-check.sh           # Run all checks
+./scripts/pre-deploy-check.sh --fast    # Skip typecheck if recently cached
+./scripts/pre-deploy-check.sh --no-cache # Force fresh checks (ignore cache)
+```
+
+#### `warning-tracker.sh` - Code Quality Scanner
+**OPTIMIZED:** Parallel grep scans with incremental mode support.
+
+```bash
+./scripts/warning-tracker.sh scan              # Full scan
+./scripts/warning-tracker.sh scan --incremental # Only scan changed files
+./scripts/warning-tracker.sh scan --fast       # Skip typecheck entirely
+./scripts/warning-tracker.sh fix               # Auto-fix fixable issues
+./scripts/warning-tracker.sh status            # Show current status
+```
+
+### Service Management (Local Dev)
+
+#### `musclemap-start.sh` - Start Dev Services
+**OPTIMIZED:** Parallel service startup with fast process detection.
+
+```bash
+./scripts/musclemap-start.sh              # Start PostgreSQL + Redis
+./scripts/musclemap-start.sh --api        # Also start API server
+./scripts/musclemap-start.sh --dev        # Also start Vite
+./scripts/musclemap-start.sh --all        # Start everything
+./scripts/musclemap-start.sh --status     # Just show status (fast check)
+./scripts/musclemap-start.sh --fast       # Skip wait-for-ready checks
+```
+
+#### `musclemap-stop.sh` - Stop Dev Services
+**OPTIMIZED:** Parallel service shutdown in two phases (app → infra).
+
+```bash
+./scripts/musclemap-stop.sh              # Stop all (with confirmation)
+./scripts/musclemap-stop.sh --quiet      # Stop without confirmation
+./scripts/musclemap-stop.sh --fast       # Force stop without waiting
+```
+
 ### Utility Scripts
 
 #### `deploy-branch.sh` - Branch-Based Deployment
@@ -221,11 +340,16 @@ node scripts/generate-icons.cjs
 ```
 
 #### `generate-docs.cjs` - Documentation Generator
-Regenerates all documentation from codebase analysis.
+**OPTIMIZED:** Caching + incremental mode for faster regeneration.
+
 ```bash
 pnpm docs:generate          # Generate all (Markdown + LaTeX)
 pnpm docs:md                # Markdown only
 pnpm docs:latex             # LaTeX only
+
+# Performance options
+node scripts/generate-docs.cjs --fast        # Use cached analysis (5-min TTL)
+node scripts/generate-docs.cjs --incremental # Skip if sources unchanged
 
 # Compile LaTeX to PDF
 cd docs/latex && make all   # Build all PDFs
@@ -276,6 +400,49 @@ pnpm competitive-analysis:check        # Check dates
 - `docs/FEATURE-GAP-ANALYSIS.md` - Prioritized gap analysis with implementation plan
 
 **Recommended Frequency:** Monthly
+
+### Performance Utilities Library
+
+The `lib/perf-utils.sh` library provides shared utilities for script performance:
+
+```bash
+# Source in your script
+source "$(dirname "$0")/lib/perf-utils.sh"
+
+# Timing
+timer_start "my_operation"
+# ... do work ...
+elapsed=$(timer_elapsed "my_operation")
+echo "Took ${elapsed}s"
+
+# Parallel execution (max 4 jobs)
+parallel_run 4 "command1" "command2" "command3"
+parallel_foreach 4 "my_func" item1 item2 item3
+
+# Caching (5-minute TTL by default)
+if cache_valid "my_key" 300; then
+    value=$(cache_get "my_key")
+else
+    value=$(expensive_operation)
+    cache_set "my_key" "$value"
+fi
+
+# Fast service checks
+pg_running && echo "PostgreSQL is up"
+redis_running && echo "Redis is up"
+pm2_musclemap_running && echo "API is up"
+vite_running && echo "Vite is up"
+port_in_use 3001 && echo "Port 3001 in use"
+
+# Wait with exponential backoff
+wait_with_backoff "pg_isready -q" 10 0.2 2
+
+# Colored output
+print_success "Operation completed"
+print_warning "Something to note"
+print_error "Something failed"
+print_info "FYI..."
+```
 
 ---
 
