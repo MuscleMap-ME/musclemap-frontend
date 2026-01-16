@@ -4,10 +4,16 @@ import { getToken } from '../store/authStore';
 const LOG_ENDPOINT = '/api/trace/frontend-log';
 
 class FrontendLogger {
+  private queue: any[];
+  private flushInterval: number;
+  private sessionId: string;
+  private flushIntervalId: ReturnType<typeof setInterval> | null;
+
   constructor() {
     this.queue = [];
     this.flushInterval = 5000;
     this.sessionId = this.generateSessionId();
+    this.flushIntervalId = null;
     this.setupErrorHandlers();
     this.startFlushTimer();
   }
@@ -148,7 +154,29 @@ class FrontendLogger {
   }
 
   startFlushTimer() {
-    setInterval(() => this.flush(), this.flushInterval);
+    // Clear any existing interval before creating a new one
+    if (this.flushIntervalId) {
+      clearInterval(this.flushIntervalId);
+    }
+    this.flushIntervalId = setInterval(() => this.flush(), this.flushInterval);
+  }
+
+  /**
+   * Stop the flush timer (useful for cleanup)
+   */
+  stopFlushTimer() {
+    if (this.flushIntervalId) {
+      clearInterval(this.flushIntervalId);
+      this.flushIntervalId = null;
+    }
+  }
+
+  /**
+   * Clean up resources - flush remaining logs and stop timer
+   */
+  destroy() {
+    this.flush(true);
+    this.stopFlushTimer();
   }
 
   async flush(sync = false) {

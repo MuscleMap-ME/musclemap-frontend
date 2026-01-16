@@ -617,16 +617,29 @@ export default function App() {
     });
 
     // Log performance metrics
+    let loadHandler: (() => void) | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     if (window.performance) {
       const timing = window.performance.timing;
-      window.addEventListener('load', () => {
-        setTimeout(() => {
+      loadHandler = () => {
+        timeoutId = setTimeout(() => {
           const loadTime = timing.loadEventEnd - timing.navigationStart;
           const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
           logger.performance('page_load', loadTime, { domReady });
         }, 0);
-      });
+      };
+      window.addEventListener('load', loadHandler);
     }
+
+    return () => {
+      if (loadHandler) {
+        window.removeEventListener('load', loadHandler);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   return (

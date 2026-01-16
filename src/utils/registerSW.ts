@@ -12,6 +12,9 @@ export function isServiceWorkerSupported() {
   return 'serviceWorker' in navigator;
 }
 
+// Store the update check interval ID so it can be cleaned up
+let updateCheckIntervalId: ReturnType<typeof setInterval> | null = null;
+
 /**
  * Register the service worker
  * @returns {Promise<ServiceWorkerRegistration|null>}
@@ -50,8 +53,13 @@ export async function registerServiceWorker() {
       }
     });
 
+    // Clear any existing interval before creating a new one
+    if (updateCheckIntervalId) {
+      clearInterval(updateCheckIntervalId);
+    }
+
     // Check for updates periodically (every hour)
-    setInterval(() => {
+    updateCheckIntervalId = setInterval(() => {
       registration.update();
     }, 60 * 60 * 1000);
 
@@ -59,6 +67,17 @@ export async function registerServiceWorker() {
   } catch (error) {
     console.error('[SW Registration] Failed:', error);
     return null;
+  }
+}
+
+/**
+ * Stop the periodic update check interval
+ */
+export function stopUpdateCheck() {
+  if (updateCheckIntervalId) {
+    clearInterval(updateCheckIntervalId);
+    updateCheckIntervalId = null;
+    console.log('[SW Registration] Update check interval stopped');
   }
 }
 
