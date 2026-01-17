@@ -1,13 +1,55 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
 import { hasExerciseIllustration } from '@musclemap/shared';
+import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
+import type { MuscleActivation } from '../components/muscle-viewer/types';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
   import('../components/illustrations').then(m => ({ default: m.ExerciseIllustration }))
 );
+
+// Muscle ID mapping from exercise muscles to visualization muscles
+const MUSCLE_ID_MAP: Record<string, string> = {
+  'chest-upper': 'chest',
+  'chest-mid': 'chest',
+  'chest-lower': 'chest',
+  'pectoralis': 'chest',
+  'pec': 'chest',
+  'back-upper': 'upper_back',
+  'back-mid': 'lats',
+  'back-lower': 'lower_back',
+  'latissimus': 'lats',
+  'rhomboids': 'upper_back',
+  'trapezius': 'traps',
+  'traps': 'traps',
+  'rear-delts': 'rear_delts',
+  'front-delts': 'front_delts',
+  'side-delts': 'side_delts',
+  'shoulders': 'front_delts',
+  'deltoid': 'front_delts',
+  'biceps': 'biceps',
+  'triceps': 'triceps',
+  'forearms': 'forearms',
+  'quadriceps': 'quads',
+  'quads': 'quads',
+  'hamstrings': 'hamstrings',
+  'glutes': 'glutes',
+  'calves': 'calves',
+  'abs': 'abs',
+  'obliques': 'obliques',
+  'core': 'abs',
+  'hip-flexors': 'hip_flexors',
+  'adductors': 'adductors',
+  'erector': 'lower_back',
+};
+
+function mapMuscleId(muscle: string): string {
+  const normalized = muscle.toLowerCase().replace(/[_\s]/g, '-');
+  return MUSCLE_ID_MAP[normalized] || normalized.replace(/-/g, '_');
+}
 
 // Constraint options
 const TIME_OPTIONS = [
@@ -127,6 +169,9 @@ export default function Workout() {
   // Mode: 'select' (constraints), 'workout' (doing exercises), 'manual' (browse all)
   const [mode, setMode] = useState('select');
 
+  // Muscle panel visibility
+  const [showMusclePanel, setShowMusclePanel] = useState(true);
+
   // Constraint selection
   const [selectedTime, setSelectedTime] = useState(30);
   const [selectedLocation, setSelectedLocation] = useState('gym');
@@ -161,6 +206,106 @@ export default function Workout() {
 
   // Get equipment options for current location
   const currentEquipmentOptions = EQUIPMENT_BY_LOCATION[selectedLocation] || DEFAULT_EQUIPMENT_OPTIONS;
+
+  // Get all exercises from prescription (main + warmup + cooldown)
+  // Moved here so it can be used in useMemo
+  const getAllPrescribedExercises = () => {
+    if (!prescription) return [];
+    const all: Array<{
+      id?: string;
+      exerciseId?: string;
+      name?: string;
+      description?: string;
+      phase?: string;
+      sets?: number;
+      reps?: number | string;
+      restSeconds?: number;
+      notes?: string;
+      primaryMuscles?: string[];
+      secondaryMuscles?: string[];
+      primary_muscles?: string[];
+      secondary_muscles?: string[];
+      isActivity?: boolean;
+    }> = [];
+    if (prescription.warmup) all.push(...prescription.warmup.map((e: unknown) => ({ ...(e as object), phase: 'warmup' })));
+    if (prescription.exercises) all.push(...prescription.exercises.map((e: unknown) => ({ ...(e as object), phase: 'main' })));
+    if (prescription.cooldown) all.push(...prescription.cooldown.map((e: unknown) => ({ ...(e as object), phase: 'cooldown' })));
+    return all;
+  };
+
+  // Compute cumulative muscle activation from logged exercises
+  const cumulativeMuscleActivations = useMemo((): MuscleActivation[] => {
+    const muscleMap: Record<string, { intensity: number; isPrimary: boolean }> = {};
+
+    logged.forEach((exercise) => {
+      const primaryMuscles = exercise.primaryMuscles || exercise.primary_muscles || [];
+      const secondaryMuscles = exercise.secondaryMuscles || exercise.secondary_muscles || [];
+      const sets = exercise.sets || 3;
+      const reps = exercise.reps || 10;
+
+      // Intensity based on volume (normalized)
+      const baseIntensity = Math.min(1, (sets * reps) / 50);
+
+      primaryMuscles.forEach((muscle: string) => {
+        const mappedId = mapMuscleId(muscle);
+        const current = muscleMap[mappedId] || { intensity: 0, isPrimary: false };
+        muscleMap[mappedId] = {
+          intensity: Math.min(1, current.intensity + baseIntensity * 0.4),
+          isPrimary: true,
+        };
+      });
+
+      secondaryMuscles.forEach((muscle: string) => {
+        const mappedId = mapMuscleId(muscle);
+        const current = muscleMap[mappedId] || { intensity: 0, isPrimary: false };
+        if (!current.isPrimary) {
+          muscleMap[mappedId] = {
+            intensity: Math.min(1, current.intensity + baseIntensity * 0.2),
+            isPrimary: false,
+          };
+        } else {
+          muscleMap[mappedId].intensity = Math.min(1, current.intensity + baseIntensity * 0.2);
+        }
+      });
+    });
+
+    return Object.entries(muscleMap).map(([id, { intensity, isPrimary }]) => ({
+      id,
+      intensity,
+      isPrimary,
+    }));
+  }, [logged]);
+
+  // Compute current exercise muscle activation
+  const currentExerciseMuscles = useMemo((): MuscleActivation[] => {
+    if (!prescription) return [];
+    const allExercises = getAllPrescribedExercises();
+    const current = allExercises[currentExerciseIndex];
+    if (!current) return [];
+
+    const activations: MuscleActivation[] = [];
+    const primaryMuscles = current.primaryMuscles || current.primary_muscles || [];
+    const secondaryMuscles = current.secondaryMuscles || current.secondary_muscles || [];
+
+    primaryMuscles.forEach((muscle: string) => {
+      activations.push({
+        id: mapMuscleId(muscle),
+        intensity: 1.0,
+        isPrimary: true,
+      });
+    });
+
+    secondaryMuscles.forEach((muscle: string) => {
+      activations.push({
+        id: mapMuscleId(muscle),
+        intensity: 0.5,
+        isPrimary: false,
+      });
+    });
+
+    return activations;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prescription, currentExerciseIndex]);
 
   // Load exercises for manual mode
   useEffect(() => {
@@ -378,16 +523,6 @@ export default function Workout() {
     }
   };
 
-  // Get all exercises from prescription (main + warmup + cooldown)
-  const getAllPrescribedExercises = () => {
-    if (!prescription) return [];
-    const all = [];
-    if (prescription.warmup) all.push(...prescription.warmup.map(e => ({ ...e, phase: 'warmup' })));
-    if (prescription.exercises) all.push(...prescription.exercises.map(e => ({ ...e, phase: 'main' })));
-    if (prescription.cooldown) all.push(...prescription.cooldown.map(e => ({ ...e, phase: 'cooldown' })));
-    return all;
-  };
-
   // Render constraint selection screen
   const renderConstraintSelection = () => (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white pb-24">
@@ -546,6 +681,84 @@ export default function Workout() {
         </header>
 
         <main className="max-w-lg mx-auto p-4">
+          {/* Muscle Activation Panel - Collapsible */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden mb-6 border border-white/5">
+            <button
+              onClick={() => setShowMusclePanel(!showMusclePanel)}
+              className="w-full p-3 flex items-center justify-between text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">🔥</div>
+                <div>
+                  <div className="text-sm font-medium text-white">Muscle Activation</div>
+                  <div className="text-xs text-gray-400">
+                    {cumulativeMuscleActivations.length} muscle groups worked
+                  </div>
+                </div>
+              </div>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform ${showMusclePanel ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showMusclePanel && (
+              <div className="p-4 pt-0">
+                <div className="flex gap-4 items-start">
+                  {/* Current exercise muscles */}
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 uppercase mb-2">Current Exercise</div>
+                    <MuscleViewer
+                      muscles={currentExerciseMuscles}
+                      mode="compact"
+                      interactive={false}
+                      showLabels={false}
+                      autoRotate={false}
+                      className="w-full"
+                      style={{ height: 140 }}
+                    />
+                    {currentExercise && (
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                        {currentExercise.primaryMuscles?.slice(0, 3).map((m: string) => (
+                          <span key={m} className="bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded text-xs">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cumulative workout muscles */}
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 uppercase mb-2">Workout Total</div>
+                    <MuscleViewer
+                      muscles={cumulativeMuscleActivations}
+                      mode="compact"
+                      interactive={false}
+                      showLabels={false}
+                      autoRotate={false}
+                      className="w-full"
+                      style={{ height: 140 }}
+                    />
+                    {cumulativeMuscleActivations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                        {cumulativeMuscleActivations.slice(0, 3).map((m) => (
+                          <span key={m.id} className="bg-green-500/30 text-green-200 px-2 py-0.5 rounded text-xs">
+                            {m.id.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Workout Summary */}
           <div className="bg-gray-800 rounded-2xl p-4 mb-6">
             <div className="flex justify-between text-sm text-gray-400 mb-2">
@@ -806,17 +1019,32 @@ export default function Workout() {
           <div className="text-center py-12 text-gray-400">Loading exercises...</div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filtered.map(e => (
-              <button
-                key={e.id}
-                onClick={() => setAdding(e)}
-                className={`bg-gradient-to-br ${getCat(e).c} rounded-2xl p-4 text-left hover:scale-105 active:scale-95 transition-all shadow-lg`}
-              >
-                <div className="text-3xl mb-2">{getIcon(e)}</div>
-                <div className="font-bold text-sm truncate">{e.name}</div>
-                <div className="text-xs opacity-80">{getPartName(e)}</div>
-              </button>
-            ))}
+            {filtered.map(e => {
+              const exerciseMuscles: MuscleActivation[] = [
+                ...(e.primary_muscles || []).map((m: string) => ({ id: mapMuscleId(m), intensity: 1.0, isPrimary: true })),
+                ...(e.secondary_muscles || []).slice(0, 2).map((m: string) => ({ id: mapMuscleId(m), intensity: 0.5, isPrimary: false })),
+              ];
+              return (
+                <button
+                  key={e.id}
+                  onClick={() => setAdding(e)}
+                  className={`bg-gradient-to-br ${getCat(e).c} rounded-2xl p-3 text-left hover:scale-105 active:scale-95 transition-all shadow-lg relative`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-3xl">{getIcon(e)}</div>
+                    {exerciseMuscles.length > 0 && (
+                      <MuscleActivationBadge
+                        muscles={exerciseMuscles}
+                        size="xs"
+                        className="opacity-90"
+                      />
+                    )}
+                  </div>
+                  <div className="font-bold text-sm truncate mt-1">{e.name}</div>
+                  <div className="text-xs opacity-80">{getPartName(e)}</div>
+                </button>
+              );
+            })}
           </div>
         )}
       </main>

@@ -1,8 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { hasExerciseIllustration } from '@musclemap/shared';
+import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
+import type { MuscleActivation } from '../components/muscle-viewer/types';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -16,6 +18,8 @@ const Icons = {
   Dumbbell: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16m-7 6h7"/></svg>,
   Clock: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
   Target: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>,
+  Body: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5" strokeWidth={1.5}/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 0l-3 8m3-8l3 8m-6-7l-3-1m9 1l3-1"/></svg>,
+  Close: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12"/></svg>,
 };
 
 const DIFFICULTY_LABELS = {
@@ -251,9 +255,53 @@ const IllustrationFallback = () => (
   <div className="w-full h-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 animate-pulse rounded-lg" />
 );
 
+// Convert exercise muscles to MuscleActivation format
+const exerciseToMuscleActivations = (exercise: { primaryMuscles?: string[]; secondaryMuscles?: string[] }): MuscleActivation[] => {
+  const activations: MuscleActivation[] = [];
+
+  // Map database muscle IDs to our visualization muscle IDs
+  const muscleMapping: Record<string, string> = {
+    'chest-upper': 'chest', 'chest-mid': 'chest', 'chest-lower': 'chest', 'pec-minor': 'chest',
+    'lats': 'lats', 'rhomboids': 'upper_back', 'traps-upper': 'traps', 'traps-mid': 'traps', 'traps-lower': 'traps',
+    'erector-spinae': 'lower_back', 'teres-major': 'upper_back', 'teres-minor': 'upper_back',
+    'delt-front': 'front_delts', 'delt-side': 'side_delts', 'delt-rear': 'rear_delts',
+    'bicep-long': 'biceps', 'bicep-short': 'biceps', 'brachialis': 'biceps',
+    'tricep-long': 'triceps', 'tricep-lateral': 'triceps', 'tricep-medial': 'triceps',
+    'brachioradialis': 'forearms', 'forearm-flexors': 'forearms', 'forearm-extensors': 'forearms',
+    'quad-rectus': 'quads', 'quad-vastus-lat': 'quads', 'quad-vastus-med': 'quads', 'quad-vastus-int': 'quads',
+    'hamstring-bicep': 'hamstrings', 'hamstring-semi-t': 'hamstrings', 'hamstring-semi-m': 'hamstrings',
+    'gastrocnemius': 'calves', 'soleus': 'calves',
+    'glute-max': 'glutes', 'glute-med': 'glutes', 'glute-min': 'glutes',
+    'hip-flexors': 'hip_flexors', 'adductors': 'adductors',
+    'rectus-abdominis': 'abs', 'obliques-ext': 'obliques', 'obliques-int': 'obliques',
+    // Common name mappings
+    'chest': 'chest', 'back': 'upper_back', 'shoulders': 'front_delts',
+    'biceps': 'biceps', 'triceps': 'triceps', 'forearms': 'forearms',
+    'quadriceps': 'quads', 'quads': 'quads', 'hamstrings': 'hamstrings', 'calves': 'calves',
+    'glutes': 'glutes', 'abs': 'abs', 'core': 'abs', 'obliques': 'obliques',
+  };
+
+  exercise.primaryMuscles?.forEach(muscle => {
+    const mapped = muscleMapping[muscle.toLowerCase()] || muscle.toLowerCase();
+    if (!activations.find(a => a.id === mapped)) {
+      activations.push({ id: mapped, intensity: 1.0, isPrimary: true });
+    }
+  });
+
+  exercise.secondaryMuscles?.forEach(muscle => {
+    const mapped = muscleMapping[muscle.toLowerCase()] || muscle.toLowerCase();
+    if (!activations.find(a => a.id === mapped)) {
+      activations.push({ id: mapped, intensity: 0.5, isPrimary: false });
+    }
+  });
+
+  return activations;
+};
+
 const ExerciseCard = ({ exercise, onClick }) => {
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
   const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
+  const muscleActivations = useMemo(() => exerciseToMuscleActivations(exercise), [exercise]);
 
   return (
     <motion.div
@@ -284,9 +332,19 @@ const ExerciseCard = ({ exercise, onClick }) => {
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-white">{exercise.name}</h3>
-          <span className={clsx('text-xs px-2 py-0.5 rounded-full', difficulty.color)}>
-            {difficulty.label}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Muscle activation badge */}
+            {muscleActivations.length > 0 && (
+              <MuscleActivationBadge
+                muscles={muscleActivations}
+                size={28}
+                showGlow={false}
+              />
+            )}
+            <span className={clsx('text-xs px-2 py-0.5 rounded-full', difficulty.color)}>
+              {difficulty.label}
+            </span>
+          </div>
         </div>
 
         <p className="text-sm text-gray-400 line-clamp-2 mb-3">
@@ -320,6 +378,7 @@ const ExerciseModal = ({ exercise, onClose }) => {
 
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
   const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
+  const muscleActivations = exerciseToMuscleActivations(exercise);
 
   return (
     <motion.div
@@ -336,22 +395,43 @@ const ExerciseModal = ({ exercise, onClose }) => {
         onClick={e => e.stopPropagation()}
         className="bg-gray-900 border border-white/10 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
       >
-        {/* Large illustration at top of modal */}
-        {hasIllustration && (
-          <div className="relative h-48 bg-[#0d0d12] border-b border-white/10 rounded-t-2xl overflow-hidden">
-            <Suspense fallback={<IllustrationFallback />}>
-              <ExerciseIllustration
-                exerciseId={exercise.id}
-                exerciseName={exercise.name}
-                primaryMuscles={exercise.primaryMuscles}
-                size="md"
-                showMuscleLabels={true}
-                interactive={true}
-                className="w-full h-full"
-              />
-            </Suspense>
+        {/* Visual header: Illustration + 3D Muscle Viewer side by side */}
+        <div className="relative border-b border-white/10 rounded-t-2xl overflow-hidden">
+          <div className="flex">
+            {/* Exercise illustration */}
+            {hasIllustration && (
+              <div className="flex-1 h-48 bg-[#0d0d12]">
+                <Suspense fallback={<IllustrationFallback />}>
+                  <ExerciseIllustration
+                    exerciseId={exercise.id}
+                    exerciseName={exercise.name}
+                    primaryMuscles={exercise.primaryMuscles}
+                    size="md"
+                    showMuscleLabels={true}
+                    interactive={true}
+                    className="w-full h-full"
+                  />
+                </Suspense>
+              </div>
+            )}
+            {/* 3D Muscle Visualization */}
+            {muscleActivations.length > 0 && (
+              <div className={clsx(
+                'h-48 bg-[#0d0d12]',
+                hasIllustration ? 'w-40 border-l border-white/5' : 'flex-1'
+              )}>
+                <MuscleViewer
+                  muscles={muscleActivations}
+                  mode="inline"
+                  interactive={false}
+                  showLabels={false}
+                  autoRotate={true}
+                  className="w-full h-full"
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -481,7 +561,8 @@ export default function Exercises() {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [viewMode, setViewMode] = useState('categories'); // 'categories' | 'list'
+  const [viewMode, setViewMode] = useState('categories'); // 'categories' | 'list' | 'muscle'
+  const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]); // For muscle-first discovery
 
   useEffect(() => {
     fetch('/api/exercises')
@@ -527,6 +608,31 @@ export default function Exercises() {
     return acc;
   }, {});
 
+  // Handle muscle click from MuscleViewer
+  const handleMuscleClick = useCallback((muscleId: string) => {
+    setSelectedMuscles(prev =>
+      prev.includes(muscleId)
+        ? prev.filter(m => m !== muscleId)
+        : [...prev, muscleId]
+    );
+  }, []);
+
+  // Create muscle activations for the selector based on selected muscles
+  const selectorMuscleActivations = useMemo((): MuscleActivation[] =>
+    selectedMuscles.map(id => ({ id, intensity: 1.0, isPrimary: true })),
+    [selectedMuscles]
+  );
+
+  // Check if an exercise targets any of the selected muscles
+  const exerciseMatchesMuscles = useCallback((exercise: { primaryMuscles?: string[]; secondaryMuscles?: string[] }) => {
+    if (selectedMuscles.length === 0) return true;
+
+    const exerciseMuscles = exerciseToMuscleActivations(exercise);
+    return selectedMuscles.some(selectedMuscle =>
+      exerciseMuscles.some(em => em.id === selectedMuscle)
+    );
+  }, [selectedMuscles]);
+
   const filteredExercises = exercises.filter(ex => {
     const matchesSearch = !search ||
       ex.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -537,7 +643,9 @@ export default function Exercises() {
 
     const matchesCategory = !selectedCategory || ex.category === selectedCategory;
 
-    return matchesSearch && matchesType && matchesCategory;
+    const matchesMuscles = exerciseMatchesMuscles(ex);
+
+    return matchesSearch && matchesType && matchesCategory && matchesMuscles;
   });
 
   // Handle category selection
@@ -549,8 +657,14 @@ export default function Exercises() {
   // Handle back to categories
   const handleBackToCategories = () => {
     setSelectedCategory(null);
+    setSelectedMuscles([]);
     setViewMode('categories');
     setSearch('');
+  };
+
+  // Clear muscle selection
+  const clearMuscleSelection = () => {
+    setSelectedMuscles([]);
   };
 
   return (
@@ -578,12 +692,31 @@ export default function Exercises() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Muscle view toggle */}
+            <button
+              onClick={() => {
+                if (viewMode === 'muscle') {
+                  handleBackToCategories();
+                } else {
+                  setViewMode('muscle');
+                  setSelectedCategory(null);
+                }
+              }}
+              className={clsx(
+                'p-2 rounded-lg transition-all',
+                viewMode === 'muscle' ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-white/10 text-gray-400'
+              )}
+              title="Find exercises by muscle"
+            >
+              <Icons.Body />
+            </button>
             {/* View mode toggle */}
             <button
               onClick={() => {
-                if (viewMode === 'categories') {
+                if (viewMode === 'categories' || viewMode === 'muscle') {
                   setViewMode('list');
                   setSelectedCategory(null);
+                  setSelectedMuscles([]);
                 } else {
                   handleBackToCategories();
                 }
@@ -593,7 +726,7 @@ export default function Exercises() {
                 viewMode === 'list' ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-white/10 text-gray-400'
               )}
             >
-              {viewMode === 'categories' ? '📋 List' : '📂 Groups'}
+              {viewMode === 'categories' || viewMode === 'muscle' ? '📋 List' : '📂 Groups'}
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -610,6 +743,109 @@ export default function Exercises() {
 
       <main className="pt-20 pb-8 px-4">
         <div className="max-w-4xl mx-auto">
+          {/* Muscle Selector View */}
+          {viewMode === 'muscle' && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-300">Find Exercises by Muscle</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Click on muscles to find exercises that target them
+                  </p>
+                </div>
+                {selectedMuscles.length > 0 && (
+                  <button
+                    onClick={clearMuscleSelection}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                  >
+                    <Icons.Close />
+                    Clear ({selectedMuscles.length})
+                  </button>
+                )}
+              </div>
+
+              {/* Interactive Muscle Selector */}
+              <div className="bg-gradient-to-b from-[#0d0d15] to-[#0a0a10] rounded-2xl border border-white/10 p-4 mb-6">
+                <div className="flex flex-col lg:flex-row gap-6 items-center">
+                  {/* 3D/2D Muscle Model */}
+                  <div className="w-full lg:w-1/2 flex justify-center">
+                    <MuscleViewer
+                      muscles={selectorMuscleActivations}
+                      mode="card"
+                      interactive={true}
+                      showLabels={true}
+                      autoRotate={selectedMuscles.length === 0}
+                      onMuscleClick={handleMuscleClick}
+                      className="w-full max-w-[280px]"
+                      style={{ height: 360 }}
+                    />
+                  </div>
+
+                  {/* Selected muscles chips */}
+                  <div className="w-full lg:w-1/2">
+                    <h3 className="text-sm font-medium text-gray-400 mb-3">
+                      {selectedMuscles.length > 0 ? 'Selected Muscles' : 'Click a muscle to start'}
+                    </h3>
+
+                    {selectedMuscles.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {selectedMuscles.map(muscleId => (
+                          <button
+                            key={muscleId}
+                            onClick={() => handleMuscleClick(muscleId)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 text-violet-400 rounded-full text-sm hover:bg-violet-500/30 transition-all"
+                          >
+                            {muscleId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                            <span className="text-violet-300">×</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-sm mb-4">
+                        Select muscles from the model to find matching exercises
+                      </div>
+                    )}
+
+                    {/* Result count */}
+                    <div className="p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Matching exercises</span>
+                        <span className="text-2xl font-bold text-white">{filteredExercises.length}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filtered Exercise Grid */}
+              {filteredExercises.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredExercises.slice(0, 20).map(exercise => (
+                    <ExerciseCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      onClick={setSelectedExercise}
+                    />
+                  ))}
+                  {filteredExercises.length > 20 && (
+                    <div className="col-span-full text-center py-4">
+                      <p className="text-gray-500 text-sm">
+                        Showing 20 of {filteredExercises.length} exercises.
+                        Use search or select more muscles to narrow down.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : selectedMuscles.length > 0 ? (
+                <div className="text-center py-12">
+                  <Icons.Dumbbell />
+                  <p className="text-gray-400 mt-2">No exercises found for selected muscles</p>
+                  <p className="text-sm text-gray-500">Try selecting different muscles</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* Category Grid View */}
           {viewMode === 'categories' && !selectedCategory && (
             <>

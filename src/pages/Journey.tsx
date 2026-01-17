@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../store/authStore";
 import { ArchetypeCard } from "../components/archetypes";
 import { ChallengeCard, XPProgress } from "../components/gamification";
+import { MuscleViewer, MuscleHeatmap } from "../components/muscle-viewer";
+import type { MuscleActivation } from "../components/muscle-viewer/types";
 
 // Archetype icons and colors
 const ARC = {
@@ -57,6 +59,46 @@ const MUSCLE_COLORS = {
   'Other': 'bg-gray-500',
 };
 
+// Muscle ID mapping for 3D visualization
+const MUSCLE_ID_MAP: Record<string, string> = {
+  // Muscle groups to visualization IDs
+  'Chest': 'chest',
+  'Back': 'upper_back',
+  'Shoulders': 'front_delts',
+  'Arms': 'biceps',
+  'Legs': 'quads',
+  'Core': 'abs',
+  'Glutes': 'glutes',
+  // Individual muscles
+  'chest': 'chest',
+  'pectoralis': 'chest',
+  'back': 'upper_back',
+  'latissimus': 'lats',
+  'lats': 'lats',
+  'trapezius': 'traps',
+  'traps': 'traps',
+  'shoulders': 'front_delts',
+  'deltoids': 'front_delts',
+  'front deltoids': 'front_delts',
+  'rear deltoids': 'rear_delts',
+  'side deltoids': 'side_delts',
+  'biceps': 'biceps',
+  'triceps': 'triceps',
+  'forearms': 'forearms',
+  'quadriceps': 'quads',
+  'quads': 'quads',
+  'hamstrings': 'hamstrings',
+  'glutes': 'glutes',
+  'gluteus': 'glutes',
+  'calves': 'calves',
+  'abs': 'abs',
+  'abdominals': 'abs',
+  'obliques': 'obliques',
+  'core': 'abs',
+  'lower back': 'lower_back',
+  'erector spinae': 'lower_back',
+};
+
 export default function Journey() {
   const { token, user, login } = useAuth();
   const [data, setData] = useState(null);
@@ -64,6 +106,44 @@ export default function Journey() {
   const [switching, setSwitching] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showMuscleViewer, setShowMuscleViewer] = useState(true);
+
+  // Convert muscle data to MuscleActivation format for 3D visualization
+  const muscleActivations = useMemo((): MuscleActivation[] => {
+    if (!data?.muscleBreakdown?.length) return [];
+
+    const maxTotal = Math.max(...data.muscleBreakdown.map((m: { totalActivation: number }) => m.totalActivation));
+
+    return data.muscleBreakdown.map((muscle: { name: string; totalActivation: number }) => {
+      const normalizedName = muscle.name.toLowerCase();
+      const mappedId = MUSCLE_ID_MAP[normalizedName] || normalizedName.replace(/\s+/g, '_');
+      const intensity = maxTotal > 0 ? muscle.totalActivation / maxTotal : 0;
+
+      return {
+        id: mappedId,
+        intensity,
+        isPrimary: intensity > 0.5,
+      };
+    });
+  }, [data?.muscleBreakdown]);
+
+  // Convert muscle groups to MuscleActivation format
+  const muscleGroupActivations = useMemo((): MuscleActivation[] => {
+    if (!data?.muscleGroups?.length) return [];
+
+    const maxTotal = Math.max(...data.muscleGroups.map((g: { total: number }) => g.total));
+
+    return data.muscleGroups.map((group: { name: string; total: number }) => {
+      const mappedId = MUSCLE_ID_MAP[group.name] || group.name.toLowerCase().replace(/\s+/g, '_');
+      const intensity = maxTotal > 0 ? group.total / maxTotal : 0;
+
+      return {
+        id: mappedId,
+        intensity,
+        isPrimary: intensity > 0.5,
+      };
+    });
+  }, [data?.muscleGroups]);
 
   const load = useCallback(async () => {
     if (!token) { setLoading(false); return; }
@@ -391,6 +471,62 @@ export default function Journey() {
         {/* Muscles Tab */}
         {activeTab === 'muscles' && (
           <div className="space-y-6">
+            {/* 3D Muscle Visualization */}
+            <div className="bg-gray-800 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm text-gray-400 uppercase">Muscle Development</h3>
+                <button
+                  onClick={() => setShowMuscleViewer(!showMuscleViewer)}
+                  className="text-xs text-purple-400 hover:text-purple-300"
+                >
+                  {showMuscleViewer ? 'Hide 3D' : 'Show 3D'}
+                </button>
+              </div>
+
+              {showMuscleViewer && (muscleActivations.length > 0 || muscleGroupActivations.length > 0) ? (
+                <div className="space-y-4">
+                  {/* Interactive 3D Model */}
+                  <div className="bg-gray-900/50 rounded-xl overflow-hidden">
+                    <MuscleViewer
+                      muscles={muscleActivations.length > 0 ? muscleActivations : muscleGroupActivations}
+                      mode="card"
+                      interactive={true}
+                      showLabels={true}
+                      autoRotate={true}
+                      className="h-64"
+                    />
+                  </div>
+
+                  {/* Heatmap Views */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-900/50 rounded-xl p-3">
+                      <div className="text-xs text-gray-400 mb-2 text-center">Front</div>
+                      <MuscleHeatmap
+                        muscles={muscleActivations.length > 0 ? muscleActivations : muscleGroupActivations}
+                        view="front"
+                        showLabels={false}
+                        className="h-40"
+                      />
+                    </div>
+                    <div className="bg-gray-900/50 rounded-xl p-3">
+                      <div className="text-xs text-gray-400 mb-2 text-center">Back</div>
+                      <MuscleHeatmap
+                        muscles={muscleActivations.length > 0 ? muscleActivations : muscleGroupActivations}
+                        view="back"
+                        showLabels={false}
+                        className="h-40"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : showMuscleViewer ? (
+                <div className="bg-gray-900/50 rounded-xl p-8 text-center">
+                  <div className="text-4xl mb-2">💪</div>
+                  <p className="text-gray-400 text-sm">Complete workouts to see your muscle development</p>
+                </div>
+              ) : null}
+            </div>
+
             {/* Muscle Groups Summary */}
             <div className="bg-gray-800 rounded-2xl p-4">
               <h3 className="text-sm text-gray-400 uppercase mb-4">Muscle Group Distribution</h3>

@@ -15,13 +15,15 @@ import {
   GlassButton,
 } from '../components/glass';
 import { InsightCard, WeeklyHeatmap, MiniChart } from '../components/analytics';
+import { MuscleViewer, MuscleHeatmap } from '../components/muscle-viewer';
+import type { MuscleActivation } from '../components/muscle-viewer/types';
 
 // Lazy load heavy D3 chart component
 const RadarChartD3 = lazy(() =>
   import('../components/d3').then(m => ({ default: m.RadarChartD3 }))
 );
 
-// Lazy load MuscleExplorer for 3D-like muscle visualization
+// Lazy load MuscleExplorer for 3D-like muscle visualization (fallback)
 const MuscleExplorer = lazy(() =>
   import('../components/muscle-explorer').then(m => ({ default: m.default || m.MuscleExplorer }))
 );
@@ -448,9 +450,42 @@ export default function Stats() {
   const [error, setError] = useState(null);
 
   // Muscle Explorer state
-  const [muscleActivations, setMuscleActivations] = useState({});
+  const [muscleActivations, setMuscleActivations] = useState<Record<string, number>>({});
   const [selectedMuscle, setSelectedMuscle] = useState(searchParams.get('muscle') || null);
   const [muscleHistory, _setMuscleHistory] = useState({});
+
+  // Muscle ID mapping for MuscleViewer
+  const MUSCLE_ID_MAP: Record<string, string> = {
+    'pectoralis-major': 'chest',
+    'deltoid-anterior': 'front_delts',
+    'deltoid-lateral': 'side_delts',
+    'deltoid-posterior': 'rear_delts',
+    'biceps-brachii': 'biceps',
+    'triceps-brachii': 'triceps',
+    'rectus-abdominis': 'abs',
+    'obliques': 'obliques',
+    'quadriceps': 'quads',
+    'hamstrings': 'hamstrings',
+    'gluteus-maximus': 'glutes',
+    'latissimus-dorsi': 'lats',
+    'trapezius': 'traps',
+    'rhomboids': 'upper_back',
+    'erector-spinae': 'lower_back',
+    'gastrocnemius': 'calves',
+    'forearm-flexors': 'forearms',
+  };
+
+  // Convert muscle activations to MuscleActivation array format for MuscleViewer
+  const muscleViewerActivations = useMemo((): MuscleActivation[] => {
+    return Object.entries(muscleActivations).map(([muscleId, activation]) => {
+      const mappedId = MUSCLE_ID_MAP[muscleId] || muscleId.replace(/-/g, '_');
+      return {
+        id: mappedId,
+        intensity: activation / 100, // Convert 0-100 to 0-1
+        isPrimary: activation > 50,
+      };
+    });
+  }, [muscleActivations]);
 
   const loadData = useCallback(async () => {
     try {
@@ -616,7 +651,53 @@ export default function Stats() {
           />
         </div>
 
-        {/* Muscle Explorer Section - Full Width */}
+        {/* 3D Muscle Visualization - New */}
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Icons.User className="w-5 h-5 text-violet-400" />
+                Muscle Development
+              </h2>
+              <p className="text-white/60 text-sm mt-1">
+                3D visualization of your training distribution
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Interactive 3D Model */}
+            <div className="flex flex-col items-center">
+              <MuscleViewer
+                muscles={muscleViewerActivations}
+                mode="card"
+                interactive={true}
+                showLabels={true}
+                autoRotate={true}
+                initialView="front"
+                onMuscleClick={(muscleId) => handleMuscleSelect(muscleId)}
+                className="w-full"
+                style={{ height: 360 }}
+              />
+              <p className="text-white/40 text-xs mt-2 text-center">
+                Click muscles to see related exercises
+              </p>
+            </div>
+
+            {/* Muscle Heatmap */}
+            <div>
+              <MuscleHeatmap
+                muscles={muscleViewerActivations}
+                timeRange="All Time"
+                showComparison={false}
+                view="both"
+                className="w-full"
+              />
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Muscle Explorer Section - Full Width (Fallback 2D) */}
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -666,7 +747,7 @@ export default function Stats() {
                 onViewHistory={() => {
                   // Could navigate to a dedicated muscle history page
                 }}
-                onExerciseClick={(exercise) => {
+                onExerciseClick={(exercise: string) => {
                   navigate(`/exercises?search=${encodeURIComponent(exercise)}`);
                 }}
                 className="flex-1"

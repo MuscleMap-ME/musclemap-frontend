@@ -19,6 +19,8 @@ import {
   GlassMobileNav,
   MeshBackground,
 } from '../components/glass';
+import { MuscleViewer } from '../components/muscle-viewer';
+import type { MuscleActivation } from '../components/muscle-viewer/types';
 
 // Icons
 const Icons = {
@@ -84,14 +86,64 @@ const GOAL_TYPE_META = {
   maintenance: { label: 'Maintenance', icon: Icons.Check, color: '#6366f1', description: 'Stay consistent' },
 };
 
+// Muscle groups to highlight based on goal type
+const GOAL_MUSCLE_FOCUS: Record<string, MuscleActivation[]> = {
+  muscle_gain: [
+    { id: 'chest', intensity: 0.9, isPrimary: true },
+    { id: 'upper_back', intensity: 0.9, isPrimary: true },
+    { id: 'quads', intensity: 0.85, isPrimary: true },
+    { id: 'front_delts', intensity: 0.8, isPrimary: false },
+    { id: 'biceps', intensity: 0.7, isPrimary: false },
+    { id: 'triceps', intensity: 0.7, isPrimary: false },
+    { id: 'hamstrings', intensity: 0.75, isPrimary: false },
+    { id: 'glutes', intensity: 0.8, isPrimary: false },
+  ],
+  body_recomposition: [
+    { id: 'quads', intensity: 0.9, isPrimary: true },
+    { id: 'glutes', intensity: 0.85, isPrimary: true },
+    { id: 'upper_back', intensity: 0.85, isPrimary: true },
+    { id: 'chest', intensity: 0.8, isPrimary: false },
+    { id: 'abs', intensity: 0.7, isPrimary: false },
+    { id: 'hamstrings', intensity: 0.75, isPrimary: false },
+  ],
+  strength: [
+    { id: 'chest', intensity: 0.95, isPrimary: true },
+    { id: 'upper_back', intensity: 0.95, isPrimary: true },
+    { id: 'quads', intensity: 0.9, isPrimary: true },
+    { id: 'glutes', intensity: 0.85, isPrimary: true },
+    { id: 'front_delts', intensity: 0.75, isPrimary: false },
+    { id: 'triceps', intensity: 0.7, isPrimary: false },
+    { id: 'hamstrings', intensity: 0.8, isPrimary: false },
+  ],
+  athletic_performance: [
+    { id: 'quads', intensity: 0.9, isPrimary: true },
+    { id: 'hamstrings', intensity: 0.9, isPrimary: true },
+    { id: 'glutes', intensity: 0.85, isPrimary: true },
+    { id: 'calves', intensity: 0.8, isPrimary: false },
+    { id: 'abs', intensity: 0.75, isPrimary: false },
+    { id: 'upper_back', intensity: 0.7, isPrimary: false },
+  ],
+  weight_loss: [
+    { id: 'quads', intensity: 0.8, isPrimary: true },
+    { id: 'glutes', intensity: 0.8, isPrimary: true },
+    { id: 'upper_back', intensity: 0.7, isPrimary: false },
+    { id: 'chest', intensity: 0.6, isPrimary: false },
+    { id: 'abs', intensity: 0.5, isPrimary: false },
+  ],
+};
+
 // Goal Card Component
-function GoalCard({ goal, onUpdate, onDelete }) {
+function GoalCard({ goal, onUpdate, onDelete, showMuscleViewer = false }) {
   const meta = GOAL_TYPE_META[goal.goalType] || GOAL_TYPE_META.general_fitness;
   const Icon = meta.icon || Icons.Target;
 
   const progressPercent = goal.progress || 0;
   const isCompleted = goal.status === 'completed';
   const isPaused = goal.status === 'paused';
+
+  // Get muscle focus for this goal type
+  const muscleFocus = GOAL_MUSCLE_FOCUS[goal.goalType];
+  const hasMuscleVisualization = showMuscleViewer && muscleFocus && muscleFocus.length > 0;
 
   return (
     <motion.div
@@ -119,6 +171,26 @@ function GoalCard({ goal, onUpdate, onDelete }) {
           <p className="text-sm text-[var(--text-tertiary)]">{meta.description}</p>
         </div>
       </div>
+
+      {/* Muscle Focus Visualization for muscle-related goals */}
+      {hasMuscleVisualization && (
+        <div className="mb-4 bg-[var(--void-deeper)] rounded-xl overflow-hidden">
+          <MuscleViewer
+            muscles={muscleFocus}
+            mode="compact"
+            interactive={false}
+            showLabels={false}
+            autoRotate={false}
+            className="h-32"
+          />
+          <div className="px-3 py-2 border-t border-[var(--border-subtle)]">
+            <span className="text-xs text-[var(--text-tertiary)]">Focus areas: </span>
+            <span className="text-xs text-[var(--text-secondary)]">
+              {muscleFocus.filter(m => m.isPrimary).map(m => m.id.replace(/_/g, ' ')).join(', ')}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Progress */}
       {goal.targetValue && (
@@ -719,6 +791,7 @@ export default function Goals() {
                   goal={primaryGoal}
                   onUpdate={handleUpdateGoal}
                   onDelete={handleDeleteGoal}
+                  showMuscleViewer={true}
                 />
               </GlassSurface>
             )}
