@@ -169,6 +169,19 @@ export {
 } from './engagementStore';
 
 // ============================================
+// ADVENTURE MAP STORE
+// ============================================
+export {
+  useAdventureMapStore,
+  useCharacterPosition,
+  useMapView,
+  useLocationSelection,
+  useMapProgress,
+  useMapUI,
+  default as adventureMapStore,
+} from './adventureMapStore';
+
+// ============================================
 // STORE UTILITIES
 // ============================================
 

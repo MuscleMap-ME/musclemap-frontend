@@ -52,6 +52,14 @@ const DashboardAtlas = lazy(() =>
   import('../components/atlas').then(m => ({ default: m.DashboardAtlas }))
 );
 
+// Lazy load Adventure Map Widget
+const AdventureMapWidget = lazy(() =>
+  import('../components/adventure-map').then(m => ({ default: m.AdventureMapWidget }))
+);
+const AdventureMapFullscreen = lazy(() =>
+  import('../components/adventure-map').then(m => ({ default: m.AdventureMapFullscreen }))
+);
+
 // Lazy load 2D body muscle map
 const BodyMuscleMap = lazy(() =>
   import('../components/illustrations').then(m => ({ default: m.BodyMuscleMap }))
@@ -1393,6 +1401,20 @@ export default function Dashboard() {
               <GlassSurface className="p-6" depth="subtle">
                 <MilestoneProgress limit={4} />
               </GlassSurface>
+            </div>
+
+            {/* Adventure Map Widget */}
+            <div className="mb-8">
+              <h3 className="text-white/70 text-sm font-medium mb-3 px-1">Adventure Map</h3>
+              <Suspense fallback={<div className="h-[200px] bg-white/5 rounded-2xl animate-pulse" />}>
+                <AdventureMapWidget
+                  className="w-full h-[200px]"
+                  onExpand={() => {
+                    // Map will open via store
+                  }}
+                />
+                <AdventureMapFullscreen />
+              </Suspense>
             </div>
 
             {/* Site Navigation Atlas */}
