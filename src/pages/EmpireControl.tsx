@@ -119,6 +119,7 @@ const NAV_SECTIONS = [
   { id: 'backup', label: 'Backup & Recovery', icon: Archive },
   { id: 'docs', label: 'Documentation', icon: BookOpen },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
+  { id: 'bug-tracker', label: 'Bug Tracker', icon: Bug },
   { id: 'analytics', label: 'Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
   { id: 'scorecard', label: 'Test Scorecard', icon: Target, link: '/empire/scorecard' },

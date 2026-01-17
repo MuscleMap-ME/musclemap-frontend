@@ -87,6 +87,7 @@ import rehabilitationRoutes from './routes/rehabilitation';
 import { registerFeedbackRoutes } from './routes/feedback';
 import { registerErrorRoutes } from './routes/errors';
 import adminFeedbackRoutes from './routes/admin-feedback';
+import adminBugsRoutes from './routes/admin-bugs';
 import adminBetaTesterRoutes from './routes/admin-beta-testers';
 import adminServerRoutes from './routes/admin-server';
 import adminDeployRoutes from './routes/admin-deploy';
@@ -433,6 +434,7 @@ export async function createServer(): Promise<FastifyInstance> {
     // User feedback system (bug reports, suggestions, questions, FAQ)
     await registerFeedbackRoutes(api);
     await adminFeedbackRoutes(api);
+    await adminBugsRoutes(api);
 
     // Frontend error reporting (Cockatrice error system, auto-healing)
     await registerErrorRoutes(api);
