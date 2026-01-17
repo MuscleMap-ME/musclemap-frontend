@@ -464,7 +464,165 @@ const user = parsed as User; // Safe after Zod validation
 | Files | kebab-case | `user-service.ts`, `auth-utils.ts` |
 | React Components | PascalCase | `UserProfile.tsx`, `WorkoutCard.tsx` |
 
-### 2.5 Import Organization
+### 2.5 Data Layer Naming Conventions (CRITICAL)
+
+> **⚠️ This section defines the CANONICAL naming rules across the entire stack. Violations cause bugs like missing data in UI.**
+
+#### The Stack Layers
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  FRONTEND (React/TypeScript)                                           │
+│  Convention: camelCase                                                 │
+│  Example: userId, categoryId, createdAt, focusAreas                    │
+├────────────────────────────────────────────────────────────────────────┤
+│  API RESPONSE (JSON)                                                   │
+│  Convention: camelCase (matches frontend)                              │
+│  Example: { "userId": "abc", "categoryId": "combat", "createdAt": ... }│
+├────────────────────────────────────────────────────────────────────────┤
+│  API HANDLER (TypeScript)                                              │
+│  Convention: Transform snake_case → camelCase when building response   │
+│  Example: return { categoryId: row.category_id }                       │
+├────────────────────────────────────────────────────────────────────────┤
+│  DATABASE (PostgreSQL)                                                 │
+│  Convention: snake_case                                                │
+│  Example: user_id, category_id, created_at, focus_areas                │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Rules (MANDATORY)
+
+| Layer | Convention | Transformation Required |
+|-------|------------|------------------------|
+| **PostgreSQL tables** | `snake_case` | - |
+| **PostgreSQL columns** | `snake_case` | - |
+| **TypeScript DB types** | `snake_case` matching DB exactly | - |
+| **API responses (JSON)** | `camelCase` | **Yes: `row.snake_case` → `camelCase`** |
+| **TypeScript domain types** | `camelCase` | - |
+| **Frontend code** | `camelCase` | - |
+| **URL paths** | `kebab-case` | `/archetypes/by-category/:categoryId` |
+| **Query parameters** | `camelCase` | `?userId=abc&pageSize=50` |
+
+#### API Response Transformation Pattern
+
+```typescript
+// ✅ CORRECT: Always transform snake_case to camelCase in API responses
+app.get('/archetypes', async (request, reply) => {
+  const rows = await queryAll<{
+    id: string;
+    name: string;
+    category_id: string;      // DB column is snake_case
+    focus_areas: string[];
+    created_at: Date;
+  }>('SELECT id, name, category_id, focus_areas, created_at FROM archetypes');
+
+  return reply.send({
+    data: rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      categoryId: row.category_id,     // ← Transform to camelCase
+      focusAreas: row.focus_areas,     // ← Transform to camelCase
+      createdAt: row.created_at,       // ← Transform to camelCase
+    })),
+  });
+});
+
+// ❌ WRONG: Exposing snake_case directly in API response
+return reply.send({
+  data: rows.map(row => ({
+    id: row.id,
+    category_id: row.category_id,  // ← WRONG! Frontend expects camelCase
+  })),
+});
+
+// ❌ WRONG: Inconsistent casing in same response
+return reply.send({
+  data: rows.map(row => ({
+    id: row.id,
+    categoryId: row.category_id,   // ← Correct
+    focus_areas: row.focus_areas,  // ← WRONG! Mixed casing
+  })),
+});
+```
+
+#### Type Definition Pattern
+
+```typescript
+// Database type (matches DB exactly)
+interface DbArchetype {
+  id: string;
+  name: string;
+  category_id: string;        // snake_case
+  focus_areas: string[];
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Domain/API type (camelCase for frontend consumption)
+interface Archetype {
+  id: string;
+  name: string;
+  categoryId: string;         // camelCase
+  focusAreas: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Transformer function
+function toArchetype(db: DbArchetype): Archetype {
+  return {
+    id: db.id,
+    name: db.name,
+    categoryId: db.category_id,
+    focusAreas: db.focus_areas,
+    createdAt: db.created_at,
+    updatedAt: db.updated_at,
+  };
+}
+```
+
+#### Common Field Mappings Reference
+
+| Database (snake_case) | API/Frontend (camelCase) |
+|-----------------------|--------------------------|
+| `user_id` | `userId` |
+| `category_id` | `categoryId` |
+| `archetype_id` | `archetypeId` |
+| `workout_id` | `workoutId` |
+| `created_at` | `createdAt` |
+| `updated_at` | `updatedAt` |
+| `deleted_at` | `deletedAt` |
+| `focus_areas` | `focusAreas` |
+| `icon_url` | `iconUrl` |
+| `image_url` | `imageUrl` |
+| `display_name` | `displayName` |
+| `pt_test_id` | `ptTestId` |
+| `total_tu` | `totalTU` |
+| `credit_balance` | `creditBalance` |
+| `wealth_tier` | `wealthTier` |
+
+#### ID Field Conventions
+
+| Context | Convention | Example |
+|---------|------------|---------|
+| Primary key column | `id` | `users.id` |
+| Foreign key column | `{table_singular}_id` | `workouts.user_id` |
+| API response primary ID | `id` | `{ "id": "abc123" }` |
+| API response foreign ID | `{entity}Id` | `{ "userId": "abc123" }` |
+| Route parameter | `:{entity}Id` | `/users/:userId/workouts` |
+
+#### Checklist for New Endpoints
+
+When creating a new API endpoint, verify:
+
+- [ ] Database query uses snake_case column names
+- [ ] TypeScript DB type interface uses snake_case
+- [ ] Response transformation maps ALL columns to camelCase
+- [ ] No snake_case leaks into the JSON response
+- [ ] Route parameters use camelCase (`:categoryId` not `:category_id`)
+- [ ] Query parameters use camelCase (`?pageSize=50` not `?page_size=50`)
+
+### 2.6 Import Organization
 
 ```typescript
 // Order imports in this sequence, separated by blank lines:
