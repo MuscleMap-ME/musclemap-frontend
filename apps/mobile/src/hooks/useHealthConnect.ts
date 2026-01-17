@@ -326,7 +326,7 @@ export function useHealthConnect(): UseHealthConnectResult {
       });
 
       const samples: HeartRateSample[] = [];
-      for (const record of records) {
+      for (const record of records as any[]) {
         if (record.samples) {
           for (const sample of record.samples) {
             samples.push({
@@ -360,7 +360,7 @@ export function useHealthConnect(): UseHealthConnectResult {
       });
 
       let totalSteps = 0;
-      for (const record of records) {
+      for (const record of records as any[]) {
         totalSteps += record.count || 0;
       }
       return totalSteps;
@@ -486,7 +486,8 @@ export function useHealthConnect(): UseHealthConnectResult {
 
       if (records.length > 0) {
         // Weight is stored in kg, convert to lb for consistency with HealthKit
-        return records[0].weight?.inPounds || (records[0].weight?.inKilograms * 2.20462);
+        const record = records[0] as any;
+        return record.weight?.inPounds || (record.weight?.inKilograms * 2.20462);
       }
       return null;
     } catch (err) {
@@ -510,7 +511,7 @@ export function useHealthConnect(): UseHealthConnectResult {
       });
 
       if (records.length > 0) {
-        return records[0].percentage;
+        return (records[0] as any).percentage;
       }
       return null;
     } catch (err) {

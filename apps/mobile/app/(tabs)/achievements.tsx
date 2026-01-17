@@ -43,6 +43,7 @@ interface AchievementEvent {
   achievementName: string;
   achievementDescription?: string;
   achievementIcon?: string;
+  description?: string; // Added to unify with AchievementDefinition
   category: string;
   points: number;
   rarity: string;

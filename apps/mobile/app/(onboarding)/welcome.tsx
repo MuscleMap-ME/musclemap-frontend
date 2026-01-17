@@ -19,17 +19,17 @@ import { apiClient } from '@musclemap/client';
 
 export default function Welcome() {
   const handleContinue = () => {
-    router.push('/(onboarding)/units');
+    router.push('/(onboarding)/units' as any);
   };
 
   const handleSkip = async () => {
     try {
       await apiClient.onboarding.skip();
-      router.replace('/(tabs)');
+      router.replace('/(tabs)' as any);
     } catch (err) {
       console.error('Failed to skip onboarding:', err);
       // Still navigate to tabs even if skip fails
-      router.replace('/(tabs)');
+      router.replace('/(tabs)' as any);
     }
   };
 

@@ -18,9 +18,9 @@ import {
   Spinner,
 } from 'tamagui';
 import { Home } from '@tamagui/lucide-icons';
-import { apiClient, type EquipmentType } from '@musclemap/client';
+import { apiClient } from '@musclemap/client';
 import { useOnboardingStore } from '../../src/stores/onboarding';
-import EquipmentGrid from '../../src/components/EquipmentGrid';
+import EquipmentGrid, { type EquipmentType } from '../../src/components/EquipmentGrid';
 
 // Group equipment by category for display
 interface CategoryGroup {
@@ -62,7 +62,7 @@ export default function HomeEquipment() {
   }, []);
 
   const handleContinue = () => {
-    router.push('/(onboarding)/complete');
+    router.push('/(onboarding)/complete' as any);
   };
 
   // Group equipment by category
@@ -125,7 +125,7 @@ export default function HomeEquipment() {
         <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
           <Text color="$red10" textAlign="center">{error}</Text>
           <Button
-            onPress={() => router.push('/(onboarding)/complete')}
+            onPress={() => router.push('/(onboarding)/complete' as any)}
             variant="outlined"
             marginTop="$4"
           >

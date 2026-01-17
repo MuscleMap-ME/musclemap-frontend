@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import type { User } from '@musclemap/core';
+import type { User } from '@musclemap/client';
 
 const TOKEN_KEY = 'musclemap_token';
 const USER_KEY = 'musclemap_user';

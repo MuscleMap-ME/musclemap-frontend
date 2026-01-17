@@ -7,7 +7,16 @@
 import React from 'react';
 import { XStack, YStack, Text, Card } from 'tamagui';
 import { Check } from '@tamagui/lucide-icons';
-import type { EquipmentType } from '@musclemap/client';
+
+// Local type definition since EquipmentType is not exported from @musclemap/client
+export interface EquipmentType {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  iconUrl: string | null;
+  displayOrder: number;
+}
 
 interface EquipmentGridProps {
   items: EquipmentType[];

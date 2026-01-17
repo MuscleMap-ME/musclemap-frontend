@@ -330,7 +330,7 @@ class WatchConnectivityManager {
     // Notify specific listeners based on message type
     switch (message.type) {
       case 'workout_ended':
-        this.notifyListeners('workout_ended', message.payload as WatchWorkoutResult);
+        this.notifyListeners('workout_ended', message.payload as unknown as WatchWorkoutResult);
         break;
 
       case 'set_logged':

@@ -7,6 +7,8 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { ScrollView, Platform } from 'react-native';
+
+// @ts-ignore - DateTimePicker types may not be available
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   YStack,
@@ -77,7 +79,7 @@ export default function Physical() {
       setWeightImperial(parseFloat(localWeightLbs));
     }
 
-    router.push('/(onboarding)/home-equipment');
+    router.push('/(onboarding)/home-equipment' as any);
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {

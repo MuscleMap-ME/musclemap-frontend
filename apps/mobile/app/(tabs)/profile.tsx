@@ -52,7 +52,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/(auth)/login');
+    router.replace('/(auth)/login' as any);
   };
 
   const toggleSetting = async (key: keyof Settings, value: boolean) => {
@@ -155,7 +155,7 @@ export default function ProfileScreen() {
           padding="$4"
           elevate
           pressStyle={{ opacity: 0.8 }}
-          onPress={() => router.push('/(tabs)/privacy')}
+          onPress={() => router.push('/(tabs)/privacy' as any)}
         >
           <XStack justifyContent="space-between" alignItems="center">
             <XStack space="$3" alignItems="center" flex={1}>

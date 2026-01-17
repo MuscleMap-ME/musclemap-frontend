@@ -26,11 +26,28 @@ import {
   CheckCircle2,
   CircleDashed,
 } from '@tamagui/lucide-icons';
-import {
-  apiClient,
-  type EquipmentType,
-  type LocationEquipment,
-} from '@musclemap/client';
+import { apiClient } from '@musclemap/client';
+
+// Local type definitions since these are not exported from @musclemap/client
+interface EquipmentType {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  iconUrl: string | null;
+  displayOrder: number;
+}
+
+interface LocationEquipment {
+  equipmentTypeId: string;
+  equipmentName: string;
+  category: string;
+  confirmedCount: number;
+  deniedCount: number;
+  isVerified: boolean;
+  firstReportedAt: string;
+  lastReportedAt: string;
+}
 
 interface LocationEquipmentSheetProps {
   open: boolean;

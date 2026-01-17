@@ -48,7 +48,7 @@ export default function Home() {
 
   // Not authenticated - go to login
   if (!isAuthenticated) {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href={'/(auth)/login' as any} />;
   }
 
   // Show loading while checking onboarding status
@@ -63,9 +63,9 @@ export default function Home() {
 
   // Authenticated but needs onboarding
   if (!onboardingComplete) {
-    return <Redirect href="/(onboarding)/welcome" />;
+    return <Redirect href={'/(onboarding)/welcome' as any} />;
   }
 
   // Authenticated and onboarding complete - go to main app
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={'/(tabs)' as any} />;
 }

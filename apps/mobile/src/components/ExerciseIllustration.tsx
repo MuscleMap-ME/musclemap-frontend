@@ -164,8 +164,8 @@ export function ExerciseIllustration({
     // Check if illustration exists
     if (hasExerciseIllustration(exerciseId)) {
       const illustration = getExerciseIllustration(exerciseId);
-      if (illustration?.frontUrl) {
-        setImageUrl(illustration.frontUrl);
+      if (illustration?.file) {
+        setImageUrl(illustration.file);
       }
     }
     setLoading(false);

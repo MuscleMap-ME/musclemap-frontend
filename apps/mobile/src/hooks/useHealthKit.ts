@@ -27,8 +27,11 @@ import {
   type WorkoutSample,
   type ActivitySample,
   type SleepSample,
-  type BodyMeasurement,
+  type BodyMeasurementSample,
 } from '@musclemap/client';
+
+// Alias for consistency with naming convention
+type BodyMeasurement = BodyMeasurementSample;
 
 // ============================================
 // TYPES
@@ -258,7 +261,7 @@ export function useHealthKit(): UseHealthKitResult {
     setError(null);
 
     return new Promise((resolve) => {
-      AppleHealthKit.initHealthKit(HEALTHKIT_PERMISSIONS, async (initError: string) => {
+      AppleHealthKit.initHealthKit(HEALTHKIT_PERMISSIONS, async (initError: string | null) => {
         if (initError) {
           setError(`HealthKit authorization failed: ${initError}`);
           setIsLoading(false);
@@ -400,6 +403,9 @@ export function useHealthKit(): UseHealthKitResult {
           id: sample.id || `sleep_${Date.now()}`,
           startTime: sample.startDate,
           endTime: sample.endDate,
+          duration: Math.round(
+            (new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime()) / 60000
+          ),
           value: sample.value, // 'INBED', 'ASLEEP', 'AWAKE', etc.
           source: 'apple_health',
         }));

@@ -39,11 +39,24 @@ import {
 } from '@tamagui/lucide-icons';
 import {
   apiClient,
-  type VirtualHangout,
-  type VirtualHangoutTheme,
+  type VirtualHangout as BaseVirtualHangout,
+  type VirtualHangoutTheme as BaseVirtualHangoutTheme,
   type Community,
   type BulletinPost,
 } from '@musclemap/client';
+
+// Extended VirtualHangout type with additional properties used in mobile UI
+interface VirtualHangout extends BaseVirtualHangout {
+  name: string;
+  iconEmoji: string;
+  activeNow: number;
+  welcomeMessage?: string;
+}
+
+// Extended VirtualHangoutTheme type with iconEmoji
+interface VirtualHangoutTheme extends BaseVirtualHangoutTheme {
+  iconEmoji?: string;
+}
 
 // Theme colors for hangouts
 const THEME_COLORS: Record<string, string> = {
@@ -498,10 +511,10 @@ export default function CommunityScreen() {
                 size="$4"
                 placeholder="Search communities..."
                 value={searchQuery}
-                onChangeText={(text) => {
+                onChangeText={((text: string) => {
                   setSearchQuery(text);
                   handleSearch(text);
-                }}
+                }) as any}
               />
               {searching && <Spinner size="small" />}
             </XStack>

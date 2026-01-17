@@ -47,7 +47,7 @@ export default function Signup() {
       const response = await apiClient.auth.register({ email, password, username });
       await login(response);
       // New users go to onboarding first
-      router.replace('/(onboarding)/welcome');
+      router.replace('/(onboarding)/welcome' as any);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

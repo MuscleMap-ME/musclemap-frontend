@@ -26,7 +26,7 @@ export default function Units() {
 
   const handleContinue = () => {
     setPreferredUnits(selected);
-    router.push('/(onboarding)/physical');
+    router.push('/(onboarding)/physical' as any);
   };
 
   return (
