@@ -121,6 +121,9 @@ import { registerEventRoutes } from './routes/events';
 import { registerEngagementRecoveryRoutes } from './routes/engagement-recovery';
 import { registerPushNotificationRoutes } from './routes/push-notifications';
 
+// Venue Records system
+import { registerVenuesRoutes } from './routes/venues';
+
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
 
@@ -378,6 +381,9 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerVerificationRoutes(api);
     await registerCohortPreferencesRoutes(api);
     await registerCheckInRoutes(api);
+
+    // Venue Records system (location-based achievements)
+    await registerVenuesRoutes(api);
 
     // New social features
     await api.register(socialRoutes);
