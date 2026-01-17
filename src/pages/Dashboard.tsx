@@ -1077,7 +1077,7 @@ export default function Dashboard() {
     });
 
     // Fetch unread message count
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('musclemap_token');
     if (token) {
       fetch('/api/messaging/unread-count', {
         headers: { Authorization: `Bearer ${token}` },

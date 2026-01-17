@@ -114,7 +114,7 @@ export function AtlasProvider({ children }: AtlasProviderProps) {
 
       // Load user context (if authenticated)
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('musclemap_token');
         if (token) {
           const userResponse = await fetch('/api/atlas/user-context', {
             headers: { Authorization: `Bearer ${token}` },

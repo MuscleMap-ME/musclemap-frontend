@@ -95,7 +95,7 @@ export default function Wallet() {
       const [walletData, entitlementsData, historyData] = await Promise.all([
         api.wallet.balance().catch(() => null),
         fetch('/api/entitlements', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          headers: { Authorization: `Bearer ${localStorage.getItem('musclemap_token')}` }
         }).then(r => r.json()).then(d => d.data).catch(() => null),
         api.wallet.transactions(20).catch(() => ({ transactions: [] })),
       ]);
@@ -117,7 +117,7 @@ export default function Wallet() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('musclemap_token')}`,
         },
       });
       const data = await response.json();
@@ -137,7 +137,7 @@ export default function Wallet() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('musclemap_token')}`,
         },
       });
       const data = await response.json();
@@ -156,7 +156,7 @@ export default function Wallet() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${localStorage.getItem('musclemap_token')}`,
         },
       });
       const data = await response.json();

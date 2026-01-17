@@ -49,7 +49,7 @@ export function CompanionProvider({ children }) {
 
   // Auth headers
   const getHeaders = useCallback(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('musclemap_token');
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -239,7 +239,7 @@ export function CompanionProvider({ children }) {
 
   // Initial load
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('musclemap_token');
     if (!token) {
       setLoading(false);
       return;

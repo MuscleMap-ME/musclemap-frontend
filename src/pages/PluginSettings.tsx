@@ -427,7 +427,7 @@ function PluginConfigModal({ plugin, isOpen, onClose, onSettingsChange }) {
         // Try to load from API first (for backend-registered plugins)
         const response = await fetch(`/api/plugins/${plugin.id}/settings`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('musclemap_token')}`,
             'Content-Type': 'application/json',
           },
         });
@@ -477,7 +477,7 @@ function PluginConfigModal({ plugin, isOpen, onClose, onSettingsChange }) {
       const response = await fetch(`/api/plugins/${plugin.id}/settings`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('musclemap_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ settings }),
@@ -527,7 +527,7 @@ function PluginConfigModal({ plugin, isOpen, onClose, onSettingsChange }) {
       const response = await fetch(`/api/plugins/${plugin.id}/settings`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('musclemap_token')}`,
         },
       });
 
