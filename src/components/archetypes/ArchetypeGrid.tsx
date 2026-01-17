@@ -246,12 +246,12 @@ function Header({ categoryName, categoryIcon, onBack, isScrolled, categoryColor 
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="max-w-6xl mx-auto flex items-center gap-4">
+      <div className="max-w-6xl mx-auto flex items-center gap-3">
         {/* Back button */}
         <motion.button
           onClick={onBack}
           className={clsx(
-            'flex items-center gap-2 px-3 py-2 rounded-lg',
+            'flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg',
             'bg-white/5 hover:bg-white/10 border border-white/10',
             'text-gray-300 hover:text-white transition-all duration-200'
           )}
@@ -260,14 +260,13 @@ function Header({ categoryName, categoryIcon, onBack, isScrolled, categoryColor 
           aria-label="Go back to categories"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="hidden sm:inline text-sm font-medium">Back</span>
         </motion.button>
 
         {/* Category info */}
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           {categoryIcon && (
             <motion.div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-2xl"
+              className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-2xl"
               style={{
                 background: categoryColor
                   ? `linear-gradient(135deg, ${categoryColor}40, ${categoryColor}20)`
@@ -279,8 +278,8 @@ function Header({ categoryName, categoryIcon, onBack, isScrolled, categoryColor 
               {categoryIcon}
             </motion.div>
           )}
-          <div>
-            <h1 className="text-xl font-bold text-white">{categoryName}</h1>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-white truncate">{categoryName}</h1>
             <p className="text-xs text-gray-400">Select your archetype</p>
           </div>
         </div>

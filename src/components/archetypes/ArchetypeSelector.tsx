@@ -51,6 +51,7 @@ const CATEGORY_ICONS = {
   functional: '⚡',
   rehabilitation: '💚',
   occupational: '💼',
+  transportation: '🚚',
 };
 
 /**
@@ -67,10 +68,11 @@ const CATEGORY_COLORS = {
   first_responder: '#D97706',
   first_responders: '#D97706',
   team_sports: '#06B6D4',
-  sports: '#06B6D4',
+  sports: '#6366F1',
   functional: '#CA8A04',
   rehabilitation: '#DB2777',
-  occupational: '#6366F1',
+  occupational: '#14B8A6',
+  transportation: '#6B7280',
 };
 
 /**

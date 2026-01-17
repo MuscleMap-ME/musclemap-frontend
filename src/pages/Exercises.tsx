@@ -33,6 +33,162 @@ const EXERCISE_TYPES = [
   { id: 'freeweight', label: 'Free Weights' },
 ];
 
+// Exercise categories with icons and subcategories
+const EXERCISE_CATEGORIES = {
+  chest: {
+    name: 'Chest',
+    icon: '💪',
+    color: 'from-red-500 to-rose-600',
+    subcategories: {
+      push: { name: 'Push Exercises', icon: '🏋️' },
+      fly: { name: 'Fly Movements', icon: '🦅' },
+      press: { name: 'Press Variations', icon: '⬆️' },
+    }
+  },
+  back: {
+    name: 'Back',
+    icon: '🦴',
+    color: 'from-blue-500 to-indigo-600',
+    subcategories: {
+      pull: { name: 'Pull Exercises', icon: '🔙' },
+      row: { name: 'Row Variations', icon: '🚣' },
+      lat: { name: 'Lat Focus', icon: '📐' },
+    }
+  },
+  shoulders: {
+    name: 'Shoulders',
+    icon: '🎯',
+    color: 'from-orange-500 to-amber-600',
+    subcategories: {
+      press: { name: 'Overhead Press', icon: '⬆️' },
+      lateral: { name: 'Lateral Raises', icon: '↔️' },
+      rear: { name: 'Rear Delts', icon: '🔄' },
+    }
+  },
+  arms: {
+    name: 'Arms',
+    icon: '💪',
+    color: 'from-purple-500 to-violet-600',
+    subcategories: {
+      biceps: { name: 'Biceps', icon: '💪' },
+      triceps: { name: 'Triceps', icon: '🔺' },
+      forearms: { name: 'Forearms', icon: '✊' },
+    }
+  },
+  legs: {
+    name: 'Legs',
+    icon: '🦵',
+    color: 'from-green-500 to-emerald-600',
+    subcategories: {
+      quads: { name: 'Quadriceps', icon: '🦵' },
+      hamstrings: { name: 'Hamstrings', icon: '🏃' },
+      calves: { name: 'Calves', icon: '👟' },
+    }
+  },
+  glutes: {
+    name: 'Glutes',
+    icon: '🍑',
+    color: 'from-pink-500 to-rose-600',
+    subcategories: {
+      hip_thrust: { name: 'Hip Thrusts', icon: '⬆️' },
+      squat: { name: 'Squat Variations', icon: '🏋️' },
+      isolation: { name: 'Isolation', icon: '🎯' },
+    }
+  },
+  core: {
+    name: 'Core',
+    icon: '🔥',
+    color: 'from-yellow-500 to-orange-600',
+    subcategories: {
+      abs: { name: 'Abs', icon: '🎯' },
+      obliques: { name: 'Obliques', icon: '↗️' },
+      lower_back: { name: 'Lower Back', icon: '🔙' },
+    }
+  },
+  cardio: {
+    name: 'Cardio',
+    icon: '❤️',
+    color: 'from-cyan-500 to-blue-600',
+    subcategories: {
+      hiit: { name: 'HIIT', icon: '⚡' },
+      steady: { name: 'Steady State', icon: '🏃' },
+      plyo: { name: 'Plyometrics', icon: '🦘' },
+    }
+  },
+  full_body: {
+    name: 'Full Body',
+    icon: '🏆',
+    color: 'from-violet-500 to-purple-600',
+    subcategories: {
+      compound: { name: 'Compound Lifts', icon: '🏋️' },
+      functional: { name: 'Functional', icon: '⚡' },
+      olympic: { name: 'Olympic', icon: '🥇' },
+    }
+  },
+};
+
+// Map muscle names to categories
+const MUSCLE_TO_CATEGORY = {
+  // Chest
+  'chest': 'chest',
+  'pectoralis major': 'chest',
+  'pectoralis minor': 'chest',
+  'upper chest': 'chest',
+  'lower chest': 'chest',
+  // Back
+  'back': 'back',
+  'latissimus dorsi': 'back',
+  'lats': 'back',
+  'rhomboids': 'back',
+  'trapezius': 'back',
+  'traps': 'back',
+  'erector spinae': 'back',
+  // Shoulders
+  'shoulders': 'shoulders',
+  'deltoids': 'shoulders',
+  'anterior deltoid': 'shoulders',
+  'lateral deltoid': 'shoulders',
+  'posterior deltoid': 'shoulders',
+  'front delts': 'shoulders',
+  'side delts': 'shoulders',
+  'rear delts': 'shoulders',
+  // Arms
+  'biceps': 'arms',
+  'triceps': 'arms',
+  'forearms': 'arms',
+  'brachialis': 'arms',
+  // Legs
+  'quadriceps': 'legs',
+  'quads': 'legs',
+  'hamstrings': 'legs',
+  'calves': 'legs',
+  'gastrocnemius': 'legs',
+  'soleus': 'legs',
+  // Glutes
+  'glutes': 'glutes',
+  'gluteus maximus': 'glutes',
+  'gluteus medius': 'glutes',
+  'hip flexors': 'glutes',
+  // Core
+  'abs': 'core',
+  'abdominals': 'core',
+  'rectus abdominis': 'core',
+  'obliques': 'core',
+  'transverse abdominis': 'core',
+  'lower back': 'core',
+  'core': 'core',
+};
+
+// Get category for exercise based on primary muscles
+const getExerciseCategory = (exercise) => {
+  if (exercise.category) return exercise.category;
+
+  const primaryMuscle = exercise.primaryMuscles?.[0]?.toLowerCase();
+  if (!primaryMuscle) return 'full_body';
+
+  return MUSCLE_TO_CATEGORY[primaryMuscle] || 'full_body';
+};
+
 const IllustrationFallback = () => (
   <div className="w-full h-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 animate-pulse rounded-lg" />
 );
@@ -231,6 +387,34 @@ const ExerciseModal = ({ exercise, onClose }) => {
   );
 };
 
+// Category Card Component
+const CategoryCard = ({ category, exerciseCount, onClick }) => (
+  <motion.button
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={clsx(
+      'relative overflow-hidden rounded-2xl p-4 text-left transition-all',
+      'bg-gradient-to-br',
+      category.color,
+      'hover:shadow-lg hover:shadow-black/20'
+    )}
+  >
+    <div className="flex items-start justify-between">
+      <div className="text-4xl mb-3">{category.icon}</div>
+      <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+        {exerciseCount}
+      </span>
+    </div>
+    <h3 className="text-lg font-bold text-white">{category.name}</h3>
+    <p className="text-xs text-white/70 mt-1">
+      {Object.keys(category.subcategories || {}).length} subcategories
+    </p>
+  </motion.button>
+);
+
 export default function Exercises() {
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -238,6 +422,8 @@ export default function Exercises() {
   const [selectedType, setSelectedType] = useState('all');
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [viewMode, setViewMode] = useState('categories'); // 'categories' | 'list'
 
   useEffect(() => {
     fetch('/api/exercises')
@@ -251,7 +437,8 @@ export default function Exercises() {
               ? ex.primaryMuscles
               : typeof ex.primaryMuscles === 'string'
                 ? ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean)
-                : []
+                : [],
+            category: getExerciseCategory(ex),
           }));
           setExercises(normalized);
         }
@@ -259,6 +446,13 @@ export default function Exercises() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Count exercises per category
+  const exercisesByCategory = exercises.reduce((acc, ex) => {
+    const cat = ex.category || 'full_body';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {});
 
   const filteredExercises = exercises.filter(ex => {
     const matchesSearch = !search ||
@@ -268,8 +462,23 @@ export default function Exercises() {
 
     const matchesType = selectedType === 'all' || ex.type === selectedType;
 
-    return matchesSearch && matchesType;
+    const matchesCategory = !selectedCategory || ex.category === selectedCategory;
+
+    return matchesSearch && matchesType && matchesCategory;
   });
+
+  // Handle category selection
+  const handleCategorySelect = (categoryId) => {
+    setSelectedCategory(categoryId);
+    setViewMode('list');
+  };
+
+  // Handle back to categories
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setViewMode('categories');
+    setSearch('');
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -277,94 +486,176 @@ export default function Exercises() {
       <header className="fixed top-0 left-0 right-0 z-40 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="p-2 hover:bg-white/10 rounded-lg transition-all">
-              <Icons.Back />
-            </Link>
-            <h1 className="font-semibold text-lg">Exercise Library</h1>
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={clsx(
-              'p-2 rounded-lg transition-all',
-              showFilters ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-white/10'
+            {viewMode === 'list' && selectedCategory ? (
+              <button onClick={handleBackToCategories} className="p-2 hover:bg-white/10 rounded-lg transition-all">
+                <Icons.Back />
+              </button>
+            ) : (
+              <Link to="/dashboard" className="p-2 hover:bg-white/10 rounded-lg transition-all">
+                <Icons.Back />
+              </Link>
             )}
-          >
-            <Icons.Filter />
-          </button>
+            <div>
+              <h1 className="font-semibold text-lg">
+                {selectedCategory ? EXERCISE_CATEGORIES[selectedCategory]?.name : 'Exercise Library'}
+              </h1>
+              {selectedCategory && (
+                <p className="text-xs text-gray-400">{filteredExercises.length} exercises</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <button
+              onClick={() => {
+                if (viewMode === 'categories') {
+                  setViewMode('list');
+                  setSelectedCategory(null);
+                } else {
+                  handleBackToCategories();
+                }
+              }}
+              className={clsx(
+                'p-2 rounded-lg transition-all text-xs',
+                viewMode === 'list' ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-white/10 text-gray-400'
+              )}
+            >
+              {viewMode === 'categories' ? '📋 List' : '📂 Groups'}
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={clsx(
+                'p-2 rounded-lg transition-all',
+                showFilters ? 'bg-violet-500/20 text-violet-400' : 'hover:bg-white/10'
+              )}
+            >
+              <Icons.Filter />
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="pt-20 pb-8 px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Search */}
-          <div className="relative mb-4">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-              <Icons.Search />
-            </div>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search exercises, muscles..."
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-all"
-            />
-          </div>
-
-          {/* Type Filter */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden mb-4"
-              >
-                <div className="flex flex-wrap gap-2 pb-2">
-                  {EXERCISE_TYPES.map(type => (
-                    <button
-                      key={type.id}
-                      onClick={() => setSelectedType(type.id)}
-                      className={clsx(
-                        'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                        selectedType === type.id
-                          ? 'bg-violet-500 text-white'
-                          : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                      )}
-                    >
-                      {type.label}
-                    </button>
+          {/* Category Grid View */}
+          {viewMode === 'categories' && !selectedCategory && (
+            <>
+              <h2 className="text-lg font-semibold mb-4 text-gray-300">Browse by Muscle Group</h2>
+              {loading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[...Array(9)].map((_, i) => (
+                    <div key={i} className="h-32 rounded-2xl bg-white/5 animate-pulse" />
                   ))}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+                  {Object.entries(EXERCISE_CATEGORIES).map(([categoryId, category]) => (
+                    <CategoryCard
+                      key={categoryId}
+                      category={category}
+                      exerciseCount={exercisesByCategory[categoryId] || 0}
+                      onClick={() => handleCategorySelect(categoryId)}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {/* Results count */}
-          <div className="text-sm text-gray-500 mb-4">
-            {loading ? 'Loading...' : `${filteredExercises.length} exercises`}
-          </div>
+              {/* Quick search below categories */}
+              <div className="border-t border-white/10 pt-6 mt-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-300">Quick Search</h2>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                    <Icons.Search />
+                  </div>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => {
+                      setSearch(e.target.value);
+                      if (e.target.value) setViewMode('list');
+                    }}
+                    placeholder="Search all exercises..."
+                    className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
-          {/* Exercise Grid */}
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : filteredExercises.length === 0 ? (
-            <div className="text-center py-12">
-              <Icons.Dumbbell />
-              <p className="text-gray-400 mt-2">No exercises found</p>
-              <p className="text-sm text-gray-500">Try adjusting your search or filters</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredExercises.map(exercise => (
-                <ExerciseCard
-                  key={exercise.id}
-                  exercise={exercise}
-                  onClick={setSelectedExercise}
+          {/* List View */}
+          {(viewMode === 'list' || selectedCategory) && (
+            <>
+              {/* Search */}
+              <div className="relative mb-4">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                  <Icons.Search />
+                </div>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={selectedCategory ? `Search ${EXERCISE_CATEGORIES[selectedCategory]?.name} exercises...` : 'Search exercises, muscles...'}
+                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-all"
                 />
-              ))}
-            </div>
+              </div>
+
+              {/* Type Filter */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden mb-4"
+                  >
+                    <div className="flex flex-wrap gap-2 pb-2">
+                      {EXERCISE_TYPES.map(type => (
+                        <button
+                          key={type.id}
+                          onClick={() => setSelectedType(type.id)}
+                          className={clsx(
+                            'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                            selectedType === type.id
+                              ? 'bg-violet-500 text-white'
+                              : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                          )}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Results count */}
+              <div className="text-sm text-gray-500 mb-4">
+                {loading ? 'Loading...' : `${filteredExercises.length} exercises`}
+              </div>
+
+              {/* Exercise Grid */}
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : filteredExercises.length === 0 ? (
+                <div className="text-center py-12">
+                  <Icons.Dumbbell />
+                  <p className="text-gray-400 mt-2">No exercises found</p>
+                  <p className="text-sm text-gray-500">Try adjusting your search or filters</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredExercises.map(exercise => (
+                    <ExerciseCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      onClick={setSelectedExercise}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

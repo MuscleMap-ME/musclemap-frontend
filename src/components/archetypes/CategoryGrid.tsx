@@ -19,6 +19,9 @@ import {
   SoccerBall,
   Lightning,
   FirstAid,
+  Trophy,
+  Briefcase,
+  Truck,
 } from '@phosphor-icons/react';
 
 /**
@@ -36,6 +39,9 @@ const CATEGORY_ICONS = {
   team_sports: SoccerBall,
   functional: Lightning,
   rehabilitation: FirstAid,
+  sports: Trophy,
+  occupational: Briefcase,
+  transportation: Truck,
 };
 
 /**
@@ -53,6 +59,9 @@ const CATEGORY_GRADIENTS = {
   team_sports: 'from-cyan-600/60 via-cyan-800/40 to-black/90',
   functional: 'from-yellow-600/60 via-yellow-800/40 to-black/90',
   rehabilitation: 'from-pink-600/60 via-pink-800/40 to-black/90',
+  sports: 'from-indigo-600/60 via-indigo-800/40 to-black/90',
+  occupational: 'from-teal-600/60 via-teal-800/40 to-black/90',
+  transportation: 'from-gray-600/60 via-gray-800/40 to-black/90',
 };
 
 /**
@@ -70,6 +79,9 @@ const CATEGORY_GLOW_COLORS = {
   team_sports: 'rgba(6, 182, 212, 0.4)',
   functional: 'rgba(202, 138, 4, 0.4)',
   rehabilitation: 'rgba(219, 39, 119, 0.4)',
+  sports: 'rgba(99, 102, 241, 0.4)',
+  occupational: 'rgba(20, 184, 166, 0.4)',
+  transportation: 'rgba(107, 114, 128, 0.4)',
 };
 
 /**

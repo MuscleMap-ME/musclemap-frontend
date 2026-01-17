@@ -518,8 +518,8 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
           </svg>
         </div>
 
-        {/* Stat Bars */}
-        <div className="flex-1 grid grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-2">
+        {/* Stat Bars - Show all 6 stats in responsive grid */}
+        <div className="flex-1 grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-2">
           {STAT_ORDER.map((key) => {
             const value = stats[key] || 0;
             const percentage = Math.min((value / maxStat) * 100, 100);
@@ -534,14 +534,14 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
                 transition={{ delay: STAT_ORDER.indexOf(key) * 0.05 }}
               >
                 <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: meta.color }}
                     />
-                    <span className="font-semibold text-[var(--text-secondary)]">{meta.abbr}</span>
+                    <span className="font-semibold text-[var(--text-secondary)] truncate">{meta.abbr}</span>
                   </div>
-                  <span className="font-bold" style={{ color: meta.color }}>
+                  <span className="font-bold flex-shrink-0" style={{ color: meta.color }}>
                     {value.toFixed(0)}
                   </span>
                 </div>
@@ -985,6 +985,7 @@ export default function Dashboard() {
   // ============================================
   // Check if profile is incomplete (no avatar or bio)
   const isProfileIncomplete = user && (!user.avatar_url || !user.bio);
+  const [wasProfileIncomplete, setWasProfileIncomplete] = useState(isProfileIncomplete);
 
   // Check if no workout in 3 days
   const [noRecentWorkout, setNoRecentWorkout] = useState(false);
@@ -1033,6 +1034,20 @@ export default function Dashboard() {
 
     return () => clearCelebrations();
   }, [registerCelebrations, clearCelebrations, showTip]);
+
+  // Show celebration when profile becomes complete
+  useEffect(() => {
+    if (wasProfileIncomplete && !isProfileIncomplete && user) {
+      // Profile was incomplete and is now complete - show celebration
+      showTip('profile_completed', {
+        data: {
+          title: '🎉 Profile Complete!',
+          message: 'Welcome to MuscleMap! You\'re all set to start your fitness journey.',
+        }
+      });
+    }
+    setWasProfileIncomplete(isProfileIncomplete);
+  }, [isProfileIncomplete, wasProfileIncomplete, user, showTip]);
 
   // ============================================
   // FEATURE DISCOVERY HANDLER

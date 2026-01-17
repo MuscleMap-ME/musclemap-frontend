@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
 import { hasExerciseIllustration } from '@musclemap/shared';
@@ -25,12 +25,62 @@ const LOCATION_OPTIONS = [
   { value: 'office', label: 'Office', icon: '🏢' },
 ];
 
-const EQUIPMENT_OPTIONS = [
-  { value: 'dumbbells', label: 'Dumbbells', icon: '🏋️' },
+// Equipment options organized by location
+const EQUIPMENT_BY_LOCATION = {
+  gym: [
+    { value: 'barbell', label: 'Barbell', icon: '🏋️' },
+    { value: 'dumbbells', label: 'Dumbbells', icon: '🔩' },
+    { value: 'cable_machine', label: 'Cable Machine', icon: '⚙️' },
+    { value: 'leg_press', label: 'Leg Press', icon: '🦵' },
+    { value: 'lat_pulldown', label: 'Lat Pulldown', icon: '📐' },
+    { value: 'bench', label: 'Bench', icon: '🪑' },
+    { value: 'squat_rack', label: 'Squat Rack', icon: '🏗️' },
+    { value: 'smith_machine', label: 'Smith Machine', icon: '🔧' },
+    { value: 'rowing_machine', label: 'Row Machine', icon: '🚣' },
+    { value: 'treadmill', label: 'Treadmill', icon: '🏃' },
+    { value: 'elliptical', label: 'Elliptical', icon: '⭕' },
+    { value: 'kettlebell', label: 'Kettlebell', icon: '🔔' },
+  ],
+  home: [
+    { value: 'dumbbells', label: 'Dumbbells', icon: '🔩' },
+    { value: 'pullup_bar', label: 'Pull-up Bar', icon: '🔲' },
+    { value: 'kettlebell', label: 'Kettlebell', icon: '🔔' },
+    { value: 'bands', label: 'Resistance Bands', icon: '➰' },
+    { value: 'yoga_mat', label: 'Yoga Mat', icon: '🧘' },
+    { value: 'foam_roller', label: 'Foam Roller', icon: '🛼' },
+    { value: 'jump_rope', label: 'Jump Rope', icon: '🪢' },
+    { value: 'stability_ball', label: 'Stability Ball', icon: '⚪' },
+  ],
+  park: [
+    { value: 'pullup_bar', label: 'Pull-up Bar', icon: '🔲' },
+    { value: 'parallel_bars', label: 'Parallel Bars', icon: '⏸️' },
+    { value: 'bench', label: 'Park Bench', icon: '🪑' },
+    { value: 'bands', label: 'Resistance Bands', icon: '➰' },
+    { value: 'jump_rope', label: 'Jump Rope', icon: '🪢' },
+    { value: 'stairs', label: 'Stairs', icon: '📶' },
+  ],
+  hotel: [
+    { value: 'bands', label: 'Resistance Bands', icon: '➰' },
+    { value: 'dumbbells', label: 'Hotel Dumbbells', icon: '🔩' },
+    { value: 'yoga_mat', label: 'Yoga Mat', icon: '🧘' },
+    { value: 'chair', label: 'Chair', icon: '💺' },
+    { value: 'treadmill', label: 'Treadmill', icon: '🏃' },
+  ],
+  office: [
+    { value: 'bands', label: 'Resistance Bands', icon: '➰' },
+    { value: 'chair', label: 'Office Chair', icon: '💺' },
+    { value: 'desk', label: 'Desk', icon: '🖥️' },
+    { value: 'stairs', label: 'Stairs', icon: '📶' },
+  ],
+};
+
+// Fallback equipment options
+const DEFAULT_EQUIPMENT_OPTIONS = [
+  { value: 'dumbbells', label: 'Dumbbells', icon: '🔩' },
   { value: 'pullup_bar', label: 'Pull-up Bar', icon: '🔲' },
   { value: 'kettlebell', label: 'Kettlebell', icon: '🔔' },
   { value: 'bands', label: 'Resistance Bands', icon: '➰' },
-  { value: 'barbell', label: 'Barbell', icon: '🪨' },
+  { value: 'barbell', label: 'Barbell', icon: '🏋️' },
 ];
 
 const GOAL_OPTIONS = [
@@ -72,6 +122,7 @@ const CATEGORY = {
 
 export default function Workout() {
   const { token } = useAuth();
+  const navigate = useNavigate();
 
   // Mode: 'select' (constraints), 'workout' (doing exercises), 'manual' (browse all)
   const [mode, setMode] = useState('select');
@@ -102,6 +153,14 @@ export default function Workout() {
   const [weight, setWeight] = useState(0);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+
+  // Clear selected equipment when location changes (equipment varies by location)
+  useEffect(() => {
+    setSelectedEquipment([]);
+  }, [selectedLocation]);
+
+  // Get equipment options for current location
+  const currentEquipmentOptions = EQUIPMENT_BY_LOCATION[selectedLocation] || DEFAULT_EQUIPMENT_OPTIONS;
 
   // Load exercises for manual mode
   useEffect(() => {
@@ -392,11 +451,13 @@ export default function Workout() {
           </div>
         </section>
 
-        {/* Equipment Selection */}
+        {/* Equipment Selection - changes based on location */}
         <section>
-          <h2 className="text-sm text-gray-400 uppercase mb-3">Available Equipment (optional)</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {EQUIPMENT_OPTIONS.map(opt => (
+          <h2 className="text-sm text-gray-400 uppercase mb-3">
+            Available at {LOCATION_OPTIONS.find(l => l.value === selectedLocation)?.label || 'Location'} (optional)
+          </h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+            {currentEquipmentOptions.map(opt => (
               <button
                 key={opt.value}
                 onClick={() => toggleEquipment(opt.value)}
@@ -407,12 +468,15 @@ export default function Workout() {
                 }`}
               >
                 <div className="text-2xl mb-1">{opt.icon}</div>
-                <div className="text-xs">{opt.label}</div>
+                <div className="text-xs leading-tight">{opt.label}</div>
               </button>
             ))}
           </div>
           {selectedEquipment.length === 0 && (
-            <p className="text-xs text-gray-500 mt-2">No equipment = bodyweight exercises</p>
+            <p className="text-xs text-gray-500 mt-2">No equipment selected = bodyweight exercises</p>
+          )}
+          {selectedEquipment.length > 0 && (
+            <p className="text-xs text-green-400 mt-2">{selectedEquipment.length} item{selectedEquipment.length > 1 ? 's' : ''} selected</p>
           )}
         </section>
 
@@ -776,6 +840,8 @@ export default function Workout() {
           setMode('select');
           setPrescription(null);
           setLogged([]);
+          // Navigate to dashboard after completing workout
+          navigate('/dashboard');
         }}
       />
     )

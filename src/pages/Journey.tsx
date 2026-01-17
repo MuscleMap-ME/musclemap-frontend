@@ -111,14 +111,70 @@ export default function Journey() {
     );
   }
 
-  // If no data, show empty state
+  // If no data, show a helpful empty state with journey info
   if (!data) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-8">
-        <div className="text-6xl mb-4">🌟</div>
-        <h1 className="text-2xl font-bold mb-2">Start Your Journey</h1>
-        <p className="text-gray-400 text-center mb-6">Complete your first workout to begin tracking your progress</p>
-        <Link to="/workout" className="bg-purple-600 px-8 py-3 rounded-full font-bold">Start Workout</Link>
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white pb-24">
+        {/* Header */}
+        <header className="bg-gray-900/80 backdrop-blur-lg p-4 sticky top-0 z-10 border-b border-gray-700">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <Link to="/dashboard" className="text-blue-400">← Back</Link>
+            <h1 className="text-xl font-bold">Your Journey</h1>
+            <div className="w-16"></div>
+          </div>
+        </header>
+
+        <div className="max-w-lg mx-auto p-6 flex flex-col items-center text-center mt-12">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mb-6">
+            <span className="text-5xl">🌟</span>
+          </div>
+          <h1 className="text-3xl font-bold mb-3">Your Journey Awaits</h1>
+          <p className="text-gray-400 mb-8 leading-relaxed">
+            Every fitness journey begins with a single step. Complete your first workout to unlock personalized progress tracking, muscle activation stats, and level progression.
+          </p>
+
+          {/* Journey Preview */}
+          <div className="w-full bg-gray-800/50 rounded-2xl p-6 mb-8 border border-gray-700/50">
+            <h3 className="text-sm text-gray-400 uppercase mb-4">What you&apos;ll unlock</h3>
+            <div className="grid grid-cols-2 gap-4 text-left">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-lg">📊</div>
+                <div>
+                  <div className="font-medium text-sm">Progress Tracking</div>
+                  <div className="text-xs text-gray-500">Weekly & monthly stats</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center text-lg">💪</div>
+                <div>
+                  <div className="font-medium text-sm">Muscle Balance</div>
+                  <div className="text-xs text-gray-500">See what you train</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-green-600/20 flex items-center justify-center text-lg">🔥</div>
+                <div>
+                  <div className="font-medium text-sm">Streak Counter</div>
+                  <div className="text-xs text-gray-500">Build consistency</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-600/20 flex items-center justify-center text-lg">⬆️</div>
+                <div>
+                  <div className="font-medium text-sm">Level Up</div>
+                  <div className="text-xs text-gray-500">Earn TU & rank up</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/workout"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 px-8 py-4 rounded-2xl font-bold text-lg transition-all"
+          >
+            Begin Your First Workout
+          </Link>
+        </div>
       </div>
     );
   }

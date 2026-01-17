@@ -123,6 +123,19 @@ export const TIP_DEFINITIONS = {
     priority: 3,
   },
 
+  // Profile completed celebration
+  profile_completed: {
+    id: 'profile_completed',
+    trigger: 'profile_completed',
+    category: 'achievement',
+    message: '🎉 Profile complete! You\'re all set to start your fitness journey.',
+    action: {
+      label: 'Start Workout',
+      to: '/workout',
+    },
+    priority: 1,
+  },
+
   // Earned credits tips
   earned_credits_store: {
     id: 'earned_credits_store',
