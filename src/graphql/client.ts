@@ -3,6 +3,11 @@
  *
  * Sets up Apollo Client with authentication, error handling, and caching.
  * Includes IndexedDB persistence for instant loads on repeat visits.
+ *
+ * Cross-Platform Compatibility Features:
+ * - Resilient storage (works with Brave Shields, private mode, etc.)
+ * - Configurable timeouts (prevents hangs on slow connections)
+ * - Adaptive batch intervals based on connection quality
  */
 
 import { ApolloClient, InMemoryCache, from } from '@apollo/client/core';
@@ -11,6 +16,62 @@ import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 import { initializeCachePersistence, clearPersistedCache } from '../lib/apollo-persist';
+import { storage } from '../lib/storage';
+
+// Network configuration
+const DEFAULT_TIMEOUT = 30000; // 30 seconds
+const SLOW_NETWORK_TIMEOUT = 60000; // 60 seconds for slow connections
+
+/**
+ * Detect connection quality and return appropriate batch interval
+ * Slower connections get longer intervals to batch more requests
+ */
+function getAdaptiveBatchInterval(): number {
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string } }).connection;
+  if (!connection?.effectiveType) return 20;
+
+  switch (connection.effectiveType) {
+    case 'slow-2g':
+    case '2g':
+      return 500; // Wait longer to batch more requests on slow connections
+    case '3g':
+      return 100;
+    case '4g':
+    default:
+      return 20;
+  }
+}
+
+/**
+ * Get timeout based on connection quality
+ */
+function getAdaptiveTimeout(): number {
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string } }).connection;
+  if (!connection?.effectiveType) return DEFAULT_TIMEOUT;
+
+  switch (connection.effectiveType) {
+    case 'slow-2g':
+    case '2g':
+    case '3g':
+      return SLOW_NETWORK_TIMEOUT;
+    default:
+      return DEFAULT_TIMEOUT;
+  }
+}
+
+/**
+ * Fetch with timeout - prevents hanging on slow/dead connections
+ */
+function fetchWithTimeout(uri: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = getAdaptiveTimeout();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  return fetch(uri, {
+    ...options,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
+}
 
 /**
  * Batch HTTP Link - batches multiple GraphQL requests into one HTTP request
@@ -20,17 +81,19 @@ const httpLink = new BatchHttpLink({
   uri: '/api/graphql',
   credentials: 'include',
   batchMax: 10, // Max 10 queries per batch
-  batchInterval: 20, // Wait 20ms to collect queries before sending
+  batchInterval: getAdaptiveBatchInterval(),
   batchDebounce: true, // Debounce batches for even better grouping
+  fetch: fetchWithTimeout, // Use timeout-enabled fetch
 });
 
 /**
  * Auth Link - adds JWT token to requests
+ * Uses resilient storage that works with Brave Shields, private mode, etc.
  */
 const authLink = setContext((_, { headers }) => {
-  // Get token from Zustand storage
+  // Get token from resilient storage (works even when localStorage blocked)
   try {
-    const authData = localStorage.getItem('musclemap-auth');
+    const authData = storage.getItem('musclemap-auth');
     if (authData) {
       const parsed = JSON.parse(authData);
       const token = parsed?.state?.token;
@@ -44,7 +107,7 @@ const authLink = setContext((_, { headers }) => {
       }
     }
   } catch {
-    // Error reading auth token
+    // Error reading auth token - continue without auth
   }
   return { headers };
 });
@@ -78,8 +141,8 @@ const errorLink = onError(({ graphQLErrors, networkError: _networkError, operati
 
       // Handle authentication errors
       if (extensions?.code === 'UNAUTHENTICATED') {
-        // Clear auth and redirect to login
-        localStorage.removeItem('musclemap-auth');
+        // Clear auth and redirect to login (using resilient storage)
+        storage.removeItem('musclemap-auth');
         window.location.href = '/login';
       }
     }

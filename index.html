@@ -44,36 +44,17 @@
   <!-- Canonical URL -->
   <link rel="canonical" href="https://musclemap.me/">
 
-  <!-- Google Analytics 4 -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S4RPD5JD5L"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-S4RPD5JD5L', {
-      send_page_view: false // We'll send page views manually for SPA
-    });
-  </script>
-
   <!-- API Preconnect - establish early connections for faster data fetching -->
   <link rel="preconnect" href="https://api.musclemap.me" crossorigin>
   <link rel="dns-prefetch" href="https://api.musclemap.me">
-  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
-  <link rel="preconnect" href="https://www.google-analytics.com" crossorigin>
 
-  <!-- Font Preconnect -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Self-hosted fonts - immune to ad blockers and privacy tools -->
+  <link rel="preload" href="/fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/bebas-neue.woff2" as="font" type="font/woff2" crossorigin>
 
-  <!-- Critical Font Preloads - load these fonts before render for faster FCP -->
-  <link rel="preload" href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="https://fonts.gstatic.com/s/bebasneue/v14/JTUSjIg69CK48gW7PXoo9WlhyyTh89Y.woff2" as="font" type="font/woff2" crossorigin>
-
-  <!-- Font Stylesheet - made non-render-blocking with media swap -->
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  </noscript>
+  <!-- Content Security Policy - works even if server headers are stripped -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https: blob:; media-src 'self' blob:; connect-src 'self' https://api.musclemap.me wss://api.musclemap.me https://musclemap.me; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests; object-src 'none'; worker-src 'self' blob:;">
 
   <!-- App Icons -->
   <link rel="manifest" href="/manifest.json">

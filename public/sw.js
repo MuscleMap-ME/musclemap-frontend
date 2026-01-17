@@ -55,13 +55,27 @@ const isStaticAsset = (url) => {
 };
 
 const isApiRequest = (url) => {
-  return url.pathname.startsWith('/api/') ||
-         url.hostname === 'api.musclemap.me';
+  // Check for same-origin /api/ paths first (most common)
+  if (url.pathname.startsWith('/api/')) return true;
+
+  // Support both subdomain (api.musclemap.me) and same-origin patterns
+  // This handles VPNs, proxies, and different deployment configurations
+  const apiHosts = ['api.musclemap.me', 'musclemap.me', 'localhost'];
+  const isKnownHost = apiHosts.some(host =>
+    url.hostname === host || url.hostname.endsWith('.' + host)
+  );
+
+  return isKnownHost && (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/graphql')
+  );
 };
 
 const isGraphQLRequest = (url) => {
+  // Support both same-origin and cross-origin GraphQL endpoints
   return url.pathname === '/api/graphql' ||
-         url.pathname === '/graphql';
+         url.pathname === '/graphql' ||
+         url.pathname.endsWith('/graphql');
 };
 
 const isFontRequest = (url) => {
