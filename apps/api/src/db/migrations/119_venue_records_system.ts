@@ -106,11 +106,11 @@ export async function up(): Promise<void> {
     `);
 
     // Indexes for venues
-    await db.query(`CREATE INDEX idx_venues_city ON fitness_venues(city, is_active)`);
-    await db.query(`CREATE INDEX idx_venues_type ON fitness_venues(venue_type, is_active)`);
-    await db.query(`CREATE INDEX idx_venues_slug ON fitness_venues(slug)`);
-    await db.query(`CREATE INDEX idx_venues_active ON fitness_venues(is_active, member_count DESC)`);
-    await db.query(`CREATE INDEX idx_venues_location ON fitness_venues(latitude, longitude) WHERE is_active = TRUE`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venues_city ON fitness_venues(city, is_active)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venues_type ON fitness_venues(venue_type, is_active)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venues_slug ON fitness_venues(slug)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venues_active ON fitness_venues(is_active, member_count DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venues_location ON fitness_venues(latitude, longitude) WHERE is_active = TRUE`);
   }
 
   // ============================================
@@ -162,8 +162,8 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query(`CREATE INDEX idx_record_types_category ON venue_record_types(category, is_active)`);
-    await db.query(`CREATE INDEX idx_record_types_active ON venue_record_types(is_active, display_order)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_record_types_category ON venue_record_types(category, is_active)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_record_types_active ON venue_record_types(is_active, display_order)`);
   }
 
   // ============================================
@@ -242,12 +242,12 @@ export async function up(): Promise<void> {
     `);
 
     // Indexes for records
-    await db.query(`CREATE INDEX idx_venue_records_venue ON venue_records(venue_id, record_type_id, status)`);
-    await db.query(`CREATE INDEX idx_venue_records_user ON venue_records(user_id, status)`);
-    await db.query(`CREATE INDEX idx_venue_records_pending ON venue_records(status, expires_at) WHERE status = 'pending_witness'`);
-    await db.query(`CREATE INDEX idx_venue_records_current ON venue_records(venue_id, record_type_id, value DESC) WHERE status = 'verified'`);
-    await db.query(`CREATE INDEX idx_venue_records_witness ON venue_records(witness_user_id, status) WHERE witness_user_id IS NOT NULL`);
-    await db.query(`CREATE INDEX idx_venue_records_leaderboard ON venue_records(venue_id, record_type_id, value DESC, verified_at DESC) WHERE status = 'verified'`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_venue ON venue_records(venue_id, record_type_id, status)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_user ON venue_records(user_id, status)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_pending ON venue_records(status, expires_at) WHERE status = 'pending_witness'`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_current ON venue_records(venue_id, record_type_id, value DESC) WHERE status = 'verified'`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_witness ON venue_records(witness_user_id, status) WHERE witness_user_id IS NOT NULL`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_records_leaderboard ON venue_records(venue_id, record_type_id, value DESC, verified_at DESC) WHERE status = 'verified'`);
 
     // Unique constraint - only one pending/verified record per user/venue/type
     await db.query(`
@@ -278,8 +278,8 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query(`CREATE INDEX idx_record_history_venue ON venue_record_history(venue_id, record_type_id, held_until DESC NULLS FIRST)`);
-    await db.query(`CREATE INDEX idx_record_history_user ON venue_record_history(user_id, held_until DESC NULLS FIRST)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_record_history_venue ON venue_record_history(venue_id, record_type_id, held_until DESC NULLS FIRST)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_record_history_user ON venue_record_history(user_id, held_until DESC NULLS FIRST)`);
   }
 
   // ============================================
@@ -310,8 +310,8 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query(`CREATE INDEX idx_venue_members_user ON venue_memberships(user_id)`);
-    await db.query(`CREATE INDEX idx_venue_members_active ON venue_memberships(venue_id, last_checkin_at DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_members_user ON venue_memberships(user_id)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_members_active ON venue_memberships(venue_id, last_checkin_at DESC)`);
   }
 
   // ============================================
@@ -344,9 +344,9 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query(`CREATE INDEX idx_checkins_venue ON venue_checkins(venue_id, checked_in_at DESC)`);
-    await db.query(`CREATE INDEX idx_checkins_active ON venue_checkins(venue_id, user_id) WHERE is_active = TRUE`);
-    await db.query(`CREATE INDEX idx_checkins_user ON venue_checkins(user_id, checked_in_at DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_checkins_venue ON venue_checkins(venue_id, checked_in_at DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_checkins_active ON venue_checkins(venue_id, user_id) WHERE is_active = TRUE`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_venue_checkins_user ON venue_checkins(user_id, checked_in_at DESC)`);
   }
 
   // ============================================
@@ -385,9 +385,9 @@ export async function up(): Promise<void> {
       )
     `);
 
-    await db.query(`CREATE INDEX idx_disputes_record ON venue_record_disputes(record_id)`);
-    await db.query(`CREATE INDEX idx_disputes_status ON venue_record_disputes(status, filed_at DESC)`);
-    await db.query(`CREATE INDEX idx_disputes_filer ON venue_record_disputes(filed_by_user_id)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_disputes_record ON venue_record_disputes(record_id)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_disputes_status ON venue_record_disputes(status, filed_at DESC)`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_disputes_filer ON venue_record_disputes(filed_by_user_id)`);
   }
 
   // ============================================
