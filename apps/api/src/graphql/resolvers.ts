@@ -33,6 +33,14 @@ import {
   mealPlanService,
   nutritionGoalsService,
 } from '../modules/nutrition';
+import {
+  companionEventsService,
+  mascotPowersService,
+  spiritWardrobeService,
+  appearanceGeneratorService,
+  mascotTimelineService,
+  STAGE_THRESHOLDS,
+} from '../modules/mascot';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -1441,6 +1449,209 @@ export const resolvers = {
         targetEvents: r.targetEvents,
       }));
     },
+
+    // ============================================
+    // MASCOT / SPIRIT ANIMAL QUERIES
+    // ============================================
+
+    mascot: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const state = await companionEventsService.getOrCreateState(userId);
+      const progression = companionEventsService.calculateProgression(state.xp, state.stage);
+
+      return {
+        id: state.id,
+        userId: state.user_id,
+        nickname: state.nickname,
+        stage: state.stage,
+        xp: state.xp,
+        progression: {
+          currentXp: progression.currentXp,
+          prevStageXp: progression.prevStageXp,
+          nextStageXp: progression.nextStageXp,
+          progressPercent: progression.progressPercent,
+          isMaxStage: progression.isMaxStage,
+        },
+        isVisible: state.is_visible,
+        isMinimized: state.is_minimized,
+        soundsEnabled: state.sounds_enabled,
+        tipsEnabled: state.tips_enabled,
+        createdAt: state.created_at,
+      };
+    },
+
+    mascotAppearance: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const appearance = await appearanceGeneratorService.getFullAppearance(userId);
+      const animConfig = appearanceGeneratorService.getAnimationConfig(appearance.base);
+
+      return {
+        base: appearance.base,
+        stageFeatures: appearance.stageFeatures,
+        equipped: {
+          skin: appearance.equipped.skin ? { id: appearance.equipped.skin } : null,
+          eyes: appearance.equipped.eyes ? { id: appearance.equipped.eyes } : null,
+          outfit: appearance.equipped.outfit ? { id: appearance.equipped.outfit } : null,
+          headwear: appearance.equipped.headwear ? { id: appearance.equipped.headwear } : null,
+          footwear: appearance.equipped.footwear ? { id: appearance.equipped.footwear } : null,
+          accessory1: appearance.equipped.accessory1 ? { id: appearance.equipped.accessory1 } : null,
+          accessory2: appearance.equipped.accessory2 ? { id: appearance.equipped.accessory2 } : null,
+          accessory3: appearance.equipped.accessory3 ? { id: appearance.equipped.accessory3 } : null,
+          aura: appearance.equipped.aura ? { id: appearance.equipped.aura } : null,
+          background: appearance.equipped.background ? { id: appearance.equipped.background } : null,
+          emoteVictory: appearance.equipped.emoteVictory ? { id: appearance.equipped.emoteVictory } : null,
+          emoteIdle: appearance.equipped.emoteIdle ? { id: appearance.equipped.emoteIdle } : null,
+        },
+        final: appearance.final,
+        animationConfig: animConfig,
+      };
+    },
+
+    mascotPowers: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const summary = await mascotPowersService.getPowersSummary(userId);
+
+      return {
+        companionStage: summary.companionStage,
+        energy: summary.energy,
+        bonusMultiplier: summary.phase2.bonusMultiplier,
+        streakSaver: summary.phase2.streakSaver,
+        creditGuardianFeatures: summary.phase2.creditGuardianFeatures,
+        schedulerLevel: summary.phase3.schedulerLevel,
+        canSuggestRecovery: summary.phase3.canSuggestRecovery,
+        canPredictMilestones: summary.phase3.canPredictMilestones,
+        canAutoHighfive: summary.phase4.canAutoHighfive,
+        canTrashTalk: summary.phase4.canTrashTalk,
+        canCoordinateCrews: summary.phase4.canCoordinateCrews,
+        canDetectAnomalies: summary.phase5.canDetectAnomalies,
+        canSuggestSettings: summary.phase5.canSuggestSettings,
+        canGeneratePrograms: summary.phase6.canGeneratePrograms,
+        hasInjuryPrevention: summary.phase6.hasInjuryPrevention,
+        hasNutritionHints: summary.phase6.hasNutritionHints,
+        masterAbilities: summary.masterAbilities,
+      };
+    },
+
+    mascotTimeline: async (
+      _: unknown,
+      args: { limit?: number; offset?: number; importance?: string[] },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const timeline = await mascotTimelineService.getTimelineWithReactions(userId, {
+        limit: args.limit || 20,
+        offset: args.offset || 0,
+        importance: args.importance,
+      });
+
+      return timeline.map((item) => ({
+        event: {
+          id: item.event.id,
+          eventType: item.event.eventType,
+          eventData: item.event.eventData,
+          importance: item.event.importance,
+          timestamp: item.event.timestamp,
+        },
+        reaction: item.reaction
+          ? {
+              id: item.reaction.id,
+              eventId: item.reaction.eventId,
+              reactionType: item.reaction.reactionType,
+              message: item.reaction.message,
+              emote: item.reaction.emote,
+              animation: item.reaction.animation,
+              duration: item.reaction.duration,
+              intensity: item.reaction.intensity,
+              soundEffect: item.reaction.soundEffect,
+              shown: item.reaction.shown,
+              createdAt: item.reaction.createdAt,
+            }
+          : null,
+      }));
+    },
+
+    mascotPendingReactions: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const reactions = await mascotTimelineService.getPendingReactions(userId, args.limit || 5);
+
+      return reactions.map((r) => ({
+        id: r.id,
+        eventId: r.eventId,
+        reactionType: r.reactionType,
+        message: r.message,
+        emote: r.emote,
+        animation: r.animation,
+        duration: r.duration,
+        intensity: r.intensity,
+        soundEffect: r.soundEffect,
+        shown: r.shown,
+        createdAt: r.createdAt,
+      }));
+    },
+
+    mascotWardrobe: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const inventory = await spiritWardrobeService.getUserCollection(userId);
+      const presets = await spiritWardrobeService.getPresets(userId);
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+
+      return {
+        inventory: inventory.map((item) => ({
+          id: item.id,
+          cosmetic: item.cosmetic,
+          acquiredAt: item.acquiredAt,
+          acquisitionMethod: item.acquisitionMethod,
+          creditsSpent: item.creditsSpent,
+          giftedBy: item.giftedBy,
+          isFavorite: item.isFavorite,
+          isNew: item.isNew,
+        })),
+        presets: presets.map((p) => ({
+          id: p.id,
+          name: p.name,
+          icon: p.icon,
+          loadout: p.loadout,
+          createdAt: p.createdAt,
+        })),
+        currentLoadout: {
+          skin: loadout.skinId ? { id: loadout.skinId } : null,
+          eyes: loadout.eyesId ? { id: loadout.eyesId } : null,
+          outfit: loadout.outfitId ? { id: loadout.outfitId } : null,
+          headwear: loadout.headwearId ? { id: loadout.headwearId } : null,
+          footwear: loadout.footwearId ? { id: loadout.footwearId } : null,
+          accessory1: loadout.accessory1Id ? { id: loadout.accessory1Id } : null,
+          accessory2: loadout.accessory2Id ? { id: loadout.accessory2Id } : null,
+          accessory3: loadout.accessory3Id ? { id: loadout.accessory3Id } : null,
+          aura: loadout.auraId ? { id: loadout.auraId } : null,
+          background: loadout.backgroundId ? { id: loadout.backgroundId } : null,
+          emoteVictory: loadout.emoteVictoryId ? { id: loadout.emoteVictoryId } : null,
+          emoteIdle: loadout.emoteIdleId ? { id: loadout.emoteIdleId } : null,
+        },
+      };
+    },
+
+    mascotShop: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const shop = await spiritWardrobeService.getTodaysShop(userId);
+
+      return shop.map((item) => ({
+        slotNumber: item.slotNumber,
+        cosmetic: {
+          id: item.cosmeticId,
+          itemKey: item.itemKey,
+          name: item.name,
+          description: item.description,
+          category: item.category,
+          rarity: item.rarity,
+          basePrice: item.basePrice,
+        },
+        discountPercent: item.discountPercent,
+        finalPrice: item.finalPrice,
+        isFeatured: item.isFeatured,
+        owned: item.owned,
+      }));
+    },
   },
 
   // ============================================
@@ -2180,6 +2391,282 @@ export const resolvers = {
     deleteMealPlan: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
       await mealPlanService.deleteMealPlan(userId, args.id);
+      return true;
+    },
+
+    // ============================================
+    // MASCOT / SPIRIT ANIMAL MUTATIONS
+    // ============================================
+
+    updateMascotNickname: async (_: unknown, args: { nickname: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const nickname = args.nickname.trim().slice(0, 30);
+
+      await query(
+        `UPDATE user_companion_state SET nickname = $1, updated_at = NOW() WHERE user_id = $2`,
+        [nickname, userId]
+      );
+
+      const state = await companionEventsService.getOrCreateState(userId);
+      const progression = companionEventsService.calculateProgression(state.xp, state.stage);
+
+      return {
+        id: state.id,
+        userId: state.user_id,
+        nickname: state.nickname,
+        stage: state.stage,
+        xp: state.xp,
+        progression: {
+          currentXp: progression.currentXp,
+          prevStageXp: progression.prevStageXp,
+          nextStageXp: progression.nextStageXp,
+          progressPercent: progression.progressPercent,
+          isMaxStage: progression.isMaxStage,
+        },
+        isVisible: state.is_visible,
+        isMinimized: state.is_minimized,
+        soundsEnabled: state.sounds_enabled,
+        tipsEnabled: state.tips_enabled,
+        createdAt: state.created_at,
+      };
+    },
+
+    updateMascotSettings: async (
+      _: unknown,
+      args: {
+        input: {
+          isVisible?: boolean;
+          isMinimized?: boolean;
+          soundsEnabled?: boolean;
+          tipsEnabled?: boolean;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { isVisible, isMinimized, soundsEnabled, tipsEnabled } = args.input;
+
+      const updates: string[] = [];
+      const params: unknown[] = [];
+      let paramIndex = 1;
+
+      if (isVisible !== undefined) {
+        updates.push(`is_visible = $${paramIndex++}`);
+        params.push(isVisible);
+      }
+      if (isMinimized !== undefined) {
+        updates.push(`is_minimized = $${paramIndex++}`);
+        params.push(isMinimized);
+      }
+      if (soundsEnabled !== undefined) {
+        updates.push(`sounds_enabled = $${paramIndex++}`);
+        params.push(soundsEnabled);
+      }
+      if (tipsEnabled !== undefined) {
+        updates.push(`tips_enabled = $${paramIndex++}`);
+        params.push(tipsEnabled);
+      }
+
+      if (updates.length > 0) {
+        updates.push(`updated_at = NOW()`);
+        params.push(userId);
+        await query(
+          `UPDATE user_companion_state SET ${updates.join(', ')} WHERE user_id = $${paramIndex}`,
+          params
+        );
+      }
+
+      const state = await companionEventsService.getOrCreateState(userId);
+      const progression = companionEventsService.calculateProgression(state.xp, state.stage);
+
+      return {
+        id: state.id,
+        userId: state.user_id,
+        nickname: state.nickname,
+        stage: state.stage,
+        xp: state.xp,
+        progression: {
+          currentXp: progression.currentXp,
+          prevStageXp: progression.prevStageXp,
+          nextStageXp: progression.nextStageXp,
+          progressPercent: progression.progressPercent,
+          isMaxStage: progression.isMaxStage,
+        },
+        isVisible: state.is_visible,
+        isMinimized: state.is_minimized,
+        soundsEnabled: state.sounds_enabled,
+        tipsEnabled: state.tips_enabled,
+        createdAt: state.created_at,
+      };
+    },
+
+    purchaseMascotCosmetic: async (_: unknown, args: { cosmeticId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await spiritWardrobeService.purchaseCosmetic(userId, args.cosmeticId);
+
+      return {
+        success: result.success,
+        error: result.error,
+        cosmetic: result.cosmetic,
+        creditsSpent: result.creditsSpent,
+        newBalance: result.newBalance,
+      };
+    },
+
+    equipMascotCosmetic: async (_: unknown, args: { cosmeticId: string; slot: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const slotMap: Record<string, string> = {
+        skin: 'skinId',
+        eyes: 'eyesId',
+        outfit: 'outfitId',
+        headwear: 'headwearId',
+        footwear: 'footwearId',
+        accessory1: 'accessory1Id',
+        accessory2: 'accessory2Id',
+        accessory3: 'accessory3Id',
+        aura: 'auraId',
+        background: 'backgroundId',
+        emoteVictory: 'emoteVictoryId',
+        emoteIdle: 'emoteIdleId',
+      };
+
+      const slotKey = slotMap[args.slot];
+      if (!slotKey) {
+        throw new GraphQLError('Invalid slot', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      await spiritWardrobeService.updateLoadout(userId, { [slotKey]: args.cosmeticId });
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+
+      return {
+        skin: loadout.skinId ? { id: loadout.skinId } : null,
+        eyes: loadout.eyesId ? { id: loadout.eyesId } : null,
+        outfit: loadout.outfitId ? { id: loadout.outfitId } : null,
+        headwear: loadout.headwearId ? { id: loadout.headwearId } : null,
+        footwear: loadout.footwearId ? { id: loadout.footwearId } : null,
+        accessory1: loadout.accessory1Id ? { id: loadout.accessory1Id } : null,
+        accessory2: loadout.accessory2Id ? { id: loadout.accessory2Id } : null,
+        accessory3: loadout.accessory3Id ? { id: loadout.accessory3Id } : null,
+        aura: loadout.auraId ? { id: loadout.auraId } : null,
+        background: loadout.backgroundId ? { id: loadout.backgroundId } : null,
+        emoteVictory: loadout.emoteVictoryId ? { id: loadout.emoteVictoryId } : null,
+        emoteIdle: loadout.emoteIdleId ? { id: loadout.emoteIdleId } : null,
+      };
+    },
+
+    unequipMascotCosmetic: async (_: unknown, args: { slot: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const slotMap: Record<string, string> = {
+        skin: 'skinId',
+        eyes: 'eyesId',
+        outfit: 'outfitId',
+        headwear: 'headwearId',
+        footwear: 'footwearId',
+        accessory1: 'accessory1Id',
+        accessory2: 'accessory2Id',
+        accessory3: 'accessory3Id',
+        aura: 'auraId',
+        background: 'backgroundId',
+        emoteVictory: 'emoteVictoryId',
+        emoteIdle: 'emoteIdleId',
+      };
+
+      const slotKey = slotMap[args.slot];
+      if (!slotKey) {
+        throw new GraphQLError('Invalid slot', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      await spiritWardrobeService.updateLoadout(userId, { [slotKey]: null });
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+
+      return {
+        skin: loadout.skinId ? { id: loadout.skinId } : null,
+        eyes: loadout.eyesId ? { id: loadout.eyesId } : null,
+        outfit: loadout.outfitId ? { id: loadout.outfitId } : null,
+        headwear: loadout.headwearId ? { id: loadout.headwearId } : null,
+        footwear: loadout.footwearId ? { id: loadout.footwearId } : null,
+        accessory1: loadout.accessory1Id ? { id: loadout.accessory1Id } : null,
+        accessory2: loadout.accessory2Id ? { id: loadout.accessory2Id } : null,
+        accessory3: loadout.accessory3Id ? { id: loadout.accessory3Id } : null,
+        aura: loadout.auraId ? { id: loadout.auraId } : null,
+        background: loadout.backgroundId ? { id: loadout.backgroundId } : null,
+        emoteVictory: loadout.emoteVictoryId ? { id: loadout.emoteVictoryId } : null,
+        emoteIdle: loadout.emoteIdleId ? { id: loadout.emoteIdleId } : null,
+      };
+    },
+
+    saveMascotPreset: async (_: unknown, args: { name: string; icon?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await spiritWardrobeService.savePreset(userId, args.name, args.icon || 'outfit');
+
+      if (!result.success) {
+        throw new GraphQLError(result.error || 'Failed to save preset', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const presets = await spiritWardrobeService.getPresets(userId);
+      const preset = presets.find((p) => p.id === result.presetId);
+
+      if (!preset) {
+        throw new GraphQLError('Preset not found', { extensions: { code: 'INTERNAL_SERVER_ERROR' } });
+      }
+
+      return {
+        id: preset.id,
+        name: preset.name,
+        icon: preset.icon,
+        loadout: preset.loadout,
+        createdAt: preset.createdAt,
+      };
+    },
+
+    loadMascotPreset: async (_: unknown, args: { presetId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await spiritWardrobeService.loadPreset(userId, args.presetId);
+
+      if (!result.success) {
+        throw new GraphQLError(result.error || 'Failed to load preset', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      const loadout = await spiritWardrobeService.getLoadout(userId);
+
+      return {
+        skin: loadout.skinId ? { id: loadout.skinId } : null,
+        eyes: loadout.eyesId ? { id: loadout.eyesId } : null,
+        outfit: loadout.outfitId ? { id: loadout.outfitId } : null,
+        headwear: loadout.headwearId ? { id: loadout.headwearId } : null,
+        footwear: loadout.footwearId ? { id: loadout.footwearId } : null,
+        accessory1: loadout.accessory1Id ? { id: loadout.accessory1Id } : null,
+        accessory2: loadout.accessory2Id ? { id: loadout.accessory2Id } : null,
+        accessory3: loadout.accessory3Id ? { id: loadout.accessory3Id } : null,
+        aura: loadout.auraId ? { id: loadout.auraId } : null,
+        background: loadout.backgroundId ? { id: loadout.backgroundId } : null,
+        emoteVictory: loadout.emoteVictoryId ? { id: loadout.emoteVictoryId } : null,
+        emoteIdle: loadout.emoteIdleId ? { id: loadout.emoteIdleId } : null,
+      };
+    },
+
+    deleteMascotPreset: async (_: unknown, args: { presetId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await spiritWardrobeService.deletePreset(userId, args.presetId);
+
+      if (!result.success) {
+        throw new GraphQLError(result.error || 'Failed to delete preset', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      return true;
+    },
+
+    markMascotReactionsShown: async (_: unknown, args: { reactionIds: string[] }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotTimelineService.markReactionsShown(userId, args.reactionIds);
       return true;
     },
 

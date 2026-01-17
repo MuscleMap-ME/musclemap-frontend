@@ -10,13 +10,18 @@
  * - Phase 5: Account & Meta (Settings, Data Guardian)
  * - Phase 6: Advanced AI (Workout Generator, Injury Prevention)
  *
- * Also includes the Spirit Animal Wardrobe system for cosmetic customization.
+ * Also includes:
+ * - Spirit Animal Wardrobe system for cosmetic customization
+ * - Appearance Generator for deterministic visual trait generation
+ * - Timeline integration for mascot reactions to user events
  */
 
 export { companionEventsService, STAGE_THRESHOLDS, XP_REWARDS, UNIT_REWARDS } from './companion-events';
 export { mascotAssistService } from './assist.service';
 export { mascotPowersService } from './powers.service';
 export { spiritWardrobeService } from './spirit-wardrobe.service';
+export { appearanceGeneratorService } from './appearance-generator.service';
+export { mascotTimelineService } from './timeline.service';
 export type {
   MascotAssistAbility,
   MascotAssistState,
@@ -41,3 +46,12 @@ export type {
   PurchaseResult,
   GiftResult,
 } from './spirit-wardrobe.service';
+export type {
+  MascotBaseTraits,
+  MascotAppearance,
+} from './appearance-generator.service';
+export type {
+  MascotTimelineEvent,
+  MascotReaction,
+  TimelineEventWithReaction,
+} from './timeline.service';

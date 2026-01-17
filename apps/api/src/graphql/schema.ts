@@ -196,6 +196,15 @@ export const typeDefs = `#graphql
     hydrationByDate(date: String!): HydrationSummary!
     archetypeNutritionProfiles: [ArchetypeNutritionProfile!]!
     archetypeNutritionProfile(archetypeId: ID!): ArchetypeNutritionProfile
+
+    # Mascot / Spirit Animal
+    mascot: MascotState
+    mascotAppearance: MascotAppearance
+    mascotPowers: MascotPowers
+    mascotTimeline(limit: Int, offset: Int, importance: [String!]): [MascotTimelineItem!]!
+    mascotPendingReactions(limit: Int): [MascotReaction!]!
+    mascotWardrobe: MascotWardrobe
+    mascotShop: [MascotShopItem!]!
   }
 
   type Mutation {
@@ -350,6 +359,17 @@ export const typeDefs = `#graphql
     activateMealPlan(id: ID!): MealPlan!
     deactivateMealPlan(id: ID!): Boolean!
     deleteMealPlan(id: ID!): Boolean!
+
+    # Mascot / Spirit Animal
+    updateMascotNickname(nickname: String!): MascotState!
+    updateMascotSettings(input: MascotSettingsInput!): MascotState!
+    purchaseMascotCosmetic(cosmeticId: ID!): MascotPurchaseResult!
+    equipMascotCosmetic(cosmeticId: ID!, slot: String!): MascotLoadout!
+    unequipMascotCosmetic(slot: String!): MascotLoadout!
+    saveMascotPreset(name: String!, icon: String): MascotPreset!
+    loadMascotPreset(presetId: ID!): MascotLoadout!
+    deleteMascotPreset(presetId: ID!): Boolean!
+    markMascotReactionsShown(reactionIds: [ID!]!): Boolean!
   }
 
   type Subscription {
@@ -2383,5 +2403,229 @@ export const typeDefs = `#graphql
   input RPETargetInput {
     rpe: Int
     rir: Int
+  }
+
+  # ============================================
+  # MASCOT / SPIRIT ANIMAL TYPES
+  # ============================================
+
+  type MascotState {
+    id: ID!
+    userId: ID!
+    nickname: String
+    stage: Int!
+    xp: Int!
+    progression: MascotProgression!
+    isVisible: Boolean!
+    isMinimized: Boolean!
+    soundsEnabled: Boolean!
+    tipsEnabled: Boolean!
+    createdAt: DateTime!
+  }
+
+  type MascotProgression {
+    currentXp: Int!
+    prevStageXp: Int!
+    nextStageXp: Int!
+    progressPercent: Float!
+    isMaxStage: Boolean!
+  }
+
+  type MascotAppearance {
+    base: MascotBaseTraits!
+    stageFeatures: MascotStageFeatures!
+    equipped: MascotLoadout!
+    final: MascotFinalAppearance!
+    animationConfig: MascotAnimationConfig!
+  }
+
+  type MascotBaseTraits {
+    species: String!
+    bodyShape: String!
+    baseColor: String!
+    secondaryColor: String!
+    accentColor: String!
+    eyeStyle: String!
+    eyeColor: String!
+    mouthStyle: String!
+    expressionDefault: String!
+    earStyle: String!
+    tailStyle: String!
+    patternType: String!
+    patternIntensity: Float!
+    energyLevel: String!
+    demeanor: String!
+  }
+
+  type MascotStageFeatures {
+    stage: Int!
+    auraUnlocked: Boolean!
+    wingsUnlocked: Boolean!
+    specialEffectsUnlocked: Boolean!
+    evolutionGlow: Boolean!
+  }
+
+  type MascotLoadout {
+    skin: MascotCosmetic
+    eyes: MascotCosmetic
+    outfit: MascotCosmetic
+    headwear: MascotCosmetic
+    footwear: MascotCosmetic
+    accessory1: MascotCosmetic
+    accessory2: MascotCosmetic
+    accessory3: MascotCosmetic
+    aura: MascotCosmetic
+    background: MascotCosmetic
+    emoteVictory: MascotCosmetic
+    emoteIdle: MascotCosmetic
+  }
+
+  type MascotFinalAppearance {
+    renderSeed: String!
+    colorPalette: [String!]!
+    activeEffects: [String!]!
+  }
+
+  type MascotAnimationConfig {
+    idleSpeed: Float!
+    movementAmplitude: Float!
+    blinkRate: Float!
+    bounciness: Float!
+    breathingDepth: Float!
+  }
+
+  type MascotCosmetic {
+    id: ID!
+    itemKey: String!
+    name: String!
+    description: String
+    category: String!
+    slot: String
+    rarity: String!
+    basePrice: Int!
+    stageRequired: Int!
+    isPurchasable: Boolean!
+    isTradeable: Boolean!
+    isGiftable: Boolean!
+    previewUrl: String
+    assetUrl: String
+  }
+
+  type MascotPowers {
+    companionStage: Int!
+    energy: MascotEnergy!
+    bonusMultiplier: MascotBonusMultiplier!
+    streakSaver: MascotStreakSaver!
+    creditGuardianFeatures: [String!]!
+    schedulerLevel: String!
+    canSuggestRecovery: Boolean!
+    canPredictMilestones: Boolean!
+    canAutoHighfive: Boolean!
+    canTrashTalk: Boolean!
+    canCoordinateCrews: Boolean!
+    canDetectAnomalies: Boolean!
+    canSuggestSettings: Boolean!
+    canGeneratePrograms: Boolean!
+    hasInjuryPrevention: Boolean!
+    hasNutritionHints: Boolean!
+    masterAbilities: [String!]!
+  }
+
+  type MascotEnergy {
+    current: Int!
+    max: Int!
+    regenPerHour: Int!
+  }
+
+  type MascotBonusMultiplier {
+    totalMultiplier: Float!
+    firstWorkoutBonus: Float!
+    consecutiveBonus: Float!
+    consecutiveDays: Int!
+  }
+
+  type MascotStreakSaver {
+    weeklySaves: Int!
+    savesUsed: Int!
+    savesRemaining: Int!
+    creditCost: Int!
+    energyCost: Int!
+    canSaveAnyStreak: Boolean!
+  }
+
+  type MascotTimelineItem {
+    event: MascotTimelineEvent!
+    reaction: MascotReaction
+  }
+
+  type MascotTimelineEvent {
+    id: ID!
+    eventType: String!
+    eventData: JSON
+    importance: String!
+    timestamp: DateTime!
+  }
+
+  type MascotReaction {
+    id: ID!
+    eventId: ID!
+    reactionType: String!
+    message: String!
+    emote: String!
+    animation: String!
+    duration: Int!
+    intensity: Float!
+    soundEffect: String
+    shown: Boolean!
+    createdAt: DateTime!
+  }
+
+  type MascotWardrobe {
+    inventory: [MascotOwnedCosmetic!]!
+    presets: [MascotPreset!]!
+    currentLoadout: MascotLoadout!
+  }
+
+  type MascotOwnedCosmetic {
+    id: ID!
+    cosmetic: MascotCosmetic!
+    acquiredAt: DateTime!
+    acquisitionMethod: String!
+    creditsSpent: Int!
+    giftedBy: String
+    isFavorite: Boolean!
+    isNew: Boolean!
+  }
+
+  type MascotPreset {
+    id: ID!
+    name: String!
+    icon: String!
+    loadout: JSON!
+    createdAt: DateTime!
+  }
+
+  type MascotShopItem {
+    slotNumber: Int!
+    cosmetic: MascotCosmetic!
+    discountPercent: Int!
+    finalPrice: Int!
+    isFeatured: Boolean!
+    owned: Boolean!
+  }
+
+  type MascotPurchaseResult {
+    success: Boolean!
+    error: String
+    cosmetic: MascotCosmetic
+    creditsSpent: Int
+    newBalance: Int
+  }
+
+  input MascotSettingsInput {
+    isVisible: Boolean
+    isMinimized: Boolean
+    soundsEnabled: Boolean
+    tipsEnabled: Boolean
   }
 `;
