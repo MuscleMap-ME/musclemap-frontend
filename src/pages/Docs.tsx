@@ -516,18 +516,29 @@ function resolveDocLink(href, currentDocId, isPublic) {
 }
 
 // Document viewer component
-function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnchorScrolled }) {
+// Inline document page component (full page view, not modal)
+function DocPage({ docId, isPublic, onBack, onNavigate, initialAnchor, onAnchorScrolled }: {
+  docId: string;
+  isPublic: boolean;
+  onBack: () => void;
+  onNavigate: (id: string, isPublic: boolean, anchor?: string) => void;
+  initialAnchor?: string | null;
+  onAnchorScrolled?: () => void;
+}) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const contentRef = React.useRef(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
 
   const doc = isPublic
     ? PUBLIC_DOCS.find(d => d.id === docId) || USER_GUIDES.find(d => d.id === docId)
     : TECH_DOCS.find(d => d.id === docId);
 
   const colors = doc ? COLOR_CLASSES[doc.color] : COLOR_CLASSES.blue;
+
+  // Get related guides for sidebar navigation
+  const relatedGuides = USER_GUIDES.filter(g => g.category === 'guide');
 
   useEffect(() => {
     async function loadDoc() {
@@ -543,7 +554,7 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
         const text = await response.text();
         setContent(text);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Failed to load document');
       } finally {
         setLoading(false);
       }
@@ -554,13 +565,11 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
   // Scroll to anchor after content loads
   useEffect(() => {
     if (!loading && content && initialAnchor && contentRef.current) {
-      // Small delay to ensure content is rendered
       const timeoutId = setTimeout(() => {
         const anchor = initialAnchor.startsWith('#') ? initialAnchor : `#${initialAnchor}`;
-        // Try to find the element by id (ReactMarkdown generates ids from headings)
         const targetId = anchor.slice(1).toLowerCase().replace(/\s+/g, '-');
-        const element = contentRef.current.querySelector(`#${CSS.escape(targetId)}`) ||
-                       contentRef.current.querySelector(`[id="${targetId}"]`);
+        const element = contentRef.current?.querySelector(`#${CSS.escape(targetId)}`) ||
+                       contentRef.current?.querySelector(`[id="${targetId}"]`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'start' });
           if (onAnchorScrolled) onAnchorScrolled();
@@ -571,22 +580,19 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
   }, [loading, content, initialAnchor, onAnchorScrolled]);
 
   // Handle link clicks within markdown
-  const handleLinkClick = (e, href) => {
+  const handleLinkClick = (e: React.MouseEvent, href: string) => {
     const resolved = resolveDocLink(href, docId, isPublic);
 
-    // Always prevent default for .md links to avoid broken navigation
     const isMdLink = href?.endsWith('.md') || href?.includes('.md#');
     if (isMdLink) {
       e.preventDefault();
     }
 
     if (!resolved) {
-      // For unresolved .md links, try to extract ID from filename
       if (isMdLink) {
         const [path] = href.split('#');
-        const filename = path.split('/').pop().replace('.md', '');
-        if (filename && filename !== 'README' && filename !== 'index' && onNavigate) {
-          // Try to find a matching guide by filename
+        const filename = path.split('/').pop()?.replace('.md', '');
+        if (filename && filename !== 'README' && filename !== 'index') {
           const guideId = `guide-${filename}`;
           onNavigate(guideId, true);
         }
@@ -601,19 +607,17 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
         window.open(resolved.href, '_blank', 'noopener,noreferrer');
         break;
       case 'route':
-        onClose();
         navigate(resolved.href);
         break;
-      case 'anchor':
-        // Scroll to anchor within current doc
+      case 'anchor': {
         const element = document.querySelector(resolved.href);
         if (element) element.scrollIntoView({ behavior: 'smooth' });
         break;
+      }
       case 'doc':
         if (resolved.id === null) {
-          // Navigate back to docs home
-          onClose();
-        } else if (onNavigate) {
+          onBack();
+        } else {
           onNavigate(resolved.id, resolved.isPublic, resolved.anchor);
         }
         break;
@@ -621,113 +625,163 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-4xl max-h-[90vh] rounded-2xl border border-white/10 bg-[#0a0a0f]/95 backdrop-blur-xl overflow-hidden flex flex-col"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
-          <div className="flex items-center gap-3">
+    <div className="flex gap-8">
+      {/* Sidebar - Table of Contents / Related Guides */}
+      <aside className="hidden lg:block w-64 shrink-0">
+        <div className="sticky top-24">
+          {/* Back button */}
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition mb-6 text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            All Documentation
+          </button>
+
+          {/* Current document */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              {doc && (
+                <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center', colors.bg)}>
+                  <span className={clsx('scale-75', colors.text)}>
+                    {ICON_COMPONENTS[doc.icon]}
+                  </span>
+                </div>
+              )}
+              <span className="font-semibold text-white">{doc?.title}</span>
+            </div>
+          </div>
+
+          {/* Related guides */}
+          <div className="border-t border-white/10 pt-4">
+            <h4 className="text-xs uppercase tracking-wider text-gray-500 mb-3">More Guides</h4>
+            <nav className="space-y-1">
+              {relatedGuides.map(guide => (
+                <button
+                  key={guide.id}
+                  onClick={() => onNavigate(guide.id, true)}
+                  className={clsx(
+                    'w-full text-left px-3 py-2 rounded-lg text-sm transition',
+                    guide.id === docId
+                      ? 'bg-white/10 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  )}
+                >
+                  {guide.title}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0">
+        {/* Mobile back button */}
+        <button
+          onClick={onBack}
+          className="lg:hidden flex items-center gap-2 text-gray-400 hover:text-white transition mb-6 text-sm"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to docs
+        </button>
+
+        {/* Document header */}
+        <header className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
             {doc && (
-              <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center', colors.bg)}>
+              <div className={clsx('w-12 h-12 rounded-xl flex items-center justify-center', colors.bg)}>
                 <span className={colors.text}>
                   {ICON_COMPONENTS[doc.icon]}
                 </span>
               </div>
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">{doc?.title || 'Document'}</h2>
-              <p className="text-sm text-gray-400">{doc?.description}</p>
+              <h1 className="text-3xl font-bold text-white">{doc?.title || 'Document'}</h1>
+              <p className="text-gray-400">{doc?.description}</p>
             </div>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        </header>
 
         {/* Content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto p-6">
+        <div ref={contentRef} className="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center justify-center py-16">
+              <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-400">{error}</p>
+            <div className="text-center py-16">
+              <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-red-400 text-lg mb-2">Failed to load document</p>
+              <p className="text-gray-500">{error}</p>
+              <button
+                onClick={onBack}
+                className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition"
+              >
+                Back to all docs
+              </button>
             </div>
           ) : (
             <article className="prose prose-invert prose-lg max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ children, node: _node }) => {
+                  h1: ({ children }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
                     return <h1 id={id} className="text-3xl font-bold text-white mb-6 pb-3 border-b border-white/10">{children}</h1>;
                   },
-                  h2: ({ children, node: _node }) => {
+                  h2: ({ children }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-                    return <h2 id={id} className="text-2xl font-bold text-white mt-8 mb-4">{children}</h2>;
+                    return <h2 id={id} className="text-2xl font-bold text-white mt-10 mb-4">{children}</h2>;
                   },
-                  h3: ({ children, node: _node }) => {
+                  h3: ({ children }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-                    return <h3 id={id} className="text-xl font-semibold text-gray-200 mt-6 mb-3">{children}</h3>;
+                    return <h3 id={id} className="text-xl font-semibold text-gray-200 mt-8 mb-3">{children}</h3>;
                   },
-                  h4: ({ children, node: _node }) => {
+                  h4: ({ children }) => {
                     const text = typeof children === 'string' ? children : (Array.isArray(children) ? children.join('') : '');
                     const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
-                    return <h4 id={id} className="text-lg font-semibold text-gray-300 mt-4 mb-2">{children}</h4>;
+                    return <h4 id={id} className="text-lg font-semibold text-gray-300 mt-6 mb-2">{children}</h4>;
                   },
-                  p: ({ children }) => <p className="text-gray-300 mb-4 leading-relaxed">{children}</p>,
-                  ul: ({ children }) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-300">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-300">{children}</ol>,
-                  li: ({ children }) => <li className="text-gray-300">{children}</li>,
-                  code: ({ inline, children, className }) =>
+                  p: ({ children }) => <p className="text-gray-300 mb-4 leading-relaxed text-base">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc pl-6 space-y-2 mb-4 text-gray-300">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-6 space-y-2 mb-4 text-gray-300">{children}</ol>,
+                  li: ({ children }) => <li className="text-gray-300 pl-1">{children}</li>,
+                  code: ({ inline, children, className }: { inline?: boolean; children: React.ReactNode; className?: string }) =>
                     inline ? (
                       <code className="px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 text-sm font-mono">{children}</code>
                     ) : (
-                      <code className={clsx("block p-4 rounded-lg bg-black/50 text-sm font-mono overflow-x-auto text-gray-300", className)}>{children}</code>
+                      <code className={clsx("block p-4 rounded-lg bg-black/50 text-sm font-mono overflow-x-auto text-gray-300 whitespace-pre", className)}>{children}</code>
                     ),
-                  pre: ({ children }) => <pre className="mb-4 rounded-lg overflow-hidden">{children}</pre>,
+                  pre: ({ children }) => <pre className="mb-6 rounded-xl overflow-hidden bg-black/30 border border-white/10">{children}</pre>,
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-violet-500 pl-4 py-2 my-4 bg-white/5 rounded-r-lg italic text-gray-400">
+                    <blockquote className="border-l-4 border-violet-500 pl-4 py-2 my-6 bg-violet-500/10 rounded-r-lg text-gray-300">
                       {children}
                     </blockquote>
                   ),
                   a: ({ href, children }) => {
-                    const resolved = resolveDocLink(href, docId, isPublic);
+                    const resolved = resolveDocLink(href || '', docId, isPublic);
                     const isExternal = resolved?.type === 'external';
                     const isInternal = resolved?.type === 'doc' || resolved?.type === 'route' || resolved?.type === 'anchor';
-                    // Treat .md links as internal even if not in pathMappings
                     const isMdLink = href?.endsWith('.md') || href?.includes('.md#');
 
                     return (
                       <a
                         href={href}
-                        onClick={(e) => (isInternal || isMdLink) ? handleLinkClick(e, href) : undefined}
+                        onClick={(e) => (isInternal || isMdLink) ? handleLinkClick(e, href || '') : undefined}
                         target={isExternal ? '_blank' : undefined}
                         rel={isExternal ? 'noopener noreferrer' : undefined}
                         className={clsx(
-                          'underline transition-colors',
+                          'underline decoration-1 underline-offset-2 transition-colors',
                           (isInternal || isMdLink) ? 'text-violet-400 hover:text-violet-300 cursor-pointer' : 'text-blue-400 hover:text-blue-300'
                         )}
                       >
@@ -741,14 +795,17 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
                     );
                   },
                   table: ({ children }) => (
-                    <div className="overflow-x-auto mb-4">
-                      <table className="min-w-full border border-white/10 rounded-lg overflow-hidden">{children}</table>
+                    <div className="overflow-x-auto mb-6 rounded-xl border border-white/10">
+                      <table className="min-w-full">{children}</table>
                     </div>
                   ),
                   thead: ({ children }) => <thead className="bg-white/10">{children}</thead>,
-                  th: ({ children }) => <th className="px-4 py-2 text-left text-white font-semibold border-b border-white/10">{children}</th>,
-                  td: ({ children }) => <td className="px-4 py-2 text-gray-300 border-b border-white/5">{children}</td>,
-                  hr: () => <hr className="my-8 border-white/10" />,
+                  th: ({ children }) => <th className="px-4 py-3 text-left text-white font-semibold border-b border-white/10">{children}</th>,
+                  td: ({ children }) => <td className="px-4 py-3 text-gray-300 border-b border-white/5">{children}</td>,
+                  hr: () => <hr className="my-10 border-white/10" />,
+                  img: ({ src, alt }) => (
+                    <img src={src} alt={alt || ''} className="rounded-xl border border-white/10 my-6" />
+                  ),
                 }}
               >
                 {content}
@@ -756,8 +813,21 @@ function DocViewer({ docId, isPublic, onClose, onNavigate, initialAnchor, onAnch
             </article>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+
+        {/* Bottom navigation */}
+        <div className="mt-8 flex flex-wrap gap-4">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            All Documentation
+          </button>
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -936,6 +1006,18 @@ export default function Docs() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-6xl px-4 py-12">
+        {/* Show DocPage when a document is selected, otherwise show index */}
+        {selectedDoc ? (
+          <DocPage
+            docId={selectedDoc}
+            isPublic={isPublicDoc}
+            onBack={handleClose}
+            onNavigate={handleDocClick}
+            initialAnchor={pendingAnchor}
+            onAnchorScrolled={() => setPendingAnchor(null)}
+          />
+        ) : (
+        <>
         {/* Page Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1323,21 +1405,9 @@ export default function Docs() {
             Back to Home
           </RouterLink>
         </motion.div>
-      </main>
-
-      {/* Document Viewer Modal */}
-      <AnimatePresence>
-        {selectedDoc && (
-          <DocViewer
-            docId={selectedDoc}
-            isPublic={isPublicDoc}
-            onClose={handleClose}
-            onNavigate={handleDocClick}
-            initialAnchor={pendingAnchor}
-            onAnchorScrolled={() => setPendingAnchor(null)}
-          />
+        </>
         )}
-      </AnimatePresence>
+      </main>
     </div>
     </>
   );
