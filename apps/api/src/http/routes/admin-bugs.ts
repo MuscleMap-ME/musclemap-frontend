@@ -15,8 +15,28 @@ import { z } from 'zod';
 import { query as dbQuery, queryOne as dbQueryOne, queryAll as dbQueryAll } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
+import fs from 'fs/promises';
+import path from 'path';
 
 const log = loggers.api;
+
+// Bug hunter reports directory (relative to project root)
+const BUG_HUNTER_REPORTS_DIR = path.join(process.cwd(), '..', '..', 'scripts', 'bug-hunter', 'reports', 'daily');
+
+interface BugHunterReport {
+  date: string;
+  generatedAt: string;
+  summary: { bugsFound: number; bugsFixed: number };
+  bySeverity: Record<string, number>;
+  byType: Record<string, number>;
+  bugs: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    url: string;
+  }>;
+}
 
 // ============================================
 // SCHEMAS

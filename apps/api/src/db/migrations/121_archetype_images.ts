@@ -159,9 +159,9 @@ const defaultImage = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a
 export async function up() {
   log.info('Starting archetype images migration...');
 
-  // Get all existing archetypes
+  // Get all existing archetypes from identities table
   const archetypes = await db.query<{ id: string }>(`
-    SELECT id FROM identities WHERE type = 'archetype'
+    SELECT id FROM identities
   `);
 
   log.info(`Found ${archetypes.rowCount} archetypes to update`);
@@ -174,7 +174,7 @@ export async function up() {
 
     try {
       await db.query(
-        `UPDATE identities SET image_url = $1 WHERE id = $2 AND type = 'archetype'`,
+        `UPDATE identities SET image_url = $1 WHERE id = $2`,
         [imageUrl, archetype.id]
       );
       updated++;
@@ -205,7 +205,7 @@ export async function down() {
   log.info('Rolling back archetype images migration...');
 
   await db.query(`
-    UPDATE identities SET image_url = NULL WHERE type = 'archetype'
+    UPDATE identities SET image_url = NULL
   `);
 
   log.info('Archetype images rollback completed');

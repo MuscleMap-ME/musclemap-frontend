@@ -266,6 +266,15 @@ export default function EmpireControl() {
   const [respondMessage, setRespondMessage] = useState('');
   const [respondInternal, setRespondInternal] = useState(false);
 
+  // Bug tracker state
+  const [bugStats, setBugStats] = useState(null);
+  const [bugItems, setBugItems] = useState([]);
+  const [bugFilter, setBugFilter] = useState({ status: 'all', source: 'all', priority: 'all' });
+  const [selectedBug, setSelectedBug] = useState(null);
+  const [bugDetailOpen, setBugDetailOpen] = useState(false);
+  const [bugTimeline, setBugTimeline] = useState([]);
+  const [syncingBugs, setSyncingBugs] = useState(false);
+
   // Get auth header
   const getAuthHeader = useCallback(() => {
     try {
@@ -475,6 +484,141 @@ export default function EmpireControl() {
     }
   };
 
+  // Bug tracker functions
+  const fetchBugStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/bugs/stats', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBugStats(data);
+      }
+    } catch {
+      // Failed to fetch bug stats
+    }
+  }, [getAuthHeader]);
+
+  const fetchBugItems = useCallback(async () => {
+    try {
+      let url = '/api/admin/bugs?limit=100';
+      if (bugFilter.status !== 'all') url += `&status=${bugFilter.status}`;
+      if (bugFilter.source !== 'all') url += `&source=${bugFilter.source}`;
+      if (bugFilter.priority !== 'all') url += `&priority=${bugFilter.priority}`;
+
+      const res = await fetch(url, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBugItems(data.items || []);
+      }
+    } catch {
+      // Failed to fetch bugs
+    }
+  }, [getAuthHeader, bugFilter]);
+
+  const fetchBugDetail = useCallback(async (id) => {
+    try {
+      const res = await fetch(`/api/admin/bugs/${id}`, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedBug(data);
+        setBugDetailOpen(true);
+      }
+    } catch {
+      // Failed to fetch bug detail
+    }
+  }, [getAuthHeader]);
+
+  const fetchBugTimeline = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/bugs/timeline?limit=50', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBugTimeline(data.items || []);
+      }
+    } catch {
+      // Failed to fetch timeline
+    }
+  }, [getAuthHeader]);
+
+  const syncBugHunterReports = async () => {
+    setSyncingBugs(true);
+    try {
+      // Fetch local bug hunter reports
+      const reportsRes = await fetch('/api/admin/bugs/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify([]), // Server will read from local files
+      });
+
+      if (reportsRes.ok) {
+        const result = await reportsRes.json();
+        alert(`Synced bugs: ${result.created} created, ${result.updated} updated`);
+        fetchBugStats();
+        fetchBugItems();
+      }
+    } catch (error) {
+      alert('Failed to sync bug reports');
+    } finally {
+      setSyncingBugs(false);
+    }
+  };
+
+  const updateBugStatus = async (bugId, status) => {
+    try {
+      const res = await fetch(`/api/admin/bugs/${bugId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        fetchBugItems();
+        fetchBugStats();
+        if (selectedBug?.id === bugId) {
+          fetchBugDetail(bugId);
+        }
+      }
+    } catch {
+      // Failed to update bug
+    }
+  };
+
+  const resolveBug = async (bugId, resolutionType, notes) => {
+    try {
+      const res = await fetch(`/api/admin/bugs/${bugId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          status: 'resolved',
+          resolutionType,
+          resolutionNotes: notes,
+        }),
+      });
+      if (res.ok) {
+        fetchBugItems();
+        fetchBugStats();
+        setBugDetailOpen(false);
+      }
+    } catch {
+      // Failed to resolve bug
+    }
+  };
+
   // Gift credits to user
   const giftCredits = async () => {
     if (!selectedUser || giftAmount <= 0) return;
@@ -543,6 +687,22 @@ export default function EmpireControl() {
   useEffect(() => {
     fetchFeedbackItems();
   }, [feedbackFilter, fetchFeedbackItems]);
+
+  // Load bug tracker data when section is active
+  useEffect(() => {
+    if (activeSection === 'bug-tracker') {
+      fetchBugStats();
+      fetchBugItems();
+      fetchBugTimeline();
+    }
+  }, [activeSection, fetchBugStats, fetchBugItems, fetchBugTimeline]);
+
+  // Refresh bugs when filter changes
+  useEffect(() => {
+    if (activeSection === 'bug-tracker') {
+      fetchBugItems();
+    }
+  }, [bugFilter, activeSection, fetchBugItems]);
 
   // Auto-refresh metrics
   useEffect(() => {
@@ -1337,6 +1497,449 @@ export default function EmpireControl() {
                           </button>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bug Tracker Section */}
+              {activeSection === 'bug-tracker' && (
+                <div className="space-y-6">
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <StatCard
+                      title="Total Bugs"
+                      value={bugStats?.totals?.total || 0}
+                      icon={Bug}
+                      color="#8b5cf6"
+                    />
+                    <StatCard
+                      title="Open"
+                      value={bugStats?.totals?.open || 0}
+                      icon={AlertCircle}
+                      color="#ef4444"
+                      onClick={() => setBugFilter({ ...bugFilter, status: 'open' })}
+                    />
+                    <StatCard
+                      title="Resolved"
+                      value={bugStats?.totals?.resolved || 0}
+                      icon={CheckCircle}
+                      color="#10b981"
+                      onClick={() => setBugFilter({ ...bugFilter, status: 'resolved' })}
+                    />
+                    <StatCard
+                      title="Auto-Fixed"
+                      value={bugStats?.autoFix?.completed || 0}
+                      icon={Zap}
+                      color="#f59e0b"
+                    />
+                    <StatCard
+                      title="Today"
+                      value={bugStats?.totals?.today || 0}
+                      icon={Clock}
+                      color="#06b6d4"
+                    />
+                  </div>
+
+                  {/* Sync Button & Source Breakdown */}
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(bugStats?.bySource || {}).map(([source, count]) => (
+                        <button
+                          key={source}
+                          onClick={() => setBugFilter({ ...bugFilter, source: bugFilter.source === source ? 'all' : source })}
+                          className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                            bugFilter.source === source
+                              ? 'bg-violet-500 text-white'
+                              : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                          }`}
+                        >
+                          {source} ({count})
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={syncBugHunterReports}
+                      disabled={syncingBugs}
+                      className="px-4 py-2 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${syncingBugs ? 'animate-spin' : ''}`} />
+                      {syncingBugs ? 'Syncing...' : 'Sync Bug Hunter'}
+                    </button>
+                  </div>
+
+                  {/* Priority Filter */}
+                  <div className="flex gap-2 flex-wrap">
+                    {['all', 'critical', 'high', 'medium', 'low'].map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setBugFilter({ ...bugFilter, priority: p })}
+                        className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                          bugFilter.priority === p
+                            ? p === 'critical' ? 'bg-red-500 text-white' :
+                              p === 'high' ? 'bg-orange-500 text-white' :
+                              p === 'medium' ? 'bg-yellow-500 text-black' :
+                              p === 'low' ? 'bg-blue-500 text-white' :
+                              'bg-violet-500 text-white'
+                            : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                        }`}
+                      >
+                        {p.charAt(0).toUpperCase() + p.slice(1)} {bugStats?.byPriority?.[p] ? `(${bugStats.byPriority[p]})` : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex gap-2 flex-wrap">
+                    {['all', 'open', 'in_progress', 'confirmed', 'resolved', 'closed', 'wont_fix'].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setBugFilter({ ...bugFilter, status: s })}
+                        className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                          bugFilter.status === s
+                            ? 'bg-violet-500 text-white'
+                            : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                        }`}
+                      >
+                        {s.replace('_', ' ')} {bugStats?.byStatus?.[s] ? `(${bugStats.byStatus[s]})` : ''}
+                      </button>
+                    ))}
+                    {(bugFilter.status !== 'all' || bugFilter.source !== 'all' || bugFilter.priority !== 'all') && (
+                      <button
+                        onClick={() => setBugFilter({ status: 'all', source: 'all', priority: 'all' })}
+                        className="px-3 py-1 rounded-full text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {/* Bug List */}
+                    <div className="md:col-span-2">
+                      <GlassSurface className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="font-semibold">Bug List ({bugItems.length})</h3>
+                          <button
+                            onClick={() => { fetchBugItems(); fetchBugStats(); }}
+                            className="p-2 rounded-lg hover:bg-white/10"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                          {bugItems.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400">
+                              <Bug className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                              <p>No bugs found</p>
+                              <p className="text-sm mt-2">Click "Sync Bug Hunter" to import discovered bugs</p>
+                            </div>
+                          ) : (
+                            bugItems.map((bug) => (
+                              <div
+                                key={bug.id}
+                                className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                                onClick={() => fetchBugDetail(bug.id)}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`w-2 h-2 rounded-full ${
+                                        bug.priority === 'critical' ? 'bg-red-500' :
+                                        bug.priority === 'high' ? 'bg-orange-500' :
+                                        bug.priority === 'medium' ? 'bg-yellow-500' :
+                                        'bg-blue-500'
+                                      }`} />
+                                      <span className="font-medium truncate">{bug.title}</span>
+                                    </div>
+                                    <div className="text-sm text-gray-400 truncate">{bug.pageUrl || bug.description}</div>
+                                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                      <span className={`px-1.5 py-0.5 rounded ${
+                                        bug.source === 'bug_hunter' ? 'bg-orange-500/20 text-orange-400' :
+                                        bug.source === 'user' ? 'bg-blue-500/20 text-blue-400' :
+                                        'bg-gray-500/20 text-gray-400'
+                                      }`}>
+                                        {bug.source}
+                                      </span>
+                                      <span>•</span>
+                                      <span>{new Date(bug.createdAt).toLocaleDateString()}</span>
+                                      {bug.resolution && (
+                                        <>
+                                          <span>•</span>
+                                          <CheckCircle className="w-3 h-3 text-green-400" />
+                                          <span className="text-green-400">Fixed {new Date(bug.resolution.resolvedAt).toLocaleDateString()}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-0.5 rounded text-xs ${
+                                      bug.status === 'open' ? 'bg-blue-500/20 text-blue-400' :
+                                      bug.status === 'in_progress' ? 'bg-yellow-500/20 text-yellow-400' :
+                                      bug.status === 'confirmed' ? 'bg-orange-500/20 text-orange-400' :
+                                      bug.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                      bug.status === 'closed' ? 'bg-gray-500/20 text-gray-400' :
+                                      'bg-red-500/20 text-red-400'
+                                    }`}>
+                                      {bug.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </GlassSurface>
+                    </div>
+
+                    {/* Activity Timeline */}
+                    <div>
+                      <GlassSurface className="p-4">
+                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-violet-400" />
+                          Recent Activity
+                        </h3>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                          {bugTimeline.length === 0 ? (
+                            <div className="text-center py-4 text-gray-400 text-sm">
+                              No activity yet
+                            </div>
+                          ) : (
+                            bugTimeline.map((event) => (
+                              <div key={event.id} className="flex gap-3 text-sm">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                  event.action === 'created' ? 'bg-blue-500' :
+                                  event.action === 'resolved' ? 'bg-green-500' :
+                                  event.action === 'status_changed' ? 'bg-yellow-500' :
+                                  'bg-gray-500'
+                                }`} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-gray-300 truncate">{event.bugTitle}</div>
+                                  <div className="text-gray-500 text-xs">
+                                    {event.action.replace('_', ' ')} by {event.actorUsername || event.actorType}
+                                  </div>
+                                  <div className="text-gray-600 text-xs">{new Date(event.createdAt).toLocaleString()}</div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </GlassSurface>
+
+                      {/* Resolution Stats */}
+                      {bugStats?.avgResolutionTimeHours > 0 && (
+                        <GlassSurface className="p-4 mt-4">
+                          <h3 className="font-semibold mb-3 text-sm">Resolution Metrics</h3>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Avg. Time to Fix</span>
+                              <span className="font-medium">{bugStats.avgResolutionTimeHours.toFixed(1)}h</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Auto-Fix Success</span>
+                              <span className="font-medium text-green-400">
+                                {bugStats?.autoFix?.completed || 0} / {(bugStats?.autoFix?.completed || 0) + (bugStats?.autoFix?.failed || 0)}
+                              </span>
+                            </div>
+                          </div>
+                        </GlassSurface>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bug Detail Modal */}
+              {bugDetailOpen && selectedBug && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+                  <div className="bg-[#0f0f15] border border-white/10 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-[#0f0f15] border-b border-white/10 p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Bug className={`w-5 h-5 ${
+                          selectedBug.priority === 'critical' ? 'text-red-500' :
+                          selectedBug.priority === 'high' ? 'text-orange-500' :
+                          selectedBug.priority === 'medium' ? 'text-yellow-500' :
+                          'text-blue-500'
+                        }`} />
+                        <h2 className="font-bold text-lg truncate">{selectedBug.title}</h2>
+                      </div>
+                      <button
+                        onClick={() => { setBugDetailOpen(false); setSelectedBug(null); }}
+                        className="p-2 rounded-lg hover:bg-white/10"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                      {/* Status & Actions */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                          value={selectedBug.status}
+                          onChange={(e) => updateBugStatus(selectedBug.id, e.target.value)}
+                          className="bg-white/10 border border-white/10 rounded-lg px-3 py-1 text-sm"
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                          <option value="wont_fix">{"Won't Fix"}</option>
+                        </select>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          selectedBug.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
+                          selectedBug.priority === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                          selectedBug.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {selectedBug.priority}
+                        </span>
+                        <span className="px-2 py-1 rounded text-xs bg-white/10 text-gray-400">
+                          {selectedBug.source}
+                        </span>
+                        {selectedBug.status !== 'resolved' && selectedBug.status !== 'closed' && (
+                          <button
+                            onClick={() => resolveBug(selectedBug.id, 'manual_fix', 'Resolved manually')}
+                            className="px-3 py-1 rounded-lg bg-green-500/20 text-green-400 text-sm hover:bg-green-500/30"
+                          >
+                            Mark Resolved
+                          </button>
+                        )}
+                      </div>
+
+                      {/* URL */}
+                      {selectedBug.pageUrl && (
+                        <div className="p-3 bg-white/5 rounded-lg">
+                          <h4 className="text-xs text-gray-500 mb-1">URL</h4>
+                          <a href={selectedBug.pageUrl} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline text-sm break-all">
+                            {selectedBug.pageUrl}
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Description */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-400 mb-1">Description</h4>
+                        <p className="text-gray-300 whitespace-pre-wrap text-sm">{selectedBug.description}</p>
+                      </div>
+
+                      {/* Root Cause */}
+                      {selectedBug.rootCause && (
+                        <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                          <h4 className="text-sm font-medium text-orange-400 mb-2">Root Cause Analysis</h4>
+                          <div className="space-y-1 text-sm">
+                            <div><span className="text-gray-500">Type:</span> <span className="text-gray-300">{selectedBug.rootCause.type}</span></div>
+                            {selectedBug.rootCause.file && (
+                              <div><span className="text-gray-500">File:</span> <code className="text-gray-300 bg-black/30 px-1 rounded">{selectedBug.rootCause.file}</code></div>
+                            )}
+                            {selectedBug.rootCause.hypothesis && (
+                              <div><span className="text-gray-500">Hypothesis:</span> <span className="text-gray-300">{selectedBug.rootCause.hypothesis}</span></div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Console Errors */}
+                      {selectedBug.consoleErrors?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2">Console Errors</h4>
+                          <div className="bg-black/30 rounded-lg p-3 max-h-40 overflow-y-auto">
+                            {selectedBug.consoleErrors.map((err, i) => (
+                              <div key={i} className="text-xs text-red-400 font-mono mb-1">{err}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Network Errors */}
+                      {selectedBug.networkErrors?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2">Network Errors</h4>
+                          <div className="bg-black/30 rounded-lg p-3 max-h-40 overflow-y-auto">
+                            {selectedBug.networkErrors.map((err, i) => (
+                              <div key={i} className="text-xs text-yellow-400 font-mono mb-1">{err}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Resolution Info */}
+                      {selectedBug.resolution && (
+                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                          <h4 className="text-sm font-medium text-green-400 mb-2 flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4" />
+                            Resolution Details
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <div><span className="text-gray-500">Resolved:</span> <span className="text-gray-300">{new Date(selectedBug.resolution.resolvedAt).toLocaleString()}</span></div>
+                            {selectedBug.resolution.resolvedBy && (
+                              <div><span className="text-gray-500">By:</span> <span className="text-gray-300">@{selectedBug.resolution.resolvedBy}</span></div>
+                            )}
+                            {selectedBug.resolution.type && (
+                              <div><span className="text-gray-500">Type:</span> <span className="text-gray-300">{selectedBug.resolution.type.replace('_', ' ')}</span></div>
+                            )}
+                            {selectedBug.resolution.notes && (
+                              <div><span className="text-gray-500">Notes:</span> <span className="text-gray-300">{selectedBug.resolution.notes}</span></div>
+                            )}
+                            {selectedBug.resolution.commit && (
+                              <div><span className="text-gray-500">Commit:</span> <code className="text-gray-300 bg-black/30 px-1 rounded">{selectedBug.resolution.commit}</code></div>
+                            )}
+                            {selectedBug.resolution.prUrl && (
+                              <div><span className="text-gray-500">PR:</span> <a href={selectedBug.resolution.prUrl} className="text-violet-400 hover:underline">{selectedBug.resolution.prUrl}</a></div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* History */}
+                      {selectedBug.history?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2">History</h4>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {selectedBug.history.map((h) => (
+                              <div key={h.id} className="flex gap-3 text-sm p-2 bg-white/5 rounded">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                  h.action === 'created' ? 'bg-blue-500' :
+                                  h.action === 'resolved' ? 'bg-green-500' :
+                                  h.action === 'status_changed' ? 'bg-yellow-500' :
+                                  'bg-gray-500'
+                                }`} />
+                                <div className="flex-1">
+                                  <div className="text-gray-300">
+                                    <span className="font-medium">{h.actorUsername || h.actorType}</span>
+                                    {' '}{h.action.replace('_', ' ')}
+                                    {h.previousValue && h.newValue && (
+                                      <span className="text-gray-500"> from {h.previousValue} to {h.newValue}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-gray-500 text-xs">{new Date(h.createdAt).toLocaleString()}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Related Bugs */}
+                      {selectedBug.relatedBugs?.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-2">Related Bugs</h4>
+                          <div className="space-y-1">
+                            {selectedBug.relatedBugs.map((r) => (
+                              <div
+                                key={r.id}
+                                className="text-sm p-2 bg-white/5 rounded hover:bg-white/10 cursor-pointer"
+                                onClick={() => fetchBugDetail(r.id)}
+                              >
+                                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                                  r.status === 'resolved' ? 'bg-green-500' : 'bg-blue-500'
+                                }`} />
+                                {r.title}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
