@@ -557,16 +557,7 @@ export async function registerVenuesRoutes(app: FastifyInstance) {
   // WITNESS ATTESTATION
   // ============================================
 
-  /**
-   * GET /me/witness-requests
-   * Get pending witness requests for user
-   */
-  app.get('/me/witness-requests', { preHandler: authenticate }, async (request, reply) => {
-    const userId = request.user!.userId;
-
-    const requests = await recordClaimService.getWitnessRequests(userId);
-    return reply.send({ requests });
-  });
+  // NOTE: GET /me/witness-requests is defined in verifications.ts with more complete implementation
 
   /**
    * POST /venue-records/:id/attest
