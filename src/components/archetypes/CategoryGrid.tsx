@@ -360,7 +360,7 @@ const CategoryGrid = memo(function CategoryGrid({
       initial="hidden"
       animate="visible"
     >
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="sync">
         {categories.map((category) => (
           <CategoryCard
             key={category.id}

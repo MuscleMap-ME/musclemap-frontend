@@ -86,38 +86,38 @@ function formatCategoryName(id) {
 }
 
 /**
- * Animation variants for slide transitions
+ * Animation variants for slide transitions - simplified for better performance
+ * Using opacity-only animations to reduce jitter on mobile/slow connections
  */
 const slideVariants = {
   enterFromRight: {
-    x: '100%',
     opacity: 0,
+    x: 20,
   },
   enterFromLeft: {
-    x: '-100%',
     opacity: 0,
+    x: -20,
   },
   center: {
-    x: 0,
     opacity: 1,
+    x: 0,
     transition: {
-      type: 'spring',
-      stiffness: 300,
-      damping: 30,
+      duration: 0.2,
+      ease: 'easeOut',
     },
   },
   exitToLeft: {
-    x: '-100%',
     opacity: 0,
+    x: -20,
     transition: {
-      duration: 0.2,
+      duration: 0.15,
     },
   },
   exitToRight: {
-    x: '100%',
     opacity: 0,
+    x: 20,
     transition: {
-      duration: 0.2,
+      duration: 0.15,
     },
   },
 };
@@ -240,6 +240,11 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
   const { error: showError } = useToast();
 
   /**
+   * Track if initial archetype has been handled to prevent jitter
+   */
+  const [initialArchetypeHandled, setInitialArchetypeHandled] = useState(false);
+
+  /**
    * Fetch categories and all archetypes on mount
    */
   useEffect(() => {
@@ -248,53 +253,74 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
   }, []);
 
   /**
-   * Handle initial archetype pre-selection
+   * Handle initial archetype pre-selection - only run once after data loads
    */
   useEffect(() => {
-    if (initialArchetype && allArchetypes.length > 0) {
-      const archetype = allArchetypes.find((a) => a.id === initialArchetype);
-      if (archetype) {
-        // Find the category for this archetype
-        const categoryId = archetype.category_id || archetype.categoryId || 'general';
-        setSelectedCategory(categoryId);
-        setSelectedArchetype(archetype);
-        // Filter archetypes for this category
-        const categoryArchetypes = allArchetypes.filter(
-          (a) => (a.category_id || a.categoryId || 'general') === categoryId
-        );
-        setArchetypes(categoryArchetypes);
-        setView(VIEWS.DETAIL);
-      }
+    // Skip if already handled or no initial archetype
+    if (initialArchetypeHandled || !initialArchetype) return;
+    // Wait for data to load
+    if (loading || allArchetypes.length === 0) return;
+
+    const archetype = allArchetypes.find((a) => a.id === initialArchetype);
+    if (archetype) {
+      // Find the category for this archetype
+      const categoryId = archetype.category_id || archetype.categoryId || 'general';
+      setSelectedCategory(categoryId);
+      setSelectedArchetype(archetype);
+      // Filter archetypes for this category
+      const categoryArchetypes = allArchetypes.filter(
+        (a) => (a.category_id || a.categoryId || 'general') === categoryId
+      );
+      setArchetypes(categoryArchetypes);
+      setView(VIEWS.DETAIL);
     }
-  }, [initialArchetype, allArchetypes]);
+    // Mark as handled to prevent re-running
+    setInitialArchetypeHandled(true);
+  }, [initialArchetype, allArchetypes, loading, initialArchetypeHandled]);
 
   /**
-   * Fetch initial data (categories and archetypes)
+   * Fetch initial data (categories and archetypes) with retry and timeout
    */
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
+    // Helper to fetch with timeout
+    const fetchWithTimeout = async (url, timeoutMs = 15000) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return res;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    };
+
     try {
       // Fetch archetypes (which includes category info)
-      const archetypesRes = await fetch('/api/archetypes');
+      const archetypesRes = await fetchWithTimeout('/api/archetypes');
       if (!archetypesRes.ok) {
         throw new Error('Failed to fetch archetypes');
       }
       const archetypesData = await archetypesRes.json();
       const fetchedArchetypes = archetypesData.data || [];
+
+      // Set archetypes immediately to reduce perceived load time
       setAllArchetypes(fetchedArchetypes);
 
       // Try to fetch categories from dedicated endpoint
       let fetchedCategories = [];
       try {
-        const categoriesRes = await fetch('/api/archetypes/categories');
+        const categoriesRes = await fetchWithTimeout('/api/archetypes/categories', 10000);
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json();
           fetchedCategories = categoriesData.data || [];
         }
       } catch {
-        // Categories endpoint might not exist, derive from archetypes
+        // Categories endpoint might not exist or timed out, derive from archetypes
       }
 
       // If no categories endpoint, derive from archetypes
@@ -329,7 +355,16 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
 
       setCategories(fetchedCategories);
     } catch (err) {
-      setError(err.message || 'Failed to load archetypes');
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to load archetypes';
+      if (err.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please check your connection and try again.';
+      } else if (!navigator.onLine) {
+        errorMessage = 'You appear to be offline. Please check your internet connection.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -483,8 +518,8 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
         </motion.div>
       )}
 
-      {/* Main content with animated transitions */}
-      <AnimatePresence mode="wait" initial={false}>
+      {/* Main content with animated transitions - use sync mode to prevent jitter */}
+      <AnimatePresence mode="sync" initial={false}>
         {view === VIEWS.CATEGORIES && (
           <motion.div
             key="categories"

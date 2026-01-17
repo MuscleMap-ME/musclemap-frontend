@@ -384,7 +384,7 @@ const ArchetypeGrid = memo(function ArchetypeGrid({
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
           {loading ? (
             /* Loading skeleton state */
             <motion.div
