@@ -127,23 +127,44 @@ const EXERCISE_CATEGORIES = {
   },
 };
 
-// Map muscle names to categories
+// Map muscle names/IDs to categories
+// Includes both database muscle IDs (e.g., 'quad-rectus') and common names
 const MUSCLE_TO_CATEGORY = {
-  // Chest
+  // Chest - DB IDs
+  'chest-upper': 'chest',
+  'chest-mid': 'chest',
+  'chest-lower': 'chest',
+  'pec-minor': 'chest',
+  // Chest - common names
   'chest': 'chest',
   'pectoralis major': 'chest',
   'pectoralis minor': 'chest',
   'upper chest': 'chest',
   'lower chest': 'chest',
-  // Back
-  'back': 'back',
-  'latissimus dorsi': 'back',
+
+  // Back - DB IDs
   'lats': 'back',
   'rhomboids': 'back',
+  'traps-upper': 'back',
+  'traps-mid': 'back',
+  'traps-lower': 'back',
+  'erector-spinae': 'back',
+  'teres-major': 'back',
+  'teres-minor': 'back',
+  'infraspinatus': 'back',
+  // Back - common names
+  'back': 'back',
+  'latissimus dorsi': 'back',
   'trapezius': 'back',
   'traps': 'back',
   'erector spinae': 'back',
-  // Shoulders
+
+  // Shoulders - DB IDs
+  'delt-front': 'shoulders',
+  'delt-side': 'shoulders',
+  'delt-rear': 'shoulders',
+  'rotator-cuff': 'shoulders',
+  // Shoulders - common names
   'shoulders': 'shoulders',
   'deltoids': 'shoulders',
   'anterior deltoid': 'shoulders',
@@ -152,24 +173,61 @@ const MUSCLE_TO_CATEGORY = {
   'front delts': 'shoulders',
   'side delts': 'shoulders',
   'rear delts': 'shoulders',
-  // Arms
+
+  // Arms - DB IDs
+  'bicep-long': 'arms',
+  'bicep-short': 'arms',
+  'tricep-long': 'arms',
+  'tricep-lateral': 'arms',
+  'tricep-medial': 'arms',
+  'brachialis': 'arms',
+  'brachioradialis': 'arms',
+  'forearm-flexors': 'arms',
+  'forearm-extensors': 'arms',
+  // Arms - common names
   'biceps': 'arms',
   'triceps': 'arms',
   'forearms': 'arms',
-  'brachialis': 'arms',
-  // Legs
+
+  // Legs - DB IDs
+  'quad-rectus': 'legs',
+  'quad-vastus-lat': 'legs',
+  'quad-vastus-med': 'legs',
+  'quad-vastus-int': 'legs',
+  'hamstring-bicep': 'legs',
+  'hamstring-semi-t': 'legs',
+  'hamstring-semi-m': 'legs',
+  'gastrocnemius': 'legs',
+  'soleus': 'legs',
+  'tibialis-ant': 'legs',
+  'adductors': 'legs',
+  'abductors': 'legs',
+  // Legs - common names
   'quadriceps': 'legs',
   'quads': 'legs',
   'hamstrings': 'legs',
   'calves': 'legs',
-  'gastrocnemius': 'legs',
-  'soleus': 'legs',
-  // Glutes
+
+  // Glutes - DB IDs
+  'glute-max': 'glutes',
+  'glute-med': 'glutes',
+  'glute-min': 'glutes',
+  'hip-flexors': 'glutes',
+  'tensor-fl': 'glutes',
+  // Glutes - common names
   'glutes': 'glutes',
   'gluteus maximus': 'glutes',
   'gluteus medius': 'glutes',
   'hip flexors': 'glutes',
-  // Core
+
+  // Core - DB IDs
+  'rectus-abdominis': 'core',
+  'obliques-ext': 'core',
+  'obliques-int': 'core',
+  'transverse-abdominis': 'core',
+  'serratus': 'core',
+  'lower-back': 'core',
+  // Core - common names
   'abs': 'core',
   'abdominals': 'core',
   'rectus abdominis': 'core',

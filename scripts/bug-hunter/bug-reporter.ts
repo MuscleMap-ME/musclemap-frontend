@@ -481,7 +481,7 @@ ${report.fixes.map((f) => `- ${f.bugId}: ${f.success ? '✅' : '❌'} (${f.durat
 // EXPORT UTILITIES
 // ============================================================================
 
-export async function createBugReporter(reportDir: string, projectRoot: string): Promise<BugReporter> {
-  await fs.mkdir(reportDir, { recursive: true });
+export function createBugReporter(reportDir: string, projectRoot: string): BugReporter {
+  // Directory creation happens lazily in saveBugReport, generateDailyReport, etc.
   return new BugReporter(reportDir, projectRoot);
 }
