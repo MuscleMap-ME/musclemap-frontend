@@ -40,6 +40,8 @@ pm2.log
 *.sqlite-*
 data/
 apps/**/data/
+# But allow source code data directories
+!src/**/data/
 
 # OS / editor
 .DS_Store

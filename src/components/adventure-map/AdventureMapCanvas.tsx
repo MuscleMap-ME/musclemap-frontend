@@ -325,7 +325,7 @@ export default function AdventureMapCanvas({
               {REGIONS[currentRegion]?.name || 'Unknown'}
             </div>
             <div className="text-white/50 text-xs">
-              {visited.length} / {getAllLocations().filter((l) => !l.isAdminOnly).length} discovered
+              {visited.length} / {getAllLocations().filter((l) => !l.requiredRole).length} discovered
             </div>
           </div>
         </div>

@@ -10,8 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AdventureMapCanvas, AdventureHUD, AdventureMapWidget } from '../components/adventure-map';
 import { useAdventureMapStore, useCharacterPosition, useMapProgress, useMapUI } from '../store/adventureMapStore';
-import { getClosestLocation, LOCATIONS } from '../components/adventure-map/data/mapLayout';
-import { REGIONS } from '../components/adventure-map/data/regions';
+import { getClosestLocation, getAllLocations, getLocation } from '../components/adventure-map/data/mapLayout';
+import { REGIONS, getRegion } from '../components/adventure-map/data/regions';
 import type { HUDStats, CompanionData, MapLocation } from '../components/adventure-map/types';
 import { useUser } from '../contexts/UserContext';
 
@@ -125,7 +125,7 @@ export default function AdventureMapPage() {
         <div className="bg-black/60 backdrop-blur-sm rounded-lg border border-white/20 px-4 py-2">
           <h1 className="text-white font-bold text-lg">Adventure Map</h1>
           <p className="text-white/50 text-sm">
-            {visited.length} / {LOCATIONS.filter((l) => !l.isAdminOnly).length} locations discovered
+            {visited.length} / {getAllLocations().filter((l) => !l.requiredRole).length} locations discovered
           </p>
         </div>
       </motion.div>
