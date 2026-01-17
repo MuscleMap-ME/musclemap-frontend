@@ -124,6 +124,9 @@ const AdminDisputes = lazy(() => import('./pages/AdminDisputes'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
 const TestScorecard = lazy(() => import('./pages/TestScorecard'));
 
+// Dev pages (development tools)
+const AnatomyViewer = lazy(() => import('./pages/dev/AnatomyViewer'));
+
 // Live activity monitoring
 const LiveActivityMonitor = lazy(() => import('./pages/LiveActivityMonitor'));
 
@@ -543,6 +546,9 @@ function AppRoutes() {
           {/* Community & Developer routes - Public */}
           <Route path="/community/bulletin" element={<ErrorBoundary name="CommunityBulletinBoard"><CommunityBulletinBoard /></ErrorBoundary>} />
           <Route path="/contribute" element={<ErrorBoundary name="ContributeIdeas"><ContributeIdeas /></ErrorBoundary>} />
+
+          {/* Dev routes - Development tools */}
+          <Route path="/dev/anatomy-viewer" element={<AdminRoute name="AnatomyViewer"><AnatomyViewer /></AdminRoute>} />
 
           {/* Dynamic plugin-contributed routes */}
           {pluginRoutes.map((route) => (

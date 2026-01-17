@@ -1,0 +1,9 @@
+# Ignore large processed GLB files (they're compressed and copied to public/)
+processed/**/*.glb
+
+# Ignore source Blender files (downloaded during conversion)
+sources/**/raw/
+sources/**/*.blend
+
+# Keep info/validation JSON files
+!processed/**/*.json

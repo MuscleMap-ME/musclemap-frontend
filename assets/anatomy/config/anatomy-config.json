@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "paths": {
+    "discovery": "assets/anatomy/discovery",
+    "sources": "assets/anatomy/sources",
+    "processed": "assets/anatomy/processed",
+    "manifests": "assets/anatomy/manifests",
+    "manualQueue": "assets/anatomy/manual-queue",
+    "publicModels": "public/models/anatomy",
+    "scripts": "assets/anatomy/scripts"
+  },
+  "requirements": {
+    "license": {
+      "allowed": ["CC0-1.0", "CC-BY-4.0", "CC-BY-3.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "Royalty-Free"],
+      "preferred": ["CC0-1.0", "CC-BY-4.0"],
+      "maxPaidBudget": 200
+    },
+    "quality": {
+      "triangleBudget": {
+        "high": 100000,
+        "medium": 30000,
+        "low": 10000
+      },
+      "textureMaxSize": 2048,
+      "textureFormats": ["png", "jpg", "ktx2"],
+      "modelFormat": "glb"
+    },
+    "muscles": {
+      "minimumSeparateMeshes": 30,
+      "fallbackMajorGroups": 12,
+      "namingPattern": "^[a-z_]+_(L|R|C)?$"
+    }
+  },
+  "targets": {
+    "maleBody": { "required": true, "rigged": "preferred" },
+    "femaleBody": { "required": true, "rigged": "preferred" },
+    "maleMuscles": { "required": true, "separateMeshes": true },
+    "femaleMuscles": { "required": false, "separateMeshes": true }
+  }
+}

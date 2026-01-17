@@ -1,0 +1,185 @@
+{
+  "generated_at": "2025-01-17T10:50:00Z",
+  "budget_remaining": 200,
+  "items": [
+    {
+      "asset_id": "sketchfab_niclas_basemesh_both_body_v1",
+      "source_url": "https://sketchfab.com/3d-models/human-malefemale-basemesh-rigged-96fa14a5a3f0413e98b605e3f65e447c",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "GLB"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/human-malefemale-basemesh-rigged-96fa14a5a3f0413e98b605e3f65e447c",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Select 'Autoconverted format (glTF)' or 'Original format'",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_niclas_basemesh_both_body_v1/raw/",
+        "6. Save license screenshot to assets/anatomy/sources/sketchfab/sketchfab_niclas_basemesh_both_body_v1/license/"
+      ],
+      "priority": 1,
+      "notes": "CRITICAL: Best free rigged body option. Includes BOTH male and female. T-pose ready for animation."
+    },
+    {
+      "asset_id": "sketchfab_gadzhiev_male_muscles_v1",
+      "source_url": "https://sketchfab.com/3d-models/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "GLB"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/male-body-muscular-system-anatomy-study-991eb96938be4d0d8fadee241a1063d3",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Select 'Autoconverted format (glTF)'",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_gadzhiev_male_muscles_v1/raw/",
+        "6. Save license info to assets/anatomy/sources/sketchfab/sketchfab_gadzhiev_male_muscles_v1/license/"
+      ],
+      "priority": 1,
+      "notes": "High quality male muscular anatomy by Ruslan Gadzhiev. 210K triangles. ZBrush sculpt."
+    },
+    {
+      "asset_id": "sketchfab_gadzhiev_female_muscles_v1",
+      "source_url": "https://sketchfab.com/3d-models/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "GLB"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/female-body-muscular-system-anatomy-study-9a596b6c24b344bfbe6bb5246290df0e",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Select 'Autoconverted format (glTF)'",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_gadzhiev_female_muscles_v1/raw/",
+        "6. Save license info to assets/anatomy/sources/sketchfab/sketchfab_gadzhiev_female_muscles_v1/license/"
+      ],
+      "priority": 1,
+      "notes": "Female muscular anatomy by Ruslan Gadzhiev. 251K triangles. Matches male version style."
+    },
+    {
+      "asset_id": "sketchfab_characterzone_male_muscular_v1",
+      "source_url": "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "GLB"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Select 'Autoconverted format (glTF)'",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_characterzone_male_muscular_v1/raw/",
+        "6. Save license info to license/ folder"
+      ],
+      "priority": 1,
+      "notes": "Low-poly muscular male (37K triangles). AR/VR ready. Good for real-time rendering."
+    },
+    {
+      "asset_id": "sketchfab_lzyassoul_models_set_both_v1",
+      "source_url": "https://sketchfab.com/3d-models/human-models-set-malefemale-rigged-7311fcfdc03e4234900eeced42a1e669",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "GLB"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/human-models-set-malefemale-rigged-7311fcfdc03e4234900eeced42a1e669",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Download GLB/GLTF format",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_lzyassoul_models_set_both_v1/raw/"
+      ],
+      "priority": 1,
+      "notes": "Versatile basemesh pack with both male and female rigged models."
+    },
+    {
+      "asset_id": "sketchfab_drazen_lowpoly_rigged_both_v1",
+      "source_url": "https://sketchfab.com/3d-models/rigged-low-poly-male-female-figures-blender-ce0604608f96477a875569ff28e15889",
+      "reason": "requires_login",
+      "cost": "Free",
+      "license": "CC-BY-4.0",
+      "formats_to_download": ["GLTF", "BLEND"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/rigged-low-poly-male-female-figures-blender-ce0604608f96477a875569ff28e15889",
+        "2. Create Sketchfab account or log in",
+        "3. Click 'Download 3D Model'",
+        "4. Download both Blender file (for IK chains) and GLTF",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_drazen_lowpoly_rigged_both_v1/raw/"
+      ],
+      "priority": 2,
+      "notes": "Low-poly rigged figures with IK chains. Good for low-end device fallback."
+    },
+    {
+      "asset_id": "sketchfab_3d4sci_musculoskeletal_male_v1",
+      "source_url": "https://sketchfab.com/3d-models/3d-musculoskeletal-system-anatomy-1ca8af1c3bb94739877cdf2c3582f597",
+      "reason": "requires_purchase",
+      "cost": "$99",
+      "license": "Royalty-Free",
+      "formats_to_download": ["GLTF", "FBX"],
+      "instructions": [
+        "1. Visit https://sketchfab.com/3d-models/3d-musculoskeletal-system-anatomy-1ca8af1c3bb94739877cdf2c3582f597",
+        "2. Create Sketchfab account or log in",
+        "3. Purchase for $99 (Royalty-Free license)",
+        "4. Download all available formats",
+        "5. Extract to assets/anatomy/sources/sketchfab/sketchfab_3d4sci_musculoskeletal_male_v1/raw/",
+        "6. Save purchase receipt to license/ folder"
+      ],
+      "priority": 1,
+      "notes": "PROFESSIONAL MODEL: ~1M triangles, 4K textures. Objects grouped by body region with named muscles. Best option for separate muscle highlighting. NoAI clause (fine for our use)."
+    },
+    {
+      "asset_id": "cgtrader_alexander_male_muscular_v1",
+      "source_url": "https://www.cgtrader.com/3d-models/character/anatomy/male-muscular-system",
+      "reason": "requires_purchase",
+      "cost": "$29",
+      "license": "Royalty-Free",
+      "formats_to_download": ["OBJ"],
+      "instructions": [
+        "1. Visit https://www.cgtrader.com/3d-models/character/anatomy/male-muscular-system",
+        "2. Create CGTrader account or log in",
+        "3. Purchase for $29",
+        "4. Download musculature_separate_muscles.obj (IMPORTANT: this has named separate meshes)",
+        "5. Also download skeleton_separate_bones.obj",
+        "6. Extract to assets/anatomy/sources/cgtrader/cgtrader_alexander_male_muscular_v1/raw/",
+        "7. Save purchase receipt to license/ folder"
+      ],
+      "priority": 1,
+      "notes": "SEPARATE MESHES CONFIRMED: Includes musculature_separate_muscles.obj with individually named muscles. 4K textures. Best value for separate muscle highlighting."
+    },
+    {
+      "asset_id": "turbosquid_body_muscle_anatomy_v1",
+      "source_url": "https://www.turbosquid.com/3d-models/body-muscle-anatomy-3d-model-1398841",
+      "reason": "requires_purchase",
+      "cost": "$49",
+      "license": "TurboSquid Royalty-Free",
+      "formats_to_download": ["FBX", "OBJ"],
+      "instructions": [
+        "1. Visit https://www.turbosquid.com/3d-models/body-muscle-anatomy-3d-model-1398841",
+        "2. Create TurboSquid account or log in",
+        "3. Purchase for $49",
+        "4. Download FBX and OBJ formats",
+        "5. Extract to assets/anatomy/sources/turbosquid/turbosquid_body_muscle_anatomy_v1/raw/",
+        "6. Save purchase receipt to license/ folder"
+      ],
+      "priority": 2,
+      "notes": "136 SEPARATE PARTS! Each muscle is individual mesh. Good backup if CGTrader option doesn't work."
+    }
+  ],
+  "summary": {
+    "total_items": 9,
+    "free_items": 6,
+    "paid_items": 3,
+    "total_cost_if_all_purchased": 177,
+    "recommended_purchases": [
+      {
+        "asset_id": "cgtrader_alexander_male_muscular_v1",
+        "reason": "Best value for separate muscle meshes at $29",
+        "cost": 29
+      },
+      {
+        "asset_id": "sketchfab_3d4sci_musculoskeletal_male_v1",
+        "reason": "Professional grade with named grouped objects, worth $99 if CGTrader doesn't suffice",
+        "cost": 99
+      }
+    ]
+  }
+}

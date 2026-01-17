@@ -1,0 +1,25 @@
+{
+  "asset_id": "z-anatomy_human_male_v1",
+  "source_url": "https://github.com/Z-Anatomy/Models-of-human-anatomy",
+  "download_timestamp": "2025-01-17T10:49:00Z",
+  "checksums": {
+    "sha256": "e029688545627bd0214b269e1063143abb580aad72b2c2445d6d8a9a0d9da736"
+  },
+  "license": {
+    "spdx_id": "CC-BY-SA-4.0",
+    "name": "Creative Commons Attribution-ShareAlike 4.0 International",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attribution_text": "Z-Anatomy Project, derived from BodyParts3D by The Database Center for Life Science, licensed under CC-BY-SA-4.0",
+    "attribution_required": true
+  },
+  "author": {
+    "name": "Z-Anatomy (Gauthier Kervyn, Marcin Zielinski)",
+    "profile_url": "https://github.com/Z-Anatomy"
+  },
+  "original_source": {
+    "name": "BodyParts3D/Anatomography",
+    "license": "CC-BY-SA-2.1-JP",
+    "attribution": "BodyParts3D, (c) The Database Center for Life Science"
+  },
+  "notes": "Contains Blender template with individual anatomical structures as separate objects. Full musculature available."
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Anatomy Assets Manifest",
+  "type": "object",
+  "required": ["version", "generated_at", "assets"],
+  "properties": {
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "assets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "type", "sex", "files", "license"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["body", "muscles", "skeleton"] },
+          "sex": { "enum": ["male", "female", "neutral"] },
+          "files": {
+            "type": "object",
+            "properties": {
+              "high": { "type": "string" },
+              "medium": { "type": "string" },
+              "low": { "type": "string" }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "triangleCount": { "type": "object" },
+              "rigged": { "type": "boolean" },
+              "boneCount": { "type": "integer" },
+              "meshCount": { "type": "integer" },
+              "meshNames": { "type": "array", "items": { "type": "string" } },
+              "textures": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "license": {
+            "type": "object",
+            "required": ["spdxId"],
+            "properties": {
+              "spdxId": { "type": "string" },
+              "name": { "type": "string" },
+              "url": { "type": "string" },
+              "attribution": { "type": "string" },
+              "attributionRequired": { "type": "boolean" }
+            }
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "author": { "type": "string" },
+              "authorUrl": { "type": "string", "format": "uri" }
+            }
+          },
+          "validationStatus": { "enum": ["PASS", "WARN", "FAIL", "PENDING"] }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "maleBody": { "type": "string" },
+        "femaleBody": { "type": "string" },
+        "maleMuscles": { "type": "string" },
+        "femaleMuscles": { "type": "string" }
+      }
+    }
+  }
+}
