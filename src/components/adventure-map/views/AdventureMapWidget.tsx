@@ -9,7 +9,7 @@ import React, { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAdventureMapStore, useMapProgress, useCharacterPosition } from '../../../store/adventureMapStore';
 import { REGIONS } from '../data/regions';
-import { LOCATIONS, getClosestLocation } from '../data/mapLayout';
+import { getAllLocations, getClosestLocation } from '../data/mapLayout';
 import MinimapWidget from '../hud/MinimapWidget';
 import type { AdventureMapWidgetProps } from '../types';
 
@@ -25,9 +25,9 @@ export default function AdventureMapWidget({
   const openMap = useAdventureMapStore((s) => s.openMap);
 
   // Get current location info
-  const currentLocation = getClosestLocation(position, 50);
+  const currentLocation = getClosestLocation(position);
   const regionData = REGIONS[region];
-  const totalLocations = LOCATIONS.filter((l) => !l.isAdminOnly).length;
+  const totalLocations = getAllLocations().filter((l) => !l.requiredRole).length;
 
   const handleClick = useCallback(() => {
     openMap();

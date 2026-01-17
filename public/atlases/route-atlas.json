@@ -69,7 +69,10 @@
         { "id": "technology", "path": "/technology", "label": "Technology", "description": "Tech stack", "protection": "public" },
         { "id": "science", "path": "/science", "label": "Science", "description": "The methodology", "protection": "public" },
         { "id": "design", "path": "/design", "label": "Design", "description": "Design system", "protection": "public" },
-        { "id": "docs", "path": "/docs", "label": "Docs", "description": "Full documentation", "protection": "public" }
+        { "id": "docs", "path": "/docs", "label": "Docs", "description": "Interactive documentation", "protection": "public" },
+        { "id": "docs-plain", "path": "/docs-plain", "label": "Plain-Text Docs", "description": "Markdown docs for AI agents", "protection": "public", "external": true },
+        { "id": "docs-api", "path": "/docs-plain/api-reference", "label": "API Reference", "description": "REST & GraphQL API docs", "protection": "public", "external": true },
+        { "id": "docs-openapi", "path": "/docs-plain/machine-readable/openapi.yaml", "label": "OpenAPI Spec", "description": "Machine-readable API spec", "protection": "public", "external": true }
       ]
     },
     {

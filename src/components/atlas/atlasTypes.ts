@@ -31,6 +31,7 @@ export interface RouteNode {
   children?: RouteNode[];
   relatedRoutes?: string[];
   position?: { x: number; y: number };
+  external?: boolean; // Opens in new tab (for static files like /docs-plain)
 }
 
 // ============ Docs Atlas ============

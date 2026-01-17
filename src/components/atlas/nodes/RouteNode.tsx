@@ -66,7 +66,12 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
   const handleNavigate = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onNavigate(route.path);
+    if (route.external) {
+      // Open external/static links in new tab
+      window.open(route.path, '_blank', 'noopener,noreferrer');
+    } else {
+      onNavigate(route.path);
+    }
   };
 
   return (
@@ -106,6 +111,13 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
           <span className="font-medium text-white text-sm truncate">
             {route.label}
           </span>
+
+          {/* External link indicator */}
+          {route.external && (
+            <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          )}
 
           {/* Badge */}
           {route.badge && (
@@ -159,10 +171,16 @@ function RouteNodeComponent({ data }: NodeProps<RouteNodeData>) {
                 onClick={handleNavigate}
                 className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                Go to {route.label}
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
+                {route.external ? 'Open' : 'Go to'} {route.label}
+                {route.external ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                )}
               </button>
             </div>
             {/* Arrow */}
