@@ -1,9 +1,9 @@
 /**
  * Muscles Screen
  *
- * 3D muscle visualization showing workout activations.
+ * Unified muscle visualization with automatic 2D/3D switching.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   YStack,
   XStack,
@@ -17,19 +17,28 @@ import {
   Select,
 } from 'tamagui';
 import { ScrollView } from 'react-native';
-import { Check, ChevronDown, Cube, LayoutGrid } from '@tamagui/lucide-icons';
-import { apiClient, type MuscleActivation } from '@musclemap/client';
-import { MuscleModel } from '../../src/components/MuscleModel';
-import { BodyMuscleMap } from '../../src/components/BodyMuscleMap';
+import { Check, ChevronDown } from '@tamagui/lucide-icons';
+import { apiClient, type MuscleActivation as APIMuscleActivation } from '@musclemap/client';
+import { MuscleViewer, type MuscleActivation } from '../../src/components/MuscleViewer';
 
 type TimeRange = 7 | 14 | 30 | 90;
 
 export default function MusclesScreen() {
-  const [activations, setActivations] = useState<MuscleActivation[]>([]);
+  const [activations, setActivations] = useState<APIMuscleActivation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d'); // Default to 2D for better performance
+
+  // Convert API activations to MuscleViewer format
+  const viewerActivations = useMemo((): MuscleActivation[] => {
+    if (!activations.length) return [];
+    const maxActivation = Math.max(...activations.map((a) => a.normalizedActivation), 1);
+    return activations.map((a) => ({
+      id: a.muscleId,
+      intensity: a.normalizedActivation / maxActivation,
+      isPrimary: a.normalizedActivation / maxActivation > 0.6,
+    }));
+  }, [activations]);
 
   useEffect(() => {
     async function loadActivations() {
@@ -128,50 +137,19 @@ export default function MusclesScreen() {
           </Card>
         )}
 
-        {/* View Mode Toggle */}
-        <XStack space="$2" justifyContent="center">
-          <Button
-            size="$3"
-            icon={<LayoutGrid size={16} />}
-            chromeless={viewMode !== '2d'}
-            backgroundColor={viewMode === '2d' ? '$blue8' : '$gray4'}
-            onPress={() => setViewMode('2d')}
-          >
-            <Text fontSize={12} color={viewMode === '2d' ? 'white' : '$gray11'}>2D Map</Text>
-          </Button>
-          <Button
-            size="$3"
-            icon={<Cube size={16} />}
-            chromeless={viewMode !== '3d'}
-            backgroundColor={viewMode === '3d' ? '$blue8' : '$gray4'}
-            onPress={() => setViewMode('3d')}
-          >
-            <Text fontSize={12} color={viewMode === '3d' ? 'white' : '$gray11'}>3D Model</Text>
-          </Button>
-        </XStack>
-
-        {/* Muscle Visualization */}
-        <Card elevate backgroundColor="$background" overflow="hidden">
-          {activations.length > 0 ? (
-            viewMode === '2d' ? (
-              <YStack padding="$4" alignItems="center">
-                <BodyMuscleMap
-                  muscleActivations={activations.reduce((acc, a) => {
-                    acc[a.muscleId] = a.normalizedActivation * 10; // Convert to 0-100 scale
-                    return acc;
-                  }, {} as Record<string, number>)}
-                  view="front"
-                  size="lg"
-                  showLabels={true}
-                  interactive={true}
-                  onMusclePress={(muscleId, data) => {
-                    console.log('Muscle pressed:', muscleId, data);
-                  }}
-                />
-              </YStack>
-            ) : (
-              <MuscleModel activations={activations} height={350} />
-            )
+        {/* Muscle Visualization - Unified Component */}
+        <Card elevate backgroundColor="$background" overflow="hidden" padding="$3">
+          {viewerActivations.length > 0 ? (
+            <MuscleViewer
+              muscles={viewerActivations}
+              mode="fullscreen"
+              showModeToggle={true}
+              interactive={true}
+              showLabels={true}
+              onMusclePress={(muscleId) => {
+                console.log('Muscle pressed:', muscleId);
+              }}
+            />
           ) : (
             <YStack height={350} justifyContent="center" alignItems="center" padding="$4">
               <Paragraph color="$gray11" textAlign="center">

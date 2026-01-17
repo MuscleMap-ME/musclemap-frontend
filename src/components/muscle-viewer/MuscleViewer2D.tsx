@@ -221,14 +221,23 @@ function BodyOutline({ view }: { view: 'front' | 'back' }) {
     : 'M50 15 Q35 20 30 35 L25 50 Q20 55 18 70 L20 90 Q22 100 25 115 L35 115 L35 160 Q33 175 34 190 L38 195 L45 195 L47 190 Q48 175 47 160 L50 155 L53 160 Q52 175 53 190 L55 195 L62 195 L66 190 Q67 175 65 160 L65 115 L75 115 Q78 100 80 90 L82 70 Q80 55 75 50 L70 35 Q65 20 50 15';
 
   return (
-    <path
-      d={path}
-      fill="none"
-      stroke="rgba(148, 163, 184, 0.15)"
-      strokeWidth="0.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <>
+      {/* Faint body fill for visibility */}
+      <path
+        d={path}
+        fill="rgba(71, 85, 105, 0.08)"
+        stroke="none"
+      />
+      {/* Body outline */}
+      <path
+        d={path}
+        fill="none"
+        stroke="rgba(148, 163, 184, 0.25)"
+        strokeWidth="0.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
   );
 }
 
@@ -335,9 +344,9 @@ export function MuscleViewer2D({
             cy="22"
             rx="10"
             ry="12"
-            fill="rgba(71, 85, 105, 0.15)"
-            stroke="rgba(148, 163, 184, 0.15)"
-            strokeWidth="0.5"
+            fill="rgba(71, 85, 105, 0.2)"
+            stroke="rgba(148, 163, 184, 0.3)"
+            strokeWidth="0.8"
           />
 
           {/* Muscle regions */}

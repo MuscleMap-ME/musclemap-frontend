@@ -3,7 +3,7 @@
  *
  * Exercise logging and workout tracking with real API integration.
  */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   YStack,
   XStack,
@@ -23,10 +23,11 @@ import {
   apiClient,
   type Exercise,
   type WorkoutExercise,
-  type MuscleActivation,
+  type MuscleActivation as APIMuscleActivation,
 } from '@musclemap/client';
 import { ExerciseIllustration } from '../../src/components/ExerciseIllustration';
 import { hasExerciseIllustration } from '@musclemap/shared';
+import { MuscleActivationBadge, type MuscleActivation } from '../../src/components/MuscleViewer';
 
 interface WorkoutEntry extends WorkoutExercise {
   exercise: Exercise;
@@ -51,9 +52,20 @@ export default function Workout() {
   const [entries, setEntries] = useState<WorkoutEntry[]>([]);
   const [preview, setPreview] = useState<{
     totalTU: number;
-    activations: MuscleActivation[];
+    activations: APIMuscleActivation[];
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Convert preview activations to MuscleViewer format
+  const viewerActivations = useMemo((): MuscleActivation[] => {
+    if (!preview?.activations?.length) return [];
+    const maxActivation = Math.max(...preview.activations.map((a) => a.normalizedActivation), 1);
+    return preview.activations.map((a) => ({
+      id: a.muscleId,
+      intensity: a.normalizedActivation / maxActivation,
+      isPrimary: a.normalizedActivation / maxActivation > 0.6,
+    }));
+  }, [preview]);
 
   // Timer effect
   useEffect(() => {
@@ -249,8 +261,16 @@ export default function Workout() {
           {/* Workout Preview */}
           {preview && (
             <Card padding="$4" elevate backgroundColor="$blue2">
-              <XStack justifyContent="space-between" alignItems="center">
-                <YStack>
+              <XStack justifyContent="space-between" alignItems="center" space="$3">
+                {/* Muscle Badge */}
+                {viewerActivations.length > 0 && (
+                  <MuscleActivationBadge
+                    muscles={viewerActivations}
+                    size={56}
+                    showGlow={true}
+                  />
+                )}
+                <YStack flex={1}>
                   <Text color="$gray11" fontSize="$2">Estimated Training Units</Text>
                   <H3 color="$blue10">{preview.totalTU.toFixed(1)} TU</H3>
                 </YStack>

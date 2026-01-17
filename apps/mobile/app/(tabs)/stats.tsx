@@ -7,7 +7,7 @@
  * - Personal rankings
  * - Leaderboards
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   YStack,
   XStack,
@@ -27,9 +27,11 @@ import {
   type CharacterStats,
   type StatRankingsByScope,
   type ExtendedProfile,
+  type MuscleActivation as APIMuscleActivation,
 } from '@musclemap/client';
 import { CharacterStatsCard } from '../../src/components/CharacterStatsCard';
 import { LeaderboardCard } from '../../src/components/LeaderboardCard';
+import { MuscleViewer, type MuscleActivation } from '../../src/components/MuscleViewer';
 
 type StatKey = 'strength' | 'constitution' | 'dexterity' | 'power' | 'endurance' | 'vitality';
 
@@ -120,22 +122,36 @@ export default function StatsScreen() {
   const [stats, setStats] = useState<CharacterStats | null>(null);
   const [rankings, setRankings] = useState<Record<StatKey, StatRankingsByScope> | null>(null);
   const [profile, setProfile] = useState<ExtendedProfile | null>(null);
+  const [muscleActivations, setMuscleActivations] = useState<APIMuscleActivation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Convert API activations to MuscleViewer format
+  const viewerActivations = useMemo((): MuscleActivation[] => {
+    if (!muscleActivations.length) return [];
+    const maxActivation = Math.max(...muscleActivations.map((a) => a.normalizedActivation), 1);
+    return muscleActivations.map((a) => ({
+      id: a.muscleId,
+      intensity: a.normalizedActivation / maxActivation,
+      isPrimary: a.normalizedActivation / maxActivation > 0.6,
+    }));
+  }, [muscleActivations]);
+
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const [statsResult, profileResult] = await Promise.all([
+      const [statsResult, profileResult, muscleResult] = await Promise.all([
         apiClient.characterStats.me(),
         apiClient.characterStats.extendedProfile(),
+        apiClient.workouts.muscleActivations(30), // Last 30 days
       ]);
 
       setStats(statsResult.data.stats);
       setRankings(statsResult.data.rankings as Record<StatKey, StatRankingsByScope>);
       setProfile(profileResult.data);
+      setMuscleActivations(muscleResult.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stats');
     } finally {
@@ -212,6 +228,24 @@ export default function StatsScreen() {
 
         {/* Main Stats Card with Radar */}
         {stats && <CharacterStatsCard stats={stats} showRadar={true} />}
+
+        {/* Muscle Development Overview */}
+        {viewerActivations.length > 0 && (
+          <Card padding="$4" elevate>
+            <YStack space="$3">
+              <XStack justifyContent="space-between" alignItems="center">
+                <H3>Muscle Development</H3>
+                <Text color="$gray11" fontSize="$2">Last 30 days</Text>
+              </XStack>
+              <MuscleViewer
+                muscles={viewerActivations}
+                mode="card"
+                showModeToggle={true}
+                interactive={true}
+              />
+            </YStack>
+          </Card>
+        )}
 
         {/* Rankings Section */}
         {rankings && (

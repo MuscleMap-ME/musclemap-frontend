@@ -58,9 +58,9 @@ export default function CompanionDock() {
 
   return (
     <>
-      {/* Dock container */}
+      {/* Dock container - positioned above the AI Coach button (bottom-20 to avoid overlap) */}
       <motion.div
-        className="fixed bottom-4 right-4 z-40"
+        className="fixed bottom-20 right-4 z-40 sm:bottom-24"
         {...animationProps}
         role="region"
         aria-label="Training companion"

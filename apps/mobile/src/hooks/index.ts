@@ -12,3 +12,11 @@ export type { UseHealthResult, WorkoutInput, DateRangeOptions } from './useHealt
 
 // Watch connectivity
 export { default as useWatchConnectivity } from './useWatchConnectivity';
+
+// Visualization
+export { useMobileVisualization, default as useMobileVisualizationDefault } from './useMobileVisualization';
+export type {
+  VisualizationMode,
+  VisualizationPreference,
+  MobileVisualizationSettings,
+} from './useMobileVisualization';
