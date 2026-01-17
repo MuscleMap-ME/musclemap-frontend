@@ -72,7 +72,7 @@ export default function MusclesScreen() {
     if (!acc[group]) acc[group] = [];
     acc[group].push(activation);
     return acc;
-  }, {} as Record<string, MuscleActivation[]>);
+  }, {} as Record<string, APIMuscleActivation[]>);
 
   // Sort groups by total activation
   const sortedGroups = Object.entries(groupedActivations)
