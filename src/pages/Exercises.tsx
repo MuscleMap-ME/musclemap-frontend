@@ -489,15 +489,30 @@ export default function Exercises() {
       .then(data => {
         if (data.data) {
           // Normalize primaryMuscles to always be an array
-          const normalized = data.data.map(ex => ({
-            ...ex,
-            primaryMuscles: Array.isArray(ex.primaryMuscles)
-              ? ex.primaryMuscles
-              : typeof ex.primaryMuscles === 'string'
-                ? ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean)
-                : [],
-            category: getExerciseCategory(ex),
-          }));
+          // Handles PostgreSQL array format: {"muscle1","muscle2"}
+          const normalized = data.data.map(ex => {
+            let muscles = [];
+            if (Array.isArray(ex.primaryMuscles)) {
+              muscles = ex.primaryMuscles;
+            } else if (typeof ex.primaryMuscles === 'string') {
+              // Parse PostgreSQL array format: {"chest-upper","delt-front"}
+              const pgArrayMatch = ex.primaryMuscles.match(/^\{(.+)\}$/);
+              if (pgArrayMatch) {
+                // Remove quotes and split by comma
+                muscles = pgArrayMatch[1]
+                  .split(',')
+                  .map(m => m.replace(/^"|"$/g, '').trim())
+                  .filter(Boolean);
+              } else {
+                muscles = ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean);
+              }
+            }
+            return {
+              ...ex,
+              primaryMuscles: muscles,
+              category: getExerciseCategory({ ...ex, primaryMuscles: muscles }),
+            };
+          });
           setExercises(normalized);
         }
       })
