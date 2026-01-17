@@ -32,6 +32,26 @@ export class ErrorCollector {
   }
 
   // ============================================================================
+  // KNOWN DEV-ONLY WARNINGS TO IGNORE
+  // ============================================================================
+
+  private static readonly IGNORED_PATTERNS = [
+    // Vite HMR module resolution warnings for react-three/fiber internals
+    /The requested module.*react-reconciler.*does not provide an export/,
+    /react-reconciler.*node_modules/,
+    // Vite pre-bundling warnings
+    /Failed to resolve dependency.*optimizeDeps/,
+    // React DevTools
+    /Download the React DevTools/,
+    // Service Worker registration (not an error)
+    /\[SW Registration\]/,
+  ];
+
+  private shouldIgnoreError(message: string): boolean {
+    return ErrorCollector.IGNORED_PATTERNS.some(pattern => pattern.test(message));
+  }
+
+  // ============================================================================
   // LISTENER SETUP
   // ============================================================================
 
@@ -39,10 +59,17 @@ export class ErrorCollector {
     // Console errors
     this.page.on('console', (msg) => {
       if (msg.type() === 'error' || msg.type() === 'warning') {
+        const message = msg.text();
+
+        // Skip known dev-only warnings
+        if (this.shouldIgnoreError(message)) {
+          return;
+        }
+
         const location = msg.location();
         this.consoleErrors.push({
           level: msg.type() as 'error' | 'warn',
-          message: msg.text(),
+          message,
           source: location.url,
           line: location.lineNumber,
           column: location.columnNumber,

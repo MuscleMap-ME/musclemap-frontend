@@ -224,11 +224,17 @@ export default defineConfig({
       'framer-motion',
       'zustand',
     ],
-    // Exclude heavy deps from pre-bundling to improve dev startup
+    // Exclude heavy deps and their transitive deps from pre-bundling
+    // This prevents module resolution conflicts during HMR
     exclude: [
       'three',
       '@react-three/fiber',
       '@react-three/drei',
     ],
+    // Force optimization of nested dependencies
+    esbuildOptions: {
+      // Resolve react-reconciler module issues
+      mainFields: ['module', 'main'],
+    },
   },
 })
