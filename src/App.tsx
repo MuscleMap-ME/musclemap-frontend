@@ -134,6 +134,9 @@ const LiveActivityMonitor = lazy(() => import('./pages/LiveActivityMonitor'));
 const AdventureMapPage = lazy(() => import('./pages/AdventureMap'));
 const AdventureMapFullscreen = lazy(() => import('./components/adventure-map').then(m => ({ default: m.AdventureMapFullscreen })));
 
+// Map Explore (Interactive Navigation)
+const MapExplore = lazy(() => import('./pages/MapExplore'));
+
 // Plugin pages
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
 const PluginSettings = lazy(() => import('./pages/PluginSettings'));
@@ -474,6 +477,7 @@ function AppRoutes() {
           {/* Protected routes */}
           <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
           <Route path="/adventure-map" element={<ProtectedRoute name="AdventureMap"><AdventureMapPage /></ProtectedRoute>} />
+          <Route path="/explore" element={<ProtectedRoute name="MapExplore"><MapExplore /></ProtectedRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
           <Route path="/workout" element={<ProtectedRoute name="Workout"><Workout /></ProtectedRoute>} />
           <Route path="/journey" element={<ProtectedRoute name="Journey"><Journey /></ProtectedRoute>} />
