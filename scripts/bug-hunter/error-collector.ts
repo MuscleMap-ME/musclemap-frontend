@@ -128,7 +128,10 @@ export class ErrorCollector {
   // ============================================================================
 
   async captureCurrentErrors(url: string): Promise<CapturedError | null> {
-    // Skip if no errors
+    // Filter out ignored errors before processing
+    this.consoleErrors = this.consoleErrors.filter(e => !this.shouldIgnoreError(e.message));
+
+    // Skip if no errors after filtering
     if (this.consoleErrors.length === 0 && this.networkErrors.length === 0) {
       return null;
     }
