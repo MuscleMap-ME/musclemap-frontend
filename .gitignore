@@ -46,3 +46,7 @@ apps/**/data/
 Thumbs.db
 .idea/
 .vscode/
+scripts/bug-hunter/screenshots/
+scripts/bug-hunter/logs/
+scripts/bug-hunter/reports/
+scripts/bug-hunter/data/
