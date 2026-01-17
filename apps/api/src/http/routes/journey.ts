@@ -122,7 +122,8 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       description: string;
       focus_areas: string;
       icon_url: string;
-    }>('SELECT id, name, philosophy, description, focus_areas, icon_url FROM archetypes');
+      category_id: string;
+    }>('SELECT id, name, philosophy, description, focus_areas, icon_url, category_id FROM archetypes');
 
     // Cache for 1 hour at edge, 30 minutes in browser (archetypes rarely change)
     reply.header('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400');
@@ -153,6 +154,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
           icon: a.icon_url,
           imageUrl: a.icon_url, // Use icon_url as fallback since image_url may not exist in all environments
           focusAreas,
+          categoryId: a.category_id || 'general',
         };
       }),
     });
