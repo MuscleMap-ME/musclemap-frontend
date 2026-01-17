@@ -12,7 +12,9 @@
 #   ./scripts/musclemap-start.sh              # Start core services (PostgreSQL, Redis)
 #   ./scripts/musclemap-start.sh --api        # Also start the API server
 #   ./scripts/musclemap-start.sh --dev        # Also start Vite dev server
-#   ./scripts/musclemap-start.sh --all        # Start everything
+#   ./scripts/musclemap-start.sh --bug-hunter # Also start bug-hunter daemon (local)
+#   ./scripts/musclemap-start.sh --bug-hunter-prod # Also start bug-hunter daemon (production)
+#   ./scripts/musclemap-start.sh --all        # Start everything (including bug-hunter local)
 #   ./scripts/musclemap-start.sh --status     # Just show status (fast)
 #   ./scripts/musclemap-start.sh --fast       # Skip wait-for-ready checks
 #
@@ -40,6 +42,8 @@ echo ""
 # Parse arguments
 START_API=false
 START_DEV=false
+START_BUG_HUNTER=false
+START_BUG_HUNTER_PROD=false
 STATUS_ONLY=false
 FAST_MODE=false
 
@@ -51,9 +55,16 @@ for arg in "$@"; do
     --dev)
       START_DEV=true
       ;;
+    --bug-hunter)
+      START_BUG_HUNTER=true
+      ;;
+    --bug-hunter-prod)
+      START_BUG_HUNTER_PROD=true
+      ;;
     --all)
       START_API=true
       START_DEV=true
+      START_BUG_HUNTER=true
       ;;
     --status)
       STATUS_ONLY=true
@@ -65,12 +76,14 @@ for arg in "$@"; do
       echo "Usage: $0 [options]"
       echo ""
       echo "Options:"
-      echo "  --api        Also start the API server"
-      echo "  --dev        Also start Vite dev server"
-      echo "  --all        Start everything"
-      echo "  --status     Just show status (fast check)"
-      echo "  --fast, -f   Skip wait-for-ready checks"
-      echo "  --help, -h   Show this help"
+      echo "  --api              Also start the API server"
+      echo "  --dev              Also start Vite dev server"
+      echo "  --bug-hunter       Start bug-hunter daemon (tests local dev server)"
+      echo "  --bug-hunter-prod  Start bug-hunter daemon (tests production)"
+      echo "  --all              Start everything (core + API + dev + bug-hunter local)"
+      echo "  --status           Just show status (fast check)"
+      echo "  --fast, -f         Skip wait-for-ready checks"
+      echo "  --help, -h         Show this help"
       exit 0
       ;;
   esac
@@ -91,6 +104,14 @@ check_pm2_running() {
 
 check_vite_running() {
   pgrep -f "vite" >/dev/null 2>&1 || lsof -i:5173 >/dev/null 2>&1
+}
+
+check_bug_hunter_running() {
+  pgrep -f "bug-hunter.*daemon" >/dev/null 2>&1 || pgrep -f "tsx.*bug-hunter" >/dev/null 2>&1
+}
+
+check_bug_hunter_prod_running() {
+  pgrep -f "bug-hunter.*production" >/dev/null 2>&1
 }
 
 # Show status only (FAST)
@@ -124,6 +145,20 @@ if [ "$STATUS_ONLY" = true ]; then
     echo -e "  ${GREEN}✓${NC} Vite dev server running"
   else
     echo -e "  ${YELLOW}○${NC} Vite dev server not running"
+  fi
+
+  # Bug Hunter (local)
+  if check_bug_hunter_running; then
+    echo -e "  ${GREEN}✓${NC} Bug Hunter daemon running (local)"
+  else
+    echo -e "  ${YELLOW}○${NC} Bug Hunter daemon not running (local)"
+  fi
+
+  # Bug Hunter (production)
+  if check_bug_hunter_prod_running; then
+    echo -e "  ${GREEN}✓${NC} Bug Hunter daemon running (production)"
+  else
+    echo -e "  ${YELLOW}○${NC} Bug Hunter daemon not running (production)"
   fi
 
   exit 0
@@ -253,6 +288,68 @@ start_dev() {
   fi
 }
 
+# Start Bug Hunter daemon (local)
+start_bug_hunter() {
+  if check_bug_hunter_running; then
+    echo -e "${GREEN}  ✓ Bug Hunter daemon already running (local)${NC}"
+  else
+    echo -e "${YELLOW}Starting Bug Hunter daemon (local)...${NC}"
+    cd "$PROJECT_DIR"
+
+    # Create log directory
+    mkdir -p scripts/bug-hunter/logs
+
+    # Start in background with daemon mode
+    nohup pnpm bug-hunter:daemon > scripts/bug-hunter/logs/daemon-local.log 2>&1 &
+    BUG_HUNTER_PID=$!
+    echo "$BUG_HUNTER_PID" > /tmp/bug-hunter-local.pid
+
+    if [[ "$FAST_MODE" != "true" ]]; then
+      sleep 2
+    fi
+
+    if check_bug_hunter_running; then
+      echo -e "${GREEN}  ✓ Bug Hunter daemon started (local)${NC}"
+      echo -e "${GREEN}    PID: $BUG_HUNTER_PID${NC}"
+      echo -e "${GREEN}    Log: scripts/bug-hunter/logs/daemon-local.log${NC}"
+    else
+      echo -e "${YELLOW}  ⚠ Bug Hunter may still be starting${NC}"
+      echo -e "${YELLOW}    Check scripts/bug-hunter/logs/daemon-local.log for errors${NC}"
+    fi
+  fi
+}
+
+# Start Bug Hunter daemon (production)
+start_bug_hunter_prod() {
+  if check_bug_hunter_prod_running; then
+    echo -e "${GREEN}  ✓ Bug Hunter daemon already running (production)${NC}"
+  else
+    echo -e "${YELLOW}Starting Bug Hunter daemon (production)...${NC}"
+    cd "$PROJECT_DIR"
+
+    # Create log directory
+    mkdir -p scripts/bug-hunter/logs
+
+    # Start in background with daemon mode targeting production
+    nohup pnpm bug-hunter:daemon --production > scripts/bug-hunter/logs/daemon-prod.log 2>&1 &
+    BUG_HUNTER_PROD_PID=$!
+    echo "$BUG_HUNTER_PROD_PID" > /tmp/bug-hunter-prod.pid
+
+    if [[ "$FAST_MODE" != "true" ]]; then
+      sleep 2
+    fi
+
+    if check_bug_hunter_prod_running; then
+      echo -e "${GREEN}  ✓ Bug Hunter daemon started (production)${NC}"
+      echo -e "${GREEN}    PID: $BUG_HUNTER_PROD_PID${NC}"
+      echo -e "${GREEN}    Log: scripts/bug-hunter/logs/daemon-prod.log${NC}"
+    else
+      echo -e "${YELLOW}  ⚠ Bug Hunter may still be starting${NC}"
+      echo -e "${YELLOW}    Check scripts/bug-hunter/logs/daemon-prod.log for errors${NC}"
+    fi
+  fi
+}
+
 # ========================================
 # MAIN: Start services
 # ========================================
@@ -306,23 +403,43 @@ if [ "$START_DEV" = true ]; then
   echo ""
 fi
 
+if [ "$START_BUG_HUNTER" = true ]; then
+  echo -e "${BLUE}Starting Bug Hunter daemon (local)...${NC}"
+  start_bug_hunter
+  echo ""
+fi
+
+if [ "$START_BUG_HUNTER_PROD" = true ]; then
+  echo -e "${BLUE}Starting Bug Hunter daemon (production)...${NC}"
+  start_bug_hunter_prod
+  echo ""
+fi
+
 # Show final status (fast check)
 echo -e "${BLUE}Service Status:${NC}"
 if check_postgres_fast; then echo -e "  ${GREEN}✓${NC} PostgreSQL"; else echo -e "  ${YELLOW}○${NC} PostgreSQL"; fi
 if check_redis_fast; then echo -e "  ${GREEN}✓${NC} Redis"; else echo -e "  ${YELLOW}○${NC} Redis"; fi
 if command -v pm2 &>/dev/null && check_pm2_running; then echo -e "  ${GREEN}✓${NC} API (PM2)"; fi
 if check_vite_running; then echo -e "  ${GREEN}✓${NC} Vite"; fi
+if check_bug_hunter_running; then echo -e "  ${GREEN}✓${NC} Bug Hunter (local)"; fi
+if check_bug_hunter_prod_running; then echo -e "  ${GREEN}✓${NC} Bug Hunter (production)"; fi
 echo ""
 
 # Show next steps
 echo -e "${BLUE}Next steps:${NC}"
 if [ "$START_API" = false ]; then
-  echo -e "  Start API:      ${GREEN}./scripts/musclemap-start.sh --api${NC}"
+  echo -e "  Start API:              ${GREEN}./scripts/musclemap-start.sh --api${NC}"
 fi
 if [ "$START_DEV" = false ]; then
-  echo -e "  Start frontend: ${GREEN}./scripts/musclemap-start.sh --dev${NC}"
+  echo -e "  Start frontend:         ${GREEN}./scripts/musclemap-start.sh --dev${NC}"
 fi
-echo -e "  Stop services:  ${GREEN}./scripts/musclemap-stop.sh${NC}"
+if [ "$START_BUG_HUNTER" = false ]; then
+  echo -e "  Start Bug Hunter local: ${GREEN}./scripts/musclemap-start.sh --bug-hunter${NC}"
+fi
+if [ "$START_BUG_HUNTER_PROD" = false ]; then
+  echo -e "  Start Bug Hunter prod:  ${GREEN}./scripts/musclemap-start.sh --bug-hunter-prod${NC}"
+fi
+echo -e "  Stop services:          ${GREEN}./scripts/musclemap-stop.sh${NC}"
 echo ""
 
 # Health check info

@@ -80,6 +80,14 @@ check_caddy_running() {
   pgrep -x caddy >/dev/null 2>&1
 }
 
+check_bug_hunter_running() {
+  pgrep -f "bug-hunter.*daemon" >/dev/null 2>&1 || pgrep -f "tsx.*bug-hunter" >/dev/null 2>&1
+}
+
+check_bug_hunter_prod_running() {
+  pgrep -f "bug-hunter.*production" >/dev/null 2>&1
+}
+
 # Stop Vite dev server
 stop_vite() {
   local vite_pids=$(pgrep -f "vite" 2>/dev/null || true)
@@ -128,6 +136,32 @@ stop_caddy() {
   fi
 }
 
+# Stop Bug Hunter daemon (local)
+stop_bug_hunter() {
+  local bug_hunter_pids=$(pgrep -f "tsx.*bug-hunter" 2>/dev/null || true)
+  if [ -n "$bug_hunter_pids" ]; then
+    echo -e "${YELLOW}Stopping Bug Hunter daemon (local)...${NC}"
+    echo "$bug_hunter_pids" | xargs kill 2>/dev/null || true
+    rm -f /tmp/bug-hunter-local.pid 2>/dev/null || true
+    echo -e "${GREEN}  ✓ Bug Hunter (local) stopped${NC}"
+  else
+    echo -e "${BLUE}  - Bug Hunter (local) not running${NC}"
+  fi
+}
+
+# Stop Bug Hunter daemon (production)
+stop_bug_hunter_prod() {
+  local bug_hunter_prod_pids=$(pgrep -f "bug-hunter.*production" 2>/dev/null || true)
+  if [ -n "$bug_hunter_prod_pids" ]; then
+    echo -e "${YELLOW}Stopping Bug Hunter daemon (production)...${NC}"
+    echo "$bug_hunter_prod_pids" | xargs kill 2>/dev/null || true
+    rm -f /tmp/bug-hunter-prod.pid 2>/dev/null || true
+    echo -e "${GREEN}  ✓ Bug Hunter (production) stopped${NC}"
+  else
+    echo -e "${BLUE}  - Bug Hunter (production) not running${NC}"
+  fi
+}
+
 # Stop brew service
 stop_brew_service() {
   local service=$1
@@ -146,6 +180,8 @@ stop_brew_service() {
 # Confirmation prompt (unless --quiet)
 if [ "$QUIET" = false ]; then
   echo -e "This will stop:"
+  check_bug_hunter_running && echo -e "  ${GREEN}●${NC} Bug Hunter daemon (local)"
+  check_bug_hunter_prod_running && echo -e "  ${GREEN}●${NC} Bug Hunter daemon (production)"
   check_vite_running && echo -e "  ${GREEN}●${NC} Vite dev server"
   check_pm2_running && echo -e "  ${GREEN}●${NC} PM2/API processes"
   check_caddy_running && echo -e "  ${GREEN}●${NC} Caddy"
@@ -167,6 +203,18 @@ fi
 
 echo -e "${BLUE}Stopping services...${NC}"
 echo ""
+
+# Phase 0: Stop bug hunter daemons first (they depend on other services)
+{
+  stop_bug_hunter &
+  BH_LOCAL_PID=$!
+
+  stop_bug_hunter_prod &
+  BH_PROD_PID=$!
+
+  # Wait for bug hunter to stop
+  wait $BH_LOCAL_PID $BH_PROD_PID 2>/dev/null || true
+}
 
 # Phase 1: Stop application-level services in parallel
 {
@@ -209,9 +257,11 @@ echo ""
 
 # Show final status
 echo -e "${BLUE}Final Status:${NC}"
-if ! check_postgres_fast && ! check_redis_fast && ! check_pm2_running && ! check_vite_running; then
+if ! check_postgres_fast && ! check_redis_fast && ! check_pm2_running && ! check_vite_running && ! check_bug_hunter_running && ! check_bug_hunter_prod_running; then
   echo -e "  ${GREEN}✓${NC} All services stopped"
 else
+  check_bug_hunter_running && echo -e "  ${YELLOW}●${NC} Bug Hunter (local) still running"
+  check_bug_hunter_prod_running && echo -e "  ${YELLOW}●${NC} Bug Hunter (production) still running"
   check_postgres_fast && echo -e "  ${YELLOW}●${NC} PostgreSQL still running"
   check_redis_fast && echo -e "  ${YELLOW}●${NC} Redis still running"
   check_pm2_running && echo -e "  ${YELLOW}●${NC} PM2 still running"
