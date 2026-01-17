@@ -147,19 +147,57 @@ export default async function adminBugsRoutes(app: FastifyInstance): Promise<voi
   /**
    * POST /admin/bugs/sync
    * Sync bug hunter reports to database
+   * If empty array passed, reads from local bug hunter reports directory
    */
   app.post(
     '/admin/bugs/sync',
     { preHandler: [authenticate, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const bugs = z.array(syncBugReportSchema).parse(request.body);
+      let bugs = z.array(syncBugReportSchema).parse(request.body);
 
       const results = {
         created: 0,
         updated: 0,
         skipped: 0,
         errors: [] as string[],
+        source: 'request',
       };
+
+      // If no bugs provided, try to read from local bug hunter reports
+      if (bugs.length === 0) {
+        try {
+          results.source = 'local_files';
+          const files = await fs.readdir(BUG_HUNTER_REPORTS_DIR);
+          const jsonFiles = files.filter(f => f.endsWith('.json')).sort().reverse();
+
+          // Read the most recent report
+          if (jsonFiles.length > 0) {
+            const latestFile = path.join(BUG_HUNTER_REPORTS_DIR, jsonFiles[0]);
+            const content = await fs.readFile(latestFile, 'utf-8');
+            const report = JSON.parse(content) as BugHunterReport;
+
+            // Convert report bugs to our format
+            bugs = report.bugs.map(b => ({
+              id: b.id,
+              title: b.title,
+              severity: b.severity as 'critical' | 'high' | 'medium' | 'low',
+              url: b.url,
+              status: b.status as 'pending' | 'fixing' | 'fixed' | 'failed' | 'ignored',
+            }));
+
+            log.info({ file: jsonFiles[0], bugCount: bugs.length }, 'Loaded bugs from local file');
+          } else {
+            log.info('No bug hunter reports found');
+            return reply.send({
+              ...results,
+              message: 'No bug hunter reports found in local directory',
+            });
+          }
+        } catch (error) {
+          log.error({ error }, 'Failed to read local bug hunter reports');
+          results.errors.push(`Failed to read local reports: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
 
       for (const bug of bugs) {
         try {

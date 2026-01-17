@@ -566,7 +566,7 @@ export default function EmpireControl() {
         fetchBugStats();
         fetchBugItems();
       }
-    } catch (error) {
+    } catch {
       alert('Failed to sync bug reports');
     } finally {
       setSyncingBugs(false);
