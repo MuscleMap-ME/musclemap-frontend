@@ -28,28 +28,26 @@ export { useMapNavigation } from './hooks/useMapNavigation';
 export { useMapPersistence } from './hooks/useMapPersistence';
 
 // Data
-export { REGIONS, getAllRegions, getRegion, getVisibleRegions, getRegionAtPosition } from './data/regions';
+export { REGIONS, getAllRegions, getRegion, getRegionAtPosition } from './data/regions';
 export {
   LOCATIONS,
-  PATHS,
+  PATH_CONNECTIONS,
   getLocation,
   getLocationsByRegion,
-  getVisibleLocations,
-  getConnectedPaths,
   getAdjacentLocations,
   getClosestLocation,
   getStartingLocation,
+  getAllLocations,
+  isNearLocation,
+  getPathsForLocation,
 } from './data/mapLayout';
 export {
   findPath,
   findPathPositions,
   pathToPositions,
   getDistance,
-  getLocationDistance,
-  areConnected,
-  getNeighbors,
-  getPathLength,
-  estimateTravelTime,
+  interpolatePosition,
+  getMovementWaypoints,
 } from './data/pathConnections';
 
 // Types

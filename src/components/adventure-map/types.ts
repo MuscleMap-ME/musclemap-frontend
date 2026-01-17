@@ -34,18 +34,26 @@ export type RegionId =
   | 'scholars-tower'
   | 'summit-peak';
 
+export interface RegionBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface Region {
   id: RegionId;
   name: string;
   description: string;
+  icon: string;
   theme: {
-    primaryColor: string;
-    secondaryColor: string;
-    glowColor: string;
-    icon: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    glow: string;
   };
-  bounds: MapBounds;
-  centerPosition: Position;
+  bounds: RegionBounds;
+  connections: string[];
   isAdminOnly?: boolean;
 }
 
@@ -55,18 +63,21 @@ export interface Region {
 
 export type LocationId = string;
 
+export type LocationTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
 export interface MapLocation {
   id: LocationId;
   name: string;
   description: string;
   route: string;
-  regionId: RegionId;
+  region: RegionId;
   position: Position;
   icon: string;
-  size: 'small' | 'medium' | 'large';
+  tier: LocationTier;
+  isStarting?: boolean;
   isLocked?: boolean;
   requiredLevel?: number;
-  isAdminOnly?: boolean;
+  requiredRole?: string;
 }
 
 // ============================================

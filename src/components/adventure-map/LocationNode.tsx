@@ -10,11 +10,13 @@ import { motion } from 'framer-motion';
 import type { LocationNodeProps } from './types';
 import { REGIONS } from './data/regions';
 
-// Size configurations
-const SIZES = {
-  small: { radius: 16, iconSize: 14, labelOffset: 28 },
-  medium: { radius: 22, iconSize: 18, labelOffset: 34 },
-  large: { radius: 30, iconSize: 24, labelOffset: 42 },
+// Size configurations based on tier
+const TIER_SIZES = {
+  common: { radius: 18, iconSize: 14, labelOffset: 28 },
+  uncommon: { radius: 20, iconSize: 16, labelOffset: 32 },
+  rare: { radius: 24, iconSize: 18, labelOffset: 36 },
+  epic: { radius: 26, iconSize: 20, labelOffset: 40 },
+  legendary: { radius: 30, iconSize: 24, labelOffset: 44 },
 };
 
 export default function LocationNode({
@@ -26,8 +28,8 @@ export default function LocationNode({
   onClick,
   onHover,
 }: LocationNodeProps) {
-  const { position, icon, name, size, regionId, isAdminOnly, isLocked } = location;
-  const config = SIZES[size];
+  const { position, icon, name, tier, region: regionId, requiredRole, isLocked } = location;
+  const config = TIER_SIZES[tier] || TIER_SIZES.common;
   const region = REGIONS[regionId];
 
   const handleClick = useCallback(() => {
@@ -92,8 +94,8 @@ export default function LocationNode({
         </filter>
 
         <radialGradient id={`location-gradient-${location.id}`}>
-          <stop offset="0%" stopColor={region?.theme.primaryColor || '#3b82f6'} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={region?.theme.secondaryColor || '#1d4ed8'} stopOpacity="1" />
+          <stop offset="0%" stopColor={region?.theme.primary || '#3b82f6'} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={region?.theme.secondary || '#1d4ed8'} stopOpacity="1" />
         </radialGradient>
       </defs>
 
@@ -104,7 +106,7 @@ export default function LocationNode({
           cy={position.y}
           r={config.radius + 10}
           fill="none"
-          stroke={region?.theme.primaryColor || '#3b82f6'}
+          stroke={region?.theme.primary || '#3b82f6'}
           strokeWidth={3}
           variants={pulseVariants}
           animate="nearby"
@@ -133,7 +135,7 @@ export default function LocationNode({
         cy={position.y}
         r={config.radius + 4}
         fill="none"
-        stroke={region?.theme.glowColor || 'rgba(59, 130, 246, 0.5)'}
+        stroke={region?.theme.glow || 'rgba(59, 130, 246, 0.5)'}
         strokeWidth={isHovered || isSelected ? 3 : 2}
         filter={isHovered || isSelected ? `url(#location-glow-${location.id})` : undefined}
         initial={{ opacity: 0.3 }}
@@ -146,7 +148,7 @@ export default function LocationNode({
         cy={position.y}
         r={config.radius}
         fill="rgba(0, 0, 0, 0.6)"
-        stroke={region?.theme.primaryColor || '#3b82f6'}
+        stroke={region?.theme.primary || '#3b82f6'}
         strokeWidth={2}
       />
 
@@ -197,7 +199,7 @@ export default function LocationNode({
       )}
 
       {/* Admin badge */}
-      {isAdminOnly && (
+      {requiredRole === 'admin' && (
         <g>
           <circle
             cx={position.x - config.radius + 4}
@@ -264,7 +266,7 @@ export default function LocationNode({
             height={40}
             rx={8}
             fill="rgba(0, 0, 0, 0.9)"
-            stroke={region?.theme.primaryColor || '#3b82f6'}
+            stroke={region?.theme.primary || '#3b82f6'}
             strokeWidth={1}
           />
           <text

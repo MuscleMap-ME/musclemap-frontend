@@ -775,43 +775,91 @@ function findDocById(id) {
   return null;
 }
 
+// Helper to resolve a URL path to a doc ID
+// Supports both flat paths (/docs/guide-dashboard) and nested paths (/docs/guides/dashboard)
+function resolvePathToDocId(docId: string | undefined, splatPath: string | undefined): { id: string; isPublic: boolean } | null {
+  // Build full path from docId and splat
+  const fullPath = splatPath ? `${docId}/${splatPath}` : docId;
+  if (!fullPath) return null;
+
+  // Path mappings for nested routes (e.g., /docs/guides/dashboard -> guide-dashboard)
+  const pathMappings: Record<string, { id: string; isPublic: boolean }> = {
+    // Guides
+    'guides/dashboard': { id: 'guide-dashboard', isPublic: true },
+    'guides/first-week': { id: 'guide-first-week', isPublic: true },
+    'guides/logging-workouts': { id: 'guide-logging-workouts', isPublic: true },
+    'guides/tracking-progress': { id: 'guide-tracking-progress', isPublic: true },
+    'guides/rivalries': { id: 'guide-rivalries', isPublic: true },
+    'guides/crews': { id: 'guide-crews', isPublic: true },
+    'guides/advanced-features': { id: 'guide-advanced', isPublic: true },
+    'guides/troubleshooting': { id: 'guide-troubleshooting', isPublic: true },
+    'guides': { id: 'guides', isPublic: true },
+    // Features
+    'features/muscle-system': { id: 'features', isPublic: true },
+    'features': { id: 'features', isPublic: true },
+    // Getting started
+    'getting-started/onboarding-flow': { id: 'getting-started', isPublic: true },
+    'getting-started': { id: 'getting-started', isPublic: true },
+    // Community
+    'community': { id: 'community', isPublic: true },
+    // API
+    'api': { id: 'api', isPublic: true },
+  };
+
+  // Check path mappings first
+  if (pathMappings[fullPath]) {
+    return pathMappings[fullPath];
+  }
+
+  // Then check if the docId directly matches a known doc
+  const directMatch = findDocById(fullPath);
+  if (directMatch) {
+    return { id: fullPath, isPublic: directMatch.isPublic };
+  }
+
+  // Check if just docId matches (no splat)
+  if (docId && !splatPath) {
+    const match = findDocById(docId);
+    if (match) {
+      return { id: docId, isPublic: match.isPublic };
+    }
+  }
+
+  return null;
+}
+
 // Main Docs page component
 export default function Docs() {
   const { docId, '*': splatPath } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use docId directly - the splat path is only for catching unknown routes
-  // If we have a splat path, it means the URL didn't match a known doc route
-  // In that case, show the docs index page
-  const requestedDocId = splatPath ? null : docId;
+  // Resolve the URL path to a doc ID
+  const resolvedDoc = resolvePathToDocId(docId, splatPath);
 
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [isPublicDoc, setIsPublicDoc] = useState(false);
   const [_activeTab, _setActiveTab] = useState('all');
-  const [pendingAnchor, setPendingAnchor] = useState(null);
+  const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (requestedDocId) {
-      const found = findDocById(requestedDocId);
-      if (found) {
-        setSelectedDoc(requestedDocId);
-        setIsPublicDoc(found.isPublic);
-        // Capture anchor from URL hash for scrolling after content loads
-        if (location.hash) {
-          setPendingAnchor(location.hash);
-        }
-      } else {
-        // Unknown doc ID - show index page
-        setSelectedDoc(null);
-        setIsPublicDoc(false);
+    if (resolvedDoc) {
+      setSelectedDoc(resolvedDoc.id);
+      setIsPublicDoc(resolvedDoc.isPublic);
+      // Capture anchor from URL hash for scrolling after content loads
+      if (location.hash) {
+        setPendingAnchor(location.hash);
       }
+    } else if (docId || splatPath) {
+      // Unknown path - show index page but don't clear if no docId
+      setSelectedDoc(null);
+      setIsPublicDoc(false);
     } else {
-      // No doc ID or splat path - show index page
+      // No doc ID - show index page
       setSelectedDoc(null);
       setIsPublicDoc(false);
     }
-  }, [requestedDocId, location.hash]);
+  }, [resolvedDoc?.id, resolvedDoc?.isPublic, location.hash, docId, splatPath]);
 
   const handleDocClick = (id, isPublic = false, anchor = null) => {
     setSelectedDoc(id);

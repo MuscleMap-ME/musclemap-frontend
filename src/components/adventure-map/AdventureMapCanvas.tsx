@@ -15,7 +15,7 @@ import { useCharacterMovement } from './hooks/useCharacterMovement';
 import { useMapNavigation } from './hooks/useMapNavigation';
 import { useAdventureMapStore, useMapView, useLocationSelection, useMapProgress } from '../../store/adventureMapStore';
 import { REGIONS, getAllRegions } from './data/regions';
-import { LOCATIONS, PATHS, getClosestLocation } from './data/mapLayout';
+import { getAllLocations, PATH_CONNECTIONS, getClosestLocation } from './data/mapLayout';
 import type { AdventureMapCanvasProps, Position, CompanionData } from './types';
 
 // Map dimensions
@@ -150,7 +150,7 @@ export default function AdventureMapCanvas({
 
   // Check if character is near a location
   const isCharacterNearLocation = useCallback((locationId: string): boolean => {
-    const location = LOCATIONS.find((l) => l.id === locationId);
+    const location = getAllLocations().find((l) => l.id === locationId);
     if (!location) return false;
 
     const dx = position.x - location.position.x;
@@ -222,10 +222,10 @@ export default function AdventureMapCanvas({
 
         {/* Paths layer (roads between locations) */}
         <g className="paths-layer">
-          {PATHS.map((path) => (
+          {PATH_CONNECTIONS.map((path, index) => (
             <MapPath
-              key={path.id}
-              path={path}
+              key={`${path.from}-${path.to}-${index}`}
+              path={{ id: `${path.from}-${path.to}`, from: path.from, to: path.to, style: path.style }}
               isActive={isMoving && (path.from === selected || path.to === selected)}
               isHighlighted={path.from === hovered || path.to === hovered}
             />
@@ -241,7 +241,7 @@ export default function AdventureMapCanvas({
               isActive={currentRegion === region.id}
             >
               {/* Locations within this region */}
-              {LOCATIONS.filter((loc) => loc.regionId === region.id).map((location) => (
+              {getAllLocations().filter((loc) => loc.region === region.id).map((location) => (
                 <LocationNode
                   key={location.id}
                   location={location}
@@ -325,7 +325,7 @@ export default function AdventureMapCanvas({
               {REGIONS[currentRegion]?.name || 'Unknown'}
             </div>
             <div className="text-white/50 text-xs">
-              {visited.length} / {LOCATIONS.filter((l) => !l.isAdminOnly).length} discovered
+              {visited.length} / {getAllLocations().filter((l) => !l.isAdminOnly).length} discovered
             </div>
           </div>
         </div>
