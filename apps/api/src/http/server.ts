@@ -15,6 +15,7 @@ import swaggerUI from '@fastify/swagger-ui';
 import compress from '@fastify/compress';
 import websocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
+import { ZodError } from 'zod';
 
 import { config, isProduction } from '../config';
 import { logger, loggers } from '../lib/logger';
@@ -111,8 +112,8 @@ import { registerExerciseGroupRoutes } from './routes/exercise-groups';
 import rpeRoutes from './routes/rpe';
 import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
-// TODO: Marketplace module disabled - services need rewrite to use pg client instead of Knex
-// import { marketplaceRoutes } from './routes/marketplace';
+// Marketplace module - services fully migrated to raw pg client
+import { marketplaceRoutes } from './routes/marketplace';
 
 // Engagement system routes
 import { registerDailyLoginRoutes } from './routes/daily-login';
@@ -171,6 +172,33 @@ export async function createServer(): Promise<FastifyInstance> {
   // Error handler
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.setErrorHandler(async (error: any, request, reply) => {
+    // Handle Zod validation errors - return 400 with details
+    if (error instanceof ZodError) {
+      const fieldErrors = error.flatten().fieldErrors;
+      const issues = error.issues.map(issue => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+      }));
+
+      log.warn({
+        requestId: request.id,
+        url: request.url,
+        method: request.method,
+        validationErrors: fieldErrors,
+      }, 'Validation error');
+
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Request validation failed',
+          statusCode: 400,
+          details: fieldErrors,
+          issues,
+        },
+      });
+    }
+
     const statusCode = error?.statusCode || 500;
 
     // Capture full error details for debugging
@@ -546,8 +574,8 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerWatchRoutes(api);
 
     // Marketplace, trading, collections, mystery boxes
-    // TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
-    // await marketplaceRoutes(api);
+    // Services fully migrated to raw pg client
+    await marketplaceRoutes(api);
 
     // ========================================
     // ENGAGEMENT SYSTEM

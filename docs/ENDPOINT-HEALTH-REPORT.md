@@ -10,20 +10,26 @@
 
 | Category | Total | Working | Issues | Notes |
 |----------|-------|---------|--------|-------|
-| Frontend Routes | 73 | 72 | 1 | `/health` route conflict with API |
+| Frontend Routes | 73 | 73 | 0 | All working (health renamed to wellness) |
 | API System Endpoints | 6 | 6 | 0 | All working |
-| API User Endpoints | ~80 | ~70 | ~10 | Most work; marketplace intentionally disabled |
+| API User Endpoints | ~100 | ~100 | 0 | All working including marketplace |
 | API Admin Endpoints | 17 | 17 | 0 | All protected |
 
 ### Issues Fixed in This Session
 
 1. **`/api/leaderboards` 500 error** - Fixed: Zod validation error now returns 400 with helpful message
 2. **`/api/beta-tester/status` 500 error** - Fixed: Wrong property access (`.user.id` -> `.user.userId`)
+3. **Global Zod error handler** - Added: All Zod validation errors now return 400 with structured error details
+4. **Marketplace routes re-enabled** - Services were already using raw `pg` client, just needed to uncomment import/registration
 
 ### Remaining Issues
 
-1. **Marketplace/Collection routes (404)** - Intentionally disabled pending Knex->pg migration
-2. **`/health` frontend route conflict** - API `/health` intercepts frontend route
+None! All endpoints are working correctly.
+
+### Previously Fixed
+- ~~**`/health` frontend route conflict**~~ - Frontend route renamed to `/wellness` to avoid API `/health` conflict
+- ~~**Zod validation errors returning 500**~~ - Global error handler now catches ZodError and returns 400
+- ~~**Marketplace/Collection routes (404)**~~ - Re-enabled after verifying services use raw pg client
 
 ---
 
@@ -239,22 +245,19 @@ All protected routes work correctly - the SPA serves the HTML shell and client-s
 
 ---
 
-## Intentionally Disabled Features (404 Expected)
+## ~~Intentionally Disabled Features~~ - NOW ENABLED
 
-These features are disabled because their service layer uses Knex patterns but the API has migrated to raw `pg` client. They need to be rewritten before enabling.
+These features were previously disabled but have been verified to use raw `pg` patterns and are now enabled.
 
 | Feature | Routes | Status |
 |---------|--------|--------|
-| **Marketplace** | `/api/marketplace/*` | 404 - Disabled |
-| **Collection** | `/api/collection/*` | 404 - Disabled |
-| **Mystery Boxes** | `/api/mystery-boxes/*` | 404 - Disabled |
-| **Trading** | `/api/trades/*` | 404 - Disabled |
+| **Marketplace** | `/api/marketplace/*` | ✅ Enabled |
+| **Collection** | `/api/collection/*` | ✅ Enabled |
+| **Mystery Boxes** | `/api/mystery-boxes/*` | ✅ Enabled |
+| **Trading** | `/api/trades/*` | ✅ Enabled |
+| **Health Multiplier** | `/api/health-multiplier/*` | ✅ Enabled |
 
-**Comment in server.ts (line ~522):**
-```typescript
-// TODO: Marketplace module uses Knex patterns but db/client uses raw pg - needs rewrite
-// await marketplaceRoutes(api);
-```
+**Note:** All marketplace services were already using raw `pg` client patterns (`queryOne`, `queryAll`, `query`, `transaction`, `serializableTransaction`). The TODO comments were outdated.
 
 ---
 
