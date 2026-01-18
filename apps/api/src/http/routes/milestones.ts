@@ -535,7 +535,7 @@ export async function registerMilestonesRoutes(app: FastifyInstance) {
           );
           // Award XP
           await db.query(
-            `UPDATE users SET xp = COALESCE(xp, 0) + $1 WHERE id = $2`,
+            `UPDATE users SET total_xp = COALESCE(total_xp, 0) + $1 WHERE id = $2`,
             [milestone.xp_reward, userId]
           );
           log.info({ userId, milestoneId: userMilestone.milestone_id, xp: milestone.xp_reward }, 'Milestone achieved');

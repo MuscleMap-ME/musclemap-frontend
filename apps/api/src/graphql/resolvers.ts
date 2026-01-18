@@ -229,14 +229,14 @@ export const resolvers = {
         avatar_url: string | null;
         bio: string | null;
         social_links: Record<string, string> | null;
-        archetype_id: string | null;
+        current_identity_id: string | null;
         level: number;
         xp: number;
         roles: string[];
         created_at: Date;
       }>(
-        `SELECT id, email, username, display_name, avatar_url, bio, social_links, archetype_id,
-                COALESCE(level, 1) as level, COALESCE(xp, 0) as xp, roles, created_at
+        `SELECT id, email, username, display_name, avatar_url, bio, social_links, current_identity_id,
+                COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp, roles, created_at
          FROM users WHERE id = $1`,
         [userId]
       );
@@ -253,6 +253,7 @@ export const resolvers = {
         avatar: user.avatar_url,
         bio: user.bio,
         socialLinks: user.social_links,
+        identityId: user.current_identity_id,
         level: user.level,
         xp: user.xp,
         wealthTier: buildWealthTierResponse(credits),
@@ -648,7 +649,7 @@ export const resolvers = {
 
       // Get user level/xp
       const user = await queryOne<{ level: number; xp: number }>(
-        'SELECT COALESCE(level, 1) as level, COALESCE(xp, 0) as xp FROM users WHERE id = $1',
+        'SELECT COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp FROM users WHERE id = $1',
         [userId]
       );
 
@@ -1722,7 +1723,7 @@ export const resolvers = {
         created_at: Date;
       }>(
         `SELECT id, email, username, display_name, bio, social_links, password_hash, roles,
-                COALESCE(level, 1) as level, COALESCE(xp, 0) as xp, created_at
+                COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp, created_at
          FROM users WHERE email = $1`,
         [email]
       );
@@ -1922,7 +1923,7 @@ export const resolvers = {
         });
       }
 
-      await query('UPDATE users SET archetype_id = $1 WHERE id = $2', [args.archetypeId, userId]);
+      await query('UPDATE users SET current_identity_id = $1 WHERE id = $2', [args.archetypeId, userId]);
 
       return {
         success: true,

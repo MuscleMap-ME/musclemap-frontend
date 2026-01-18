@@ -1005,7 +1005,7 @@ export async function registerJourneysRoutes(app: FastifyInstance) {
     // Award XP if any milestones achieved
     if (xpEarned > 0) {
       await db.query(
-        `UPDATE users SET xp = COALESCE(xp, 0) + $1 WHERE id = $2`,
+        `UPDATE users SET total_xp = COALESCE(total_xp, 0) + $1 WHERE id = $2`,
         [xpEarned, userId]
       );
     }
