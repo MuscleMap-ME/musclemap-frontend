@@ -172,10 +172,16 @@ export async function createServer(): Promise<FastifyInstance> {
   app.setErrorHandler(async (error: FastifyError, request, reply) => {
     const statusCode = error.statusCode || 500;
 
+    // Always log detailed error info for debugging
     log.error({
       requestId: request.id,
-      error: error.message,
-      stack: isProduction ? undefined : error.stack,
+      errorMessage: error.message || 'Unknown error',
+      errorCode: error.code || 'UNKNOWN',
+      errorName: error.name,
+      url: request.url,
+      method: request.method,
+      // Include stack trace for 500 errors even in production (for debugging)
+      stack: statusCode >= 500 ? error.stack : undefined,
       statusCode,
     }, 'Request error');
 
