@@ -1,16 +1,18 @@
 /**
  * GlobalMascotHero
  *
- * Hero section placement of the global mascot.
- * Displays prominently on landing pages with ecosystem info.
+ * Hero section placement of the COCKATRICE mascot.
+ * The authentic TripToMean heraldic cockatrice is the primary site mascot.
+ *
+ * The TЯIPTθMΞAN Spirit (theta symbol) is now used only for loading states.
  */
 
 import React, { Suspense, lazy } from 'react';
 import { useGlobalMascot } from './useGlobalMascot';
-import GlobalMascot2D from './GlobalMascot2D';
+import { CockatriceHeraldic } from '../cockatrice';
 
-// Lazy load 3D component
-const GlobalMascot3D = lazy(() => import('./GlobalMascot3D'));
+// Lazy load 3D cockatrice
+const Cockatrice3D = lazy(() => import('../cockatrice/Cockatrice3D'));
 
 export default function GlobalMascotHero({ className = '' }) {
   const { config, use3D, loading, prefersReducedMotion } = useGlobalMascot();
@@ -25,14 +27,19 @@ export default function GlobalMascotHero({ className = '' }) {
 
   return (
     <div className={`relative w-full flex flex-col items-center justify-center ${className}`}>
-      {/* Mascot visualization */}
-      <div className="w-48 h-48 md:w-56 md:h-56 lg:w-64 lg:h-64">
+      {/* Cockatrice mascot visualization */}
+      <div className="w-48 h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 flex items-center justify-center">
         {use3D ? (
-          <Suspense fallback={<GlobalMascot2D size="large" reducedMotion={prefersReducedMotion} />}>
-            <GlobalMascot3D size="large" showStars animationState="idle" />
+          <Suspense fallback={<CockatriceHeraldic size="xxl" state="idle" reducedMotion={prefersReducedMotion} />}>
+            <Cockatrice3D size={256} state="idle" color="#a855f7" />
           </Suspense>
         ) : (
-          <GlobalMascot2D size="large" animationState="idle" reducedMotion={prefersReducedMotion} />
+          <CockatriceHeraldic
+            size="xxl"
+            state="idle"
+            reducedMotion={prefersReducedMotion}
+            color="#a855f7"
+          />
         )}
       </div>
 

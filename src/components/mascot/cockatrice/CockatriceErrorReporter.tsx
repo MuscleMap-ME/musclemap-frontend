@@ -16,7 +16,7 @@
 
 import React, { useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Cockatrice from './Cockatrice';
+import CockatriceHeraldic from './CockatriceHeraldic';
 import {
   getCockatriceMessage,
   getSuccessMessage,
@@ -183,7 +183,7 @@ export default function CockatriceErrorReporter({
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
               >
-                <Cockatrice state="victorious" size="xl" />
+                <CockatriceHeraldic state="victorious" size="xl" />
               </motion.div>
             ) : (
               <motion.div
@@ -192,7 +192,7 @@ export default function CockatriceErrorReporter({
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.1 }}
               >
-                <Cockatrice state={message.mood} size="xl" />
+                <CockatriceHeraldic state={message.mood as any} size="xl" />
               </motion.div>
             )}
           </AnimatePresence>

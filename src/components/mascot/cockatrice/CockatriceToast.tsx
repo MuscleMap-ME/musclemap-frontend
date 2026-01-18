@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import Cockatrice from './Cockatrice';
+import CockatriceHeraldic from './CockatriceHeraldic';
 import {
   getCockatriceMessage,
   detectErrorCategory,
@@ -74,7 +74,7 @@ export default function CockatriceToast({
     >
       {/* Mini Cockatrice */}
       <div className="flex-shrink-0">
-        <Cockatrice state={cockatriceMessage.mood} size="sm" />
+        <CockatriceHeraldic state={cockatriceMessage.mood as any} size="sm" />
       </div>
 
       {/* Message */}
