@@ -251,8 +251,8 @@ export default function EmpireControl() {
   const [_recentActivity, _setRecentActivity] = useState([]);
   const [messages, setMessages] = useState([]);
   const [economyStats, setEconomyStats] = useState(null);
-  const [_slackMessages, _setSlackMessages] = useState([]);
-  const [_slackConnected, _setSlackConnected] = useState(false);
+  const [slackMessages, _setSlackMessages] = useState<Array<{text: string; user: string; time: string}>>([]);
+  const [slackConnected, _setSlackConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -1788,7 +1788,13 @@ export default function EmpireControl() {
                                           {error.username && (
                                             <>
                                               <span>•</span>
-                                              <span className="text-violet-400">{error.username}</span>
+                                              <Link
+                                                to={`/profile/${error.username}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="text-violet-400 hover:text-violet-300 hover:underline"
+                                              >
+                                                {error.username}
+                                              </Link>
                                             </>
                                           )}
                                           <span>•</span>
@@ -1843,7 +1849,13 @@ export default function EmpireControl() {
                                 {selectedCockatriceError.username && (
                                   <div>
                                     <h4 className="text-xs text-gray-500 mb-1">User</h4>
-                                    <p className="text-sm text-violet-400">{selectedCockatriceError.username}</p>
+                                    <Link
+                                      to={`/profile/${selectedCockatriceError.username}`}
+                                      className="text-sm text-violet-400 hover:text-violet-300 hover:underline flex items-center gap-1"
+                                    >
+                                      {selectedCockatriceError.username}
+                                      <ExternalLink className="w-3 h-3" />
+                                    </Link>
                                   </div>
                                 )}
                                 <div>

@@ -49,11 +49,15 @@ const DISMISSED_KEY = 'musclemap_dismissed_features';
 
 /**
  * Get stored array from localStorage
+ * Always returns a valid array, even if localStorage data is corrupted
  */
 function getStoredArray(key) {
   try {
     const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    // Validate that parsed value is actually an array
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
@@ -167,15 +171,20 @@ export default function FeatureDiscovery({
 
   // Get all features, optionally filtered by category or categories
   const allFeatures = useMemo(() => {
+    let features;
     // Single category filter (new prop)
     if (category) {
-      return getFeaturesByCategory(category);
+      features = getFeaturesByCategory(category);
     }
-    // Multiple categories filter (legacy prop)
-    if (filter && filter.length > 0) {
-      return getFeaturesByCategories(filter);
+    // Multiple categories filter (legacy prop) - validate it's an array
+    else if (Array.isArray(filter) && filter.length > 0) {
+      features = getFeaturesByCategories(filter);
     }
-    return DISCOVERABLE_FEATURES;
+    else {
+      features = DISCOVERABLE_FEATURES;
+    }
+    // Final safety: ensure we always return an array
+    return Array.isArray(features) ? features : [];
   }, [category, filter]);
 
   // Filter out discovered and dismissed features, sort by priority
@@ -742,10 +751,15 @@ export function FeatureDiscoveryCompact({
   const { dismissed } = useDismissedFeatures();
 
   const allFeatures = useMemo(() => {
-    if (filter && filter.length > 0) {
-      return getFeaturesByCategories(filter);
+    let features;
+    // Validate filter is an array before using
+    if (Array.isArray(filter) && filter.length > 0) {
+      features = getFeaturesByCategories(filter);
+    } else {
+      features = DISCOVERABLE_FEATURES;
     }
-    return DISCOVERABLE_FEATURES;
+    // Final safety: ensure we always return an array
+    return Array.isArray(features) ? features : [];
   }, [filter]);
 
   const undiscoveredFeatures = useMemo(() => {

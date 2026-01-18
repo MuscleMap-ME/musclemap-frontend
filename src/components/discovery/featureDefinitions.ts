@@ -346,6 +346,11 @@ export function getFeaturesByCategory(category) {
  * @returns {Array} Features in any of the categories
  */
 export function getFeaturesByCategories(categories) {
+  // Safety: ensure categories is an array before using includes
+  if (!Array.isArray(categories)) {
+    console.warn('getFeaturesByCategories: expected array, got', typeof categories);
+    return [];
+  }
   return DISCOVERABLE_FEATURES.filter((f) => categories.includes(f.category));
 }
 
