@@ -169,30 +169,52 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // Error handler
-  app.setErrorHandler(async (error: FastifyError, request, reply) => {
-    const statusCode = error.statusCode || 500;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.setErrorHandler(async (error: any, request, reply) => {
+    const statusCode = error?.statusCode || 500;
+
+    // Capture full error details for debugging
+    let errorMessage = 'Unknown error';
+    let errorStack: string | undefined;
+    let errorType = 'unknown';
+
+    if (error === undefined || error === null) {
+      errorMessage = 'Error is undefined or null';
+      errorType = 'null_error';
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+      errorType = 'string_error';
+    } else if (error instanceof Error) {
+      errorMessage = error.message || 'Error with no message';
+      errorStack = error.stack;
+      errorType = error.constructor?.name || 'Error';
+    } else if (typeof error === 'object') {
+      errorMessage = error.message || JSON.stringify(error).slice(0, 200);
+      errorType = 'object_error';
+    }
 
     // Always log detailed error info for debugging
     log.error({
       requestId: request.id,
-      errorMessage: error.message || 'Unknown error',
-      errorCode: error.code || 'UNKNOWN',
-      errorName: error.name,
+      errorMessage,
+      errorCode: error?.code || 'UNKNOWN',
+      errorName: error?.name,
+      errorType,
       url: request.url,
       method: request.method,
       // Include stack trace for 500 errors even in production (for debugging)
-      stack: statusCode >= 500 ? error.stack : undefined,
+      stack: statusCode >= 500 ? errorStack : undefined,
       statusCode,
     }, 'Request error');
 
     // Don't expose internal errors in production
     const message = isProduction && statusCode >= 500
       ? 'Internal server error'
-      : error.message;
+      : errorMessage;
 
     return reply.status(statusCode).send({
       error: {
-        code: error.code || 'ERROR',
+        code: error?.code || 'ERROR',
         message,
         statusCode,
       },
