@@ -6,11 +6,16 @@
  * - queued_for_auto_fix: Bug was queued for BullMQ auto-fix worker
  */
 
-import type { Knex } from 'knex';
+import { db } from '../client';
+import { loggers } from '../../lib/logger';
 
-export async function up(knex: Knex): Promise<void> {
+const log = loggers.db;
+
+export async function up(): Promise<void> {
+  log.info('Running migration: 123_bug_history_action_expand');
+
   // Drop and recreate the check constraint with expanded action values
-  await knex.raw(`
+  await db.query(`
     ALTER TABLE bug_history DROP CONSTRAINT IF EXISTS bug_history_action_check;
 
     ALTER TABLE bug_history ADD CONSTRAINT bug_history_action_check CHECK (
@@ -32,11 +37,15 @@ export async function up(knex: Knex): Promise<void> {
       )
     );
   `);
+
+  log.info('Migration 123_bug_history_action_expand completed');
 }
 
-export async function down(knex: Knex): Promise<void> {
+export async function down(): Promise<void> {
+  log.info('Rolling back migration: 123_bug_history_action_expand');
+
   // Revert to original constraint
-  await knex.raw(`
+  await db.query(`
     ALTER TABLE bug_history DROP CONSTRAINT IF EXISTS bug_history_action_check;
 
     ALTER TABLE bug_history ADD CONSTRAINT bug_history_action_check CHECK (
@@ -56,4 +65,6 @@ export async function down(knex: Knex): Promise<void> {
       )
     );
   `);
+
+  log.info('Rollback 123_bug_history_action_expand completed');
 }

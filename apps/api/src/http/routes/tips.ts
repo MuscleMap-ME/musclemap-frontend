@@ -55,8 +55,8 @@ export async function registerTipsRoutes(app: FastifyInstance) {
     }
 
     paramIndex++;
-    // Note: times_shown column doesn't exist - order by priority instead
-    sql += ` ORDER BY priority DESC, RANDOM() LIMIT $${paramIndex}`;
+    // Order by times_shown ASC (show less-shown tips first), then random for variety
+    sql += ` ORDER BY times_shown ASC, RANDOM() LIMIT $${paramIndex}`;
     queryParams.push(parseInt(params.limit || '5'));
 
     const tips = await queryAll<{
@@ -66,8 +66,8 @@ export async function registerTipsRoutes(app: FastifyInstance) {
       category: string;
       title: string;
       content: string;
-      priority: number;
-      display_context: string[] | null;
+      times_shown: number;
+      display_context: string | null;
     }>(sql, queryParams);
 
     return reply.send({
@@ -78,9 +78,8 @@ export async function registerTipsRoutes(app: FastifyInstance) {
         category: t.category,
         title: t.title,
         content: t.content,
-        timesShown: 0, // Column doesn't exist
+        timesShown: t.times_shown ?? 0,
         displayContext: t.display_context,
-        priority: t.priority,
       })),
     });
   });

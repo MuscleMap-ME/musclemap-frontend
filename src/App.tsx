@@ -7,6 +7,7 @@ import { UserProvider } from './contexts/UserContext';
 import { useAuth } from './store/authStore';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { MotionProvider } from './contexts/MotionContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { CompanionProvider } from './components/mascot';
 const CompanionDock = lazy(() => import('./components/mascot/companion/CompanionDock'));
@@ -666,8 +667,9 @@ export default function App() {
       <ApolloProvider client={apolloClient}>
         <ThemeProvider>
           <LocaleProvider>
-            <BrowserRouter>
-              <TransitionProvider showProgressBar>
+            <MotionProvider>
+              <BrowserRouter>
+                <TransitionProvider showProgressBar>
                 <UserProvider>
                   <PluginProvider>
                     <PluginThemeProvider>
@@ -699,8 +701,9 @@ export default function App() {
                     </PluginThemeProvider>
                   </PluginProvider>
                 </UserProvider>
-              </TransitionProvider>
-            </BrowserRouter>
+                </TransitionProvider>
+              </BrowserRouter>
+            </MotionProvider>
           </LocaleProvider>
         </ThemeProvider>
       </ApolloProvider>
