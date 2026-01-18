@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { query as dbQuery, queryOne as dbQueryOne, queryAll as dbQueryAll } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
+import { bugFixQueue, type BugFixJobData } from '../../jobs/bug-fix.queue';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -902,6 +903,287 @@ export default async function adminBugsRoutes(app: FastifyInstance): Promise<voi
           createdAt: t.created_at,
         })),
       });
+    }
+  );
+
+  /**
+   * POST /admin/bugs/auto-fix
+   * Automatically confirm and queue high-confidence bugs for auto-fix
+   * This is the key endpoint that enables the automation pipeline
+   */
+  app.post(
+    '/admin/bugs/auto-fix',
+    { preHandler: [authenticateBugHunterOrAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const schema = z.object({
+        bugIds: z.array(z.string()).optional(), // If provided, only process these bugs
+        autoConfirmThreshold: z.number().min(0).max(1).default(0.7), // Min confidence for auto-confirm
+        priorityFilter: z.array(z.enum(['critical', 'high', 'medium', 'low'])).default(['critical', 'high']),
+        maxBugs: z.number().min(1).max(50).default(10), // Max bugs to process per call
+        dryRun: z.boolean().default(false), // If true, don't actually queue jobs
+      });
+
+      const params = schema.parse(request.body || {});
+      const results = {
+        confirmed: 0,
+        queued: 0,
+        skipped: 0,
+        errors: [] as string[],
+        bugIds: [] as string[],
+      };
+
+      try {
+        // Find bugs that are eligible for auto-fix
+        let sql = `
+          SELECT
+            f.id,
+            f.title,
+            f.description,
+            f.priority,
+            f.status,
+            f.root_cause_hypothesis,
+            f.suggested_fix,
+            f.auto_fix_status
+          FROM user_feedback f
+          WHERE f.type = 'bug_report'
+            AND f.status IN ('open', 'confirmed')
+            AND (f.auto_fix_status IS NULL OR f.auto_fix_status NOT IN ('in_progress', 'completed'))
+        `;
+        const queryParams: unknown[] = [];
+        let paramIndex = 1;
+
+        // Filter by specific bug IDs if provided
+        if (params.bugIds && params.bugIds.length > 0) {
+          sql += ` AND f.id = ANY($${paramIndex++})`;
+          queryParams.push(params.bugIds);
+        }
+
+        // Filter by priority
+        if (params.priorityFilter.length > 0 && params.priorityFilter.length < 4) {
+          sql += ` AND f.priority = ANY($${paramIndex++})`;
+          queryParams.push(params.priorityFilter);
+        }
+
+        sql += ` ORDER BY
+          CASE f.priority
+            WHEN 'critical' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'medium' THEN 3
+            WHEN 'low' THEN 4
+          END ASC,
+          f.created_at ASC
+        LIMIT $${paramIndex}`;
+        queryParams.push(params.maxBugs);
+
+        const bugs = await dbQueryAll<{
+          id: string;
+          title: string;
+          description: string;
+          priority: string;
+          status: string;
+          root_cause_hypothesis: string | null;
+          suggested_fix: unknown;
+          auto_fix_status: string | null;
+        }>(sql, queryParams);
+
+        log.info({ bugCount: bugs.length, params }, 'Processing bugs for auto-fix');
+
+        for (const bug of bugs) {
+          try {
+            // Skip if already being processed
+            if (bug.auto_fix_status === 'in_progress') {
+              results.skipped++;
+              continue;
+            }
+
+            // Auto-confirm if not already confirmed
+            if (bug.status === 'open') {
+              if (!params.dryRun) {
+                await dbQuery(`
+                  UPDATE user_feedback SET
+                    status = 'confirmed',
+                    confirmed_at = NOW(),
+                    updated_at = NOW()
+                  WHERE id = $1
+                `, [bug.id]);
+
+                // Add history entry
+                await dbQuery(`
+                  INSERT INTO bug_history (feedback_id, actor_type, action, previous_value, new_value, details)
+                  VALUES ($1, 'bug_hunter', 'auto_confirmed', 'open', 'confirmed', $2)
+                `, [bug.id, JSON.stringify({ reason: 'Auto-confirmed for auto-fix processing' })]);
+              }
+              results.confirmed++;
+            }
+
+            // Queue for auto-fix
+            if (!params.dryRun) {
+              const jobData: BugFixJobData = {
+                feedbackId: bug.id,
+                title: bug.title,
+                description: bug.description || '',
+                stepsToReproduce: null,
+                expectedBehavior: null,
+                actualBehavior: bug.root_cause_hypothesis || bug.description,
+              };
+
+              await bugFixQueue.add(`fix-${bug.id}`, jobData, {
+                jobId: `bug-fix-${bug.id}`,
+                priority: bug.priority === 'critical' ? 1 : bug.priority === 'high' ? 2 : 3,
+              });
+
+              // Update status to pending
+              await dbQuery(`
+                UPDATE user_feedback SET
+                  auto_fix_status = 'pending',
+                  updated_at = NOW()
+                WHERE id = $1
+              `, [bug.id]);
+
+              // Add history entry
+              await dbQuery(`
+                INSERT INTO bug_history (feedback_id, actor_type, action, details)
+                VALUES ($1, 'bug_hunter', 'queued_for_auto_fix', $2)
+              `, [bug.id, JSON.stringify({ priority: bug.priority })]);
+            }
+
+            results.queued++;
+            results.bugIds.push(bug.id);
+
+          } catch (error) {
+            results.errors.push(`Failed to process bug ${bug.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+
+        log.info(results, 'Auto-fix processing completed');
+
+        return reply.send({
+          success: true,
+          dryRun: params.dryRun,
+          ...results,
+        });
+
+      } catch (error) {
+        log.error({ error }, 'Auto-fix processing failed');
+        return reply.status(500).send({
+          error: { code: 'AUTO_FIX_ERROR', message: error instanceof Error ? error.message : 'Unknown error', statusCode: 500 },
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /admin/bugs/:id/auto-fix
+   * Trigger auto-fix for a single bug
+   */
+  app.post<{ Params: { id: string } }>(
+    '/admin/bugs/:id/auto-fix',
+    { preHandler: [authenticateBugHunterOrAdmin] },
+    async (request, reply) => {
+      const { id } = request.params;
+
+      const bug = await dbQueryOne<{
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        priority: string;
+        root_cause_hypothesis: string | null;
+        auto_fix_status: string | null;
+      }>(`
+        SELECT id, title, description, status, priority, root_cause_hypothesis, auto_fix_status
+        FROM user_feedback
+        WHERE id = $1 AND type = 'bug_report'
+      `, [id]);
+
+      if (!bug) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Bug not found', statusCode: 404 },
+        });
+      }
+
+      if (bug.auto_fix_status === 'in_progress') {
+        return reply.status(400).send({
+          error: { code: 'ALREADY_IN_PROGRESS', message: 'Bug is already being processed', statusCode: 400 },
+        });
+      }
+
+      // Update status
+      await dbQuery(`
+        UPDATE user_feedback SET
+          status = 'confirmed',
+          confirmed_at = COALESCE(confirmed_at, NOW()),
+          auto_fix_status = 'pending',
+          updated_at = NOW()
+        WHERE id = $1
+      `, [id]);
+
+      // Queue for auto-fix
+      const jobData: BugFixJobData = {
+        feedbackId: bug.id,
+        title: bug.title,
+        description: bug.description || '',
+        stepsToReproduce: null,
+        expectedBehavior: null,
+        actualBehavior: bug.root_cause_hypothesis || bug.description,
+      };
+
+      await bugFixQueue.add(`fix-${bug.id}`, jobData, {
+        jobId: `bug-fix-${bug.id}`,
+        priority: bug.priority === 'critical' ? 1 : bug.priority === 'high' ? 2 : 3,
+      });
+
+      // Add history entry
+      await dbQuery(`
+        INSERT INTO bug_history (feedback_id, actor_type, action, details)
+        VALUES ($1, 'admin', 'queued_for_auto_fix', $2)
+      `, [id, JSON.stringify({ triggeredManually: true })]);
+
+      log.info({ bugId: id }, 'Bug queued for auto-fix');
+
+      return reply.send({ success: true, bugId: id, status: 'queued' });
+    }
+  );
+
+  /**
+   * GET /admin/bugs/queue-status
+   * Get the current status of the auto-fix queue
+   */
+  app.get(
+    '/admin/bugs/queue-status',
+    { preHandler: [authenticateBugHunterOrAdmin] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const [waiting, active, completed, failed] = await Promise.all([
+          bugFixQueue.getWaitingCount(),
+          bugFixQueue.getActiveCount(),
+          bugFixQueue.getCompletedCount(),
+          bugFixQueue.getFailedCount(),
+        ]);
+
+        // Get recent jobs
+        const [waitingJobs, activeJobs, completedJobs, failedJobs] = await Promise.all([
+          bugFixQueue.getWaiting(0, 10),
+          bugFixQueue.getActive(0, 10),
+          bugFixQueue.getCompleted(0, 10),
+          bugFixQueue.getFailed(0, 10),
+        ]);
+
+        return reply.send({
+          counts: { waiting, active, completed, failed },
+          jobs: {
+            waiting: waitingJobs.map(j => ({ id: j.id, feedbackId: j.data.feedbackId, title: j.data.title })),
+            active: activeJobs.map(j => ({ id: j.id, feedbackId: j.data.feedbackId, title: j.data.title })),
+            completed: completedJobs.map(j => ({ id: j.id, feedbackId: j.data.feedbackId, title: j.data.title, result: j.returnvalue })),
+            failed: failedJobs.map(j => ({ id: j.id, feedbackId: j.data.feedbackId, title: j.data.title, error: j.failedReason })),
+          },
+        });
+      } catch (error) {
+        log.error({ error }, 'Failed to get queue status');
+        return reply.status(500).send({
+          error: { code: 'QUEUE_ERROR', message: error instanceof Error ? error.message : 'Unknown error', statusCode: 500 },
+        });
+      }
     }
   );
 }

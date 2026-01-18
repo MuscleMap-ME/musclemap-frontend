@@ -266,6 +266,20 @@ export class BugHunterAgent {
     this.errorCollector.clearCurrentErrors();
 
     try {
+      // Check if browser context is still valid before navigating
+      try {
+        await page.evaluate(() => document.readyState);
+      } catch (contextError) {
+        // Browser context is closed, try to recreate session
+        this.log(`   ⚠️  Browser context closed, recreating session...`);
+        await this.recreateSession();
+        if (!this.session) {
+          this.log(`   ❌ Failed to recreate session, skipping route`);
+          return;
+        }
+        return; // Skip this route after recreating session
+      }
+
       // Navigate to route
       const loadTime = await measurePageLoad(page, url);
 
@@ -287,9 +301,25 @@ export class BugHunterAgent {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check if this is a browser context error - don't create false positive bugs for infrastructure issues
+      if (errorMessage.includes('Target page, context or browser has been closed') ||
+          errorMessage.includes('Protocol error') ||
+          errorMessage.includes('Target closed') ||
+          errorMessage.includes('Session closed')) {
+        this.log(`   ⚠️  ${route.path}: Browser session issue - ${errorMessage.slice(0, 60)}...`);
+        // Try to recreate session for next route
+        try {
+          await this.recreateSession();
+        } catch (recreateError) {
+          this.log(`   ⚠️  Failed to recreate session: ${recreateError}`);
+        }
+        return; // Don't create a bug for browser infrastructure issues
+      }
+
       this.log(`   ❌ ${route.path}: Navigation failed - ${errorMessage}`);
 
-      // Create error for navigation failure
+      // Create error for navigation failure (only for real navigation issues, not browser crashes)
       const capturedError: CapturedError = {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),

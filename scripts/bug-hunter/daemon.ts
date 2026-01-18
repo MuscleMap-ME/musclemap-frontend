@@ -528,6 +528,11 @@ export class BugHunterDaemon {
         if (result.errors && result.errors.length > 0) {
           console.log(`   ⚠️  Sync errors: ${result.errors.length}`);
         }
+
+        // Trigger auto-fix for high-priority bugs after sync
+        if (this.shouldAutoFix() && result.created > 0) {
+          await this.triggerAutoFix();
+        }
       } else {
         const errorText = await response.text();
         console.log(`   ⚠️  Database sync failed: ${response.status} - ${errorText}`);
@@ -535,6 +540,42 @@ export class BugHunterDaemon {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.log(`   ⚠️  Database sync error: ${message}`);
+    }
+  }
+
+  /**
+   * Trigger auto-fix for high-priority bugs in the database
+   */
+  private async triggerAutoFix(): Promise<void> {
+    console.log(`   🤖 Triggering auto-fix for queued bugs...`);
+
+    try {
+      const response = await fetch(`${this.config.productionUrl}/api/admin/bugs/auto-fix`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Bug-Hunter-Key': process.env.BUG_HUNTER_API_KEY || 'bug-hunter-internal-key-12345',
+        },
+        body: JSON.stringify({
+          priorityFilter: ['critical', 'high'],
+          maxBugs: 5, // Process up to 5 bugs at a time
+          dryRun: this.config.dryRun,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`   ✅ Auto-fix triggered: ${result.confirmed} confirmed, ${result.queued} queued for fix`);
+        if (result.errors && result.errors.length > 0) {
+          console.log(`   ⚠️  Auto-fix errors: ${result.errors.length}`);
+        }
+      } else {
+        const errorText = await response.text();
+        console.log(`   ⚠️  Auto-fix trigger failed: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`   ⚠️  Auto-fix trigger error: ${message}`);
     }
   }
 
