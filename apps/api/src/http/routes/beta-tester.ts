@@ -7,9 +7,10 @@
  * - Quick bug report with enhanced context
  */
 
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { authenticate } from './auth';
 
 const log = loggers.api;
 
@@ -35,8 +36,8 @@ interface QuickBugBody {
 
 export default async function betaTesterRoutes(fastify: FastifyInstance): Promise<void> {
   // All routes require authentication
-  fastify.addHook('preHandler', async (request) => {
-    await (fastify as any).authenticate(request);
+  fastify.addHook('preHandler', async (request, reply: FastifyReply) => {
+    await authenticate(request, reply);
   });
 
   /**

@@ -9,11 +9,12 @@
  * - Viewing beta tester journal entries
  */
 
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { NotificationService } from '../../services/notification.service';
 import { EmailService } from '../../services/email.service';
+import { authenticate } from './auth';
 
 const log = loggers.api;
 
@@ -36,8 +37,8 @@ interface JournalEntryBody {
 
 export default async function adminBetaTesterRoutes(fastify: FastifyInstance): Promise<void> {
   // All routes require admin authentication
-  fastify.addHook('preHandler', async (request) => {
-    await (fastify as any).authenticate(request);
+  fastify.addHook('preHandler', async (request, reply: FastifyReply) => {
+    await authenticate(request, reply);
     const roles = (request as any).user?.roles || [];
     if (!roles.includes('admin') && !roles.includes('super_admin')) {
       throw { statusCode: 403, message: 'Admin access required' };
