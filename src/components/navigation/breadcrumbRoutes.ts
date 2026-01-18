@@ -412,14 +412,14 @@ export const BREADCRUMB_ROUTES = {
   // ============================================
   // HEALTH & GOALS
   // ============================================
-  '/health': {
-    label: 'Health',
+  '/wellness': {
+    label: 'Wellness',
     icon: 'Heart',
   },
-  '/health/metrics': {
-    label: 'Health Metrics',
+  '/wellness/metrics': {
+    label: 'Wellness Metrics',
     icon: 'Activity',
-    parent: '/health',
+    parent: '/wellness',
   },
   '/goals': {
     label: 'Goals',

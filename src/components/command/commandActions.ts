@@ -120,13 +120,13 @@ export const NAVIGATION_ACTIONS = [
     keywords: ['points', 'currency', 'balance', 'money', 'coins'],
   },
   {
-    id: 'nav-health',
-    title: 'Health',
-    description: 'Health metrics and wellness tracking',
-    path: '/health',
+    id: 'nav-wellness',
+    title: 'Wellness',
+    description: 'Wellness metrics and health tracking',
+    path: '/wellness',
     icon: 'Heart',
     category: CATEGORIES.PAGES,
-    keywords: ['wellness', 'vitals', 'body', 'metrics'],
+    keywords: ['health', 'vitals', 'body', 'metrics'],
   },
   {
     id: 'nav-nutrition',

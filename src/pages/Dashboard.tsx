@@ -906,7 +906,7 @@ const navSections = [
       { to: '/exercises', icon: Icons.Library, label: 'Exercises' },
       { to: '/progression', icon: Icons.Chart, label: 'Progress' },
       { to: '/stats', icon: Icons.Target, label: 'Stats' },
-      { to: '/health', icon: Icons.Heart, label: 'Health' },
+      { to: '/wellness', icon: Icons.Heart, label: 'Wellness' },
       { to: '/goals', icon: Icons.Goal, label: 'Goals' },
       { to: '/limitations', icon: Icons.Shield, label: 'Limitations' },
       { to: '/pt-tests', icon: Icons.Clipboard, label: 'PT Tests' },

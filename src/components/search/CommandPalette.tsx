@@ -87,7 +87,7 @@ const DEFAULT_NAVIGATION = [
   { id: 'nav-achievements', label: 'Achievements', description: 'Your earned badges', path: '/achievements', icon: Trophy, category: 'navigation' },
   { id: 'nav-credits', label: 'Credits', description: 'Manage credits', path: '/credits', icon: Crown, category: 'navigation' },
   { id: 'nav-wallet', label: 'Wallet', description: 'Your wallet', path: '/wallet', icon: Crown, category: 'navigation' },
-  { id: 'nav-health', label: 'Health', description: 'Health overview', path: '/health', icon: Heart, category: 'navigation' },
+  { id: 'nav-wellness', label: 'Wellness', description: 'Wellness overview', path: '/wellness', icon: Heart, category: 'navigation' },
   { id: 'nav-trainers', label: 'Trainers', description: 'Find trainers', path: '/trainers', icon: Users, category: 'navigation' },
   { id: 'nav-skills', label: 'Skills', description: 'Your skill trees', path: '/skills', icon: Activity, category: 'navigation' },
   { id: 'nav-settings', label: 'Settings', description: 'App settings', path: '/settings', icon: Settings, category: 'settings' },

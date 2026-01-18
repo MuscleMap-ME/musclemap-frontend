@@ -28,7 +28,7 @@ const MUSCLE_ROUTES = [
   '/progression',
   '/journey',
   '/goals',
-  '/health',
+  '/wellness',
   '/recovery',
   '/crews',
   '/rivals',

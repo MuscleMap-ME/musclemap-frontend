@@ -164,8 +164,8 @@ export const seoConfig = {
     noindex: true,
   },
 
-  '/health': {
-    title: 'Health',
+  '/wellness': {
+    title: 'Wellness',
     description: 'Track health metrics and wellness data in MuscleMap.',
     noindex: true,
   },

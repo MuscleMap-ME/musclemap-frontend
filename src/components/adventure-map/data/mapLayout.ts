@@ -277,11 +277,11 @@ export const LOCATIONS: Record<LocationId, MapLocation> = {
   // WELLNESS SPRINGS - Health & Recovery
   // ==========================================
   health: {
-    id: 'health',
-    name: 'Health Sanctuary',
-    description: 'Track your health metrics',
+    id: 'wellness',
+    name: 'Wellness Sanctuary',
+    description: 'Track your wellness metrics',
     icon: '❤️',
-    route: '/health',
+    route: '/wellness',
     region: 'wellness-springs',
     position: { x: 200, y: 150 },
     tier: 'common',

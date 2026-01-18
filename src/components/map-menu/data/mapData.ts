@@ -344,12 +344,12 @@ function generateHealthNodes(): MapNode[] {
   return [
     {
       id: 'health-overview',
-      label: 'Health',
-      shortLabel: 'Health',
+      label: 'Wellness',
+      shortLabel: 'Wellness',
       category: 'health',
-      route: '/health',
+      route: '/wellness',
       position: { x: 0.2, y: 0.75, z: 0.5 },
-      metadata: { color: '#2ECC71', icon: '❤️', description: 'Health overview' },
+      metadata: { color: '#2ECC71', icon: '❤️', description: 'Wellness overview' },
       connections: ['health-recovery', 'health-nutrition', 'health-goals'],
     },
     {
@@ -510,7 +510,7 @@ function getCategoryDefaultRoute(categoryId: string): string {
     progress: '/dashboard',
     community: '/community',
     economy: '/credits',
-    health: '/health',
+    health: '/wellness',
     account: '/profile',
   };
   return routes[categoryId] || '/dashboard';

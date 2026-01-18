@@ -278,11 +278,11 @@ All admin endpoints correctly return 401/403 without authentication:
 
 ---
 
-## Route Conflict Issue
+## Route Conflict Issue - RESOLVED
 
-| Frontend Route | API Route | Issue | Recommendation |
-|----------------|-----------|-------|----------------|
-| `/health` | `/health` | API intercepts frontend route | Rename frontend route to `/my-health` or `/wellness` |
+| Frontend Route | API Route | Issue | Resolution |
+|----------------|-----------|-------|------------|
+| ~~/health~~ `/wellness` | `/health` | ~~API intercepted frontend route~~ | **FIXED** - Renamed frontend route to `/wellness` |
 
 ---
 

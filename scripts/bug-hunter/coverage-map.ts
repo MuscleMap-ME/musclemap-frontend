@@ -88,7 +88,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/trading', name: 'Trading', requiresAuth: true, requiresAdmin: false, category: 'economy' },
 
   // Health routes
-  { path: '/health', name: 'Health', requiresAuth: true, requiresAdmin: false, category: 'health' },
+  { path: '/wellness', name: 'Wellness', requiresAuth: true, requiresAdmin: false, category: 'health' },
   { path: '/recovery', name: 'Recovery', requiresAuth: true, requiresAdmin: false, category: 'health' },
   { path: '/goals', name: 'Goals', requiresAuth: true, requiresAdmin: false, category: 'health' },
   { path: '/limitations', name: 'Limitations', requiresAuth: true, requiresAdmin: false, category: 'health' },

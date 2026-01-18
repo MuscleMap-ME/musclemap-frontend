@@ -80,7 +80,7 @@ const STATIC_ROUTE_ATLAS: RouteAtlasManifest = {
       color: '#ec4899',
       icon: 'heart',
       routes: [
-        { id: 'health', path: '/health', label: 'Health', description: 'Wearable integrations', protection: 'protected' },
+        { id: 'wellness', path: '/wellness', label: 'Wellness', description: 'Wearable integrations', protection: 'protected' },
         { id: 'goals', path: '/goals', label: 'Goals', description: 'Set and track goals', protection: 'protected' },
         { id: 'limitations', path: '/limitations', label: 'Limitations', description: 'Injury accommodations', protection: 'protected' },
         { id: 'pt-tests', path: '/pt-tests', label: 'PT Tests', description: 'Military fitness tests', protection: 'protected' },

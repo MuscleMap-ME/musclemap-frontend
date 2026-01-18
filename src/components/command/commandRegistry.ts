@@ -492,13 +492,13 @@ const BUILT_IN_PAGES = [
     keywords: ['points', 'currency', 'balance', 'money'],
   },
   {
-    id: 'page-health',
-    title: 'Health',
-    description: 'Health overview and tracking',
-    path: '/health',
+    id: 'page-wellness',
+    title: 'Wellness',
+    description: 'Wellness overview and tracking',
+    path: '/wellness',
     icon: 'Heart',
     category: CATEGORIES.PAGES,
-    keywords: ['wellness', 'vitals', 'body'],
+    keywords: ['health', 'vitals', 'body'],
   },
   {
     id: 'page-nutrition',
