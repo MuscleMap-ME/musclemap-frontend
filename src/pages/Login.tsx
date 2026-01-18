@@ -54,10 +54,13 @@ export default function Login() {
       trackLogin('email');
       setUserProperties(user.id, {
         archetype: user.archetype || 'none',
-        has_completed_onboarding: !!user.archetype,
+        has_completed_onboarding: !!user.onboardingCompletedAt || !!user.archetype,
       });
 
-      navigate(user.archetype ? '/dashboard' : '/onboarding');
+      // Check both archetype AND onboarding completion status
+      // User should go to dashboard if they have completed onboarding OR have an archetype
+      const hasCompletedOnboarding = !!user.onboardingCompletedAt || !!user.archetype;
+      navigate(hasCompletedOnboarding ? '/dashboard' : '/onboarding');
     } catch (err) {
       setError(extractErrorMessage(err, 'Login failed'));
     } finally {

@@ -38,6 +38,7 @@ import { registerHangoutRoutes } from './routes/hangouts';
 import { registerIssuesRoutes } from './routes/issues';
 import { registerPrivacyRoutes } from './routes/privacy';
 import { registerOnboardingRoutes } from './routes/onboarding';
+import { registerJourneyManagementRoutes } from './routes/journey-management';
 import { registerEquipmentRoutes } from './routes/equipment';
 import { registerWearablesRoutes } from '../modules/wearables';
 import { registerGoalsRoutes } from './routes/goals';
@@ -427,6 +428,7 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerIssuesRoutes(api);
     await registerPrivacyRoutes(api);
     await registerOnboardingRoutes(api);
+    await registerJourneyManagementRoutes(api);
     await registerEquipmentRoutes(api);
     registerWearablesRoutes(api);
     await registerGoalsRoutes(api);

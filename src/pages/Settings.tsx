@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { RestTimerSettings } from '../components/workout/RestTimerSettings';
 import { EquipmentSelector, UnitToggle } from '../components/settings';
+import JourneyManagement from '../components/settings/JourneyManagement';
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -184,6 +185,15 @@ export default function Settings() {
               { id: 'machines', name: 'Machines', icon: '🔧' },
             ]}
           />
+        </section>
+
+        {/* Journey Management */}
+        <section className="bg-gray-800 rounded-2xl p-4">
+          <h2 className="font-bold mb-4">Journey & Progress</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Manage your fitness journey, create snapshots, or start fresh
+          </p>
+          <JourneyManagement />
         </section>
 
         {/* Privacy */}

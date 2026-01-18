@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutDashboard, SkipForward } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../store/authStore';
 import { ArchetypeSelector } from '../components/archetypes';
 import Logo from '../components/Logo';
+import { fetchWithLogging } from '../utils/logger';
 
 const ADDITIONAL_EQUIPMENT = [
   { id: 'pullupBar', name: 'Pull-up Bar', icon: '🔩', desc: 'Pull-ups, chin-ups, hanging' },
@@ -20,6 +22,30 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [archetype, setArchetype] = useState(null);
   const [equipment, setEquipment] = useState({ type: 'bodyweight', kettlebellCount: 1, extras: [] });
+  const [hasCompletedBefore, setHasCompletedBefore] = useState(false);
+  const [showSkipPrompt, setShowSkipPrompt] = useState(false);
+
+  // Check if user has completed onboarding before (returning user redoing onboarding)
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      if (!token) return;
+      try {
+        const res = await fetchWithLogging('/api/onboarding/status', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // If they have completed before OR have an archetype, they can skip
+          if (data?.data?.completed || user?.archetype) {
+            setHasCompletedBefore(true);
+          }
+        }
+      } catch {
+        // Ignore errors - just don't show skip option
+      }
+    }
+    checkOnboardingStatus();
+  }, [token, user?.archetype]);
 
   /**
    * Handle archetype selection from ArchetypeSelector
@@ -42,6 +68,24 @@ export default function Onboarding() {
     navigate('/dashboard');
   };
 
+  // Handle skip to dashboard
+  const handleSkipToDashboard = async () => {
+    try {
+      // Mark onboarding as complete (skip)
+      await fetchWithLogging('/api/onboarding/skip', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      navigate('/dashboard');
+    } catch {
+      // Even on error, try to navigate
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div
       className="min-h-screen text-white"
@@ -50,6 +94,66 @@ export default function Onboarding() {
         backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 50%), radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.1), transparent 50%)',
       }}
     >
+      {/* Skip to Dashboard Button - Fixed position */}
+      {hasCompletedBefore && (
+        <div className="fixed top-4 right-4 z-50 flex gap-2">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 px-3 py-2 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+          <button
+            onClick={() => setShowSkipPrompt(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600/80 backdrop-blur-sm border border-blue-500 rounded-lg text-sm text-white hover:bg-blue-500 transition-colors"
+          >
+            <SkipForward className="w-4 h-4" />
+            <span className="hidden sm:inline">Skip Setup</span>
+          </button>
+        </div>
+      )}
+
+      {/* Skip Confirmation Modal */}
+      <AnimatePresence>
+        {showSkipPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowSkipPrompt(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-2">Skip Onboarding?</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                You can always come back to personalize your experience later from Settings.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSkipPrompt(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+                >
+                  Continue Setup
+                </button>
+                <button
+                  onClick={handleSkipToDashboard}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {step === 1 && (
           <motion.div

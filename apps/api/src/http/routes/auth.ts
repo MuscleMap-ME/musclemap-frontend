@@ -228,8 +228,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       display_name: string | null;
       password_hash: string;
       roles: string[];
+      current_archetype_id: string | null;
+      avatar_url: string | null;
     }>(
-      'SELECT id, email, username, display_name, password_hash, roles FROM users WHERE email = $1',
+      'SELECT id, email, username, display_name, password_hash, roles, current_archetype_id, avatar_url FROM users WHERE email = $1',
       [body.email]
     );
 
@@ -238,6 +240,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         error: { code: 'UNAUTHORIZED', message: 'Invalid email or password', statusCode: 401 },
       });
     }
+
+    // Get onboarding status
+    const profile = await queryOne<{
+      onboarding_completed_at: string | null;
+    }>(
+      'SELECT onboarding_completed_at FROM user_profile_extended WHERE user_id = $1',
+      [user.id]
+    );
 
     const roles = user.roles || ['user'];
     const role = roles.includes('admin') ? 'admin' : roles.includes('moderator') ? 'moderator' : 'user';
@@ -253,10 +263,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           email: user.email,
           username: user.username,
           displayName: user.display_name,
+          avatar_url: user.avatar_url,
           roles,
           role,
           is_admin: roles.includes('admin'),
           is_owner: roles.includes('owner'),
+          archetype: user.current_archetype_id,
+          onboardingCompletedAt: profile?.onboarding_completed_at || null,
         },
       },
     });
