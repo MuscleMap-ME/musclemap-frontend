@@ -227,7 +227,7 @@ const ArchetypeCard = memo(function ArchetypeCard({
       style={{
         transformStyle: 'preserve-3d',
       }}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
       whileHover={{ scale: 1.02 }}

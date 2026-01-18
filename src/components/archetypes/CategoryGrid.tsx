@@ -86,23 +86,25 @@ const CATEGORY_GLOW_COLORS = {
 
 /**
  * Animation variants for staggered entrance
+ * Using immediate visibility with CSS animations as fallback to prevent
+ * cards from being invisible until user interaction triggers animation frames
  */
 const containerVariants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 }, // Start visible to prevent blank screen
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
+      staggerChildren: 0.05, // Faster stagger
+      delayChildren: 0, // No delay - show immediately
     },
   },
 };
 
 const cardVariants = {
   hidden: {
-    opacity: 0,
-    y: 30,
-    scale: 0.95,
+    opacity: 1, // Start visible - CSS will handle initial state
+    y: 0,
+    scale: 1,
   },
   visible: {
     opacity: 1,
@@ -369,7 +371,7 @@ const CategoryGrid = memo(function CategoryGrid({
         'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
       )}
       variants={containerVariants}
-      initial="hidden"
+      initial="visible"
       animate="visible"
     >
       <AnimatePresence mode="sync">

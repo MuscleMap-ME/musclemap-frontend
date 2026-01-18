@@ -34,9 +34,8 @@ function ArchetypeCardSkeleton({ index = 0, size = 'md' }) {
         'relative overflow-hidden rounded-2xl',
         'bg-white/5 backdrop-blur-md border border-white/10'
       )}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 1, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
     >
       {/* Image placeholder */}
       <div className="h-44 bg-gradient-to-br from-gray-800/60 to-gray-900/60 animate-pulse" />
@@ -58,7 +57,7 @@ function FeaturedArchetypeSkeleton() {
   return (
     <motion.div
       className="w-full rounded-2xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10"
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 1, scale: 1 }}
       animate={{ opacity: 1, scale: 1 }}
     >
       <div className="flex flex-col md:flex-row">
@@ -95,7 +94,7 @@ function FeaturedArchetypeCard({ archetype, selected, onClick, categoryColor }) 
         'bg-white/5 backdrop-blur-md border border-white/10',
         'hover:border-white/20 transition-colors duration-300'
       )}
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={{ opacity: 1, scale: 1, y: 0 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
@@ -327,8 +326,10 @@ const ArchetypeGrid = memo(function ArchetypeGrid({
   const gridArchetypes = featuredArchetype ? remainingArchetypes : archetypes;
 
   // Container animation variants
+  // Using immediate visibility to prevent cards from being invisible
+  // until user interaction triggers animation frames
   const containerVariants = {
-    hidden: { opacity: 0, x: 100 },
+    hidden: { opacity: 1, x: 0 }, // Start visible
     visible: {
       opacity: 1,
       x: 0,
@@ -336,7 +337,7 @@ const ArchetypeGrid = memo(function ArchetypeGrid({
         type: 'spring',
         stiffness: 100,
         damping: 20,
-        staggerChildren: 0.1,
+        staggerChildren: 0.05, // Faster stagger
       },
     },
     exit: {
@@ -349,8 +350,9 @@ const ArchetypeGrid = memo(function ArchetypeGrid({
   };
 
   // Card animation variants for staggered entrance
+  // Cards are visible immediately to prevent blank screen
   const cardVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.9 },
+    hidden: { opacity: 1, y: 0, scale: 1 }, // Start visible
     visible: {
       opacity: 1,
       y: 0,
