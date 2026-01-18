@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType,
 import { ApolloProvider } from '@apollo/client/react';
 import { AdaptiveAnimatePresence } from './components/transitions/AdaptiveAnimatePresence';
 import { apolloClient } from './graphql';
-import { UserProvider, useUser } from './contexts/UserContext';
+import { UserProvider } from './contexts/UserContext';
+import { useAuth } from './store/authStore';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LocaleProvider } from './contexts/LocaleContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -372,7 +373,7 @@ const AUTHENTICATED_PREFETCH_ROUTES = [
 
 // Protected Route - requires authentication
 const ProtectedRoute = ({ children, name }) => {
-  const { user, loading } = useUser();
+  const { user, loading, hasHydrated } = useAuth();
 
   // Prefetch common next-page routes after auth check
   usePrefetchRoutes(user ? AUTHENTICATED_PREFETCH_ROUTES : []);
@@ -383,7 +384,9 @@ const ProtectedRoute = ({ children, name }) => {
     }
   }, [loading, user, name]);
 
-  if (loading) return <LoadingSpinner />;
+  // Wait for auth store to fully hydrate before making auth decisions
+  // This prevents race condition where token is null during initial load
+  if (loading || !hasHydrated) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
 
   return <ErrorBoundary name={name}>{children}</ErrorBoundary>;
@@ -391,7 +394,7 @@ const ProtectedRoute = ({ children, name }) => {
 
 // Admin Route - requires admin privileges
 const AdminRoute = ({ children, name }) => {
-  const { user, loading } = useUser();
+  const { user, loading, hasHydrated } = useAuth();
 
   useEffect(() => {
     if (!loading) {
@@ -399,7 +402,8 @@ const AdminRoute = ({ children, name }) => {
     }
   }, [loading, user, name]);
 
-  if (loading) return <LoadingSpinner />;
+  // Wait for auth store to fully hydrate before making auth decisions
+  if (loading || !hasHydrated) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (!user.is_admin) {
     logger.warn('admin_access_denied', { userId: user.id, route: name });
