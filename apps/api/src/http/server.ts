@@ -124,6 +124,10 @@ import { registerEventRoutes } from './routes/events';
 import { registerEngagementRecoveryRoutes } from './routes/engagement-recovery';
 import { registerPushNotificationRoutes } from './routes/push-notifications';
 
+// User Preferences & Customization system
+// TODO: Fix TypeScript errors in preferences.ts and preferences.service.ts
+// import preferencesRoutes from './routes/preferences';
+
 // Venue Records system
 import { registerVenuesRoutes } from './routes/venues';
 
@@ -589,6 +593,13 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerEventRoutes(api);
     await registerEngagementRecoveryRoutes(api);
     await registerPushNotificationRoutes(api);
+
+    // ========================================
+    // USER PREFERENCES & CUSTOMIZATION
+    // Dashboard layouts, profiles, sound packs, hydration, device settings
+    // ========================================
+    // TODO: Re-enable after fixing TypeScript errors
+    // await api.register(preferencesRoutes);
   }, { prefix: '/api' });
 
   return app as unknown as FastifyInstance;

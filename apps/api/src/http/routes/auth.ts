@@ -228,10 +228,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       display_name: string | null;
       password_hash: string;
       roles: string[];
-      current_archetype_id: string | null;
+      current_identity_id: string | null;
       avatar_url: string | null;
     }>(
-      'SELECT id, email, username, display_name, password_hash, roles, current_archetype_id, avatar_url FROM users WHERE email = $1',
+      'SELECT id, email, username, display_name, password_hash, roles, current_identity_id, avatar_url FROM users WHERE email = $1',
       [body.email]
     );
 
@@ -268,7 +268,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           role,
           is_admin: roles.includes('admin'),
           is_owner: roles.includes('owner'),
-          archetype: user.current_archetype_id,
+          archetype: user.current_identity_id,
           onboardingCompletedAt: profile?.onboarding_completed_at || null,
         },
       },

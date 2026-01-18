@@ -1,0 +1,698 @@
+/**
+ * Preferences Service
+ *
+ * Business logic for user preferences, profiles, dashboard layouts,
+ * sound packs, hydration tracking, and device settings.
+ */
+
+import { db } from '../db/client.js';
+import {
+  UserPreferences,
+  PreferenceProfile,
+  DashboardWidget,
+  DashboardLayout,
+  WidgetDefinition,
+  SoundPack,
+  DeviceSettings,
+  HydrationLog,
+  DEFAULT_PREFERENCES,
+  mergeWithDefaults,
+  applyProfileOverrides,
+  Platform,
+  HydrationSource,
+} from '@musclemap.me/shared';
+
+// ============================================
+// USER PREFERENCES
+// ============================================
+
+export async function getUserPreferences(userId: string): Promise<{
+  preferences: UserPreferences;
+  activeProfileId: string | null;
+  version: number;
+}> {
+  const row = await db('user_preferences').where('user_id', userId).first();
+
+  if (!row) {
+    // Create default preferences for user
+    const id = `pref_${Date.now()}`;
+    await db('user_preferences').insert({
+      id,
+      user_id: userId,
+      preferences: JSON.stringify(DEFAULT_PREFERENCES),
+      version: 1,
+    });
+
+    return {
+      preferences: DEFAULT_PREFERENCES,
+      activeProfileId: null,
+      version: 1,
+    };
+  }
+
+  // Parse preferences and merge with defaults to ensure all fields exist
+  const storedPrefs = typeof row.preferences === 'string'
+    ? JSON.parse(row.preferences)
+    : row.preferences;
+
+  return {
+    preferences: mergeWithDefaults(storedPrefs),
+    activeProfileId: row.active_profile_id,
+    version: row.version,
+  };
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  updates: Partial<UserPreferences>
+): Promise<{ preferences: UserPreferences; version: number }> {
+  // Get current preferences
+  const current = await getUserPreferences(userId);
+
+  // Deep merge updates
+  const merged: UserPreferences = {
+    coaching: { ...current.preferences.coaching, ...updates.coaching },
+    guidanceLevel: updates.guidanceLevel ?? current.preferences.guidanceLevel,
+    dashboard: { ...current.preferences.dashboard, ...updates.dashboard },
+    notifications: { ...current.preferences.notifications, ...updates.notifications },
+    hydration: { ...current.preferences.hydration, ...updates.hydration },
+    sounds: { ...current.preferences.sounds, ...updates.sounds },
+    workout: { ...current.preferences.workout, ...updates.workout },
+    display: { ...current.preferences.display, ...updates.display },
+    units: { ...current.preferences.units, ...updates.units },
+    privacy: { ...current.preferences.privacy, ...updates.privacy },
+    music: { ...current.preferences.music, ...updates.music },
+  };
+
+  const newVersion = current.version + 1;
+
+  await db('user_preferences')
+    .where('user_id', userId)
+    .update({
+      preferences: JSON.stringify(merged),
+      version: newVersion,
+    });
+
+  return { preferences: merged, version: newVersion };
+}
+
+export async function resetUserPreferences(userId: string): Promise<UserPreferences> {
+  await db('user_preferences')
+    .where('user_id', userId)
+    .update({
+      preferences: JSON.stringify(DEFAULT_PREFERENCES),
+      version: db.raw('version + 1'),
+    });
+
+  return DEFAULT_PREFERENCES;
+}
+
+export async function getEffectivePreferences(userId: string): Promise<UserPreferences> {
+  const { preferences, activeProfileId } = await getUserPreferences(userId);
+
+  if (!activeProfileId) {
+    return preferences;
+  }
+
+  // Get active profile overrides
+  const profile = await db('user_preference_profiles')
+    .where('id', activeProfileId)
+    .where('user_id', userId)
+    .first();
+
+  if (!profile) {
+    return preferences;
+  }
+
+  const overrides = typeof profile.preferences_override === 'string'
+    ? JSON.parse(profile.preferences_override)
+    : profile.preferences_override;
+
+  return applyProfileOverrides(preferences, overrides);
+}
+
+// ============================================
+// PREFERENCE PROFILES
+// ============================================
+
+export async function listProfiles(userId: string): Promise<PreferenceProfile[]> {
+  const rows = await db('user_preference_profiles')
+    .where('user_id', userId)
+    .orderBy('sort_order', 'asc');
+
+  return rows.map(mapProfileRow);
+}
+
+export async function getProfile(userId: string, profileId: string): Promise<PreferenceProfile | null> {
+  const row = await db('user_preference_profiles')
+    .where('id', profileId)
+    .where('user_id', userId)
+    .first();
+
+  return row ? mapProfileRow(row) : null;
+}
+
+export async function createProfile(
+  userId: string,
+  data: {
+    name: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    preferencesOverride?: Partial<UserPreferences>;
+    isDefault?: boolean;
+  }
+): Promise<PreferenceProfile> {
+  const id = `profile_${Date.now()}`;
+
+  // If this is set as default, unset other defaults
+  if (data.isDefault) {
+    await db('user_preference_profiles')
+      .where('user_id', userId)
+      .update({ is_default: false });
+  }
+
+  const maxSort = await db('user_preference_profiles')
+    .where('user_id', userId)
+    .max('sort_order as max')
+    .first();
+
+  const [row] = await db('user_preference_profiles')
+    .insert({
+      id,
+      user_id: userId,
+      name: data.name,
+      description: data.description || null,
+      icon: data.icon || 'settings',
+      color: data.color || '#3B82F6',
+      preferences_override: JSON.stringify(data.preferencesOverride || {}),
+      is_default: data.isDefault || false,
+      sort_order: (maxSort?.max || 0) + 1,
+    })
+    .returning('*');
+
+  return mapProfileRow(row);
+}
+
+export async function updateProfile(
+  userId: string,
+  profileId: string,
+  data: {
+    name?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    preferencesOverride?: Partial<UserPreferences>;
+    isDefault?: boolean;
+    sortOrder?: number;
+  }
+): Promise<PreferenceProfile | null> {
+  // If setting as default, unset other defaults
+  if (data.isDefault) {
+    await db('user_preference_profiles')
+      .where('user_id', userId)
+      .whereNot('id', profileId)
+      .update({ is_default: false });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.icon !== undefined) updates.icon = data.icon;
+  if (data.color !== undefined) updates.color = data.color;
+  if (data.preferencesOverride !== undefined) {
+    updates.preferences_override = JSON.stringify(data.preferencesOverride);
+  }
+  if (data.isDefault !== undefined) updates.is_default = data.isDefault;
+  if (data.sortOrder !== undefined) updates.sort_order = data.sortOrder;
+
+  const [row] = await db('user_preference_profiles')
+    .where('id', profileId)
+    .where('user_id', userId)
+    .update(updates)
+    .returning('*');
+
+  return row ? mapProfileRow(row) : null;
+}
+
+export async function deleteProfile(userId: string, profileId: string): Promise<boolean> {
+  // Clear active profile if this one is active
+  await db('user_preferences')
+    .where('user_id', userId)
+    .where('active_profile_id', profileId)
+    .update({ active_profile_id: null });
+
+  const deleted = await db('user_preference_profiles')
+    .where('id', profileId)
+    .where('user_id', userId)
+    .del();
+
+  return deleted > 0;
+}
+
+export async function activateProfile(userId: string, profileId: string): Promise<boolean> {
+  // Verify profile exists and belongs to user
+  const profile = await db('user_preference_profiles')
+    .where('id', profileId)
+    .where('user_id', userId)
+    .first();
+
+  if (!profile) {
+    return false;
+  }
+
+  await db('user_preferences')
+    .where('user_id', userId)
+    .update({ active_profile_id: profileId });
+
+  return true;
+}
+
+export async function deactivateProfile(userId: string): Promise<void> {
+  await db('user_preferences')
+    .where('user_id', userId)
+    .update({ active_profile_id: null });
+}
+
+function mapProfileRow(row: Record<string, unknown>): PreferenceProfile {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    name: row.name as string,
+    description: row.description as string | undefined,
+    icon: row.icon as string,
+    color: row.color as string,
+    preferencesOverride: typeof row.preferences_override === 'string'
+      ? JSON.parse(row.preferences_override)
+      : row.preferences_override,
+    autoActivateRules: typeof row.auto_activate_rules === 'string'
+      ? JSON.parse(row.auto_activate_rules)
+      : row.auto_activate_rules,
+    isDefault: row.is_default as boolean,
+    sortOrder: row.sort_order as number,
+    createdAt: (row.created_at as Date).toISOString(),
+    updatedAt: (row.updated_at as Date).toISOString(),
+  };
+}
+
+// ============================================
+// DASHBOARD LAYOUTS
+// ============================================
+
+export async function getDashboardLayout(
+  userId: string,
+  platform: Platform = 'web',
+  profileId?: string
+): Promise<DashboardLayout | null> {
+  const query = db('user_dashboard_layouts')
+    .where('user_id', userId)
+    .where('platform', platform);
+
+  if (profileId) {
+    query.where('profile_id', profileId);
+  } else {
+    query.whereNull('profile_id');
+  }
+
+  const row = await query.first();
+  return row ? mapLayoutRow(row) : null;
+}
+
+export async function saveDashboardLayout(
+  userId: string,
+  data: {
+    widgets: DashboardWidget[];
+    columns?: number;
+    rowHeight?: number;
+    platform?: Platform;
+    profileId?: string;
+  }
+): Promise<DashboardLayout> {
+  const platform = data.platform || 'web';
+  const profileId = data.profileId || null;
+
+  // Upsert layout
+  const existing = await getDashboardLayout(userId, platform, profileId || undefined);
+
+  if (existing) {
+    const [row] = await db('user_dashboard_layouts')
+      .where('id', existing.id)
+      .update({
+        widgets: JSON.stringify(data.widgets),
+        columns: data.columns || existing.columns,
+        row_height: data.rowHeight || existing.rowHeight,
+      })
+      .returning('*');
+
+    return mapLayoutRow(row);
+  } else {
+    const id = `layout_${Date.now()}`;
+    const [row] = await db('user_dashboard_layouts')
+      .insert({
+        id,
+        user_id: userId,
+        profile_id: profileId,
+        widgets: JSON.stringify(data.widgets),
+        columns: data.columns || 12,
+        row_height: data.rowHeight || 100,
+        platform,
+      })
+      .returning('*');
+
+    return mapLayoutRow(row);
+  }
+}
+
+export async function getAvailableWidgets(): Promise<WidgetDefinition[]> {
+  const rows = await db('dashboard_widget_registry')
+    .where('is_enabled', true)
+    .orderBy('sort_order', 'asc');
+
+  return rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | undefined,
+    category: row.category as WidgetDefinition['category'],
+    defaultWidth: row.default_width as number,
+    defaultHeight: row.default_height as number,
+    minWidth: row.min_width as number,
+    minHeight: row.min_height as number,
+    maxWidth: row.max_width as number,
+    maxHeight: row.max_height as number,
+    isPremium: row.is_premium as boolean,
+    isEnabled: row.is_enabled as boolean,
+    sortOrder: row.sort_order as number,
+  }));
+}
+
+function mapLayoutRow(row: Record<string, unknown>): DashboardLayout {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    profileId: row.profile_id as string | undefined,
+    widgets: typeof row.widgets === 'string' ? JSON.parse(row.widgets) : row.widgets,
+    columns: row.columns as number,
+    rowHeight: row.row_height as number,
+    platform: row.platform as Platform,
+    createdAt: (row.created_at as Date).toISOString(),
+    updatedAt: (row.updated_at as Date).toISOString(),
+  };
+}
+
+// ============================================
+// SOUND PACKS
+// ============================================
+
+export async function getSystemSoundPacks(): Promise<SoundPack[]> {
+  const rows = await db('system_sound_packs').orderBy('sort_order', 'asc');
+
+  return rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | undefined,
+    category: row.category as string | undefined,
+    sounds: typeof row.sounds === 'string' ? JSON.parse(row.sounds) : row.sounds,
+    isPremium: row.is_premium as boolean,
+    isPublic: true,
+    userId: undefined,
+  }));
+}
+
+export async function getUserSoundPacks(userId: string): Promise<SoundPack[]> {
+  const rows = await db('user_sound_packs').where('user_id', userId);
+
+  return rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | undefined,
+    sounds: typeof row.sounds === 'string' ? JSON.parse(row.sounds) : row.sounds,
+    isPremium: false,
+    isPublic: row.is_public as boolean,
+    userId: row.user_id as string,
+  }));
+}
+
+export async function createUserSoundPack(
+  userId: string,
+  data: {
+    name: string;
+    description?: string;
+    sounds: SoundPack['sounds'];
+    isPublic?: boolean;
+  }
+): Promise<SoundPack> {
+  const id = `sound_${Date.now()}`;
+
+  const [row] = await db('user_sound_packs')
+    .insert({
+      id,
+      user_id: userId,
+      name: data.name,
+      description: data.description || null,
+      sounds: JSON.stringify(data.sounds),
+      is_public: data.isPublic || false,
+    })
+    .returning('*');
+
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    sounds: typeof row.sounds === 'string' ? JSON.parse(row.sounds) : row.sounds,
+    isPremium: false,
+    isPublic: row.is_public,
+    userId: row.user_id,
+  };
+}
+
+export async function deleteUserSoundPack(userId: string, packId: string): Promise<boolean> {
+  const deleted = await db('user_sound_packs')
+    .where('id', packId)
+    .where('user_id', userId)
+    .del();
+
+  return deleted > 0;
+}
+
+// ============================================
+// HYDRATION TRACKING
+// ============================================
+
+export async function logHydration(
+  userId: string,
+  amountOz: number,
+  workoutSessionId?: string,
+  source: HydrationSource = 'manual'
+): Promise<HydrationLog> {
+  const id = `hydration_${Date.now()}`;
+
+  const [row] = await db('user_hydration_logs')
+    .insert({
+      id,
+      user_id: userId,
+      amount_oz: amountOz,
+      workout_session_id: workoutSessionId || null,
+      source,
+    })
+    .returning('*');
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    amountOz: parseFloat(row.amount_oz),
+    workoutSessionId: row.workout_session_id,
+    source: row.source,
+    loggedAt: row.logged_at.toISOString(),
+  };
+}
+
+export async function getTodayHydration(userId: string): Promise<{
+  logs: HydrationLog[];
+  totalOz: number;
+}> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const rows = await db('user_hydration_logs')
+    .where('user_id', userId)
+    .where('logged_at', '>=', today)
+    .orderBy('logged_at', 'desc');
+
+  const logs: HydrationLog[] = rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+    amountOz: parseFloat(row.amount_oz as string),
+    workoutSessionId: row.workout_session_id as string | undefined,
+    source: row.source as HydrationSource,
+    loggedAt: (row.logged_at as Date).toISOString(),
+  }));
+
+  const totalOz = logs.reduce((sum, log) => sum + log.amountOz, 0);
+
+  return { logs, totalOz };
+}
+
+export async function getHydrationHistory(
+  userId: string,
+  days: number = 7
+): Promise<{ date: string; totalOz: number }[]> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  startDate.setHours(0, 0, 0, 0);
+
+  const rows = await db('user_hydration_logs')
+    .select(db.raw("date_trunc('day', logged_at) as date"))
+    .sum('amount_oz as total')
+    .where('user_id', userId)
+    .where('logged_at', '>=', startDate)
+    .groupByRaw("date_trunc('day', logged_at)")
+    .orderBy('date', 'desc');
+
+  return rows.map((row: Record<string, unknown>) => ({
+    date: (row.date as Date).toISOString().split('T')[0],
+    totalOz: parseFloat(row.total as string) || 0,
+  }));
+}
+
+// ============================================
+// DEVICE SETTINGS
+// ============================================
+
+export async function listDevices(userId: string): Promise<DeviceSettings[]> {
+  const rows = await db('user_device_settings')
+    .where('user_id', userId)
+    .orderBy('created_at', 'desc');
+
+  return rows.map(mapDeviceRow);
+}
+
+export async function registerDevice(
+  userId: string,
+  data: {
+    deviceId: string;
+    deviceName?: string;
+    platform: Platform;
+    deviceModel?: string;
+    osVersion?: string;
+    appVersion?: string;
+    pushToken?: string;
+  }
+): Promise<DeviceSettings> {
+  // Upsert device
+  const existing = await db('user_device_settings')
+    .where('user_id', userId)
+    .where('device_id', data.deviceId)
+    .first();
+
+  if (existing) {
+    const [row] = await db('user_device_settings')
+      .where('id', existing.id)
+      .update({
+        device_name: data.deviceName || existing.device_name,
+        platform: data.platform,
+        device_model: data.deviceModel || existing.device_model,
+        os_version: data.osVersion || existing.os_version,
+        app_version: data.appVersion || existing.app_version,
+        push_token: data.pushToken || existing.push_token,
+        last_sync_at: db.fn.now(),
+      })
+      .returning('*');
+
+    return mapDeviceRow(row);
+  } else {
+    const id = `device_${Date.now()}`;
+    const [row] = await db('user_device_settings')
+      .insert({
+        id,
+        user_id: userId,
+        device_id: data.deviceId,
+        device_name: data.deviceName,
+        platform: data.platform,
+        device_model: data.deviceModel,
+        os_version: data.osVersion,
+        app_version: data.appVersion,
+        push_token: data.pushToken,
+        last_sync_at: db.fn.now(),
+      })
+      .returning('*');
+
+    return mapDeviceRow(row);
+  }
+}
+
+export async function updateDeviceSettings(
+  userId: string,
+  deviceId: string,
+  data: {
+    deviceName?: string;
+    settingsOverride?: Partial<UserPreferences>;
+    syncEnabled?: boolean;
+    pushEnabled?: boolean;
+    pushToken?: string;
+  }
+): Promise<DeviceSettings | null> {
+  const updates: Record<string, unknown> = {};
+  if (data.deviceName !== undefined) updates.device_name = data.deviceName;
+  if (data.settingsOverride !== undefined) {
+    updates.settings_override = JSON.stringify(data.settingsOverride);
+  }
+  if (data.syncEnabled !== undefined) updates.sync_enabled = data.syncEnabled;
+  if (data.pushEnabled !== undefined) updates.push_enabled = data.pushEnabled;
+  if (data.pushToken !== undefined) updates.push_token = data.pushToken;
+
+  const [row] = await db('user_device_settings')
+    .where('user_id', userId)
+    .where('device_id', deviceId)
+    .update(updates)
+    .returning('*');
+
+  return row ? mapDeviceRow(row) : null;
+}
+
+export async function removeDevice(userId: string, deviceId: string): Promise<boolean> {
+  const deleted = await db('user_device_settings')
+    .where('user_id', userId)
+    .where('device_id', deviceId)
+    .del();
+
+  return deleted > 0;
+}
+
+export async function syncDevice(
+  userId: string,
+  deviceId: string
+): Promise<{ preferences: UserPreferences; lastSyncAt: string }> {
+  const preferences = await getEffectivePreferences(userId);
+
+  await db('user_device_settings')
+    .where('user_id', userId)
+    .where('device_id', deviceId)
+    .update({ last_sync_at: db.fn.now() });
+
+  return {
+    preferences,
+    lastSyncAt: new Date().toISOString(),
+  };
+}
+
+function mapDeviceRow(row: Record<string, unknown>): DeviceSettings {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    deviceId: row.device_id as string,
+    deviceName: row.device_name as string | undefined,
+    platform: row.platform as Platform,
+    deviceModel: row.device_model as string | undefined,
+    osVersion: row.os_version as string | undefined,
+    appVersion: row.app_version as string | undefined,
+    settingsOverride: typeof row.settings_override === 'string'
+      ? JSON.parse(row.settings_override)
+      : row.settings_override || {},
+    syncEnabled: row.sync_enabled as boolean,
+    lastSyncAt: row.last_sync_at ? (row.last_sync_at as Date).toISOString() : undefined,
+    pushToken: row.push_token as string | undefined,
+    pushEnabled: row.push_enabled as boolean,
+    createdAt: (row.created_at as Date).toISOString(),
+    updatedAt: (row.updated_at as Date).toISOString(),
+  };
+}
