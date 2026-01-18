@@ -272,7 +272,12 @@ export async function createServer(): Promise<FastifyInstance> {
   await app.register(rateLimit, {
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW_MS,
-    errorResponseBuilder: () => ({
+    // Skip rate limiting for high-volume telemetry endpoints
+    allowList: (request) => {
+      const skipUrls = ['/api/vitals', '/api/trace/frontend-log', '/health', '/ready', '/metrics'];
+      return skipUrls.some(url => request.url.startsWith(url));
+    },
+    errorResponseBuilder: (_request, _context) => ({
       error: {
         code: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many requests, please try again later',
