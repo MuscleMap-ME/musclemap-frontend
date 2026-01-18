@@ -283,6 +283,9 @@ export default function EmpireControl() {
   const [selectedCockatriceError, setSelectedCockatriceError] = useState(null);
   const [cockatriceTab, setCockatriceTab] = useState('errors'); // 'errors' | 'bugs'
 
+  // Notification state
+  const [notificationCount, setNotificationCount] = useState(0);
+
   // Get auth header
   const getAuthHeader = useCallback(() => {
     try {
@@ -372,6 +375,21 @@ export default function EmpireControl() {
       }
     } catch {
       // Failed to fetch messages
+    }
+  }, [getAuthHeader]);
+
+  // Fetch notification count
+  const fetchNotificationCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications/unread-count', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationCount(data.data?.count || 0);
+      }
+    } catch {
+      // Failed to fetch notification count
     }
   }, [getAuthHeader]);
 
@@ -750,11 +768,12 @@ export default function EmpireControl() {
         fetchMessages(),
         fetchFeedbackStats(),
         fetchFeedbackItems(),
+        fetchNotificationCount(),
       ]);
       setLoading(false);
     };
     loadData();
-  }, [fetchMetrics, fetchUsers, fetchEconomyStats, fetchMessages, fetchFeedbackStats, fetchFeedbackItems]);
+  }, [fetchMetrics, fetchUsers, fetchEconomyStats, fetchMessages, fetchFeedbackStats, fetchFeedbackItems, fetchNotificationCount]);
 
   // Refresh feedback when filter changes
   useEffect(() => {
@@ -912,7 +931,11 @@ export default function EmpireControl() {
               </div>
               <button className="p-2 rounded-lg hover:bg-white/10 relative">
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">3</span>
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] flex items-center justify-center">
+                    {notificationCount > 9 ? '9+' : notificationCount}
+                  </span>
+                )}
               </button>
               <button onClick={fetchMetrics} className="p-2 rounded-lg hover:bg-white/10">
                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
