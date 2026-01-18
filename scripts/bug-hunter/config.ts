@@ -84,9 +84,12 @@ export function getConfig(overrides?: Partial<BugHunterConfig>): BugHunterConfig
     };
   }
 
-  // Apply user overrides
+  // Apply user overrides (filter out undefined values to preserve defaults)
   if (overrides) {
-    config = { ...config, ...overrides };
+    const filteredOverrides = Object.fromEntries(
+      Object.entries(overrides).filter(([, value]) => value !== undefined)
+    );
+    config = { ...config, ...filteredOverrides };
   }
 
   return config;
