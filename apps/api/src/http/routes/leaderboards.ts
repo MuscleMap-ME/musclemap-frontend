@@ -54,11 +54,23 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
   /**
    * Get leaderboard entries
    * GET /leaderboards
+   * Required query params: exerciseId, metricKey
    */
   app.get<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>('/leaderboards', {
     preHandler: optionalAuth,
   }, async (request, reply) => {
-    const query = leaderboardQuerySchema.parse(request.query);
+    const parseResult = leaderboardQuerySchema.safeParse(request.query);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Missing required query parameters: exerciseId and metricKey are required',
+          details: parseResult.error.flatten().fieldErrors,
+          statusCode: 400,
+        },
+      });
+    }
+    const query = parseResult.data;
 
     const result = await leaderboardService.getLeaderboard({
       exerciseId: query.exerciseId,
@@ -88,11 +100,23 @@ export async function registerLeaderboardRoutes(app: FastifyInstance) {
   /**
    * Get global leaderboard (no hangout filter)
    * GET /leaderboards/global
+   * Required query params: exerciseId, metricKey
    */
   app.get<{ Querystring: z.infer<typeof leaderboardQuerySchema> }>('/leaderboards/global', {
     preHandler: optionalAuth,
   }, async (request, reply) => {
-    const query = leaderboardQuerySchema.parse(request.query);
+    const parseResult = leaderboardQuerySchema.safeParse(request.query);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Missing required query parameters: exerciseId and metricKey are required',
+          details: parseResult.error.flatten().fieldErrors,
+          statusCode: 400,
+        },
+      });
+    }
+    const query = parseResult.data;
 
     const result = await leaderboardService.getLeaderboard({
       exerciseId: query.exerciseId,

@@ -45,7 +45,10 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
    * Get current user's beta tester status and benefits
    */
   fastify.get('/status', async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = (request as any).user?.userId;
+    if (!userId) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
 
     try {
       const user = await db.queryOne<{
@@ -108,7 +111,7 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
    * Create a new journal entry
    */
   fastify.post<{ Body: JournalEntryBody }>('/journal', async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = (request as any).user?.userId;
     const {
       entryType = 'note',
       title,
@@ -182,7 +185,7 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
    * Get user's own journal entries
    */
   fastify.get('/journal', async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = (request as any).user?.userId;
 
     try {
       const entries = await db.queryAll<{
@@ -236,7 +239,7 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
    * Get user's own progress snapshots
    */
   fastify.get('/snapshots', async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = (request as any).user?.userId;
 
     try {
       const user = await db.queryOne<{ is_beta_tester: boolean }>(
@@ -320,7 +323,7 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
    * Submit a quick bug report with enhanced context capture
    */
   fastify.post<{ Body: QuickBugBody }>('/quick-bug', async (request, reply) => {
-    const userId = (request as any).user.id;
+    const userId = (request as any).user?.userId;
     const {
       title,
       description,
@@ -389,7 +392,7 @@ export default async function betaTesterRoutes(fastify: FastifyInstance): Promis
   fastify.post<{ Body: { reason: string; snapshotId?: string } }>(
     '/request-restore',
     async (request, reply) => {
-      const userId = (request as any).user.id;
+      const userId = (request as any).user?.userId;
       const { reason, snapshotId } = request.body;
 
       if (!reason || reason.trim().length === 0) {
