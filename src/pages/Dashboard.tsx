@@ -1403,12 +1403,25 @@ export default function Dashboard() {
               </GlassSurface>
             </div>
 
-            {/* Adventure Map Widget */}
+            {/* Adventure Map Widget - Prominent section for navigation */}
             <div className="mb-8">
-              <h3 className="text-white/70 text-sm font-medium mb-3 px-1">Adventure Map</h3>
-              <Suspense fallback={<div className="h-[200px] bg-white/5 rounded-2xl animate-pulse" />}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Adventure Map</h2>
+                  <p className="text-sm text-[var(--text-tertiary)]">Explore MuscleMap like an RPG - move your character to navigate</p>
+                </div>
+                <Link
+                  to="/adventure-map"
+                  className="text-sm text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-1"
+                >
+                  Full Map
+                  <Icons.ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <Suspense fallback={<div className="h-[250px] md:h-[280px] bg-white/5 rounded-2xl animate-pulse" />}>
                 <AdventureMapWidget
-                  className="w-full h-[200px]"
+                  className="w-full"
+                  variant="default"
                   onExpand={() => {
                     // Map will open via store
                   }}

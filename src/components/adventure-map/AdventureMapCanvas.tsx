@@ -3,10 +3,11 @@
  *
  * Main SVG container for the adventure map with pan/zoom controls.
  * Renders regions, paths, locations, and the character.
+ * Supports touch gestures including pinch-to-zoom on mobile devices.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import MapRegion from './MapRegion';
 import LocationNode from './LocationNode';
 import MapPath from './MapPath';
@@ -15,7 +16,7 @@ import { useCharacterMovement } from './hooks/useCharacterMovement';
 import { useMapNavigation } from './hooks/useMapNavigation';
 import { useAdventureMapStore, useMapView, useLocationSelection, useMapProgress } from '../../store/adventureMapStore';
 import { REGIONS, getAllRegions } from './data/regions';
-import { getAllLocations, PATH_CONNECTIONS, getClosestLocation } from './data/mapLayout';
+import { getAllLocations, PATH_CONNECTIONS } from './data/mapLayout';
 import type { AdventureMapCanvasProps, Position, CompanionData } from './types';
 
 // Map dimensions
@@ -24,23 +25,55 @@ const MAP_HEIGHT = 800;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 
+// Touch gesture utilities
+interface TouchState {
+  touches: { x: number; y: number }[];
+  initialDistance: number | null;
+  initialZoom: number;
+  initialPan: Position;
+  lastCenter: Position;
+}
+
+function getDistance(touches: { x: number; y: number }[]): number {
+  if (touches.length < 2) return 0;
+  const dx = touches[1].x - touches[0].x;
+  const dy = touches[1].y - touches[0].y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getCenter(touches: { x: number; y: number }[]): Position {
+  if (touches.length === 0) return { x: 0, y: 0 };
+  if (touches.length === 1) return touches[0];
+  return {
+    x: (touches[0].x + touches[1].x) / 2,
+    y: (touches[0].y + touches[1].y) / 2,
+  };
+}
+
 export default function AdventureMapCanvas({
   className = '',
-  initialPosition,
+  initialPosition: _initialPosition,
   onLocationEnter,
   onCharacterMove,
-  showHUD = true,
-  isFullscreen = false,
+  showHUD: _showHUD = true,
+  isFullscreen: _isFullscreen = false,
   reducedMotion = false,
 }: AdventureMapCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Position | null>(null);
+  const [touchState, setTouchState] = useState<TouchState>({
+    touches: [],
+    initialDistance: null,
+    initialZoom: 1,
+    initialPan: { x: 0, y: 0 },
+    lastCenter: { x: 0, y: 0 },
+  });
 
   // Store hooks
   const { zoom, pan, setZoom, setPan, zoomIn, zoomOut, center, reset } = useMapView();
-  const { selected, hovered, setSelected, setHovered } = useLocationSelection();
+  const { selected, hovered, setHovered } = useLocationSelection();
   const { visited, hasVisited } = useMapProgress();
   const currentRegion = useAdventureMapStore((s) => s.currentRegion);
 
@@ -65,7 +98,7 @@ export default function AdventureMapCanvas({
   } = useCharacterMovement({
     enabled: true,
     reducedMotion,
-    onLocationReached: (locationId, route) => {
+    onLocationReached: (locationId, _route) => {
       navigateToLocation(locationId);
     },
   });
@@ -133,6 +166,113 @@ export default function AdventureMapCanvas({
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta)));
   }, [zoom, setZoom]);
 
+  // Touch event handlers for mobile pinch-to-zoom and pan
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touches = Array.from(e.touches).map((t) => ({
+      x: t.clientX,
+      y: t.clientY,
+    }));
+
+    if (touches.length === 2) {
+      // Pinch zoom start
+      const distance = getDistance(touches);
+      const center = getCenter(touches);
+      setTouchState({
+        touches,
+        initialDistance: distance,
+        initialZoom: zoom,
+        initialPan: pan,
+        lastCenter: center,
+      });
+    } else if (touches.length === 1) {
+      // Single touch pan start
+      setIsDragging(true);
+      setDragStart({ x: touches[0].x - pan.x, y: touches[0].y - pan.y });
+      setTouchState((prev) => ({ ...prev, touches, lastCenter: touches[0] }));
+    }
+  }, [zoom, pan]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent page scroll during map interaction
+
+    const touches = Array.from(e.touches).map((t) => ({
+      x: t.clientX,
+      y: t.clientY,
+    }));
+
+    if (touches.length === 2 && touchState.initialDistance) {
+      // Pinch zoom
+      const distance = getDistance(touches);
+      const scale = distance / touchState.initialDistance;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, touchState.initialZoom * scale));
+
+      // Pan with center point
+      const center = getCenter(touches);
+      const panDelta = {
+        x: center.x - touchState.lastCenter.x,
+        y: center.y - touchState.lastCenter.y,
+      };
+
+      setZoom(newZoom);
+      setPan({
+        x: touchState.initialPan.x + panDelta.x,
+        y: touchState.initialPan.y + panDelta.y,
+      });
+    } else if (touches.length === 1 && isDragging && dragStart) {
+      // Single touch pan
+      setPan({
+        x: touches[0].x - dragStart.x,
+        y: touches[0].y - dragStart.y,
+      });
+    }
+  }, [touchState, isDragging, dragStart, setZoom, setPan]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      // All fingers lifted
+      setIsDragging(false);
+      setDragStart(null);
+      setTouchState({
+        touches: [],
+        initialDistance: null,
+        initialZoom: zoom,
+        initialPan: pan,
+        lastCenter: { x: 0, y: 0 },
+      });
+    } else if (e.touches.length === 1) {
+      // One finger left - switch to pan mode
+      const touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setIsDragging(true);
+      setDragStart({ x: touch.x - pan.x, y: touch.y - pan.y });
+      setTouchState({
+        touches: [touch],
+        initialDistance: null,
+        initialZoom: zoom,
+        initialPan: pan,
+        lastCenter: touch,
+      });
+    }
+  }, [zoom, pan]);
+
+  // Handle touch tap to move character (for future use with tap detection)
+  const _handleTouchTap = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
+    // Only process if it's a quick tap (not drag)
+    if (isDragging) return;
+
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    // Convert touch coordinates to SVG coordinates
+    const rect = svg.getBoundingClientRect();
+    const x = (touch.clientX - rect.left - pan.x) / zoom;
+    const y = (touch.clientY - rect.top - pan.y) / zoom;
+
+    handleMapClick({ x, y });
+  }, [isDragging, pan, zoom, handleMapClick]);
+
   // Click on map to move character
   const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (isDragging) return;
@@ -166,13 +306,16 @@ export default function AdventureMapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`adventure-map-canvas relative overflow-hidden bg-gradient-to-b from-[#0a0a12] to-[#14141c] ${className}`}
+      className={`adventure-map-canvas relative overflow-hidden bg-gradient-to-b from-[#0a0a12] to-[#14141c] touch-none ${className}`}
       tabIndex={0}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
       {/* Background stars/particles */}
