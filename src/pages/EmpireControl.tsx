@@ -275,6 +275,13 @@ export default function EmpireControl() {
   const [bugTimeline, setBugTimeline] = useState([]);
   const [syncingBugs, setSyncingBugs] = useState(false);
 
+  // Cockatrice (frontend error) state
+  const [cockatriceErrors, setCockatriceErrors] = useState([]);
+  const [cockatriceStats, setCockatriceStats] = useState(null);
+  const [cockatriceFilter, setCockatriceFilter] = useState({ status: 'all', severity: 'all', type: 'all' });
+  const [selectedCockatriceError, setSelectedCockatriceError] = useState(null);
+  const [cockatriceTab, setCockatriceTab] = useState('errors'); // 'errors' | 'bugs'
+
   // Get auth header
   const getAuthHeader = useCallback(() => {
     try {
@@ -547,24 +554,89 @@ export default function EmpireControl() {
     }
   }, [getAuthHeader]);
 
-  const syncBugHunterReports = async () => {
-    setSyncingBugs(true);
+  // Cockatrice (frontend error) functions
+  const fetchCockatriceErrors = useCallback(async () => {
     try {
-      // Fetch local bug hunter reports
-      const reportsRes = await fetch('/api/admin/bugs/sync', {
+      let url = '/api/errors/list?limit=100';
+      if (cockatriceFilter.status !== 'all') url += `&status=${cockatriceFilter.status}`;
+      if (cockatriceFilter.severity !== 'all') url += `&severity=${cockatriceFilter.severity}`;
+      if (cockatriceFilter.type !== 'all') url += `&type=${cockatriceFilter.type}`;
+
+      const res = await fetch(url, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCockatriceErrors(data.items || []);
+      }
+    } catch {
+      // Failed to fetch cockatrice errors
+    }
+  }, [getAuthHeader, cockatriceFilter]);
+
+  const fetchCockatriceStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/errors/admin-stats', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCockatriceStats(data);
+      }
+    } catch {
+      // Failed to fetch cockatrice stats
+    }
+  }, [getAuthHeader]);
+
+  const convertErrorToBug = async (errorId) => {
+    try {
+      const res = await fetch(`/api/errors/${errorId}/convert-to-bug`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeader(),
         },
-        body: JSON.stringify([]), // Server will read from local files
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data?.converted) {
+          alert(`Bug report created: ${result.data.id}`);
+          fetchCockatriceErrors();
+          fetchCockatriceStats();
+          fetchBugItems();
+          fetchBugStats();
+        } else {
+          alert('Bug report already exists');
+        }
+      }
+    } catch {
+      alert('Failed to convert error to bug');
+    }
+  };
+
+  const syncBugHunterReports = async () => {
+    setSyncingBugs(true);
+    try {
+      // Sync high-severity frontend errors to bug reports
+      const reportsRes = await fetch('/api/errors/sync-to-bugs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ severity: 'high', hours: 168 }), // Last 7 days of high/critical errors
       });
 
       if (reportsRes.ok) {
         const result = await reportsRes.json();
-        alert(`Synced bugs: ${result.created} created, ${result.updated} updated`);
+        alert(`Synced errors to bugs: ${result.data?.created || 0} created, ${result.data?.skipped || 0} skipped`);
         fetchBugStats();
         fetchBugItems();
+        fetchCockatriceStats();
+        fetchCockatriceErrors();
+      } else {
+        alert('Failed to sync - check server logs');
       }
     } catch {
       alert('Failed to sync bug reports');

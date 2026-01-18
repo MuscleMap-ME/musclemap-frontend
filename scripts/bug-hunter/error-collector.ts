@@ -45,6 +45,23 @@ export class ErrorCollector {
     /Download the React DevTools/,
     // Service Worker registration (not an error)
     /\[SW Registration\]/,
+    // Resource loading messages that aren't real errors
+    /Failed to load resource.*net::ERR_ABORTED/,
+    // Network aborts during navigation (normal behavior)
+    /net::ERR_ABORTED/,
+  ];
+
+  // Network errors to ignore (these are normal during page navigation)
+  private static readonly IGNORED_NETWORK_ERRORS = [
+    'net::ERR_ABORTED',  // Request cancelled during navigation
+    'net::ERR_BLOCKED_BY_CLIENT',  // Ad blockers or extensions
+  ];
+
+  // URLs to ignore errors from (monitoring/analytics endpoints)
+  private static readonly IGNORED_ERROR_URLS = [
+    '/api/vitals',  // Web Vitals reporting - not user-facing
+    '/api/trace',   // Tracing/logging - not user-facing
+    '/metrics',     // Prometheus metrics - internal
   ];
 
   private shouldIgnoreError(message: string): boolean {
@@ -90,11 +107,18 @@ export class ErrorCollector {
 
     // Request failures
     this.page.on('requestfailed', (request) => {
+      const errorText = request.failure()?.errorText || 'Network request failed';
+
+      // Skip common navigation-related network "errors" that aren't real bugs
+      if (ErrorCollector.IGNORED_NETWORK_ERRORS.some(e => errorText.includes(e))) {
+        return;
+      }
+
       this.networkErrors.push({
         url: request.url(),
         method: request.method(),
         status: 0,
-        statusText: request.failure()?.errorText || 'Network request failed',
+        statusText: errorText,
         duration: 0,
         timestamp: new Date().toISOString(),
       });
@@ -103,6 +127,13 @@ export class ErrorCollector {
     // HTTP errors (4xx, 5xx)
     this.page.on('response', async (response) => {
       if (response.status() >= 400) {
+        const url = response.url();
+
+        // Skip errors from monitoring/analytics endpoints
+        if (ErrorCollector.IGNORED_ERROR_URLS.some(ignored => url.includes(ignored))) {
+          return;
+        }
+
         let responseBody = '';
         try {
           responseBody = await response.text();
@@ -111,7 +142,7 @@ export class ErrorCollector {
         }
 
         this.networkErrors.push({
-          url: response.url(),
+          url,
           method: response.request().method(),
           status: response.status(),
           statusText: response.statusText(),

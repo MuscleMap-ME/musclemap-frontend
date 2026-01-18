@@ -490,5 +490,381 @@ export async function registerErrorRoutes(app: FastifyInstance) {
     }
   });
 
+  // ============================================
+  // LIST FRONTEND ERRORS (Admin)
+  // ============================================
+  app.get('/errors/list', { preHandler: optionalAuth }, async (request, reply) => {
+    const query = request.query as {
+      status?: string;
+      severity?: string;
+      type?: string;
+      hours?: string;
+      limit?: string;
+      cursor?: string;
+    };
+
+    const hours = Math.min(parseInt(query.hours || '168'), 720); // Default 7 days, max 30 days
+    const limit = Math.min(parseInt(query.limit || '50'), 100);
+
+    try {
+      let sql = `
+        SELECT
+          fe.*,
+          u.username as reporter_username,
+          u.email as reporter_email
+        FROM frontend_errors fe
+        LEFT JOIN users u ON fe.user_id = u.id
+        WHERE fe.error_at > NOW() - INTERVAL '1 hour' * $1
+      `;
+      const params: unknown[] = [hours];
+      let paramIndex = 2;
+
+      // Status filter
+      if (query.status && query.status !== 'all') {
+        sql += ` AND fe.status = $${paramIndex++}`;
+        params.push(query.status);
+      }
+
+      // Severity filter
+      if (query.severity && query.severity !== 'all') {
+        sql += ` AND fe.severity = $${paramIndex++}`;
+        params.push(query.severity);
+      }
+
+      // Type filter
+      if (query.type && query.type !== 'all') {
+        sql += ` AND fe.error_type = $${paramIndex++}`;
+        params.push(query.type);
+      }
+
+      // Keyset pagination
+      if (query.cursor) {
+        const [cursorDate, cursorId] = query.cursor.split('|');
+        sql += ` AND (fe.error_at < $${paramIndex++} OR (fe.error_at = $${paramIndex - 1} AND fe.id < $${paramIndex++}))`;
+        params.push(cursorDate, cursorId);
+      }
+
+      sql += ` ORDER BY fe.error_at DESC, fe.id DESC LIMIT $${paramIndex}`;
+      params.push(limit + 1);
+
+      const rows = await db.query<{
+        id: string;
+        user_id: string | null;
+        error_type: string;
+        message: string;
+        stack: string | null;
+        component_name: string | null;
+        http_status: number | null;
+        url: string;
+        user_agent: string | null;
+        context: Record<string, unknown>;
+        severity: string;
+        pattern_id: string | null;
+        is_known_issue: boolean;
+        status: string;
+        error_at: Date;
+        created_at: Date;
+        resolved_at: Date | null;
+        reporter_username: string | null;
+        reporter_email: string | null;
+      }>(sql, params);
+
+      const hasMore = rows.rows.length > limit;
+      const items = hasMore ? rows.rows.slice(0, -1) : rows.rows;
+
+      const nextCursor = hasMore && items.length > 0
+        ? `${items[items.length - 1].error_at.toISOString()}|${items[items.length - 1].id}`
+        : null;
+
+      return reply.send({
+        items: items.map(e => ({
+          id: e.id,
+          userId: e.user_id,
+          username: e.reporter_username,
+          email: e.reporter_email,
+          type: e.error_type,
+          message: e.message,
+          stack: e.stack,
+          componentName: e.component_name,
+          httpStatus: e.http_status,
+          url: e.url,
+          userAgent: e.user_agent,
+          context: e.context,
+          severity: e.severity,
+          isKnownIssue: e.is_known_issue,
+          status: e.status,
+          errorAt: e.error_at,
+          createdAt: e.created_at,
+          resolvedAt: e.resolved_at,
+        })),
+        nextCursor,
+        hasMore,
+      });
+    } catch (err) {
+      log.error({ err }, 'Failed to list frontend errors');
+      return reply.status(500).send({ error: 'Failed to list errors' });
+    }
+  });
+
+  // ============================================
+  // GET FRONTEND ERROR STATS FOR ADMIN (comprehensive)
+  // ============================================
+  app.get('/errors/admin-stats', { preHandler: optionalAuth }, async (request, reply) => {
+    try {
+      const [totals, byType, bySeverity, byStatus, recentActivity] = await Promise.all([
+        // Total counts
+        db.queryOne<{
+          total: string;
+          unresolved: string;
+          resolved: string;
+          today: string;
+          this_week: string;
+          unique_users: string;
+        }>(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status NOT IN ('resolved')) as unresolved,
+            COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+            COUNT(*) FILTER (WHERE error_at > NOW() - INTERVAL '1 day') as today,
+            COUNT(*) FILTER (WHERE error_at > NOW() - INTERVAL '7 days') as this_week,
+            COUNT(DISTINCT user_id) FILTER (WHERE error_at > NOW() - INTERVAL '7 days') as unique_users
+          FROM frontend_errors
+        `, []),
+
+        // By type
+        db.query<{ error_type: string; count: string }>(`
+          SELECT error_type, COUNT(*) as count FROM frontend_errors
+          WHERE error_at > NOW() - INTERVAL '7 days'
+          GROUP BY error_type ORDER BY count DESC
+        `, []),
+
+        // By severity
+        db.query<{ severity: string; count: string }>(`
+          SELECT severity, COUNT(*) as count FROM frontend_errors
+          WHERE error_at > NOW() - INTERVAL '7 days'
+          GROUP BY severity ORDER BY count DESC
+        `, []),
+
+        // By status
+        db.query<{ status: string; count: string }>(`
+          SELECT status, COUNT(*) as count FROM frontend_errors
+          WHERE error_at > NOW() - INTERVAL '7 days'
+          GROUP BY status ORDER BY count DESC
+        `, []),
+
+        // Recent activity by day
+        db.query<{ date: Date; count: string; unique_users: string }>(`
+          SELECT
+            DATE_TRUNC('day', error_at) as date,
+            COUNT(*) as count,
+            COUNT(DISTINCT user_id) as unique_users
+          FROM frontend_errors
+          WHERE error_at > NOW() - INTERVAL '7 days'
+          GROUP BY DATE_TRUNC('day', error_at)
+          ORDER BY date DESC
+        `, []),
+      ]);
+
+      return reply.send({
+        totals: {
+          total: parseInt(totals?.total || '0'),
+          unresolved: parseInt(totals?.unresolved || '0'),
+          resolved: parseInt(totals?.resolved || '0'),
+          today: parseInt(totals?.today || '0'),
+          thisWeek: parseInt(totals?.this_week || '0'),
+          uniqueUsersThisWeek: parseInt(totals?.unique_users || '0'),
+        },
+        byType: Object.fromEntries(byType.rows.map(r => [r.error_type, parseInt(r.count)])),
+        bySeverity: Object.fromEntries(bySeverity.rows.map(r => [r.severity, parseInt(r.count)])),
+        byStatus: Object.fromEntries(byStatus.rows.map(r => [r.status, parseInt(r.count)])),
+        recentActivity: recentActivity.rows.map(r => ({
+          date: r.date,
+          count: parseInt(r.count),
+          uniqueUsers: parseInt(r.unique_users),
+        })),
+      });
+    } catch (err) {
+      log.error({ err }, 'Failed to get admin error stats');
+      return reply.status(500).send({ error: 'Failed to retrieve error statistics' });
+    }
+  });
+
+  // ============================================
+  // CONVERT FRONTEND ERROR TO BUG REPORT
+  // ============================================
+  app.post('/errors/:id/convert-to-bug', { preHandler: optionalAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { priority?: string; notes?: string };
+
+    try {
+      // Get the frontend error
+      const error = await db.queryOne<FrontendError>(
+        `SELECT * FROM frontend_errors WHERE id = $1`,
+        [id]
+      );
+
+      if (!error) {
+        return reply.status(404).send({ error: 'Error not found' });
+      }
+
+      // Check if already converted
+      const existing = await db.queryOne<{ id: string }>(
+        `SELECT id FROM user_feedback WHERE bug_hunter_hash = $1`,
+        [`fe_${id}`]
+      );
+
+      if (existing) {
+        return reply.send({
+          data: { id: existing.id, message: 'Bug report already exists', converted: false },
+        });
+      }
+
+      // Map severity to priority
+      const priorityMap: Record<string, string> = {
+        critical: 'critical',
+        high: 'high',
+        medium: 'medium',
+        low: 'low',
+      };
+
+      // Create bug report
+      const bugReport = await db.queryOne<{ id: string }>(
+        `INSERT INTO user_feedback (
+          user_id, type, status, priority, title, description,
+          source, bug_hunter_hash, page_url, error_category,
+          console_errors, admin_notes
+        ) VALUES ($1, 'bug_report', 'open', $2, $3, $4, 'system', $5, $6, $7, $8, $9)
+        RETURNING id`,
+        [
+          error.user_id,
+          body.priority || priorityMap[error.severity] || 'medium',
+          `[${error.error_type.toUpperCase()}] ${error.message.slice(0, 200)}`,
+          `Auto-captured frontend error:\n\nMessage: ${error.message}\n\nComponent: ${error.component_name || 'Unknown'}\n\nStack:\n${error.stack || 'No stack trace'}\n\nContext: ${JSON.stringify(error.context, null, 2)}`,
+          `fe_${id}`,
+          error.url,
+          error.error_type,
+          JSON.stringify([error.message]),
+          body.notes || `Converted from frontend error ${id}`,
+        ]
+      );
+
+      // Mark frontend error as processed
+      await db.query(
+        `UPDATE frontend_errors SET status = 'converted', updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+
+      // Add bug history
+      if (bugReport) {
+        await db.query(
+          `INSERT INTO bug_history (feedback_id, actor_type, action, details)
+           VALUES ($1, 'system', 'created', $2)`,
+          [bugReport.id, JSON.stringify({ convertedFromError: id, errorType: error.error_type })]
+        );
+      }
+
+      log.info({ errorId: id, bugId: bugReport?.id }, 'Converted frontend error to bug report');
+
+      return reply.send({
+        data: { id: bugReport?.id, message: 'Bug report created', converted: true },
+      });
+    } catch (err) {
+      log.error({ err, id }, 'Failed to convert error to bug');
+      return reply.status(500).send({ error: 'Failed to convert error' });
+    }
+  });
+
+  // ============================================
+  // BULK CONVERT HIGH-SEVERITY ERRORS TO BUGS
+  // ============================================
+  app.post('/errors/sync-to-bugs', { preHandler: optionalAuth }, async (request, reply) => {
+    const body = request.body as { severity?: string; hours?: number; limit?: number };
+    const severity = body.severity || 'high';
+    const hours = Math.min(body.hours || 24, 168);
+    const maxLimit = Math.min(body.limit || 50, 100);
+
+    try {
+      // Find unprocessed high-severity errors
+      const errors = await db.query<FrontendError>(
+        `SELECT * FROM frontend_errors
+         WHERE severity IN ($1, 'critical')
+           AND status NOT IN ('resolved', 'converted')
+           AND error_at > NOW() - INTERVAL '1 hour' * $2
+           AND id NOT IN (
+             SELECT REPLACE(bug_hunter_hash, 'fe_', '') FROM user_feedback
+             WHERE bug_hunter_hash LIKE 'fe_%'
+           )
+         ORDER BY error_at DESC
+         LIMIT $3`,
+        [severity, hours, maxLimit]
+      );
+
+      const results = {
+        created: 0,
+        skipped: 0,
+        errors: [] as string[],
+      };
+
+      for (const error of errors.rows) {
+        try {
+          // Create bug report
+          const priorityMap: Record<string, string> = {
+            critical: 'critical',
+            high: 'high',
+            medium: 'medium',
+            low: 'low',
+          };
+
+          const bugReport = await db.queryOne<{ id: string }>(
+            `INSERT INTO user_feedback (
+              user_id, type, status, priority, title, description,
+              source, bug_hunter_hash, page_url, error_category,
+              console_errors
+            ) VALUES ($1, 'bug_report', 'open', $2, $3, $4, 'system', $5, $6, $7, $8)
+            RETURNING id`,
+            [
+              error.user_id,
+              priorityMap[error.severity] || 'medium',
+              `[${error.error_type.toUpperCase()}] ${error.message.slice(0, 200)}`,
+              `Auto-captured frontend error:\n\nMessage: ${error.message}\n\nComponent: ${error.component_name || 'Unknown'}\n\nStack:\n${error.stack || 'No stack trace'}`,
+              `fe_${error.id}`,
+              error.url,
+              error.error_type,
+              JSON.stringify([error.message]),
+            ]
+          );
+
+          if (bugReport) {
+            await db.query(
+              `UPDATE frontend_errors SET status = 'converted', updated_at = NOW() WHERE id = $1`,
+              [error.id]
+            );
+
+            await db.query(
+              `INSERT INTO bug_history (feedback_id, actor_type, action, details)
+               VALUES ($1, 'system', 'created', $2)`,
+              [bugReport.id, JSON.stringify({ convertedFromError: error.id, severity: error.severity })]
+            );
+
+            results.created++;
+          }
+        } catch (err) {
+          results.errors.push(`Failed to convert ${error.id}: ${err instanceof Error ? err.message : 'Unknown'}`);
+          results.skipped++;
+        }
+      }
+
+      log.info({ ...results, total: errors.rows.length }, 'Synced frontend errors to bugs');
+
+      return reply.send({
+        data: results,
+        message: `Synced ${results.created} errors to bug reports`,
+      });
+    } catch (err) {
+      log.error({ err }, 'Failed to sync errors to bugs');
+      return reply.status(500).send({ error: 'Failed to sync errors' });
+    }
+  });
+
   log.info('Error reporting routes registered');
 }

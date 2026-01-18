@@ -591,7 +591,25 @@ export class BugHunterAgent {
   private async injectAuth(): Promise<void> {
     if (!this.session || !this.authContext) return;
 
-    await injectAuthContext(this.session.page, this.authContext);
+    const page = this.session.page;
+
+    // Navigate to the base URL first to ensure we're on the correct origin
+    // (localStorage can only be set when on a page from that origin)
+    const currentUrl = page.url();
+    if (!currentUrl.includes(this.config.baseUrl.replace('https://', '').replace('http://', ''))) {
+      this.log('   Navigating to base URL to set auth context...', true);
+      await page.goto(this.config.baseUrl, { waitUntil: 'domcontentloaded' });
+    }
+
+    await injectAuthContext(page, this.authContext);
+
+    // Verify auth was set correctly
+    const token = await page.evaluate(() => localStorage.getItem('token'));
+    if (token) {
+      this.log(`   ✅ Auth context injected (token: ${token.substring(0, 20)}...)`, true);
+    } else {
+      this.log('   ⚠️  Failed to inject auth context', true);
+    }
   }
 
   // ============================================================================
