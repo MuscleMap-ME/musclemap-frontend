@@ -727,6 +727,17 @@ export async function registerErrorRoutes(app: FastifyInstance) {
         low: 'low',
       };
 
+      // Map frontend error types to user_feedback error_category enum values
+      const errorCategoryMap: Record<string, string | null> = {
+        runtime: 'error',
+        network: 'network',
+        auth: 'security',
+        api: 'error',
+        chunk: 'performance',
+        unknown: null,
+      };
+      const errorCategory = errorCategoryMap[error.error_type] ?? null;
+
       // Create bug report
       const bugReport = await db.queryOne<{ id: string }>(
         `INSERT INTO user_feedback (
@@ -742,7 +753,7 @@ export async function registerErrorRoutes(app: FastifyInstance) {
           `Auto-captured frontend error:\n\nMessage: ${error.message}\n\nComponent: ${error.component_name || 'Unknown'}\n\nStack:\n${error.stack || 'No stack trace'}\n\nContext: ${JSON.stringify(error.context, null, 2)}`,
           `fe_${id}`,
           error.url,
-          error.error_type,
+          errorCategory,
           JSON.stringify([error.message]),
           body.notes || `Converted from frontend error ${id}`,
         ]
@@ -805,6 +816,16 @@ export async function registerErrorRoutes(app: FastifyInstance) {
         errors: [] as string[],
       };
 
+      // Map frontend error types to user_feedback error_category enum values
+      const errorCategoryMap: Record<string, string | null> = {
+        runtime: 'error',
+        network: 'network',
+        auth: 'security',
+        api: 'error',
+        chunk: 'performance',
+        unknown: null,
+      };
+
       for (const error of errors.rows) {
         try {
           // Create bug report
@@ -814,6 +835,8 @@ export async function registerErrorRoutes(app: FastifyInstance) {
             medium: 'medium',
             low: 'low',
           };
+
+          const errorCategory = errorCategoryMap[error.error_type] ?? null;
 
           const bugReport = await db.queryOne<{ id: string }>(
             `INSERT INTO user_feedback (
@@ -829,7 +852,7 @@ export async function registerErrorRoutes(app: FastifyInstance) {
               `Auto-captured frontend error:\n\nMessage: ${error.message}\n\nComponent: ${error.component_name || 'Unknown'}\n\nStack:\n${error.stack || 'No stack trace'}`,
               `fe_${error.id}`,
               error.url,
-              error.error_type,
+              errorCategory,
               JSON.stringify([error.message]),
             ]
           );
