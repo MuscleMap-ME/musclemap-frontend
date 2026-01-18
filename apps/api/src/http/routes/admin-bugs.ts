@@ -18,6 +18,25 @@ import { loggers } from '../../lib/logger';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Bug Hunter API key for automated syncing (allows sync without admin auth)
+const BUG_HUNTER_API_KEY = process.env.BUG_HUNTER_API_KEY || 'bug-hunter-internal-key-12345';
+
+/**
+ * Middleware to allow either admin auth OR bug hunter API key
+ */
+async function authenticateBugHunterOrAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const bugHunterKey = request.headers['x-bug-hunter-key'];
+
+  if (bugHunterKey === BUG_HUNTER_API_KEY) {
+    // Bug hunter key is valid, allow the request
+    return;
+  }
+
+  // Fall back to normal admin authentication
+  await authenticate(request, reply);
+  await requireAdmin(request, reply);
+}
+
 const log = loggers.api;
 
 // Bug hunter reports directory (relative to project root)
@@ -148,10 +167,11 @@ export default async function adminBugsRoutes(app: FastifyInstance): Promise<voi
    * POST /admin/bugs/sync
    * Sync bug hunter reports to database
    * If empty array passed, reads from local bug hunter reports directory
+   * Accepts either admin auth OR bug hunter API key
    */
   app.post(
     '/admin/bugs/sync',
-    { preHandler: [authenticate, requireAdmin] },
+    { preHandler: [authenticateBugHunterOrAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       let bugs = z.array(syncBugReportSchema).parse(request.body);
 

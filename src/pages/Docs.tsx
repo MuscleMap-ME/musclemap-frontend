@@ -849,7 +849,10 @@ function findDocById(id) {
 // Supports both flat paths (/docs/guide-dashboard) and nested paths (/docs/guides/dashboard)
 function resolvePathToDocId(docId: string | undefined, splatPath: string | undefined): { id: string; isPublic: boolean } | null {
   // Build full path from docId and splat
-  const fullPath = splatPath ? `${docId}/${splatPath}` : docId;
+  // Handle cases where only splatPath is provided (from /docs/* route)
+  const fullPath = splatPath
+    ? (docId ? `${docId}/${splatPath}` : splatPath)
+    : docId;
   if (!fullPath) return null;
 
   // Path mappings for nested routes (e.g., /docs/guides/dashboard -> guide-dashboard)

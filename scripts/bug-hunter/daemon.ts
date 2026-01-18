@@ -460,6 +460,9 @@ export class BugHunterDaemon {
     // Update known bugs documentation
     await this.bugReporter.updateKnownBugsDocs(this.pendingBugs);
 
+    // Sync bugs to database API
+    await this.syncBugsToDatabase(result.bugsFound);
+
     // Create GitHub issues for critical bugs
     for (const bug of result.bugsFound) {
       if (bug.severity === 'critical' && !bug.githubIssue) {
@@ -469,6 +472,69 @@ export class BugHunterDaemon {
           console.log(`   📝 Created GitHub issue: ${issueUrl}`);
         }
       }
+    }
+  }
+
+  /**
+   * Sync discovered bugs to the database via the admin API
+   */
+  private async syncBugsToDatabase(bugs: DiagnosedBug[]): Promise<void> {
+    if (bugs.length === 0) {
+      console.log('   ℹ️  No bugs to sync to database');
+      return;
+    }
+
+    console.log(`   📤 Syncing ${bugs.length} bugs to database...`);
+
+    try {
+      // Format bugs for the API
+      const bugsForApi = bugs.map(bug => ({
+        id: bug.id,
+        title: bug.title,
+        description: bug.description,
+        severity: bug.severity,
+        url: bug.url,
+        status: bug.fixStatus,
+        category: bug.category,
+        rootCause: {
+          type: bug.rootCause.type,
+          file: bug.rootCause.file,
+          hypothesis: bug.rootCause.hypothesis,
+          evidence: bug.rootCause.evidence,
+        },
+        suggestedFix: bug.suggestedFix ? {
+          description: bug.suggestedFix.description,
+          codeChanges: bug.suggestedFix.codeChanges,
+        } : undefined,
+        consoleErrors: bug.consoleErrors,
+        networkErrors: bug.networkErrors.map(e => `${e.method} ${e.url}: ${e.status} ${e.statusText}`),
+        hash: bug.hash,
+      }));
+
+      // Make API request to sync bugs
+      const response = await fetch(`${this.config.productionUrl}/admin/bugs/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Use API key for automated sync (no user auth needed)
+          'X-Bug-Hunter-Key': process.env.BUG_HUNTER_API_KEY || 'bug-hunter-internal-key-12345',
+        },
+        body: JSON.stringify(bugsForApi),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`   ✅ Synced to database: ${result.created} created, ${result.updated} updated`);
+        if (result.errors && result.errors.length > 0) {
+          console.log(`   ⚠️  Sync errors: ${result.errors.length}`);
+        }
+      } else {
+        const errorText = await response.text();
+        console.log(`   ⚠️  Database sync failed: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`   ⚠️  Database sync error: ${message}`);
     }
   }
 

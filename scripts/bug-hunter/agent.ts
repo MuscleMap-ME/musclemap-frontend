@@ -97,6 +97,57 @@ export class BugHunterAgent {
     this.log('✅ Bug Hunter Agent stopped');
   }
 
+  /**
+   * Recreate browser session to avoid stale/closed context issues.
+   * This is called before each exploration cycle to ensure a fresh browser state.
+   */
+  private async recreateSession(): Promise<void> {
+    this.log('🔄 Refreshing browser session...');
+
+    // Close existing session if any
+    if (this.session) {
+      try {
+        await closeSession(this.session);
+      } catch (e) {
+        // Session might already be closed, ignore
+        this.log(`   ⚠️  Old session cleanup: ${e}`, true);
+      }
+      this.session = null;
+    }
+
+    // Close existing browser and create a new one
+    if (this.browser) {
+      try {
+        await closeBrowser(this.browser);
+      } catch (e) {
+        // Browser might already be closed, ignore
+        this.log(`   ⚠️  Old browser cleanup: ${e}`, true);
+      }
+      this.browser = null;
+    }
+
+    // Create fresh browser and session
+    this.browser = await createBrowser({
+      headless: true,
+      slowMo: 50,
+    });
+
+    this.session = await createSession(this.browser);
+    this.errorCollector = new ErrorCollector(this.session.page, this.session.context);
+
+    // Re-setup auth context if we have a test user
+    if (this.testUser) {
+      // Re-login to get fresh auth
+      this.authContext = await loginUserViaAPI(this.config.baseUrl, this.testUser);
+      if (!this.authContext) {
+        // Try registering again (shouldn't be needed, but just in case)
+        this.authContext = await registerUserViaAPI(this.config.baseUrl, this.testUser);
+      }
+    }
+
+    this.log('✅ Browser session refreshed');
+  }
+
   // ============================================================================
   // TEST USER MANAGEMENT
   // ============================================================================
@@ -134,6 +185,9 @@ export class BugHunterAgent {
     this.routesTested.clear();
 
     this.log(`\n🔍 Starting exploration (${duration / 60000} minutes, ${depth} depth)`);
+
+    // Recreate browser session before each exploration to avoid stale/closed context
+    await this.recreateSession();
 
     const startTime = Date.now();
 
