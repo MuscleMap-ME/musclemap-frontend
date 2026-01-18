@@ -18,6 +18,7 @@ import { resolvers } from './resolvers';
 import { createLoaders, type Loaders } from './loaders';
 import { createComplexityLimitRule } from './complexity';
 import { loggers } from '../lib/logger';
+import { optionalAuth } from '../http/routes/auth';
 
 const log = loggers.core;
 
@@ -208,7 +209,8 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
   const server = await createGraphQLServer({ fastify: app });
 
   // GraphQL POST endpoint
-  app.post('/graphql', async (request: FastifyRequest, reply: FastifyReply) => {
+  // Use optionalAuth to parse JWT if provided (sets request.user for authenticated requests)
+  app.post('/graphql', { preHandler: optionalAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const context = createContext(request);
     const { query, operationName, variables } = request.body as {
       query?: string;
@@ -241,7 +243,8 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
   });
 
   // GraphQL GET endpoint (for introspection tools)
-  app.get('/graphql', async (request: FastifyRequest, reply: FastifyReply) => {
+  // Use optionalAuth to parse JWT if provided
+  app.get('/graphql', { preHandler: optionalAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const context = createContext(request);
     const { query, operationName, variables } = request.query as {
       query?: string;

@@ -65,6 +65,7 @@ import {
   FileSearch,
   Archive,
   BookOpen,
+  Eye,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -766,8 +767,10 @@ export default function EmpireControl() {
       fetchBugStats();
       fetchBugItems();
       fetchBugTimeline();
+      fetchCockatriceStats();
+      fetchCockatriceErrors();
     }
-  }, [activeSection, fetchBugStats, fetchBugItems, fetchBugTimeline]);
+  }, [activeSection, fetchBugStats, fetchBugItems, fetchBugTimeline, fetchCockatriceStats, fetchCockatriceErrors]);
 
   // Refresh bugs when filter changes
   useEffect(() => {
@@ -775,6 +778,13 @@ export default function EmpireControl() {
       fetchBugItems();
     }
   }, [bugFilter, activeSection, fetchBugItems]);
+
+  // Refresh cockatrice errors when filter changes
+  useEffect(() => {
+    if (activeSection === 'bug-tracker') {
+      fetchCockatriceErrors();
+    }
+  }, [cockatriceFilter, activeSection, fetchCockatriceErrors]);
 
   // Auto-refresh metrics
   useEffect(() => {
@@ -1577,116 +1587,389 @@ export default function EmpireControl() {
               {/* Bug Tracker Section */}
               {activeSection === 'bug-tracker' && (
                 <div className="space-y-6">
-                  {/* Stats Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <StatCard
-                      title="Total Bugs"
-                      value={bugStats?.totals?.total || 0}
-                      icon={Bug}
-                      color="#8b5cf6"
-                    />
-                    <StatCard
-                      title="Open"
-                      value={bugStats?.totals?.open || 0}
-                      icon={AlertCircle}
-                      color="#ef4444"
-                      onClick={() => setBugFilter({ ...bugFilter, status: 'open' })}
-                    />
-                    <StatCard
-                      title="Resolved"
-                      value={bugStats?.totals?.resolved || 0}
-                      icon={CheckCircle}
-                      color="#10b981"
-                      onClick={() => setBugFilter({ ...bugFilter, status: 'resolved' })}
-                    />
-                    <StatCard
-                      title="Auto-Fixed"
-                      value={bugStats?.autoFix?.completed || 0}
-                      icon={Zap}
-                      color="#f59e0b"
-                    />
-                    <StatCard
-                      title="Today"
-                      value={bugStats?.totals?.today || 0}
-                      icon={Clock}
-                      color="#06b6d4"
-                    />
-                  </div>
-
-                  {/* Sync Button & Source Breakdown */}
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(bugStats?.bySource || {}).map(([source, count]) => (
-                        <button
-                          key={source}
-                          onClick={() => setBugFilter({ ...bugFilter, source: bugFilter.source === source ? 'all' : source })}
-                          className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                            bugFilter.source === source
-                              ? 'bg-violet-500 text-white'
-                              : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                          }`}
-                        >
-                          {source} ({count})
-                        </button>
-                      ))}
-                    </div>
+                  {/* Tab Switcher */}
+                  <div className="flex items-center gap-2 border-b border-white/10 pb-4">
+                    <button
+                      onClick={() => setCockatriceTab('errors')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                        cockatriceTab === 'errors'
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                      }`}
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      Cockatrice Errors
+                      {cockatriceStats?.totals?.unresolved > 0 && (
+                        <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                          {cockatriceStats.totals.unresolved}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setCockatriceTab('bugs')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                        cockatriceTab === 'bugs'
+                          ? 'bg-violet-500 text-white'
+                          : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                      }`}
+                    >
+                      <Bug className="w-4 h-4" />
+                      Bug Reports
+                      {bugStats?.totals?.open > 0 && (
+                        <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                          {bugStats.totals.open}
+                        </span>
+                      )}
+                    </button>
+                    <div className="flex-1" />
                     <button
                       onClick={syncBugHunterReports}
                       disabled={syncingBugs}
                       className="px-4 py-2 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
                     >
                       <RefreshCw className={`w-4 h-4 ${syncingBugs ? 'animate-spin' : ''}`} />
-                      {syncingBugs ? 'Syncing...' : 'Sync Bug Hunter'}
+                      {syncingBugs ? 'Syncing...' : 'Sync to Bug Reports'}
                     </button>
                   </div>
 
-                  {/* Priority Filter */}
-                  <div className="flex gap-2 flex-wrap">
-                    {['all', 'critical', 'high', 'medium', 'low'].map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setBugFilter({ ...bugFilter, priority: p })}
-                        className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                          bugFilter.priority === p
-                            ? p === 'critical' ? 'bg-red-500 text-white' :
-                              p === 'high' ? 'bg-orange-500 text-white' :
-                              p === 'medium' ? 'bg-yellow-500 text-black' :
-                              p === 'low' ? 'bg-blue-500 text-white' :
-                              'bg-violet-500 text-white'
-                            : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                        }`}
-                      >
-                        {p.charAt(0).toUpperCase() + p.slice(1)} {bugStats?.byPriority?.[p] ? `(${bugStats.byPriority[p]})` : ''}
-                      </button>
-                    ))}
-                  </div>
+                  {/* COCKATRICE ERRORS TAB */}
+                  {cockatriceTab === 'errors' && (
+                    <>
+                      {/* Cockatrice Stats Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <StatCard
+                          title="Total Errors"
+                          value={cockatriceStats?.totals?.total || 0}
+                          icon={AlertCircle}
+                          color="#ef4444"
+                        />
+                        <StatCard
+                          title="Unresolved"
+                          value={cockatriceStats?.totals?.unresolved || 0}
+                          icon={AlertCircle}
+                          color="#f59e0b"
+                          onClick={() => setCockatriceFilter({ ...cockatriceFilter, status: 'new' })}
+                        />
+                        <StatCard
+                          title="Resolved"
+                          value={cockatriceStats?.totals?.resolved || 0}
+                          icon={CheckCircle}
+                          color="#10b981"
+                          onClick={() => setCockatriceFilter({ ...cockatriceFilter, status: 'resolved' })}
+                        />
+                        <StatCard
+                          title="Today"
+                          value={cockatriceStats?.totals?.today || 0}
+                          icon={Clock}
+                          color="#06b6d4"
+                        />
+                        <StatCard
+                          title="Affected Users"
+                          value={cockatriceStats?.totals?.uniqueUsersThisWeek || 0}
+                          icon={Users}
+                          color="#8b5cf6"
+                        />
+                      </div>
 
-                  {/* Status Filter */}
-                  <div className="flex gap-2 flex-wrap">
-                    {['all', 'open', 'in_progress', 'confirmed', 'resolved', 'closed', 'wont_fix'].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setBugFilter({ ...bugFilter, status: s })}
-                        className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                          bugFilter.status === s
-                            ? 'bg-violet-500 text-white'
-                            : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                        }`}
-                      >
-                        {s.replace('_', ' ')} {bugStats?.byStatus?.[s] ? `(${bugStats.byStatus[s]})` : ''}
-                      </button>
-                    ))}
-                    {(bugFilter.status !== 'all' || bugFilter.source !== 'all' || bugFilter.priority !== 'all') && (
-                      <button
-                        onClick={() => setBugFilter({ status: 'all', source: 'all', priority: 'all' })}
-                        className="px-3 py-1 rounded-full text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                      >
-                        Clear filters
-                      </button>
-                    )}
-                  </div>
+                      {/* Error Type Filter */}
+                      <div className="flex gap-2 flex-wrap">
+                        {Object.entries(cockatriceStats?.byType || {}).map(([type, count]) => (
+                          <button
+                            key={type}
+                            onClick={() => setCockatriceFilter({ ...cockatriceFilter, type: cockatriceFilter.type === type ? 'all' : type })}
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                              cockatriceFilter.type === type
+                                ? 'bg-violet-500 text-white'
+                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                            }`}
+                          >
+                            {type} ({count})
+                          </button>
+                        ))}
+                      </div>
 
-                  <div className="grid md:grid-cols-3 gap-6">
+                      {/* Severity Filter */}
+                      <div className="flex gap-2 flex-wrap">
+                        {['all', 'critical', 'high', 'medium', 'low'].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setCockatriceFilter({ ...cockatriceFilter, severity: s })}
+                            className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                              cockatriceFilter.severity === s
+                                ? s === 'critical' ? 'bg-red-500 text-white' :
+                                  s === 'high' ? 'bg-orange-500 text-white' :
+                                  s === 'medium' ? 'bg-yellow-500 text-black' :
+                                  s === 'low' ? 'bg-blue-500 text-white' :
+                                  'bg-violet-500 text-white'
+                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                            }`}
+                          >
+                            {s.charAt(0).toUpperCase() + s.slice(1)} {cockatriceStats?.bySeverity?.[s] ? `(${cockatriceStats.bySeverity[s]})` : ''}
+                          </button>
+                        ))}
+                        {(cockatriceFilter.status !== 'all' || cockatriceFilter.severity !== 'all' || cockatriceFilter.type !== 'all') && (
+                          <button
+                            onClick={() => setCockatriceFilter({ status: 'all', severity: 'all', type: 'all' })}
+                            className="px-3 py-1 rounded-full text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Cockatrice Error List */}
+                      <div className="grid md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2">
+                          <GlassSurface className="p-4">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-semibold">Frontend Errors ({cockatriceErrors.length})</h3>
+                              <button
+                                onClick={() => { fetchCockatriceErrors(); fetchCockatriceStats(); }}
+                                className="p-2 rounded-lg hover:bg-white/10"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                              {cockatriceErrors.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400">
+                                  <AlertCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                  <p>No frontend errors captured</p>
+                                  <p className="text-sm mt-2">When users encounter errors, they will appear here</p>
+                                </div>
+                              ) : (
+                                cockatriceErrors.map((error) => (
+                                  <div
+                                    key={error.id}
+                                    className={`p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer ${
+                                      selectedCockatriceError?.id === error.id ? 'ring-2 ring-violet-500' : ''
+                                    }`}
+                                    onClick={() => setSelectedCockatriceError(error)}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className={`w-2 h-2 rounded-full ${
+                                            error.severity === 'critical' ? 'bg-red-500' :
+                                            error.severity === 'high' ? 'bg-orange-500' :
+                                            error.severity === 'medium' ? 'bg-yellow-500' :
+                                            'bg-blue-500'
+                                          }`} />
+                                          <span className="font-medium text-sm truncate">{error.message}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400 truncate">{error.url}</div>
+                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                          <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+                                            {error.type}
+                                          </span>
+                                          {error.username && (
+                                            <>
+                                              <span>•</span>
+                                              <span className="text-violet-400">{error.username}</span>
+                                            </>
+                                          )}
+                                          <span>•</span>
+                                          <span>{new Date(error.errorAt).toLocaleString()}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className={`px-2 py-0.5 rounded text-xs ${
+                                          error.status === 'new' ? 'bg-blue-500/20 text-blue-400' :
+                                          error.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                          error.status === 'converted' ? 'bg-violet-500/20 text-violet-400' :
+                                          'bg-gray-500/20 text-gray-400'
+                                        }`}>
+                                          {error.status}
+                                        </span>
+                                        {error.status !== 'converted' && error.status !== 'resolved' && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); convertErrorToBug(error.id); }}
+                                            className="px-2 py-0.5 rounded text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
+                                          >
+                                            → Bug
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </GlassSurface>
+                        </div>
+
+                        {/* Error Detail Panel */}
+                        <div>
+                          <GlassSurface className="p-4">
+                            <h3 className="font-semibold mb-4 flex items-center gap-2">
+                              <Eye className="w-4 h-4 text-violet-400" />
+                              Error Details
+                            </h3>
+                            {selectedCockatriceError ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="text-xs text-gray-500 mb-1">Message</h4>
+                                  <p className="text-sm text-gray-300">{selectedCockatriceError.message}</p>
+                                </div>
+                                <div>
+                                  <h4 className="text-xs text-gray-500 mb-1">Type</h4>
+                                  <span className="px-2 py-1 rounded text-xs bg-red-500/20 text-red-400">
+                                    {selectedCockatriceError.type}
+                                  </span>
+                                </div>
+                                {selectedCockatriceError.username && (
+                                  <div>
+                                    <h4 className="text-xs text-gray-500 mb-1">User</h4>
+                                    <p className="text-sm text-violet-400">{selectedCockatriceError.username}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <h4 className="text-xs text-gray-500 mb-1">URL</h4>
+                                  <a href={selectedCockatriceError.url} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-400 hover:underline break-all">
+                                    {selectedCockatriceError.url}
+                                  </a>
+                                </div>
+                                {selectedCockatriceError.componentName && (
+                                  <div>
+                                    <h4 className="text-xs text-gray-500 mb-1">Component</h4>
+                                    <code className="text-xs text-gray-300 bg-black/30 px-2 py-1 rounded">{selectedCockatriceError.componentName}</code>
+                                  </div>
+                                )}
+                                {selectedCockatriceError.stack && (
+                                  <div>
+                                    <h4 className="text-xs text-gray-500 mb-1">Stack Trace</h4>
+                                    <pre className="text-xs text-gray-400 bg-black/30 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap">
+                                      {selectedCockatriceError.stack}
+                                    </pre>
+                                  </div>
+                                )}
+                                <div>
+                                  <h4 className="text-xs text-gray-500 mb-1">Occurred</h4>
+                                  <p className="text-xs text-gray-400">{new Date(selectedCockatriceError.errorAt).toLocaleString()}</p>
+                                </div>
+                                {selectedCockatriceError.status !== 'converted' && selectedCockatriceError.status !== 'resolved' && (
+                                  <button
+                                    onClick={() => convertErrorToBug(selectedCockatriceError.id)}
+                                    className="w-full px-3 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 text-sm"
+                                  >
+                                    Convert to Bug Report
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8 text-gray-500 text-sm">
+                                Select an error to view details
+                              </div>
+                            )}
+                          </GlassSurface>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* BUG REPORTS TAB */}
+                  {cockatriceTab === 'bugs' && (
+                    <>
+                      {/* Stats Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <StatCard
+                          title="Total Bugs"
+                          value={bugStats?.totals?.total || 0}
+                          icon={Bug}
+                          color="#8b5cf6"
+                        />
+                        <StatCard
+                          title="Open"
+                          value={bugStats?.totals?.open || 0}
+                          icon={AlertCircle}
+                          color="#ef4444"
+                          onClick={() => setBugFilter({ ...bugFilter, status: 'open' })}
+                        />
+                        <StatCard
+                          title="Resolved"
+                          value={bugStats?.totals?.resolved || 0}
+                          icon={CheckCircle}
+                          color="#10b981"
+                          onClick={() => setBugFilter({ ...bugFilter, status: 'resolved' })}
+                        />
+                        <StatCard
+                          title="Auto-Fixed"
+                          value={bugStats?.autoFix?.completed || 0}
+                          icon={Zap}
+                          color="#f59e0b"
+                        />
+                        <StatCard
+                          title="Today"
+                          value={bugStats?.totals?.today || 0}
+                          icon={Clock}
+                          color="#06b6d4"
+                        />
+                      </div>
+
+                      {/* Source Breakdown */}
+                      <div className="flex gap-2 flex-wrap">
+                        {Object.entries(bugStats?.bySource || {}).map(([source, count]) => (
+                          <button
+                            key={source}
+                            onClick={() => setBugFilter({ ...bugFilter, source: bugFilter.source === source ? 'all' : source })}
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                              bugFilter.source === source
+                                ? 'bg-violet-500 text-white'
+                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                            }`}
+                          >
+                            {source} ({count})
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Priority Filter */}
+                      <div className="flex gap-2 flex-wrap">
+                        {['all', 'critical', 'high', 'medium', 'low'].map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setBugFilter({ ...bugFilter, priority: p })}
+                            className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                              bugFilter.priority === p
+                                ? p === 'critical' ? 'bg-red-500 text-white' :
+                                  p === 'high' ? 'bg-orange-500 text-white' :
+                                  p === 'medium' ? 'bg-yellow-500 text-black' :
+                                  p === 'low' ? 'bg-blue-500 text-white' :
+                                  'bg-violet-500 text-white'
+                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                            }`}
+                          >
+                            {p.charAt(0).toUpperCase() + p.slice(1)} {bugStats?.byPriority?.[p] ? `(${bugStats.byPriority[p]})` : ''}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Status Filter */}
+                      <div className="flex gap-2 flex-wrap">
+                        {['all', 'open', 'in_progress', 'confirmed', 'resolved', 'closed', 'wont_fix'].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setBugFilter({ ...bugFilter, status: s })}
+                            className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                              bugFilter.status === s
+                                ? 'bg-violet-500 text-white'
+                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                            }`}
+                          >
+                            {s.replace('_', ' ')} {bugStats?.byStatus?.[s] ? `(${bugStats.byStatus[s]})` : ''}
+                          </button>
+                        ))}
+                        {(bugFilter.status !== 'all' || bugFilter.source !== 'all' || bugFilter.priority !== 'all') && (
+                          <button
+                            onClick={() => setBugFilter({ status: 'all', source: 'all', priority: 'all' })}
+                            className="px-3 py-1 rounded-full text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                          >
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid md:grid-cols-3 gap-6">
                     {/* Bug List */}
                     <div className="md:col-span-2">
                       <GlassSurface className="p-4">
@@ -1798,26 +2081,28 @@ export default function EmpireControl() {
                         </div>
                       </GlassSurface>
 
-                      {/* Resolution Stats */}
-                      {bugStats?.avgResolutionTimeHours > 0 && (
-                        <GlassSurface className="p-4 mt-4">
-                          <h3 className="font-semibold mb-3 text-sm">Resolution Metrics</h3>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Avg. Time to Fix</span>
-                              <span className="font-medium">{bugStats.avgResolutionTimeHours.toFixed(1)}h</span>
+                        {/* Resolution Stats */}
+                        {bugStats?.avgResolutionTimeHours > 0 && (
+                          <GlassSurface className="p-4 mt-4">
+                            <h3 className="font-semibold mb-3 text-sm">Resolution Metrics</h3>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Avg. Time to Fix</span>
+                                <span className="font-medium">{bugStats.avgResolutionTimeHours.toFixed(1)}h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Auto-Fix Success</span>
+                                <span className="font-medium text-green-400">
+                                  {bugStats?.autoFix?.completed || 0} / {(bugStats?.autoFix?.completed || 0) + (bugStats?.autoFix?.failed || 0)}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Auto-Fix Success</span>
-                              <span className="font-medium text-green-400">
-                                {bugStats?.autoFix?.completed || 0} / {(bugStats?.autoFix?.completed || 0) + (bugStats?.autoFix?.failed || 0)}
-                              </span>
-                            </div>
-                          </div>
-                        </GlassSurface>
-                      )}
+                          </GlassSurface>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
 
