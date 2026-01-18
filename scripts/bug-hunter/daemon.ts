@@ -512,7 +512,7 @@ export class BugHunterDaemon {
       }));
 
       // Make API request to sync bugs
-      const response = await fetch(`${this.config.productionUrl}/admin/bugs/sync`, {
+      const response = await fetch(`${this.config.productionUrl}/api/admin/bugs/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
