@@ -8,10 +8,10 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AdventureMapCanvas, AdventureHUD, AdventureMapWidget } from '../components/adventure-map';
+import { AdventureMapCanvas, AdventureHUD } from '../components/adventure-map';
 import { useAdventureMapStore, useCharacterPosition, useMapProgress, useMapUI } from '../store/adventureMapStore';
-import { getClosestLocation, getAllLocations, getLocation } from '../components/adventure-map/data/mapLayout';
-import { REGIONS, getRegion } from '../components/adventure-map/data/regions';
+import { getClosestLocation, getAllLocations } from '../components/adventure-map/data/mapLayout';
+import { REGIONS } from '../components/adventure-map/data/regions';
 import type { HUDStats, CompanionData, MapLocation } from '../components/adventure-map/types';
 import { useUser } from '../contexts/UserContext';
 

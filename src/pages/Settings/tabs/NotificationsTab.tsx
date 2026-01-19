@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Bell, Trophy, Target, Calendar, Users, Moon, Clock } from 'lucide-react';
+import { Bell, Trophy, Calendar, Users, Moon, Clock } from 'lucide-react';
 import { useNotificationSettings } from '../../../store/preferencesStore';
 
 // ============================================
@@ -126,7 +126,7 @@ export default function NotificationsTab() {
         {!settings.achievementsEnabled && !settings.goalSuccessEnabled && (
           <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-xl">
             <p className="text-sm text-yellow-200">
-              You won't receive any achievement or goal notifications. This is fine if you prefer a minimal
+              You won&apos;t receive any achievement or goal notifications. This is fine if you prefer a minimal
               experience!
             </p>
           </div>
@@ -175,7 +175,7 @@ export default function NotificationsTab() {
         {!settings.socialNotifications && (
           <div className="mt-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded-xl">
             <p className="text-sm text-blue-200">
-              You won't see social updates. You can still interact with the community, just without push
+              You won&apos;t see social updates. You can still interact with the community, just without push
               notifications.
             </p>
           </div>

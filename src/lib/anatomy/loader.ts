@@ -4,10 +4,10 @@
  */
 
 import { useGLTF } from '@react-three/drei';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { anatomyRegistry } from './registry';
-import type { AnatomyAsset, LODLevel, LoadedAnatomyModel } from './types';
+import type { LODLevel, LoadedAnatomyModel } from './types';
 
 // Preloaded models cache
 const preloadedModels = new Set<string>();

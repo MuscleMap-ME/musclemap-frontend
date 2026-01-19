@@ -454,7 +454,7 @@ function TradeCard({ trade, isIncoming, onClick }) {
       </div>
 
       {trade.message && (
-        <p className="mt-2 text-sm text-gray-400 italic line-clamp-1">"{trade.message}"</p>
+        <p className="mt-2 text-sm text-gray-400 italic line-clamp-1">&quot;{trade.message}&quot;</p>
       )}
     </motion.div>
   );
@@ -567,7 +567,7 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
         {trade.message && (
           <div className="mt-6 p-4 bg-white/5 rounded-xl">
             <p className="text-sm text-gray-400 mb-1">Message</p>
-            <p className="text-gray-200">"{trade.message}"</p>
+            <p className="text-gray-200">&quot;{trade.message}&quot;</p>
           </div>
         )}
 

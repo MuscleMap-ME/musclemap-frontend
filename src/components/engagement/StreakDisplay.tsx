@@ -18,7 +18,6 @@ import {
   Users,
   Trophy,
   Star,
-  ChevronRight,
   Sparkles,
 } from 'lucide-react';
 import { useStreaks } from '../../store/engagementStore';

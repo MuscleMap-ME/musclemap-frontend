@@ -140,7 +140,7 @@ export const useAdventureMapStore = create<AdventureMapState>()(
         setCharacterState: (state) => set({ characterState: state }),
 
         startMovement: (targetLocationId) => {
-          const { characterPosition, visitedLocations } = get();
+          const { characterPosition, visitedLocations: _visitedLocations } = get();
 
           // Find closest location to current position
           const currentLocation = getClosestLocation(characterPosition);

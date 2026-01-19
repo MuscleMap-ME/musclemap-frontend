@@ -85,7 +85,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
 
         {/* Title */}
         <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
-        <p className="text-slate-300 mb-6">You've reached level {newLevel}</p>
+        <p className="text-slate-300 mb-6">You&apos;ve reached level {newLevel}</p>
 
         {/* Level badge */}
         <div

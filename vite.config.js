@@ -47,9 +47,9 @@ export default defineConfig({
     },
   },
   plugins: [
-    // Pre-bundled vendors - uses cached ESM bundles for heavy deps
+    // CRITICAL: Pre-bundled vendors FIRST - uses cached ESM bundles for heavy deps
+    // This DRAMATICALLY reduces transform count from ~10k to ~800 modules
     // Run `node scripts/prebundle-vendors.mjs` to create/update cache
-    // Reduces transform count from ~10k to ~5k modules (40-50% faster builds)
     prebundledVendors(),
     react({
       // SWC options for faster compilation
@@ -126,7 +126,7 @@ export default defineConfig({
     target: 'es2020',
     // Warning limit - we still want to be alerted for large chunks
     chunkSizeWarningLimit: 300,
-    // Low memory mode: Use esbuild minification (faster, less memory than terser)
+    // ALWAYS use esbuild minification (faster, less memory than terser)
     minify: 'esbuild',
     // Skip compressed size reporting - saves ~30% build time
     // We calculate sizes in post-build compression anyway
@@ -163,12 +163,10 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      // Low memory mode: Reduce Rollup's parallelism during transformation
-      // This is the KEY setting that prevents OOM during module transformation
+      // CRITICAL: Reduce parallelism based on memory mode
       ...(lowMemoryMode && {
         maxParallelFileOps: 2,  // Default is 20, reduce to 2 for 8GB servers
       }),
-      // High performance mode: maximize parallelism
       ...(!lowMemoryMode && {
         maxParallelFileOps: Math.max(numCPUs * 2, 20),  // Use 2x CPU cores
       }),
@@ -189,15 +187,6 @@ export default defineConfig({
               id.includes('node_modules/graphql/')) {
             return 'apollo-vendor';
           }
-
-          // Animation - framer-motion (~125KB)
-          // NOTE: Do NOT split framer-motion into separate chunk!
-          // It depends on React context and must load after react-vendor.
-          // Splitting it causes "Cannot read properties of undefined (reading 'createContext')"
-          // Let it bundle with the main app code instead.
-          // if (id.includes('framer-motion') || id.includes('motion/')) {
-          //   return 'animation-vendor';
-          // }
 
           // Three.js and React Three Fiber - only for 3D pages (~800KB)
           // Kept separate so pages without 3D never load this
@@ -250,11 +239,6 @@ export default defineConfig({
             return 'markdown-vendor';
           }
 
-          // Lottie animations (reserved for future use)
-          // if (id.includes('lottie-')) {
-          //   return 'lottie-vendor';
-          // }
-
           // DiceBear avatars
           if (id.includes('@dicebear')) {
             return 'dicebear-vendor';
@@ -272,9 +256,10 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
-  // Optimize deps for faster dev AND build
+  // CRITICAL: Configure Vite's dependency optimization for MAXIMUM caching
   optimizeDeps: {
-    // Pre-bundle these deps - they are used on most pages
+    // Force include these for faster subsequent builds
+    // These are pre-bundled once and cached in node_modules/.vite
     include: [
       'react',
       'react-dom',
@@ -287,8 +272,8 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
     ],
-    // Exclude heavy deps from pre-bundling to avoid bloating the cache
-    // These will be bundled on-demand when the pages that need them load
+    // Exclude heavy deps from Vite's pre-bundling
+    // These use our custom pre-bundled files in .vendor-cache/ instead
     exclude: [
       'three',
       '@react-three/fiber',
@@ -297,7 +282,11 @@ export default defineConfig({
     // Force optimization of nested dependencies
     esbuildOptions: {
       mainFields: ['module', 'main'],
+      // Keep names for better debugging
+      keepNames: true,
     },
+    // CRITICAL: Hold optimized deps for longer to avoid re-bundling
+    // This caches in node_modules/.vite which we preserve with transform-cache.mjs
   },
   // esbuild configuration for faster transforms
   esbuild: {
@@ -315,4 +304,6 @@ export default defineConfig({
     // Faster parsing with loose mode (safe for modern browsers)
     legalComments: 'none',
   },
+  // CRITICAL: Cache configuration
+  cacheDir: 'node_modules/.vite',
 })

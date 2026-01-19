@@ -162,7 +162,7 @@ export default function Profile() {
 
         {/* Weekly Activity */}
         <div className="bg-gray-800 rounded-2xl p-4 mb-6">
-          <h3 className="text-sm text-gray-400 uppercase mb-3">This Week's Activity</h3>
+          <h3 className="text-sm text-gray-400 uppercase mb-3">This Week&apos;s Activity</h3>
           <WeeklyHeatmap
             data={profile?.weeklyActivity || [2, 1, 3, 0, 2, 1, 0]}
             colorScheme="purple"

@@ -138,7 +138,7 @@ const LiveActivityMonitor = lazy(() => import('./pages/LiveActivityMonitor'));
 
 // Adventure Map
 const AdventureMapPage = lazy(() => import('./pages/AdventureMap'));
-const AdventureMapFullscreen = lazy(() => import('./components/adventure-map').then(m => ({ default: m.AdventureMapFullscreen })));
+const _AdventureMapFullscreen = lazy(() => import('./components/adventure-map').then(m => ({ default: m.AdventureMapFullscreen })));
 
 // Map Explore (Interactive Navigation)
 const MapExplore = lazy(() => import('./pages/MapExplore'));

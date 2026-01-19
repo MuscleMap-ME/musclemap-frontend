@@ -38,7 +38,7 @@ interface JourneySettings {
 
 export function JourneyManagement() {
   const navigate = useNavigate();
-  const { token, logout } = useAuth();
+  const { token, logout: _logout } = useAuth();
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [settings, setSettings] = useState<JourneySettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -599,7 +599,7 @@ export function JourneyManagement() {
                   <li>Your archetype will be cleared</li>
                   <li>Your equipment settings will be reset</li>
                   <li>Your goals will be cancelled</li>
-                  <li>You'll need to redo onboarding</li>
+                  <li>You&apos;ll need to redo onboarding</li>
                 </ul>
                 <p className="text-sm text-green-400">
                   Your workout history will be preserved, and a backup snapshot will be created automatically.

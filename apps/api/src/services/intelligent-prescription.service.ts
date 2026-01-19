@@ -441,9 +441,9 @@ export async function getExerciseAlternatives(
   }
 
   // Filter out contraindicated exercises for user's injuries
-  const safeAlternatives = alternatives.filter(alt => {
+  const safeAlternatives = alternatives.filter(_alt => {
     // Check each alternative against user limitations
-    for (const limitation of userLimitations) {
+    for (const _limitation of userLimitations) {
       // Would need to check exercise's injury_risk_areas/contraindications
       // This is simplified - full implementation would query the exercise details
     }
@@ -589,7 +589,7 @@ export async function checkDeloadRecommendation(userId: string): Promise<DeloadR
   }
 
   // Calculate fatigue accumulation
-  const avgVolume = weeklyStats.reduce((sum, w) => sum + Number(w.total_volume || 0), 0) / weeklyStats.length;
+  const _avgVolume = weeklyStats.reduce((sum, w) => sum + Number(w.total_volume || 0), 0) / weeklyStats.length;
   const avgRPE = weeklyStats.reduce((sum, w) => sum + Number(w.avg_rpe || 5), 0) / weeklyStats.length;
   const avgWorkouts = weeklyStats.reduce((sum, w) => sum + Number(w.workout_count || 0), 0) / weeklyStats.length;
 

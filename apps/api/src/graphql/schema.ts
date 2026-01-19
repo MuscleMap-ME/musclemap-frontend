@@ -70,6 +70,15 @@ export const typeDefs = `#graphql
     extendedProfile: ExtendedProfile
     statsInfo: StatsInfo
 
+    # Long-Term Analytics
+    yearlyStats(year: Int!): YearlyStats
+    yearsList: [Int!]!
+    monthlyTrends(months: Int): [MonthlyStats!]!
+    progressVelocity: ProgressTrends
+    projectedMilestones: [ProjectedMilestone!]!
+    yearInReview(year: Int!): YearInReview!
+    allTimeTuLeaderboard(limit: Int, offset: Int): [AllTimeTuLeaderboardEntry!]!
+
     # Community
     communityFeed(limit: Int, offset: Int): [FeedItem!]!
     communityStats: CommunityStats
@@ -230,6 +239,13 @@ export const typeDefs = `#graphql
     mascotNegotiatedRate: MascotNegotiatedRate
     mascotHighfivePrefs: MascotHighfivePrefs
     mascotPendingSocialActions: [MascotSocialAction!]!
+
+    # Journey Health
+    journeyHealth(journeyId: ID!): JourneyHealthScore
+    journeyHealthAlerts(journeyId: ID, status: String, limit: Int): [JourneyHealthAlert!]!
+    journeyRecommendations(journeyId: ID!): [JourneyRecommendation!]!
+    stalledJourneys(thresholdDays: Int): [StalledJourney!]!
+    journeyHealthHistory(journeyId: ID!, days: Int): [JourneyHealthHistoryEntry!]!
   }
 
   type Mutation {
@@ -419,6 +435,16 @@ export const typeDefs = `#graphql
     executeMascotSocialAction(actionId: ID!): Boolean!
     setExerciseAvoidance(input: MascotExerciseAvoidanceInput!): Boolean!
     removeExerciseAvoidance(exerciseId: ID!): Boolean!
+
+    # Journey Health
+    calculateJourneyHealth(journeyId: ID!): JourneyHealthScore!
+    acknowledgeJourneyAlert(alertId: ID!): JourneyHealthAlert!
+    dismissJourneyAlert(alertId: ID!): Boolean!
+    generateJourneyRecommendations(journeyId: ID!): [JourneyRecommendation!]!
+    markRecommendationViewed(recommendationId: ID!): Boolean!
+    markRecommendationActioned(recommendationId: ID!): Boolean!
+    provideRecommendationFeedback(recommendationId: ID!, wasHelpful: Boolean!, feedbackText: String): Boolean!
+    recalculateAllJourneyHealth: JourneyHealthRecalcResult!
   }
 
   type Subscription {
@@ -3085,5 +3111,418 @@ export const typeDefs = `#graphql
     isMinimized: Boolean
     soundsEnabled: Boolean
     tipsEnabled: Boolean
+  }
+
+  # ============================================
+  # JOURNEY HEALTH TYPES
+  # ============================================
+  type JourneyHealthScore {
+    id: ID!
+    userJourneyId: ID!
+    userId: ID!
+    healthScore: Int!
+    engagementScore: Int!
+    consistencyScore: Int!
+    momentumScore: Int!
+    progressRate: Float!
+    expectedDailyProgress: Float!
+    actualDailyProgress: Float!
+    deviationPercentage: Float!
+    riskLevel: JourneyRiskLevel!
+    riskFactors: [JourneyRiskFactor!]!
+    daysSinceLastProgress: Int!
+    totalActiveDays: Int!
+    streakCurrent: Int!
+    streakLongest: Int!
+    lastActivityAt: DateTime
+    milestonesTotal: Int!
+    milestonesCompleted: Int!
+    milestonesOnTrack: Int!
+    milestonesBehind: Int!
+    expectedCheckins: Int!
+    actualCheckins: Int!
+    checkinConsistency: Float!
+    scoreTrend: JourneyScoreTrend!
+    score7dChange: Int!
+    score30dChange: Int!
+    calculatedAt: DateTime!
+  }
+
+  enum JourneyRiskLevel {
+    healthy
+    at_risk
+    critical
+    stalled
+  }
+
+  enum JourneyScoreTrend {
+    improving
+    stable
+    declining
+    critical_decline
+  }
+
+  type JourneyRiskFactor {
+    factor: String!
+    weight: Int!
+    days: Int
+    ratio: Float
+    progressGap: Float
+    completed: Int
+    total: Int
+  }
+
+  type JourneyHealthAlert {
+    id: ID!
+    userJourneyId: ID!
+    userId: ID!
+    alertType: JourneyAlertType!
+    severity: JourneyAlertSeverity!
+    title: String!
+    message: String!
+    triggerData: JSON
+    status: JourneyAlertStatus!
+    acknowledgedAt: DateTime
+    dismissedAt: DateTime
+    resolvedAt: DateTime
+    notificationSent: Boolean!
+    expiresAt: DateTime
+    createdAt: DateTime!
+  }
+
+  enum JourneyAlertType {
+    stalled
+    declining
+    missed_milestone
+    off_track
+    no_activity
+    consistency_drop
+    risk_upgrade
+    approaching_deadline
+  }
+
+  enum JourneyAlertSeverity {
+    info
+    warning
+    critical
+  }
+
+  enum JourneyAlertStatus {
+    active
+    acknowledged
+    dismissed
+    resolved
+  }
+
+  type JourneyRecommendation {
+    id: ID!
+    userJourneyId: ID!
+    userId: ID!
+    recommendationType: JourneyRecommendationType!
+    priority: Int!
+    title: String!
+    description: String!
+    actionText: String
+    actionUrl: String
+    reasoning: JourneyRecommendationReasoning!
+    status: JourneyRecommendationStatus!
+    wasHelpful: Boolean
+    feedbackText: String
+    expiresAt: DateTime
+    createdAt: DateTime!
+  }
+
+  enum JourneyRecommendationType {
+    increase_frequency
+    set_reminder
+    adjust_goal
+    take_break
+    celebrate_progress
+    connect_buddy
+    join_challenge
+    simplify_goal
+    change_approach
+    seek_support
+    restart_journey
+    archive_journey
+  }
+
+  enum JourneyRecommendationStatus {
+    active
+    viewed
+    actioned
+    dismissed
+    expired
+  }
+
+  type JourneyRecommendationReasoning {
+    factors: [String!]!
+    confidence: Float!
+  }
+
+  type StalledJourney {
+    userJourneyId: ID!
+    journeyName: String!
+    daysSinceActivity: Int!
+    currentProgress: Float!
+    riskLevel: JourneyRiskLevel!
+    healthScore: Int!
+  }
+
+  type JourneyHealthHistoryEntry {
+    date: String!
+    healthScore: Int!
+    engagementScore: Int!
+    consistencyScore: Int!
+    momentumScore: Int!
+    riskLevel: JourneyRiskLevel!
+  }
+
+  type JourneyHealthRecalcResult {
+    journeysProcessed: Int!
+    alertsCreated: Int!
+    durationMs: Int!
+  }
+
+  # ============================================
+  # LONG-TERM ANALYTICS TYPES
+  # ============================================
+  type YearlyStats {
+    userId: ID!
+    year: Int!
+    totalTu: Float!
+    avgTuPerWorkout: Float!
+    maxTuSingleWorkout: Float!
+    tuTrendPercent: Float
+    totalWorkouts: Int!
+    totalExercises: Int!
+    totalSets: Int!
+    totalReps: Int!
+    totalDurationMinutes: Int!
+    totalVolumeLbs: Float!
+    avgWorkoutDurationMinutes: Float!
+    avgSetsPerWorkout: Float!
+    avgRepsPerSet: Float!
+    activeDays: Int!
+    workoutDays: Int!
+    longestStreak: Int!
+    avgWorkoutsPerWeek: Float!
+    consistencyScore: Int!
+    strengthGained: Float!
+    constitutionGained: Float!
+    dexterityGained: Float!
+    powerGained: Float!
+    enduranceGained: Float!
+    vitalityGained: Float!
+    creditsEarned: Int!
+    creditsSpent: Int!
+    xpEarned: Int!
+    levelsGained: Int!
+    highFivesSent: Int!
+    highFivesReceived: Int!
+    competitionsEntered: Int!
+    competitionsWon: Int!
+    prsSet: Int!
+    topExercises: [TopExercise!]!
+    topMuscleGroups: [TopMuscleGroup!]!
+    monthlyBreakdown: [MonthlyBreakdownEntry!]!
+    achievementsUnlocked: Int!
+    milestonesCompleted: Int!
+    calculatedAt: DateTime!
+    isComplete: Boolean!
+  }
+
+  type MonthlyStats {
+    userId: ID!
+    year: Int!
+    month: Int!
+    totalTu: Float!
+    avgTuPerWorkout: Float!
+    tuChangeFromPrevMonth: Float
+    totalWorkouts: Int!
+    totalExercises: Int!
+    totalSets: Int!
+    totalReps: Int!
+    totalDurationMinutes: Int!
+    totalVolumeLbs: Float!
+    avgWorkoutDurationMinutes: Float!
+    activeDays: Int!
+    workoutDays: Int!
+    currentStreak: Int!
+    consistencyScore: Int!
+    strengthDelta: Float!
+    constitutionDelta: Float!
+    dexterityDelta: Float!
+    powerDelta: Float!
+    enduranceDelta: Float!
+    vitalityDelta: Float!
+    creditsEarned: Int!
+    creditsSpent: Int!
+    xpEarned: Int!
+    highFivesSent: Int!
+    highFivesReceived: Int!
+    prsSet: Int!
+    topExercises: [TopExercise!]!
+    weeklyBreakdown: [WeeklyBreakdownEntry!]!
+    calculatedAt: DateTime!
+    isComplete: Boolean!
+  }
+
+  type ProgressTrends {
+    userId: ID!
+    tuVelocity: Float!
+    workoutVelocity: Float!
+    volumeVelocity: Float!
+    xpVelocity: Float!
+    strengthVelocity: Float!
+    tuAcceleration: Float!
+    workoutAcceleration: Float!
+    strengthAcceleration: Float!
+    tuTrend: String!
+    workoutTrend: String!
+    overallTrend: String!
+    projectedTuNextMonth: Float
+    projectedTuNextQuarter: Float
+    projectedTuNextYear: Float
+    projectedWorkoutsNextMonth: Int
+    projectedLevelUpDate: String
+    tuVsPrevMonthPct: Float
+    tuVsPrevQuarterPct: Float
+    tuVsPrevYearPct: Float
+    workoutsVsPrevMonthPct: Float
+    bestMonth: BestPeriod
+    bestQuarter: BestQuarter
+    bestYear: BestYear
+    projectionConfidence: Int!
+    currentStreak: Int!
+    longestStreak: Int!
+    streakHealth: String!
+    daysUntilStreakMilestone: Int
+    dataPointsCount: Int!
+    earliestDataDate: String
+    latestDataDate: String
+    calculatedAt: DateTime!
+  }
+
+  type YearInReview {
+    year: Int!
+    summary: YearSummary
+    comparison: YearComparison
+    monthlyBreakdown: [YearMonthBreakdown!]!
+    topExercises: [TopExercise!]!
+    topMuscleGroups: [TopMuscleGroup!]!
+    highlights: YearHighlights!
+    ranking: YearRanking!
+  }
+
+  type ProjectedMilestone {
+    name: String!
+    description: String!
+    targetValue: Float!
+    currentValue: Float!
+    projectedDate: String
+    daysRemaining: Int
+    confidence: Int!
+    category: String!
+  }
+
+  type AllTimeTuLeaderboardEntry {
+    userId: ID!
+    username: String!
+    avatarUrl: String
+    lifetimeTu: Float!
+    lifetimeWorkouts: Int!
+    lifetimeVolumeLbs: Float!
+    lifetimePrs: Int!
+    activeYears: Int!
+    rank: Int!
+  }
+
+  type TopExercise {
+    exerciseId: ID!
+    name: String!
+    count: Int!
+  }
+
+  type TopMuscleGroup {
+    muscleGroup: String!
+    volume: Float!
+  }
+
+  type MonthlyBreakdownEntry {
+    month: Int!
+    tu: Float!
+    workouts: Int!
+  }
+
+  type WeeklyBreakdownEntry {
+    week: Int!
+    tu: Float!
+    workouts: Int!
+  }
+
+  type BestPeriod {
+    year: Int!
+    month: Int!
+    tu: Float!
+  }
+
+  type BestQuarter {
+    year: Int!
+    quarter: Int!
+    tu: Float!
+  }
+
+  type BestYear {
+    year: Int!
+    tu: Float!
+  }
+
+  type YearSummary {
+    totalTu: Float!
+    totalWorkouts: Int!
+    totalVolumeLbs: Float!
+    activeDays: Int!
+    longestStreak: Int!
+    prsSet: Int!
+    creditsEarned: Int!
+    xpEarned: Int!
+  }
+
+  type YearComparison {
+    tuChange: Float
+    workoutsChange: Float
+    volumeChange: Float
+  }
+
+  type YearMonthBreakdown {
+    month: Int!
+    tu: Float!
+    workouts: Int!
+    volume: Float!
+  }
+
+  type YearHighlights {
+    bestMonth: BestMonthHighlight
+    biggestPr: BiggestPrHighlight
+    totalHighFives: Int!
+    achievementsUnlocked: Int!
+  }
+
+  type BestMonthHighlight {
+    month: Int!
+    tu: Float!
+  }
+
+  type BiggestPrHighlight {
+    exerciseId: ID!
+    name: String!
+    weight: Float!
+  }
+
+  type YearRanking {
+    tuRank: Int
+    percentile: Int
+    totalUsers: Int!
   }
 `;

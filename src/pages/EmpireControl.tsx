@@ -811,7 +811,7 @@ export default function EmpireControl() {
         const errorText = await response.text();
         setSlackError(`Failed to connect: ${errorText || 'Unknown error'}`);
       }
-    } catch (err) {
+    } catch {
       // Slack webhooks have CORS restrictions, but they still work
       // If we get a network error, the message likely still went through
       localStorage.setItem('musclemap_slack_webhook', slackWebhookUrl);
@@ -2113,7 +2113,7 @@ export default function EmpireControl() {
                             <div className="text-center py-8 text-gray-400">
                               <Bug className="w-12 h-12 mx-auto mb-2 opacity-50" />
                               <p>No bugs found</p>
-                              <p className="text-sm mt-2">Click "Sync Bug Hunter" to import discovered bugs</p>
+                              <p className="text-sm mt-2">Click &quot;Sync Bug Hunter&quot; to import discovered bugs</p>
                             </div>
                           ) : (
                             bugItems.map((bug) => (

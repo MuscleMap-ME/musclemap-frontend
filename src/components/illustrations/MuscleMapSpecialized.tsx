@@ -143,7 +143,7 @@ export const LevelUpModal = ({ isOpen, onClose, newLevel = 13, rewards = [] }) =
       <div className="relative w-full max-w-sm bg-gradient-to-br from-purple-900 to-pink-900 rounded-3xl p-6 text-center">
         <div className="text-6xl mb-4">🎉</div>
         <h2 className="text-2xl font-bold mb-2">Level Up!</h2>
-        <p className="text-slate-300 mb-6">You've reached level {newLevel}</p>
+        <p className="text-slate-300 mb-6">You&apos;ve reached level {newLevel}</p>
         <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-4xl font-bold mb-6 shadow-lg shadow-purple-500/50">{newLevel}</div>
         {rewards.length > 0 && <div className="space-y-2 mb-6"><p className="text-sm text-slate-400">Rewards Unlocked</p>{rewards.map((r, i) => <div key={i} className="py-2 px-4 rounded-xl bg-white/10">{r.icon} {r.name}</div>)}</div>}
         <button onClick={onClose} className="w-full py-3 rounded-xl bg-white text-purple-900 font-bold">Continue</button>

@@ -13,7 +13,7 @@
 
 import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, useGLTF } from '@react-three/drei';
+import { Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 export type Cockatrice3DState =
@@ -55,7 +55,7 @@ function CockatriceMesh({
     [color]
   );
 
-  const lineMaterial = useMemo(
+  const _lineMaterial = useMemo(
     () =>
       new THREE.LineBasicMaterial({
         color: new THREE.Color(color),
@@ -65,7 +65,7 @@ function CockatriceMesh({
   );
 
   // Animation loop
-  useFrame((frameState, delta) => {
+  useFrame((frameState, _delta) => {
     if (!groupRef.current) return;
 
     const time = frameState.clock.elapsedTime;

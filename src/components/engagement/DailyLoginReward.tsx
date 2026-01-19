@@ -141,7 +141,7 @@ export function DailyLoginReward({ onClose, className }: DailyLoginRewardProps) 
         <div className="p-4 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-white/60">Today's Reward</p>
+              <p className="text-sm text-white/60">Today&apos;s Reward</p>
               <div className="flex items-center gap-4 mt-2">
                 <div className="flex items-center gap-1">
                   <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">

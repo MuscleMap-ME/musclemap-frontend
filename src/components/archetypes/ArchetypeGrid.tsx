@@ -20,7 +20,7 @@ import ArchetypeCard from './ArchetypeCard';
 /**
  * Skeleton card for loading state
  */
-function ArchetypeCardSkeleton({ index = 0, size = 'md' }) {
+function ArchetypeCardSkeleton({ index: _index = 0, size = 'md' }) {
   const sizeClasses = {
     sm: 'w-48 h-64',
     md: 'w-full h-80',

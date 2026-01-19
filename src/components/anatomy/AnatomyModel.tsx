@@ -3,9 +3,9 @@
  * Renders a 3D anatomy model with muscle visualization support
  */
 
-import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, useGLTF } from '@react-three/drei';
+import { OrbitControls, ContactShadows, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { anatomyRegistry } from '../../lib/anatomy/registry';
 import { useMuscleHighlight } from '../../lib/anatomy/loader';
@@ -22,7 +22,7 @@ interface ModelSceneProps {
 
 function ModelScene({
   filePath,
-  asset,
+  asset: _asset,
   autoRotate,
   highlightedMuscles,
   onMeshClick,
@@ -122,7 +122,7 @@ export function AnatomyModel({
   className = '',
   style,
 }: AnatomyModelProps) {
-  const [error, setError] = useState<string | null>(null);
+  const [_error, _setError] = useState<string | null>(null);
 
   // Get asset from registry, default to male_muscles if not specified
   const effectiveAssetKey = assetKey || 'male_muscles';

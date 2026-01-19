@@ -21,7 +21,6 @@ import {
   getCockatriceMessage,
   getSuccessMessage,
   detectErrorCategory,
-  type ErrorCategory,
   type CockatriceMessage,
 } from './cockatriceMessages';
 import { reportError, type ErrorReport } from '../../../services/errorReporting';
@@ -68,11 +67,11 @@ export default function CockatriceErrorReporter({
   const [isReporting, setIsReporting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [_showSuccess, _setShowSuccess] = useState(false);
 
   // Detect error category and get appropriate message
   const category = detectErrorCategory(error, httpStatus);
-  const [message, setMessage] = useState<CockatriceMessage>(() =>
+  const [_message, _setMessage] = useState<CockatriceMessage>(() =>
     getCockatriceMessage(category)
   );
 

@@ -176,7 +176,7 @@ export class World3DRenderer implements MapRenderer {
 
     const nodeGeom = new this.THREE.SphereGeometry(0.08, 16, 16);
 
-    this.data.nodes.forEach((node, index) => {
+    this.data.nodes.forEach((node, _index) => {
       // Convert 2D position to spherical coordinates
       const phi = node.position.y * Math.PI; // latitude (0 to π)
       const theta = node.position.x * Math.PI * 2; // longitude (0 to 2π)

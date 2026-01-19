@@ -13,6 +13,7 @@ import earningService from '../modules/economy/earning.service';
 import { EmailService } from '../services/email.service';
 import { notificationTriggersService } from '../modules/engagement/notification-triggers.service';
 import { SlackNotifications } from '../modules/notifications/slack.service';
+import { journeyHealthService } from '../modules/journey';
 
 const log = loggers.core.child({ module: 'scheduler' });
 
@@ -560,6 +561,15 @@ export function startScheduler(): void {
   }, msUntil4AM);
 
   // ============================================
+  // JOURNEY HEALTH RECALCULATION - Daily at 4 AM UTC
+  // ============================================
+  setTimeout(() => {
+    processJourneyHealthRecalculation();
+    const journeyHealthInterval = setInterval(processJourneyHealthRecalculation, 24 * 60 * 60 * 1000);
+    activeIntervals.push(journeyHealthInterval);
+  }, msUntil4AM);
+
+  // ============================================
   // ENGAGEMENT NOTIFICATION TRIGGERS
   // Process notifications, streak reminders, challenge expiration
   // ============================================
@@ -668,7 +678,7 @@ export function startScheduler(): void {
     activeIntervals.push(weeklySlackInterval);
   }, msUntil9AM);
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, beta tester snapshots, engagement triggers, and Slack digests');
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, beta tester snapshots, journey health, engagement triggers, and Slack digests');
 }
 
 /**
@@ -978,4 +988,43 @@ export async function triggerEngagementNotifications(): Promise<{
   processed: number;
 }> {
   return notificationTriggersService.runAllTriggers();
+}
+
+/**
+ * Process journey health score recalculation
+ * Runs daily at 4 AM UTC
+ */
+async function processJourneyHealthRecalculation(): Promise<void> {
+  try {
+    await withLock('scheduler:journey-health-recalc', async () => {
+      log.info('Processing journey health score recalculation...');
+
+      const result = await journeyHealthService.recalculateAllHealthScores();
+
+      if (result.journeysProcessed > 0 || result.alertsCreated > 0) {
+        log.info({
+          journeysProcessed: result.journeysProcessed,
+          alertsCreated: result.alertsCreated,
+          durationMs: result.durationMs,
+        }, 'Journey health recalculation complete');
+      }
+    }, { ttl: 600000 }); // 10 minute lock
+  } catch (err) {
+    if ((err as Error).message?.includes('Failed to acquire lock')) {
+      log.debug('Another instance is processing journey health recalculation');
+    } else {
+      log.error({ err }, 'Error processing journey health recalculation');
+    }
+  }
+}
+
+/**
+ * Manually trigger journey health recalculation (for admin/testing)
+ */
+export async function triggerJourneyHealthRecalculation(): Promise<{
+  journeysProcessed: number;
+  alertsCreated: number;
+  durationMs: number;
+}> {
+  return journeyHealthService.recalculateAllHealthScores();
 }

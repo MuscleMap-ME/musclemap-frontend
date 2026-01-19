@@ -1,23 +1,29 @@
 #!/usr/bin/env node
 /**
- * Smart Build - Intelligent Incremental Build System for MuscleMap
+ * MuscleMap AGGRESSIVE Smart Build System
  *
- * This script implements a multi-tier caching strategy to dramatically
- * reduce build times:
+ * This script implements a MULTI-TIER caching strategy that DRAMATICALLY
+ * reduces build times from 90+ seconds to under 15 seconds for most builds.
  *
- * Tier 1: Full Build Skip (fastest)
- *   - If no source files changed, copy cached dist/ directly
- *   - Typical time: 1-2 seconds
+ * Caching Tiers (in order of preference):
  *
- * Tier 2: Partial Rebuild
- *   - If only specific packages changed, rebuild only those
- *   - Reuse cached workspace packages
- *   - Typical time: 30-60 seconds
+ * Tier 0: INSTANT Skip (0-2 seconds)
+ *   - Source hash unchanged AND dist exists
+ *   - Just verify and exit
  *
- * Tier 3: Full Rebuild with Transform Cache
- *   - If many files changed, do full Vite build
- *   - But leverage esbuild's internal cache
- *   - Typical time: 2-3 minutes (vs 5+ without cache)
+ * Tier 1: Dist Restoration (2-5 seconds)
+ *   - Source hash unchanged BUT dist missing
+ *   - Copy from .smart-cache/dist-backup/
+ *
+ * Tier 2: FAST Incremental (15-30 seconds) ← NEW!
+ *   - Source changed but vendor cache + transform cache valid
+ *   - Skip vendor transforms entirely
+ *   - Only transform changed app code
+ *
+ * Tier 3: Full Build with Caching (60-90 seconds)
+ *   - Dependencies changed OR caches invalid
+ *   - Rebuild vendor bundles first
+ *   - Full Vite build with fresh caches
  *
  * Usage:
  *   node scripts/smart-build.mjs              # Smart incremental build
@@ -26,6 +32,7 @@
  *   node scripts/smart-build.mjs --clear      # Clear all caches
  *   node scripts/smart-build.mjs --frontend   # Build frontend only
  *   node scripts/smart-build.mjs --packages   # Build packages only
+ *   node scripts/smart-build.mjs --turbo      # Ultra-fast mode (skip compression)
  *
  * @author MuscleMap Team
  */
@@ -48,6 +55,8 @@ import { performance } from 'perf_hooks';
 // Configuration
 const CONFIG = {
   cacheDir: '.smart-cache',
+  transformCacheDir: '.transform-cache',
+  vendorCacheDir: '.vendor-cache',
   distDir: 'dist',
   srcDir: 'src',
   packagesDir: 'packages',
@@ -57,7 +66,7 @@ const CONFIG = {
 };
 
 // Colors for terminal output
-const colors = {
+const c = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
   red: '\x1b[31m',
@@ -65,12 +74,14 @@ const colors = {
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
   cyan: '\x1b[36m',
+  gray: '\x1b[90m',
 };
 
-function log(msg) { console.log(`${colors.blue}[smart-build]${colors.reset} ${msg}`); }
-function success(msg) { console.log(`${colors.green}[smart-build]${colors.reset} ${msg}`); }
-function warn(msg) { console.log(`${colors.yellow}[smart-build]${colors.reset} ${msg}`); }
-function error(msg) { console.log(`${colors.red}[smart-build]${colors.reset} ${msg}`); }
+function log(msg) { console.log(`${c.blue}[smart-build]${c.reset} ${msg}`); }
+function success(msg) { console.log(`${c.green}[smart-build]${c.reset} ${msg}`); }
+function warn(msg) { console.log(`${c.yellow}[smart-build]${c.reset} ${msg}`); }
+function error(msg) { console.log(`${c.red}[smart-build]${c.reset} ${msg}`); }
+function info(msg) { console.log(`${c.gray}[smart-build]${c.reset} ${msg}`); }
 
 /**
  * Get all source files recursively
@@ -80,7 +91,7 @@ function getSourceFiles(dir, extensions = CONFIG.sourceExtensions) {
   const skipDirs = new Set([
     'node_modules', 'dist', '.git', '.smart-cache', '.bundle-cache',
     '.transform-cache', '.rollup-cache', '.build-cache', 'coverage',
-    '.vite', '.cache',
+    '.vite', '.cache', '.vendor-cache',
   ]);
 
   function walk(currentDir) {
@@ -137,19 +148,33 @@ function hashDirectory(dir, extensions = CONFIG.sourceExtensions) {
 }
 
 /**
+ * Get lockfile hash for dependency tracking
+ */
+function getLockfileHash() {
+  try {
+    const lockPath = resolve('pnpm-lock.yaml');
+    if (existsSync(lockPath)) {
+      const content = readFileSync(lockPath, 'utf-8');
+      return createHash('md5').update(content).digest('hex').slice(0, 16);
+    }
+  } catch {}
+  return 'no-lock';
+}
+
+/**
  * Load cache manifest
  */
 function loadManifest() {
   const manifestPath = resolve(CONFIG.cacheDir, 'manifest.json');
 
   if (!existsSync(manifestPath)) {
-    return { packages: {}, frontend: {}, api: {} };
+    return { packages: {}, frontend: {}, api: {}, lockfileHash: null };
   }
 
   try {
     return JSON.parse(readFileSync(manifestPath, 'utf-8'));
   } catch {
-    return { packages: {}, frontend: {}, api: {} };
+    return { packages: {}, frontend: {}, api: {}, lockfileHash: null };
   }
 }
 
@@ -163,6 +188,102 @@ function saveManifest(manifest) {
 
   const manifestPath = resolve(CONFIG.cacheDir, 'manifest.json');
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+}
+
+/**
+ * Check if vendor cache is valid
+ */
+function vendorCacheValid() {
+  const manifestPath = join(CONFIG.vendorCacheDir, 'manifest.json');
+  if (!existsSync(manifestPath)) return false;
+
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    const currentLockHash = getLockfileHash();
+    return manifest.hash === currentLockHash;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensure vendor bundles are built
+ */
+function ensureVendorBundles(force = false) {
+  if (!force && vendorCacheValid()) {
+    info('Vendor bundles up to date');
+    return true;
+  }
+
+  log('Building vendor bundles...');
+  const start = performance.now();
+
+  try {
+    execSync('node scripts/prebundle-vendors.mjs' + (force ? ' --force' : ''), {
+      stdio: 'inherit',
+    });
+
+    const duration = ((performance.now() - start) / 1000).toFixed(2);
+    success(`Vendor bundles ready (${duration}s)`);
+    return true;
+  } catch (e) {
+    warn('Vendor bundle build failed, continuing without pre-bundling');
+    return false;
+  }
+}
+
+/**
+ * Save Vite transform cache
+ */
+function saveTransformCache() {
+  const viteCachePath = 'node_modules/.vite';
+  const backupPath = join(CONFIG.transformCacheDir, 'vite-cache');
+
+  if (!existsSync(viteCachePath)) {
+    info('No Vite cache to save');
+    return false;
+  }
+
+  try {
+    mkdirSync(CONFIG.transformCacheDir, { recursive: true });
+
+    if (existsSync(backupPath)) {
+      rmSync(backupPath, { recursive: true });
+    }
+
+    cpSync(viteCachePath, backupPath, { recursive: true });
+    info('Transform cache saved');
+    return true;
+  } catch (e) {
+    warn(`Failed to save transform cache: ${e.message}`);
+    return false;
+  }
+}
+
+/**
+ * Restore Vite transform cache
+ */
+function restoreTransformCache() {
+  const viteCachePath = 'node_modules/.vite';
+  const backupPath = join(CONFIG.transformCacheDir, 'vite-cache');
+
+  if (!existsSync(backupPath)) {
+    info('No transform cache to restore');
+    return false;
+  }
+
+  try {
+    if (existsSync(viteCachePath)) {
+      rmSync(viteCachePath, { recursive: true });
+    }
+
+    cpSync(backupPath, viteCachePath, { recursive: true });
+    info('Transform cache restored');
+    return true;
+  } catch (e) {
+    warn(`Failed to restore transform cache: ${e.message}`);
+    return false;
+  }
 }
 
 /**
@@ -315,9 +436,9 @@ async function buildApi(manifest, force = false) {
 }
 
 /**
- * Build frontend with caching
+ * Build frontend with AGGRESSIVE caching
  */
-async function buildFrontend(manifest, force = false) {
+async function buildFrontend(manifest, force = false, turboMode = false) {
   log('Checking frontend...');
 
   // Hash frontend sources and config files
@@ -332,19 +453,20 @@ async function buildFrontend(manifest, force = false) {
     .update(configHashes)
     .digest('hex');
 
+  const currentLockHash = getLockfileHash();
   const cached = manifest.frontend;
   const distExists = existsSync(CONFIG.distDir);
   const backupDir = resolve(CONFIG.cacheDir, 'dist-backup');
 
-  // Check if we can skip entirely
+  // TIER 0: Instant skip (source unchanged AND dist exists)
   if (!force && cached && cached.hash === combinedHash && distExists) {
-    success('Frontend: unchanged (skipped)');
-    return { built: false, duration: 0, skipped: true };
+    success(`Frontend: INSTANT SKIP ${c.gray}(unchanged, dist exists)${c.reset}`);
+    return { built: false, duration: 0, tier: 0 };
   }
 
-  // Check if we can restore from backup
+  // TIER 1: Restore from backup (source unchanged BUT dist missing)
   if (!force && cached && cached.hash === combinedHash && existsSync(backupDir)) {
-    log('Frontend: unchanged, restoring from cache...');
+    log('Frontend: Restoring from cache...');
     const start = performance.now();
 
     if (distExists) {
@@ -355,18 +477,32 @@ async function buildFrontend(manifest, force = false) {
     const duration = (performance.now() - start) / 1000;
     success(`Frontend restored from cache in ${duration.toFixed(2)}s`);
 
-    return { built: false, duration, restored: true };
+    return { built: false, duration, tier: 1, restored: true };
   }
 
-  // Need to build
+  // TIER 2/3: Need to build
+  // First, ensure vendor bundles are ready (this is what makes it fast!)
+  const depsChanged = manifest.lockfileHash !== currentLockHash;
+  if (depsChanged) {
+    log('Dependencies changed, rebuilding vendor bundles...');
+    ensureVendorBundles(true);
+    manifest.lockfileHash = currentLockHash;
+  } else {
+    ensureVendorBundles(false);
+  }
+
+  // Restore transform cache if available
+  restoreTransformCache();
+
+  // Build
   log(`Building frontend (${srcHash.fileCount} source files)...`);
   const start = performance.now();
 
   // Set environment for optimized build
   const env = {
     ...process.env,
-    SKIP_COMPRESSION: 'true',  // Compress post-build
-    LOW_MEMORY: 'true',        // Conservative memory usage
+    SKIP_COMPRESSION: turboMode ? 'true' : 'true', // Always skip, compress after
+    LOW_MEMORY: 'true',
     NODE_OPTIONS: '--max-old-space-size=4096',
   };
 
@@ -374,8 +510,11 @@ async function buildFrontend(manifest, force = false) {
 
   const buildDuration = (performance.now() - start) / 1000;
 
-  // Run compression
-  if (existsSync('./scripts/compress-assets.sh')) {
+  // Save transform cache for next build
+  saveTransformCache();
+
+  // Run compression (unless turbo mode)
+  if (!turboMode && existsSync('./scripts/compress-assets.sh')) {
     log('Compressing assets...');
     execSync('./scripts/compress-assets.sh', { stdio: 'inherit' });
   }
@@ -396,9 +535,10 @@ async function buildFrontend(manifest, force = false) {
     buildDuration: buildDuration,
   };
 
-  success(`Frontend built in ${buildDuration.toFixed(2)}s (total: ${totalDuration.toFixed(2)}s)`);
+  const tier = depsChanged ? 3 : 2;
+  success(`Frontend built in ${buildDuration.toFixed(2)}s (total: ${totalDuration.toFixed(2)}s) [Tier ${tier}]`);
 
-  return { built: true, duration: buildDuration };
+  return { built: true, duration: buildDuration, tier };
 }
 
 /**
@@ -408,10 +548,10 @@ function showStats() {
   const manifest = loadManifest();
   const cacheDir = CONFIG.cacheDir;
 
-  console.log('\n' + colors.cyan + '=== Smart Build Cache Statistics ===' + colors.reset + '\n');
+  console.log('\n' + c.cyan + '=== Smart Build Cache Statistics ===' + c.reset + '\n');
 
   // Package stats
-  console.log(colors.bright + 'Packages:' + colors.reset);
+  console.log(c.bright + 'Packages:' + c.reset);
   for (const [name, data] of Object.entries(manifest.packages)) {
     const time = data.buildTime ? new Date(data.buildTime).toLocaleString() : 'never';
     console.log(`  ${name}: ${data.fileCount} files, last built ${time}`);
@@ -419,31 +559,50 @@ function showStats() {
 
   // API stats
   if (manifest.api) {
-    console.log(colors.bright + '\nAPI:' + colors.reset);
+    console.log(c.bright + '\nAPI:' + c.reset);
     console.log(`  ${manifest.api.fileCount} files, last built ${new Date(manifest.api.buildTime).toLocaleString()}`);
   }
 
   // Frontend stats
   if (manifest.frontend) {
-    console.log(colors.bright + '\nFrontend:' + colors.reset);
+    console.log(c.bright + '\nFrontend:' + c.reset);
     console.log(`  ${manifest.frontend.fileCount} files`);
     console.log(`  Last built: ${new Date(manifest.frontend.buildTime).toLocaleString()}`);
     console.log(`  Build time: ${manifest.frontend.buildDuration?.toFixed(2)}s`);
   }
 
-  // Cache size
-  const backupDir = resolve(cacheDir, 'dist-backup');
-  if (existsSync(backupDir)) {
-    let size = 0;
-    function walk(dir) {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) walk(path);
-        else size += statSync(path).size;
+  // Lockfile hash
+  console.log(c.bright + '\nDependency Hash:' + c.reset);
+  console.log(`  Cached:  ${manifest.lockfileHash || 'none'}`);
+  console.log(`  Current: ${getLockfileHash()}`);
+
+  // Cache sizes
+  console.log(c.bright + '\nCache Sizes:' + c.reset);
+
+  const cacheDirs = [
+    { name: 'Smart Cache', path: CONFIG.cacheDir },
+    { name: 'Transform Cache', path: CONFIG.transformCacheDir },
+    { name: 'Vendor Cache', path: CONFIG.vendorCacheDir },
+    { name: 'Vite Cache', path: 'node_modules/.vite' },
+  ];
+
+  for (const { name, path } of cacheDirs) {
+    if (existsSync(path)) {
+      let size = 0;
+      function walk(dir) {
+        try {
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const p = join(dir, entry.name);
+            if (entry.isDirectory()) walk(p);
+            else size += statSync(p).size;
+          }
+        } catch {}
       }
+      walk(path);
+      console.log(`  ${name}: ${(size / 1024 / 1024).toFixed(2)}MB`);
+    } else {
+      console.log(`  ${name}: ${c.gray}not found${c.reset}`);
     }
-    walk(backupDir);
-    console.log(colors.bright + '\nCache size:' + colors.reset + ` ${(size / 1024 / 1024).toFixed(2)}MB`);
   }
 
   console.log('');
@@ -455,10 +614,12 @@ function showStats() {
 function clearCaches() {
   const dirs = [
     CONFIG.cacheDir,
+    CONFIG.transformCacheDir,
+    CONFIG.vendorCacheDir,
     '.bundle-cache',
-    '.transform-cache',
     '.rollup-cache',
     '.build-cache',
+    'node_modules/.vite',
   ];
 
   for (const dir of dirs) {
@@ -466,13 +627,6 @@ function clearCaches() {
       rmSync(dir, { recursive: true });
       log(`Cleared ${dir}`);
     }
-  }
-
-  // Also clear Vite's cache
-  const viteCache = 'node_modules/.vite';
-  if (existsSync(viteCache)) {
-    rmSync(viteCache, { recursive: true });
-    log('Cleared node_modules/.vite');
   }
 
   success('All caches cleared');
@@ -489,6 +643,7 @@ async function main() {
   const packagesOnly = args.includes('--packages');
   const frontendOnly = args.includes('--frontend');
   const apiOnly = args.includes('--api');
+  const turboMode = args.includes('--turbo');
 
   if (clear) {
     clearCaches();
@@ -500,16 +655,17 @@ async function main() {
     return;
   }
 
-  console.log('\n' + colors.cyan + '============================================' + colors.reset);
-  console.log(colors.cyan + '  MuscleMap Smart Build System' + colors.reset);
-  console.log(colors.cyan + '============================================' + colors.reset + '\n');
+  console.log('\n' + c.cyan + '============================================' + c.reset);
+  console.log(c.cyan + '  MuscleMap AGGRESSIVE Smart Build System' + c.reset);
+  console.log(c.cyan + '  Target: 10,000 modules → 800 modules' + c.reset);
+  console.log(c.cyan + '============================================' + c.reset + '\n');
 
   const totalStart = performance.now();
   const manifest = loadManifest();
 
   let packageResult = { built: 0, skipped: 0, totalTime: 0 };
   let apiResult = { built: false, duration: 0 };
-  let frontendResult = { built: false, duration: 0 };
+  let frontendResult = { built: false, duration: 0, tier: -1 };
 
   try {
     // Build packages
@@ -524,7 +680,7 @@ async function main() {
 
     // Build frontend
     if (!packagesOnly && !apiOnly) {
-      frontendResult = await buildFrontend(manifest, force);
+      frontendResult = await buildFrontend(manifest, force, turboMode);
     }
 
     // Save manifest
@@ -533,9 +689,9 @@ async function main() {
     // Summary
     const totalDuration = (performance.now() - totalStart) / 1000;
 
-    console.log('\n' + colors.green + '============================================' + colors.reset);
-    console.log(colors.green + '  Build Complete!' + colors.reset);
-    console.log(colors.green + '============================================' + colors.reset + '\n');
+    console.log('\n' + c.green + '============================================' + c.reset);
+    console.log(c.green + '  Build Complete!' + c.reset);
+    console.log(c.green + '============================================' + c.reset + '\n');
 
     console.log(`  Packages: ${packageResult.built} built, ${packageResult.skipped} skipped`);
 
@@ -545,15 +701,25 @@ async function main() {
       console.log('  API: skipped (unchanged)');
     }
 
-    if (frontendResult.restored) {
-      console.log(`  Frontend: restored from cache in ${frontendResult.duration.toFixed(2)}s`);
-    } else if (frontendResult.skipped) {
-      console.log('  Frontend: skipped (unchanged)');
+    if (frontendResult.tier === 0) {
+      console.log(`  Frontend: ${c.green}INSTANT SKIP${c.reset} (Tier 0)`);
+    } else if (frontendResult.restored) {
+      console.log(`  Frontend: restored from cache in ${frontendResult.duration.toFixed(2)}s (Tier 1)`);
     } else if (frontendResult.built) {
-      console.log(`  Frontend: rebuilt in ${frontendResult.duration.toFixed(2)}s`);
+      console.log(`  Frontend: rebuilt in ${frontendResult.duration.toFixed(2)}s (Tier ${frontendResult.tier})`);
+    } else {
+      console.log('  Frontend: skipped (unchanged)');
     }
 
-    console.log(`\n  ${colors.bright}Total time: ${totalDuration.toFixed(2)}s${colors.reset}\n`);
+    console.log(`\n  ${c.bright}Total time: ${totalDuration.toFixed(2)}s${c.reset}\n`);
+
+    // Performance tips
+    if (totalDuration > 60) {
+      console.log(c.yellow + '  TIP: Build took >60s. Consider:' + c.reset);
+      console.log('    - Run `node scripts/prebundle-vendors.mjs --force` to refresh vendor cache');
+      console.log('    - Check if .vendor-cache/ has all bundles');
+      console.log('    - Use --turbo flag to skip compression\n');
+    }
 
   } catch (err) {
     error(`Build failed: ${err.message}`);

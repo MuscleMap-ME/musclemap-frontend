@@ -93,7 +93,7 @@ export class LiteRenderer implements MapRenderer {
   private buildRenderNodes(): void {
     if (!this.data) return;
 
-    this.renderNodes = this.data.nodes.map((node, index) => {
+    this.renderNodes = this.data.nodes.map((node, _index) => {
       const pos = node.position;
       return {
         node,

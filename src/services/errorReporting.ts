@@ -175,7 +175,7 @@ async function flushErrorQueue(): Promise<void> {
         keepalive: true,
       });
     }
-  } catch (err) {
+  } catch {
     // Re-queue on failure (will eventually be dropped if keeps failing)
     reports.forEach((r) => errorQueue.push(r));
   }

@@ -9,9 +9,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { Music, Play, Link2, Unlink, RefreshCw, Volume2, Activity, Pause } from 'lucide-react';
+import { Music, Play, Link2, Unlink, RefreshCw, Volume2, Activity } from 'lucide-react';
 import {
-  useMusicStore,
   useMusicConnections,
   useMusicWorkoutIntegration,
   MusicProvider,

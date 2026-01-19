@@ -51,7 +51,7 @@ function Toggle({
 
 export default function PrivacyTab() {
   const { settings, updateSettings } = usePrivacySettings();
-  const [legacySettings, setLegacySettings] = useState({
+  const [_legacySettings, setLegacySettings] = useState({
     is_public: 0,
     show_location: 0,
     show_progress: 1,
@@ -244,7 +244,7 @@ export default function PrivacyTab() {
           <div className="mt-3 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-xl flex gap-2">
             <Info className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
             <p className="text-sm text-yellow-200">
-              You won't appear on any leaderboards. You can still view rankings.
+              You won&apos;t appear on any leaderboards. You can still view rankings.
             </p>
           </div>
         )}

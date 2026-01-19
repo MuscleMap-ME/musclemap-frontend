@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
@@ -932,7 +932,7 @@ export default function Docs() {
       setSelectedDoc(null);
       setIsPublicDoc(false);
     }
-  }, [resolvedDoc?.id, resolvedDoc?.isPublic, location.hash, docId, splatPath]);
+  }, [resolvedDoc, location.hash, docId, splatPath]);
 
   const handleDocClick = (id, isPublic = false, anchor = null) => {
     setSelectedDoc(id);

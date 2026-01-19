@@ -36,9 +36,8 @@ export type SlackNotificationType =
   | 'message'
   | 'security';
 
-// Slack message block types - using 'any' for flexibility with Slack's complex block structure
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SlackBlock = Record<string, any>;
+// Slack message block types - using 'unknown' for flexibility with Slack's complex block structure
+type SlackBlock = Record<string, unknown>;
 
 interface SlackMessage {
   text: string;

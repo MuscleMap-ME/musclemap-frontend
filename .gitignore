@@ -58,3 +58,9 @@ scripts/bug-hunter/data/
 
 # Vendor pre-bundle cache (regenerate with: node scripts/prebundle-vendors.mjs)
 .vendor-cache/
+
+# Smart build cache (dist backup + manifests)
+.smart-cache/
+
+# Transform cache (Vite cache backup for persistence)
+.transform-cache/

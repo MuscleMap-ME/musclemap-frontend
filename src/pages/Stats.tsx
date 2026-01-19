@@ -485,6 +485,7 @@ export default function Stats() {
         isPrimary: activation > 50,
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muscleActivations]);
 
   const loadData = useCallback(async () => {

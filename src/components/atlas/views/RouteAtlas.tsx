@@ -377,7 +377,7 @@ function RouteAtlasInner({
       {/* Search results indicator */}
       {query && (
         <div className="absolute top-4 left-4 px-3 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-lg text-sm text-blue-300 z-10">
-          {resultCount} result{resultCount !== 1 ? 's' : ''} for "{query}"
+          {resultCount} result{resultCount !== 1 ? 's' : ''} for &quot;{query}&quot;
         </div>
       )}
 

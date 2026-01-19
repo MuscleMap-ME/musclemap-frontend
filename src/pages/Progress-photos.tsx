@@ -289,7 +289,7 @@ export default function ProgressPhotos() {
     } finally {
       setUploading(false);
     }
-  }, [stopCamera, showError]);
+  }, [stopCamera, showError, processAndSavePhoto]);
 
   /**
    * Handle file selection for upload
@@ -319,7 +319,7 @@ export default function ProgressPhotos() {
         fileInputRef.current.value = '';
       }
     }
-  }, [showError]);
+  }, [showError, processAndSavePhoto]);
 
   /**
    * Process and save a photo (compression, thumbnail, storage)

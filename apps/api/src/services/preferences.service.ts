@@ -7,7 +7,7 @@
  * Uses raw SQL queries with the pg pool client (no Knex).
  */
 
-import { query, queryOne, queryAll, execute } from '../db/client.js';
+import { queryOne, queryAll, execute } from '../db/client.js';
 import {
   UserPreferences,
   PreferenceProfile,

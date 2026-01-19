@@ -36,7 +36,7 @@ interface Milestone {
   reward_value: string | null;
 }
 
-interface UserMilestone {
+interface _UserMilestone {
   milestone_id: string;
   current_value: number;
   completed_at: string | null;
