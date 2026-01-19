@@ -132,6 +132,97 @@ async function logSecurityEvent(
 
 export default async function adminSecurityRoutes(app: FastifyInstance): Promise<void> {
   /**
+   * GET /admin/security/stats
+   * Get security statistics overview
+   */
+  app.get(
+    '/admin/security/stats',
+    { preHandler: [authenticate, requireAdmin] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Get various security statistics
+        const [failedLogins, activeSessions, blockedIPs, auditEvents] = await Promise.all([
+          queryOne<{ count: string }>(`
+            SELECT COUNT(*) as count FROM failed_login_attempts
+            WHERE created_at > NOW() - INTERVAL '24 hours'
+          `),
+          queryOne<{ count: string }>(`
+            SELECT COUNT(*) as count FROM user_sessions
+            WHERE expires_at > NOW()
+          `),
+          queryOne<{ count: string }>(`
+            SELECT COUNT(*) as count FROM ip_blocklist
+          `),
+          queryOne<{ count: string }>(`
+            SELECT COUNT(*) as count FROM security_audit_log
+            WHERE created_at > NOW() - INTERVAL '24 hours'
+          `),
+        ]);
+
+        return reply.send({
+          failedLoginsLast24h: parseInt(failedLogins?.count || '0'),
+          activeSessions: parseInt(activeSessions?.count || '0'),
+          blockedIPs: parseInt(blockedIPs?.count || '0'),
+          auditEventsLast24h: parseInt(auditEvents?.count || '0'),
+        });
+      } catch (err) {
+        log.error({ err }, 'Failed to fetch security stats');
+        return reply.status(500).send({ error: 'Failed to fetch security stats' });
+      }
+    }
+  );
+
+  /**
+   * GET /admin/security/alerts
+   * Get active security alerts
+   */
+  app.get(
+    '/admin/security/alerts',
+    { preHandler: [authenticate, requireAdmin] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Check for security alerts based on various conditions
+        const alerts: Array<{ id: string; type: string; severity: string; message: string; timestamp: string }> = [];
+
+        // Check for high number of failed logins
+        const recentFailures = await queryOne<{ count: string }>(`
+          SELECT COUNT(*) as count FROM failed_login_attempts
+          WHERE created_at > NOW() - INTERVAL '1 hour'
+        `);
+        if (parseInt(recentFailures?.count || '0') > 50) {
+          alerts.push({
+            id: 'high_failed_logins',
+            type: 'failed_logins',
+            severity: 'high',
+            message: `${recentFailures?.count} failed login attempts in the last hour`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Check for blocked IPs with recent activity
+        const recentBlocks = await queryOne<{ count: string }>(`
+          SELECT COUNT(*) as count FROM ip_blocklist
+          WHERE blocked_at > NOW() - INTERVAL '1 hour'
+        `);
+        if (parseInt(recentBlocks?.count || '0') > 5) {
+          alerts.push({
+            id: 'recent_blocks',
+            type: 'ip_blocks',
+            severity: 'medium',
+            message: `${recentBlocks?.count} IPs blocked in the last hour`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        return reply.send({ alerts });
+      } catch (err) {
+        log.error({ err }, 'Failed to fetch security alerts');
+        return reply.status(500).send({ error: 'Failed to fetch security alerts' });
+      }
+    }
+  );
+
+  /**
    * GET /admin/security/login-attempts
    * Get failed login attempts in the last 24 hours
    */

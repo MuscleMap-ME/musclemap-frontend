@@ -728,6 +728,64 @@ export default async function adminAlertsRoutes(app: FastifyInstance): Promise<v
   );
 
   /**
+   * PATCH /admin/alerts/rules/:id/toggle
+   * Toggle an alert rule enabled/disabled
+   */
+  app.patch<{ Params: { id: string }; Body: { enabled: boolean } }>(
+    '/admin/alerts/rules/:id/toggle',
+    { preHandler: [authenticate, requireAdmin] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { enabled } = request.body;
+      const user = request.user as { userId: string };
+
+      // Check if rule exists
+      const existing = await queryOne<{ id: string }>('SELECT id FROM alert_rules WHERE id = $1', [id]);
+
+      if (!existing) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Alert rule not found', statusCode: 404 },
+        });
+      }
+
+      await query('UPDATE alert_rules SET enabled = $1, updated_at = NOW() WHERE id = $2', [enabled, id]);
+
+      log.info({ ruleId: id, enabled, adminId: user.userId }, 'Alert rule toggled');
+
+      return reply.send({ success: true, enabled });
+    }
+  );
+
+  /**
+   * PATCH /admin/alerts/channels/:id/toggle
+   * Toggle a notification channel enabled/disabled
+   */
+  app.patch<{ Params: { id: string }; Body: { enabled: boolean } }>(
+    '/admin/alerts/channels/:id/toggle',
+    { preHandler: [authenticate, requireAdmin] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { enabled } = request.body;
+      const user = request.user as { userId: string };
+
+      // Check if channel exists
+      const existing = await queryOne<{ id: string }>('SELECT id FROM notification_channels WHERE id = $1', [id]);
+
+      if (!existing) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Notification channel not found', statusCode: 404 },
+        });
+      }
+
+      await query('UPDATE notification_channels SET enabled = $1, updated_at = NOW() WHERE id = $2', [enabled, id]);
+
+      log.info({ channelId: id, enabled, adminId: user.userId }, 'Notification channel toggled');
+
+      return reply.send({ success: true, enabled });
+    }
+  );
+
+  /**
    * GET /admin/alerts/history
    * Get alert firing history
    */

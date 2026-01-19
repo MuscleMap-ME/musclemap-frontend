@@ -36,7 +36,7 @@ import GlassSurface from '../glass/GlassSurface';
 // CONSTANTS
 // ============================================
 
-const API_BASE = '/api/admin/features';
+const API_BASE = '/api/admin/features/flags';
 
 const FLAG_CATEGORIES = [
   { id: 'all', label: 'All Flags' },

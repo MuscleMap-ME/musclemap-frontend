@@ -602,7 +602,7 @@ export default function DeployPanel() {
   const fetchPreviewChanges = useCallback(async () => {
     setPreviewLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/preview?branch=${encodeURIComponent(selectedBranch)}`, {
+      const res = await fetch(`${API_BASE}/preview/${encodeURIComponent(selectedBranch)}`, {
         headers: getAuthHeader(),
       });
       if (res.ok) {
@@ -682,7 +682,7 @@ export default function DeployPanel() {
     connectDeploymentStream();
 
     try {
-      const res = await fetch(`${API_BASE}/start`, {
+      const res = await fetch(`${API_BASE}/trigger`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -707,13 +707,12 @@ export default function DeployPanel() {
     setRollingBack(deploymentId);
 
     try {
-      const res = await fetch(`${API_BASE}/rollback`, {
+      const res = await fetch(`${API_BASE}/rollback/${deploymentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeader(),
         },
-        body: JSON.stringify({ deploymentId }),
       });
 
       if (res.ok) {

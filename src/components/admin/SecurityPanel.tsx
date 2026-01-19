@@ -543,10 +543,10 @@ export default function SecurityPanel() {
         alertsRes,
       ] = await Promise.all([
         fetch(`${API_BASE}/stats`, { headers }),
-        fetch(`${API_BASE}/failed-logins`, { headers }),
+        fetch(`${API_BASE}/login-attempts`, { headers }),
         fetch(`${API_BASE}/sessions`, { headers }),
-        fetch(`${API_BASE}/blocked-ips`, { headers }),
-        fetch(`${API_BASE}/rate-limit-config`, { headers }),
+        fetch(`${API_BASE}/blocklist`, { headers }),
+        fetch(`${API_BASE}/rate-limits`, { headers }),
         fetch(`${API_BASE}/audit-log`, { headers }),
         fetch(`${API_BASE}/alerts`, { headers }),
       ]);
@@ -568,7 +568,7 @@ export default function SecurityPanel() {
   // Block IP
   const blockIP = useCallback(async (ip, reason = 'Manual block') => {
     try {
-      const res = await fetch(`${API_BASE}/block-ip`, {
+      const res = await fetch(`${API_BASE}/blocklist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -588,13 +588,9 @@ export default function SecurityPanel() {
   // Unblock IP
   const unblockIP = useCallback(async (ip) => {
     try {
-      const res = await fetch(`${API_BASE}/unblock-ip`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({ ip }),
+      const res = await fetch(`${API_BASE}/blocklist/${encodeURIComponent(ip)}`, {
+        method: 'DELETE',
+        headers: getAuthHeader(),
       });
 
       if (res.ok) {
@@ -625,7 +621,7 @@ export default function SecurityPanel() {
   const saveRateLimitConfig = useCallback(async (config) => {
     setSavingConfig(true);
     try {
-      const res = await fetch(`${API_BASE}/rate-limit-config`, {
+      const res = await fetch(`${API_BASE}/rate-limits`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

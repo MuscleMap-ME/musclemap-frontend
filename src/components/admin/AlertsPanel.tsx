@@ -691,7 +691,7 @@ export default function AlertsPanel() {
   // Test rule
   const handleTestRule = async (ruleId) => {
     try {
-      const res = await fetch(`${API_BASE}/rules/${ruleId}/test`, {
+      const res = await fetch(`${API_BASE}/test/${ruleId}`, {
         method: 'POST',
         headers: getAuthHeader(),
       });

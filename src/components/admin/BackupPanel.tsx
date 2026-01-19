@@ -572,13 +572,12 @@ export default function BackupPanel() {
   const testRestore = useCallback(async (backupId) => {
     setTestingId(backupId);
     try {
-      const res = await fetch(`${API_BASE}/test`, {
+      const res = await fetch(`${API_BASE}/test-restore/${backupId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeader(),
         },
-        body: JSON.stringify({ backupId }),
       });
 
       if (res.ok) {
