@@ -93,6 +93,7 @@ import adminBugsRoutes from './routes/admin-bugs';
 import adminBetaTesterRoutes from './routes/admin-beta-testers';
 import adminServerRoutes from './routes/admin-server';
 import adminDeployRoutes from './routes/admin-deploy';
+import adminCommandsRoutes from './routes/admin-commands';
 import adminSchedulerRoutes from './routes/admin-scheduler';
 import adminLogsRoutes from './routes/admin-logs';
 import adminSecurityRoutes from './routes/admin-security';
@@ -540,6 +541,9 @@ export async function createServer(): Promise<FastifyInstance> {
     // Deployment pipeline management (admin only - deploy, rollback, branches)
     // Wrapped in register() to scope the preHandler hook
     await api.register(adminDeployRoutes);
+
+    // Command Center (admin only - 470+ categorized server commands with SSE streaming)
+    await api.register(adminCommandsRoutes);
 
     // Scheduled tasks management (admin only - cron jobs, execution history)
     await adminSchedulerRoutes(api);
