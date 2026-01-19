@@ -11,28 +11,17 @@
  * Designed for scale: efficient keyset pagination, pre-computed aggregations
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Activity,
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
   BarChart3,
   Calendar,
   ChevronRight,
-  Clock,
-  Coins,
-  Filter,
-  Flame,
   Loader2,
   RefreshCw,
-  Search,
-  Star,
-  Target,
   TrendingDown,
   TrendingUp,
-  User,
-  UserCheck,
   UserPlus,
   Users,
   X,
@@ -42,16 +31,11 @@ import GlassSurface from '../glass/GlassSurface';
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 
 // ============================================
@@ -89,7 +73,7 @@ const CATEGORY_COLORS = {
   other: '#6b7280',
 };
 
-const TREND_COLORS = {
+const _TREND_COLORS = {
   rising: '#10b981',
   stable: '#6b7280',
   declining: '#f59e0b',
@@ -476,7 +460,7 @@ function UserDetailDrawer({
         } else {
           setError(json.error || 'Failed to load user');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load user details');
       } finally {
         setLoading(false);
@@ -701,7 +685,7 @@ export default function UserAnalyticsPanel() {
       } else {
         setError(json.error || 'Failed to load dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load dashboard');
     } finally {
       setLoading(false);
@@ -733,7 +717,7 @@ export default function UserAnalyticsPanel() {
         setUsersCursor(json.data.pagination.nextCursor);
         setUsersHasMore(json.data.pagination.hasNextPage);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load users');
     } finally {
       setLoading(false);
@@ -756,7 +740,7 @@ export default function UserAnalyticsPanel() {
       if (json.success) {
         setFeatures(json.data.features);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load features');
     } finally {
       setLoading(false);
@@ -774,7 +758,7 @@ export default function UserAnalyticsPanel() {
       if (json.success) {
         setSegments(json.data.segments);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load segments');
     } finally {
       setLoading(false);
@@ -792,7 +776,7 @@ export default function UserAnalyticsPanel() {
       if (json.success) {
         setCohorts(json.data.cohorts);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load cohorts');
     } finally {
       setLoading(false);
@@ -848,7 +832,7 @@ export default function UserAnalyticsPanel() {
           fetchCohorts();
           break;
       }
-    } catch (err) {
+    } catch {
       setError('Failed to refresh');
     }
   }, [activeView]);
