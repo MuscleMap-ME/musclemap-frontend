@@ -27,6 +27,7 @@
     "build:cache:status": "node scripts/aggressive-cache.mjs --status",
     "build:aggressive": "node scripts/aggressive-cache.mjs",
     "build:aggressive:force": "node scripts/aggressive-cache.mjs --force",
+    "build:aggressive:staged": "node scripts/aggressive-cache.mjs --staged",
     "build:aggressive:status": "node scripts/aggressive-cache.mjs --status",
     "build:compress": "sh ./scripts/compress-assets.sh",
     "build:turbo": "node scripts/smart-build.mjs --turbo",
