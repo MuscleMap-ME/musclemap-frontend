@@ -540,16 +540,20 @@ export async function createServer(): Promise<FastifyInstance> {
     await api.register(adminDatabaseRoutes);
 
     // Feature flags management (admin only - flags, rollout, targeting)
-    await adminFeaturesRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminFeaturesRoutes);
 
     // Real-time metrics (admin only - requests, latency, websockets)
-    await adminMetricsRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminMetricsRoutes);
 
     // User analytics (admin only - new users, features, segments, cohorts)
-    await adminAnalyticsRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminAnalyticsRoutes);
 
     // Alert configuration (admin only - rules, channels, history)
-    await adminAlertsRoutes(api);
+    // Wrapped in register() to scope the preHandler hook
+    await api.register(adminAlertsRoutes);
 
     // Documentation management (admin only - browse, edit, create markdown files)
     // Wrapped in register() to scope the preHandler hook
