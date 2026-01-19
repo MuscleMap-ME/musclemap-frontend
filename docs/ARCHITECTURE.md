@@ -1,6 +1,6 @@
 # MuscleMap Architecture
 
-> Auto-generated on 2026-01-16
+> Auto-generated on 2026-01-19
 
 ## Overview
 
@@ -24,6 +24,8 @@ musclemap.me/
 ├── apps/
 │   ├── api/
 │   └── mobile/
+├── assets/
+│   └── anatomy/
 ├── config/
 │   ├── roadmap-overrides.yaml
 │   └── route-atlas-overrides.yaml
@@ -47,24 +49,32 @@ musclemap.me/
 │   ├── ARCHETYPE-GRAPHICS-UPGRADE-PLAN.md
 │   ├── ARCHITECTURE.md
 │   ├── BIOMETRICS.md
+│   ├── CHATGPT-GRAPHICS-GENERATION-PROMPT.md
 │   ├── CODING-STYLE-GUIDE.md
 │   ├── CODING-STYLE-IMPLEMENTATION-PLAN.md
 │   ├── COMPETITOR-FEATURE-ANALYSIS.md
+│   ├── COMPREHENSIVE-AUDIT-PLAN.md
 │   ├── CONTRIBUTING.md
 │   ├── CREDITS_ECONOMY.md
+│   ├── CROSS-PLATFORM-COMPATIBILITY-PLAN.md
 │   ├── DATA_FLOW.md
 │   ├── DATA_MODEL.md
 │   ├── DATABASE-OPTIMIZATION-PLAN.md
 │   ├── ECONOMY-ENHANCEMENT-PLAN.md
+│   ├── ENDPOINT-HEALTH-REPORT.md
+│   ├── ENGAGEMENT-SYSTEM-PLAN.md
 │   ├── EXTENSIBILITY.md
 │   ├── FEATURE-GAP-ANALYSIS.md
 │   ├── FEATURES.md
+│   ├── FULL_REFACTOR_PLAN.md
 │   ├── ICONS.md
 │   ├── IMPLEMENTATION_PLAN_REMAINING.md
 │   ├── IMPLEMENTATION_PLANS.md
 │   ├── IMPLEMENTATION-PLAN-4-FEATURES.md
 │   ├── INTELLIGENT-EXERCISE-PRESCRIPTION-PLAN.md
+│   ├── KNOWN-BUGS.md
 │   ├── LOW-BANDWIDTH-OPTIMIZATION-PLAN.md
+│   ├── MARKETPLACE-TRADING-SYSTEM-PLAN.md
 │   ├── mascot_system.md
 │   ├── MASCOT-POWERS-PLAN.md
 │   ├── MASTER-IMPLEMENTATION-PLAN.md
@@ -76,7 +86,10 @@ musclemap.me/
 │   ├── PRIVACY_POLICY.md
 │   ├── RANKING_LEADERBOARD_SYSTEM_PLAN.md
 │   ├── REFACTOR_PLAN.md
+│   ├── ROUTE-CLEANUP-PLAN.md
+│   ├── ROUTE-MAP.md
 │   ├── SCALING-ARCHITECTURE-PLAN.md
+│   ├── SCRIPT-RESTRUCTURE-PLAN.md
 │   ├── SECURITY.md
 │   ├── SPA-UX-IMPROVEMENTS-PLAN.md
 │   ├── SPIRIT-ANIMAL-SYSTEM.md
@@ -85,6 +98,7 @@ musclemap.me/
 │   ├── STAGE-3-TEST-HARNESS.md
 │   ├── STAGE-4-5-6-SIMULATION-ANALYSIS-PLAN.md
 │   ├── STATE-MANAGEMENT.md
+│   ├── SYSTEM-ARCHITECTURE.md
 │   ├── TOUCHSCREEN_UX_AUDIT.md
 │   ├── TOUCHSCREEN_UX_BEFORE_AFTER.md
 │   ├── TOUCHSCREEN_UX_IMPLEMENTATION.md
@@ -92,6 +106,7 @@ musclemap.me/
 │   ├── UNFINISHED-WORK-COMPLETION-PLAN.md
 │   ├── USER_GUIDE.md
 │   ├── VISUAL_ARCHITECTURE_MAPS.md
+│   ├── WEBHOOK-DEPLOY-SETUP.md
 │   └── XP-VELOCITY-LIMITS.md
 ├── docs-plain/
 │   ├── api-reference/
@@ -136,10 +151,35 @@ musclemap.me/
 │   ├── docs/
 │   ├── docs-files/
 │   ├── docs-plain/
+│   ├── fonts/
 │   ├── illustrations/
 │   ├── images/
 │   ├── mascot/
+│   ├── models/
+│   ├── analytics-preview.html
+│   ├── components-preview.html
+│   ├── favicon.ico
 │   ├── founding.html
+│   ├── icon-128.png
+│   ├── icon-128.webp
+│   ├── icon-144.png
+│   ├── icon-144.webp
+│   ├── icon-152.png
+│   ├── icon-152.webp
+│   ├── icon-192.png
+│   ├── icon-192.webp
+│   ├── icon-384.png
+│   ├── icon-384.webp
+│   ├── icon-48.png
+│   ├── icon-48.webp
+│   ├── icon-512-maskable.png
+│   ├── icon-512-maskable.webp
+│   ├── icon-512.png
+│   ├── icon-512.webp
+│   ├── icon-72.png
+│   ├── icon-72.webp
+│   ├── icon-96.png
+│   ├── icon-96.webp
 │   ├── index.html
 │   ├── logo-180.avif
 │   ├── logo-180.png
@@ -156,42 +196,61 @@ musclemap.me/
 │   ├── logo.svg
 │   ├── logo.webp
 │   ├── manifest.json
-│   ├── MuscleMap-Landing-Page-Decal.svg
 │   ├── offline.html
 │   ├── privacy-policy.md
 │   ├── robots.txt
 │   ├── sitemap.xml
-│   └── sw.js
+│   ├── sw.js
+│   ├── ui-preview.html
+│   └── ui-static.html
 ├── scripts/
+│   ├── archive/
+│   ├── bug-hunter/
+│   ├── caddy/
 │   ├── lib/
+│   ├── systemd/
 │   ├── test-harness/
 │   ├── utils/
+│   ├── approved-commands.log
+│   ├── approved-commands.txt
 │   ├── backfill-ranks.ts
+│   ├── build-fast.sh
+│   ├── build-safe.sh
+│   ├── build-vendors.sh
+│   ├── build-with-vendors.sh
+│   ├── cache-manager.mjs
+│   ├── check-duplicate-routes.sh
 │   ├── competitive-analysis.sh
+│   ├── compress-assets.sh
 │   ├── deploy-branch.sh
 │   ├── deploy.sh
 │   ├── docs-plain-index.html
 │   ├── e2e-user-journey.ts
-│   ├── errors.sh
+│   ├── esbuild-cache-server.mjs
+│   ├── frontend-health-check.ts
 │   ├── generate-docs.cjs
 │   ├── generate-icons.cjs
 │   ├── logs.sh
 │   ├── maintain.sh
 │   ├── merge-all.sh
+│   ├── mm
 │   ├── musclemap-start.sh
 │   ├── musclemap-stop.sh
 │   ├── pre-deploy-check.sh
+│   ├── prebundle-vendors.mjs
 │   ├── prepare-app-store.cjs
 │   ├── production-deploy.sh
 │   ├── publish-app.sh
 │   ├── README.md
 │   ├── repo-cleanup.sh
 │   ├── reset-devbox.sh
-│   ├── split-repos.sh
-│   ├── sync-docs-plain.sh
+│   ├── run-approved-command.sh
+│   ├── smart-build.mjs
 │   ├── test.sh
 │   ├── tidy-root-js.sh
-│   └── warning-tracker.sh
+│   ├── warning-tracker.sh
+│   ├── webhook-deploy.sh
+│   └── webhook-listener.js
 ├── src/
 │   ├── components/
 │   ├── config/
@@ -201,17 +260,20 @@ musclemap.me/
 │   ├── hooks/
 │   ├── layouts/
 │   ├── lib/
+│   ├── locales/
 │   ├── mocks/
 │   ├── pages/
 │   ├── plugins/
+│   ├── services/
 │   ├── store/
 │   ├── styles/
 │   ├── tests/
 │   ├── utils/
-│   ├── App.jsx
+│   ├── App.tsx
 │   ├── index.css
-│   └── main.jsx
+│   └── main.tsx
 ├── audit_legacy_posix.sh
+├── CLAUDE-CODE-ANATOMY-ASSETS-PROMPT.md
 ├── CLAUDE.md
 ├── cron-jobs.js
 ├── deploy.sh
@@ -229,6 +291,10 @@ musclemap.me/
 ├── postcss.config.js
 ├── README.md
 ├── tailwind.config.js
+├── vite-bundle-cache.js
+├── vite-prebundled-vendors.js
+├── vite-rollup-cache.js
+├── vite-transform-cache.js
 └── vite.config.js
 
 ```
@@ -244,7 +310,7 @@ musclemap.me/
 | `@musclemap/shared` | Shared utilities and constants for MuscleMap apps |
 | `@musclemap/ui` | Shared cross-platform UI components for MuscleMap |
 
-## Frontend Pages (77 total)
+## Frontend Pages (84 total)
 
 | Page | Protected | Description |
 |------|-----------|-------------|
@@ -256,11 +322,14 @@ musclemap.me/
 | AdminIssues | Yes | Admin Issues Page  Admin dashboard for managing issues: - View all issues (including private) - Change status, priority, assignee - Bulk actions - Create dev updates - Manage roadmap / |
 | AdminMetrics | Yes | Admin Metrics Dashboard  Beautiful visual dashboard for Prometheus metrics with: - Real-time gauges for connections and health - Time-series charts for request latency - Status indicators with animations - Auto-refresh every 10 seconds / |
 | AdminMonitoring | Yes | Admin Monitoring Dashboard  Comprehensive system monitoring with: - Live API test runner - User journey viewer - Error tracking - System health metrics / |
+| AdventureMap | Yes | AdventureMap Page  Fullscreen adventure map page with HUD |
 | Buddy | No | Buddy page |
 | CareerGoalPage | Yes | Career Goal Detail Page - MuscleMap  Shows full readiness dashboard for a specific career goal |
 | CareerPage | Yes | Career Page - MuscleMap Career Readiness Hub  Main landing page for career physical standards tracking |
 | CareerReadiness | Yes | Career Readiness Page - MuscleMap Liquid Glass Design  Career physical standards tracking for military, first responders, and law enforcement |
 | CareerStandardPage | Yes | Career Standard Detail Page - MuscleMap  Shows detailed information about a specific physical fitness standard |
+| Collection | No | Collection page |
+| CommandCenter | No | Command Center  A beautiful, hierarchical interface for executing server commands |
 | CommunityBulletinBoard | No | Community Bulletin Board  A central hub for community contributions, plugin showcases, code snippets, ideas, and collaboration |
 | CommunityDashboard | Yes | CommunityDashboard Page  Comprehensive community dashboard with: - Real-time activity feed - Geographic map view - Statistics dashboard - Monitoring panel (for mods/admins) - Privacy settings / |
 | Competitions | No | Competitions page |
@@ -268,6 +337,7 @@ musclemap.me/
 | Credits | No | Credits page |
 | Crews | Yes | Crews Page  Crew management and Crew Wars tournament system for web |
 | Dashboard | Yes | Dashboard - MuscleMap Liquid Glass Design  A comprehensive, modern dashboard using the liquid glass design system inspired by visionOS and iOS 18 spatial computing aesthetics |
+| DeploymentControl | No | Deployment Control Center  A sophisticated web management portal for deployment operations |
 | Design | No | Design Page  Showcases MuscleMap's design system with links to the interactive design system page |
 | DesignSystem | No | Design System Showcase  Demonstrates the MuscleMap Liquid Glass design system components |
 | DevUpdates | No | Dev Updates Page  Development updates, announcements, and changelog: - Release notes - Bug fixes - Feature announcements / |
@@ -287,10 +357,13 @@ musclemap.me/
 | LiveActivityMonitor | No | LiveActivityMonitor Page  Real-time activity visualization dashboard |
 | Locations | No | Locations page |
 | Login | Yes | Login page |
+| MapExplore | No | MapExplore Page  Full-page interactive map navigation with three visualization modes |
+| Marketplace | No | Marketplace page |
 | MartialArts | No | MartialArts page |
 | MealPlans | No | Meal Plans Page  Create and manage meal plans / |
 | Messages | No | Messages page |
 | MyIssues | Yes | My Issues Page  User's submitted issues: - View status of reported issues - Track responses / |
+| MysteryBoxes | No | MysteryBoxes page |
 | MyVerifications | No | MyVerifications page |
 | NewIssue | No | New Issue Page  Create a new bug report, feature request, or other issue: - Form with validation - Auto-capture browser/device info - Screenshot upload - Label selection / |
 | Nutrition | No | Nutrition Page  Full nutrition tracking dashboard / |
@@ -317,42 +390,82 @@ musclemap.me/
 | Skills | No | Skills page |
 | SkinsStore | No | SkinsStore page |
 | Stats | Yes | Stats Page  Character stats display with radar chart visualization and leaderboards |
-| Store | No | Store page |
 | Technology | No | Technology Stack Page  Showcases MuscleMap's technology architecture with VGA-style graphics |
 | TestScorecard | Yes | Test Scorecard Dashboard  Empire dashboard component for viewing API test results, including: - Overall score with grade (A+/A/B/C/D/F) - Category breakdown (core, edge, security, performance) - Failed tests list with details - Recommendations - Historical trend chart / |
+| Trading | No | Trading page |
 | TrainerDashboard | No | TrainerDashboard page |
 | Trainers | Yes | Trainers Page  Browse trainers, manage trainer profile, create/manage classes |
 | Wallet | No | Wallet page |
 | WitnessAttestation | No | WitnessAttestation page |
 | Workout | No | Workout page |
 
-## Components (229 total)
+## Components (298 total)
 
 Components are organized by feature:
 
-### AdaptiveImage.jsx
+### AdaptiveImage.tsx
 - `AdaptiveImage`
 
-### ErrorBoundary.jsx
+### ErrorBoundary.tsx
 - `ErrorBoundary`
 
-### Logo.jsx
+### Logo.tsx
 - `Logo`
 
-### PrefetchLink.jsx
+### PrefetchLink.tsx
 - `PrefetchLink`
 
-### SEO.jsx
+### SEO.tsx
 - `SEO`
+
+### SessionRecoveryModal.tsx
+- `SessionRecoveryModal`
 
 ### Toast
 - `ToastProvider`
+
+### admin
+- `AlertsPanel`
+- `BackupPanel`
+- `DatabasePanel`
+- `DeployPanel`
+- `EnvPanel`
+- `FeatureFlagsPanel`
+- `LogsPanel`
+- `MarkdownEditor`
+- `MetricsPanel`
+- `SchedulerPanel`
+- `SecurityPanel`
+- `ServerControl`
+- `UserAnalyticsPanel`
+
+### adventure-map
+- `AdventureMapCanvas`
+- `LocationNode`
+- `MapCharacter`
+- `MapPath`
+- `MapRegion`
+- `AdventureHUD`
+- `CompanionWidget`
+- `CreditsWidget`
+- `MinimapWidget`
+- `StatsBar`
+- `AdventureMapFullscreen`
+- `AdventureMapWidget`
 
 ### ai-coach
 - `AICoach`
 - `ChatMessage`
 - `CoachAvatar`
 - `QuickActions`
+
+### analytics
+- `InsightCard`
+- `MiniChart`
+- `WeeklyHeatmap`
+
+### anatomy
+- `AnatomyModel`
 
 ### animated
 - `AnimatedNumber`
@@ -398,6 +511,7 @@ Components are organized by feature:
 - `StreakFire`
 - `StreakFlame`
 - `SuccessBurst`
+- `useCelebration`
 
 ### challenges
 - `ChallengeCard`
@@ -456,7 +570,13 @@ Components are organized by feature:
 - `StatsIllustration`
 - `SuccessIllustration`
 - `WorkoutIllustration`
+- `index`
 - `shared`
+
+### engagement
+- `ActiveEvents`
+- `DailyLoginReward`
+- `StreakDisplay`
 
 ### feedback
 - `BugReportForm`
@@ -473,8 +593,11 @@ Components are organized by feature:
 ### gamification
 - `ChallengeCard`
 - `DailyChallenges`
+- `DailyQuests`
+- `LevelUpModal`
 - `LootDrop`
 - `LootReward`
+- `XPProgress`
 
 ### glass
 - `ActionCard`
@@ -507,6 +630,11 @@ Components are organized by feature:
 - `BodyMuscleMap`
 - `ExerciseIllustration`
 - `MuscleDetailPopover`
+- `MuscleMapPages`
+- `MuscleMapSpecialized`
+- `MuscleMapStorybook`
+- `MuscleMapUI`
+- `MuscleMapUIShowcase`
 
 ### inputs
 - `Stepper`
@@ -532,7 +660,21 @@ Components are organized by feature:
 - `LootDrop`
 - `LootReveal`
 
+### map-menu
+- `MapMenu`
+- `Legend`
+- `MapMenuSkeleton`
+- `NodeTooltip`
+- `QualityIndicator`
+- `SearchOverlay`
+- `ViewSelector`
+
 ### mascot
+- `Cockatrice`
+- `Cockatrice3D`
+- `CockatriceErrorReporter`
+- `CockatriceHeraldic`
+- `CockatriceToast`
 - `CompanionCharacter`
 - `CompanionContext`
 - `CompanionDock`
@@ -561,6 +703,14 @@ Components are organized by feature:
 - `MuscleRegion`
 - `MuscleStats`
 
+### muscle-viewer
+- `MuscleActivationBadge`
+- `MuscleHeatmap`
+- `MuscleViewer`
+- `MuscleViewer2D`
+- `MuscleViewer3D`
+- `MuscleViewerSkeleton`
+
 ### navigation
 - `BreadcrumbItem`
 - `Breadcrumbs`
@@ -581,6 +731,9 @@ Components are organized by feature:
 ### profile
 - `WealthTierBadge`
 
+### progress
+- `ProgressIndicator`
+
 ### progress-photos
 - `PhotoCompare`
 - `PhotoGallery`
@@ -592,6 +745,12 @@ Components are organized by feature:
 
 ### search
 - `CommandPalette`
+
+### settings
+- `EquipmentSelector`
+- `JourneyManagement`
+- `RestTimerSettings`
+- `UnitToggle`
 
 ### skeletons
 - `AtlasSkeleton`
@@ -605,6 +764,13 @@ Components are organized by feature:
 - `SkeletonStats`
 - `TableSkeleton`
 - `WorkoutSkeleton`
+
+### sleep-hygiene
+- `SleepHygieneDashboardCard`
+
+### social
+- `ActivityFeed`
+- `HangoutCard`
 
 ### stats
 - `VolumeChart`
@@ -663,58 +829,164 @@ Components are organized by feature:
 ### xr
 - `XRButton`
 
-## API Endpoints (837 total)
+## API Endpoints (1054 total)
 
 | Method | Path | Handler |
 |--------|------|---------|
 | GET | `/` | admin-beta-testers |
 | GET | `/__routes` | misc |
-| DELETE | `/:injuryId` | rehabilitation |
 | POST | `/1rm` | one-rep-max |
+| DELETE | `/1rm/:entryId` | one-rep-max |
 | GET | `/1rm/best` | one-rep-max |
 | POST | `/1rm/calculate` | one-rep-max |
+| GET | `/1rm/classification` | one-rep-max |
 | GET | `/1rm/compound-total` | one-rep-max |
 | GET | `/1rm/exercise/:exerciseId` | one-rep-max |
+| GET | `/1rm/exercise/:exerciseId/pr` | one-rep-max |
+| GET | `/1rm/formulas` | one-rep-max |
 | GET | `/1rm/leaderboard/:exerciseId` | one-rep-max |
 | GET | `/1rm/progression/:exerciseId` | one-rep-max |
+| GET | `/1rm/rep-table` | one-rep-max |
+| POST | `/1rm/reverse-calculate` | one-rep-max |
+| POST | `/1rm/scores` | one-rep-max |
 | GET | `/1rm/summary` | one-rep-max |
-| GET | `/achievements/:id/can-verify` | verifications |
-| POST | `/achievements/:id/verify` | verifications |
 | GET | `/achievements/categories` | achievements |
 | GET | `/achievements/definitions` | achievements |
 | GET | `/achievements/definitions/:key` | achievements |
 | GET | `/achievements/verification-required` | verifications |
-| GET | `/admin-control/audit/credits` | community |
-| GET | `/admin-control/users` | community |
+| GET | `/admin-control/audit` | admin-control |
+| GET | `/admin-control/audit/credits` | admin-control |
+| POST | `/admin-control/credits/adjust` | admin-control |
+| POST | `/admin-control/emergency/:action` | admin-control |
+| GET | `/admin-control/emergency/status` | admin-control |
+| GET | `/admin-control/groups` | admin-control |
+| GET | `/admin-control/pipelines` | admin-control |
+| GET | `/admin-control/scripts` | admin-control |
+| GET | `/admin-control/system-status` | admin-control |
+| GET | `/admin-control/users` | admin-control |
+| POST | `/admin-control/users/:userId/:action` | admin-control |
 | POST | `/admin/abuse-check/:userId` | credits |
+| GET | `/admin/alerts/channels` | admin-alerts |
+| POST | `/admin/alerts/channels` | admin-alerts |
+| GET | `/admin/alerts/history` | admin-alerts |
+| GET | `/admin/alerts/rules` | admin-alerts |
+| POST | `/admin/alerts/rules` | admin-alerts |
+| GET | `/admin/analytics/cohorts` | admin-analytics |
+| GET | `/admin/analytics/dashboard` | admin-analytics |
+| GET | `/admin/analytics/features` | admin-analytics |
+| POST | `/admin/analytics/recalculate` | admin-analytics |
+| GET | `/admin/analytics/segments` | admin-analytics |
+| GET | `/admin/analytics/segments/:id/members` | admin-analytics |
+| GET | `/admin/analytics/users/:id` | admin-analytics |
+| GET | `/admin/analytics/users/:id/timeline` | admin-analytics |
+| GET | `/admin/analytics/users/new` | admin-analytics |
+| POST | `/admin/backup/create` | admin-backup |
+| GET | `/admin/backup/list` | admin-backup |
+| GET | `/admin/backup/schedule` | admin-backup |
+| PUT | `/admin/backup/schedule` | admin-backup |
+| GET | `/admin/backup/status` | admin-backup |
+| GET | `/admin/bugs` | admin-bugs |
+| POST | `/admin/bugs/auto-fix` | admin-bugs |
+| POST | `/admin/bugs/bulk` | admin-bugs |
+| GET | `/admin/bugs/queue-status` | admin-bugs |
+| GET | `/admin/bugs/stats` | admin-bugs |
+| POST | `/admin/bugs/sync` | admin-bugs |
+| GET | `/admin/bugs/timeline` | admin-bugs |
 | POST | `/admin/credits/adjust` | credits |
 | GET | `/admin/credits/audit` | credits |
 | POST | `/admin/credits/reverse` | credits |
+| GET | `/admin/database/connections` | admin-database |
+| GET | `/admin/database/health` | admin-database |
+| GET | `/admin/database/indexes` | admin-database |
+| GET | `/admin/database/locks` | admin-database |
+| POST | `/admin/database/query` | admin-database |
+| GET | `/admin/database/slow-queries` | admin-database |
+| GET | `/admin/database/stats` | admin-database |
+| GET | `/admin/database/tables` | admin-database |
+| POST | `/admin/database/vacuum` | admin-database |
+| GET | `/admin/deploy/:deploymentId` | admin-deploy |
+| GET | `/admin/deploy/branches` | admin-deploy |
+| POST | `/admin/deploy/cancel/:deploymentId` | admin-deploy |
+| GET | `/admin/deploy/history` | admin-deploy |
+| GET | `/admin/deploy/preview/:branch` | admin-deploy |
+| POST | `/admin/deploy/rollback/:deploymentId` | admin-deploy |
+| GET | `/admin/deploy/status` | admin-deploy |
+| GET | `/admin/deploy/stream` | admin-deploy |
+| POST | `/admin/deploy/trigger` | admin-deploy |
 | GET | `/admin/disputes` | credits |
 | POST | `/admin/disputes/:disputeId/messages` | credits |
 | POST | `/admin/disputes/:disputeId/resolve` | credits |
 | PATCH | `/admin/disputes/:disputeId/status` | credits |
+| GET | `/admin/docs/file` | admin-docs |
+| POST | `/admin/docs/file` | admin-docs |
+| PUT | `/admin/docs/file` | admin-docs |
+| DELETE | `/admin/docs/file` | admin-docs |
+| POST | `/admin/docs/folder` | admin-docs |
+| GET | `/admin/docs/list` | admin-docs |
+| GET | `/admin/docs/search` | admin-docs |
+| GET | `/admin/docs/stats` | admin-docs |
 | GET | `/admin/economy/metrics` | credits |
+| GET | `/admin/env/audit` | admin-env |
+| GET | `/admin/env/compare` | admin-env |
+| GET | `/admin/env/export` | admin-env |
+| POST | `/admin/env/validate` | admin-env |
+| GET | `/admin/env/variables` | admin-env |
 | GET | `/admin/escrow` | credits |
 | POST | `/admin/escrow/:escrowId/refund` | credits |
 | POST | `/admin/escrow/:escrowId/release` | credits |
+| GET | `/admin/features/flags` | admin-features |
+| POST | `/admin/features/flags` | admin-features |
 | GET | `/admin/feedback` | admin-feedback |
-| GET | `/admin/feedback/:id` | admin-feedback |
-| PATCH | `/admin/feedback/:id` | admin-feedback |
-| POST | `/admin/feedback/:id/cancel-autofix` | admin-feedback |
-| POST | `/admin/feedback/:id/confirm-bug` | admin-feedback |
-| POST | `/admin/feedback/:id/respond` | admin-feedback |
 | GET | `/admin/feedback/recent-activity` | admin-feedback |
 | GET | `/admin/feedback/stats` | admin-feedback |
 | GET | `/admin/fraud-flags` | credits |
 | POST | `/admin/fraud-flags` | credits |
 | POST | `/admin/fraud-flags/:flagId/review` | credits |
-| GET | `/admin/issues` | issues |
-| POST | `/admin/issues/bulk` | issues |
 | POST | `/admin/leaderboard-rewards/trigger` | credits |
+| GET | `/admin/logs/aggregations` | admin-logs |
+| GET | `/admin/logs/errors` | admin-logs |
+| POST | `/admin/logs/export` | admin-logs |
+| GET | `/admin/logs/patterns` | admin-logs |
+| GET | `/admin/logs/search` | admin-logs |
+| GET | `/admin/logs/stats` | admin-logs |
+| GET | `/admin/logs/stream` | admin-logs |
+| GET | `/admin/logs/tail` | admin-logs |
+| GET | `/admin/metrics/endpoints` | admin-metrics |
+| GET | `/admin/metrics/history` | admin-metrics |
+| GET | `/admin/metrics/realtime` | admin-metrics |
+| POST | `/admin/metrics/reset` | admin-metrics |
+| GET | `/admin/metrics/stream` | admin-metrics |
+| GET | `/admin/metrics/users` | admin-metrics |
+| GET | `/admin/metrics/websockets` | admin-metrics |
 | GET | `/admin/rate-limit-status/:userId` | credits |
 | GET | `/admin/rate-limits` | credits |
 | PUT | `/admin/rate-limits/:action` | credits |
+| GET | `/admin/scheduler/commands` | admin-scheduler |
+| GET | `/admin/scheduler/history` | admin-scheduler |
+| GET | `/admin/scheduler/jobs` | admin-scheduler |
+| POST | `/admin/scheduler/jobs` | admin-scheduler |
+| POST | `/admin/scheduler/reload` | admin-scheduler |
+| POST | `/admin/scheduler/start` | admin-scheduler |
+| GET | `/admin/scheduler/stats` | admin-scheduler |
+| GET | `/admin/scheduler/status` | admin-scheduler |
+| POST | `/admin/scheduler/stop` | admin-scheduler |
+| POST | `/admin/scheduler/validate-cron` | admin-scheduler |
+| GET | `/admin/security/audit-log` | admin-security |
+| GET | `/admin/security/blocklist` | admin-security |
+| POST | `/admin/security/blocklist` | admin-security |
+| GET | `/admin/security/login-attempts` | admin-security |
+| GET | `/admin/security/rate-limits` | admin-security |
+| PUT | `/admin/security/rate-limits` | admin-security |
+| GET | `/admin/security/scan` | admin-security |
+| GET | `/admin/security/sessions` | admin-security |
+| GET | `/admin/server/git` | admin-server |
+| POST | `/admin/server/git/pull` | admin-server |
+| GET | `/admin/server/logs` | admin-server |
+| GET | `/admin/server/logs/stream` | admin-server |
+| POST | `/admin/server/process` | admin-server |
+| POST | `/admin/server/script` | admin-server |
+| GET | `/admin/server/scripts` | admin-server |
+| GET | `/admin/server/status` | admin-server |
 | POST | `/admin/store/grant` | credits |
 | POST | `/admin/store/revoke` | credits |
 | GET | `/admin/test-scorecard` | test-scorecard |
@@ -728,9 +1000,15 @@ Components are organized by feature:
 | GET | `/admin/wallet/:userId` | credits |
 | POST | `/admin/wallet/freeze` | credits |
 | POST | `/admin/wallet/unfreeze` | credits |
-| POST | `/advance-phase/:injuryId` | rehabilitation |
 | GET | `/alternatives/low-impact` | misc |
 | GET | `/alternatives/seated` | misc |
+| POST | `/api/admin/commands/cancel/:id` | admin-commands |
+| POST | `/api/admin/commands/execute` | admin-commands |
+| GET | `/api/admin/commands/execution/:id` | admin-commands |
+| GET | `/api/admin/commands/hierarchy` | admin-commands |
+| GET | `/api/admin/commands/history` | admin-commands |
+| GET | `/api/admin/commands/search` | admin-commands |
+| GET | `/api/admin/commands/stream/:id` | admin-commands |
 | GET | `/archetype/suggested-communities` | archetype-communities |
 | GET | `/archetypes` | journey |
 | GET | `/archetypes/:id/levels` | journey |
@@ -742,6 +1020,9 @@ Components are organized by feature:
 | GET | `/auth/me` | auth |
 | GET | `/auth/me/capabilities` | auth |
 | POST | `/auth/register` | auth |
+| POST | `/billing/checkout` | billing |
+| POST | `/billing/credits/checkout` | billing |
+| POST | `/billing/portal` | billing |
 | GET | `/body-measurements` | body-measurements |
 | POST | `/body-measurements` | body-measurements |
 | GET | `/body-measurements/:id` | body-measurements |
@@ -792,6 +1073,13 @@ Components are organized by feature:
 | GET | `/career/team/:hangoutId` | career |
 | POST | `/career/team/:hangoutId/enable` | career |
 | POST | `/career/team/:hangoutId/opt-in` | career |
+| GET | `/challenges/daily` | challenges |
+| POST | `/challenges/daily/claim/:id` | challenges |
+| GET | `/challenges/history` | challenges |
+| POST | `/challenges/progress` | challenges |
+| GET | `/challenges/types` | challenges |
+| GET | `/challenges/weekly` | challenges |
+| POST | `/challenges/weekly/claim` | challenges |
 | POST | `/checkout/stripe` | economyEnhanced |
 | POST | `/classes` | trainers |
 | GET | `/classes` | trainers |
@@ -805,6 +1093,18 @@ Components are organized by feature:
 | POST | `/classes/:classId/unenroll` | trainers |
 | GET | `/classes/browse` | credits |
 | GET | `/cohort-options` | cohort-preferences |
+| GET | `/collection` | marketplace |
+| GET | `/collection/favorites` | marketplace |
+| POST | `/collection/items/:id/favorite` | marketplace |
+| POST | `/collection/items/:id/seen` | marketplace |
+| GET | `/collection/new-count` | marketplace |
+| POST | `/collection/seen-all` | marketplace |
+| GET | `/collection/sets` | marketplace |
+| GET | `/collection/sets/:id` | marketplace |
+| POST | `/collection/sets/:id/claim` | marketplace |
+| PUT | `/collection/showcase` | marketplace |
+| GET | `/collection/showcase/:userId` | marketplace |
+| GET | `/collection/stats` | marketplace |
 | POST | `/communities` | communities |
 | GET | `/communities` | communities |
 | POST | `/communities/:id/events` | communities |
@@ -849,7 +1149,19 @@ Components are organized by feature:
 | GET | `/competition/weak-points` | competition |
 | GET | `/competitions` | misc |
 | GET | `/competitions/:id` | misc |
-| GET | `/credits/balance` | economy |
+| GET | `/daily-login/calendar` | daily-login |
+| POST | `/daily-login/claim` | daily-login |
+| POST | `/daily-login/purchase-freeze` | daily-login |
+| GET | `/daily-login/rewards` | daily-login |
+| GET | `/daily-login/status` | daily-login |
+| POST | `/daily-login/use-freeze` | daily-login |
+| POST | `/deploy/cancel/:id` | deployment |
+| GET | `/deploy/commands` | deployment |
+| POST | `/deploy/execute` | deployment |
+| GET | `/deploy/logs` | deployment |
+| GET | `/deploy/logs/:id` | deployment |
+| GET | `/deploy/status` | deployment |
+| GET | `/deploy/stream/:id` | deployment |
 | GET | `/disputes` | credits |
 | POST | `/disputes` | credits |
 | GET | `/disputes/:disputeId` | credits |
@@ -858,6 +1170,7 @@ Components are organized by feature:
 | GET | `/earn-events` | economyEnhanced |
 | POST | `/earn-events/mark-seen` | economyEnhanced |
 | GET | `/earn-events/recent` | economyEnhanced |
+| GET | `/earn-events/stream` | economyEnhanced |
 | GET | `/earn-events/today` | economyEnhanced |
 | GET | `/earn-events/week` | economyEnhanced |
 | GET | `/earning/rules` | credits |
@@ -868,6 +1181,15 @@ Components are organized by feature:
 | GET | `/economy/pricing` | economy |
 | GET | `/economy/transactions` | economy |
 | GET | `/economy/wallet` | economy |
+| GET | `/engagement/recovery/activities` | engagement-recovery |
+| GET | `/engagement/recovery/activity-types` | engagement-recovery |
+| GET | `/engagement/recovery/history` | engagement-recovery |
+| POST | `/engagement/recovery/log-activity` | engagement-recovery |
+| GET | `/engagement/recovery/muscles` | engagement-recovery |
+| GET | `/engagement/recovery/today` | engagement-recovery |
+| POST | `/engagement/seed-events` | engagement-summary |
+| GET | `/engagement/stats` | engagement-summary |
+| GET | `/engagement/summary` | engagement-summary |
 | GET | `/entitlements` | misc |
 | GET | `/equipment/categories` | equipment |
 | GET | `/equipment/home` | equipment |
@@ -877,8 +1199,26 @@ Components are organized by feature:
 | GET | `/equipment/home/ids` | equipment |
 | GET | `/equipment/types` | equipment |
 | GET | `/equipment/types/:category` | equipment |
+| POST | `/errors/:id/convert-to-bug` | errors |
+| POST | `/errors/:id/resolve` | errors |
+| GET | `/errors/admin-stats` | errors |
+| GET | `/errors/list` | errors |
+| POST | `/errors/report` | errors |
+| POST | `/errors/report/batch` | errors |
+| GET | `/errors/stats` | errors |
+| POST | `/errors/sync-to-bugs` | errors |
 | GET | `/escrow` | credits |
 | GET | `/escrow/:escrowId` | credits |
+| POST | `/events` | events |
+| GET | `/events/:id` | events |
+| DELETE | `/events/:id` | events |
+| POST | `/events/:id/join` | events |
+| GET | `/events/:id/participation` | events |
+| POST | `/events/:id/progress` | events |
+| GET | `/events/active` | events |
+| GET | `/events/history` | events |
+| GET | `/events/multipliers` | events |
+| GET | `/events/upcoming` | events |
 | GET | `/exercise-group-presets` | exercise-groups |
 | POST | `/exercise-group-presets` | exercise-groups |
 | DELETE | `/exercise-group-presets/:presetId` | exercise-groups |
@@ -894,13 +1234,11 @@ Components are organized by feature:
 | GET | `/exercises` | misc |
 | GET | `/exercises/:id/activations` | misc |
 | GET | `/exercises/:id/illustration` | misc |
-| GET | `/exercises/:id/metrics` | leaderboards |
 | GET | `/exercises/:id/videos` | exercise-videos |
 | POST | `/exercises/:id/videos` | exercise-videos |
 | GET | `/exercises/:id/videos/:videoId` | exercise-videos |
 | PATCH | `/exercises/:id/videos/:videoId` | exercise-videos |
 | DELETE | `/exercises/:id/videos/:videoId` | exercise-videos |
-| GET | `/exercises/:injuryId` | rehabilitation |
 | GET | `/faq` | feedback |
 | GET | `/faq/:id` | feedback |
 | POST | `/faq/:id/helpful` | feedback |
@@ -923,19 +1261,7 @@ Components are organized by feature:
 | POST | `/goals/:id/milestones` | goals |
 | POST | `/goals/:id/progress` | goals |
 | GET | `/goals/suggestions` | goals |
-| POST | `/hangouts` | hangouts |
-| GET | `/hangouts/:id` | hangouts |
-| GET | `/hangouts/:id/achievements` | achievements |
-| POST | `/hangouts/:id/check-in` | checkins |
-| POST | `/hangouts/:id/check-in/link-workout` | checkins |
 | GET | `/hangouts/:id/check-ins/active` | checkins |
-| POST | `/hangouts/:id/check-out` | checkins |
-| POST | `/hangouts/:id/join` | hangouts |
-| GET | `/hangouts/:id/leaderboard` | leaderboards |
-| POST | `/hangouts/:id/leave` | hangouts |
-| GET | `/hangouts/:id/members` | hangouts |
-| POST | `/hangouts/:id/posts` | hangouts |
-| GET | `/hangouts/:id/posts` | hangouts |
 | GET | `/hangouts/geo/:hangoutId` | economyEnhanced |
 | GET | `/hangouts/geo/:hangoutId/challenges` | economyEnhanced |
 | POST | `/hangouts/geo/:hangoutId/challenges` | economyEnhanced |
@@ -943,10 +1269,15 @@ Components are organized by feature:
 | POST | `/hangouts/geo/:hangoutId/events` | economyEnhanced |
 | GET | `/hangouts/geo/:hangoutId/members` | economyEnhanced |
 | GET | `/hangouts/geo/my` | economyEnhanced |
-| GET | `/hangouts/nearby` | hangouts |
-| GET | `/hangouts/stats` | hangouts |
 | GET | `/hangouts/types` | hangouts |
 | GET | `/health` | health |
+| GET | `/health-multiplier` | marketplace |
+| POST | `/health-multiplier/calculate` | marketplace |
+| GET | `/health-multiplier/history` | marketplace |
+| GET | `/health-multiplier/leaderboard` | marketplace |
+| POST | `/health-multiplier/metrics` | marketplace |
+| GET | `/health-multiplier/stats` | marketplace |
+| GET | `/health-multiplier/today` | marketplace |
 | GET | `/health/detailed` | health |
 | GET | `/health/live` | health |
 | GET | `/health/ready` | health |
@@ -960,20 +1291,22 @@ Components are organized by feature:
 | GET | `/identities/me` | identities |
 | GET | `/identities/suggested-communities` | identities |
 | GET | `/illustrations/bodies` | misc |
-| GET | `/issues` | issues |
-| POST | `/issues` | issues |
-| GET | `/issues/:id` | issues |
-| PATCH | `/issues/:id` | issues |
-| GET | `/issues/:id/comments` | issues |
-| POST | `/issues/:id/comments` | issues |
-| POST | `/issues/:id/subscribe` | issues |
-| POST | `/issues/:id/vote` | issues |
-| POST | `/issues/:issueId/comments/:commentId/solution` | issues |
 | GET | `/issues/labels` | issues |
 | GET | `/issues/stats` | issues |
 | GET | `/journal` | beta-tester |
 | GET | `/journey` | journey |
+| POST | `/journey/fresh-start` | journey-management |
 | GET | `/journey/progress` | journey |
+| POST | `/journey/restart-onboarding` | journey-management |
+| GET | `/journey/restore-history` | journey-management |
+| GET | `/journey/settings` | journey-management |
+| PUT | `/journey/settings` | journey-management |
+| GET | `/journey/snapshots` | journey-management |
+| POST | `/journey/snapshots` | journey-management |
+| GET | `/journey/snapshots/:id` | journey-management |
+| DELETE | `/journey/snapshots/:id` | journey-management |
+| POST | `/journey/snapshots/:id/restore` | journey-management |
+| POST | `/journey/switch` | journey |
 | GET | `/journeys` | journeys |
 | POST | `/journeys` | journeys |
 | GET | `/journeys/:id` | journeys |
@@ -988,9 +1321,8 @@ Components are organized by feature:
 | GET | `/journeys/suggestions` | journeys |
 | GET | `/journeys/templates` | journeys |
 | GET | `/journeys/templates/:templateId` | journeys |
-| GET | `/leaderboards` | leaderboards |
-| GET | `/leaderboards/global` | leaderboards |
-| GET | `/leaderboards/metrics` | leaderboards |
+| GET | `/leaderboards/simple` | leaderboards |
+| GET | `/leaderboards/user-rank` | leaderboards |
 | GET | `/limitations` | limitations |
 | POST | `/limitations` | limitations |
 | PUT | `/limitations/:id` | limitations |
@@ -1013,35 +1345,55 @@ Components are organized by feature:
 | GET | `/locations/:id/equipment/my-reports` | equipment |
 | GET | `/locations/:id/equipment/verified` | equipment |
 | GET | `/locations/nearby` | misc |
-| POST | `/log` | rehabilitation |
-| GET | `/martial-arts/disciplines` | martial-arts |
-| GET | `/martial-arts/disciplines/:disciplineId` | martial-arts |
-| GET | `/martial-arts/disciplines/:disciplineId/leaderboard` | martial-arts |
-| GET | `/martial-arts/disciplines/:disciplineId/progress` | martial-arts |
-| GET | `/martial-arts/disciplines/:disciplineId/techniques` | martial-arts |
-| GET | `/martial-arts/history` | martial-arts |
-| POST | `/martial-arts/master` | martial-arts |
-| POST | `/martial-arts/practice` | martial-arts |
+| GET | `/marketplace` | marketplace |
+| POST | `/marketplace/listings` | marketplace |
+| GET | `/marketplace/listings/:id` | marketplace |
+| PATCH | `/marketplace/listings/:id` | marketplace |
+| DELETE | `/marketplace/listings/:id` | marketplace |
+| POST | `/marketplace/listings/:id/buy` | marketplace |
+| POST | `/marketplace/listings/:id/offer` | marketplace |
+| GET | `/marketplace/listings/:id/offers` | marketplace |
+| GET | `/marketplace/my-listings` | marketplace |
+| GET | `/marketplace/my-offers` | marketplace |
+| GET | `/marketplace/my-stats` | marketplace |
+| DELETE | `/marketplace/offers/:id` | marketplace |
+| POST | `/marketplace/offers/:id/respond` | marketplace |
+| GET | `/marketplace/overview` | marketplace |
+| GET | `/marketplace/price-history/:cosmeticId` | marketplace |
+| GET | `/marketplace/price-suggestion/:cosmeticId` | marketplace |
+| GET | `/marketplace/watchlist` | marketplace |
+| POST | `/marketplace/watchlist` | marketplace |
+| DELETE | `/marketplace/watchlist/:listingId` | marketplace |
 | GET | `/martial-arts/progress` | martial-arts |
-| GET | `/martial-arts/techniques/:techniqueId` | martial-arts |
-| PUT | `/martial-arts/techniques/:techniqueId/notes` | martial-arts |
+| GET | `/mascot/companion/active-program` | mascot |
 | GET | `/mascot/companion/assist/abilities` | mascot |
 | GET | `/mascot/companion/assist/history` | mascot |
 | GET | `/mascot/companion/assist/state` | mascot |
 | POST | `/mascot/companion/assist/use` | mascot |
 | GET | `/mascot/companion/bonus` | mascot |
+| POST | `/mascot/companion/check-overtraining` | mascot |
 | POST | `/mascot/companion/cosmetics/equip` | mascot |
 | GET | `/mascot/companion/credit-alerts` | mascot |
 | POST | `/mascot/companion/credit-alerts/:alertId/dismiss` | mascot |
+| POST | `/mascot/companion/crew-coordination` | mascot |
+| GET | `/mascot/companion/crew-suggestions` | mascot |
 | GET | `/mascot/companion/data-alerts` | mascot |
 | GET | `/mascot/companion/energy` | mascot |
 | POST | `/mascot/companion/events/mark-reacted` | mascot |
 | GET | `/mascot/companion/events/recent` | mascot |
+| GET | `/mascot/companion/exercise-alternatives/:exerciseId` | mascot |
+| POST | `/mascot/companion/exercise-avoidance` | mascot |
+| GET | `/mascot/companion/exercise-avoidances` | mascot |
+| POST | `/mascot/companion/generate-program` | mascot |
 | GET | `/mascot/companion/highfive-prefs` | mascot |
 | PUT | `/mascot/companion/highfive-prefs` | mascot |
+| GET | `/mascot/companion/loan` | mascot |
+| POST | `/mascot/companion/loan/repay` | mascot |
+| POST | `/mascot/companion/loan/take` | mascot |
 | GET | `/mascot/companion/master-abilities` | mascot |
 | POST | `/mascot/companion/master-abilities/:abilityKey/unlock` | mascot |
 | GET | `/mascot/companion/milestones` | mascot |
+| GET | `/mascot/companion/negotiated-rate` | mascot |
 | PATCH | `/mascot/companion/nickname` | mascot |
 | GET | `/mascot/companion/nutrition-hint` | mascot |
 | GET | `/mascot/companion/overtraining-alerts` | mascot |
@@ -1049,15 +1401,19 @@ Components are organized by feature:
 | GET | `/mascot/companion/powers/all` | mascot |
 | GET | `/mascot/companion/programs` | mascot |
 | GET | `/mascot/companion/recovered-muscles` | mascot |
+| GET | `/mascot/companion/rivalry-alerts` | mascot |
+| POST | `/mascot/companion/rivalry-alerts/:alertId/seen` | mascot |
 | PATCH | `/mascot/companion/settings` | mascot |
 | GET | `/mascot/companion/social-actions` | mascot |
 | GET | `/mascot/companion/state` | mascot |
 | GET | `/mascot/companion/streak-saver` | mascot |
 | POST | `/mascot/companion/streak-saver/use` | mascot |
 | GET | `/mascot/companion/tips/next` | mascot |
+| GET | `/mascot/companion/trash-talk` | mascot |
 | GET | `/mascot/companion/tutorial` | mascot |
 | GET | `/mascot/companion/upgrades` | mascot |
 | POST | `/mascot/companion/upgrades/:upgradeId/purchase` | mascot |
+| GET | `/mascot/companion/volume-stats` | mascot |
 | GET | `/mascot/companion/wardrobe/appearance` | mascot |
 | GET | `/mascot/companion/wardrobe/catalog` | mascot |
 | GET | `/mascot/companion/wardrobe/collection` | mascot |
@@ -1077,67 +1433,40 @@ Components are organized by feature:
 | GET | `/mascot/companion/workout-suggestion` | mascot |
 | GET | `/mascot/global/config` | mascot |
 | GET | `/mascot/global/placements` | mascot |
-| GET | `/me/achievements` | achievements |
 | GET | `/me/achievements/summary` | achievements |
 | GET | `/me/check-in` | checkins |
-| GET | `/me/check-ins` | checkins |
+| GET | `/me/checkin` | venues |
+| GET | `/me/checkins` | venues |
 | GET | `/me/cohort-preferences` | cohort-preferences |
-| PATCH | `/me/cohort-preferences` | cohort-preferences |
+| GET | `/me/credits/summary` | credits |
+| GET | `/me/current-records` | venues |
+| GET | `/me/dashboard/widgets` | preferences |
+| GET | `/me/devices` | preferences |
+| POST | `/me/devices/register` | preferences |
 | GET | `/me/enrollments` | trainers |
 | GET | `/me/entitlements` | misc |
-| GET | `/me/hangouts` | hangouts |
-| GET | `/me/issues` | issues |
+| POST | `/me/hydration/log` | preferences |
+| GET | `/me/hydration/today` | preferences |
 | POST | `/me/leaderboard-opt-in` | cohort-preferences |
 | POST | `/me/leaderboard-opt-out` | cohort-preferences |
 | GET | `/me/nutrition` | nutrition |
-| POST | `/me/nutrition/disable` | nutrition |
 | POST | `/me/nutrition/enable` | nutrition |
-| POST | `/me/nutrition/foods/custom` | nutrition |
-| GET | `/me/nutrition/foods/custom` | nutrition |
-| DELETE | `/me/nutrition/foods/custom/:id` | nutrition |
-| GET | `/me/nutrition/foods/frequent` | nutrition |
-| GET | `/me/nutrition/foods/recent` | nutrition |
 | GET | `/me/nutrition/goals` | nutrition |
-| POST | `/me/nutrition/goals/calculate` | nutrition |
-| POST | `/me/nutrition/hydration` | nutrition |
-| GET | `/me/nutrition/hydration` | nutrition |
-| POST | `/me/nutrition/meals` | nutrition |
-| GET | `/me/nutrition/meals` | nutrition |
-| GET | `/me/nutrition/meals/:id` | nutrition |
-| PUT | `/me/nutrition/meals/:id` | nutrition |
-| DELETE | `/me/nutrition/meals/:id` | nutrition |
-| POST | `/me/nutrition/meals/copy` | nutrition |
-| GET | `/me/nutrition/plans` | nutrition |
-| POST | `/me/nutrition/plans` | nutrition |
-| GET | `/me/nutrition/plans/:id` | nutrition |
-| PUT | `/me/nutrition/plans/:id` | nutrition |
-| DELETE | `/me/nutrition/plans/:id` | nutrition |
-| POST | `/me/nutrition/plans/:id/activate` | nutrition |
-| POST | `/me/nutrition/plans/:id/items` | nutrition |
-| GET | `/me/nutrition/plans/:id/items` | nutrition |
-| POST | `/me/nutrition/plans/:id/shopping-list` | nutrition |
 | GET | `/me/nutrition/plans/active` | nutrition |
-| POST | `/me/nutrition/plans/generate` | nutrition |
-| PUT | `/me/nutrition/plans/items/:itemId` | nutrition |
-| DELETE | `/me/nutrition/plans/items/:itemId` | nutrition |
 | GET | `/me/nutrition/preferences` | nutrition |
-| PATCH | `/me/nutrition/preferences` | nutrition |
-| POST | `/me/nutrition/recipes` | nutrition |
-| GET | `/me/nutrition/recipes` | nutrition |
-| PUT | `/me/nutrition/recipes/:id` | nutrition |
-| DELETE | `/me/nutrition/recipes/:id` | nutrition |
-| POST | `/me/nutrition/recipes/:id/rate` | nutrition |
-| POST | `/me/nutrition/recipes/:id/save` | nutrition |
-| DELETE | `/me/nutrition/recipes/:id/save` | nutrition |
-| GET | `/me/nutrition/recipes/saved` | nutrition |
 | GET | `/me/nutrition/streaks` | nutrition |
-| GET | `/me/nutrition/summary` | nutrition |
-| GET | `/me/nutrition/summary/range` | nutrition |
-| GET | `/me/rank` | leaderboards |
-| GET | `/me/verifications` | verifications |
+| GET | `/me/preferences` | preferences |
+| PATCH | `/me/preferences` | preferences |
+| GET | `/me/preferences/effective` | preferences |
+| GET | `/me/preferences/profiles` | preferences |
+| POST | `/me/preferences/profiles` | preferences |
+| POST | `/me/preferences/profiles/deactivate` | preferences |
+| PUT | `/me/preferences/reset` | preferences |
+| GET | `/me/sounds/packs` | preferences |
+| POST | `/me/sounds/packs` | preferences |
+| GET | `/me/venue-records` | venues |
 | GET | `/me/video-favorites` | exercise-videos |
 | GET | `/me/video-history` | exercise-videos |
-| GET | `/me/witness-requests` | verifications |
 | PUT | `/mentor/profile` | mentorship |
 | GET | `/mentors` | mentorship |
 | GET | `/mentorship/requests` | mentorship |
@@ -1179,6 +1508,11 @@ Components are organized by feature:
 | GET | `/muscles` | misc |
 | GET | `/muscles/:id` | misc |
 | GET | `/my-injuries` | rehabilitation |
+| GET | `/mystery-boxes` | marketplace |
+| GET | `/mystery-boxes/:id` | marketplace |
+| POST | `/mystery-boxes/:id/open` | marketplace |
+| GET | `/mystery-boxes/history` | marketplace |
+| GET | `/mystery-boxes/pity` | marketplace |
 | GET | `/notifications` | notifications |
 | DELETE | `/notifications/:id` | notifications |
 | POST | `/notifications/mark-all-read` | notifications |
@@ -1188,16 +1522,6 @@ Components are organized by feature:
 | PUT | `/notifications/preferences/:category` | notifications |
 | GET | `/notifications/unread-count` | notifications |
 | GET | `/nutrition/archetypes` | nutrition |
-| GET | `/nutrition/archetypes/:archetype` | nutrition |
-| GET | `/nutrition/foods/:id` | nutrition |
-| GET | `/nutrition/foods/barcode/:barcode` | nutrition |
-| GET | `/nutrition/foods/search` | nutrition |
-| GET | `/nutrition/recipes` | nutrition |
-| GET | `/nutrition/recipes/:id` | nutrition |
-| GET | `/nutrition/recipes/:id/ratings` | nutrition |
-| GET | `/nutrition/recipes/archetype/:archetype` | nutrition |
-| GET | `/nutrition/recipes/popular` | nutrition |
-| GET | `/nutrition/recipes/trending` | nutrition |
 | POST | `/onboarding/back` | onboarding |
 | POST | `/onboarding/complete` | onboarding |
 | POST | `/onboarding/home-equipment` | onboarding |
@@ -1263,8 +1587,6 @@ Components are organized by feature:
 | GET | `/privacy/summary` | privacy |
 | GET | `/profile` | auth |
 | PUT | `/profile` | auth |
-| GET | `/profiles` | rehabilitation |
-| GET | `/profiles/:id` | rehabilitation |
 | POST | `/programs` | programs |
 | GET | `/programs` | programs |
 | GET | `/programs/:id` | programs |
@@ -1293,7 +1615,6 @@ Components are organized by feature:
 | GET | `/progress-photos/compare` | progress-photos |
 | GET | `/progress-photos/stats` | progress-photos |
 | GET | `/progress-photos/timeline` | progress-photos |
-| GET | `/progress/:injuryId` | rehabilitation |
 | GET | `/progress/stats` | misc |
 | GET | `/progression/achievements` | misc |
 | GET | `/progression/leaderboard` | misc |
@@ -1314,6 +1635,14 @@ Components are organized by feature:
 | GET | `/pt-tests/results` | pt-tests |
 | GET | `/pt-tests/results/:id` | pt-tests |
 | GET | `/purchases` | economyEnhanced |
+| GET | `/push/history` | push-notifications |
+| POST | `/push/mark-sent/:id` | push-notifications |
+| GET | `/push/pending` | push-notifications |
+| POST | `/push/register` | push-notifications |
+| POST | `/push/schedule` | push-notifications |
+| DELETE | `/push/schedule/:id` | push-notifications |
+| GET | `/push/tokens` | push-notifications |
+| DELETE | `/push/unregister` | push-notifications |
 | GET | `/ranks/definitions` | ranks |
 | GET | `/ranks/history` | ranks |
 | GET | `/ranks/leaderboard` | ranks |
@@ -1322,6 +1651,7 @@ Components are organized by feature:
 | POST | `/ranks/update-veterans` | ranks |
 | GET | `/ranks/user/:userId` | ranks |
 | GET | `/ranks/veteran-badge` | ranks |
+| GET | `/record-types` | venues |
 | GET | `/recovery/history` | recovery |
 | GET | `/recovery/recommendations` | recovery |
 | POST | `/recovery/recommendations/:id/acknowledge` | recovery |
@@ -1341,9 +1671,6 @@ Components are organized by feature:
 | GET | `/rivals/pending` | rivals |
 | GET | `/rivals/search` | rivals |
 | GET | `/rivals/stats` | rivals |
-| GET | `/roadmap` | issues |
-| POST | `/roadmap` | issues |
-| POST | `/roadmap/:id/vote` | issues |
 | POST | `/rpe/autoregulate` | rpe |
 | GET | `/rpe/fatigue` | rpe |
 | GET | `/rpe/scale` | rpe |
@@ -1353,6 +1680,12 @@ Components are organized by feature:
 | PUT | `/rpe/target/:exerciseId` | rpe |
 | GET | `/rpe/trends/:exerciseId` | rpe |
 | GET | `/rpe/weekly/:exerciseId` | rpe |
+| POST | `/sessions` | workout-sessions |
+| GET | `/sessions/active` | workout-sessions |
+| DELETE | `/sessions/active` | workout-sessions |
+| GET | `/sessions/archived` | workout-sessions |
+| POST | `/sessions/archived/:id/recover` | workout-sessions |
+| GET | `/sessions/status` | workout-sessions |
 | POST | `/sets` | workout-sets |
 | DELETE | `/sets/:setId` | workout-sets |
 | POST | `/sets/bulk` | workout-sets |
@@ -1373,16 +1706,35 @@ Components are organized by feature:
 | PUT | `/skill-milestones/me/:userMilestoneId/pause` | milestones |
 | PUT | `/skill-milestones/me/:userMilestoneId/progress` | milestones |
 | POST | `/skill-milestones/start` | milestones |
-| POST | `/skills/achieve` | skills |
-| GET | `/skills/history` | skills |
-| GET | `/skills/nodes/:nodeId` | skills |
-| GET | `/skills/nodes/:nodeId/leaderboard` | skills |
-| PUT | `/skills/nodes/:nodeId/notes` | skills |
-| POST | `/skills/practice` | skills |
 | GET | `/skills/progress` | skills |
 | GET | `/skills/trees` | skills |
-| GET | `/skills/trees/:treeId` | skills |
-| GET | `/skills/trees/:treeId/progress` | skills |
+| GET | `/skins` | skins |
+| POST | `/skins/:skinId/equip` | skins |
+| POST | `/skins/:skinId/purchase` | skins |
+| POST | `/skins/:skinId/unequip` | skins |
+| GET | `/skins/equipped` | skins |
+| GET | `/skins/owned` | skins |
+| GET | `/skins/unlockable` | skins |
+| GET | `/sleep-hygiene` | recovery |
+| GET | `/sleep-hygiene/assessments` | recovery |
+| POST | `/sleep-hygiene/assessments` | recovery |
+| PATCH | `/sleep-hygiene/assessments/:date` | recovery |
+| GET | `/sleep-hygiene/assessments/today` | recovery |
+| GET | `/sleep-hygiene/credits` | recovery |
+| GET | `/sleep-hygiene/credits/total` | recovery |
+| POST | `/sleep-hygiene/disable` | recovery |
+| POST | `/sleep-hygiene/enable` | recovery |
+| GET | `/sleep-hygiene/preferences` | recovery |
+| PATCH | `/sleep-hygiene/preferences` | recovery |
+| GET | `/sleep-hygiene/streaks` | recovery |
+| GET | `/sleep-hygiene/tips` | recovery |
+| POST | `/sleep-hygiene/tips/:tipId/bookmark` | recovery |
+| DELETE | `/sleep-hygiene/tips/:tipId/bookmark` | recovery |
+| POST | `/sleep-hygiene/tips/:tipId/dismiss` | recovery |
+| POST | `/sleep-hygiene/tips/:tipId/follow` | recovery |
+| DELETE | `/sleep-hygiene/tips/:tipId/follow` | recovery |
+| POST | `/sleep-hygiene/tips/:tipId/helpful` | recovery |
+| GET | `/sleep-hygiene/tips/bookmarked` | recovery |
 | GET | `/sleep/:id` | recovery |
 | PATCH | `/sleep/:id` | recovery |
 | DELETE | `/sleep/:id` | recovery |
@@ -1408,7 +1760,6 @@ Components are organized by feature:
 | POST | `/social/tip` | economyEnhanced |
 | GET | `/social/tips/received` | economyEnhanced |
 | GET | `/social/tips/sent` | economyEnhanced |
-| POST | `/start` | rehabilitation |
 | GET | `/stats/history` | stats |
 | GET | `/stats/info` | stats |
 | GET | `/stats/leaderboards` | stats |
@@ -1426,6 +1777,16 @@ Components are organized by feature:
 | GET | `/store/items/:sku` | credits |
 | GET | `/store/owns/:sku` | credits |
 | POST | `/store/purchase` | credits |
+| GET | `/streaks` | streaks |
+| GET | `/streaks/:type` | streaks |
+| POST | `/streaks/:type/claim` | streaks |
+| GET | `/streaks/:type/leaderboard` | streaks |
+| GET | `/streaks/:type/milestones` | streaks |
+| POST | `/streaks/:type/record` | streaks |
+| POST | `/subscriptions/cancel` | economyEnhanced |
+| POST | `/subscriptions/checkout` | economyEnhanced |
+| GET | `/subscriptions/current` | economyEnhanced |
+| GET | `/subscriptions/tiers` | economyEnhanced |
 | POST | `/templates` | templates |
 | GET | `/templates` | templates |
 | GET | `/templates/:id` | templates |
@@ -1441,6 +1802,16 @@ Components are organized by feature:
 | GET | `/tips` | tips |
 | POST | `/tips/:id/seen` | tips |
 | POST | `/trace/frontend-log` | misc |
+| POST | `/trades` | marketplace |
+| GET | `/trades/:id` | marketplace |
+| DELETE | `/trades/:id` | marketplace |
+| POST | `/trades/:id/accept` | marketplace |
+| POST | `/trades/:id/counter` | marketplace |
+| POST | `/trades/:id/decline` | marketplace |
+| POST | `/trades/estimate-value` | marketplace |
+| GET | `/trades/history` | marketplace |
+| GET | `/trades/incoming` | marketplace |
+| GET | `/trades/outgoing` | marketplace |
 | GET | `/trainers` | trainers |
 | GET | `/trainers/:userId` | trainers |
 | GET | `/trainers/me` | trainers |
@@ -1449,16 +1820,29 @@ Components are organized by feature:
 | POST | `/trainers/profile` | trainers |
 | GET | `/trust` | credits |
 | GET | `/trust/tiers` | credits |
-| GET | `/updates` | issues |
-| POST | `/updates` | issues |
-| GET | `/users/:id/achievements` | achievements |
-| GET | `/users/:id/achievements/summary` | achievements |
-| GET | `/users/:id/rank` | leaderboards |
+| GET | `/utility/streak-freeze` | economyEnhanced |
+| POST | `/utility/streak-freeze/purchase` | economyEnhanced |
+| POST | `/utility/streak-freeze/use` | economyEnhanced |
 | POST | `/v1/prescription/generate` | prescription |
-| POST | `/verifications` | verifications |
-| GET | `/verifications/:id` | verifications |
-| DELETE | `/verifications/:id` | verifications |
-| POST | `/verifications/:id/witness` | verifications |
+| GET | `/venue-records/:id` | venues |
+| DELETE | `/venue-records/:id` | venues |
+| POST | `/venue-records/:id/attest` | venues |
+| POST | `/venue-records/:id/video` | venues |
+| POST | `/venue-records/:id/witness` | venues |
+| GET | `/venues` | venues |
+| POST | `/venues` | venues |
+| GET | `/venues/:id` | venues |
+| POST | `/venues/:id/checkin` | venues |
+| POST | `/venues/:id/checkout` | venues |
+| POST | `/venues/:id/join` | venues |
+| GET | `/venues/:id/leaderboard` | venues |
+| POST | `/venues/:id/leave` | venues |
+| GET | `/venues/:id/members` | venues |
+| GET | `/venues/:id/present` | venues |
+| GET | `/venues/:id/record-types` | venues |
+| POST | `/venues/:id/records/claim` | venues |
+| GET | `/venues/nearby` | venues |
+| GET | `/venues/slug/:slug` | venues |
 | POST | `/videos/:videoId/favorite` | exercise-videos |
 | POST | `/videos/:videoId/watch` | exercise-videos |
 | GET | `/virtual-hangouts` | virtual-hangouts |
@@ -1466,7 +1850,6 @@ Components are organized by feature:
 | GET | `/virtual-hangouts/:id/activity` | virtual-hangouts |
 | POST | `/virtual-hangouts/:id/heartbeat` | virtual-hangouts |
 | POST | `/virtual-hangouts/:id/join` | virtual-hangouts |
-| GET | `/virtual-hangouts/:id/leaderboard` | leaderboards |
 | POST | `/virtual-hangouts/:id/leave` | virtual-hangouts |
 | GET | `/virtual-hangouts/:id/members` | virtual-hangouts |
 | PATCH | `/virtual-hangouts/:id/membership` | virtual-hangouts |
@@ -1509,28 +1892,34 @@ Components are organized by feature:
 
 | Script | Description |
 |--------|-------------|
+| `build-fast.sh` | ============================================================================= |
+| `build-safe.sh` | ============================================================================= |
+| `build-vendors.sh` | ============================================================================= |
+| `build-with-vendors.sh` | ============================================================================= |
+| `check-duplicate-routes.sh` | Check for duplicate route definitions in the API codebase |
 | `competitive-analysis.sh` | # competitive-analysis.sh - Automated Competitive Analysis for MuscleMap |
+| `compress-assets.sh` | ============================================================================= |
 | `deploy-branch.sh` | # deploy-branch.sh - Full deployment: commit, push, PR, merge, and deploy to production |
 | `deploy.sh` | Deployment helper for MuscleMap |
-| `errors.sh` | errors.sh |
-| `generate-docs.cjs` | MuscleMap Documentation Generator  Analyzes the codebase and regenerates all documentation to reflect the current state of the project.  Outputs: - Markdown files (for GitHub/web) - LaTeX files (for professional documentation/PDFs) - Plain-text docs (synced to public/docs-plain/)  Usage: node scripts/generate-docs.cjs              # Generate all docs + sync plain-text node scripts/generate-docs.cjs --latex      # LaTeX only node scripts/generate-docs.cjs --md         # Markdown only node scripts/generate-docs.cjs --sync-plain # Only sync docs-plain to public pnpm docs:generate  What it does: 1. Scans the codebase structure 2. Extracts API endpoints from route files 3. Identifies features from page components 4. Updates all documentation files (MD + LaTeX) 5. Syncs docs-plain/ to public/docs-plain/ for web access / |
+| `generate-docs.cjs` | MuscleMap Documentation Generator  PERFORMANCE OPTIMIZED: - Parallel file processing using Promise.all - Caching of analysis results (5-minute TTL) - Incremental mode (only regenerate if sources changed) - Stream-based file operations for large files  Outputs: - Markdown files (for GitHub/web) - LaTeX files (for professional documentation/PDFs) - Plain-text docs (synced to public/docs-plain/)  Usage: node scripts/generate-docs.cjs              # Generate all docs + sync plain-text node scripts/generate-docs.cjs --latex      # LaTeX only node scripts/generate-docs.cjs --md         # Markdown only node scripts/generate-docs.cjs --sync-plain # Only sync docs-plain to public node scripts/generate-docs.cjs --fast       # Use cached analysis if available node scripts/generate-docs.cjs --incremental # Only regenerate if sources changed pnpm docs:generate  What it does: 1. Scans the codebase structure (parallel) 2. Extracts API endpoints from route files 3. Identifies features from page components 4. Updates all documentation files (MD + LaTeX) 5. Syncs docs-plain/ to public/docs-plain/ for web access / |
 | `generate-icons.cjs` | App Icon Generator for MuscleMap Mobile App  Generates all required app icons for iOS and Android from a source image. Uses sharp for image processing (cross-platform, fast).  Usage: pnpm generate:icons [source-image]  If no source image is provided, uses apps/mobile/assets/icon-source.png or falls back to apps/mobile/assets/icon.png  Requirements: - Source image should be at least 1024x1024 pixels - PNG format recommended for best quality / |
 | `logs.sh` | Unified Log Viewer for MuscleMap |
 | `maintain.sh` | --- preflight --- |
 | `merge-all.sh` | # merge-all.sh - Merge all worktree branches into main |
 | `musclemap-start.sh` | # MuscleMap Local Development Services - START |
 | `musclemap-stop.sh` | # MuscleMap Local Development Services - STOP |
-| `pre-deploy-check.sh` | Pre-Deploy Check Script |
+| `pre-deploy-check.sh` | Pre-Deploy Check Script (PERFORMANCE OPTIMIZED) |
 | `prepare-app-store.cjs` | MuscleMap App Store Preparation Script  Automates everything needed for App Store submission: - Generates all app icons (iOS + Android) - Creates App Store metadata JSON - Generates screenshot templates - Creates store listing text  Usage: node scripts/prepare-app-store.cjs pnpm prepare:appstore / |
 | `production-deploy.sh` | # production-deploy.sh - Deploy script for MuscleMap production server |
 | `publish-app.sh` | # MuscleMap App Publishing Script |
 | `repo-cleanup.sh` | If caller sets DRY_RUN/APPLY explicitly, we do not prompt. |
 | `reset-devbox.sh` | ---- toggles (set by menu) ---- |
-| `split-repos.sh` | ============================================================================= |
-| `sync-docs-plain.sh` | Sync docs-plain to public directory for static serving |
+| `run-approved-command.sh` | # run-approved-command.sh - Execute commands from the approved commands list |
 | `test.sh` | Create a competition to get an ID (avoid hardcoded /1) |
 | `tidy-root-js.sh` | Collect file basenames referenced by systemd units + pm2 dump |
 | `warning-tracker.sh` | Warning Tracker - Tracks, triages, and auto-resolves common warnings |
+| `webhook-deploy.sh` | ============================================================================= |
+| `webhook-listener.js` | MuscleMap GitHub Webhook Listener  A lightweight HTTP server that listens for GitHub webhook events and triggers deployments when pushes to main are detected.  Usage: node scripts/webhook-listener.js  Environment: WEBHOOK_SECRET - GitHub webhook secret (required) WEBHOOK_PORT   - Port to listen on (default: 9000)  The listener runs on localhost only - Caddy proxies to it. / |
 
 ## Data Flow
 

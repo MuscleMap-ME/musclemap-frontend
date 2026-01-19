@@ -26,6 +26,15 @@
       "buildTime": 1768835800028
     }
   },
-  "frontend": {},
-  "api": {}
+  "frontend": {
+    "hash": "39fd8906c2ebed61dd56841086f4553b41c937c7d6227d466992bbeb7e7604f6",
+    "fileCount": 620,
+    "buildTime": 1768837615864,
+    "buildDuration": 75.39591954100001
+  },
+  "api": {
+    "hash": "f1cc64815dad0f60773cfd76c78b5c55bbcca08d5c86d39bf3adb2daa4b0dff7",
+    "fileCount": 414,
+    "buildTime": 1768837627469
+  }
 }

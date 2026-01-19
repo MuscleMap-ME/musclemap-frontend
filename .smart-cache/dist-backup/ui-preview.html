@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MuscleMap UI Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MUSCLEMAP UI COMPONENT SHOWCASE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const MuscleMapUIShowcase = () => {
+      const [activeSection, setActiveSection] = useState('buttons');
+      const [showModal, setShowModal] = useState(false);
+      const [showBottomSheet, setShowBottomSheet] = useState(false);
+      const [toggleValue, setToggleValue] = useState(true);
+      const [sliderValue, setSliderValue] = useState(65);
+      const [selectedChips, setSelectedChips] = useState(['Push', 'Pull']);
+      const [segmentValue, setSegmentValue] = useState('week');
+      const [searchValue, setSearchValue] = useState('');
+      const [activeTab, setActiveTab] = useState('exercises');
+      const [activeNav, setActiveNav] = useState('home');
+
+      const sections = [
+        { id: 'buttons', label: 'Buttons' },
+        { id: 'inputs', label: 'Inputs' },
+        { id: 'cards', label: 'Cards' },
+        { id: 'progress', label: 'Progress' },
+        { id: 'navigation', label: 'Navigation' },
+        { id: 'overlays', label: 'Overlays' },
+        { id: 'workout', label: 'Workout' },
+      ];
+
+      const SectionTitle = ({ title, description }) => (
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-1">{title}</h2>
+          <p className="text-slate-400">{description}</p>
+        </div>
+      );
+
+      const ComponentGroup = ({ title, children }) => (
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{title}</h3>
+          {children}
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
+          {/* Header */}
+          <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800">
+            <div className="max-w-6xl mx-auto px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center font-bold text-lg">M</div>
+                <div>
+                  <h1 className="font-bold text-lg">MuscleMap UI</h1>
+                  <p className="text-xs text-slate-400">Component Library Preview</p>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-6xl mx-auto px-4 pb-4 overflow-x-auto">
+              <div className="flex gap-2">
+                {sections.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSection(s.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                      activeSection === s.id
+                        ? 'bg-teal-500 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-6xl mx-auto px-4 py-8 pb-32">
+            {/* BUTTONS SECTION */}
+            {activeSection === 'buttons' && (
+              <div className="space-y-8">
+                <SectionTitle title="Buttons" description="Interactive button components with various styles and states" />
+
+                <ComponentGroup title="Primary Buttons">
+                  <div className="flex flex-wrap gap-3">
+                    <button className="px-6 py-3 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl font-semibold text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all">
+                      Start Workout
+                    </button>
+                    <button className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl font-semibold text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all">
+                      View Progress
+                    </button>
+                    <button className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl font-semibold text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all">
+                      End Session
+                    </button>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Secondary Buttons">
+                  <div className="flex flex-wrap gap-3">
+                    <button className="px-6 py-3 bg-slate-800 border border-slate-700 rounded-xl font-medium text-white hover:bg-slate-700 transition-all">
+                      Cancel
+                    </button>
+                    <button className="px-6 py-3 bg-transparent border border-teal-500 rounded-xl font-medium text-teal-400 hover:bg-teal-500/10 transition-all">
+                      Learn More
+                    </button>
+                    <button className="px-6 py-3 bg-slate-800/50 rounded-xl font-medium text-slate-400 hover:text-white transition-all">
+                      Skip
+                    </button>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Icon Buttons">
+                  <div className="flex flex-wrap gap-3">
+                    <button className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                    <button className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center text-red-400 hover:bg-red-500/30 transition-all">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </button>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Button Sizes">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button className="px-3 py-1.5 bg-teal-500 rounded-lg text-xs font-medium text-white">Small</button>
+                    <button className="px-4 py-2 bg-teal-500 rounded-lg text-sm font-medium text-white">Medium</button>
+                    <button className="px-6 py-3 bg-teal-500 rounded-xl font-semibold text-white">Large</button>
+                    <button className="px-8 py-4 bg-teal-500 rounded-2xl text-lg font-bold text-white">Extra Large</button>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Button States">
+                  <div className="flex flex-wrap gap-3">
+                    <button className="px-6 py-3 bg-teal-500 rounded-xl font-semibold text-white">Normal</button>
+                    <button className="px-6 py-3 bg-teal-500 rounded-xl font-semibold text-white opacity-50 cursor-not-allowed">Disabled</button>
+                    <button className="px-6 py-3 bg-teal-500 rounded-xl font-semibold text-white flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Loading
+                    </button>
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* INPUTS SECTION */}
+            {activeSection === 'inputs' && (
+              <div className="space-y-8">
+                <SectionTitle title="Inputs" description="Form inputs, toggles, and selection components" />
+
+                <ComponentGroup title="Text Inputs">
+                  <div className="space-y-4 max-w-md">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-2">Search</label>
+                      <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input
+                          type="text"
+                          placeholder="Search exercises..."
+                          value={searchValue}
+                          onChange={(e) => setSearchValue(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-2">Weight (kg)</label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-center text-2xl font-bold placeholder-slate-600 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Toggle Switch">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setToggleValue(!toggleValue)}
+                      className={`relative w-14 h-8 rounded-full transition-colors ${toggleValue ? 'bg-teal-500' : 'bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${toggleValue ? 'translate-x-7' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-slate-300">Rest timer notifications</span>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Chip Selection">
+                  <div className="flex flex-wrap gap-2">
+                    {['Push', 'Pull', 'Legs', 'Core', 'Cardio'].map(chip => (
+                      <button
+                        key={chip}
+                        onClick={() => setSelectedChips(prev =>
+                          prev.includes(chip) ? prev.filter(c => c !== chip) : [...prev, chip]
+                        )}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          selectedChips.includes(chip)
+                            ? 'bg-teal-500 text-white'
+                            : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Segmented Control">
+                  <div className="inline-flex bg-slate-800 rounded-xl p-1">
+                    {['day', 'week', 'month', 'year'].map(seg => (
+                      <button
+                        key={seg}
+                        onClick={() => setSegmentValue(seg)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
+                          segmentValue === seg
+                            ? 'bg-teal-500 text-white'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {seg}
+                      </button>
+                    ))}
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Slider">
+                  <div className="max-w-md space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-400">Intensity</span>
+                      <span className="text-teal-400 font-semibold">{sliderValue}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={sliderValue}
+                      onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-teal-500"
+                    />
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* CARDS SECTION */}
+            {activeSection === 'cards' && (
+              <div className="space-y-8">
+                <SectionTitle title="Cards" description="Content containers for exercises, stats, and information" />
+
+                <ComponentGroup title="Exercise Cards">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { name: 'Bench Press', muscle: 'Chest', sets: 4, reps: 8, color: 'from-red-500 to-orange-500' },
+                      { name: 'Deadlift', muscle: 'Back', sets: 3, reps: 5, color: 'from-blue-500 to-cyan-500' },
+                      { name: 'Squat', muscle: 'Legs', sets: 4, reps: 6, color: 'from-purple-500 to-pink-500' },
+                    ].map(exercise => (
+                      <div key={exercise.name} className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer group">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${exercise.color} flex items-center justify-center`}>
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500 bg-slate-700/50 px-2 py-1 rounded-lg">{exercise.muscle}</span>
+                        </div>
+                        <h3 className="font-semibold text-white mb-1 group-hover:text-teal-400 transition-colors">{exercise.name}</h3>
+                        <p className="text-sm text-slate-400">{exercise.sets} sets × {exercise.reps} reps</p>
+                      </div>
+                    ))}
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Stat Cards">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Total Volume', value: '12,450', unit: 'kg', trend: '+12%', icon: '📊' },
+                      { label: 'Workouts', value: '24', unit: 'this month', trend: '+3', icon: '💪' },
+                      { label: 'Streak', value: '7', unit: 'days', trend: 'Personal best!', icon: '🔥' },
+                      { label: 'XP Earned', value: '2,340', unit: 'points', trend: 'Level 12', icon: '⭐' },
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50">
+                        <div className="text-2xl mb-2">{stat.icon}</div>
+                        <p className="text-sm text-slate-400 mb-1">{stat.label}</p>
+                        <p className="text-2xl font-bold text-white">{stat.value}</p>
+                        <p className="text-xs text-slate-500">{stat.unit}</p>
+                        <p className="text-xs text-teal-400 mt-2">{stat.trend}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* PROGRESS SECTION */}
+            {activeSection === 'progress' && (
+              <div className="space-y-8">
+                <SectionTitle title="Progress" description="Progress indicators, bars, and achievement displays" />
+
+                <ComponentGroup title="Progress Bars">
+                  <div className="space-y-4 max-w-md">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-slate-400">Chest</span>
+                        <span className="text-teal-400">85%</span>
+                      </div>
+                      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full w-[85%] bg-gradient-to-r from-teal-500 to-teal-400 rounded-full" />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-slate-400">Back</span>
+                        <span className="text-blue-400">72%</span>
+                      </div>
+                      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full w-[72%] bg-gradient-to-r from-blue-500 to-blue-400 rounded-full" />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-slate-400">Legs</span>
+                        <span className="text-purple-400">45%</span>
+                      </div>
+                      <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full w-[45%] bg-gradient-to-r from-purple-500 to-purple-400 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Circular Progress">
+                  <div className="flex flex-wrap gap-8">
+                    <div className="relative w-32 h-32">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="#1e293b" strokeWidth="12" />
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="url(#gradient1)" strokeWidth="12" strokeLinecap="round" strokeDasharray="352" strokeDashoffset="70" />
+                        <defs>
+                          <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#14b8a6" />
+                            <stop offset="100%" stopColor="#06b6d4" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-white">80%</span>
+                        <span className="text-xs text-slate-400">Complete</span>
+                      </div>
+                    </div>
+                    <div className="relative w-32 h-32">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="#1e293b" strokeWidth="12" />
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="#f97316" strokeWidth="12" strokeLinecap="round" strokeDasharray="352" strokeDashoffset="176" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-white">50%</span>
+                        <span className="text-xs text-slate-400">Goal</span>
+                      </div>
+                    </div>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Achievement Badges">
+                  <div className="flex flex-wrap gap-4">
+                    {[
+                      { name: 'First Workout', icon: '🏋️', rarity: 'common', color: 'from-slate-500 to-slate-600' },
+                      { name: '7 Day Streak', icon: '🔥', rarity: 'rare', color: 'from-blue-500 to-blue-600' },
+                      { name: '1000kg Club', icon: '💎', rarity: 'epic', color: 'from-purple-500 to-purple-600' },
+                      { name: 'Champion', icon: '👑', rarity: 'legendary', color: 'from-yellow-500 to-orange-500' },
+                    ].map(badge => (
+                      <div key={badge.name} className="flex flex-col items-center">
+                        <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${badge.color} flex items-center justify-center text-2xl shadow-lg`}>
+                          {badge.icon}
+                        </div>
+                        <span className="text-sm text-white mt-2 font-medium">{badge.name}</span>
+                        <span className={`text-xs capitalize ${
+                          badge.rarity === 'legendary' ? 'text-yellow-400' :
+                          badge.rarity === 'epic' ? 'text-purple-400' :
+                          badge.rarity === 'rare' ? 'text-blue-400' : 'text-slate-400'
+                        }`}>{badge.rarity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* NAVIGATION SECTION */}
+            {activeSection === 'navigation' && (
+              <div className="space-y-8">
+                <SectionTitle title="Navigation" description="Tab bars, bottom navigation, and navigation components" />
+
+                <ComponentGroup title="Tab Bar">
+                  <div className="bg-slate-800 rounded-xl p-1 inline-flex">
+                    {['exercises', 'workouts', 'progress', 'profile'].map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-6 py-3 rounded-lg text-sm font-medium capitalize transition-all ${
+                          activeTab === tab
+                            ? 'bg-slate-700 text-white'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Bottom Navigation">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2 flex justify-around max-w-md">
+                    {[
+                      { id: 'home', icon: '🏠', label: 'Home' },
+                      { id: 'workout', icon: '💪', label: 'Workout' },
+                      { id: 'stats', icon: '📊', label: 'Stats' },
+                      { id: 'profile', icon: '👤', label: 'Profile' },
+                    ].map(nav => (
+                      <button
+                        key={nav.id}
+                        onClick={() => setActiveNav(nav.id)}
+                        className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${
+                          activeNav === nav.id
+                            ? 'bg-teal-500/20 text-teal-400'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        <span className="text-xl mb-1">{nav.icon}</span>
+                        <span className="text-xs font-medium">{nav.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* OVERLAYS SECTION */}
+            {activeSection === 'overlays' && (
+              <div className="space-y-8">
+                <SectionTitle title="Overlays" description="Modals, sheets, and overlay components" />
+
+                <ComponentGroup title="Trigger Overlays">
+                  <div className="flex flex-wrap gap-4">
+                    <button
+                      onClick={() => setShowModal(true)}
+                      className="px-6 py-3 bg-teal-500 rounded-xl font-semibold text-white"
+                    >
+                      Open Modal
+                    </button>
+                    <button
+                      onClick={() => setShowBottomSheet(true)}
+                      className="px-6 py-3 bg-slate-700 rounded-xl font-semibold text-white"
+                    >
+                      Open Bottom Sheet
+                    </button>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Alert Examples">
+                  <div className="space-y-3 max-w-md">
+                    <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4 flex items-start gap-3">
+                      <span className="text-green-400 text-xl">✓</span>
+                      <div>
+                        <p className="font-medium text-green-400">Workout Complete!</p>
+                        <p className="text-sm text-green-300/70">Great job! You burned 450 calories.</p>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
+                      <span className="text-yellow-400 text-xl">⚠</span>
+                      <div>
+                        <p className="font-medium text-yellow-400">Rest Recommended</p>
+                        <p className="text-sm text-yellow-300/70">Your muscles need recovery time.</p>
+                      </div>
+                    </div>
+                    <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
+                      <span className="text-red-400 text-xl">✕</span>
+                      <div>
+                        <p className="font-medium text-red-400">Connection Lost</p>
+                        <p className="text-sm text-red-300/70">Please check your internet connection.</p>
+                      </div>
+                    </div>
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+
+            {/* WORKOUT SECTION */}
+            {activeSection === 'workout' && (
+              <div className="space-y-8">
+                <SectionTitle title="Workout" description="Workout-specific components and interfaces" />
+
+                <ComponentGroup title="Rest Timer">
+                  <div className="bg-slate-800 rounded-2xl p-6 max-w-xs text-center">
+                    <p className="text-sm text-slate-400 mb-2">Rest Time</p>
+                    <p className="text-6xl font-bold text-white font-mono mb-4">1:30</p>
+                    <div className="flex gap-2 justify-center">
+                      <button className="px-4 py-2 bg-slate-700 rounded-lg text-sm font-medium text-slate-300">-15s</button>
+                      <button className="px-6 py-2 bg-teal-500 rounded-lg text-sm font-medium text-white">Skip</button>
+                      <button className="px-4 py-2 bg-slate-700 rounded-lg text-sm font-medium text-slate-300">+15s</button>
+                    </div>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Set Progress">
+                  <div className="bg-slate-800 rounded-2xl p-4 max-w-md">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-white">Bench Press</h3>
+                      <span className="text-sm text-slate-400">Set 2 of 4</span>
+                    </div>
+                    <div className="flex gap-2 mb-4">
+                      {[1, 2, 3, 4].map(set => (
+                        <div
+                          key={set}
+                          className={`flex-1 h-2 rounded-full ${
+                            set < 2 ? 'bg-teal-500' : set === 2 ? 'bg-teal-500/50' : 'bg-slate-700'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-700/50 rounded-xl p-3 text-center">
+                        <p className="text-xs text-slate-400 mb-1">Weight</p>
+                        <p className="text-2xl font-bold text-white">80 kg</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-xl p-3 text-center">
+                        <p className="text-xs text-slate-400 mb-1">Reps</p>
+                        <p className="text-2xl font-bold text-white">8</p>
+                      </div>
+                    </div>
+                  </div>
+                </ComponentGroup>
+
+                <ComponentGroup title="Leaderboard Entry">
+                  <div className="bg-slate-800 rounded-2xl overflow-hidden max-w-md">
+                    {[
+                      { rank: 1, name: 'Alex Strong', score: '2,450 kg', avatar: '🥇' },
+                      { rank: 2, name: 'Jordan Fit', score: '2,380 kg', avatar: '🥈' },
+                      { rank: 3, name: 'Sam Power', score: '2,290 kg', avatar: '🥉' },
+                      { rank: 4, name: 'You', score: '2,150 kg', avatar: '👤', isUser: true },
+                    ].map(entry => (
+                      <div
+                        key={entry.rank}
+                        className={`flex items-center gap-4 p-4 border-b border-slate-700/50 last:border-0 ${
+                          entry.isUser ? 'bg-teal-500/10' : ''
+                        }`}
+                      >
+                        <span className={`text-2xl w-8 text-center ${entry.rank <= 3 ? '' : 'text-slate-500 text-lg'}`}>
+                          {entry.rank <= 3 ? entry.avatar : `#${entry.rank}`}
+                        </span>
+                        <div className="flex-1">
+                          <p className={`font-medium ${entry.isUser ? 'text-teal-400' : 'text-white'}`}>{entry.name}</p>
+                        </div>
+                        <span className="text-slate-400 font-mono">{entry.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ComponentGroup>
+              </div>
+            )}
+          </main>
+
+          {/* Modal */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+              <div className="relative bg-slate-800 rounded-2xl p-6 max-w-sm w-full border border-slate-700">
+                <h2 className="text-xl font-bold text-white mb-2">Complete Workout?</h2>
+                <p className="text-slate-400 mb-6">You've completed 4 exercises and burned an estimated 320 calories.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 bg-slate-700 rounded-xl font-medium text-white">Cancel</button>
+                  <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 bg-teal-500 rounded-xl font-medium text-white">Complete</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Sheet */}
+          {showBottomSheet && (
+            <div className="fixed inset-0 z-50">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setShowBottomSheet(false)} />
+              <div className="absolute bottom-0 left-0 right-0 bg-slate-800 rounded-t-3xl border-t border-slate-700">
+                <div className="flex justify-center pt-3 pb-2">
+                  <div className="w-10 h-1 bg-slate-600 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between px-4 pb-3 border-b border-slate-700">
+                  <h2 className="font-semibold text-white text-lg">Filter Exercises</h2>
+                  <button onClick={() => setShowBottomSheet(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <div className="p-4">
+                  <p className="text-slate-400 mb-4">Select muscle groups to filter:</p>
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {['Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Legs'].map(m => (
+                      <button key={m} className="px-4 py-2 rounded-full bg-slate-700 text-slate-300 text-sm font-medium hover:bg-teal-500 hover:text-white transition-all">
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setShowBottomSheet(false)} className="w-full py-3 bg-teal-500 rounded-xl font-semibold text-white">
+                    Apply Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<MuscleMapUIShowcase />);
+  </script>
+</body>
+</html>

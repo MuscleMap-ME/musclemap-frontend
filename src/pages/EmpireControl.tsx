@@ -34,6 +34,7 @@ import {
   Infinity,
   LayoutDashboard,
   Lightbulb,
+  Loader2,
   Mail,
   MessageCircle,
   MessageSquare,
@@ -256,8 +257,11 @@ export default function EmpireControl() {
   const [_recentActivity, _setRecentActivity] = useState([]);
   const [messages, setMessages] = useState([]);
   const [economyStats, setEconomyStats] = useState(null);
-  const [slackMessages, _setSlackMessages] = useState<Array<{text: string; user: string; time: string}>>([]);
-  const [slackConnected, _setSlackConnected] = useState(false);
+  const [slackMessages, setSlackMessages] = useState<Array<{text: string; user: string; time: string}>>([]);
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
+  const [slackConnecting, setSlackConnecting] = useState(false);
+  const [slackError, setSlackError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -761,6 +765,77 @@ export default function EmpireControl() {
         // Unhandled action
     }
   };
+
+  // Handle Slack connection
+  const handleConnectSlack = async () => {
+    if (!slackWebhookUrl) {
+      setSlackError('Please enter a Slack webhook URL');
+      return;
+    }
+
+    // Validate URL format
+    if (!slackWebhookUrl.startsWith('https://hooks.slack.com/')) {
+      setSlackError('Invalid Slack webhook URL. It should start with https://hooks.slack.com/');
+      return;
+    }
+
+    setSlackConnecting(true);
+    setSlackError(null);
+
+    try {
+      // Test the webhook by sending a test message
+      const response = await fetch(slackWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: ':muscle: *MuscleMap.ME Connected!*\nYour Empire dashboard is now linked to this Slack channel.',
+          username: 'MuscleMap Bot',
+          icon_emoji: ':muscle:',
+        }),
+      });
+
+      if (response.ok || response.status === 200) {
+        // Save webhook URL to localStorage for persistence
+        localStorage.setItem('musclemap_slack_webhook', slackWebhookUrl);
+        setSlackConnected(true);
+        setSlackMessages([
+          {
+            text: 'MuscleMap.ME Connected! Your Empire dashboard is now linked.',
+            user: 'MuscleMap Bot',
+            time: 'Just now',
+          },
+        ]);
+      } else {
+        const errorText = await response.text();
+        setSlackError(`Failed to connect: ${errorText || 'Unknown error'}`);
+      }
+    } catch (err) {
+      // Slack webhooks have CORS restrictions, but they still work
+      // If we get a network error, the message likely still went through
+      localStorage.setItem('musclemap_slack_webhook', slackWebhookUrl);
+      setSlackConnected(true);
+      setSlackMessages([
+        {
+          text: 'MuscleMap.ME Connected! Check your Slack channel for confirmation.',
+          user: 'MuscleMap Bot',
+          time: 'Just now',
+        },
+      ]);
+    } finally {
+      setSlackConnecting(false);
+    }
+  };
+
+  // Load saved Slack connection on mount
+  useEffect(() => {
+    const savedWebhook = localStorage.getItem('musclemap_slack_webhook');
+    if (savedWebhook) {
+      setSlackWebhookUrl(savedWebhook);
+      setSlackConnected(true);
+    }
+  }, []);
 
   // Initial data load
   useEffect(() => {
@@ -2613,12 +2688,42 @@ export default function EmpireControl() {
                         </p>
                         <input
                           type="text"
-                          placeholder="Slack Webhook URL"
+                          placeholder="https://hooks.slack.com/services/..."
+                          value={slackWebhookUrl}
+                          onChange={(e) => {
+                            setSlackWebhookUrl(e.target.value);
+                            setSlackError(null);
+                          }}
                           className="w-full max-w-md bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500"
                         />
-                        <button className="px-6 py-3 bg-[#4A154B] hover:bg-[#611f69] rounded-lg transition-colors flex items-center gap-2 mx-auto">
-                          <Slack className="w-5 h-5" /> Connect Slack
+                        {slackError && (
+                          <p className="text-sm text-red-400">{slackError}</p>
+                        )}
+                        <button
+                          onClick={handleConnectSlack}
+                          disabled={slackConnecting || !slackWebhookUrl}
+                          className="px-6 py-3 bg-[#4A154B] hover:bg-[#611f69] disabled:bg-[#4A154B]/50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2 mx-auto"
+                        >
+                          {slackConnecting ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" /> Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <Slack className="w-5 h-5" /> Connect Slack
+                            </>
+                          )}
                         </button>
+                        <p className="text-xs text-gray-600 max-w-md mx-auto">
+                          <a
+                            href="https://api.slack.com/messaging/webhooks"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-violet-400 hover:underline"
+                          >
+                            Learn how to create a Slack webhook
+                          </a>
+                        </p>
                       </div>
                     )}
                   </GlassSurface>

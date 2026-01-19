@@ -98,29 +98,6 @@ Authorization: Bearer <token>
 \end{table}
 
 
-\subsection{Rehabilitation}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{DELETE} & \texttt{/:injuryId} \\
-\texttt{POST} & \texttt{/advance-phase/:injuryId} \\
-\texttt{GET} & \texttt{/body-regions} \\
-\texttt{GET} & \texttt{/exercises/:injuryId} \\
-\texttt{POST} & \texttt{/log} \\
-\texttt{GET} & \texttt{/my-injuries} \\
-\texttt{GET} & \texttt{/profiles} \\
-\texttt{GET} & \texttt{/profiles/:id} \\
-\texttt{GET} & \texttt{/progress/:injuryId} \\
-\texttt{POST} & \texttt{/start} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
 \subsection{One-rep-max}
 
 \begin{table}[h]
@@ -130,35 +107,20 @@ Authorization: Bearer <token>
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
 \texttt{POST} & \texttt{/1rm} \\
+\texttt{DELETE} & \texttt{/1rm/:entryId} \\
 \texttt{GET} & \texttt{/1rm/best} \\
 \texttt{POST} & \texttt{/1rm/calculate} \\
+\texttt{GET} & \texttt{/1rm/classification} \\
 \texttt{GET} & \texttt{/1rm/compound-total} \\
 \texttt{GET} & \texttt{/1rm/exercise/:exerciseId} \\
+\texttt{GET} & \texttt{/1rm/exercise/:exerciseId/pr} \\
+\texttt{GET} & \texttt{/1rm/formulas} \\
 \texttt{GET} & \texttt{/1rm/leaderboard/:exerciseId} \\
 \texttt{GET} & \texttt{/1rm/progression/:exerciseId} \\
+\texttt{GET} & \texttt{/1rm/rep-table} \\
+\texttt{POST} & \texttt{/1rm/reverse-calculate} \\
+\texttt{POST} & \texttt{/1rm/scores} \\
 \texttt{GET} & \texttt{/1rm/summary} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\subsection{Verifications}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{GET} & \texttt{/achievements/:id/can-verify} \\
-\texttt{POST} & \texttt{/achievements/:id/verify} \\
-\texttt{GET} & \texttt{/achievements/verification-required} \\
-\texttt{GET} & \texttt{/me/verifications} \\
-\texttt{GET} & \texttt{/me/witness-requests} \\
-\texttt{POST} & \texttt{/verifications} \\
-\texttt{GET} & \texttt{/verifications/:id} \\
-\texttt{DELETE} & \texttt{/verifications/:id} \\
-\texttt{POST} & \texttt{/verifications/:id/witness} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -175,17 +137,13 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/achievements/categories} \\
 \texttt{GET} & \texttt{/achievements/definitions} \\
 \texttt{GET} & \texttt{/achievements/definitions/:key} \\
-\texttt{GET} & \texttt{/hangouts/:id/achievements} \\
-\texttt{GET} & \texttt{/me/achievements} \\
 \texttt{GET} & \texttt{/me/achievements/summary} \\
-\texttt{GET} & \texttt{/users/:id/achievements} \\
-\texttt{GET} & \texttt{/users/:id/achievements/summary} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 
-\subsection{Community}
+\subsection{Verifications}
 
 \begin{table}[h]
 \centering
@@ -193,24 +151,31 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
+\texttt{GET} & \texttt{/achievements/verification-required} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-control}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin-control/audit} \\
 \texttt{GET} & \texttt{/admin-control/audit/credits} \\
+\texttt{POST} & \texttt{/admin-control/credits/adjust} \\
+\texttt{POST} & \texttt{/admin-control/emergency/:action} \\
+\texttt{GET} & \texttt{/admin-control/emergency/status} \\
+\texttt{GET} & \texttt{/admin-control/groups} \\
+\texttt{GET} & \texttt{/admin-control/pipelines} \\
+\texttt{GET} & \texttt{/admin-control/scripts} \\
+\texttt{GET} & \texttt{/admin-control/system-status} \\
 \texttt{GET} & \texttt{/admin-control/users} \\
-\texttt{GET} & \texttt{/community/feed} \\
-\texttt{GET} & \texttt{/community/monitor} \\
-\texttt{GET} & \texttt{/community/now} \\
-\texttt{GET} & \texttt{/community/percentile} \\
-\texttt{GET} & \texttt{/community/presence} \\
-\texttt{POST} & \texttt{/community/presence} \\
-\texttt{GET} & \texttt{/community/stats} \\
-\texttt{GET} & \texttt{/community/stats/archetypes} \\
-\texttt{GET} & \texttt{/community/stats/credits} \\
-\texttt{GET} & \texttt{/community/stats/exercises} \\
-\texttt{GET} & \texttt{/community/stats/funnel} \\
-\texttt{GET} & \texttt{/community/stats/geographic} \\
-\texttt{GET} & \texttt{/community/stats/public} \\
-\texttt{GET} & \texttt{/community/stats/summary} \\
-\texttt{GET} & \texttt{/community/ws} \\
-\texttt{GET} & \texttt{/community/ws/public} \\
+\texttt{POST} & \texttt{/admin-control/users/:userId/:action} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -269,6 +234,7 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/earning/rules} \\
 \texttt{GET} & \texttt{/escrow} \\
 \texttt{GET} & \texttt{/escrow/:escrowId} \\
+\texttt{GET} & \texttt{/me/credits/summary} \\
 \texttt{GET} & \texttt{/store/categories} \\
 \texttt{GET} & \texttt{/store/featured} \\
 \texttt{GET} & \texttt{/store/inventory} \\
@@ -288,6 +254,182 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Admin-alerts}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/alerts/channels} \\
+\texttt{POST} & \texttt{/admin/alerts/channels} \\
+\texttt{GET} & \texttt{/admin/alerts/history} \\
+\texttt{GET} & \texttt{/admin/alerts/rules} \\
+\texttt{POST} & \texttt{/admin/alerts/rules} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-analytics}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/analytics/cohorts} \\
+\texttt{GET} & \texttt{/admin/analytics/dashboard} \\
+\texttt{GET} & \texttt{/admin/analytics/features} \\
+\texttt{POST} & \texttt{/admin/analytics/recalculate} \\
+\texttt{GET} & \texttt{/admin/analytics/segments} \\
+\texttt{GET} & \texttt{/admin/analytics/segments/:id/members} \\
+\texttt{GET} & \texttt{/admin/analytics/users/:id} \\
+\texttt{GET} & \texttt{/admin/analytics/users/:id/timeline} \\
+\texttt{GET} & \texttt{/admin/analytics/users/new} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-backup}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/admin/backup/create} \\
+\texttt{GET} & \texttt{/admin/backup/list} \\
+\texttt{GET} & \texttt{/admin/backup/schedule} \\
+\texttt{PUT} & \texttt{/admin/backup/schedule} \\
+\texttt{GET} & \texttt{/admin/backup/status} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-bugs}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/bugs} \\
+\texttt{POST} & \texttt{/admin/bugs/auto-fix} \\
+\texttt{POST} & \texttt{/admin/bugs/bulk} \\
+\texttt{GET} & \texttt{/admin/bugs/queue-status} \\
+\texttt{GET} & \texttt{/admin/bugs/stats} \\
+\texttt{POST} & \texttt{/admin/bugs/sync} \\
+\texttt{GET} & \texttt{/admin/bugs/timeline} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-database}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/database/connections} \\
+\texttt{GET} & \texttt{/admin/database/health} \\
+\texttt{GET} & \texttt{/admin/database/indexes} \\
+\texttt{GET} & \texttt{/admin/database/locks} \\
+\texttt{POST} & \texttt{/admin/database/query} \\
+\texttt{GET} & \texttt{/admin/database/slow-queries} \\
+\texttt{GET} & \texttt{/admin/database/stats} \\
+\texttt{GET} & \texttt{/admin/database/tables} \\
+\texttt{POST} & \texttt{/admin/database/vacuum} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-deploy}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/deploy/:deploymentId} \\
+\texttt{GET} & \texttt{/admin/deploy/branches} \\
+\texttt{POST} & \texttt{/admin/deploy/cancel/:deploymentId} \\
+\texttt{GET} & \texttt{/admin/deploy/history} \\
+\texttt{GET} & \texttt{/admin/deploy/preview/:branch} \\
+\texttt{POST} & \texttt{/admin/deploy/rollback/:deploymentId} \\
+\texttt{GET} & \texttt{/admin/deploy/status} \\
+\texttt{GET} & \texttt{/admin/deploy/stream} \\
+\texttt{POST} & \texttt{/admin/deploy/trigger} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-docs}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/docs/file} \\
+\texttt{POST} & \texttt{/admin/docs/file} \\
+\texttt{PUT} & \texttt{/admin/docs/file} \\
+\texttt{DELETE} & \texttt{/admin/docs/file} \\
+\texttt{POST} & \texttt{/admin/docs/folder} \\
+\texttt{GET} & \texttt{/admin/docs/list} \\
+\texttt{GET} & \texttt{/admin/docs/search} \\
+\texttt{GET} & \texttt{/admin/docs/stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-env}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/env/audit} \\
+\texttt{GET} & \texttt{/admin/env/compare} \\
+\texttt{GET} & \texttt{/admin/env/export} \\
+\texttt{POST} & \texttt{/admin/env/validate} \\
+\texttt{GET} & \texttt{/admin/env/variables} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-features}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/features/flags} \\
+\texttt{POST} & \texttt{/admin/features/flags} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Admin-feedback}
 
 \begin{table}[h]
@@ -297,11 +439,6 @@ Authorization: Bearer <token>
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
 \texttt{GET} & \texttt{/admin/feedback} \\
-\texttt{GET} & \texttt{/admin/feedback/:id} \\
-\texttt{PATCH} & \texttt{/admin/feedback/:id} \\
-\texttt{POST} & \texttt{/admin/feedback/:id/cancel-autofix} \\
-\texttt{POST} & \texttt{/admin/feedback/:id/confirm-bug} \\
-\texttt{POST} & \texttt{/admin/feedback/:id/respond} \\
 \texttt{GET} & \texttt{/admin/feedback/recent-activity} \\
 \texttt{GET} & \texttt{/admin/feedback/stats} \\
 \bottomrule
@@ -309,7 +446,7 @@ Authorization: Bearer <token>
 \end{table}
 
 
-\subsection{Issues}
+\subsection{Admin-logs}
 
 \begin{table}[h]
 \centering
@@ -317,25 +454,99 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
-\texttt{GET} & \texttt{/admin/issues} \\
-\texttt{POST} & \texttt{/admin/issues/bulk} \\
-\texttt{GET} & \texttt{/issues} \\
-\texttt{POST} & \texttt{/issues} \\
-\texttt{GET} & \texttt{/issues/:id} \\
-\texttt{PATCH} & \texttt{/issues/:id} \\
-\texttt{GET} & \texttt{/issues/:id/comments} \\
-\texttt{POST} & \texttt{/issues/:id/comments} \\
-\texttt{POST} & \texttt{/issues/:id/subscribe} \\
-\texttt{POST} & \texttt{/issues/:id/vote} \\
-\texttt{POST} & \texttt{/issues/:issueId/comments/:commentId/solution} \\
-\texttt{GET} & \texttt{/issues/labels} \\
-\texttt{GET} & \texttt{/issues/stats} \\
-\texttt{GET} & \texttt{/me/issues} \\
-\texttt{GET} & \texttt{/roadmap} \\
-\texttt{POST} & \texttt{/roadmap} \\
-\texttt{POST} & \texttt{/roadmap/:id/vote} \\
-\texttt{GET} & \texttt{/updates} \\
-\texttt{POST} & \texttt{/updates} \\
+\texttt{GET} & \texttt{/admin/logs/aggregations} \\
+\texttt{GET} & \texttt{/admin/logs/errors} \\
+\texttt{POST} & \texttt{/admin/logs/export} \\
+\texttt{GET} & \texttt{/admin/logs/patterns} \\
+\texttt{GET} & \texttt{/admin/logs/search} \\
+\texttt{GET} & \texttt{/admin/logs/stats} \\
+\texttt{GET} & \texttt{/admin/logs/stream} \\
+\texttt{GET} & \texttt{/admin/logs/tail} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-metrics}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/metrics/endpoints} \\
+\texttt{GET} & \texttt{/admin/metrics/history} \\
+\texttt{GET} & \texttt{/admin/metrics/realtime} \\
+\texttt{POST} & \texttt{/admin/metrics/reset} \\
+\texttt{GET} & \texttt{/admin/metrics/stream} \\
+\texttt{GET} & \texttt{/admin/metrics/users} \\
+\texttt{GET} & \texttt{/admin/metrics/websockets} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-scheduler}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/scheduler/commands} \\
+\texttt{GET} & \texttt{/admin/scheduler/history} \\
+\texttt{GET} & \texttt{/admin/scheduler/jobs} \\
+\texttt{POST} & \texttt{/admin/scheduler/jobs} \\
+\texttt{POST} & \texttt{/admin/scheduler/reload} \\
+\texttt{POST} & \texttt{/admin/scheduler/start} \\
+\texttt{GET} & \texttt{/admin/scheduler/stats} \\
+\texttt{GET} & \texttt{/admin/scheduler/status} \\
+\texttt{POST} & \texttt{/admin/scheduler/stop} \\
+\texttt{POST} & \texttt{/admin/scheduler/validate-cron} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-security}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/security/audit-log} \\
+\texttt{GET} & \texttt{/admin/security/blocklist} \\
+\texttt{POST} & \texttt{/admin/security/blocklist} \\
+\texttt{GET} & \texttt{/admin/security/login-attempts} \\
+\texttt{GET} & \texttt{/admin/security/rate-limits} \\
+\texttt{PUT} & \texttt{/admin/security/rate-limits} \\
+\texttt{GET} & \texttt{/admin/security/scan} \\
+\texttt{GET} & \texttt{/admin/security/sessions} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Admin-server}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/admin/server/git} \\
+\texttt{POST} & \texttt{/admin/server/git/pull} \\
+\texttt{GET} & \texttt{/admin/server/logs} \\
+\texttt{GET} & \texttt{/admin/server/logs/stream} \\
+\texttt{POST} & \texttt{/admin/server/process} \\
+\texttt{POST} & \texttt{/admin/server/script} \\
+\texttt{GET} & \texttt{/admin/server/scripts} \\
+\texttt{GET} & \texttt{/admin/server/status} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -389,6 +600,26 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Admin-commands}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/api/admin/commands/cancel/:id} \\
+\texttt{POST} & \texttt{/api/admin/commands/execute} \\
+\texttt{GET} & \texttt{/api/admin/commands/execution/:id} \\
+\texttt{GET} & \texttt{/api/admin/commands/hierarchy} \\
+\texttt{GET} & \texttt{/api/admin/commands/history} \\
+\texttt{GET} & \texttt{/api/admin/commands/search} \\
+\texttt{GET} & \texttt{/api/admin/commands/stream/:id} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Archetype-communities}
 
 \begin{table}[h]
@@ -419,6 +650,7 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/archetypes/select} \\
 \texttt{GET} & \texttt{/journey} \\
 \texttt{GET} & \texttt{/journey/progress} \\
+\texttt{POST} & \texttt{/journey/switch} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -438,6 +670,22 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/auth/register} \\
 \texttt{GET} & \texttt{/profile} \\
 \texttt{PUT} & \texttt{/profile} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Billing}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/billing/checkout} \\
+\texttt{POST} & \texttt{/billing/credits/checkout} \\
+\texttt{POST} & \texttt{/billing/portal} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -464,6 +712,21 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Rehabilitation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/body-regions} \\
+\texttt{GET} & \texttt{/my-injuries} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{EconomyEnhanced}
 
 \begin{table}[h]
@@ -478,6 +741,7 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/earn-events} \\
 \texttt{POST} & \texttt{/earn-events/mark-seen} \\
 \texttt{GET} & \texttt{/earn-events/recent} \\
+\texttt{GET} & \texttt{/earn-events/stream} \\
 \texttt{GET} & \texttt{/earn-events/today} \\
 \texttt{GET} & \texttt{/earn-events/week} \\
 \texttt{GET} & \texttt{/hangouts/geo/:hangoutId} \\
@@ -506,6 +770,13 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/social/tip} \\
 \texttt{GET} & \texttt{/social/tips/received} \\
 \texttt{GET} & \texttt{/social/tips/sent} \\
+\texttt{POST} & \texttt{/subscriptions/cancel} \\
+\texttt{POST} & \texttt{/subscriptions/checkout} \\
+\texttt{GET} & \texttt{/subscriptions/current} \\
+\texttt{GET} & \texttt{/subscriptions/tiers} \\
+\texttt{GET} & \texttt{/utility/streak-freeze} \\
+\texttt{POST} & \texttt{/utility/streak-freeze/purchase} \\
+\texttt{POST} & \texttt{/utility/streak-freeze/use} \\
 \texttt{POST} & \texttt{/webhook/stripe} \\
 \bottomrule
 \end{tabular}
@@ -583,6 +854,26 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Challenges}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/challenges/daily} \\
+\texttt{POST} & \texttt{/challenges/daily/claim/:id} \\
+\texttt{GET} & \texttt{/challenges/history} \\
+\texttt{POST} & \texttt{/challenges/progress} \\
+\texttt{GET} & \texttt{/challenges/types} \\
+\texttt{GET} & \texttt{/challenges/weekly} \\
+\texttt{POST} & \texttt{/challenges/weekly/claim} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Cohort-preferences}
 
 \begin{table}[h]
@@ -593,9 +884,74 @@ Authorization: Bearer <token>
 \midrule
 \texttt{GET} & \texttt{/cohort-options} \\
 \texttt{GET} & \texttt{/me/cohort-preferences} \\
-\texttt{PATCH} & \texttt{/me/cohort-preferences} \\
 \texttt{POST} & \texttt{/me/leaderboard-opt-in} \\
 \texttt{POST} & \texttt{/me/leaderboard-opt-out} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Marketplace}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/collection} \\
+\texttt{GET} & \texttt{/collection/favorites} \\
+\texttt{POST} & \texttt{/collection/items/:id/favorite} \\
+\texttt{POST} & \texttt{/collection/items/:id/seen} \\
+\texttt{GET} & \texttt{/collection/new-count} \\
+\texttt{POST} & \texttt{/collection/seen-all} \\
+\texttt{GET} & \texttt{/collection/sets} \\
+\texttt{GET} & \texttt{/collection/sets/:id} \\
+\texttt{POST} & \texttt{/collection/sets/:id/claim} \\
+\texttt{PUT} & \texttt{/collection/showcase} \\
+\texttt{GET} & \texttt{/collection/showcase/:userId} \\
+\texttt{GET} & \texttt{/collection/stats} \\
+\texttt{GET} & \texttt{/health-multiplier} \\
+\texttt{POST} & \texttt{/health-multiplier/calculate} \\
+\texttt{GET} & \texttt{/health-multiplier/history} \\
+\texttt{GET} & \texttt{/health-multiplier/leaderboard} \\
+\texttt{POST} & \texttt{/health-multiplier/metrics} \\
+\texttt{GET} & \texttt{/health-multiplier/stats} \\
+\texttt{GET} & \texttt{/health-multiplier/today} \\
+\texttt{GET} & \texttt{/marketplace} \\
+\texttt{POST} & \texttt{/marketplace/listings} \\
+\texttt{GET} & \texttt{/marketplace/listings/:id} \\
+\texttt{PATCH} & \texttt{/marketplace/listings/:id} \\
+\texttt{DELETE} & \texttt{/marketplace/listings/:id} \\
+\texttt{POST} & \texttt{/marketplace/listings/:id/buy} \\
+\texttt{POST} & \texttt{/marketplace/listings/:id/offer} \\
+\texttt{GET} & \texttt{/marketplace/listings/:id/offers} \\
+\texttt{GET} & \texttt{/marketplace/my-listings} \\
+\texttt{GET} & \texttt{/marketplace/my-offers} \\
+\texttt{GET} & \texttt{/marketplace/my-stats} \\
+\texttt{DELETE} & \texttt{/marketplace/offers/:id} \\
+\texttt{POST} & \texttt{/marketplace/offers/:id/respond} \\
+\texttt{GET} & \texttt{/marketplace/overview} \\
+\texttt{GET} & \texttt{/marketplace/price-history/:cosmeticId} \\
+\texttt{GET} & \texttt{/marketplace/price-suggestion/:cosmeticId} \\
+\texttt{GET} & \texttt{/marketplace/watchlist} \\
+\texttt{POST} & \texttt{/marketplace/watchlist} \\
+\texttt{DELETE} & \texttt{/marketplace/watchlist/:listingId} \\
+\texttt{GET} & \texttt{/mystery-boxes} \\
+\texttt{GET} & \texttt{/mystery-boxes/:id} \\
+\texttt{POST} & \texttt{/mystery-boxes/:id/open} \\
+\texttt{GET} & \texttt{/mystery-boxes/history} \\
+\texttt{GET} & \texttt{/mystery-boxes/pity} \\
+\texttt{POST} & \texttt{/trades} \\
+\texttt{GET} & \texttt{/trades/:id} \\
+\texttt{DELETE} & \texttt{/trades/:id} \\
+\texttt{POST} & \texttt{/trades/:id/accept} \\
+\texttt{POST} & \texttt{/trades/:id/counter} \\
+\texttt{POST} & \texttt{/trades/:id/decline} \\
+\texttt{POST} & \texttt{/trades/estimate-value} \\
+\texttt{GET} & \texttt{/trades/history} \\
+\texttt{GET} & \texttt{/trades/incoming} \\
+\texttt{GET} & \texttt{/trades/outgoing} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -628,6 +984,35 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Community}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/community/feed} \\
+\texttt{GET} & \texttt{/community/monitor} \\
+\texttt{GET} & \texttt{/community/now} \\
+\texttt{GET} & \texttt{/community/percentile} \\
+\texttt{GET} & \texttt{/community/presence} \\
+\texttt{POST} & \texttt{/community/presence} \\
+\texttt{GET} & \texttt{/community/stats} \\
+\texttt{GET} & \texttt{/community/stats/archetypes} \\
+\texttt{GET} & \texttt{/community/stats/credits} \\
+\texttt{GET} & \texttt{/community/stats/exercises} \\
+\texttt{GET} & \texttt{/community/stats/funnel} \\
+\texttt{GET} & \texttt{/community/stats/geographic} \\
+\texttt{GET} & \texttt{/community/stats/public} \\
+\texttt{GET} & \texttt{/community/stats/summary} \\
+\texttt{GET} & \texttt{/community/ws} \\
+\texttt{GET} & \texttt{/community/ws/public} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Competition}
 
 \begin{table}[h]
@@ -653,6 +1038,45 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Daily-login}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/daily-login/calendar} \\
+\texttt{POST} & \texttt{/daily-login/claim} \\
+\texttt{POST} & \texttt{/daily-login/purchase-freeze} \\
+\texttt{GET} & \texttt{/daily-login/rewards} \\
+\texttt{GET} & \texttt{/daily-login/status} \\
+\texttt{POST} & \texttt{/daily-login/use-freeze} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Deployment}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/deploy/cancel/:id} \\
+\texttt{GET} & \texttt{/deploy/commands} \\
+\texttt{POST} & \texttt{/deploy/execute} \\
+\texttt{GET} & \texttt{/deploy/logs} \\
+\texttt{GET} & \texttt{/deploy/logs/:id} \\
+\texttt{GET} & \texttt{/deploy/status} \\
+\texttt{GET} & \texttt{/deploy/stream/:id} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Economy}
 
 \begin{table}[h]
@@ -661,7 +1085,6 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
-\texttt{GET} & \texttt{/credits/balance} \\
 \texttt{GET} & \texttt{/economy/actions} \\
 \texttt{GET} & \texttt{/economy/balance} \\
 \texttt{POST} & \texttt{/economy/charge} \\
@@ -669,6 +1092,41 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/economy/pricing} \\
 \texttt{GET} & \texttt{/economy/transactions} \\
 \texttt{GET} & \texttt{/economy/wallet} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Engagement-recovery}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/engagement/recovery/activities} \\
+\texttt{GET} & \texttt{/engagement/recovery/activity-types} \\
+\texttt{GET} & \texttt{/engagement/recovery/history} \\
+\texttt{POST} & \texttt{/engagement/recovery/log-activity} \\
+\texttt{GET} & \texttt{/engagement/recovery/muscles} \\
+\texttt{GET} & \texttt{/engagement/recovery/today} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Engagement-summary}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/engagement/seed-events} \\
+\texttt{GET} & \texttt{/engagement/stats} \\
+\texttt{GET} & \texttt{/engagement/summary} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -699,6 +1157,50 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Errors}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/errors/:id/convert-to-bug} \\
+\texttt{POST} & \texttt{/errors/:id/resolve} \\
+\texttt{GET} & \texttt{/errors/admin-stats} \\
+\texttt{GET} & \texttt{/errors/list} \\
+\texttt{POST} & \texttt{/errors/report} \\
+\texttt{POST} & \texttt{/errors/report/batch} \\
+\texttt{GET} & \texttt{/errors/stats} \\
+\texttt{POST} & \texttt{/errors/sync-to-bugs} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Events}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/events} \\
+\texttt{GET} & \texttt{/events/:id} \\
+\texttt{DELETE} & \texttt{/events/:id} \\
+\texttt{POST} & \texttt{/events/:id/join} \\
+\texttt{GET} & \texttt{/events/:id/participation} \\
+\texttt{POST} & \texttt{/events/:id/progress} \\
+\texttt{GET} & \texttt{/events/active} \\
+\texttt{GET} & \texttt{/events/history} \\
+\texttt{GET} & \texttt{/events/multipliers} \\
+\texttt{GET} & \texttt{/events/upcoming} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Exercise-groups}
 
 \begin{table}[h]
@@ -722,27 +1224,6 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/workouts/:workoutId/groups} \\
 \texttt{POST} & \texttt{/workouts/:workoutId/groups/:groupId/sets} \\
 \texttt{GET} & \texttt{/workouts/:workoutId/groups/:groupId/sets} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\subsection{Leaderboards}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{GET} & \texttt{/exercises/:id/metrics} \\
-\texttt{GET} & \texttt{/hangouts/:id/leaderboard} \\
-\texttt{GET} & \texttt{/leaderboards} \\
-\texttt{GET} & \texttt{/leaderboards/global} \\
-\texttt{GET} & \texttt{/leaderboards/metrics} \\
-\texttt{GET} & \texttt{/me/rank} \\
-\texttt{GET} & \texttt{/users/:id/rank} \\
-\texttt{GET} & \texttt{/virtual-hangouts/:id/leaderboard} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -816,30 +1297,6 @@ Authorization: Bearer <token>
 \end{table}
 
 
-\subsection{Hangouts}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Method} & \textbf{Endpoint} \\
-\midrule
-\texttt{POST} & \texttt{/hangouts} \\
-\texttt{GET} & \texttt{/hangouts/:id} \\
-\texttt{POST} & \texttt{/hangouts/:id/join} \\
-\texttt{POST} & \texttt{/hangouts/:id/leave} \\
-\texttt{GET} & \texttt{/hangouts/:id/members} \\
-\texttt{POST} & \texttt{/hangouts/:id/posts} \\
-\texttt{GET} & \texttt{/hangouts/:id/posts} \\
-\texttt{GET} & \texttt{/hangouts/nearby} \\
-\texttt{GET} & \texttt{/hangouts/stats} \\
-\texttt{GET} & \texttt{/hangouts/types} \\
-\texttt{GET} & \texttt{/me/hangouts} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
 \subsection{Checkins}
 
 \begin{table}[h]
@@ -848,12 +1305,22 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
-\texttt{POST} & \texttt{/hangouts/:id/check-in} \\
-\texttt{POST} & \texttt{/hangouts/:id/check-in/link-workout} \\
 \texttt{GET} & \texttt{/hangouts/:id/check-ins/active} \\
-\texttt{POST} & \texttt{/hangouts/:id/check-out} \\
 \texttt{GET} & \texttt{/me/check-in} \\
-\texttt{GET} & \texttt{/me/check-ins} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Hangouts}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/hangouts/types} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -894,6 +1361,21 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Issues}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/issues/labels} \\
+\texttt{GET} & \texttt{/issues/stats} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Beta-tester}
 
 \begin{table}[h]
@@ -905,6 +1387,29 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/journal} \\
 \texttt{GET} & \texttt{/snapshots} \\
 \texttt{GET} & \texttt{/status} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Journey-management}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/journey/fresh-start} \\
+\texttt{POST} & \texttt{/journey/restart-onboarding} \\
+\texttt{GET} & \texttt{/journey/restore-history} \\
+\texttt{GET} & \texttt{/journey/settings} \\
+\texttt{PUT} & \texttt{/journey/settings} \\
+\texttt{GET} & \texttt{/journey/snapshots} \\
+\texttt{POST} & \texttt{/journey/snapshots} \\
+\texttt{GET} & \texttt{/journey/snapshots/:id} \\
+\texttt{DELETE} & \texttt{/journey/snapshots/:id} \\
+\texttt{POST} & \texttt{/journey/snapshots/:id/restore} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -932,6 +1437,21 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/journeys/suggestions} \\
 \texttt{GET} & \texttt{/journeys/templates} \\
 \texttt{GET} & \texttt{/journeys/templates/:templateId} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Leaderboards}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/leaderboards/simple} \\
+\texttt{GET} & \texttt{/leaderboards/user-rank} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -986,17 +1506,7 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
-\texttt{GET} & \texttt{/martial-arts/disciplines} \\
-\texttt{GET} & \texttt{/martial-arts/disciplines/:disciplineId} \\
-\texttt{GET} & \texttt{/martial-arts/disciplines/:disciplineId/leaderboard} \\
-\texttt{GET} & \texttt{/martial-arts/disciplines/:disciplineId/progress} \\
-\texttt{GET} & \texttt{/martial-arts/disciplines/:disciplineId/techniques} \\
-\texttt{GET} & \texttt{/martial-arts/history} \\
-\texttt{POST} & \texttt{/martial-arts/master} \\
-\texttt{POST} & \texttt{/martial-arts/practice} \\
 \texttt{GET} & \texttt{/martial-arts/progress} \\
-\texttt{GET} & \texttt{/martial-arts/techniques/:techniqueId} \\
-\texttt{PUT} & \texttt{/martial-arts/techniques/:techniqueId/notes} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1010,23 +1520,35 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
+\texttt{GET} & \texttt{/mascot/companion/active-program} \\
 \texttt{GET} & \texttt{/mascot/companion/assist/abilities} \\
 \texttt{GET} & \texttt{/mascot/companion/assist/history} \\
 \texttt{GET} & \texttt{/mascot/companion/assist/state} \\
 \texttt{POST} & \texttt{/mascot/companion/assist/use} \\
 \texttt{GET} & \texttt{/mascot/companion/bonus} \\
+\texttt{POST} & \texttt{/mascot/companion/check-overtraining} \\
 \texttt{POST} & \texttt{/mascot/companion/cosmetics/equip} \\
 \texttt{GET} & \texttt{/mascot/companion/credit-alerts} \\
 \texttt{POST} & \texttt{/mascot/companion/credit-alerts/:alertId/dismiss} \\
+\texttt{POST} & \texttt{/mascot/companion/crew-coordination} \\
+\texttt{GET} & \texttt{/mascot/companion/crew-suggestions} \\
 \texttt{GET} & \texttt{/mascot/companion/data-alerts} \\
 \texttt{GET} & \texttt{/mascot/companion/energy} \\
 \texttt{POST} & \texttt{/mascot/companion/events/mark-reacted} \\
 \texttt{GET} & \texttt{/mascot/companion/events/recent} \\
+\texttt{GET} & \texttt{/mascot/companion/exercise-alternatives/:exerciseId} \\
+\texttt{POST} & \texttt{/mascot/companion/exercise-avoidance} \\
+\texttt{GET} & \texttt{/mascot/companion/exercise-avoidances} \\
+\texttt{POST} & \texttt{/mascot/companion/generate-program} \\
 \texttt{GET} & \texttt{/mascot/companion/highfive-prefs} \\
 \texttt{PUT} & \texttt{/mascot/companion/highfive-prefs} \\
+\texttt{GET} & \texttt{/mascot/companion/loan} \\
+\texttt{POST} & \texttt{/mascot/companion/loan/repay} \\
+\texttt{POST} & \texttt{/mascot/companion/loan/take} \\
 \texttt{GET} & \texttt{/mascot/companion/master-abilities} \\
 \texttt{POST} & \texttt{/mascot/companion/master-abilities/:abilityKey/unlock} \\
 \texttt{GET} & \texttt{/mascot/companion/milestones} \\
+\texttt{GET} & \texttt{/mascot/companion/negotiated-rate} \\
 \texttt{PATCH} & \texttt{/mascot/companion/nickname} \\
 \texttt{GET} & \texttt{/mascot/companion/nutrition-hint} \\
 \texttt{GET} & \texttt{/mascot/companion/overtraining-alerts} \\
@@ -1034,15 +1556,19 @@ Authorization: Bearer <token>
 \texttt{GET} & \texttt{/mascot/companion/powers/all} \\
 \texttt{GET} & \texttt{/mascot/companion/programs} \\
 \texttt{GET} & \texttt{/mascot/companion/recovered-muscles} \\
+\texttt{GET} & \texttt{/mascot/companion/rivalry-alerts} \\
+\texttt{POST} & \texttt{/mascot/companion/rivalry-alerts/:alertId/seen} \\
 \texttt{PATCH} & \texttt{/mascot/companion/settings} \\
 \texttt{GET} & \texttt{/mascot/companion/social-actions} \\
 \texttt{GET} & \texttt{/mascot/companion/state} \\
 \texttt{GET} & \texttt{/mascot/companion/streak-saver} \\
 \texttt{POST} & \texttt{/mascot/companion/streak-saver/use} \\
 \texttt{GET} & \texttt{/mascot/companion/tips/next} \\
+\texttt{GET} & \texttt{/mascot/companion/trash-talk} \\
 \texttt{GET} & \texttt{/mascot/companion/tutorial} \\
 \texttt{GET} & \texttt{/mascot/companion/upgrades} \\
 \texttt{POST} & \texttt{/mascot/companion/upgrades/:upgradeId/purchase} \\
+\texttt{GET} & \texttt{/mascot/companion/volume-stats} \\
 \texttt{GET} & \texttt{/mascot/companion/wardrobe/appearance} \\
 \texttt{GET} & \texttt{/mascot/companion/wardrobe/catalog} \\
 \texttt{GET} & \texttt{/mascot/companion/wardrobe/collection} \\
@@ -1067,6 +1593,70 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Venues}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/me/checkin} \\
+\texttt{GET} & \texttt{/me/checkins} \\
+\texttt{GET} & \texttt{/me/current-records} \\
+\texttt{GET} & \texttt{/me/venue-records} \\
+\texttt{GET} & \texttt{/record-types} \\
+\texttt{GET} & \texttt{/venue-records/:id} \\
+\texttt{DELETE} & \texttt{/venue-records/:id} \\
+\texttt{POST} & \texttt{/venue-records/:id/attest} \\
+\texttt{POST} & \texttt{/venue-records/:id/video} \\
+\texttt{POST} & \texttt{/venue-records/:id/witness} \\
+\texttt{GET} & \texttt{/venues} \\
+\texttt{POST} & \texttt{/venues} \\
+\texttt{GET} & \texttt{/venues/:id} \\
+\texttt{POST} & \texttt{/venues/:id/checkin} \\
+\texttt{POST} & \texttt{/venues/:id/checkout} \\
+\texttt{POST} & \texttt{/venues/:id/join} \\
+\texttt{GET} & \texttt{/venues/:id/leaderboard} \\
+\texttt{POST} & \texttt{/venues/:id/leave} \\
+\texttt{GET} & \texttt{/venues/:id/members} \\
+\texttt{GET} & \texttt{/venues/:id/present} \\
+\texttt{GET} & \texttt{/venues/:id/record-types} \\
+\texttt{POST} & \texttt{/venues/:id/records/claim} \\
+\texttt{GET} & \texttt{/venues/nearby} \\
+\texttt{GET} & \texttt{/venues/slug/:slug} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Preferences}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/me/dashboard/widgets} \\
+\texttt{GET} & \texttt{/me/devices} \\
+\texttt{POST} & \texttt{/me/devices/register} \\
+\texttt{POST} & \texttt{/me/hydration/log} \\
+\texttt{GET} & \texttt{/me/hydration/today} \\
+\texttt{GET} & \texttt{/me/preferences} \\
+\texttt{PATCH} & \texttt{/me/preferences} \\
+\texttt{GET} & \texttt{/me/preferences/effective} \\
+\texttt{GET} & \texttt{/me/preferences/profiles} \\
+\texttt{POST} & \texttt{/me/preferences/profiles} \\
+\texttt{POST} & \texttt{/me/preferences/profiles/deactivate} \\
+\texttt{PUT} & \texttt{/me/preferences/reset} \\
+\texttt{GET} & \texttt{/me/sounds/packs} \\
+\texttt{POST} & \texttt{/me/sounds/packs} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Nutrition}
 
 \begin{table}[h]
@@ -1076,60 +1666,12 @@ Authorization: Bearer <token>
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
 \texttt{GET} & \texttt{/me/nutrition} \\
-\texttt{POST} & \texttt{/me/nutrition/disable} \\
 \texttt{POST} & \texttt{/me/nutrition/enable} \\
-\texttt{POST} & \texttt{/me/nutrition/foods/custom} \\
-\texttt{GET} & \texttt{/me/nutrition/foods/custom} \\
-\texttt{DELETE} & \texttt{/me/nutrition/foods/custom/:id} \\
-\texttt{GET} & \texttt{/me/nutrition/foods/frequent} \\
-\texttt{GET} & \texttt{/me/nutrition/foods/recent} \\
 \texttt{GET} & \texttt{/me/nutrition/goals} \\
-\texttt{POST} & \texttt{/me/nutrition/goals/calculate} \\
-\texttt{POST} & \texttt{/me/nutrition/hydration} \\
-\texttt{GET} & \texttt{/me/nutrition/hydration} \\
-\texttt{POST} & \texttt{/me/nutrition/meals} \\
-\texttt{GET} & \texttt{/me/nutrition/meals} \\
-\texttt{GET} & \texttt{/me/nutrition/meals/:id} \\
-\texttt{PUT} & \texttt{/me/nutrition/meals/:id} \\
-\texttt{DELETE} & \texttt{/me/nutrition/meals/:id} \\
-\texttt{POST} & \texttt{/me/nutrition/meals/copy} \\
-\texttt{GET} & \texttt{/me/nutrition/plans} \\
-\texttt{POST} & \texttt{/me/nutrition/plans} \\
-\texttt{GET} & \texttt{/me/nutrition/plans/:id} \\
-\texttt{PUT} & \texttt{/me/nutrition/plans/:id} \\
-\texttt{DELETE} & \texttt{/me/nutrition/plans/:id} \\
-\texttt{POST} & \texttt{/me/nutrition/plans/:id/activate} \\
-\texttt{POST} & \texttt{/me/nutrition/plans/:id/items} \\
-\texttt{GET} & \texttt{/me/nutrition/plans/:id/items} \\
-\texttt{POST} & \texttt{/me/nutrition/plans/:id/shopping-list} \\
 \texttt{GET} & \texttt{/me/nutrition/plans/active} \\
-\texttt{POST} & \texttt{/me/nutrition/plans/generate} \\
-\texttt{PUT} & \texttt{/me/nutrition/plans/items/:itemId} \\
-\texttt{DELETE} & \texttt{/me/nutrition/plans/items/:itemId} \\
 \texttt{GET} & \texttt{/me/nutrition/preferences} \\
-\texttt{PATCH} & \texttt{/me/nutrition/preferences} \\
-\texttt{POST} & \texttt{/me/nutrition/recipes} \\
-\texttt{GET} & \texttt{/me/nutrition/recipes} \\
-\texttt{PUT} & \texttt{/me/nutrition/recipes/:id} \\
-\texttt{DELETE} & \texttt{/me/nutrition/recipes/:id} \\
-\texttt{POST} & \texttt{/me/nutrition/recipes/:id/rate} \\
-\texttt{POST} & \texttt{/me/nutrition/recipes/:id/save} \\
-\texttt{DELETE} & \texttt{/me/nutrition/recipes/:id/save} \\
-\texttt{GET} & \texttt{/me/nutrition/recipes/saved} \\
 \texttt{GET} & \texttt{/me/nutrition/streaks} \\
-\texttt{GET} & \texttt{/me/nutrition/summary} \\
-\texttt{GET} & \texttt{/me/nutrition/summary/range} \\
 \texttt{GET} & \texttt{/nutrition/archetypes} \\
-\texttt{GET} & \texttt{/nutrition/archetypes/:archetype} \\
-\texttt{GET} & \texttt{/nutrition/foods/:id} \\
-\texttt{GET} & \texttt{/nutrition/foods/barcode/:barcode} \\
-\texttt{GET} & \texttt{/nutrition/foods/search} \\
-\texttt{GET} & \texttt{/nutrition/recipes} \\
-\texttt{GET} & \texttt{/nutrition/recipes/:id} \\
-\texttt{GET} & \texttt{/nutrition/recipes/:id/ratings} \\
-\texttt{GET} & \texttt{/nutrition/recipes/archetype/:archetype} \\
-\texttt{GET} & \texttt{/nutrition/recipes/popular} \\
-\texttt{GET} & \texttt{/nutrition/recipes/trending} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1494,6 +2036,27 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Push-notifications}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/push/history} \\
+\texttt{POST} & \texttt{/push/mark-sent/:id} \\
+\texttt{GET} & \texttt{/push/pending} \\
+\texttt{POST} & \texttt{/push/register} \\
+\texttt{POST} & \texttt{/push/schedule} \\
+\texttt{DELETE} & \texttt{/push/schedule/:id} \\
+\texttt{GET} & \texttt{/push/tokens} \\
+\texttt{DELETE} & \texttt{/push/unregister} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Ranks}
 
 \begin{table}[h]
@@ -1529,6 +2092,26 @@ Authorization: Bearer <token>
 \texttt{POST} & \texttt{/recovery/recommendations/generate} \\
 \texttt{GET} & \texttt{/recovery/score} \\
 \texttt{GET} & \texttt{/recovery/status} \\
+\texttt{GET} & \texttt{/sleep-hygiene} \\
+\texttt{GET} & \texttt{/sleep-hygiene/assessments} \\
+\texttt{POST} & \texttt{/sleep-hygiene/assessments} \\
+\texttt{PATCH} & \texttt{/sleep-hygiene/assessments/:date} \\
+\texttt{GET} & \texttt{/sleep-hygiene/assessments/today} \\
+\texttt{GET} & \texttt{/sleep-hygiene/credits} \\
+\texttt{GET} & \texttt{/sleep-hygiene/credits/total} \\
+\texttt{POST} & \texttt{/sleep-hygiene/disable} \\
+\texttt{POST} & \texttt{/sleep-hygiene/enable} \\
+\texttt{GET} & \texttt{/sleep-hygiene/preferences} \\
+\texttt{PATCH} & \texttt{/sleep-hygiene/preferences} \\
+\texttt{GET} & \texttt{/sleep-hygiene/streaks} \\
+\texttt{GET} & \texttt{/sleep-hygiene/tips} \\
+\texttt{POST} & \texttt{/sleep-hygiene/tips/:tipId/bookmark} \\
+\texttt{DELETE} & \texttt{/sleep-hygiene/tips/:tipId/bookmark} \\
+\texttt{POST} & \texttt{/sleep-hygiene/tips/:tipId/dismiss} \\
+\texttt{POST} & \texttt{/sleep-hygiene/tips/:tipId/follow} \\
+\texttt{DELETE} & \texttt{/sleep-hygiene/tips/:tipId/follow} \\
+\texttt{POST} & \texttt{/sleep-hygiene/tips/:tipId/helpful} \\
+\texttt{GET} & \texttt{/sleep-hygiene/tips/bookmarked} \\
 \texttt{GET} & \texttt{/sleep/:id} \\
 \texttt{PATCH} & \texttt{/sleep/:id} \\
 \texttt{DELETE} & \texttt{/sleep/:id} \\
@@ -1619,6 +2202,25 @@ Authorization: Bearer <token>
 \end{table}
 
 
+\subsection{Workout-sessions}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{POST} & \texttt{/sessions} \\
+\texttt{GET} & \texttt{/sessions/active} \\
+\texttt{DELETE} & \texttt{/sessions/active} \\
+\texttt{GET} & \texttt{/sessions/archived} \\
+\texttt{POST} & \texttt{/sessions/archived/:id/recover} \\
+\texttt{GET} & \texttt{/sessions/status} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{Workout-sets}
 
 \begin{table}[h]
@@ -1670,16 +2272,28 @@ Authorization: Bearer <token>
 \toprule
 \textbf{Method} & \textbf{Endpoint} \\
 \midrule
-\texttt{POST} & \texttt{/skills/achieve} \\
-\texttt{GET} & \texttt{/skills/history} \\
-\texttt{GET} & \texttt{/skills/nodes/:nodeId} \\
-\texttt{GET} & \texttt{/skills/nodes/:nodeId/leaderboard} \\
-\texttt{PUT} & \texttt{/skills/nodes/:nodeId/notes} \\
-\texttt{POST} & \texttt{/skills/practice} \\
 \texttt{GET} & \texttt{/skills/progress} \\
 \texttt{GET} & \texttt{/skills/trees} \\
-\texttt{GET} & \texttt{/skills/trees/:treeId} \\
-\texttt{GET} & \texttt{/skills/trees/:treeId/progress} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Skins}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/skins} \\
+\texttt{POST} & \texttt{/skins/:skinId/equip} \\
+\texttt{POST} & \texttt{/skins/:skinId/purchase} \\
+\texttt{POST} & \texttt{/skins/:skinId/unequip} \\
+\texttt{GET} & \texttt{/skins/equipped} \\
+\texttt{GET} & \texttt{/skins/owned} \\
+\texttt{GET} & \texttt{/skins/unlockable} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1702,6 +2316,25 @@ Authorization: Bearer <token>
 \texttt{PUT} & \texttt{/stats/profile/extended} \\
 \texttt{POST} & \texttt{/stats/recalculate} \\
 \texttt{GET} & \texttt{/stats/user/:userId} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Streaks}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} \\
+\midrule
+\texttt{GET} & \texttt{/streaks} \\
+\texttt{GET} & \texttt{/streaks/:type} \\
+\texttt{POST} & \texttt{/streaks/:type/claim} \\
+\texttt{GET} & \texttt{/streaks/:type/leaderboard} \\
+\texttt{GET} & \texttt{/streaks/:type/milestones} \\
+\texttt{POST} & \texttt{/streaks/:type/record} \\
 \bottomrule
 \end{tabular}
 \end{table}

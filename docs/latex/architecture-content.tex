@@ -62,7 +62,7 @@ The monorepo contains 6 packages:
 \section{Frontend Pages}
 % ============================================
 
-The application contains 77 pages:
+The application contains 84 pages:
 
 \begin{longtable}{@{}lcc@{}}
 \toprule
@@ -77,11 +77,14 @@ AdminFraud & No & AdminFraud page \\
 AdminIssues & Yes & Admin Issues Page  Admin dashboard for m \\
 AdminMetrics & Yes & Admin Metrics Dashboard  Beautiful visua \\
 AdminMonitoring & Yes & Admin Monitoring Dashboard  Comprehensiv \\
+AdventureMap & Yes & AdventureMap Page  Fullscreen adventure  \\
 Buddy & No & Buddy page \\
 CareerGoalPage & Yes & Career Goal Detail Page - MuscleMap  Sho \\
 CareerPage & Yes & Career Page - MuscleMap Career Readiness \\
 CareerReadiness & Yes & Career Readiness Page - MuscleMap Liquid \\
 CareerStandardPage & Yes & Career Standard Detail Page - MuscleMap  \\
+Collection & No & Collection page \\
+CommandCenter & No & Command Center  A beautiful, hierarchica \\
 CommunityBulletinBoard & No & Community Bulletin Board  A central hub  \\
 CommunityDashboard & Yes & CommunityDashboard Page  Comprehensive c \\
 Competitions & No & Competitions page \\
@@ -89,6 +92,7 @@ ContributeIdeas & No & Contribute Ideas Page  A page showcasing \\
 Credits & No & Credits page \\
 Crews & Yes & Crews Page  Crew management and Crew War \\
 Dashboard & Yes & Dashboard - MuscleMap Liquid Glass Desig \\
+DeploymentControl & No & Deployment Control Center  A sophisticat \\
 Design & No & Design Page  Showcases MuscleMap's desig \\
 DesignSystem & No & Design System Showcase  Demonstrates the \\
 DevUpdates & No & Dev Updates Page  Development updates, a \\
@@ -108,10 +112,13 @@ Limitations & Yes & Limitations Page - MuscleMap Liquid Glas \\
 LiveActivityMonitor & No & LiveActivityMonitor Page  Real-time acti \\
 Locations & No & Locations page \\
 Login & Yes & Login page \\
+MapExplore & No & MapExplore Page  Full-page interactive m \\
+Marketplace & No & Marketplace page \\
 MartialArts & No & MartialArts page \\
 MealPlans & No & Meal Plans Page  Create and manage meal  \\
 Messages & No & Messages page \\
 MyIssues & Yes & My Issues Page  User's submitted issues: \\
+MysteryBoxes & No & MysteryBoxes page \\
 MyVerifications & No & MyVerifications page \\
 NewIssue & No & New Issue Page  Create a new bug report, \\
 Nutrition & No & Nutrition Page  Full nutrition tracking  \\
@@ -138,9 +145,9 @@ Signup & Yes & Signup page \\
 Skills & No & Skills page \\
 SkinsStore & No & SkinsStore page \\
 Stats & Yes & Stats Page  Character stats display with \\
-Store & No & Store page \\
 Technology & No & Technology Stack Page  Showcases MuscleM \\
 TestScorecard & Yes & Test Scorecard Dashboard  Empire dashboa \\
+Trading & No & Trading page \\
 TrainerDashboard & No & TrainerDashboard page \\
 Trainers & Yes & Trainers Page  Browse trainers, manage t \\
 Wallet & No & Wallet page \\
@@ -154,7 +161,7 @@ Workout & No & Workout page \\
 \section{API Endpoints}
 % ============================================
 
-The API exposes 837 endpoints:
+The API exposes 1054 endpoints:
 
 \begin{longtable}{@{}lll@{}}
 \toprule
@@ -163,34 +170,34 @@ The API exposes 837 endpoints:
 \endhead
 \texttt{GET} & \texttt{/} & admin-beta-testers \\
 \texttt{GET} & \texttt{/\_\_routes} & misc \\
-\texttt{DELETE} & \texttt{/:injuryId} & rehabilitation \\
 \texttt{POST} & \texttt{/1rm} & one-rep-max \\
+\texttt{DELETE} & \texttt{/1rm/:entryId} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/best} & one-rep-max \\
 \texttt{POST} & \texttt{/1rm/calculate} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/classification} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/compound-total} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/exercise/:exerciseId} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/exercise/:exerciseId/pr} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/formulas} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/leaderboard/:exerciseId} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/progression/:exerciseId} & one-rep-max \\
+\texttt{GET} & \texttt{/1rm/rep-table} & one-rep-max \\
+\texttt{POST} & \texttt{/1rm/reverse-calculate} & one-rep-max \\
+\texttt{POST} & \texttt{/1rm/scores} & one-rep-max \\
 \texttt{GET} & \texttt{/1rm/summary} & one-rep-max \\
-\texttt{GET} & \texttt{/achievements/:id/can-verify} & verifications \\
-\texttt{POST} & \texttt{/achievements/:id/verify} & verifications \\
 \texttt{GET} & \texttt{/achievements/categories} & achievements \\
 \texttt{GET} & \texttt{/achievements/definitions} & achievements \\
 \texttt{GET} & \texttt{/achievements/definitions/:key} & achievements \\
 \texttt{GET} & \texttt{/achievements/verification-required} & verifications \\
-\texttt{GET} & \texttt{/admin-control/audit/credits} & community \\
-\texttt{GET} & \texttt{/admin-control/users} & community \\
-\texttt{POST} & \texttt{/admin/abuse-check/:userId} & credits \\
-\texttt{POST} & \texttt{/admin/credits/adjust} & credits \\
-\texttt{GET} & \texttt{/admin/credits/audit} & credits \\
-\texttt{POST} & \texttt{/admin/credits/reverse} & credits \\
-\texttt{GET} & \texttt{/admin/disputes} & credits \\
-\texttt{POST} & \texttt{/admin/disputes/:disputeId/messages} & credits \\
-\texttt{POST} & \texttt{/admin/disputes/:disputeId/resolve} & credits \\
-\texttt{PATCH} & \texttt{/admin/disputes/:disputeId/status} & credits \\
-\texttt{GET} & \texttt{/admin/economy/metrics} & credits \\
-\texttt{GET} & \texttt{/admin/escrow} & credits \\
-\texttt{POST} & \texttt{/admin/escrow/:escrowId/refund} & credits \\
+\texttt{GET} & \texttt{/admin-control/audit} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/audit/credits} & admin-control \\
+\texttt{POST} & \texttt{/admin-control/credits/adjust} & admin-control \\
+\texttt{POST} & \texttt{/admin-control/emergency/:action} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/emergency/status} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/groups} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/pipelines} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/scripts} & admin-control \\
+\texttt{GET} & \texttt{/admin-control/system-status} & admin-control \\
 \bottomrule
 \caption{API Endpoints}
 \end{longtable}
@@ -236,21 +243,21 @@ pnpm build           # Frontend (Vite)
 \toprule
 \textbf{Script} & \textbf{Description} \\
 \midrule
+\texttt{build-fast.sh} & ================================================== \\
+\texttt{build-safe.sh} & ================================================== \\
+\texttt{build-vendors.sh} & ================================================== \\
+\texttt{build-with-vendors.sh} & ================================================== \\
+\texttt{check-duplicate-routes.sh} & Check for duplicate route definitions in the API c \\
 \texttt{competitive-analysis.sh} & \# competitive-analysis.sh - Automated Competitive  \\
+\texttt{compress-assets.sh} & ================================================== \\
 \texttt{deploy-branch.sh} & \# deploy-branch.sh - Full deployment: commit, push \\
 \texttt{deploy.sh} & Deployment helper for MuscleMap \\
-\texttt{errors.sh} & errors.sh \\
-\texttt{generate-docs.cjs} & MuscleMap Documentation Generator  Analyzes the co \\
+\texttt{generate-docs.cjs} & MuscleMap Documentation Generator  PERFORMANCE OPT \\
 \texttt{generate-icons.cjs} & App Icon Generator for MuscleMap Mobile App  Gener \\
 \texttt{logs.sh} & Unified Log Viewer for MuscleMap \\
 \texttt{maintain.sh} & --- preflight --- \\
 \texttt{merge-all.sh} & \# merge-all.sh - Merge all worktree branches into  \\
 \texttt{musclemap-start.sh} & \# MuscleMap Local Development Services - START \\
-\texttt{musclemap-stop.sh} & \# MuscleMap Local Development Services - STOP \\
-\texttt{pre-deploy-check.sh} & Pre-Deploy Check Script \\
-\texttt{prepare-app-store.cjs} & MuscleMap App Store Preparation Script  Automates  \\
-\texttt{production-deploy.sh} & \# production-deploy.sh - Deploy script for MuscleM \\
-\texttt{publish-app.sh} & \# MuscleMap App Publishing Script \\
 \bottomrule
 \end{tabular}
 \caption{Available Scripts}

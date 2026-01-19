@@ -1,10 +1,10 @@
 # MuscleMap Features
 
-> Auto-generated on 2026-01-16
+> Auto-generated on 2026-01-19
 
 ## Overview
 
-MuscleMap is a comprehensive fitness platform with 77 pages/features across multiple categories.
+MuscleMap is a comprehensive fitness platform with 84 pages/features across multiple categories.
 
 ## Core Features
 

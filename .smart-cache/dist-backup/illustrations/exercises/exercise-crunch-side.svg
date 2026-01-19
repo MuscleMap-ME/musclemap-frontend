@@ -1,0 +1,127 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Ab Crunch - Contracted Position
+    View: Side
+    Primary Muscles: Rectus Abdominis (95%), Obliques (55%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Rectus Abdominis - PRIMARY (95%) -->
+    <path id="muscle-abs" data-muscle="rectus-abdominis" data-activation="95"
+      d="M 165 270 Q 210 255 250 275 Q 265 320 250 365 Q 205 385 165 365 Q 150 320 165 270"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Upper Abs (crunched) -->
+    <path id="muscle-upper-abs" data-muscle="rectus-abdominis-upper" data-activation="98"
+      d="M 170 270 Q 200 260 225 275 Q 235 305 220 330 Q 195 340 172 325 Q 162 300 170 270"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.9;1;0.9" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- External Obliques - SECONDARY (55%) -->
+    <path id="muscle-obliques" data-muscle="external-obliques" data-activation="55"
+      d="M 245 290 Q 270 285 285 310 Q 295 355 280 395 Q 258 405 248 380 Q 242 340 245 290"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Hip Flexors (assist) -->
+    <ellipse id="muscle-hip-flexors" data-muscle="hip-flexors" data-activation="40"
+      cx="275" cy="400" rx="20" ry="30"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.5"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Crunch -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (lifted, chin tucked) -->
+    <ellipse cx="165" cy="220" rx="30" ry="35" transform="rotate(35 165 220)"/>
+
+    <!-- Neck (flexed) -->
+    <path d="M 185 245 Q 200 255 210 275 L 220 300 Q 200 315 188 295 Z"/>
+
+    <!-- Upper Back (curved/crunched) -->
+    <path d="M 205 285 Q 240 265 270 295 Q 295 345 285 405 L 230 430 Q 200 385 205 285"/>
+
+    <!-- Shoulders -->
+    <ellipse cx="220" cy="305" rx="24" ry="20" transform="rotate(35 220 305)"/>
+
+    <!-- Arms (hands behind head) -->
+    <ellipse cx="155" cy="235" rx="12" ry="28" transform="rotate(60 155 235)"/>
+    <ellipse cx="140" cy="215" rx="10" ry="22" transform="rotate(80 140 215)"/>
+
+    <!-- Torso (curved in crunch) -->
+    <path d="M 230 400 Q 275 380 305 420 Q 335 485 320 555 Q 280 590 240 570 Q 210 520 230 400"/>
+
+    <!-- Lower Back (on ground) -->
+    <path d="M 285 445 Q 320 435 345 470 Q 365 530 345 590 Q 305 615 270 595 Q 255 545 285 445"/>
+
+    <!-- Thigh (bent, feet flat) -->
+    <path d="M 300 540 Q 265 560 240 540 Q 210 510 220 465 Q 250 445 290 465 Q 315 495 300 540"/>
+
+    <!-- Knee -->
+    <ellipse cx="230" cy="485" rx="22" ry="20"/>
+
+    <!-- Lower Leg (angled down) -->
+    <path d="M 220 500 Q 185 520 160 510 Q 130 495 140 460 Q 165 445 200 458 Q 225 475 220 500"/>
+
+    <!-- Foot (flat on ground) -->
+    <path d="M 130 460 Q 100 468 85 490 Q 80 515 105 528 Q 150 535 185 520 Q 200 505 190 480 Q 175 465 130 460"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="180" cy="255" r="4"/> <!-- Neck -->
+    <circle cx="220" cy="305" r="4"/> <!-- Shoulder -->
+    <circle cx="290" cy="490" r="4"/> <!-- Hip -->
+    <circle cx="230" cy="485" r="4"/> <!-- Knee -->
+    <circle cx="140" cy="470" r="4"/> <!-- Ankle -->
+  </g>
+
+  <!-- CRUNCH MOVEMENT ARC -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 280 240 Q 220 200 170 220" fill="none" stroke="#14B8A6" stroke-width="2" stroke-dasharray="6,4">
+      <animate attributeName="stroke-dashoffset" values="0;20" dur="1s" repeatCount="indefinite"/>
+    </path>
+    <path d="M 180 215 L 168 225 L 185 230" fill="none" stroke="#14B8A6" stroke-width="2"/>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="200" cy="310" rx="45" ry="55" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="50;60;50" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="70" y1="535" x2="380" y2="600" stroke="#334155" stroke-width="2"/>
+</svg>

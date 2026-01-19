@@ -1,0 +1,215 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Figure gradients -->
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <!-- Muscle activation gradients -->
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="activationMin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D7377" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#065F5F" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft shadow -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE LAYER - Female Front View -->
+  <g id="muscles" opacity="0" class="muscle-layer">
+    <!-- Pectoralis Major (smaller, different shape for female anatomy) -->
+    <path id="muscle-chest-left" class="muscle" data-muscle="pectoralis-major-left"
+      d="M 162 178 Q 185 172 195 182 Q 195 200 190 212 Q 175 215 162 208 Q 155 195 162 178"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+    <path id="muscle-chest-right" class="muscle" data-muscle="pectoralis-major-right"
+      d="M 238 178 Q 215 172 205 182 Q 205 200 210 212 Q 225 215 238 208 Q 245 195 238 178"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Anterior Deltoids -->
+    <ellipse id="muscle-front-delt-left" class="muscle" data-muscle="anterior-deltoid-left"
+      cx="148" cy="175" rx="15" ry="22"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-front-delt-right" class="muscle" data-muscle="anterior-deltoid-right"
+      cx="252" cy="175" rx="15" ry="22"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Lateral Deltoids -->
+    <ellipse id="muscle-lat-delt-left" class="muscle" data-muscle="lateral-deltoid-left"
+      cx="135" cy="172" rx="10" ry="18"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-lat-delt-right" class="muscle" data-muscle="lateral-deltoid-right"
+      cx="265" cy="172" rx="10" ry="18"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Biceps (slightly smaller) -->
+    <ellipse id="muscle-bicep-left" class="muscle" data-muscle="biceps-left"
+      cx="130" cy="248" rx="14" ry="32"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-bicep-right" class="muscle" data-muscle="biceps-right"
+      cx="270" cy="248" rx="14" ry="32"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Brachialis -->
+    <ellipse id="muscle-brachialis-left" class="muscle" data-muscle="brachialis-left"
+      cx="124" cy="255" rx="8" ry="24"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-brachialis-right" class="muscle" data-muscle="brachialis-right"
+      cx="276" cy="255" rx="8" ry="24"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Forearm Flexors -->
+    <ellipse id="muscle-forearm-left" class="muscle" data-muscle="forearm-flexors-left"
+      cx="118" cy="315" rx="10" ry="30"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-forearm-right" class="muscle" data-muscle="forearm-flexors-right"
+      cx="282" cy="315" rx="10" ry="30"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Rectus Abdominis -->
+    <path id="muscle-abs" class="muscle" data-muscle="rectus-abdominis"
+      d="M 182 235 Q 200 230 218 235 Q 222 280 218 340 Q 200 345 182 340 Q 178 280 182 235"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- External Obliques (more defined waist) -->
+    <path id="muscle-oblique-left" class="muscle" data-muscle="external-oblique-left"
+      d="M 158 252 Q 168 245 178 252 Q 175 300 168 340 Q 155 335 152 295 Q 152 268 158 252"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+    <path id="muscle-oblique-right" class="muscle" data-muscle="external-oblique-right"
+      d="M 242 252 Q 232 245 222 252 Q 225 300 232 340 Q 245 335 248 295 Q 248 268 242 252"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+
+    <!-- Quadriceps (more tapered) -->
+    <path id="muscle-quad-left" class="muscle" data-muscle="quadriceps-left"
+      d="M 162 365 Q 180 358 195 368 Q 190 445 180 495 Q 162 490 158 448 Q 155 405 162 365"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+    <path id="muscle-quad-right" class="muscle" data-muscle="quadriceps-right"
+      d="M 238 365 Q 220 358 205 368 Q 210 445 220 495 Q 238 490 242 448 Q 245 405 238 365"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Adductors (inner thigh) -->
+    <path id="muscle-adductor-left" class="muscle" data-muscle="adductors-left"
+      d="M 182 370 Q 198 365 198 385 Q 195 425 190 455 Q 178 448 178 405 Q 178 382 182 370"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <path id="muscle-adductor-right" class="muscle" data-muscle="adductors-right"
+      d="M 218 370 Q 202 365 202 385 Q 205 425 210 455 Q 222 448 222 405 Q 222 382 218 370"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Tibialis Anterior -->
+    <ellipse id="muscle-tibialis-left" class="muscle" data-muscle="tibialis-anterior-left"
+      cx="172" cy="515" rx="9" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-tibialis-right" class="muscle" data-muscle="tibialis-anterior-right"
+      cx="228" cy="515" rx="9" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+  </g>
+
+  <!-- FIGURE LAYER - Female Front View -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (slightly smaller, more rounded) -->
+    <ellipse cx="200" cy="62" rx="35" ry="42"/>
+
+    <!-- Neck (longer, more slender) -->
+    <path d="M 182 100 Q 200 108 218 100 L 222 138 Q 200 145 178 138 Z"/>
+
+    <!-- Trapezius (smaller) -->
+    <path d="M 150 142 Q 175 138 200 142 Q 225 138 250 142 Q 254 156 250 168 L 150 168 Q 146 156 150 142" fill="url(#figureGrad)"/>
+
+    <!-- Torso (narrower waist, wider hips) -->
+    <path d="M 150 168 Q 135 175 133 188 Q 140 240 152 320 Q 148 340 155 360 Q 175 370 200 375 Q 225 370 245 360 Q 252 340 248 320 Q 260 240 267 188 Q 265 175 250 168 Z"/>
+
+    <!-- Left Shoulder (narrower) -->
+    <ellipse cx="133" cy="175" rx="18" ry="24"/>
+
+    <!-- Right Shoulder -->
+    <ellipse cx="267" cy="175" rx="18" ry="24"/>
+
+    <!-- Left Upper Arm (more slender) -->
+    <ellipse cx="122" cy="232" rx="14" ry="40"/>
+
+    <!-- Right Upper Arm -->
+    <ellipse cx="278" cy="232" rx="14" ry="40"/>
+
+    <!-- Left Forearm -->
+    <ellipse cx="112" cy="310" rx="11" ry="38"/>
+
+    <!-- Right Forearm -->
+    <ellipse cx="288" cy="310" rx="11" ry="38"/>
+
+    <!-- Left Hand -->
+    <ellipse cx="108" cy="365" rx="10" ry="16"/>
+
+    <!-- Right Hand -->
+    <ellipse cx="292" cy="365" rx="10" ry="16"/>
+
+    <!-- Pelvis/Hip (wider, feminine curve) -->
+    <path d="M 152 355 Q 200 375 248 355 Q 258 378 248 400 Q 200 418 152 400 Q 142 378 152 355"/>
+
+    <!-- Left Thigh (more tapered) -->
+    <ellipse cx="175" cy="435" rx="26" ry="52"/>
+
+    <!-- Right Thigh -->
+    <ellipse cx="225" cy="435" rx="26" ry="52"/>
+
+    <!-- Left Knee -->
+    <ellipse cx="173" cy="488" rx="14" ry="16"/>
+
+    <!-- Right Knee -->
+    <ellipse cx="227" cy="488" rx="14" ry="16"/>
+
+    <!-- Left Lower Leg (more tapered) -->
+    <ellipse cx="171" cy="535" rx="13" ry="44"/>
+
+    <!-- Right Lower Leg -->
+    <ellipse cx="229" cy="535" rx="13" ry="44"/>
+
+    <!-- Left Foot (smaller) -->
+    <ellipse cx="170" cy="585" rx="17" ry="9"/>
+
+    <!-- Right Foot -->
+    <ellipse cx="230" cy="585" rx="17" ry="9"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.6">
+    <circle cx="200" cy="138" r="4"/> <!-- Neck -->
+    <circle cx="133" cy="175" r="4"/> <!-- Left shoulder -->
+    <circle cx="267" cy="175" r="4"/> <!-- Right shoulder -->
+    <circle cx="118" cy="272" r="3"/> <!-- Left elbow -->
+    <circle cx="282" cy="272" r="3"/> <!-- Right elbow -->
+    <circle cx="108" cy="348" r="3"/> <!-- Left wrist -->
+    <circle cx="292" cy="348" r="3"/> <!-- Right wrist -->
+    <circle cx="172" cy="375" r="4"/> <!-- Left hip -->
+    <circle cx="228" cy="375" r="4"/> <!-- Right hip -->
+    <circle cx="173" cy="488" r="3"/> <!-- Left knee -->
+    <circle cx="227" cy="488" r="3"/> <!-- Right knee -->
+    <circle cx="170" cy="576" r="3"/> <!-- Left ankle -->
+    <circle cx="230" cy="576" r="3"/> <!-- Right ankle -->
+  </g>
+
+  <!-- Center line guide (hidden by default) -->
+  <line id="centerline" x1="200" y1="20" x2="200" y2="595" stroke="#334155" stroke-width="0.5" stroke-dasharray="5,5" opacity="0"/>
+</svg>

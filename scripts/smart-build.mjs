@@ -257,6 +257,32 @@ async function buildPackages(manifest, force = false) {
 }
 
 /**
+ * Check if API needs rebuilding
+ */
+function apiNeedsRebuild(dir, manifest) {
+  const { hash: currentHash, fileCount } = hashDirectory(dir);
+  const cached = manifest.api;
+
+  if (!cached) {
+    log(`API: No cache, will build`);
+    return { needsRebuild: true, hash: currentHash, fileCount };
+  }
+
+  if (cached.hash !== currentHash) {
+    log(`API: Source changed, will rebuild`);
+    return { needsRebuild: true, hash: currentHash, fileCount };
+  }
+
+  const distDir = resolve(dir, 'dist');
+  if (!existsSync(distDir)) {
+    log(`API: No dist/, will build`);
+    return { needsRebuild: true, hash: currentHash, fileCount };
+  }
+
+  return { needsRebuild: false, hash: currentHash, fileCount };
+}
+
+/**
  * Build API with caching
  */
 async function buildApi(manifest, force = false) {
@@ -264,7 +290,7 @@ async function buildApi(manifest, force = false) {
 
   const { needsRebuild, hash, fileCount } = force
     ? { needsRebuild: true, ...hashDirectory(CONFIG.apiDir) }
-    : packageNeedsRebuild('api', CONFIG.apiDir, manifest);
+    : apiNeedsRebuild(CONFIG.apiDir, manifest);
 
   if (!needsRebuild) {
     success('API: unchanged (skipped)');
