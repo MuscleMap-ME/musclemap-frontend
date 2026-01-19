@@ -105,6 +105,7 @@ import adminMetricsRoutes, { registerMetricsHook } from './routes/admin-metrics'
 import adminAlertsRoutes from './routes/admin-alerts';
 import adminDocsRoutes from './routes/admin-docs';
 import adminAnalyticsRoutes from './routes/admin-analytics';
+import adminSlackRoutes from './routes/admin-slack';
 import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
@@ -580,6 +581,9 @@ export async function createServer(): Promise<FastifyInstance> {
     // Alert configuration (admin only - rules, channels, history)
     // Wrapped in register() to scope the preHandler hook
     await api.register(adminAlertsRoutes);
+
+    // Slack integration (admin only - webhook config, notifications, digests)
+    await api.register(adminSlackRoutes, { prefix: '/admin/slack' });
 
     // Documentation management (admin only - browse, edit, create markdown files)
     // Wrapped in register() to scope the preHandler hook

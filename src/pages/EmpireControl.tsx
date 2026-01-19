@@ -2661,60 +2661,54 @@ export default function EmpireControl() {
               {/* Slack Section */}
               {activeSection === 'slack' && (
                 <div className="space-y-6">
-                  <GlassSurface className="p-6 text-center">
-                    <Slack className="w-16 h-16 text-[#4A154B] mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Slack Integration</h2>
-                    <p className="text-gray-400 mb-6">Connect to your MuscleMap.ME Slack channel</p>
-
-                    {slackConnected ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-center gap-2 text-green-400">
-                          <CheckCircle className="w-5 h-5" />
-                          <span>Connected to #musclemap-me</span>
-                        </div>
-                        <div className="max-w-md mx-auto space-y-2">
-                          {slackMessages.map((msg, i) => (
-                            <div key={i} className="p-3 bg-white/5 rounded-lg text-left">
-                              <div className="text-sm">{msg.text}</div>
-                              <div className="text-xs text-gray-500 mt-1">{msg.user} · {msg.time}</div>
-                            </div>
-                          ))}
-                        </div>
+                  {/* Connection Status */}
+                  <GlassSurface className="p-6">
+                    <div className="flex items-center gap-4 mb-6">
+                      <Slack className="w-12 h-12 text-[#4A154B]" />
+                      <div>
+                        <h2 className="text-xl font-bold">Slack Integration</h2>
+                        <p className="text-gray-400">Real-time notifications for your MuscleMap empire</p>
                       </div>
-                    ) : (
+                      {slackConnected && (
+                        <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                          <CheckCircle className="w-4 h-4" /> Connected
+                        </div>
+                      )}
+                    </div>
+
+                    {!slackConnected ? (
                       <div className="space-y-4">
                         <p className="text-sm text-gray-500">
-                          To integrate Slack, you&apos;ll need to create a Slack App and add its webhook URL.
+                          Connect your Slack workspace to receive real-time notifications about new users, bug reports, feedback, deployments, and more.
                         </p>
-                        <input
-                          type="text"
-                          placeholder="https://hooks.slack.com/services/..."
-                          value={slackWebhookUrl}
-                          onChange={(e) => {
-                            setSlackWebhookUrl(e.target.value);
-                            setSlackError(null);
-                          }}
-                          className="w-full max-w-md bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500"
-                        />
+                        <div className="flex gap-2 max-w-lg">
+                          <input
+                            type="text"
+                            placeholder="https://hooks.slack.com/services/..."
+                            value={slackWebhookUrl}
+                            onChange={(e) => {
+                              setSlackWebhookUrl(e.target.value);
+                              setSlackError(null);
+                            }}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-violet-500"
+                          />
+                          <button
+                            onClick={handleConnectSlack}
+                            disabled={slackConnecting || !slackWebhookUrl}
+                            className="px-6 py-3 bg-[#4A154B] hover:bg-[#611f69] disabled:bg-[#4A154B]/50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            {slackConnecting ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Slack className="w-5 h-5" />
+                            )}
+                            Connect
+                          </button>
+                        </div>
                         {slackError && (
                           <p className="text-sm text-red-400">{slackError}</p>
                         )}
-                        <button
-                          onClick={handleConnectSlack}
-                          disabled={slackConnecting || !slackWebhookUrl}
-                          className="px-6 py-3 bg-[#4A154B] hover:bg-[#611f69] disabled:bg-[#4A154B]/50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2 mx-auto"
-                        >
-                          {slackConnecting ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" /> Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Slack className="w-5 h-5" /> Connect Slack
-                            </>
-                          )}
-                        </button>
-                        <p className="text-xs text-gray-600 max-w-md mx-auto">
+                        <p className="text-xs text-gray-600">
                           <a
                             href="https://api.slack.com/messaging/webhooks"
                             target="_blank"
@@ -2725,8 +2719,117 @@ export default function EmpireControl() {
                           </a>
                         </p>
                       </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-sm text-gray-400">Webhook URL</span>
+                          <code className="text-sm text-green-400">{slackWebhookUrl.replace(/\/[^\/]+$/, '/****')}</code>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('/api/admin/slack/send-digest', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ type: 'daily' })
+                                });
+                                if (res.ok) {
+                                  setSlackMessages(prev => [...prev, { text: 'Daily digest sent!', user: 'System', time: 'Just now' }]);
+                                }
+                              } catch { /* ignore */ }
+                            }}
+                            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors text-sm"
+                          >
+                            Send Daily Digest
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('/api/admin/slack/send-digest', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ type: 'weekly' })
+                                });
+                                if (res.ok) {
+                                  setSlackMessages(prev => [...prev, { text: 'Weekly digest sent!', user: 'System', time: 'Just now' }]);
+                                }
+                              } catch { /* ignore */ }
+                            }}
+                            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors text-sm"
+                          >
+                            Send Weekly Digest
+                          </button>
+                          <button
+                            onClick={() => {
+                              localStorage.removeItem('musclemap_slack_webhook');
+                              setSlackConnected(false);
+                              setSlackWebhookUrl('');
+                            }}
+                            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors text-sm ml-auto"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </GlassSurface>
+
+                  {/* Notification Types */}
+                  {slackConnected && (
+                    <GlassSurface className="p-6">
+                      <h3 className="font-semibold mb-4 flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-yellow-400" />
+                        Notification Types
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        These notifications are automatically sent to your Slack channel:
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {[
+                          { icon: '🚨', name: 'System Alerts', desc: 'CPU, memory, error thresholds', enabled: true },
+                          { icon: '🚀', name: 'Deployments', desc: 'Deploy start, complete, fail', enabled: true },
+                          { icon: '👋', name: 'New Users', desc: 'When someone signs up', enabled: true },
+                          { icon: '🏆', name: 'Achievements', desc: 'Level ups, milestones', enabled: true },
+                          { icon: '🐛', name: 'Bug Reports', desc: 'User-submitted bugs', enabled: true },
+                          { icon: '💬', name: 'Feedback', desc: 'Feature requests, questions', enabled: true },
+                          { icon: '❌', name: 'Errors', desc: 'Application exceptions', enabled: true },
+                          { icon: '☀️', name: 'Daily Digest', desc: '9 AM UTC summary', enabled: true },
+                          { icon: '📅', name: 'Weekly Digest', desc: 'Monday summary', enabled: true },
+                          { icon: '💰', name: 'Economy Events', desc: 'Large transactions', enabled: true },
+                          { icon: '👥', name: 'Community', desc: 'Crews, competitions', enabled: true },
+                          { icon: '🛡️', name: 'Security', desc: 'Failed logins, blocks', enabled: true },
+                        ].map((notif) => (
+                          <div key={notif.name} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
+                            <span className="text-xl">{notif.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium">{notif.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{notif.desc}</div>
+                            </div>
+                            <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    </GlassSurface>
+                  )}
+
+                  {/* Recent Messages */}
+                  {slackConnected && slackMessages.length > 0 && (
+                    <GlassSurface className="p-6">
+                      <h3 className="font-semibold mb-4 flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-blue-400" />
+                        Recent Activity
+                      </h3>
+                      <div className="space-y-2">
+                        {slackMessages.slice(-5).reverse().map((msg, i) => (
+                          <div key={i} className="p-3 bg-white/5 rounded-lg">
+                            <div className="text-sm">{msg.text}</div>
+                            <div className="text-xs text-gray-500 mt-1">{msg.user} · {msg.time}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </GlassSurface>
+                  )}
                 </div>
               )}
 

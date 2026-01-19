@@ -12,6 +12,7 @@ import { queryAll, queryOne, query } from '../db/client';
 import earningService from '../modules/economy/earning.service';
 import { EmailService } from '../services/email.service';
 import { notificationTriggersService } from '../modules/engagement/notification-triggers.service';
+import { SlackNotifications } from '../modules/notifications/slack.service';
 
 const log = loggers.core.child({ module: 'scheduler' });
 
@@ -607,7 +608,67 @@ export function startScheduler(): void {
     }
   }, 5000); // Wait 5 seconds after startup
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, beta tester snapshots, and engagement triggers');
+  // ============================================
+  // SLACK DIGEST JOBS
+  // Daily digest at 9 AM UTC, Weekly digest on Monday at 9 AM UTC
+  // ============================================
+
+  // Calculate time until 9 AM UTC
+  const msUntil9AM = (() => {
+    const next9AM = new Date(now);
+    next9AM.setUTCHours(9, 0, 0, 0);
+    if (next9AM <= now) {
+      next9AM.setUTCDate(next9AM.getUTCDate() + 1);
+    }
+    return next9AM.getTime() - now.getTime();
+  })();
+
+  // Daily Slack digest - 9 AM UTC
+  setTimeout(() => {
+    const runDailySlackDigest = async () => {
+      try {
+        await withLock('scheduler:slack-daily-digest', async () => {
+          log.info('Sending Slack daily digest...');
+          const sent = await SlackNotifications.dailyDigest();
+          if (sent) {
+            log.info('Slack daily digest sent');
+          }
+        }, { ttl: 60000 });
+      } catch (err) {
+        if (!(err as Error).message?.includes('Failed to acquire lock')) {
+          log.error({ err }, 'Error sending Slack daily digest');
+        }
+      }
+    };
+    runDailySlackDigest();
+    const dailySlackInterval = setInterval(runDailySlackDigest, 24 * 60 * 60 * 1000);
+    activeIntervals.push(dailySlackInterval);
+  }, msUntil9AM);
+
+  // Weekly Slack digest - Monday at 9 AM UTC
+  setTimeout(() => {
+    const runWeeklySlackDigest = async () => {
+      if (new Date().getUTCDay() !== 1) return; // Only Monday
+      try {
+        await withLock('scheduler:slack-weekly-digest', async () => {
+          log.info('Sending Slack weekly digest...');
+          const sent = await SlackNotifications.weeklyDigest();
+          if (sent) {
+            log.info('Slack weekly digest sent');
+          }
+        }, { ttl: 60000 });
+      } catch (err) {
+        if (!(err as Error).message?.includes('Failed to acquire lock')) {
+          log.error({ err }, 'Error sending Slack weekly digest');
+        }
+      }
+    };
+    runWeeklySlackDigest();
+    const weeklySlackInterval = setInterval(runWeeklySlackDigest, 24 * 60 * 60 * 1000);
+    activeIntervals.push(weeklySlackInterval);
+  }, msUntil9AM);
+
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, beta tester snapshots, engagement triggers, and Slack digests');
 }
 
 /**

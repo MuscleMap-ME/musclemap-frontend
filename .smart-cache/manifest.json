@@ -27,14 +27,14 @@
     }
   },
   "frontend": {
-    "hash": "39fd8906c2ebed61dd56841086f4553b41c937c7d6227d466992bbeb7e7604f6",
+    "hash": "107d515836c2dcd984792deb2b49557633f9d0f77f5705e30b8514c3d21fadc5",
     "fileCount": 620,
-    "buildTime": 1768837615864,
-    "buildDuration": 75.39591954100001
+    "buildTime": 1768841176847,
+    "buildDuration": 94.138963583
   },
   "api": {
-    "hash": "f1cc64815dad0f60773cfd76c78b5c55bbcca08d5c86d39bf3adb2daa4b0dff7",
-    "fileCount": 414,
-    "buildTime": 1768837627469
+    "hash": "a944e8c1528e808b8583b64e7651a4f051b04135ac69a4d96ac77f8333242647",
+    "fileCount": 424,
+    "buildTime": 1768841067663
   }
 }

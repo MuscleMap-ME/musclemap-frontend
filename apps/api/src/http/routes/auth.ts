@@ -12,6 +12,7 @@ import { queryOne, query } from '../../db/client';
 import { config } from '../../config';
 import { loggers } from '../../lib/logger';
 import { economyService } from '../../modules/economy';
+import { SlackNotifications } from '../../modules/notifications/slack.service';
 
 const log = loggers.auth;
 
@@ -197,6 +198,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const token = generateToken({ userId, email: body.email, roles: ['user'] });
 
     log.info({ userId, email: body.email }, 'User registered');
+
+    // Send Slack notification for new user (async, don't wait)
+    SlackNotifications.newUser({
+      id: userId,
+      username: body.username,
+      email: body.email,
+    }).catch(() => {}); // Ignore errors
 
     return reply.status(201).send({
       data: {

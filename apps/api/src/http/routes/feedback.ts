@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { authenticate, optionalAuth } from './auth';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { SlackNotifications } from '../../modules/notifications/slack.service';
 
 const log = loggers.http;
 
@@ -165,6 +166,25 @@ export async function registerFeedbackRoutes(app: FastifyInstance) {
     );
 
     log.info({ feedbackId: result!.id, type, userId: request.user!.userId }, 'Feedback submitted');
+
+    // Send Slack notification for feedback (async, don't wait)
+    if (type === 'bug_report') {
+      SlackNotifications.bugReport({
+        id: result!.id,
+        title,
+        description: description || '',
+        severity: priority as 'low' | 'medium' | 'high' | 'critical',
+        reporter: (request as any).user?.username,
+      }).catch(() => {});
+    } else {
+      SlackNotifications.feedback({
+        id: result!.id,
+        type: type === 'feature_request' ? 'feature_request' : type === 'question' ? 'question' : 'feedback',
+        title,
+        message: description || '',
+        user: (request as any).user?.username,
+      }).catch(() => {});
+    }
 
     return reply.status(201).send({
       data: {
