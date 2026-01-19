@@ -59,6 +59,12 @@ export {
   useCurrentExercise,
 } from '../store/workoutSessionStore';
 
+// Workout session persistence (recovery after refresh/crash)
+export {
+  useWorkoutSessionPersistence,
+  useSessionRecoveryCheck,
+} from './useWorkoutSessionPersistence';
+
 // Muscle visualization hooks
 export {
   useMuscleVisualizationStore,

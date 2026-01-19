@@ -116,6 +116,8 @@ import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
 // Marketplace module - services fully migrated to raw pg client
 import { marketplaceRoutes } from './routes/marketplace';
+// Workout session persistence (for recovery after crashes/restarts)
+import workoutSessionsRoutes from './routes/workout-sessions';
 
 // Engagement system routes
 import { registerDailyLoginRoutes } from './routes/daily-login';
@@ -582,6 +584,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Apple Watch companion app sync
     await registerWatchRoutes(api);
+
+    // Workout session persistence (for recovery after crashes/restarts)
+    await api.register(workoutSessionsRoutes);
 
     // Marketplace, trading, collections, mystery boxes
     // Services fully migrated to raw pg client
