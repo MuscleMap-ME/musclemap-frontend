@@ -121,9 +121,6 @@
     "web-vitals": "^5.1.0",
     "zustand": "^4.5.7"
   },
-  "optionalDependencies": {
-    "ws": "^8.17.0"
-  },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.18",
@@ -141,7 +138,9 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.2.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
+    "lint-staged": "^16.2.7",
     "playwright": "^1.57.0",
     "postcss": "^8.5.6",
     "rollup-plugin-visualizer": "^6.0.5",
@@ -149,7 +148,8 @@
     "tailwindcss": "^4.1.18",
     "vite": "^5.4.21",
     "vite-plugin-compression": "^0.5.1",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "ws": "^8.18.3"
   },
   "pnpm": {
     "overrides": {

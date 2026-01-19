@@ -1,0 +1,572 @@
+name: CI/CD Pipeline (Enhanced)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ==========================================
+  # STAGE 1: QUICK CHECKS (< 2 min)
+  # Fast feedback on basic code quality
+  # ==========================================
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: TypeScript Check
+        run: pnpm typecheck
+
+      - name: GraphQL Validation
+        run: pnpm validate:graphql
+        continue-on-error: true
+
+      - name: Migration Validation
+        run: |
+          chmod +x scripts/deployment/validate-migrations.sh
+          ./scripts/deployment/validate-migrations.sh
+
+  # ==========================================
+  # STAGE 2: SECURITY SCAN (Parallel)
+  # Security-focused checks
+  # ==========================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: NPM Audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Migration Safety Check
+        run: npx tsx scripts/deployment/migration-safety-check.ts --ci
+        continue-on-error: true
+
+  # ==========================================
+  # STAGE 3: UNIT TESTS (Parallel)
+  # Fast unit tests with coverage
+  # ==========================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Unit Tests
+        run: pnpm test:frontend -- --coverage
+        env:
+          JWT_SECRET: test-secret-for-ci-only-32-chars!
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
+        if: github.event_name == 'pull_request'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  # ==========================================
+  # STAGE 4: API TESTS (Parallel)
+  # API tests with real database
+  # ==========================================
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: musclemap_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Packages
+        run: pnpm build:packages
+
+      - name: Build API
+        run: pnpm build:api
+
+      - name: Run Migrations
+        run: pnpm -C apps/api db:migrate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/musclemap_test
+
+      - name: Run API Tests
+        run: pnpm test:api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/musclemap_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-for-ci-only-32-chars!
+
+  # ==========================================
+  # STAGE 5: BUILD & BUNDLE ANALYSIS
+  # Full build with size checks
+  # ==========================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [unit-tests, api-tests]
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build All
+        run: |
+          NODE_OPTIONS="--max-old-space-size=8192" pnpm build:all
+        env:
+          SKIP_COMPRESSION: true
+
+      - name: Bundle Size Check
+        run: |
+          # Find the main bundle
+          MAIN_BUNDLE=$(find dist/assets -name "index-*.js" 2>/dev/null | head -1)
+
+          if [ -n "$MAIN_BUNDLE" ]; then
+            MAIN_SIZE=$(stat -c%s "$MAIN_BUNDLE" 2>/dev/null || stat -f%z "$MAIN_BUNDLE")
+            MAIN_SIZE_KB=$((MAIN_SIZE / 1024))
+
+            echo "Main bundle: ${MAIN_SIZE_KB}KB ($MAIN_BUNDLE)"
+
+            # Check budget
+            if [ $MAIN_SIZE_KB -gt 500 ]; then
+              echo "::error::Bundle too large: ${MAIN_SIZE_KB}KB > 500KB budget"
+              exit 1
+            elif [ $MAIN_SIZE_KB -gt 400 ]; then
+              echo "::warning::Bundle approaching limit: ${MAIN_SIZE_KB}KB (budget: 500KB)"
+            fi
+          else
+            echo "::warning::Could not find main bundle for size check"
+          fi
+
+          # Total JS size
+          TOTAL_JS=$(find dist/assets -name "*.js" -exec stat -c%s {} \; 2>/dev/null | awk '{s+=$1} END {print s}' || \
+                     find dist/assets -name "*.js" -exec stat -f%z {} \; | awk '{s+=$1} END {print s}')
+          TOTAL_JS_KB=$((${TOTAL_JS:-0} / 1024))
+
+          echo "Total JS: ${TOTAL_JS_KB}KB"
+
+          if [ $TOTAL_JS_KB -gt 2000 ]; then
+            echo "::warning::Total JS exceeding 2MB: ${TOTAL_JS_KB}KB"
+          fi
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            dist/
+            apps/api/dist/
+          retention-days: 7
+
+  # ==========================================
+  # STAGE 6: E2E TESTS (PR only)
+  # End-to-end tests on preview
+  # ==========================================
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+
+      - name: Start Preview Server
+        run: |
+          pnpm preview &
+          sleep 10
+        env:
+          PORT: 4173
+
+      - name: Run E2E Tests
+        run: pnpm test:e2e
+        env:
+          BASE_URL: http://localhost:4173
+
+      - name: Upload E2E Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # ==========================================
+  # STAGE 7: VISUAL REGRESSION (PR only)
+  # Screenshot comparison tests
+  # ==========================================
+  visual-regression:
+    name: Visual Regression
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+
+      - name: Start Preview Server
+        run: |
+          pnpm preview &
+          sleep 10
+
+      - name: Run Visual Tests
+        run: npx playwright test --config playwright.visual.config.ts
+        continue-on-error: true
+
+      - name: Upload Visual Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-results
+          path: |
+            playwright-report/visual/
+            e2e/visual/__snapshots__/
+          retention-days: 7
+
+  # ==========================================
+  # STAGE 8: DEPLOY TO PRODUCTION
+  # Only on main branch push
+  # ==========================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 30
+
+    environment:
+      name: production
+      url: https://musclemap.me
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Record Deployment Start
+        id: record-deploy
+        run: |
+          DEPLOY_ID=$(npx tsx scripts/deployment/deployment-tracker.ts record 2>/dev/null | jq -r '.id // "unknown"' || echo "deploy-${{ github.run_id }}")
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: root
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: 2222
+          timeout: 10m
+          script: |
+            set -e
+            cd /var/www/musclemap.me
+
+            echo "📥 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "📦 Installing dependencies..."
+            pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+            echo "🔨 Building application..."
+            NODE_OPTIONS="--max-old-space-size=4096" pnpm build:safe
+
+            echo "✅ Deployment complete"
+
+      - name: Post-Deploy Validation
+        id: validate
+        run: |
+          sleep 15
+          npx tsx scripts/deployment/post-deploy-validation.ts --base-url https://musclemap.me --json > /tmp/validation.json 2>/dev/null || true
+
+          if [ -f /tmp/validation.json ]; then
+            PASSED=$(jq -r '.passed // 0' /tmp/validation.json)
+            FAILED=$(jq -r '.failed // 0' /tmp/validation.json)
+            CRITICAL=$(jq -r '.criticalFailed // 0' /tmp/validation.json)
+
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "::error::$CRITICAL critical validation(s) failed"
+              exit 1
+            fi
+          else
+            echo "::warning::Could not parse validation results"
+          fi
+
+      - name: Run Smoke Tests
+        run: |
+          npx tsx scripts/deployment/uptime-monitor.ts
+        continue-on-error: true
+
+      - name: Update Deployment Status
+        if: always()
+        run: |
+          STATUS="success"
+          if [ "${{ steps.validate.outcome }}" != "success" ]; then
+            STATUS="failed"
+          fi
+
+          VALIDATION='{"passed": ${{ steps.validate.outputs.passed || 0 }}, "failed": ${{ steps.validate.outputs.failed || 0 }}, "criticalFailed": ${{ steps.validate.outputs.critical || 0 }}}'
+
+          npx tsx scripts/deployment/deployment-tracker.ts update "${{ steps.record-deploy.outputs.deploy_id }}" "$STATUS" "$VALIDATION" 2>/dev/null || true
+
+      - name: Auto-Rollback on Critical Failure
+        if: failure() && steps.validate.outputs.critical > 0
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: root
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          port: 2222
+          script: |
+            cd /var/www/musclemap.me
+            chmod +x scripts/deployment/auto-rollback.sh
+            ./scripts/deployment/auto-rollback.sh --force --reason "CI validation failed"
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "Commit: ${{ github.sha }}"
+          echo "URL: https://musclemap.me"
+
+  # ==========================================
+  # PR COMMENT (Add deployment info)
+  # ==========================================
+  pr-comment:
+    name: PR Status Comment
+    runs-on: ubuntu-latest
+    needs: [build, e2e-tests, visual-regression]
+    if: github.event_name == 'pull_request' && always()
+
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const buildStatus = '${{ needs.build.result }}';
+            const e2eStatus = '${{ needs.e2e-tests.result }}';
+            const visualStatus = '${{ needs.visual-regression.result }}';
+
+            const statusEmoji = (status) => {
+              if (status === 'success') return '✅';
+              if (status === 'failure') return '❌';
+              if (status === 'skipped') return '⏭️';
+              return '⚠️';
+            };
+
+            const body = `## CI/CD Status
+
+            | Check | Status |
+            |-------|--------|
+            | Build | ${statusEmoji(buildStatus)} ${buildStatus} |
+            | E2E Tests | ${statusEmoji(e2eStatus)} ${e2eStatus} |
+            | Visual Regression | ${statusEmoji(visualStatus)} ${visualStatus} |
+
+            ${buildStatus === 'success' ? '### 🚀 Ready to merge!' : '### ⚠️ Please fix failing checks before merging.'}
+
+            <details>
+            <summary>Artifacts</summary>
+
+            - [Build Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [E2E Test Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Visual Regression Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            </details>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('## CI/CD Status')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
