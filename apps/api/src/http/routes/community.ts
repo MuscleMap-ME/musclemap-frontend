@@ -567,13 +567,13 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     // Use parameterized interval to prevent SQL injection
     const intervalDays = window === '30d' ? 30 : 7;
 
+    // Use workout_sets table (actual table) instead of workout_exercises (doesn't exist)
     const exercises = await queryAll<{ exercise_id: string; name: string; count: string }>(
-      `SELECT ea.exercise_id, e.name, COUNT(*)::int as count
-       FROM workout_exercises we
-       JOIN exercise_activations ea ON we.exercise_id = ea.exercise_id
-       JOIN exercises e ON ea.exercise_id = e.id
-       WHERE we.created_at > NOW() - INTERVAL '1 day' * $2
-       GROUP BY ea.exercise_id, e.name
+      `SELECT ws.exercise_id, e.name, COUNT(DISTINCT ws.workout_id)::int as count
+       FROM workout_sets ws
+       JOIN exercises e ON ws.exercise_id = e.id
+       WHERE ws.created_at > NOW() - INTERVAL '1 day' * $2
+       GROUP BY ws.exercise_id, e.name
        ORDER BY count DESC
        LIMIT $1`,
       [limit, intervalDays]
@@ -590,9 +590,12 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
 
   // Community stats funnel endpoint
   app.get('/community/stats/funnel', async (request, reply) => {
+    // Use user_onboarding_state table instead of onboarding_completed column (doesn't exist)
     const [registered, onboarded, firstWorkout, active] = await Promise.all([
       queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
-      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users WHERE onboarding_completed = true'),
+      queryOne<{ count: string }>(
+        `SELECT COUNT(*)::int as count FROM user_onboarding_state WHERE status = 'completed'`
+      ),
       queryOne<{ count: string }>(
         'SELECT COUNT(DISTINCT user_id)::int as count FROM workouts'
       ),
@@ -613,12 +616,13 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
 
   // Community stats credits endpoint
   app.get('/community/stats/credits', async (request, reply) => {
+    // Use credit_balances and credit_ledger tables instead of wallets/wallet_transactions (don't exist)
     const [totalCredits, totalSpent, avgBalance] = await Promise.all([
-      queryOne<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM wallets'),
+      queryOne<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM credit_balances'),
       queryOne<{ total: string }>(
-        `SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM wallet_transactions WHERE amount < 0`
+        `SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM credit_ledger WHERE amount < 0`
       ),
-      queryOne<{ avg: string }>('SELECT COALESCE(AVG(balance), 0) as avg FROM wallets'),
+      queryOne<{ avg: string }>('SELECT COALESCE(AVG(balance), 0) as avg FROM credit_balances'),
     ]);
 
     return reply.send({
