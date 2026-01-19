@@ -157,9 +157,10 @@ if [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
     echo "  Deployment ID: $DEPLOY_ID"
 fi
 
-# Step 7: Deploy to VPS using aggressive cache build system
+# Step 7: Deploy to VPS using memory-safe staged build system
 echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
-echo -e "${YELLOW}   Using aggressive cache build (content-hash based, Tier 0-3)${NC}"
+echo -e "${YELLOW}   Using memory-safe staged build with auto-retry${NC}"
+echo -e "${YELLOW}   Features: staged builds, OOM recovery, site stays online${NC}"
 echo -e "${YELLOW}   Tier 0 (no changes): <1s | Tier 1 (restore): 1-2s | Tier 2/3: 15-90s${NC}"
 
 # Update deployment status
@@ -167,11 +168,12 @@ if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker
     npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "deploying" 2>/dev/null || true
 fi
 
+# Deploy with memory-safe build (--staged flag enables staged builds with OOM auto-recovery)
 if ! ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
   git fetch origin && \
   git reset --hard origin/main && \
   pnpm install && \
-  node scripts/aggressive-cache.mjs && \
+  node scripts/aggressive-cache.mjs --staged && \
   pm2 restart musclemap"; then
     echo -e "${RED}❌ Deployment failed!${NC}"
     if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
