@@ -500,16 +500,8 @@ export async function up(): Promise<void> {
     log.info('idx_users_created_keyset index created');
   }
 
-  // Partial index for recent signups (faster queries for last 90 days)
-  if (!(await indexExists('idx_users_recent_signups'))) {
-    log.info('Creating idx_users_recent_signups partial index...');
-    await db.query(`
-      CREATE INDEX idx_users_recent_signups
-      ON users(created_at DESC, id DESC)
-      WHERE created_at > NOW() - INTERVAL '90 days'
-    `);
-    log.info('idx_users_recent_signups index created');
-  }
+  // Note: Partial indexes with NOW() are not supported (non-immutable)
+  // The idx_users_created_keyset index above handles recent signups efficiently
 
   // ========================================
   // MATERIALIZED VIEW: Feature Popularity
@@ -720,7 +712,6 @@ export async function down(): Promise<void> {
   await db.query('DROP TABLE IF EXISTS feature_definitions');
 
   // Drop indexes on users table
-  await db.query('DROP INDEX IF EXISTS idx_users_recent_signups');
   await db.query('DROP INDEX IF EXISTS idx_users_created_keyset');
 
   // Remove scheduled jobs
