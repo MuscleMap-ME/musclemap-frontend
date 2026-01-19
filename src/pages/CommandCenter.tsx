@@ -21,7 +21,6 @@ import {
   Square,
   CheckCircle,
   XCircle,
-  Clock,
   Loader2,
   ChevronDown,
   ChevronRight,
@@ -65,7 +64,6 @@ import {
   File,
   ShieldAlert,
   Share2,
-  XOctagon,
 } from 'lucide-react';
 import { useAuth } from '../store/authStore';
 import { Navigate } from 'react-router-dom';
@@ -468,25 +466,12 @@ export default function CommandCenter() {
   const [showHistory, setShowHistory] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Auth check
-  if (!hasHydrated || loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!user.is_admin) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Determine if user is authorized (for conditional logic in effects)
+  const isAuthorized = hasHydrated && !loading && user && user.is_admin;
 
   // Load categories
   useEffect(() => {
+    if (!isAuthorized) return;
     async function loadCategories() {
       try {
         const res = await fetchWithAuth('/api/admin/commands/hierarchy');
@@ -497,10 +482,11 @@ export default function CommandCenter() {
       }
     }
     loadCategories();
-  }, []);
+  }, [isAuthorized]);
 
   // Load history
   useEffect(() => {
+    if (!isAuthorized) return;
     async function loadHistory() {
       try {
         const res = await fetchWithAuth('/api/admin/commands/history?limit=20');
@@ -511,10 +497,11 @@ export default function CommandCenter() {
       }
     }
     loadHistory();
-  }, [activeExecution?.status]);
+  }, [isAuthorized, activeExecution?.status]);
 
   // Search
   useEffect(() => {
+    if (!isAuthorized) return;
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setIsSearching(false);
@@ -535,7 +522,7 @@ export default function CommandCenter() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [isAuthorized, searchQuery]);
 
   // Execute command
   const executeCommand = useCallback(async (cmd: string) => {
@@ -578,7 +565,9 @@ export default function CommandCenter() {
               setActiveExecution((prev) => prev ? { ...prev, status: msg.status } : null);
               es.close();
             }
-          } catch {}
+          } catch {
+            // Ignore parse errors
+          }
         };
 
         es.onerror = () => {
@@ -623,6 +612,23 @@ export default function CommandCenter() {
       return next;
     });
   }, []);
+
+  // Auth check - must be AFTER all hooks
+  if (!hasHydrated || loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user.is_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const totalCommands = categories.reduce(
     (acc, cat) => acc + cat.subcategories.reduce((a, sub) => a + sub.commands.length, 0),
@@ -690,7 +696,7 @@ export default function CommandCenter() {
                 Search Results ({searchResults.length})
               </h2>
               {searchResults.length === 0 ? (
-                <p className="text-gray-500 text-sm">No commands found matching "{searchQuery}"</p>
+                <p className="text-gray-500 text-sm">No commands found matching &quot;{searchQuery}&quot;</p>
               ) : (
                 <div className="grid gap-2">
                   {searchResults.slice(0, 20).map((cmd) => (

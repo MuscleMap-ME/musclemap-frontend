@@ -835,9 +835,12 @@ const MAX_HISTORY = 100;
 // ============================================
 
 export default async function adminCommandsRoutes(fastify: FastifyInstance) {
-  // Middleware for all routes
-  fastify.addHook('preHandler', authenticate);
-  fastify.addHook('preHandler', requireAdmin);
+  // Middleware for all routes - must call both in single hook
+  fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+    await authenticate(request, reply);
+    if (reply.sent) return;
+    await requireAdmin(request, reply);
+  });
 
   log.info('Command Center routes registered');
 
