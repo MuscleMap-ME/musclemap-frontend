@@ -487,15 +487,11 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerModulesRoutes(api);
     await registerCareerRoutes(api);
     await registerMascotRoutes(api);
+    // Credits routes - SINGLE registration at /api/credits
+    // Frontend should use /api/credits/* paths (no dual registration to avoid confusion)
     await api.register(async (credits) => {
       await registerCreditsRoutes(credits);
     }, { prefix: '/credits' });
-
-    // Store route aliases (frontend calls /api/store/* but credits routes are at /api/credits/store/*)
-    // Register credits routes again at root for store/buddy/admin convenience endpoints
-    await api.register(async (storeAlias) => {
-      await registerCreditsRoutes(storeAlias);
-    }, { prefix: '' });
 
     await registerTrainerRoutes(api);
     await registerSkillsRoutes(api);

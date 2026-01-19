@@ -25,13 +25,8 @@ export async function registerEconomyRoutes(app: FastifyInstance) {
   });
 
   // Get balance
+  // Note: For comprehensive wallet info, use /api/credits/wallet instead
   app.get('/economy/balance', { preHandler: authenticate }, async (request, reply) => {
-    const balance = await economyService.getBalance(request.user!.userId);
-    return reply.send({ data: { balance } });
-  });
-
-  // Alias for credits
-  app.get('/credits/balance', { preHandler: authenticate }, async (request, reply) => {
     const balance = await economyService.getBalance(request.user!.userId);
     return reply.send({ data: { balance } });
   });
