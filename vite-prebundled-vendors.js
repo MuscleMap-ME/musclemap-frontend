@@ -1,23 +1,16 @@
 /**
- * Vite Plugin: AGGRESSIVE Pre-bundled Vendors
+ * Vite Plugin: Pre-bundled Vendors
  *
  * This plugin redirects imports of heavy vendor packages to use pre-bundled
  * ESM files created by scripts/prebundle-vendors.mjs. This DRAMATICALLY
  * reduces the number of modules Vite needs to transform during builds.
  *
- * Impact: 10,000 modules → ~800 modules (92% reduction)
+ * Impact: Reduces transform time by skipping heavy vendor packages
  *
  * How it works:
- * 1. Intercepts import resolution for ALL heavy packages
+ * 1. Intercepts import resolution for heavy packages
  * 2. Redirects to pre-bundled .mjs files in .vendor-cache/
  * 3. Falls back to node_modules if pre-bundled file doesn't exist
- *
- * Usage:
- *   import prebundledVendors from './vite-prebundled-vendors.js';
- *
- *   plugins: [
- *     prebundledVendors(),
- *   ]
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -27,94 +20,40 @@ const CACHE_DIR = '.vendor-cache';
 const MANIFEST_FILE = 'manifest.json';
 
 /**
- * COMPREHENSIVE VENDOR MAPPING
- *
+ * VENDOR MAPPING
  * Maps package names to their pre-bundled files.
  * This must match the bundles created by prebundle-vendors.mjs
  */
 const VENDOR_MAP = {
-  // React core
-  'react': 'react-core-bundle.mjs',
-  'react-dom': 'react-core-bundle.mjs',
-  'react-dom/client': 'react-core-bundle.mjs',
-  'scheduler': 'react-core-bundle.mjs',
-
-  // React Router
-  'react-router-dom': 'react-router-bundle.mjs',
-  'react-router': 'react-router-bundle.mjs',
-  '@remix-run/router': 'react-router-bundle.mjs',
-
-  // State Management
-  'zustand': 'zustand-bundle.mjs',
-  'zustand/middleware': 'zustand-bundle.mjs',
-  'zustand/shallow': 'zustand-bundle.mjs',
-
-  // GraphQL
-  'graphql': 'graphql-bundle.mjs',
-  'graphql/language': 'graphql-bundle.mjs',
-  'graphql/execution': 'graphql-bundle.mjs',
-
-  // Apollo
-  '@apollo/client': 'apollo-bundle.mjs',
-  '@apollo/client/core': 'apollo-bundle.mjs',
-  '@apollo/client/cache': 'apollo-bundle.mjs',
-  '@apollo/client/link/context': 'apollo-bundle.mjs',
-  '@apollo/client/link/error': 'apollo-bundle.mjs',
-  '@apollo/client/link/http': 'apollo-bundle.mjs',
-  '@apollo/client/react': 'apollo-bundle.mjs',
-  '@apollo/client/react/hooks': 'apollo-bundle.mjs',
-
-  // Three.js
+  // Three.js 3D engine
   'three': 'three-bundle.mjs',
 
-  // React Three Fiber
-  '@react-three/fiber': 'react-three-bundle.mjs',
-  '@react-three/drei': 'react-three-bundle.mjs',
-
-  // D3
+  // D3.js charts
   'd3': 'd3-bundle.mjs',
+
+  // GraphQL core
+  'graphql': 'graphql-bundle.mjs',
+
+  // Framer Motion animation
+  'framer-motion': 'framer-motion-bundle.mjs',
 
   // Recharts
   'recharts': 'recharts-bundle.mjs',
 
-  // Animation
-  'framer-motion': 'framer-motion-bundle.mjs',
-
-  // Emotion
-  '@emotion/react': 'emotion-bundle.mjs',
-  '@emotion/styled': 'emotion-bundle.mjs',
-  '@emotion/cache': 'emotion-bundle.mjs',
-
-  // MUI
-  '@mui/system': 'mui-system-bundle.mjs',
-  '@mui/styled-engine': 'mui-system-bundle.mjs',
-  '@mui/material': 'mui-material-bundle.mjs',
-
-  // Utilities
+  // Date utilities
   'date-fns': 'date-fns-bundle.mjs',
-  'lodash-es': 'lodash-bundle.mjs',
-  'clsx': 'clsx-bundle.mjs',
-  'tailwind-merge': 'clsx-bundle.mjs',
-
-  // Markdown
-  'react-markdown': 'markdown-bundle.mjs',
-  'remark-gfm': 'markdown-bundle.mjs',
-  'rehype-highlight': 'markdown-bundle.mjs',
 
   // Icons
   'lucide-react': 'lucide-bundle.mjs',
 
-  // Maps
-  'leaflet': 'leaflet-bundle.mjs',
-  'react-leaflet': 'leaflet-bundle.mjs',
+  // State management
+  'zustand': 'zustand-bundle.mjs',
 
-  // Misc
-  '@dicebear/core': 'dicebear-bundle.mjs',
-  '@dicebear/collection': 'dicebear-bundle.mjs',
+  // Class utilities
+  'clsx': 'clsx-bundle.mjs',
+
+  // Flow diagrams
   'reactflow': 'reactflow-bundle.mjs',
-  '@reactflow/core': 'reactflow-bundle.mjs',
-  '@reactflow/controls': 'reactflow-bundle.mjs',
-  '@reactflow/minimap': 'reactflow-bundle.mjs',
 };
 
 /**
@@ -135,16 +74,11 @@ const D3_SUBPACKAGES = new Set([
  */
 const SUBPATH_BUNDLES = {
   'three/': 'three-bundle.mjs',
-  '@apollo/client/': 'apollo-bundle.mjs',
-  '@mui/material/': 'mui-material-bundle.mjs',
-  '@mui/system/': 'mui-system-bundle.mjs',
   'date-fns/': 'date-fns-bundle.mjs',
   'framer-motion/': 'framer-motion-bundle.mjs',
   'recharts/': 'recharts-bundle.mjs',
-  'react-router-dom/': 'react-router-bundle.mjs',
-  '@emotion/react/': 'emotion-bundle.mjs',
-  '@emotion/styled/': 'emotion-bundle.mjs',
   'graphql/': 'graphql-bundle.mjs',
+  'zustand/': 'zustand-bundle.mjs',
 };
 
 export default function prebundledVendors(options = {}) {

@@ -40,165 +40,60 @@ const MANIFEST_FILE = join(CACHE_DIR, 'manifest.json');
  *
  * We're bundling EVERYTHING that takes significant transform time.
  * Each bundle corresponds to a logical chunk in our app.
+ *
+ * Note: We use simple entry points instead of complex multi-entry to avoid issues
  */
 const VENDOR_BUNDLES = [
-  // === CORE (Always loaded) ===
-  {
-    name: 'react-core-bundle',
-    entries: ['react', 'react-dom', 'react-dom/client', 'scheduler'],
-    description: 'Core React runtime (~165KB)',
-    external: [],
-  },
-  {
-    name: 'react-router-bundle',
-    entries: ['react-router-dom', 'react-router', '@remix-run/router'],
-    description: 'React Router (~45KB)',
-    external: ['react', 'react-dom'],
-  },
-
-  // === STATE MANAGEMENT ===
-  {
-    name: 'zustand-bundle',
-    entries: ['zustand', 'zustand/middleware', 'zustand/shallow'],
-    description: 'Zustand state management (~8KB)',
-    external: ['react'],
-  },
-
-  // === GRAPHQL ===
-  {
-    name: 'graphql-bundle',
-    entries: ['graphql', 'graphql/language', 'graphql/execution'],
-    description: 'GraphQL core (~180KB)',
-    external: [],
-  },
-  {
-    name: 'apollo-bundle',
-    entries: [
-      '@apollo/client',
-      '@apollo/client/core',
-      '@apollo/client/cache',
-      '@apollo/client/link/context',
-      '@apollo/client/link/error',
-      '@apollo/client/link/http',
-      '@apollo/client/react',
-      '@apollo/client/react/hooks',
-    ],
-    description: 'Apollo Client (~170KB)',
-    external: ['react', 'react-dom', 'graphql'],
-  },
-
-  // === 3D RENDERING ===
+  // Heavy packages that benefit most from pre-bundling
   {
     name: 'three-bundle',
-    entries: ['three'],
+    entry: 'three',
     description: 'Three.js 3D engine (~800KB)',
-    external: [],
   },
-  {
-    name: 'react-three-bundle',
-    entries: ['@react-three/fiber', '@react-three/drei'],
-    description: 'React Three Fiber + Drei (~300KB)',
-    external: ['react', 'react-dom', 'three'],
-  },
-
-  // === CHARTS & VISUALIZATION ===
   {
     name: 'd3-bundle',
-    entries: ['d3'],
+    entry: 'd3',
     description: 'D3.js charts (~280KB)',
-    external: [],
+  },
+  {
+    name: 'graphql-bundle',
+    entry: 'graphql',
+    description: 'GraphQL core (~180KB)',
+  },
+  {
+    name: 'framer-motion-bundle',
+    entry: 'framer-motion',
+    description: 'Framer Motion (~125KB)',
   },
   {
     name: 'recharts-bundle',
-    entries: ['recharts'],
+    entry: 'recharts',
     description: 'Recharts (~350KB)',
-    external: ['react', 'react-dom', 'd3-scale', 'd3-shape', 'd3-interpolate'],
   },
-
-  // === ANIMATION ===
-  {
-    name: 'framer-motion-bundle',
-    entries: ['framer-motion'],
-    description: 'Framer Motion (~125KB)',
-    external: ['react', 'react-dom'],
-  },
-
-  // === UI LIBRARIES ===
-  {
-    name: 'emotion-bundle',
-    entries: ['@emotion/react', '@emotion/styled', '@emotion/cache'],
-    description: 'Emotion CSS-in-JS (~50KB)',
-    external: ['react'],
-  },
-  {
-    name: 'mui-system-bundle',
-    entries: ['@mui/system', '@mui/styled-engine'],
-    description: 'MUI System (~80KB)',
-    external: ['react', 'react-dom', '@emotion/react', '@emotion/styled'],
-  },
-  {
-    name: 'mui-material-bundle',
-    entries: ['@mui/material'],
-    description: 'MUI Material (~400KB)',
-    external: ['react', 'react-dom', '@emotion/react', '@emotion/styled', '@mui/system'],
-  },
-
-  // === UTILITIES ===
   {
     name: 'date-fns-bundle',
-    entries: ['date-fns'],
-    description: 'Date-fns utilities (~75KB tree-shaken)',
-    external: [],
+    entry: 'date-fns',
+    description: 'Date-fns utilities (~75KB)',
   },
   {
-    name: 'lodash-bundle',
-    entries: ['lodash-es'],
-    description: 'Lodash ES (~80KB tree-shaken)',
-    external: [],
+    name: 'lucide-bundle',
+    entry: 'lucide-react',
+    description: 'Lucide icons',
+  },
+  {
+    name: 'zustand-bundle',
+    entry: 'zustand',
+    description: 'Zustand state (~8KB)',
   },
   {
     name: 'clsx-bundle',
-    entries: ['clsx', 'tailwind-merge'],
-    description: 'Class utilities (~5KB)',
-    external: [],
-  },
-
-  // === MARKDOWN ===
-  {
-    name: 'markdown-bundle',
-    entries: ['react-markdown', 'remark-gfm', 'rehype-highlight'],
-    description: 'Markdown rendering (~150KB)',
-    external: ['react'],
-  },
-
-  // === ICONS ===
-  {
-    name: 'lucide-bundle',
-    entries: ['lucide-react'],
-    description: 'Lucide icons (~200KB but tree-shaken)',
-    external: ['react'],
-  },
-
-  // === MAPS ===
-  {
-    name: 'leaflet-bundle',
-    entries: ['leaflet', 'react-leaflet'],
-    description: 'Leaflet maps (~150KB)',
-    external: ['react', 'react-dom'],
-  },
-
-  // === MISC HEAVY DEPS ===
-  {
-    name: 'dicebear-bundle',
-    entries: ['@dicebear/core', '@dicebear/collection'],
-    description: 'DiceBear avatars (~100KB)',
-    external: [],
+    entry: 'clsx',
+    description: 'Class utilities (~2KB)',
   },
   {
     name: 'reactflow-bundle',
-    entries: ['reactflow', '@reactflow/core', '@reactflow/controls', '@reactflow/minimap'],
+    entry: 'reactflow',
     description: 'React Flow diagrams (~200KB)',
-    external: ['react', 'react-dom', 'd3-selection', 'd3-zoom', 'd3-drag'],
   },
 ];
 
@@ -253,15 +148,12 @@ function saveManifest(manifest) {
  * Check if a package exists in node_modules
  */
 function packageExists(pkg) {
-  // Handle scoped packages
   const parts = pkg.split('/');
   let checkPath;
 
   if (pkg.startsWith('@')) {
-    // @scope/package or @scope/package/subpath
     checkPath = join(PROJECT_ROOT, 'node_modules', parts[0], parts[1]);
   } else {
-    // package or package/subpath
     checkPath = join(PROJECT_ROOT, 'node_modules', parts[0]);
   }
 
@@ -269,15 +161,14 @@ function packageExists(pkg) {
 }
 
 /**
- * Bundle a single vendor
+ * Bundle a single vendor using simple entry point
  */
 async function prebundleVendor(vendor, outDir) {
   const outFile = join(outDir, `${vendor.name}.mjs`);
 
-  // Check if all entries exist
-  const missingEntries = vendor.entries.filter(e => !packageExists(e));
-  if (missingEntries.length > 0) {
-    warn(`${vendor.name}: Skipping (missing: ${missingEntries.join(', ')})`);
+  // Check if entry exists
+  if (!packageExists(vendor.entry)) {
+    warn(`${vendor.name}: Skipping (missing: ${vendor.entry})`);
     return { success: false, reason: 'missing' };
   }
 
@@ -285,17 +176,11 @@ async function prebundleVendor(vendor, outDir) {
   const startTime = Date.now();
 
   try {
-    // Create entry point content that re-exports everything
-    const entryContent = vendor.entries.map(e => `export * from '${e}';`).join('\n');
-    const entryFile = join(outDir, `${vendor.name}-entry.js`);
-    writeFileSync(entryFile, entryContent);
-
-    const result = await build({
-      entryPoints: [entryFile],
+    await build({
+      entryPoints: [vendor.entry],
       bundle: true,
       format: 'esm',
       outfile: outFile,
-      external: vendor.external,
       minify: true,
       treeShaking: true,
       target: 'es2020',
@@ -303,35 +188,13 @@ async function prebundleVendor(vendor, outDir) {
       mainFields: ['module', 'main', 'browser'],
       conditions: ['module', 'import', 'browser', 'default'],
       logLevel: 'error',
-      metafile: true,
-      // Important: Don't bundle peer deps
-      packages: 'external',
-      // But do bundle these specific entries
-      plugins: [{
-        name: 'bundle-entries',
-        setup(build) {
-          // Mark our entry packages as bundleable
-          const entrySet = new Set(vendor.entries.map(e => e.split('/')[0]));
-          build.onResolve({ filter: /.*/ }, args => {
-            // Bundle the entry packages
-            if (entrySet.has(args.path) || entrySet.has(args.path.split('/')[0])) {
-              return null; // Let esbuild bundle it
-            }
-            // External everything else
-            if (args.kind === 'import-statement' && !args.path.startsWith('.')) {
-              // Check if it's in external list
-              if (vendor.external.some(ext => args.path === ext || args.path.startsWith(ext + '/'))) {
-                return { path: args.path, external: true };
-              }
-            }
-            return null;
-          });
-        },
-      }],
+      // External peer dependencies that vary by package
+      external: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+      ],
     });
-
-    // Clean up entry file
-    rmSync(entryFile, { force: true });
 
     const duration = Date.now() - startTime;
     const size = existsSync(outFile) ? statSync(outFile).size : 0;
@@ -342,13 +205,8 @@ async function prebundleVendor(vendor, outDir) {
       success: true,
       size,
       duration,
-      entries: vendor.entries.length,
     };
   } catch (e) {
-    // Clean up on error
-    const entryFile = join(outDir, `${vendor.name}-entry.js`);
-    rmSync(entryFile, { force: true });
-
     warn(`${vendor.name}: Build failed - ${e.message.split('\n')[0]}`);
     return { success: false, reason: 'build-error', error: e.message };
   }
