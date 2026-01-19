@@ -937,4 +937,282 @@ export const marketplaceService = {
       trending,
     };
   },
+
+  // =====================================================
+  // AUCTION BIDDING
+  // =====================================================
+
+  async placeBid(listingId: string, bidderId: string, amount: number) {
+    return await serializableTransaction(async (client: PoolClient) => {
+      // Get listing with lock
+      const listingResult = await client.query(
+        `SELECT * FROM marketplace_listings WHERE id = $1 FOR UPDATE`,
+        [listingId]
+      );
+      const listing = listingResult.rows[0];
+
+      if (!listing) {
+        throw new Error('Listing not found');
+      }
+
+      if (listing.status !== 'active') {
+        throw new Error('Listing is no longer active');
+      }
+
+      if (listing.listing_type !== 'auction') {
+        throw new Error('This listing is not an auction');
+      }
+
+      if (listing.seller_id === bidderId) {
+        throw new Error('You cannot bid on your own listing');
+      }
+
+      // Check if auction has ended
+      const auctionEndTime = listing.auction_end_time || listing.expires_at;
+      if (new Date(auctionEndTime) < new Date()) {
+        throw new Error('This auction has ended');
+      }
+
+      // Validate bid amount
+      const currentBid = listing.current_bid || 0;
+      const minBid = currentBid > 0
+        ? currentBid + (listing.bid_increment || 10)
+        : (listing.min_offer || listing.reserve_price || 1);
+
+      if (amount < minBid) {
+        throw new Error(`Bid must be at least ${minBid} credits`);
+      }
+
+      // Check bidder balance
+      const bidderResult = await client.query(
+        `SELECT credit_balance FROM users WHERE id = $1 FOR UPDATE`,
+        [bidderId]
+      );
+      const bidder = bidderResult.rows[0];
+
+      if (!bidder || bidder.credit_balance < amount) {
+        throw new Error('Insufficient credits for this bid');
+      }
+
+      // Get previous high bidder (for outbid notification)
+      const previousHighBidder = listing.current_bidder_id;
+
+      // Mark previous active bids as outbid
+      await client.query(
+        `UPDATE auction_bids SET status = 'outbid'
+         WHERE listing_id = $1 AND status = 'active'`,
+        [listingId]
+      );
+
+      // Record the bid
+      const bidId = uuidv4();
+      await client.query(
+        `INSERT INTO auction_bids (id, listing_id, bidder_id, bid_amount, status)
+         VALUES ($1, $2, $3, $4, 'active')`,
+        [bidId, listingId, bidderId, amount]
+      );
+
+      // Update listing with new bid
+      await client.query(
+        `UPDATE marketplace_listings SET
+         current_bid = $1,
+         current_bidder_id = $2,
+         bid_count = bid_count + 1,
+         updated_at = NOW()
+         WHERE id = $3`,
+        [amount, bidderId, listingId]
+      );
+
+      return {
+        success: true,
+        bidId,
+        amount,
+        previousBid: currentBid,
+        outbidUserId: previousHighBidder,
+        isReserveMet: listing.reserve_price ? amount >= listing.reserve_price : true,
+      };
+    });
+  },
+
+  async getListingBids(listingId: string) {
+    return queryAll<{
+      id: string;
+      bidder_id: string;
+      bid_amount: number;
+      status: string;
+      created_at: string;
+      bidder_username: string;
+    }>(
+      `SELECT b.id, b.bidder_id, b.bid_amount, b.status, b.created_at,
+        u.username as bidder_username
+       FROM auction_bids b
+       JOIN users u ON b.bidder_id = u.id
+       WHERE b.listing_id = $1
+       ORDER BY b.bid_amount DESC, b.created_at ASC`,
+      [listingId]
+    );
+  },
+
+  async getUserBids(userId: string) {
+    return queryAll<{
+      id: string;
+      listing_id: string;
+      bid_amount: number;
+      status: string;
+      created_at: string;
+      cosmetic_name: string;
+      cosmetic_icon: string;
+      rarity: string;
+      listing_status: string;
+      current_bid: number;
+      auction_end_time: string;
+    }>(
+      `SELECT b.id, b.listing_id, b.bid_amount, b.status, b.created_at,
+        c.name as cosmetic_name, c.icon as cosmetic_icon, c.rarity,
+        l.status as listing_status, l.current_bid, l.auction_end_time
+       FROM auction_bids b
+       JOIN marketplace_listings l ON b.listing_id = l.id
+       JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
+       WHERE b.bidder_id = $1
+       ORDER BY b.created_at DESC`,
+      [userId]
+    );
+  },
+
+  // Process ended auctions (should be called by a scheduled job)
+  async processEndedAuctions() {
+    const endedAuctions = await queryAll<{
+      id: string;
+      seller_id: string;
+      cosmetic_id: string;
+      user_cosmetic_id: string;
+      current_bid: number;
+      current_bidder_id: string;
+      reserve_price: number;
+    }>(
+      `SELECT id, seller_id, cosmetic_id, user_cosmetic_id, current_bid,
+        current_bidder_id, reserve_price
+       FROM marketplace_listings
+       WHERE listing_type = 'auction'
+         AND status = 'active'
+         AND (auction_end_time <= NOW() OR expires_at <= NOW())`
+    );
+
+    let processedCount = 0;
+
+    for (const auction of endedAuctions) {
+      try {
+        await serializableTransaction(async (client: PoolClient) => {
+          // Recheck the listing with lock
+          const result = await client.query(
+            `SELECT * FROM marketplace_listings WHERE id = $1 FOR UPDATE`,
+            [auction.id]
+          );
+          const listing = result.rows[0];
+
+          if (!listing || listing.status !== 'active') {
+            return; // Already processed
+          }
+
+          // Check if reserve met
+          const reserveMet = !listing.reserve_price || listing.current_bid >= listing.reserve_price;
+
+          if (listing.current_bidder_id && reserveMet) {
+            // Auction won - complete the sale
+            const buyerId = listing.current_bidder_id;
+            const price = listing.current_bid;
+
+            // Check winner has sufficient balance
+            const buyerResult = await client.query(
+              `SELECT credit_balance FROM users WHERE id = $1 FOR UPDATE`,
+              [buyerId]
+            );
+
+            if (buyerResult.rows[0]?.credit_balance < price) {
+              // Winner doesn't have balance - mark as expired and return item
+              await client.query(
+                `UPDATE marketplace_listings SET status = 'expired', updated_at = NOW() WHERE id = $1`,
+                [listing.id]
+              );
+
+              await client.query(
+                `UPDATE user_spirit_cosmetics SET is_listed = false WHERE id = $1`,
+                [listing.user_cosmetic_id]
+              );
+
+              // Mark the winning bid as retracted
+              await client.query(
+                `UPDATE auction_bids SET status = 'retracted' WHERE listing_id = $1 AND bidder_id = $2 AND status = 'active'`,
+                [listing.id, buyerId]
+              );
+              return;
+            }
+
+            // Calculate fees
+            const platformFee = Math.floor(price * PLATFORM_FEE_PERCENT / 100);
+            const sellerProceeds = price - platformFee;
+
+            // Transfer credits
+            await client.query(
+              `UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2`,
+              [price, buyerId]
+            );
+
+            await client.query(
+              `UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2`,
+              [sellerProceeds, listing.seller_id]
+            );
+
+            // Transfer cosmetic ownership
+            await client.query(
+              `UPDATE user_spirit_cosmetics SET user_id = $1, is_listed = false, acquired_at = NOW()
+               WHERE id = $2`,
+              [buyerId, listing.user_cosmetic_id]
+            );
+
+            // Update listing
+            await client.query(
+              `UPDATE marketplace_listings SET status = 'sold', sold_to_id = $1, sold_price = $2,
+               sold_at = NOW(), updated_at = NOW() WHERE id = $3`,
+              [buyerId, price, listing.id]
+            );
+
+            // Mark the winning bid as won
+            await client.query(
+              `UPDATE auction_bids SET status = 'won' WHERE listing_id = $1 AND bidder_id = $2 AND status = 'active'`,
+              [listing.id, buyerId]
+            );
+
+            // Record transaction (using 'auction' as that's the valid enum value)
+            await client.query(
+              `INSERT INTO marketplace_transactions (
+                id, listing_id, seller_id, buyer_id, cosmetic_id,
+                sale_price, platform_fee, seller_received, transaction_type
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'auction')`,
+              [
+                uuidv4(), listing.id, listing.seller_id, buyerId, listing.cosmetic_id,
+                price, platformFee, sellerProceeds,
+              ]
+            );
+          } else {
+            // No bids or reserve not met - return item to seller
+            await client.query(
+              `UPDATE marketplace_listings SET status = 'expired', updated_at = NOW() WHERE id = $1`,
+              [listing.id]
+            );
+
+            await client.query(
+              `UPDATE user_spirit_cosmetics SET is_listed = false WHERE id = $1`,
+              [listing.user_cosmetic_id]
+            );
+          }
+        });
+        processedCount++;
+      } catch (error) {
+        console.error(`Failed to process ended auction ${auction.id}:`, error);
+      }
+    }
+
+    return processedCount;
+  },
 };

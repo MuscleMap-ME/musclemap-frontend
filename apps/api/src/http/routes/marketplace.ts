@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { authenticate } from './auth';
 import { marketplaceService } from '../../modules/marketplace/marketplace.service';
 import { tradingService } from '../../modules/marketplace/trading.service';
+import { giftService } from '../../modules/marketplace/gift.service';
 import { mysteryBoxService } from '../../modules/marketplace/mystery-box.service';
 import { collectionService } from '../../modules/marketplace/collection.service';
 import { healthMultiplierService } from '../../modules/marketplace/health-multiplier.service';
@@ -83,6 +84,21 @@ const logHealthMetricsSchema = z.object({
   hydrationLiters: z.number().min(0).max(10).optional(),
   stepsCount: z.number().int().min(0).optional(),
   activeMinutes: z.number().int().min(0).optional(),
+});
+
+const createGiftSchema = z.object({
+  recipientId: z.string().uuid(),
+  cosmeticId: z.string().uuid().optional(),
+  creditAmount: z.number().int().positive().optional(),
+  mysteryBoxId: z.string().uuid().optional(),
+  wrappingStyle: z.enum(['standard', 'birthday', 'holiday', 'congrats', 'custom']).default('standard'),
+  message: z.string().max(500).optional(),
+  isAnonymous: z.boolean().default(false),
+  scheduledDelivery: z.string().datetime().optional().transform((val) => val ? new Date(val) : undefined),
+});
+
+const placeBidSchema = z.object({
+  amount: z.number().int().positive(),
 });
 
 // =====================================================
@@ -827,6 +843,166 @@ export async function marketplaceRoutes(fastify: FastifyInstance) {
         limit ? parseInt(limit) : 50
       );
       return { data: leaderboard };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // =====================================================
+  // AUCTION BIDDING
+  // =====================================================
+
+  // Place bid on auction
+  fastify.post('/marketplace/listings/:id/bid', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { id } = request.params as { id: string };
+      const input = placeBidSchema.parse(request.body);
+
+      const result = await marketplaceService.placeBid(id, userId, input.amount);
+      return { data: result };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get bid history for listing
+  fastify.get('/marketplace/listings/:id/bids', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const bids = await marketplaceService.getListingBids(id);
+      return { data: bids };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get user's active bids
+  fastify.get('/marketplace/my-bids', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const bids = await marketplaceService.getUserBids(userId);
+      return { data: bids };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // =====================================================
+  // GIFTS
+  // =====================================================
+
+  // Send a gift
+  fastify.post('/gifts', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const input = createGiftSchema.parse(request.body);
+
+      const gift = await giftService.createGift({
+        senderId: userId,
+        recipientId: input.recipientId,
+        cosmeticId: input.cosmeticId,
+        creditAmount: input.creditAmount,
+        mysteryBoxId: input.mysteryBoxId,
+        wrappingStyle: input.wrappingStyle,
+        message: input.message,
+        isAnonymous: input.isAnonymous,
+        scheduledDelivery: input.scheduledDelivery,
+      });
+
+      return { data: gift };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get received gifts
+  fastify.get('/gifts/received', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { status } = request.query as { status?: 'pending' | 'delivered' | 'opened' };
+
+      const gifts = await giftService.getReceivedGifts(userId, status);
+      return { data: gifts };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get sent gifts
+  fastify.get('/gifts/sent', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { limit } = request.query as { limit?: string };
+
+      const gifts = await giftService.getSentGifts(userId, limit ? parseInt(limit) : 50);
+      return { data: gifts };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get gift details
+  fastify.get('/gifts/:id', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { id } = request.params as { id: string };
+
+      const gift = await giftService.getGiftDetails(id, userId);
+
+      if (!gift) {
+        return reply.status(404).send({ error: { message: 'Gift not found' } });
+      }
+
+      return { data: gift };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Open a gift
+  fastify.post('/gifts/:id/open', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { id } = request.params as { id: string };
+
+      const result = await giftService.openGift(id, userId);
+      return { data: result };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Return a gift
+  fastify.post('/gifts/:id/return', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const { id } = request.params as { id: string };
+
+      const result = await giftService.returnGift(id, userId);
+      return { data: result };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get gift stats
+  fastify.get('/gifts/stats', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const stats = await giftService.getUserGiftStats(userId);
+      return { data: stats };
+    } catch (error) {
+      return reply.status(400).send({ error: { message: (error as Error).message } });
+    }
+  });
+
+  // Get unopened gift count (for notification badge)
+  fastify.get('/gifts/unopened-count', { preHandler: [authenticate] }, async (request, reply) => {
+    try {
+      const userId = (request as any).userId;
+      const count = await giftService.getUnopenedGiftCount(userId);
+      return { data: { count } };
     } catch (error) {
       return reply.status(400).send({ error: { message: (error as Error).message } });
     }
