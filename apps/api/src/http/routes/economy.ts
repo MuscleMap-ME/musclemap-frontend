@@ -118,4 +118,10 @@ export async function registerEconomyRoutes(app: FastifyInstance) {
       meta: { limit, offset },
     });
   });
+
+  // Short alias for wallet (frontend compatibility)
+  app.get('/wallet', { preHandler: authenticate }, async (request, reply) => {
+    const balance = await economyService.getBalance(request.user!.userId);
+    return reply.send({ data: { balance } });
+  });
 }

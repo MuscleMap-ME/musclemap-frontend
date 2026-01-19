@@ -60,9 +60,9 @@ export default function Leaderboard() {
       const headers = { Authorization: `Bearer ${token}` };
       const type = LEADERBOARD_TYPES.find(t => t.key === selectedType);
 
-      // Fetch global leaderboard
+      // Fetch global leaderboard (simple stat-based, not exercise-based)
       const leaderboardRes = await fetch(
-        `/api/leaderboards/global?metric=${type?.metric || 'workout_count'}&window=${selectedWindow}&limit=50`,
+        `/api/leaderboards/simple?metric=${type?.metric || 'workout_count'}&window=${selectedWindow}&limit=50`,
         { headers }
       );
       const leaderboardData = await leaderboardRes.json();

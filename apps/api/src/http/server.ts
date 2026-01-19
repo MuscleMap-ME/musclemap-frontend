@@ -114,6 +114,9 @@ import { registerExerciseGroupRoutes } from './routes/exercise-groups';
 import rpeRoutes from './routes/rpe';
 import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
+import { registerSkinsRoutes } from './routes/skins';
+import { registerBillingRoutes } from './routes/billing';
+import { registerAdminControlRoutes } from './routes/admin-control';
 // Marketplace module - services fully migrated to raw pg client
 import { marketplaceRoutes } from './routes/marketplace';
 // Workout session persistence (for recovery after crashes/restarts)
@@ -479,6 +482,13 @@ export async function createServer(): Promise<FastifyInstance> {
     await api.register(async (credits) => {
       await registerCreditsRoutes(credits);
     }, { prefix: '/credits' });
+
+    // Store route aliases (frontend calls /api/store/* but credits routes are at /api/credits/store/*)
+    // Register credits routes again at root for store/buddy/admin convenience endpoints
+    await api.register(async (storeAlias) => {
+      await registerCreditsRoutes(storeAlias);
+    }, { prefix: '' });
+
     await registerTrainerRoutes(api);
     await registerSkillsRoutes(api);
     await registerMartialArtsRoutes(api);
@@ -595,6 +605,15 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Apple Watch companion app sync
     await registerWatchRoutes(api);
+
+    // Skins/cosmetics management (for SkinsStore page)
+    await registerSkinsRoutes(api);
+
+    // Billing (Stripe subscriptions and credit purchases)
+    await registerBillingRoutes(api);
+
+    // Admin control panel endpoints (for AdminControl and EmpireControl pages)
+    await registerAdminControlRoutes(api);
 
     // Workout session persistence (for recovery after crashes/restarts)
     await api.register(workoutSessionsRoutes);
