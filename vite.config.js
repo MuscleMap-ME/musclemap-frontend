@@ -10,6 +10,11 @@ import { dirname, resolve } from 'path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
 
+// Memory optimization: Skip compression during build if SKIP_COMPRESSION is set
+// This reduces peak memory by ~500MB - compression is done post-build instead
+// See: scripts/build-safe.sh and scripts/compress-assets.sh
+const skipCompression = process.env.SKIP_COMPRESSION === 'true'
+
 export default defineConfig({
   // Define environment variables from package.json
   define: {
@@ -34,7 +39,8 @@ export default defineConfig({
     }),
     // Pre-compress assets with Brotli for faster serving
     // Cloudflare can serve these directly instead of compressing on-the-fly
-    compression({
+    // NOTE: Skip during memory-safe builds (compression done post-build)
+    !skipCompression && compression({
       algorithm: 'brotliCompress',
       ext: '.br',
       threshold: 1024, // Only compress files > 1KB
@@ -42,7 +48,7 @@ export default defineConfig({
       filter: /\.(js|css|html|svg|json)$/i,
     }),
     // Also generate gzip for older clients
-    compression({
+    !skipCompression && compression({
       algorithm: 'gzip',
       ext: '.gz',
       threshold: 1024,

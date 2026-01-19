@@ -214,12 +214,11 @@ export function registerCommand(command) {
     return false;
   }
 
-  // Set defaults
+  // Set defaults and normalize keywords
   const normalizedCommand = {
     category: CATEGORIES.ACTIONS,
-    keywords: [],
     ...command,
-    // Ensure keywords array
+    // Ensure keywords is always an array
     keywords: Array.isArray(command.keywords) ? command.keywords : [],
   };
 

@@ -17,6 +17,8 @@
     "build:api": "pnpm -C apps/api build",
     "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build && pnpm -C packages/client build && pnpm -C packages/ui build",
     "build:all": "pnpm build:packages && pnpm build:api && pnpm build",
+    "build:safe": "sh ./scripts/build-safe.sh",
+    "build:compress": "sh ./scripts/compress-assets.sh",
     "cron:smoke": "node cron-jobs.js --smoke-test",
     "lint": "eslint src/ && pnpm -C apps/api lint && pnpm -C packages/core lint && pnpm -C packages/plugin-sdk lint",
     "lint:frontend": "eslint src/",

@@ -136,21 +136,12 @@ publish_if_needed "packages/contracts" "@musclemap.me/contracts"
 # Step 6: Deploy to VPS
 cd "$MAIN_REPO"
 echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
+echo -e "${YELLOW}   Using memory-safe build (stops PM2, stages builds, manages memory)${NC}"
 ssh root@musclemap.me "cd /var/www/musclemap.me && \
   git fetch origin && \
   git reset --hard origin/main && \
   pnpm install && \
-  echo '📦 Building workspace packages...' && \
-  pnpm -C packages/shared build && \
-  pnpm -C packages/core build && \
-  pnpm -C packages/plugin-sdk build && \
-  pnpm -C packages/client build && \
-  echo '🏗️ Building API...' && \
-  pnpm -C apps/api build && \
-  echo '🏗️ Building frontend...' && \
-  pnpm build && \
-  echo '🔄 Restarting API...' && \
-  pm2 restart musclemap"
+  ./scripts/build-safe.sh"
 
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
