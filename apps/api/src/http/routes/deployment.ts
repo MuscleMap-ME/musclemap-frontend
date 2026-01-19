@@ -819,8 +819,15 @@ export async function registerDeploymentRoutes(app: FastifyInstance): Promise<vo
   // ----------------------------------------
   app.get('/deploy/stream/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
+    const { token } = request.query as { token?: string };
 
-    // Authentication check
+    // Authentication check - support both header and query param (for EventSource)
+    // EventSource doesn't support custom headers, so we accept token as query param
+    if (token) {
+      // Set the authorization header from query param for authenticate() to work
+      request.headers.authorization = `Bearer ${token}`;
+    }
+
     try {
       await authenticate(request, reply);
       if (reply.sent) return;

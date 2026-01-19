@@ -113,7 +113,7 @@ const NAV_SECTIONS = [
   { id: 'database', label: 'Database', icon: Database },
   { id: 'scheduler', label: 'Scheduler', icon: Calendar },
   { id: 'env', label: 'Environment', icon: FileCode },
-  { id: 'deploy', label: 'Deployments', icon: Rocket },
+  { id: 'deploy', label: 'Deployments', icon: Rocket, link: '/empire/deploy' },
   { id: 'realtime-metrics', label: 'Real-time Metrics', icon: Activity },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
   { id: 'security', label: 'Security', icon: Lock },

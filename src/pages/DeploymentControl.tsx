@@ -619,59 +619,102 @@ export default function DeploymentControl() {
       const data = await res.json();
 
       if (data.data?.deploymentId) {
-        setActiveDeployment(data.data.deploymentId);
+        const deploymentId = data.data.deploymentId;
+        setActiveDeployment(deploymentId);
+        setOutput((prev) => [...prev, `Deployment ID: ${deploymentId}\n`, `Connecting to stream...\n\n`]);
 
         // Connect to SSE stream
         const token = localStorage.getItem('musclemap_token');
-        const eventSource = new EventSource(
-          `${API_BASE}/api/deploy/stream/${data.data.deploymentId}?token=${token}`
-        );
+        const streamUrl = `${API_BASE}/api/deploy/stream/${deploymentId}?token=${encodeURIComponent(token || '')}`;
+
+        const eventSource = new EventSource(streamUrl);
         eventSourceRef.current = eventSource;
 
-        eventSource.onmessage = (event) => {
-          const eventData: StreamEvent = JSON.parse(event.data);
+        eventSource.onopen = () => {
+          setOutput((prev) => [...prev, `[Connected to stream]\n\n`]);
+        };
 
-          switch (eventData.type) {
-            case 'history':
-              setOutput((prev) => [...prev, eventData.output || '']);
-              break;
-            case 'step-start':
-              setOutput((prev) => [...prev, `\n--- ${eventData.command}: ${eventData.description} ---\n`]);
-              break;
-            case 'output':
-              setOutput((prev) => [...prev, eventData.chunk || '']);
-              break;
-            case 'complete':
-              setOutput((prev) => [
-                ...prev,
-                `\n[${eventData.command}] Exit: ${eventData.exitCode} (${eventData.duration}ms)\n`,
-              ]);
-              break;
-            case 'sequence-complete':
-              setOutput((prev) => [
-                ...prev,
-                `\n=== ${eventData.success ? 'SUCCESS' : 'FAILED'} (${eventData.duration}ms) ===\n`,
-              ]);
-              setActiveDeployment(null);
-              setActiveSequence(null);
-              eventSource.close();
-              fetchLogs();
-              break;
-            case 'cancelled':
-              setOutput((prev) => [...prev, '\n=== CANCELLED ===\n']);
-              setActiveDeployment(null);
-              setActiveSequence(null);
-              eventSource.close();
-              fetchLogs();
-              break;
+        eventSource.onmessage = (event) => {
+          try {
+            const eventData: StreamEvent = JSON.parse(event.data);
+
+            switch (eventData.type) {
+              case 'start':
+                setOutput((prev) => [...prev, `Starting ${(eventData as unknown as { sequence: string }).sequence}...\n`]);
+                break;
+              case 'history':
+                setOutput((prev) => [...prev, eventData.output || '']);
+                break;
+              case 'step-start':
+                setOutput((prev) => [...prev, `\n--- ${eventData.command}: ${eventData.description} ---\n`]);
+                break;
+              case 'output':
+                setOutput((prev) => [...prev, eventData.chunk || '']);
+                break;
+              case 'complete':
+                setOutput((prev) => [
+                  ...prev,
+                  `\n[${eventData.command}] Exit: ${eventData.exitCode} (${eventData.duration}ms)\n`,
+                ]);
+                break;
+              case 'sequence-complete':
+                setOutput((prev) => [
+                  ...prev,
+                  `\n=== ${eventData.success ? 'SUCCESS' : 'FAILED'} (${eventData.duration}ms) ===\n`,
+                ]);
+                setActiveDeployment(null);
+                setActiveSequence(null);
+                eventSource.close();
+                fetchLogs();
+                break;
+              case 'cancelled':
+                setOutput((prev) => [...prev, '\n=== CANCELLED ===\n']);
+                setActiveDeployment(null);
+                setActiveSequence(null);
+                eventSource.close();
+                fetchLogs();
+                break;
+            }
+          } catch (parseErr) {
+            console.error('Failed to parse SSE event:', parseErr, event.data);
           }
         };
 
-        eventSource.onerror = () => {
+        eventSource.onerror = (err) => {
+          console.error('SSE error:', err);
+          setOutput((prev) => [...prev, `\n[Stream error - connection lost]\n`]);
+
+          // Don't immediately close - the deployment might still be running
+          // Poll for status instead
+          setTimeout(async () => {
+            try {
+              const statusRes = await fetchWithAuth(`/api/deploy/status?id=${deploymentId}`);
+              const statusData = await statusRes.json();
+
+              if (statusData.data && !statusData.data.isActive) {
+                // Deployment finished, fetch the full output
+                const logRes = await fetchWithAuth(`/api/deploy/logs/${deploymentId}`);
+                const logData = await logRes.json();
+
+                if (logData.data?.output) {
+                  setOutput((prev) => [...prev, `\n--- Final Output ---\n`, logData.data.output]);
+                }
+
+                setOutput((prev) => [...prev, `\n=== ${statusData.data.status === 'success' ? 'SUCCESS' : 'FAILED'} ===\n`]);
+                setActiveDeployment(null);
+                setActiveSequence(null);
+                fetchLogs();
+              }
+            } catch (pollErr) {
+              console.error('Failed to poll status:', pollErr);
+            }
+          }, 2000);
+
           eventSource.close();
-          setActiveDeployment(null);
-          setActiveSequence(null);
         };
+      } else if (data.error) {
+        setOutput((prev) => [...prev, `Error: ${data.error.message || 'Unknown error'}\n`]);
+        setActiveSequence(null);
       }
     } catch (err) {
       setOutput((prev) => [...prev, `Error: ${err instanceof Error ? err.message : 'Unknown error'}\n`]);
