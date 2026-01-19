@@ -17,14 +17,15 @@ This document provides a complete technical overview of the MuscleMap production
 5. [Database Architecture](#5-database-architecture)
 6. [Caching Strategy](#6-caching-strategy)
 7. [Application Architecture](#7-application-architecture)
-8. [Process Management](#8-process-management)
-9. [Security Architecture](#9-security-architecture)
-10. [Performance Characteristics](#10-performance-characteristics)
-11. [Operational Constraints](#11-operational-constraints)
-12. [Scaling Considerations](#12-scaling-considerations)
-13. [Monitoring & Observability](#13-monitoring--observability)
-14. [Disaster Recovery](#14-disaster-recovery)
-15. [Cost Optimization](#15-cost-optimization)
+8. [GraphQL Architecture & Data Flow](#8-graphql-architecture--data-flow) ⭐ **CRITICAL**
+9. [Process Management](#9-process-management)
+10. [Security Architecture](#10-security-architecture)
+11. [Performance Characteristics](#11-performance-characteristics)
+12. [Operational Constraints](#12-operational-constraints)
+13. [Scaling Considerations](#13-scaling-considerations)
+14. [Monitoring & Observability](#14-monitoring--observability)
+15. [Disaster Recovery](#15-disaster-recovery)
+16. [Cost Optimization](#16-cost-optimization)
 
 ---
 
@@ -444,12 +445,10 @@ musclemap.me/
 │  ├── @fastify/helmet        # Security headers                      │
 │  ├── @fastify/jwt           # JWT authentication                    │
 │  ├── @fastify/rate-limit    # Rate limiting (Redis-backed)          │
-│  ├── mercurius             # GraphQL server                         │
-│  └── mercurius-cache       # GraphQL response caching               │
+│  └── @apollo/server         # GraphQL server (Apollo Server 5)      │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Route Registration                                                  │
-│  ├── /api/v1/*             # REST endpoints                         │
-│  ├── /graphql              # GraphQL endpoint                       │
+│  ├── /api/graphql          # GraphQL endpoint (PRIMARY)             │
 │  ├── /health               # Health check                           │
 │  ├── /ready                # Readiness probe                        │
 │  └── /metrics              # Prometheus metrics                     │
@@ -467,6 +466,15 @@ musclemap.me/
 │  └── Domain models (validation, behavior)                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**IMPORTANT: GraphQL-Only Architecture**
+
+MuscleMap uses GraphQL as the **exclusive data access layer**. There are no REST endpoints for data operations. All reads and writes flow through the single GraphQL endpoint at `/api/graphql`. This design ensures:
+
+- Single source of truth for API contracts (the GraphQL schema)
+- Automatic type safety from schema to client
+- Efficient data fetching (clients request exactly what they need)
+- Built-in introspection and documentation
 
 ### Frontend Architecture
 
@@ -499,7 +507,310 @@ musclemap.me/
 
 ---
 
-## 8. Process Management
+## 8. GraphQL Architecture & Data Flow
+
+MuscleMap employs a **GraphQL-exclusive** architecture where all client-server communication flows through a single GraphQL endpoint. This is the most critical architectural decision in the system.
+
+### Why GraphQL-Only (No REST)
+
+| Aspect | GraphQL Approach | REST Alternative |
+|--------|-----------------|------------------|
+| Over-fetching | Client requests exactly what's needed | Fixed payloads, often too much data |
+| Under-fetching | Single request for related data | Multiple round trips (N+1) |
+| Type Safety | Schema-driven, auto-generated types | Manual type definitions |
+| Versioning | Schema evolution, deprecation | URL versioning (/v1/, /v2/) |
+| Documentation | Introspection, self-documenting | Swagger/OpenAPI separate |
+| Caching | Normalized cache by entity ID | Response-level only |
+
+### Server-Side GraphQL Stack
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    APOLLO SERVER 5 (Fastify)                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    QUERY PROTECTION                          │    │
+│  │  • Depth Limiting (max 10 levels)                            │    │
+│  │  • Complexity Limiting (100 anon / 500 auth / 1000 premium)  │    │
+│  │  • Rate Limiting (Redis-backed)                              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    PERSISTED QUERIES (APQ)                   │    │
+│  │  • Client sends SHA256 hash instead of full query            │    │
+│  │  • Redis cache (24-hour TTL)                                 │    │
+│  │  • In-memory fallback (1000 queries)                         │    │
+│  │  • Reduces bandwidth by ~90% for repeat queries              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    RESPONSE CACHING                          │    │
+│  │  Per-type TTL configuration:                                 │    │
+│  │  • Static data (Exercise, Muscle): 15 minutes                │    │
+│  │  • Semi-static (Archetype): 30 minutes                       │    │
+│  │  • User data: 1 minute                                       │    │
+│  │  • Real-time (CreditBalance): 15 seconds                     │    │
+│  │  • Never cached: Mutations, Messages, Transactions           │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    DATALOADERS (N+1 Prevention)              │    │
+│  │  • Per-request batching and caching                          │    │
+│  │  • L2 Redis cache for static data                            │    │
+│  │  • Automatic query deduplication                             │    │
+│  │  • Loaders: users, exercises, muscles, workouts, etc.        │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    RESOLVERS                                 │    │
+│  │  • 100+ resolver functions                                   │    │
+│  │  • Authorization checks per field                            │    │
+│  │  • Service layer calls (no direct DB access)                 │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Client-Side Apollo Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    APOLLO CLIENT 4                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    LINK CHAIN (Request Pipeline)             │    │
+│  │                                                              │    │
+│  │  RetryLink ─→ ErrorLink ─→ AuthLink ─→ BatchHttpLink        │    │
+│  │      │            │            │              │              │    │
+│  │      │            │            │              └─ Batches up  │    │
+│  │      │            │            │                 to 10 ops   │    │
+│  │      │            │            │                 per request │    │
+│  │      │            │            │                             │    │
+│  │      │            │            └─ Injects JWT Bearer token   │    │
+│  │      │            │                                          │    │
+│  │      │            └─ Handles UNAUTHENTICATED errors          │    │
+│  │      │               (redirects to /login)                   │    │
+│  │      │                                                       │    │
+│  │      └─ Retries network failures (3 attempts, jitter)        │    │
+│  │                                                              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    NORMALIZED CACHE                          │    │
+│  │                                                              │    │
+│  │  InMemoryCache with Type Policies:                          │    │
+│  │  • Entity normalization by ID (User:123, Workout:456)       │    │
+│  │  • Field-level merge policies for pagination                │    │
+│  │  • Automatic cache updates after mutations                  │    │
+│  │  • Partial data returns (show cached while fetching)        │    │
+│  │                                                              │    │
+│  │  Type Policies:                                              │    │
+│  │  ├── Query.myWorkouts: keyArgs [filter, sortBy], append     │    │
+│  │  ├── Query.exercises: keyArgs [filter, muscleGroup]         │    │
+│  │  ├── Query.messages: cursor pagination, prepend new         │    │
+│  │  ├── User: keyFields [id]                                   │    │
+│  │  ├── Workout: keyFields [id]                                │    │
+│  │  └── Exercise: keyFields [id]                               │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    CACHE PERSISTENCE (IndexedDB)             │    │
+│  │                                                              │    │
+│  │  apollo3-cache-persist:                                     │    │
+│  │  • Persists normalized cache to IndexedDB                   │    │
+│  │  • 5MB maximum size                                         │    │
+│  │  • Debounced writes (1 second)                              │    │
+│  │  • Instant app loads on repeat visits                       │    │
+│  │  • Survives browser refresh/close                           │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Fetch Policies
+
+Apollo Client uses intelligent fetch policies to balance freshness with performance:
+
+| Policy | When Used | Behavior |
+|--------|-----------|----------|
+| `cache-first` | Default for queries | Return cached data immediately; no network if cache hit |
+| `cache-and-network` | Default for watchQuery | Return cache immediately, then update from network |
+| `network-only` | Sensitive data | Skip cache, always fetch fresh |
+| `cache-only` | Offline mode | Only use cache, no network |
+
+**Default Configuration:**
+```javascript
+defaultOptions: {
+  watchQuery: {
+    fetchPolicy: 'cache-and-network',     // Show cached, update in background
+    nextFetchPolicy: 'cache-first',        // After first load, prefer cache
+    returnPartialData: true,               // Show what we have immediately
+    notifyOnNetworkStatusChange: true,     // Show loading states on refetch
+  },
+  query: {
+    fetchPolicy: 'cache-first',            // Single queries prefer cache
+    returnPartialData: true,               // Return partial while fetching rest
+  }
+}
+```
+
+### Hydration Strategy
+
+MuscleMap uses a **cache-first hydration** strategy for optimal perceived performance:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    APP STARTUP SEQUENCE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. IndexedDB Cache Restore (0-50ms)                                │
+│     └─ Restore persisted Apollo cache from IndexedDB                │
+│     └─ App can render immediately with cached data                  │
+│                                                                      │
+│  2. Render with Cached Data (50-100ms)                              │
+│     └─ React renders using restored cache                           │
+│     └─ User sees content immediately (no loading spinners)          │
+│                                                                      │
+│  3. Background Revalidation (100ms+)                                │
+│     └─ Queries with cache-and-network policy                        │
+│     └─ Fresh data fetched from server                               │
+│     └─ UI updates seamlessly when new data arrives                  │
+│                                                                      │
+│  4. Optimistic Updates (user interactions)                          │
+│     └─ Mutations show immediate UI feedback                         │
+│     └─ Server response confirms or rolls back                       │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**First Load vs Repeat Visit:**
+
+| Scenario | Time to Content | Data Freshness |
+|----------|----------------|----------------|
+| First visit (empty cache) | ~500-1000ms | Fresh from server |
+| Repeat visit (with cache) | ~50-100ms | Cached, then updated |
+| Offline (with cache) | ~50ms | Last cached state |
+
+### Optimistic Updates
+
+Mutations use optimistic responses for instant UI feedback:
+
+```javascript
+// Example: Adding a workout
+const [addWorkout] = useMutation(ADD_WORKOUT, {
+  // Optimistic response - UI updates immediately
+  optimisticResponse: {
+    addWorkout: {
+      __typename: 'Workout',
+      id: 'temp-id',           // Temporary ID
+      date: new Date(),
+      exercises: [...],
+      totalTU: 150,
+    }
+  },
+  // Update cache after mutation
+  update: (cache, { data }) => {
+    // Add new workout to cached list
+    cache.modify({
+      fields: {
+        myWorkouts: (existing = []) => [data.addWorkout, ...existing]
+      }
+    });
+  }
+});
+```
+
+### Offline Support (Service Worker)
+
+The Service Worker extends GraphQL caching for offline scenarios:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    OFFLINE ARCHITECTURE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Service Worker (public/sw.js)                                      │
+│  ├── Static Assets: Cache-first (7 days)                            │
+│  ├── GraphQL Queries: Stale-while-revalidate (1 minute)             │
+│  ├── GraphQL Mutations: Queue for Background Sync                   │
+│  └── Exercise Database: Cached 30 days in IndexedDB                │
+│                                                                      │
+│  IndexedDB Stores:                                                   │
+│  ├── pending-requests: Failed mutations awaiting sync               │
+│  ├── exercises: Full exercise library (offline search)              │
+│  ├── pending-workouts: Workouts logged while offline                │
+│  ├── sync-queue: Ordered mutation queue                             │
+│  ├── sync-metadata: Last sync timestamps                            │
+│  └── conflicts: Server conflicts for resolution                     │
+│                                                                      │
+│  Background Sync:                                                    │
+│  ├── Max retries: 5                                                 │
+│  ├── Base delay: 1 second                                           │
+│  ├── Max delay: 5 minutes                                           │
+│  ├── Backoff: Exponential (2x)                                      │
+│  └── Syncs when: Online + page visible                              │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Client vs Server Responsibilities
+
+| Responsibility | Client (Apollo) | Server (Apollo Server) |
+|---------------|-----------------|------------------------|
+| Data fetching | Request batching, caching | DataLoader batching |
+| Authentication | Token injection | JWT validation |
+| Authorization | Hide UI elements | Field-level checks |
+| Validation | Form validation | Schema + resolver validation |
+| Pagination | Cursor tracking, merge | Keyset pagination queries |
+| Real-time | WebSocket subscription | Subscription resolvers |
+| Offline | IndexedDB queue | Conflict resolution |
+
+### GraphQL Schema Statistics
+
+| Metric | Count |
+|--------|-------|
+| Types | ~100 |
+| Queries | ~50 |
+| Mutations | ~80 |
+| Subscriptions | ~10 |
+| Resolver functions | 100+ |
+| Lines in schema.ts | ~58,000 |
+| Lines in resolvers.ts | ~104,000 |
+
+### Performance Optimizations
+
+1. **Query Batching (Client)**
+   - BatchHttpLink combines up to 10 operations per HTTP request
+   - Adaptive interval based on connection quality (20ms 4G, 500ms 2G)
+
+2. **DataLoader (Server)**
+   - Per-request batching prevents N+1 queries
+   - L2 Redis cache for static data
+
+3. **Persisted Queries (APQ)**
+   - SHA256 hash instead of full query text
+   - 90%+ bandwidth reduction for repeat queries
+
+4. **Response Caching**
+   - Redis-backed per-type TTL
+   - Static data cached 15-30 minutes
+   - Dynamic data 15-60 seconds
+
+5. **Complexity Limiting**
+   - Prevents expensive queries from DoS
+   - Tiered limits: 100 (anon) / 500 (auth) / 1000 (premium)
+
+---
+
+## 9. Process Management
 
 ### PM2 Configuration
 
@@ -572,7 +883,7 @@ process.send('ready');
 
 ---
 
-## 9. Security Architecture
+## 10. Security Architecture
 
 ### Network Security
 
@@ -639,7 +950,7 @@ Permissions-Policy: geolocation=(), camera=(), microphone=()
 
 ---
 
-## 10. Performance Characteristics
+## 11. Performance Characteristics
 
 ### Response Time Targets
 
@@ -673,7 +984,7 @@ Permissions-Policy: geolocation=(), camera=(), microphone=()
 
 ---
 
-## 11. Operational Constraints
+## 12. Operational Constraints
 
 ### Critical Limitations
 
@@ -713,7 +1024,7 @@ pm2 start ecosystem.config.cjs --env production
 
 ---
 
-## 12. Scaling Considerations
+## 13. Scaling Considerations
 
 ### Current Capacity vs. Load
 
@@ -771,7 +1082,7 @@ When vertical scaling is exhausted:
 
 ---
 
-## 13. Monitoring & Observability
+## 14. Monitoring & Observability
 
 ### Health Endpoints
 
@@ -819,7 +1130,7 @@ graphql_cache_hits_total
 
 ---
 
-## 14. Disaster Recovery
+## 15. Disaster Recovery
 
 ### Backup Strategy
 
@@ -864,7 +1175,7 @@ pm2 restart musclemap
 
 ---
 
-## 15. Cost Optimization
+## 16. Cost Optimization
 
 ### Current Infrastructure Cost
 
