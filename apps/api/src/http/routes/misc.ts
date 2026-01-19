@@ -31,6 +31,45 @@ export async function registerMiscRoutes(app: FastifyInstance) {
     return reply.send({ data: muscles });
   });
 
+  // Muscle activations for authenticated user - aggregates from recent workouts
+  app.get('/muscles/activations', { preHandler: optionalAuth }, async (request, reply) => {
+    const userId = (request as any).userId;
+
+    // If not authenticated, return empty array (frontend will use fallback)
+    if (!userId) {
+      return reply.send({ data: [] });
+    }
+
+    // Get muscle activations from user's workouts in the last 30 days
+    const workouts = await queryAll<{ muscle_activations: Record<string, number> | null }>(
+      `SELECT muscle_activations FROM workouts
+       WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'
+       AND muscle_activations IS NOT NULL`,
+      [userId]
+    );
+
+    // Aggregate muscle activations
+    const muscleActivations: Record<string, number> = {};
+    for (const row of workouts) {
+      const activations = row.muscle_activations || {};
+      for (const [muscleId, value] of Object.entries(activations)) {
+        muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + (value as number);
+      }
+    }
+
+    // Convert to array format expected by frontend
+    const activationArray = Object.entries(muscleActivations)
+      .map(([muscleId, activation]) => ({
+        muscleId,
+        activation: Math.min(100, Math.round(activation)), // Cap at 100
+      }))
+      .sort((a, b) => b.activation - a.activation);
+
+    // Short cache since this is user-specific
+    reply.header('Cache-Control', 'private, max-age=60');
+    return reply.send({ data: activationArray });
+  });
+
   // Exercises - reference data, cache at edge
   app.get('/exercises', async (request, reply) => {
     const params = request.query as { location?: string; equipment?: string; include_videos?: string };
