@@ -2435,13 +2435,12 @@ export const resolvers = {
         name: string;
         credits: number;
         price_cents: number;
-        currency: string;
         bonus_credits: number | null;
-        is_active: boolean;
+        enabled: boolean;
       }>(
-        `SELECT id, name, credits, price_cents, currency, bonus_credits, is_active
+        `SELECT id, name, credits, price_cents, bonus_credits, enabled
          FROM credit_packages
-         WHERE is_active = TRUE
+         WHERE enabled = TRUE
          ORDER BY credits`
       );
 
@@ -2460,7 +2459,7 @@ export const resolvers = {
         name: p.name,
         credits: p.credits,
         price: p.price_cents / 100,
-        currency: p.currency,
+        currency: 'USD', // Default currency
         bonus: p.bonus_credits || 0,
       }));
     },
