@@ -423,7 +423,10 @@ build_api() {
 
     if needs_rebuild "api" "apps/api"; then
         check_memory $MIN_MEMORY_API "API" || return 1
-        pnpm -C apps/api build
+        if ! pnpm -C apps/api build; then
+            error "API build failed!"
+            return 1
+        fi
         save_build_hash "api" "apps/api"
         success "API built"
     else
@@ -473,7 +476,14 @@ build_frontend() {
         log "SKIP_COMPRESSION: $SKIP_COMPRESSION"
         log "LOW_MEMORY: $LOW_MEMORY"
 
-        pnpm build
+        # Run build and capture exit code
+        if ! pnpm build; then
+            unset NODE_OPTIONS
+            unset SKIP_COMPRESSION
+            unset LOW_MEMORY
+            error "Frontend build failed!"
+            return 1
+        fi
 
         unset NODE_OPTIONS
         unset SKIP_COMPRESSION
