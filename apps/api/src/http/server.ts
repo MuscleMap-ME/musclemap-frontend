@@ -100,7 +100,7 @@ import adminBackupRoutes from './routes/admin-backup';
 import adminEnvRoutes from './routes/admin-env';
 import adminDatabaseRoutes from './routes/admin-database';
 import adminFeaturesRoutes from './routes/admin-features';
-import adminMetricsRoutes from './routes/admin-metrics';
+import adminMetricsRoutes, { registerMetricsHook } from './routes/admin-metrics';
 import adminAlertsRoutes from './routes/admin-alerts';
 import adminDocsRoutes from './routes/admin-docs';
 import adminAnalyticsRoutes from './routes/admin-analytics';
@@ -412,6 +412,10 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Register metrics routes (/metrics endpoint)
   await registerMetricsRoutes(app as unknown as FastifyInstance);
+
+  // Register metrics collection hook for real-time admin metrics
+  // This captures all requests for the admin metrics dashboard
+  registerMetricsHook(app as unknown as FastifyInstance);
 
   // Initialize PubSub for GraphQL subscriptions
   await initializePubSub();

@@ -522,36 +522,103 @@ export default function MetricsPanel() {
     }
   }, []);
 
-  // Fetch metrics via REST
+  // Fetch metrics via REST - calls multiple endpoints and combines data
   const fetchMetrics = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/metrics?range=${timeRange}`, {
-        headers: getAuthHeader(),
-      });
+      const headers = getAuthHeader();
 
-      if (res.ok) {
-        const data = await res.json();
-        setMetrics(data);
-        setLastUpdate(Date.now());
+      // Fetch from all metrics endpoints in parallel
+      const [realtimeRes, endpointsRes, usersRes, wsRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/metrics/realtime`, { headers }),
+        fetch(`${API_BASE}/admin/metrics/endpoints`, { headers }),
+        fetch(`${API_BASE}/admin/metrics/users`, { headers }),
+        fetch(`${API_BASE}/admin/metrics/websockets`, { headers }),
+      ]);
 
-        // Update history for sparklines
-        setHistory((prev) => ({
-          requests: [...prev.requests.slice(-19), data.requestsPerSecond || 0],
-          errors: [...prev.errors.slice(-19), data.errorRate || 0],
-          latency: [...prev.latency.slice(-19), data.avgLatency || 0],
-          users: [...prev.users.slice(-19), data.activeUsers || 0],
-        }));
-      }
+      // Parse responses
+      const realtime = realtimeRes.ok ? await realtimeRes.json() : null;
+      const endpointsData = endpointsRes.ok ? await endpointsRes.json() : null;
+      const usersData = usersRes.ok ? await usersRes.json() : null;
+      const wsData = wsRes.ok ? await wsRes.json() : null;
+
+      // Combine into the expected format
+      const combinedMetrics = {
+        // From realtime endpoint
+        requestsPerSecond: realtime?.requests?.perSecond || 0,
+        requestsPerMinute: realtime?.requests?.perMinute || 0,
+        totalRequests: realtime?.requests?.total || 0,
+        errorRate: realtime?.errors?.rate || 0,
+        totalErrors: realtime?.errors?.total || 0,
+        avgLatency: realtime?.latency?.avg || 0,
+        percentiles: {
+          p50: realtime?.latency?.p50 || 0,
+          p95: realtime?.latency?.p95 || 0,
+          p99: realtime?.latency?.p99 || 0,
+        },
+        statusCodes: realtime?.statusCodes || {},
+        // From users endpoint
+        activeUsers: usersData?.activeUsers?.last5m || 0,
+        // From endpoints
+        endpoints: endpointsData?.endpoints?.map((ep: {
+          endpoint: string;
+          method: string;
+          requests: number;
+          errors: number;
+          errorRate: number;
+          latency: { avg: number; p99: number }
+        }) => ({
+          endpoint: ep.endpoint,
+          method: ep.method,
+          requests: ep.requests,
+          errors: ep.errors,
+          errorRate: ep.errorRate,
+          avgLatency: ep.latency?.avg || 0,
+          p99Latency: ep.latency?.p99 || 0,
+        })) || [],
+        // From websockets endpoint
+        websocketConnections: wsData?.connections?.total || 0,
+      };
+
+      setMetrics(combinedMetrics);
+      setLastUpdate(Date.now());
+
+      // Update history for sparklines
+      setHistory((prev) => ({
+        requests: [...prev.requests.slice(-19), combinedMetrics.requestsPerSecond],
+        errors: [...prev.errors.slice(-19), combinedMetrics.errorRate],
+        latency: [...prev.latency.slice(-19), combinedMetrics.avgLatency],
+        users: [...prev.users.slice(-19), combinedMetrics.activeUsers],
+      }));
     } catch (err) {
       console.error('Failed to fetch metrics:', err);
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader, timeRange]);
+  }, [getAuthHeader]);
 
   // Connect to WebSocket for real-time updates
   const connectWebSocket = useCallback(() => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    // Try to get token from various storage locations
+    let token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+
+    // Also try musclemap-auth (Zustand store)
+    if (!token) {
+      try {
+        const authData = localStorage.getItem('musclemap-auth');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          token = parsed?.state?.token || null;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    // Fallback to legacy token
+    if (!token) {
+      token = localStorage.getItem('musclemap_token');
+    }
+
     if (!token) {
       console.error('No auth token for WebSocket');
       return;
@@ -573,16 +640,38 @@ export default function MetricsPanel() {
         try {
           const data = JSON.parse(event.data);
 
-          if (data.type === 'metrics') {
-            setMetrics((prev) => ({ ...prev, ...data.metrics }));
+          if (data.type === 'metrics' && data.data) {
+            // Transform the WebSocket data to match our expected format
+            const realtime = data.data.realtime;
+            const usersData = data.data.users;
+            const wsData = data.data.websockets;
+
+            const transformedMetrics = {
+              requestsPerSecond: realtime?.requests?.perSecond || 0,
+              requestsPerMinute: realtime?.requests?.perMinute || 0,
+              totalRequests: realtime?.requests?.total || 0,
+              errorRate: realtime?.errors?.rate || 0,
+              totalErrors: realtime?.errors?.total || 0,
+              avgLatency: realtime?.latency?.avg || 0,
+              percentiles: {
+                p50: realtime?.latency?.p50 || 0,
+                p95: realtime?.latency?.p95 || 0,
+                p99: realtime?.latency?.p99 || 0,
+              },
+              statusCodes: realtime?.statusCodes || {},
+              activeUsers: usersData?.activeUsers?.last5m || 0,
+              websocketConnections: wsData?.connections?.total || 0,
+            };
+
+            setMetrics((prev) => ({ ...prev, ...transformedMetrics }));
             setLastUpdate(Date.now());
 
             // Update history
             setHistory((prev) => ({
-              requests: [...prev.requests.slice(-19), data.metrics.requestsPerSecond || 0],
-              errors: [...prev.errors.slice(-19), data.metrics.errorRate || 0],
-              latency: [...prev.latency.slice(-19), data.metrics.avgLatency || 0],
-              users: [...prev.users.slice(-19), data.metrics.activeUsers || 0],
+              requests: [...prev.requests.slice(-19), transformedMetrics.requestsPerSecond],
+              errors: [...prev.errors.slice(-19), transformedMetrics.errorRate],
+              latency: [...prev.latency.slice(-19), transformedMetrics.avgLatency],
+              users: [...prev.users.slice(-19), transformedMetrics.activeUsers],
             }));
           }
         } catch {
