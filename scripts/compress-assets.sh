@@ -110,8 +110,9 @@ find "$DIST_DIR" -type f \( \
     fi
 
     # Brotli compression (if available)
+    # Note: brotli uses -q for quality (not -NUMBER like gzip)
     if [ "$HAS_BROTLI" = true ]; then
-        if brotli -${BROTLI_LEVEL} -k -f "$file" 2>/dev/null; then
+        if brotli -q ${BROTLI_LEVEL} -k -f "$file" 2>/dev/null; then
             ((compressed_brotli++)) || true
         fi
     fi
