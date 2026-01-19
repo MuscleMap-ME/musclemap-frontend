@@ -503,7 +503,24 @@ compress_assets() {
     stage "Compressing Assets"
 
     if [ -f "./scripts/compress-assets.sh" ]; then
-        ./scripts/compress-assets.sh
+        # Check if brotli files are missing (gzip exists but not brotli)
+        local gz_count=0
+        local br_count=0
+        if [ -d "./dist" ]; then
+            gz_count=$(find ./dist -name "*.gz" -type f 2>/dev/null | wc -l | tr -d ' ')
+            br_count=$(find ./dist -name "*.br" -type f 2>/dev/null | wc -l | tr -d ' ')
+        fi
+
+        # Force compression if: force rebuild requested, or brotli files missing but gzip exists
+        if [ "$FORCE_REBUILD" = true ]; then
+            log "Force rebuild - recompressing all assets"
+            ./scripts/compress-assets.sh --force
+        elif [ "$gz_count" -gt 0 ] && [ "$br_count" -eq 0 ]; then
+            log "Brotli files missing (gz: $gz_count, br: $br_count) - generating..."
+            ./scripts/compress-assets.sh --force
+        else
+            ./scripts/compress-assets.sh
+        fi
     else
         warn "compress-assets.sh not found, skipping compression"
     fi
