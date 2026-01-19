@@ -83,6 +83,7 @@ const Goals = lazy(() => import('./pages/Goals'));
 const Limitations = lazy(() => import('./pages/Limitations'));
 const PTTests = lazy(() => import('./pages/PTTests'));
 const CareerReadiness = lazy(() => import('./pages/CareerReadiness'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 
 // Career pages
 const CareerPage = lazy(() => import('./pages/CareerPage'));
@@ -123,6 +124,7 @@ const AdminIssues = lazy(() => import('./pages/AdminIssues'));
 const AdminMonitoring = lazy(() => import('./pages/AdminMonitoring'));
 const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const AdminDisputes = lazy(() => import('./pages/AdminDisputes'));
+const AdminFraud = lazy(() => import('./pages/AdminFraud'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
 const TestScorecard = lazy(() => import('./pages/TestScorecard'));
 const DeploymentControl = lazy(() => import('./pages/DeploymentControl'));
@@ -511,12 +513,14 @@ function AppRoutes() {
           <Route path="/progress-photos" element={<ProtectedRoute name="ProgressPhotos"><ProgressPhotos /></ProtectedRoute>} />
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
           <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
-          <Route path="/wellness" element={<ProtectedRoute name="Wellness"><Health /></ProtectedRoute>} />
+          <Route path="/health" element={<ProtectedRoute name="Health"><Health /></ProtectedRoute>} />
+          <Route path="/wellness" element={<Navigate to="/health" replace />} /> {/* Legacy alias */}
           <Route path="/recovery" element={<ProtectedRoute name="Recovery"><Recovery /></ProtectedRoute>} />
           <Route path="/goals" element={<ProtectedRoute name="Goals"><Goals /></ProtectedRoute>} />
           <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
           <Route path="/career-readiness" element={<ProtectedRoute name="CareerReadiness"><CareerReadiness /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute name="Leaderboard"><Leaderboard /></ProtectedRoute>} />
 
           {/* Career routes */}
           <Route path="/career" element={<ProtectedRoute name="CareerPage"><CareerPage /></ProtectedRoute>} />
@@ -543,11 +547,13 @@ function AppRoutes() {
           <Route path="/verifications/:verificationId/witness" element={<ProtectedRoute name="WitnessAttestation"><WitnessAttestation /></ProtectedRoute>} />
 
           {/* Admin routes */}
+          <Route path="/admin" element={<Navigate to="/admin-control" replace />} /> {/* Shortcut */}
           <Route path="/admin-control" element={<AdminRoute name="AdminControl"><AdminControl /></AdminRoute>} />
           <Route path="/admin/issues" element={<AdminRoute name="AdminIssues"><AdminIssues /></AdminRoute>} />
           <Route path="/admin/monitoring" element={<AdminRoute name="AdminMonitoring"><AdminMonitoring /></AdminRoute>} />
           <Route path="/admin/metrics" element={<AdminRoute name="AdminMetrics"><AdminMetrics /></AdminRoute>} />
           <Route path="/admin/disputes" element={<AdminRoute name="AdminDisputes"><AdminDisputes /></AdminRoute>} />
+          <Route path="/admin/fraud" element={<AdminRoute name="AdminFraud"><AdminFraud /></AdminRoute>} />
           <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
           <Route path="/empire/scorecard" element={<AdminRoute name="TestScorecard"><TestScorecard /></AdminRoute>} />
           <Route path="/empire/deploy" element={<AdminRoute name="DeploymentControl"><DeploymentControl /></AdminRoute>} />

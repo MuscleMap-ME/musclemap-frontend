@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "pnpm run check:routes && tsc",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
@@ -17,7 +17,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "test:watch": "vitest",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "check:routes": "tsx scripts/check-routes.ts"
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",
