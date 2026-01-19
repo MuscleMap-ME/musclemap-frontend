@@ -170,13 +170,16 @@ export const virtualHangoutsService = {
       params.push(String(themeId));
     }
 
-    // User membership join if user is authenticated
+    // User membership join if user is authenticated - use parameterized query to prevent SQL injection
     const userJoin = userId
-      ? `LEFT JOIN virtual_hangout_memberships vhm ON vhm.hangout_id = vh.id AND vhm.user_id = '${userId}'`
+      ? `LEFT JOIN virtual_hangout_memberships vhm ON vhm.hangout_id = vh.id AND vhm.user_id = $${paramIndex++}`
       : '';
     const userSelect = userId
       ? ', vhm.role as user_role, (vhm.user_id IS NOT NULL) as is_member, vhm.last_active_at as last_visited_at'
       : ', NULL as user_role, NULL as is_member, NULL as last_visited_at';
+    if (userId) {
+      params.push(userId);
+    }
 
     const rows = await queryAll<{
       id: number;
@@ -246,12 +249,17 @@ export const virtualHangoutsService = {
    * Get a single hangout by ID
    */
   async getHangoutById(hangoutId: number, userId?: string): Promise<VirtualHangout | null> {
+    // Use parameterized query to prevent SQL injection
+    const params: (number | string)[] = [hangoutId];
     const userJoin = userId
-      ? `LEFT JOIN virtual_hangout_memberships vhm ON vhm.hangout_id = vh.id AND vhm.user_id = '${userId}'`
+      ? `LEFT JOIN virtual_hangout_memberships vhm ON vhm.hangout_id = vh.id AND vhm.user_id = $2`
       : '';
     const userSelect = userId
       ? ', vhm.role as user_role, (vhm.user_id IS NOT NULL) as is_member, vhm.last_active_at as last_visited_at'
       : ', NULL as user_role, NULL as is_member, NULL as last_visited_at';
+    if (userId) {
+      params.push(userId);
+    }
 
     const row = await queryOne<{
       id: number;
@@ -283,7 +291,7 @@ export const virtualHangoutsService = {
        JOIN virtual_hangout_themes vht ON vht.id = vh.theme_id
        ${userJoin}
        WHERE vh.id = $1`,
-      [hangoutId]
+      params
     );
 
     if (!row) return null;

@@ -314,6 +314,9 @@ export const OneRepMaxService = {
   ): Promise<OneRMEntry[]> {
     const { limit = 100, days = 365 } = options;
 
+    // Validate days parameter to prevent SQL injection
+    const validatedDays = Math.max(1, Math.min(3650, Math.floor(Number(days) || 365)));
+
     const rows = await queryAll<{
       id: string;
       user_id: string;
@@ -336,10 +339,10 @@ export const OneRepMaxService = {
        FROM exercise_1rm_history h
        LEFT JOIN exercises e ON e.id = h.exercise_id
        WHERE h.user_id = $1 AND h.exercise_id = $2
-         AND h.recorded_at >= CURRENT_DATE - INTERVAL '${days} days'
+         AND h.recorded_at >= CURRENT_DATE - INTERVAL '1 day' * $3
        ORDER BY h.recorded_at DESC
-       LIMIT $3`,
-      [userId, exerciseId, limit]
+       LIMIT $4`,
+      [userId, exerciseId, validatedDays, limit]
     );
 
     return rows.map(r => this.mapEntry(r));
@@ -354,6 +357,9 @@ export const OneRepMaxService = {
     options: { period?: 'daily' | 'weekly' | 'monthly'; days?: number } = {}
   ): Promise<OneRMProgression> {
     const { period = 'daily', days = 180 } = options;
+
+    // Validate days parameter to prevent SQL injection
+    const validatedDays = Math.max(1, Math.min(3650, Math.floor(Number(days) || 180)));
 
     const dateFunc = period === 'monthly'
       ? "DATE_TRUNC('month', recorded_at)"
@@ -372,10 +378,10 @@ export const OneRepMaxService = {
          BOOL_OR(is_pr) as is_pr
        FROM exercise_1rm_history
        WHERE user_id = $1 AND exercise_id = $2
-         AND recorded_at >= CURRENT_DATE - INTERVAL '${days} days'
+         AND recorded_at >= CURRENT_DATE - INTERVAL '1 day' * $3
        GROUP BY ${dateFunc}
        ORDER BY ${dateFunc} ASC`,
-      [userId, exerciseId]
+      [userId, exerciseId, validatedDays]
     );
 
     const exercise = await queryOne<{ name: string }>(

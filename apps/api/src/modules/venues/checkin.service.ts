@@ -267,7 +267,8 @@ export const checkinService = {
         checked_out_at = NOW(),
         auto_checkout = TRUE
        WHERE is_active = TRUE
-         AND checked_in_at < NOW() - INTERVAL '${VENUE_CONSTANTS.AUTO_CHECKOUT_MINUTES} minutes'`
+         AND checked_in_at < NOW() - INTERVAL '1 minute' * $1`,
+      [VENUE_CONSTANTS.AUTO_CHECKOUT_MINUTES]
     );
 
     const count = result.rowCount || 0;

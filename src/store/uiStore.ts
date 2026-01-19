@@ -145,15 +145,41 @@ export const useUIStore = create(
   }))
 );
 
-// Initialize responsive listener
-if (typeof window !== 'undefined') {
-  let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
+// FE-001 FIX: Initialize responsive listener with cleanup capability
+// Store the handler so it can be removed if needed (e.g., in tests or SSR)
+let resizeHandler = null;
+let resizeTimeout = null;
+
+export function initResizeListener() {
+  if (typeof window === 'undefined') return () => {};
+
+  // Clean up any existing listener first
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler);
+  }
+
+  resizeHandler = () => {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       useUIStore.getState().updateBreakpoints();
     }, 100);
-  });
+  };
+
+  window.addEventListener('resize', resizeHandler);
+
+  // Return cleanup function
+  return () => {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      resizeHandler = null;
+    }
+  };
+}
+
+// Auto-initialize on module load (but provide cleanup)
+if (typeof window !== 'undefined') {
+  initResizeListener();
 }
 
 /**

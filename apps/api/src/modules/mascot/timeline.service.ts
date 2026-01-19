@@ -557,6 +557,9 @@ export const mascotTimelineService = {
     reactionsShown: number;
     reactionsPending: number;
   }> {
+    // Validate days parameter to prevent SQL injection
+    const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 7)));
+
     const stats = await queryOne<{
       total_events: string;
       events_by_type: Record<string, number>;
@@ -575,17 +578,17 @@ export const mascotTimelineService = {
       LEFT JOIN LATERAL (
         SELECT event_type, COUNT(*) as count
         FROM mascot_timeline_events
-        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${days} days'
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day' * $2
         GROUP BY event_type
       ) type_counts ON type_counts.event_type = e.event_type
       LEFT JOIN LATERAL (
         SELECT importance, COUNT(*) as count
         FROM mascot_timeline_events
-        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${days} days'
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day' * $2
         GROUP BY importance
       ) imp_counts ON imp_counts.importance = e.importance
-      WHERE e.user_id = $1 AND e.created_at > NOW() - INTERVAL '${days} days'
-    `, [userId]);
+      WHERE e.user_id = $1 AND e.created_at > NOW() - INTERVAL '1 day' * $2
+    `, [userId, validatedDays]);
 
     return {
       totalEvents: parseInt(stats?.total_events || '0'),

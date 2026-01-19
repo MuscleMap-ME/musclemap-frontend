@@ -172,14 +172,23 @@ export class RecipeService {
   }
 
   async getRecipe(id: string, userId?: string): Promise<Recipe | null> {
+    // Use parameterized query to prevent SQL injection
+    const params: string[] = [id];
+    const userSelect = userId
+      ? `EXISTS(SELECT 1 FROM recipe_saves WHERE recipe_id = r.id AND user_id = $2) as is_saved,
+         (SELECT rating FROM recipe_ratings WHERE recipe_id = r.id AND user_id = $2) as user_rating`
+      : 'false as is_saved, null as user_rating';
+    if (userId) {
+      params.push(userId);
+    }
+
     const row = await db.queryOne<any>(`
       SELECT r.*, u.username as author_username, u.avatar_url as author_avatar_url,
-             ${userId ? `EXISTS(SELECT 1 FROM recipe_saves WHERE recipe_id = r.id AND user_id = '${userId}') as is_saved,
-             (SELECT rating FROM recipe_ratings WHERE recipe_id = r.id AND user_id = '${userId}') as user_rating` : 'false as is_saved, null as user_rating'}
+             ${userSelect}
       FROM recipes r
       LEFT JOIN users u ON r.author_id = u.id
       WHERE r.id = $1
-    `, [id]);
+    `, params);
 
     if (!row) return null;
 
@@ -294,11 +303,19 @@ export class RecipeService {
 
     const total = parseInt(countResult?.count || '0');
 
+    // Use parameterized query to prevent SQL injection
+    const userSelect = userId
+      ? `, EXISTS(SELECT 1 FROM recipe_saves WHERE recipe_id = r.id AND user_id = $${paramIndex++}) as is_saved`
+      : ', false as is_saved';
+    if (userId) {
+      params.push(userId);
+    }
+
     // Get recipes
     params.push(limit + 1); // +1 to check hasMore
     const rows = await db.queryAll<any>(`
       SELECT r.*, u.username as author_username, u.avatar_url as author_avatar_url
-             ${userId ? `, EXISTS(SELECT 1 FROM recipe_saves WHERE recipe_id = r.id AND user_id = '${userId}') as is_saved` : ', false as is_saved'}
+             ${userSelect}
       FROM recipes r
       LEFT JOIN users u ON r.author_id = u.id
       WHERE ${whereClause}

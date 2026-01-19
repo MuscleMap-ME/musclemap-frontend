@@ -123,13 +123,16 @@ const progressPhotosRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = (request as any).userId;
       const { days = 365 } = request.query as { days?: number };
 
+      // Validate days parameter to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(3650, Math.floor(Number(days) || 365)));
+
       const photos = await db.queryAll<Photo>(
         `SELECT id, photo_type, pose, photo_date, thumbnail_path, weight_kg
          FROM progress_photos
          WHERE user_id = $1 AND deleted_at IS NULL
-           AND photo_date >= CURRENT_DATE - INTERVAL '${days} days'
+           AND photo_date >= CURRENT_DATE - INTERVAL '1 day' * $2
          ORDER BY photo_date DESC`,
-        [userId]
+        [userId, validatedDays]
       );
 
       // Group by date

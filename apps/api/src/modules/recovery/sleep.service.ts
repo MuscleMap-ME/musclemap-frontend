@@ -253,13 +253,14 @@ export async function getSleepStats(
   userId: string,
   period: 'week' | 'month' | 'all' = 'week'
 ): Promise<SleepStats> {
-  const intervalMap = {
-    week: '7 days',
-    month: '30 days',
-    all: '365 days', // Cap at 1 year for performance
+  // Map period to days - using parameterized queries for safety
+  const daysMap: Record<string, number> = {
+    week: 7,
+    month: 30,
+    all: 365, // Cap at 1 year for performance
   };
 
-  const interval = intervalMap[period];
+  const days = daysMap[period] || 7;
 
   // Get aggregate stats
   const stats = await queryOne<{
@@ -278,17 +279,17 @@ export async function getSleepStats(
       MAX(sleep_duration_minutes) as max_duration,
       ROUND(STDDEV(sleep_duration_minutes)::numeric, 1) as stddev_duration
     FROM sleep_logs
-    WHERE user_id = $1 AND bed_time >= NOW() - INTERVAL '${interval}'`,
-    [userId]
+    WHERE user_id = $1 AND bed_time >= NOW() - INTERVAL '1 day' * $2`,
+    [userId, days]
   );
 
   // Get quality distribution
   const qualityDist = await queryAll<{ quality: number; count: string }>(
     `SELECT quality, COUNT(*) as count
      FROM sleep_logs
-     WHERE user_id = $1 AND bed_time >= NOW() - INTERVAL '${interval}'
+     WHERE user_id = $1 AND bed_time >= NOW() - INTERVAL '1 day' * $2
      GROUP BY quality`,
-    [userId]
+    [userId, days]
   );
 
   const qualityMap: Record<number, number> = {};
@@ -305,9 +306,9 @@ export async function getSleepStats(
     `SELECT COUNT(*) as count
      FROM sleep_logs
      WHERE user_id = $1
-       AND bed_time >= NOW() - INTERVAL '${interval}'
-       AND sleep_duration_minutes >= $2`,
-    [userId, targetMinutes * 0.9] // Within 90% of target
+       AND bed_time >= NOW() - INTERVAL '1 day' * $2
+       AND sleep_duration_minutes >= $3`,
+    [userId, days, targetMinutes * 0.9] // Within 90% of target
   );
 
   const nightsLogged = parseInt(stats?.nights_logged || '0');

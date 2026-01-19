@@ -275,13 +275,16 @@ const bodyMeasurementsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'Invalid field name' });
       }
 
+      // Validate days is a positive integer to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(3650, Math.floor(Number(days) || 365)));
+
       const history = await db.queryAll<{ measurement_date: string; [key: string]: unknown }>(
         `SELECT measurement_date, ${field}
          FROM body_measurements
          WHERE user_id = $1 AND ${field} IS NOT NULL
-           AND measurement_date >= CURRENT_DATE - INTERVAL '${days} days'
+           AND measurement_date >= CURRENT_DATE - INTERVAL '1 day' * $2
          ORDER BY measurement_date ASC`,
-        [userId]
+        [userId, validatedDays]
       );
 
       // Calculate stats
@@ -321,14 +324,17 @@ const bodyMeasurementsRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.send({ comparison: null, message: 'No measurements found' });
       }
 
+      // Validate days is a positive integer to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(3650, Math.floor(Number(days) || 30)));
+
       // Get measurement from X days ago
       const past = await db.queryOne<Record<string, unknown>>(
         `SELECT * FROM body_measurements
          WHERE user_id = $1
-           AND measurement_date <= CURRENT_DATE - INTERVAL '${days} days'
+           AND measurement_date <= CURRENT_DATE - INTERVAL '1 day' * $2
          ORDER BY measurement_date DESC
          LIMIT 1`,
-        [userId]
+        [userId, validatedDays]
       );
 
       if (!past) {

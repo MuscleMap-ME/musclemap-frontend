@@ -19,8 +19,14 @@ import { bugFixQueue, type BugFixJobData } from '../../jobs/bug-fix.queue';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Bug Hunter API key for automated syncing (allows sync without admin auth)
-const BUG_HUNTER_API_KEY = process.env.BUG_HUNTER_API_KEY || 'bug-hunter-internal-key-12345';
+// SEC-003 FIX: Bug Hunter API key for automated syncing - MUST be set via environment variable
+// No fallback to hardcoded value to prevent security bypass
+const BUG_HUNTER_API_KEY = process.env.BUG_HUNTER_API_KEY;
+
+// Warn if not configured (but don't crash - just disable the feature)
+if (!BUG_HUNTER_API_KEY) {
+  console.warn('⚠️  BUG_HUNTER_API_KEY not set - Bug hunter API authentication disabled');
+}
 
 /**
  * Middleware to allow either admin auth OR bug hunter API key
@@ -28,7 +34,8 @@ const BUG_HUNTER_API_KEY = process.env.BUG_HUNTER_API_KEY || 'bug-hunter-interna
 async function authenticateBugHunterOrAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const bugHunterKey = request.headers['x-bug-hunter-key'];
 
-  if (bugHunterKey === BUG_HUNTER_API_KEY) {
+  // SEC-003 FIX: Only allow bug hunter key if it's actually configured
+  if (BUG_HUNTER_API_KEY && bugHunterKey === BUG_HUNTER_API_KEY) {
     // Bug hunter key is valid, allow the request
     return;
   }

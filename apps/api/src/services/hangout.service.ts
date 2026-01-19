@@ -199,10 +199,16 @@ export const hangoutService = {
    * Get hangout by ID
    */
   async getById(hangoutId: number, userId?: string): Promise<HangoutDetails | null> {
-    const userJoin = userId
-      ? `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = '${userId}'`
-      : '';
-    const userSelect = userId ? ', hm.role as user_role, (hm.user_id IS NOT NULL) as is_member' : ', NULL as user_role, NULL as is_member';
+    // Build parameterized query to prevent SQL injection
+    const params: (string | number)[] = [hangoutId];
+    let userJoin = '';
+    let userSelect = ', NULL as user_role, NULL as is_member';
+
+    if (userId) {
+      userJoin = `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = $2`;
+      userSelect = ', hm.role as user_role, (hm.user_id IS NOT NULL) as is_member';
+      params.push(userId);
+    }
 
     const row = await queryOne<{
       id: number;
@@ -241,7 +247,7 @@ export const hangoutService = {
       JOIN hangout_types ht ON ht.id = h.type_id
       ${userJoin}
       WHERE h.id = $1`,
-      [hangoutId]
+      params
     );
 
     if (!row) return null;

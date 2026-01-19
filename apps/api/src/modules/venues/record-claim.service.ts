@@ -376,8 +376,8 @@ export const recordClaimService = {
     const recentWitness = await queryOne(
       `SELECT id FROM venue_records
        WHERE user_id = $1 AND witness_user_id = $2
-         AND witness_verified_at > NOW() - INTERVAL '${VENUE_CONSTANTS.WITNESS_COOLDOWN_HOURS} hours'`,
-      [userId, witnessUserId]
+         AND witness_verified_at > NOW() - INTERVAL '1 hour' * $3`,
+      [userId, witnessUserId, VENUE_CONSTANTS.WITNESS_COOLDOWN_HOURS]
     );
 
     if (recentWitness) {

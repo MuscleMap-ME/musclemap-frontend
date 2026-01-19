@@ -258,6 +258,9 @@ export async function getActivityStats(
   byCountry: Record<string, number>;
   byType: Record<string, number>;
 }> {
+  // Validate minutes parameter to prevent SQL injection (even though we now parameterize)
+  const validatedMinutes = Math.max(1, Math.min(1440, Math.floor(Number(minutes) || 60)));
+
   const stats = {
     total: 0,
     byMuscle: {} as Record<string, number>,
@@ -266,10 +269,11 @@ export async function getActivityStats(
   };
 
   try {
-    // Total count
+    // Total count - using parameterized query
     const totalResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*)::text as count FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'`
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1`,
+      [validatedMinutes]
     );
     stats.total = parseInt(totalResult?.count || '0');
 
@@ -277,9 +281,10 @@ export async function getActivityStats(
     const muscleResults = await queryAll<{ muscle_group: string; count: string }>(
       `SELECT muscle_group, COUNT(*)::text as count
        FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
          AND muscle_group IS NOT NULL
-       GROUP BY muscle_group`
+       GROUP BY muscle_group`,
+      [validatedMinutes]
     );
     for (const row of muscleResults) {
       stats.byMuscle[row.muscle_group] = parseInt(row.count);
@@ -289,9 +294,10 @@ export async function getActivityStats(
     const countryResults = await queryAll<{ country_code: string; count: string }>(
       `SELECT country_code, COUNT(*)::text as count
        FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
          AND country_code IS NOT NULL
-       GROUP BY country_code`
+       GROUP BY country_code`,
+      [validatedMinutes]
     );
     for (const row of countryResults) {
       stats.byCountry[row.country_code] = parseInt(row.count);
@@ -301,8 +307,9 @@ export async function getActivityStats(
     const typeResults = await queryAll<{ event_type: string; count: string }>(
       `SELECT event_type, COUNT(*)::text as count
        FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
-       GROUP BY event_type`
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
+       GROUP BY event_type`,
+      [validatedMinutes]
     );
     for (const row of typeResults) {
       stats.byType[row.event_type] = parseInt(row.count);
@@ -327,6 +334,9 @@ export async function getMapData(
   lat?: number;
   lng?: number;
 }>> {
+  // Validate minutes parameter to prevent SQL injection
+  const validatedMinutes = Math.max(1, Math.min(1440, Math.floor(Number(minutes) || 60)));
+
   try {
     const results = await queryAll<{ geo_bucket: string; city: string | null; country: string | null; count: number }>(
       `SELECT
@@ -335,11 +345,12 @@ export async function getMapData(
          country_code as country,
          COUNT(*)::int as count
        FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
          AND geo_bucket IS NOT NULL
        GROUP BY geo_bucket, city, country_code
        ORDER BY count DESC
-       LIMIT 100`
+       LIMIT 100`,
+      [validatedMinutes]
     );
 
     return results.map((row) => ({
@@ -362,58 +373,62 @@ export async function getHierarchyData(
   parentCode?: string,
   minutes: number = 60
 ): Promise<Array<{ name: string; code: string; count: number }>> {
+  // Validate minutes parameter to prevent SQL injection
+  const validatedMinutes = Math.max(1, Math.min(1440, Math.floor(Number(minutes) || 60)));
+
   try {
     let sql: string;
-    let params: string[] = [];
+    let params: (string | number)[] = [];
 
     switch (level) {
       case 'global':
-        // Get country-level aggregates
+        // Get country-level aggregates - parameterized query
         sql = `
           SELECT
             country_code as code,
             country_code as name,
             COUNT(*)::int as count
           FROM live_activity_events
-          WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
+          WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
             AND country_code IS NOT NULL
           GROUP BY country_code
           ORDER BY count DESC
           LIMIT 50`;
+        params = [validatedMinutes];
         break;
 
       case 'country':
-        // Get region-level aggregates for a country
+        // Get region-level aggregates for a country - parameterized query
         sql = `
           SELECT
             region as code,
             region as name,
             COUNT(*)::int as count
           FROM live_activity_events
-          WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
-            AND country_code = $1
+          WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
+            AND country_code = $2
             AND region IS NOT NULL
           GROUP BY region
           ORDER BY count DESC
           LIMIT 50`;
-        params = [parentCode || ''];
+        params = [validatedMinutes, parentCode || ''];
         break;
 
       case 'region':
-        // Get city-level aggregates for a region
+        // Get city-level aggregates for a region - parameterized query
         sql = `
           SELECT
             city as code,
             city as name,
             COUNT(*)::int as count
           FROM live_activity_events
-          WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
-            AND region = $1
+          WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
+            AND region = $2
             AND city IS NOT NULL
           GROUP BY city
           ORDER BY count DESC
           LIMIT 50`;
-        params = [parentCode || ''];
+        params = [validatedMinutes, parentCode || ''];
         break;
 
       default:
@@ -444,6 +459,10 @@ export async function getTrendingExercises(
   muscleGroup: string;
   count: number;
 }>> {
+  // Validate minutes parameter to prevent SQL injection
+  const validatedMinutes = Math.max(1, Math.min(1440, Math.floor(Number(minutes) || 60)));
+  const validatedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 10)));
+
   try {
     const results = await queryAll<{ exercise_id: string; exercise_name: string; muscle_group: string; count: number }>(
       `SELECT
@@ -452,13 +471,13 @@ export async function getTrendingExercises(
          muscle_group,
          COUNT(*)::int as count
        FROM live_activity_events
-       WHERE created_at >= NOW() - INTERVAL '${minutes} minutes'
+       WHERE created_at >= NOW() - INTERVAL '1 minute' * $1
          AND exercise_id IS NOT NULL
          AND exercise_name IS NOT NULL
        GROUP BY exercise_id, exercise_name, muscle_group
        ORDER BY count DESC
-       LIMIT $1`,
-      [limit]
+       LIMIT $2`,
+      [validatedMinutes, validatedLimit]
     );
 
     return results.map((row) => ({

@@ -213,16 +213,35 @@ const cache = new InMemoryCache({
           },
         },
         // Messages with cursor pagination
+        // CACHE-001 FIX: Handle message merge properly to avoid stale/duplicate messages
         messages: {
           keyArgs: ['conversationId'],
           merge(existing, incoming, { args }) {
-            if (!existing) return incoming;
-            // Prepend new messages (newer first)
-            if (args?.before) {
-              return { ...incoming, messages: [...incoming.messages, ...existing.messages] };
+            // If no existing cache or refreshing (no cursor), replace entirely
+            if (!existing || (!args?.before && !args?.after)) {
+              return incoming;
             }
-            // Append old messages (pagination)
-            return { ...existing, messages: [...existing.messages, ...incoming.messages] };
+
+            // Safety check for incoming data structure
+            if (!incoming?.messages) return existing;
+
+            // Deduplicate messages by id to prevent duplicates
+            const existingIds = new Set(existing.messages?.map((m: { id: string }) => m.id) || []);
+            const uniqueIncoming = incoming.messages.filter((m: { id: string }) => !existingIds.has(m.id));
+
+            // Prepend new messages (when loading newer via 'before' cursor)
+            if (args?.before) {
+              return {
+                ...incoming,
+                messages: [...uniqueIncoming, ...(existing.messages || [])],
+              };
+            }
+
+            // Append old messages (when paginating via 'after' cursor)
+            return {
+              ...existing,
+              messages: [...(existing.messages || []), ...uniqueIncoming],
+            };
           },
         },
         // Notifications

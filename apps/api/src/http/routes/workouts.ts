@@ -584,13 +584,14 @@ export async function registerWorkoutRoutes(app: FastifyInstance) {
   // Get user muscle activations
   app.get('/workouts/me/muscles', { preHandler: authenticate }, async (request, reply) => {
     const query_params = request.query as { days?: string };
-    const days = Math.min(parseInt(query_params.days || '7'), 365);
+    // Validate days parameter to prevent SQL injection
+    const days = Math.max(1, Math.min(365, Math.floor(Number(query_params.days) || 7)));
 
     // JSONB columns are returned as objects by PostgreSQL - no parsing needed
     const workouts = await queryAll<{ muscle_activations: Record<string, number> | null }>(
       `SELECT muscle_activations FROM workouts
-       WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${days} days'`,
-      [request.user!.userId]
+       WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '1 day' * $2`,
+      [request.user!.userId, days]
     );
 
     const totals: Record<string, number> = {};

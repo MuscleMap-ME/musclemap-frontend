@@ -122,7 +122,9 @@ export async function getRPETrends(
   exerciseId: string,
   days: number = 30
 ): Promise<RPETrend[]> {
-  const cacheKey = `${CACHE_PREFIX.USER_STATS}rpe:${userId}:${exerciseId}:${days}`;
+  // Validate days parameter to prevent SQL injection
+  const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+  const cacheKey = `${CACHE_PREFIX.USER_STATS}rpe:${userId}:${exerciseId}:${validatedDays}`;
 
   return cache.getOrSet(cacheKey, CACHE_TTL.USER_STATS, async () => {
     const trends = await queryAll<{
@@ -150,9 +152,9 @@ export async function getRPETrends(
       LEFT JOIN exercises e ON e.id = v.exercise_id
       WHERE v.user_id = $1
         AND v.exercise_id = $2
-        AND v.workout_date >= CURRENT_DATE - INTERVAL '${days} days'
+        AND v.workout_date >= CURRENT_DATE - INTERVAL '1 day' * $3
       ORDER BY v.workout_date DESC`,
-      [userId, exerciseId]
+      [userId, exerciseId, validatedDays]
     );
 
     return trends.map((t) => ({
@@ -177,6 +179,9 @@ export async function getWeeklyRPETrends(
   exerciseId: string,
   weeks: number = 12
 ): Promise<WeeklyRPETrend[]> {
+  // Validate weeks parameter to prevent SQL injection
+  const validatedWeeks = Math.max(1, Math.min(52, Math.floor(Number(weeks) || 12)));
+
   const trends = await queryAll<{
     exercise_id: string;
     week_start: Date;
@@ -193,9 +198,9 @@ export async function getWeeklyRPETrends(
      FROM v_rpe_weekly_trends
      WHERE user_id = $1
        AND exercise_id = $2
-       AND week_start >= CURRENT_DATE - INTERVAL '${weeks} weeks'
+       AND week_start >= CURRENT_DATE - INTERVAL '1 week' * $3
      ORDER BY week_start DESC`,
-    [userId, exerciseId]
+    [userId, exerciseId, validatedWeeks]
   );
 
   return trends.map((t) => ({
@@ -612,6 +617,9 @@ export async function getRPESnapshots(
   userId: string,
   days: number = 30
 ): Promise<RPESnapshot[]> {
+  // Validate days parameter to prevent SQL injection
+  const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+
   const snapshots = await queryAll<{
     user_id: string;
     snapshot_date: Date;
@@ -624,9 +632,9 @@ export async function getRPESnapshots(
     `SELECT *
      FROM rpe_snapshots
      WHERE user_id = $1
-       AND snapshot_date >= CURRENT_DATE - INTERVAL '${days} days'
+       AND snapshot_date >= CURRENT_DATE - INTERVAL '1 day' * $2
      ORDER BY snapshot_date DESC`,
-    [userId]
+    [userId, validatedDays]
   );
 
   return snapshots.map((s) => ({

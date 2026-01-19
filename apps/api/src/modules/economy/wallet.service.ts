@@ -708,8 +708,8 @@ export const walletService = {
        SET transfers_today = 0, daily_reset_at = CURRENT_DATE
        WHERE user_id = $1
        AND daily_reset_at < CURRENT_DATE
-       AND NOW() >= CURRENT_DATE + INTERVAL '${BUFFER_SECONDS} seconds'`,
-      [userId]
+       AND NOW() >= CURRENT_DATE + INTERVAL '1 second' * $2`,
+      [userId, BUFFER_SECONDS]
     );
 
     // Reset hourly counter with 60s buffer window
@@ -719,8 +719,8 @@ export const walletService = {
        SET transfers_this_hour = 0, hourly_reset_at = date_trunc('hour', NOW())
        WHERE user_id = $1
        AND hourly_reset_at < date_trunc('hour', NOW())
-       AND NOW() >= date_trunc('hour', NOW()) + INTERVAL '${BUFFER_SECONDS} seconds'`,
-      [userId]
+       AND NOW() >= date_trunc('hour', NOW()) + INTERVAL '1 second' * $2`,
+      [userId, BUFFER_SECONDS]
     );
 
     const limits = await queryOne<{

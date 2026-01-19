@@ -350,13 +350,19 @@ export const issuesService = {
     const isNumber = /^\d+$/.test(issueId);
     const whereClause = isNumber ? 'i.issue_number = $1' : 'i.id = $1';
 
+    // Use parameterized query to prevent SQL injection
+    const params: (string | number)[] = [isNumber ? parseInt(issueId, 10) : issueId];
     const userJoins = userId
-      ? `LEFT JOIN issue_votes iv ON iv.issue_id = i.id AND iv.user_id = '${userId}'
-         LEFT JOIN issue_subscribers isub ON isub.issue_id = i.id AND isub.user_id = '${userId}'`
+      ? `LEFT JOIN issue_votes iv ON iv.issue_id = i.id AND iv.user_id = $2
+         LEFT JOIN issue_subscribers isub ON isub.issue_id = i.id AND isub.user_id = $2`
       : '';
     const userSelects = userId
       ? ', (iv.user_id IS NOT NULL) as has_voted, (isub.user_id IS NOT NULL) as is_subscribed'
       : ', NULL as has_voted, NULL as is_subscribed';
+
+    if (userId) {
+      params.push(userId);
+    }
 
     const row = await queryOne<{
       id: string;
@@ -404,7 +410,7 @@ export const issuesService = {
       LEFT JOIN users uas ON uas.id = i.assignee_id
       ${userJoins}
       WHERE ${whereClause}`,
-      [isNumber ? parseInt(issueId, 10) : issueId]
+      params
     );
 
     if (!row) return null;
@@ -562,15 +568,19 @@ export const issuesService = {
         break;
     }
 
+    // Use parameterized query to prevent SQL injection
     const userJoins = userId
-      ? `LEFT JOIN issue_votes iv ON iv.issue_id = i.id AND iv.user_id = '${userId}'`
+      ? `LEFT JOIN issue_votes iv ON iv.issue_id = i.id AND iv.user_id = $${paramIndex++}`
       : '';
     const userSelects = userId ? ', (iv.user_id IS NOT NULL) as has_voted' : ', NULL as has_voted';
+    if (userId) {
+      params.push(userId);
+    }
 
     // Get total count
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM issues i WHERE ${whereClause}`,
-      params
+      params.slice(0, params.length - (userId ? 1 : 0)) // Exclude userId from count query
     );
     const total = parseInt(countResult?.count || '0', 10);
 
@@ -1164,10 +1174,14 @@ export const issuesService = {
       params.push(quarter);
     }
 
+    // Use parameterized query to prevent SQL injection
     const userJoins = userId
-      ? `LEFT JOIN roadmap_votes rv ON rv.roadmap_id = r.id AND rv.user_id = '${userId}'`
+      ? `LEFT JOIN roadmap_votes rv ON rv.roadmap_id = r.id AND rv.user_id = $${paramIndex++}`
       : '';
     const userSelects = userId ? ', (rv.user_id IS NOT NULL) as has_voted' : ', NULL as has_voted';
+    if (userId) {
+      params.push(userId);
+    }
 
     const rows = await queryAll<{
       id: string;

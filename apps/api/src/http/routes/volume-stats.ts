@@ -21,6 +21,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = (request as any).userId;
       const { days = 30 } = request.query as { days?: number };
 
+      // Validate and sanitize days parameter to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+
       const data = await db.queryAll(
         `SELECT
           DATE(performed_at) as date,
@@ -30,10 +33,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
           COUNT(DISTINCT exercise_id) as exercises
          FROM workout_sets
          WHERE user_id = $1 AND tag != 'warmup'
-           AND performed_at >= CURRENT_DATE - INTERVAL '${days} days'
+           AND performed_at >= CURRENT_DATE - INTERVAL '1 day' * $2
          GROUP BY DATE(performed_at)
          ORDER BY DATE(performed_at) ASC`,
-        [userId]
+        [userId, validatedDays]
       );
 
       return reply.send({ data });
@@ -48,6 +51,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = (request as any).userId;
       const { weeks = 12 } = request.query as { weeks?: number };
 
+      // Validate and sanitize weeks parameter to prevent SQL injection
+      const validatedWeeks = Math.max(1, Math.min(52, Math.floor(Number(weeks) || 12)));
+
       const data = await db.queryAll(
         `SELECT
           DATE_TRUNC('week', performed_at) as week_start,
@@ -58,10 +64,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
           COUNT(DISTINCT DATE(performed_at)) as workout_days
          FROM workout_sets
          WHERE user_id = $1 AND tag != 'warmup'
-           AND performed_at >= CURRENT_DATE - INTERVAL '${weeks} weeks'
+           AND performed_at >= CURRENT_DATE - INTERVAL '1 week' * $2
          GROUP BY DATE_TRUNC('week', performed_at)
          ORDER BY DATE_TRUNC('week', performed_at) ASC`,
-        [userId]
+        [userId, validatedWeeks]
       );
 
       return reply.send({ data });
@@ -77,6 +83,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const { exerciseId } = request.params as { exerciseId: string };
       const { days = 90 } = request.query as { days?: number };
 
+      // Validate and sanitize days parameter to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 90)));
+
       const data = await db.queryAll(
         `SELECT
           DATE(performed_at) as date,
@@ -87,10 +96,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
           COUNT(*) as total_sets
          FROM workout_sets
          WHERE user_id = $1 AND exercise_id = $2 AND tag != 'warmup'
-           AND performed_at >= CURRENT_DATE - INTERVAL '${days} days'
+           AND performed_at >= CURRENT_DATE - INTERVAL '1 day' * $3
          GROUP BY DATE(performed_at)
          ORDER BY DATE(performed_at) ASC`,
-        [userId, exerciseId]
+        [userId, exerciseId, validatedDays]
       );
 
       // Get PRs for this exercise
@@ -113,6 +122,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const { exerciseId } = request.params as { exerciseId: string };
       const { days = 180 } = request.query as { days?: number };
 
+      // Validate and sanitize days parameter to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 180)));
+
       const data = await db.queryAll<{ date: string; estimated_1rm: number; max_weight: number }>(
         `SELECT
           DATE(performed_at) as date,
@@ -121,10 +133,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
          FROM workout_sets
          WHERE user_id = $1 AND exercise_id = $2 AND tag != 'warmup'
            AND estimated_1rm IS NOT NULL
-           AND performed_at >= CURRENT_DATE - INTERVAL '${days} days'
+           AND performed_at >= CURRENT_DATE - INTERVAL '1 day' * $3
          GROUP BY DATE(performed_at)
          ORDER BY DATE(performed_at) ASC`,
-        [userId, exerciseId]
+        [userId, exerciseId, validatedDays]
       );
 
       // Calculate improvement
@@ -150,6 +162,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = (request as any).userId;
       const { days = 7 } = request.query as { days?: number };
 
+      // Validate and sanitize days parameter to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 7)));
+
       const data = await db.queryAll(
         `SELECT
           e.primary_muscle as muscle,
@@ -158,10 +173,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
          FROM workout_sets ws
          JOIN exercises e ON ws.exercise_id = e.id
          WHERE ws.user_id = $1 AND ws.tag != 'warmup'
-           AND ws.performed_at >= CURRENT_DATE - INTERVAL '${days} days'
+           AND ws.performed_at >= CURRENT_DATE - INTERVAL '1 day' * $2
          GROUP BY e.primary_muscle
          ORDER BY SUM(ws.weight * ws.reps) DESC`,
-        [userId]
+        [userId, validatedDays]
       );
 
       return reply.send({ data });
@@ -176,6 +191,9 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
       const userId = (request as any).userId;
       const { weeks = 4 } = request.query as { weeks?: number };
 
+      // Validate and sanitize weeks parameter to prevent SQL injection
+      const validatedWeeks = Math.max(1, Math.min(52, Math.floor(Number(weeks) || 4)));
+
       const data = await db.queryAll(
         `SELECT
           DATE_TRUNC('week', ws.performed_at) as week_start,
@@ -185,10 +203,10 @@ const volumeStatsRoutes: FastifyPluginAsync = async (fastify) => {
          FROM workout_sets ws
          JOIN exercises e ON ws.exercise_id = e.id
          WHERE ws.user_id = $1 AND ws.tag != 'warmup'
-           AND ws.performed_at >= CURRENT_DATE - INTERVAL '${weeks} weeks'
+           AND ws.performed_at >= CURRENT_DATE - INTERVAL '1 week' * $2
          GROUP BY DATE_TRUNC('week', ws.performed_at), e.primary_muscle
          ORDER BY DATE_TRUNC('week', ws.performed_at) ASC`,
-        [userId]
+        [userId, validatedWeeks]
       );
 
       return reply.send({ data });

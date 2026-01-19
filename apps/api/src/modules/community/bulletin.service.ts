@@ -223,11 +223,14 @@ export const bulletinService = {
 
     const whereClause = conditions.join(' AND ');
 
-    // User vote join
+    // User vote join - use parameterized query to prevent SQL injection
     const userJoin = userId
-      ? `LEFT JOIN bulletin_votes bv ON bv.post_id = bp.id AND bv.user_id = '${userId}'`
+      ? `LEFT JOIN bulletin_votes bv ON bv.post_id = bp.id AND bv.user_id = $${paramIndex++}`
       : '';
     const userSelect = userId ? ', bv.vote_type as user_vote' : ', NULL as user_vote';
+    if (userId) {
+      params.push(userId);
+    }
 
     // Sort order
     let orderBy: string;
@@ -327,10 +330,15 @@ export const bulletinService = {
    * Get a single post by ID
    */
   async getPostById(postId: string, userId?: string): Promise<BulletinPost | null> {
+    // Use parameterized query to prevent SQL injection
+    const params: string[] = [postId];
     const userJoin = userId
-      ? `LEFT JOIN bulletin_votes bv ON bv.post_id = bp.id AND bv.user_id = '${userId}'`
+      ? `LEFT JOIN bulletin_votes bv ON bv.post_id = bp.id AND bv.user_id = $2`
       : '';
     const userSelect = userId ? ', bv.vote_type as user_vote' : ', NULL as user_vote';
+    if (userId) {
+      params.push(userId);
+    }
 
     const row = await queryOne<{
       id: string;
@@ -369,7 +377,7 @@ export const bulletinService = {
        LEFT JOIN users u ON u.id = bp.author_id
        ${userJoin}
        WHERE bp.id = $1`,
-      [postId]
+      params
     );
 
     if (!row) return null;
@@ -541,10 +549,16 @@ export const bulletinService = {
   ): Promise<{ comments: BulletinComment[]; total: number }> {
     const { limit = 50, offset = 0 } = options;
 
+    // Use parameterized query to prevent SQL injection
+    const params: (string | number)[] = [postId];
+    let paramIndex = 2;
     const userJoin = userId
-      ? `LEFT JOIN bulletin_votes bcv ON bcv.comment_id = bc.id AND bcv.user_id = '${userId}'`
+      ? `LEFT JOIN bulletin_votes bcv ON bcv.comment_id = bc.id AND bcv.user_id = $${paramIndex++}`
       : '';
     const userSelect = userId ? ', bcv.vote_type as user_vote' : ', NULL as user_vote';
+    if (userId) {
+      params.push(userId);
+    }
 
     // Get top-level comments
     const rows = await queryAll<{
@@ -576,8 +590,8 @@ export const bulletinService = {
        ${userJoin}
        WHERE bc.post_id = $1 AND bc.parent_id IS NULL AND bc.is_hidden = FALSE
        ORDER BY bc.score DESC, bc.created_at
-       LIMIT $2 OFFSET $3`,
-      [postId, limit, offset]
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, limit, offset]
     );
 
     const countResult = await queryOne<{ count: string }>(

@@ -453,6 +453,10 @@ const workoutSetsRoutes: FastifyPluginAsync = async (fastify) => {
       const { exerciseId } = request.params as { exerciseId: string };
       const { limit, days } = request.query as { limit?: string; days?: string };
 
+      // Validate days and limit parameters to prevent SQL injection
+      const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 90)));
+      const validatedLimit = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 200)));
+
       const sets = await queryAll<{
         id: string;
         workout_id: string;
@@ -470,10 +474,10 @@ const workoutSetsRoutes: FastifyPluginAsync = async (fastify) => {
                 is_pr_weight, is_pr_1rm, performed_at
          FROM workout_sets
          WHERE user_id = $1 AND exercise_id = $2 AND tag != 'warmup'
-           AND performed_at >= CURRENT_DATE - INTERVAL '${days || 90} days'
+           AND performed_at >= CURRENT_DATE - INTERVAL '1 day' * $3
          ORDER BY performed_at DESC, set_number
-         LIMIT $3`,
-        [userId, exerciseId, limit ? parseInt(limit) : 200]
+         LIMIT $4`,
+        [userId, exerciseId, validatedDays, validatedLimit]
       );
 
       // Calculate stats

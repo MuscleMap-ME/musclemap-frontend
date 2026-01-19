@@ -402,6 +402,9 @@ export const dailyLoginService = {
     credits: number;
     xp: number;
   }>> {
+    // Validate days parameter to prevent SQL injection
+    const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+
     const rewards = await queryAll<{
       login_date: string;
       day_number: number;
@@ -410,9 +413,9 @@ export const dailyLoginService = {
     }>(
       `SELECT login_date, day_number, credits_awarded, xp_awarded
        FROM daily_login_rewards
-       WHERE user_id = $1 AND login_date >= CURRENT_DATE - INTERVAL '${days} days'
+       WHERE user_id = $1 AND login_date >= CURRENT_DATE - INTERVAL '1 day' * $2
        ORDER BY login_date DESC`,
-      [userId]
+      [userId, validatedDays]
     );
 
     const rewardMap = new Map(rewards.map((r) => [r.login_date, r]));
@@ -424,7 +427,7 @@ export const dailyLoginService = {
       xp: number;
     }> = [];
 
-    for (let i = 0; i < days; i++) {
+    for (let i = 0; i < validatedDays; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = getDateString(date);

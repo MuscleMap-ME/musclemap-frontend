@@ -510,17 +510,21 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
   app.get('/community/stats/summary', async (request, reply) => {
     const params = request.query as { window?: string };
     const window = params.window || '24h';
+    // Use parameterized interval to prevent SQL injection
+    const intervalDays = window === '7d' ? 7 : 1;
 
     const [totalUsers, activeUsers, workoutsCount, totalWorkoutVolume] = await Promise.all([
       queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM users'),
       getActiveUserCount(),
       queryOne<{ count: string }>(
         `SELECT COUNT(*)::int as count FROM workouts
-         WHERE created_at > NOW() - INTERVAL '${window === '7d' ? '7 days' : '24 hours'}'`
+         WHERE created_at > NOW() - INTERVAL '1 day' * $1`,
+        [intervalDays]
       ),
       queryOne<{ total: string }>(
         `SELECT COALESCE(SUM(total_tu), 0) as total FROM workouts
-         WHERE created_at > NOW() - INTERVAL '${window === '7d' ? '7 days' : '24 hours'}'`
+         WHERE created_at > NOW() - INTERVAL '1 day' * $1`,
+        [intervalDays]
       ),
     ]);
 
@@ -560,17 +564,19 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     const params = request.query as { window?: string; limit?: string };
     const window = params.window || '7d';
     const limit = Math.min(parseInt(params.limit || '20'), 50);
+    // Use parameterized interval to prevent SQL injection
+    const intervalDays = window === '30d' ? 30 : 7;
 
     const exercises = await queryAll<{ exercise_id: string; name: string; count: string }>(
       `SELECT ea.exercise_id, e.name, COUNT(*)::int as count
        FROM workout_exercises we
        JOIN exercise_activations ea ON we.exercise_id = ea.exercise_id
        JOIN exercises e ON ea.exercise_id = e.id
-       WHERE we.created_at > NOW() - INTERVAL '${window === '30d' ? '30 days' : '7 days'}'
+       WHERE we.created_at > NOW() - INTERVAL '1 day' * $2
        GROUP BY ea.exercise_id, e.name
        ORDER BY count DESC
        LIMIT $1`,
-      [limit]
+      [limit, intervalDays]
     );
 
     return reply.send({

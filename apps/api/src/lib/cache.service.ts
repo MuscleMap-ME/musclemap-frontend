@@ -49,7 +49,8 @@ export const CACHE_TTL = {
   USER_PROFILE: 300,               // 5 minutes
 
   // Aggregated data
-  LEADERBOARD: 60,                 // 1 minute
+  // CACHE-004 FIX: Increase leaderboard TTL from 1 to 5 minutes to reduce recalculations
+  LEADERBOARD: 300,                // 5 minutes (was 1 minute)
   MEMBER_COUNTS: 300,              // 5 minutes
   GEO_STATS: 300,                  // 5 minutes
   NEARBY_HANGOUTS: 300,            // 5 minutes

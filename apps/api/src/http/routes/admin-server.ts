@@ -495,11 +495,27 @@ export default async function adminServerRoutes(fastify: FastifyInstance) {
   // GET /admin/server/logs/stream (WebSocket)
   // Real-time log streaming
   // ----------------------------------------
-  fastify.get('/admin/server/logs/stream', { websocket: true }, (socket, request) => {
+  fastify.get('/admin/server/logs/stream', { websocket: true }, async (socket, request) => {
     // Verify admin access (token in query string for WebSocket)
     const token = (request.query as { token?: string }).token;
     if (!token) {
       socket.send(JSON.stringify({ error: 'Authentication required' }));
+      socket.close();
+      return;
+    }
+
+    // SEC-002 FIX: Actually verify the JWT token, not just check existence
+    try {
+      const { verifyToken } = await import('./auth');
+      const decoded = verifyToken(token);
+      const roles = decoded.roles || [];
+      if (!roles.includes('admin') && !roles.includes('owner')) {
+        socket.send(JSON.stringify({ error: 'Admin access required' }));
+        socket.close();
+        return;
+      }
+    } catch (err) {
+      socket.send(JSON.stringify({ error: 'Invalid or expired token' }));
       socket.close();
       return;
     }

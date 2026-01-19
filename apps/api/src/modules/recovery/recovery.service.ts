@@ -586,12 +586,15 @@ export async function getRecoveryHistory(
   userId: string,
   days: number = 30
 ): Promise<RecoveryHistory> {
+  // Validate days parameter to prevent SQL injection
+  const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+
   const rows = await queryAll<any>(
     `SELECT * FROM recovery_scores
      WHERE user_id = $1
-       AND calculated_at >= NOW() - INTERVAL '${days} days'
+       AND calculated_at >= NOW() - INTERVAL '1 day' * $2
      ORDER BY calculated_at DESC`,
-    [userId]
+    [userId, validatedDays]
   );
 
   const scores = rows.map(mapRowToRecoveryScore);

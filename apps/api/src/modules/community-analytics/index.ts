@@ -579,6 +579,10 @@ export const communityAnalyticsService = {
   ): Promise<TopContributor[]> {
     const { days = 30, limit = 10 } = options;
 
+    // Validate days and limit parameters to prevent SQL injection
+    const validatedDays = Math.max(1, Math.min(365, Math.floor(Number(days) || 30)));
+    const validatedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 10)));
+
     const rows = await queryAll<{
       user_id: string;
       username: string;
@@ -599,9 +603,9 @@ export const communityAnalyticsService = {
           COUNT(DISTINCT br.id) as reactions
         FROM users u
         JOIN community_members cm ON cm.user_id = u.id AND cm.community_id = $1
-        LEFT JOIN bulletin_posts bp ON bp.author_id = u.id AND bp.community_id = $1 AND bp.created_at > NOW() - INTERVAL '${days} days'
-        LEFT JOIN bulletin_comments bc ON bc.author_id = u.id AND EXISTS (SELECT 1 FROM bulletin_posts bp2 WHERE bp2.id = bc.post_id AND bp2.community_id = $1) AND bc.created_at > NOW() - INTERVAL '${days} days'
-        LEFT JOIN bulletin_reactions br ON br.user_id = u.id AND EXISTS (SELECT 1 FROM bulletin_posts bp3 WHERE bp3.id = br.post_id AND bp3.community_id = $1) AND br.created_at > NOW() - INTERVAL '${days} days'
+        LEFT JOIN bulletin_posts bp ON bp.author_id = u.id AND bp.community_id = $1 AND bp.created_at > NOW() - INTERVAL '1 day' * $2
+        LEFT JOIN bulletin_comments bc ON bc.author_id = u.id AND EXISTS (SELECT 1 FROM bulletin_posts bp2 WHERE bp2.id = bc.post_id AND bp2.community_id = $1) AND bc.created_at > NOW() - INTERVAL '1 day' * $2
+        LEFT JOIN bulletin_reactions br ON br.user_id = u.id AND EXISTS (SELECT 1 FROM bulletin_posts bp3 WHERE bp3.id = br.post_id AND bp3.community_id = $1) AND br.created_at > NOW() - INTERVAL '1 day' * $2
         WHERE cm.status = 'active'
         GROUP BY u.id, u.username, u.display_name, u.avatar_url
       )
@@ -609,8 +613,8 @@ export const communityAnalyticsService = {
       FROM contributor_stats
       WHERE posts > 0 OR comments > 0 OR reactions > 0
       ORDER BY (posts * 3 + comments * 2 + reactions) DESC
-      LIMIT $2`,
-      [communityId, limit]
+      LIMIT $3`,
+      [communityId, validatedDays, validatedLimit]
     );
 
     return rows.map((r) => ({

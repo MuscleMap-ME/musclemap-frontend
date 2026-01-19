@@ -34,7 +34,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
-  CORS_ORIGIN: z.string().default('*'),
+  // SEC-006 FIX: Default to production domain instead of wildcard
+  CORS_ORIGIN: z.string().default(process.env.NODE_ENV === 'production' ? 'https://musclemap.me' : '*'),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   // Redis configuration
   REDIS_URL: z.string().default('redis://localhost:6379'),
@@ -88,7 +89,7 @@ function loadConfig(): EnvConfig {
       LOG_LEVEL: 'debug',
       RATE_LIMIT_WINDOW_MS: 60000,
       RATE_LIMIT_MAX: 100,
-      CORS_ORIGIN: '*',
+      CORS_ORIGIN: 'http://localhost:5173', // Dev CORS - only allow local frontend
       FRONTEND_URL: 'http://localhost:5173',
       REDIS_URL: 'redis://localhost:6379',
       REDIS_ENABLED: false,

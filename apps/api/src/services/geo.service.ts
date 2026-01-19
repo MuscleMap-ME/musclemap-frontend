@@ -118,12 +118,32 @@ export const geoService = {
     }>;
 
     if (usePostGIS) {
-      // PostGIS spatial query
-      const typeFilter = typeId ? 'AND h.type_id = $6' : '';
-      const userJoin = userId
-        ? `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = '${userId}'`
-        : '';
-      const memberSelect = userId ? ', (hm.user_id IS NOT NULL) as is_member' : ', NULL as is_member';
+      // PostGIS spatial query - Build params array dynamically
+      // Base params: $1=lng, $2=lat, $3=radiusM, $4=lastDistance, $5=lastId
+      const baseParams: (string | number)[] = [lng, lat, radiusM, lastDistance, lastId];
+      let paramIndex = 6;
+
+      // Handle userId join with parameterized query
+      let userJoin = '';
+      let memberSelect = ', NULL as is_member';
+      if (userId) {
+        userJoin = `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = $${paramIndex}`;
+        memberSelect = ', (hm.user_id IS NOT NULL) as is_member';
+        baseParams.push(userId);
+        paramIndex++;
+      }
+
+      // Handle typeId filter
+      let typeFilter = '';
+      if (typeId) {
+        typeFilter = `AND h.type_id = $${paramIndex}`;
+        baseParams.push(typeId);
+        paramIndex++;
+      }
+
+      // Add limit as last param
+      baseParams.push(limit + 1);
+      const limitParam = `$${paramIndex}`;
 
       const result = await queryAll<{
         id: number;
@@ -160,22 +180,42 @@ export const geoService = {
                OR (ST_Distance(h.location, ST_MakePoint($1, $2)::geography) = $4 AND h.id > $5))
           ${typeFilter}
         ORDER BY distance_m, h.id
-        LIMIT $7
+        LIMIT ${limitParam}
         `,
-        typeId
-          ? [lng, lat, radiusM, lastDistance, lastId, typeId, limit + 1]
-          : [lng, lat, radiusM, lastDistance, lastId, limit + 1]
+        baseParams
       );
 
       rows = result;
     } else {
       // Fallback without PostGIS using lat/lng columns
       const { minLat, maxLat, minLng, maxLng } = distance.boundingBox(lat, lng, radiusM);
-      const typeFilter = typeId ? 'AND h.type_id = $8' : '';
-      const userJoin = userId
-        ? `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = '${userId}'`
-        : '';
-      const memberSelect = userId ? ', (hm.user_id IS NOT NULL) as is_member' : ', NULL as is_member';
+
+      // Build params array dynamically for parameterized query
+      // Base params: $1=minLat, $2=maxLat, $3=minLng, $4=maxLng, $5=lastId
+      const baseParams: (string | number)[] = [minLat, maxLat, minLng, maxLng, lastId];
+      let paramIndex = 6;
+
+      // Handle userId join with parameterized query
+      let userJoin = '';
+      let memberSelect = ', NULL as is_member';
+      if (userId) {
+        userJoin = `LEFT JOIN hangout_memberships hm ON hm.hangout_id = h.id AND hm.user_id = $${paramIndex}`;
+        memberSelect = ', (hm.user_id IS NOT NULL) as is_member';
+        baseParams.push(userId);
+        paramIndex++;
+      }
+
+      // Handle typeId filter
+      let typeFilter = '';
+      if (typeId) {
+        typeFilter = `AND h.type_id = $${paramIndex}`;
+        baseParams.push(typeId);
+        paramIndex++;
+      }
+
+      // Add limit as last param
+      baseParams.push(limit + 1);
+      const limitParam = `$${paramIndex}`;
 
       const result = await queryAll<{
         id: number;
@@ -212,11 +252,9 @@ export const geoService = {
           AND h.id > $5
           ${typeFilter}
         ORDER BY h.id
-        LIMIT $7
+        LIMIT ${limitParam}
         `,
-        typeId
-          ? [minLat, maxLat, minLng, maxLng, lastId, typeId, limit + 1]
-          : [minLat, maxLat, minLng, maxLng, lastId, limit + 1]
+        baseParams
       );
 
       // Calculate actual distances and filter
