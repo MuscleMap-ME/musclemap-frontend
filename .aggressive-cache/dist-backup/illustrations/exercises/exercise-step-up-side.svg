@@ -1,0 +1,170 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Dumbbell Step-Up - Mid Position (stepping up)
+    View: Side
+    Primary Muscles: Quadriceps (88%), Gluteus Maximus (85%), Hamstrings (55%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- STEP/BOX -->
+  <g id="equipment-box" fill="#3F3F46" stroke="#52525B" stroke-width="2">
+    <rect x="100" y="420" width="150" height="80" rx="5"/>
+    <rect x="100" y="420" width="150" height="15" rx="3" fill="#52525B"/>
+  </g>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Working Leg Quadriceps - PRIMARY (88%) -->
+    <path id="muscle-quads-lead" data-muscle="quadriceps-lead" data-activation="88"
+      d="M 175 320 Q 210 305 235 345 Q 255 415 235 480 Q 195 505 165 475 Q 140 415 175 320"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Working Leg Gluteus - PRIMARY (85%) -->
+    <path id="muscle-glutes-lead" data-muscle="gluteus-maximus-lead" data-activation="85"
+      d="M 205 270 Q 245 255 270 295 Q 288 360 268 420 Q 225 445 200 410 Q 180 350 205 270"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.82;0.95;0.82" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </path>
+
+    <!-- Working Leg Hamstrings - SECONDARY (55%) -->
+    <path id="muscle-hamstrings-lead" data-muscle="hamstrings-lead" data-activation="55"
+      d="M 215 340 Q 245 328 265 368 Q 280 435 262 500 Q 225 520 205 490 Q 190 435 215 340"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" opacity="0.65"/>
+
+    <!-- Working Leg Gastrocnemius -->
+    <ellipse id="muscle-calf-lead" data-muscle="gastrocnemius-lead" data-activation="50"
+      cx="185" cy="545" rx="16" ry="42"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" opacity="0.55"/>
+
+    <!-- Core (stabilization) -->
+    <path id="muscle-core" data-muscle="rectus-abdominis" data-activation="40"
+      d="M 215 175 Q 235 168 248 195 Q 260 255 248 315 Q 228 330 215 312 Q 202 255 215 175"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.5"/>
+
+    <!-- Trailing Leg Hip Flexor -->
+    <ellipse id="muscle-hip-flexor-trail" data-muscle="hip-flexor-trail" data-activation="45"
+      cx="275" cy="330" rx="16" ry="25"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-20 275 330)" opacity="0.5"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Step-Up -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head -->
+    <ellipse cx="215" cy="75" rx="30" ry="36"/>
+
+    <!-- Neck -->
+    <path d="M 205 108 Q 195 125 200 150 L 230 150 Q 235 125 225 108 Q 220 110 215 110 Q 210 110 205 108"/>
+
+    <!-- Shoulder -->
+    <ellipse cx="225" cy="170" rx="26" ry="22"/>
+
+    <!-- Torso (upright) -->
+    <path d="M 205 185 Q 185 215 190 285 Q 210 375 245 440 Q 275 465 295 450 Q 325 410 315 345 Q 295 265 275 200 Q 240 175 205 185"/>
+
+    <!-- Arms (holding dumbbells at sides) -->
+    <ellipse cx="185" cy="220" rx="16" ry="45"/>
+    <ellipse cx="175" cy="295" rx="13" ry="38"/>
+    <ellipse cx="275" cy="220" rx="16" ry="45"/>
+    <ellipse cx="285" cy="295" rx="13" ry="38"/>
+
+    <!-- Pelvis -->
+    <path d="M 240 400 Q 285 385 315 425 Q 345 495 320 560 Q 275 590 240 568 Q 210 520 240 400"/>
+
+    <!-- Working Leg (on box) - Thigh -->
+    <path d="M 185 350 Q 150 380 140 450 Q 138 515 165 570 Q 210 600 255 575 Q 280 520 265 455 Q 240 385 185 350"/>
+
+    <!-- Working Leg - Lower Leg -->
+    <path d="M 170 555 Q 145 580 145 640 Q 148 700 170 755 Q 210 780 250 760 Q 268 705 260 645 Q 245 585 200 560"/>
+
+    <!-- Working Foot (on box) -->
+    <path d="M 140 420 L 240 420 L 245 435 L 135 435 Z" fill="url(#figureGrad)"/>
+
+    <!-- Trailing Leg - Thigh -->
+    <path d="M 280 420 Q 320 405 355 445 Q 390 515 375 590 Q 335 620 300 598 Q 270 550 280 420"/>
+
+    <!-- Trailing Leg - Lower Leg (behind and below) -->
+    <path d="M 350 575 Q 375 600 382 665 Q 388 730 375 790 Q 340 815 305 795 Q 290 740 298 680 Q 312 615 350 575"/>
+
+    <!-- Trailing Foot (on ground behind) -->
+    <path d="M 295 780 Q 265 795 260 825 Q 262 858 300 872 Q 375 885 420 870 Q 445 850 432 820 Q 410 798 295 780"/>
+  </g>
+
+  <!-- DUMBBELLS -->
+  <g id="equipment-dumbbells" filter="url(#softShadow)">
+    <rect x="167" y="298" width="8" height="55" fill="#71717A" rx="4"/>
+    <rect x="160" y="293" width="22" height="12" fill="#3F3F46" rx="3"/>
+    <rect x="160" y="346" width="22" height="12" fill="#3F3F46" rx="3"/>
+
+    <rect x="277" y="298" width="8" height="55" fill="#71717A" rx="4"/>
+    <rect x="270" y="293" width="22" height="12" fill="#3F3F46" rx="3"/>
+    <rect x="270" y="346" width="22" height="12" fill="#3F3F46" rx="3"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="215" cy="130" r="4"/> <!-- Neck -->
+    <circle cx="225" cy="170" r="4"/> <!-- Shoulder -->
+    <circle cx="265" cy="440" r="5"/> <!-- Hip -->
+    <circle cx="195" cy="560" r="4"/> <!-- Working knee -->
+    <circle cx="175" cy="420" r="3"/> <!-- Working ankle -->
+    <circle cx="340" cy="585" r="4"/> <!-- Trailing knee -->
+  </g>
+
+  <!-- BOX HEIGHT INDICATOR -->
+  <g id="height-indicator" opacity="0.4">
+    <line x1="95" y1="420" x2="95" y2="500" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="90" y1="420" x2="100" y2="420" stroke="#14B8A6" stroke-width="1"/>
+    <line x1="90" y1="500" x2="100" y2="500" stroke="#14B8A6" stroke-width="1"/>
+    <text x="55" y="465" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">12-20"</text>
+  </g>
+
+  <!-- MOVEMENT INDICATOR -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 265 480 L 265 420 L 255 450 Z" fill="#14B8A6"/>
+    <text x="275" y="420" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">STEP UP</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="215" cy="395" rx="50" ry="75" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="70;80;70" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="250" y1="500" x2="450" y2="500" stroke="#334155" stroke-width="2"/>
+</svg>

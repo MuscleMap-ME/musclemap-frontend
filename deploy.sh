@@ -133,15 +133,17 @@ publish_if_needed "packages/plugin-sdk" "@musclemap.me/plugin-sdk"
 publish_if_needed "packages/ui" "@musclemap.me/ui"
 publish_if_needed "packages/contracts" "@musclemap.me/contracts"
 
-# Step 6: Deploy to VPS
+# Step 6: Deploy to VPS using aggressive cache build system
 cd "$MAIN_REPO"
 echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
-echo -e "${YELLOW}   Using memory-safe build (stops PM2, stages builds, manages memory)${NC}"
-ssh root@musclemap.me "cd /var/www/musclemap.me && \
+echo -e "${YELLOW}   Using aggressive cache build (content-hash based, Tier 0-3)${NC}"
+echo -e "${YELLOW}   Tier 0 (no changes): <1s | Tier 1 (restore): 1-2s | Tier 2/3: 15-90s${NC}"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
   git fetch origin && \
   git reset --hard origin/main && \
   pnpm install && \
-  ./scripts/build-safe.sh"
+  node scripts/aggressive-cache.mjs && \
+  pm2 restart musclemap"
 
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"

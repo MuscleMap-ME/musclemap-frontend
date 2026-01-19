@@ -1,0 +1,195 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Body Type: Youth (Teen/Adolescent)
+    View: Side (Right-facing)
+    Purpose: Anatomical reference with muscle activation overlay capability
+    Proportions: 6.5-head canon, larger head-to-body ratio, developing musculature
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE LAYER - Side View Youth (less defined) -->
+  <g id="muscles" opacity="0" class="muscle-layer">
+    <!-- Trapezius -->
+    <path id="muscle-trapezius-side" class="muscle" data-muscle="trapezius"
+      d="M 190 130 Q 205 125 215 140 Q 220 155 212 168 Q 200 172 190 162 Q 185 148 190 130"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Deltoid (smaller, less defined) -->
+    <ellipse id="muscle-deltoid-side" class="muscle" data-muscle="deltoid"
+      cx="172" cy="180" rx="18" ry="14"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Pectoralis Major (developing) -->
+    <path id="muscle-chest-side" class="muscle" data-muscle="pectoralis-major"
+      d="M 178 192 Q 192 188 198 205 Q 202 230 192 248 Q 178 252 172 240 Q 168 218 178 192"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Latissimus Dorsi (less prominent) -->
+    <path id="muscle-lats-side" class="muscle" data-muscle="latissimus-dorsi"
+      d="M 212 205 Q 225 212 230 242 Q 232 275 225 305 Q 212 312 205 292 Q 200 255 212 205"
+      fill="url(#activationMax)" filter="url(#muscleGlow)"/>
+
+    <!-- Biceps (developing) -->
+    <ellipse id="muscle-biceps-side" class="muscle" data-muscle="biceps"
+      cx="152" cy="215" rx="10" ry="22"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(-12 152 215)"/>
+
+    <!-- Triceps -->
+    <ellipse id="muscle-triceps-side" class="muscle" data-muscle="triceps"
+      cx="162" cy="218" rx="9" ry="24"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(-8 162 218)"/>
+
+    <!-- Forearm Flexors -->
+    <ellipse id="muscle-forearm-side" class="muscle" data-muscle="forearm-flexors"
+      cx="138" cy="268" rx="8" ry="24"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" transform="rotate(-5 138 268)"/>
+
+    <!-- Rectus Abdominis (less defined) -->
+    <path id="muscle-abs-side" class="muscle" data-muscle="rectus-abdominis"
+      d="M 190 255 Q 202 252 206 265 Q 210 305 205 345 Q 196 352 190 348 Q 185 308 190 255"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Erector Spinae -->
+    <path id="muscle-erector-side" class="muscle" data-muscle="erector-spinae"
+      d="M 218 205 Q 225 208 228 228 Q 232 275 228 325 Q 224 342 218 340 Q 214 285 218 205"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Gluteus Maximus (developing) -->
+    <path id="muscle-glutes-side" class="muscle" data-muscle="gluteus-maximus"
+      d="M 215 355 Q 245 350 255 382 Q 260 420 245 445 Q 218 452 208 428 Q 202 390 215 355"
+      fill="url(#activationMax)" filter="url(#muscleGlow)"/>
+
+    <!-- Quadriceps -->
+    <path id="muscle-quads-side" class="muscle" data-muscle="quadriceps"
+      d="M 185 408 Q 198 402 206 418 Q 214 458 210 498 Q 196 510 185 502 Q 176 460 185 408"
+      fill="url(#activationMax)" filter="url(#muscleGlow)"/>
+
+    <!-- Hamstrings -->
+    <path id="muscle-hamstrings-side" class="muscle" data-muscle="hamstrings"
+      d="M 215 428 Q 232 424 238 450 Q 242 485 235 512 Q 222 520 214 508 Q 210 478 215 428"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Gastrocnemius (calf) -->
+    <ellipse id="muscle-calf-side" class="muscle" data-muscle="gastrocnemius"
+      cx="218" cy="540" rx="12" ry="28"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(5 218 540)"/>
+
+    <!-- Tibialis Anterior -->
+    <ellipse id="muscle-tibialis-side" class="muscle" data-muscle="tibialis-anterior"
+      cx="195" cy="540" rx="8" ry="24"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Youth Body -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (proportionally larger) -->
+    <ellipse cx="200" cy="72" rx="38" ry="45"/>
+
+    <!-- Ear -->
+    <ellipse cx="228" cy="72" rx="7" ry="13"/>
+
+    <!-- Neck (shorter, more slender) -->
+    <path d="M 188 112 Q 184 120 187 132 L 210 132 Q 216 120 213 112 Q 206 114 200 114 Q 194 114 188 112"/>
+
+    <!-- Trapezius/Upper Back -->
+    <path d="M 210 132 Q 222 138 226 155 Q 230 172 222 185 L 210 180 Q 216 165 210 132"/>
+
+    <!-- Shoulder (narrower, less developed) -->
+    <ellipse cx="175" cy="180" rx="22" ry="18"/>
+
+    <!-- Chest/Torso (less developed, straighter) -->
+    <path d="M 175 192 Q 200 185 210 192 Q 222 208 220 235 Q 215 262 200 275 Q 180 280 172 265 Q 162 242 170 212 Q 172 200 175 192"/>
+
+    <!-- Upper Back -->
+    <path d="M 210 180 Q 225 188 232 225 Q 236 265 232 305 Q 228 335 220 350 L 212 350 Q 218 320 222 270 Q 225 228 210 180"/>
+
+    <!-- Abdomen (slimmer, less defined) -->
+    <path d="M 200 275 Q 215 272 222 285 Q 228 325 222 355 L 198 362 Q 190 328 200 275"/>
+
+    <!-- Lower Back/Hip -->
+    <path d="M 222 355 Q 245 358 258 388 Q 266 428 255 458 Q 238 468 218 465 Q 202 448 198 420 Q 195 392 198 362 L 222 355"/>
+
+    <!-- Glutes (developing) -->
+    <path d="M 222 385 Q 260 378 268 418 Q 272 458 252 480 Q 225 490 212 468 Q 205 432 222 385"/>
+
+    <!-- Upper Arm (slender) -->
+    <ellipse cx="155" cy="212" rx="12" ry="35" transform="rotate(-12 155 212)"/>
+
+    <!-- Elbow -->
+    <circle cx="142" cy="248" r="9"/>
+
+    <!-- Forearm -->
+    <ellipse cx="135" cy="285" rx="10" ry="32" transform="rotate(-5 135 285)"/>
+
+    <!-- Hand (smaller) -->
+    <ellipse cx="125" cy="330" rx="9" ry="16"/>
+
+    <!-- Thigh (leaner) -->
+    <path d="M 198 420 Q 178 428 175 465 Q 172 505 180 538 Q 200 548 222 540 Q 242 508 245 468 Q 248 438 232 422 Q 215 415 198 420"/>
+
+    <!-- Knee -->
+    <ellipse cx="200" cy="542" rx="18" ry="14"/>
+
+    <!-- Lower Leg -->
+    <path d="M 185 552 Q 176 565 180 608 Q 184 652 188 680 Q 202 690 220 685 Q 238 662 242 612 Q 245 568 232 555 Q 210 550 185 552"/>
+
+    <!-- Ankle -->
+    <ellipse cx="208" cy="682" rx="14" ry="10"/>
+
+    <!-- Foot (smaller) -->
+    <path d="M 188 688 Q 165 692 156 702 Q 152 715 165 725 Q 198 730 222 722 Q 232 710 225 695 Q 216 690 188 688"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="200" cy="132" r="4"/> <!-- Neck -->
+    <circle cx="175" cy="180" r="4"/> <!-- Shoulder -->
+    <circle cx="142" cy="248" r="4"/> <!-- Elbow -->
+    <circle cx="125" cy="315" r="3"/> <!-- Wrist -->
+    <circle cx="215" cy="408" r="5"/> <!-- Hip -->
+    <circle cx="200" cy="542" r="4"/> <!-- Knee -->
+    <circle cx="208" cy="682" r="4"/> <!-- Ankle -->
+  </g>
+
+  <!-- POSTURE LINE -->
+  <line id="posture" x1="200" y1="27" x2="206" y2="725" stroke="#14B8A6" stroke-width="1" stroke-dasharray="6,4" opacity="0.3"/>
+
+  <!-- GROWTH INDICATOR (subtle) -->
+  <g id="growth-indicator" opacity="0.2">
+    <path d="M 360 200 L 360 450" stroke="#14B8A6" stroke-width="2"/>
+    <path d="M 355 200 L 365 200" stroke="#14B8A6" stroke-width="2"/>
+    <path d="M 355 450 L 365 450" stroke="#14B8A6" stroke-width="2"/>
+    <text x="370" y="330" font-family="Inter, sans-serif" font-size="10" fill="#14B8A6" transform="rotate(90 370 330)">DEVELOPING</text>
+  </g>
+</svg>

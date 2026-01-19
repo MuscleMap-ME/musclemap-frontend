@@ -1,0 +1,175 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Bulgarian Split Squat (Rear Foot Elevated) - Bottom Position
+    View: Side
+    Primary Muscles: Quadriceps (90%), Gluteus Maximus (88%), Hip Flexors (65%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- BENCH (for rear foot elevation) -->
+  <g id="equipment-bench" fill="#3F3F46" stroke="#52525B" stroke-width="2">
+    <rect x="260" y="400" width="100" height="25" rx="5"/>
+    <rect x="275" y="425" width="15" height="90" rx="3"/>
+    <rect x="330" y="425" width="15" height="90" rx="3"/>
+    <rect x="260" y="505" width="105" height="15" rx="4"/>
+  </g>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Front Leg Quadriceps - PRIMARY (90%) -->
+    <path id="muscle-quads-front" data-muscle="quadriceps-front" data-activation="90"
+      d="M 115 330 Q 145 315 165 350 Q 180 420 165 490 Q 130 510 105 485 Q 85 420 115 330"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Front Leg Gluteus - PRIMARY (88%) -->
+    <path id="muscle-glutes-front" data-muscle="gluteus-maximus-front" data-activation="88"
+      d="M 165 280 Q 200 265 220 305 Q 235 365 215 420 Q 175 440 155 405 Q 140 345 165 280"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.82;0.95;0.82" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </path>
+
+    <!-- Rear Leg Hip Flexor (stretched) - SECONDARY (65%) -->
+    <ellipse id="muscle-hip-flexor-rear" data-muscle="hip-flexor-rear" data-activation="65"
+      cx="235" cy="295" rx="18" ry="28"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" transform="rotate(-30 235 295)"/>
+
+    <!-- Front Leg Hamstrings -->
+    <path id="muscle-hamstrings-front" data-muscle="hamstrings-front" data-activation="55"
+      d="M 145 370 Q 175 358 195 395 Q 210 455 195 510 Q 160 528 140 500 Q 125 445 145 370"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" opacity="0.6"/>
+
+    <!-- Core (stabilization) -->
+    <path id="muscle-core" data-muscle="rectus-abdominis" data-activation="40"
+      d="M 175 200 Q 195 192 205 218 Q 215 270 205 320 Q 188 332 175 315 Q 165 268 175 200"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.5"/>
+
+    <!-- Front Leg Adductors -->
+    <ellipse id="muscle-adductors" data-muscle="adductors" data-activation="50"
+      cx="135" cy="375" rx="15" ry="35"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(15 135 375)" opacity="0.5"/>
+
+    <!-- Front Leg Gastrocnemius -->
+    <ellipse id="muscle-calves-front" data-muscle="gastrocnemius-front" data-activation="45"
+      cx="95" cy="520" rx="14" ry="35"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.5"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Bulgarian Split Squat -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head -->
+    <ellipse cx="185" cy="85" rx="30" ry="36"/>
+
+    <!-- Neck -->
+    <path d="M 175 118 Q 165 135 170 158 L 200 158 Q 205 135 195 118 Q 190 120 185 120 Q 180 120 175 118"/>
+
+    <!-- Shoulder -->
+    <ellipse cx="185" cy="175" rx="24" ry="20"/>
+
+    <!-- Torso (upright) -->
+    <path d="M 165 190 Q 145 215 150 280 Q 170 370 205 440 Q 235 460 255 445 Q 280 405 270 340 Q 255 265 235 200 Q 200 175 165 190"/>
+
+    <!-- Arms (at sides for balance, or holding dumbbells) -->
+    <ellipse cx="145" cy="230" rx="15" ry="42"/>
+    <ellipse cx="135" cy="300" rx="12" ry="35"/>
+    <ellipse cx="230" cy="230" rx="15" ry="42"/>
+    <ellipse cx="240" cy="300" rx="12" ry="35"/>
+
+    <!-- Pelvis -->
+    <path d="M 190 400 Q 235 385 265 425 Q 290 490 265 550 Q 220 578 185 555 Q 158 505 190 400"/>
+
+    <!-- Front Leg - Thigh (deep lunge) -->
+    <path d="M 125 350 Q 90 375 80 430 Q 75 495 95 555 Q 135 585 175 560 Q 200 510 185 450 Q 165 385 125 350"/>
+
+    <!-- Front Leg - Lower Leg -->
+    <path d="M 95 540 Q 75 565 70 625 Q 68 685 80 740 Q 115 760 150 745 Q 165 695 160 635 Q 150 575 115 545"/>
+
+    <!-- Front Foot (flat on ground) -->
+    <path d="M 65 730 Q 40 742 32 768 Q 30 795 60 810 Q 130 820 175 808 Q 195 790 185 765 Q 168 748 65 730"/>
+
+    <!-- Rear Leg - Thigh (extended back) -->
+    <path d="M 235 420 Q 275 405 310 435 Q 345 485 335 540 Q 300 565 265 548 Q 235 500 235 420"/>
+
+    <!-- Rear Leg - Lower Leg (elevated on bench) -->
+    <path d="M 295 410 Q 275 385 270 340 Q 272 295 290 260 Q 320 248 345 265 Q 355 305 350 360 Q 340 400 310 415"/>
+
+    <!-- Rear Foot (on bench) -->
+    <ellipse cx="305" cy="395" rx="25" ry="12"/>
+  </g>
+
+  <!-- DUMBBELLS (optional - at sides) -->
+  <g id="equipment-dumbbells" filter="url(#softShadow)" opacity="0.8">
+    <rect x="127" y="305" width="8" height="45" fill="#71717A" rx="4"/>
+    <rect x="120" y="300" width="22" height="12" fill="#3F3F46" rx="3"/>
+    <rect x="120" y="343" width="22" height="12" fill="#3F3F46" rx="3"/>
+
+    <rect x="232" y="305" width="8" height="45" fill="#71717A" rx="4"/>
+    <rect x="225" y="300" width="22" height="12" fill="#3F3F46" rx="3"/>
+    <rect x="225" y="343" width="22" height="12" fill="#3F3F46" rx="3"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="185" cy="140" r="4"/> <!-- Neck -->
+    <circle cx="185" cy="175" r="4"/> <!-- Shoulder -->
+    <circle cx="205" cy="440" r="5"/> <!-- Hip -->
+    <circle cx="110" cy="545" r="4"/> <!-- Front knee -->
+    <circle cx="85" cy="735" r="4"/> <!-- Front ankle -->
+    <circle cx="300" cy="415" r="4"/> <!-- Rear knee (elevated) -->
+  </g>
+
+  <!-- DEPTH INDICATOR -->
+  <g id="depth-indicator" opacity="0.4">
+    <line x1="110" y1="545" x2="110" y2="440" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="65" y="495" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">knee 90°</text>
+  </g>
+
+  <!-- MOVEMENT INDICATOR -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 205 480 L 205 420 L 195 450 Z" fill="#14B8A6"/>
+    <text x="215" y="420" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">DRIVE UP</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="145" cy="400" rx="45" ry="70" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="65;75;65" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="20" y1="520" x2="250" y2="520" stroke="#334155" stroke-width="2"/>
+</svg>

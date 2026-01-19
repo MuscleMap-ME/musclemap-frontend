@@ -1,0 +1,343 @@
+{
+  "hash": "1c615075",
+  "configHash": "a895503f",
+  "lockfileHash": "f0076484",
+  "browserHash": "b10fb182",
+  "optimized": {
+    "react": {
+      "src": "../../.pnpm/react@18.3.1/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "58f2d56b",
+      "needsInterop": true
+    },
+    "react-dom": {
+      "src": "../../.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/index.js",
+      "file": "react-dom.js",
+      "fileHash": "dd6b7c72",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../.pnpm/react-router-dom@6.30.2_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "6aa799db",
+      "needsInterop": false
+    },
+    "@apollo/client": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/core/index.js",
+      "file": "@apollo_client.js",
+      "fileHash": "923d58fd",
+      "needsInterop": false
+    },
+    "graphql": {
+      "src": "../../.pnpm/graphql@16.12.0/node_modules/graphql/index.mjs",
+      "file": "graphql.js",
+      "fileHash": "5b57efbb",
+      "needsInterop": false
+    },
+    "framer-motion": {
+      "src": "../../.pnpm/framer-motion@12.23.26_@emotion+is-prop-valid@1.4.0_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/framer-motion/dist/es/index.mjs",
+      "file": "framer-motion.js",
+      "fileHash": "a6a74d87",
+      "needsInterop": false
+    },
+    "zustand": {
+      "src": "../../.pnpm/zustand@4.5.7_@types+react@19.2.7_react@18.3.1/node_modules/zustand/esm/index.mjs",
+      "file": "zustand.js",
+      "fileHash": "72622ccb",
+      "needsInterop": false
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "d4433f53",
+      "needsInterop": true
+    },
+    "react/jsx-runtime": {
+      "src": "../../.pnpm/react@18.3.1/node_modules/react/jsx-runtime.js",
+      "file": "react_jsx-runtime.js",
+      "fileHash": "d7f80f04",
+      "needsInterop": true
+    },
+    "@apollo/client/core": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/core/index.js",
+      "file": "@apollo_client_core.js",
+      "fileHash": "6832429d",
+      "needsInterop": false
+    },
+    "@apollo/client/link/batch-http": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/link/batch-http/index.js",
+      "file": "@apollo_client_link_batch-http.js",
+      "fileHash": "8c4f26df",
+      "needsInterop": false
+    },
+    "@apollo/client/link/context": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/link/context/index.js",
+      "file": "@apollo_client_link_context.js",
+      "fileHash": "c360ce13",
+      "needsInterop": false
+    },
+    "@apollo/client/link/error": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/link/error/index.js",
+      "file": "@apollo_client_link_error.js",
+      "fileHash": "5b428f60",
+      "needsInterop": false
+    },
+    "@apollo/client/link/retry": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/link/retry/index.js",
+      "file": "@apollo_client_link_retry.js",
+      "fileHash": "96805855",
+      "needsInterop": false
+    },
+    "@apollo/client/react": {
+      "src": "../../.pnpm/@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@11.2.0_graphql@16.12.0_ws@8.1_e28c7a85d7e4e0cec9354ae39436a7fe/node_modules/@apollo/client/react/index.js",
+      "file": "@apollo_client_react.js",
+      "fileHash": "d80b0d88",
+      "needsInterop": false
+    },
+    "@mui/icons-material/AccountBalanceWallet": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/AccountBalanceWallet.js",
+      "file": "@mui_icons-material_AccountBalanceWallet.js",
+      "fileHash": "eba853f1",
+      "needsInterop": false
+    },
+    "@mui/icons-material/Add": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/Add.js",
+      "file": "@mui_icons-material_Add.js",
+      "fileHash": "55356d01",
+      "needsInterop": false
+    },
+    "@mui/icons-material/AllInclusive": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/AllInclusive.js",
+      "file": "@mui_icons-material_AllInclusive.js",
+      "fileHash": "5c1ee139",
+      "needsInterop": false
+    },
+    "@mui/icons-material/ArrowBack": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/ArrowBack.js",
+      "file": "@mui_icons-material_ArrowBack.js",
+      "fileHash": "70560ecf",
+      "needsInterop": false
+    },
+    "@mui/icons-material/Send": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/Send.js",
+      "file": "@mui_icons-material_Send.js",
+      "fileHash": "0cf70e2c",
+      "needsInterop": false
+    },
+    "@mui/icons-material/Settings": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/Settings.js",
+      "file": "@mui_icons-material_Settings.js",
+      "fileHash": "407b4f78",
+      "needsInterop": false
+    },
+    "@mui/icons-material/Star": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/Star.js",
+      "file": "@mui_icons-material_Star.js",
+      "fileHash": "32966d0b",
+      "needsInterop": false
+    },
+    "@mui/icons-material/TrendingDown": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/TrendingDown.js",
+      "file": "@mui_icons-material_TrendingDown.js",
+      "fileHash": "8d443fc8",
+      "needsInterop": false
+    },
+    "@mui/icons-material/TrendingUp": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/TrendingUp.js",
+      "file": "@mui_icons-material_TrendingUp.js",
+      "fileHash": "32cc807f",
+      "needsInterop": false
+    },
+    "@mui/icons-material/Verified": {
+      "src": "../../.pnpm/@mui+icons-material@7.3.6_@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2._9f7eda7ad8a33f7288eecb194365f897/node_modules/@mui/icons-material/esm/Verified.js",
+      "file": "@mui_icons-material_Verified.js",
+      "fileHash": "46ccddd4",
+      "needsInterop": false
+    },
+    "@mui/material": {
+      "src": "../../.pnpm/@mui+material@7.3.6_@emotion+react@11.14.0_@types+react@19.2.7_react@18.3.1__@emotion+s_1da311f65d2cc23298002b8c1744fa2e/node_modules/@mui/material/esm/index.js",
+      "file": "@mui_material.js",
+      "fileHash": "8a4ec38c",
+      "needsInterop": false
+    },
+    "@phosphor-icons/react": {
+      "src": "../../.pnpm/@phosphor-icons+react@2.1.10_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/@phosphor-icons/react/dist/index.es.js",
+      "file": "@phosphor-icons_react.js",
+      "fileHash": "25236303",
+      "needsInterop": false
+    },
+    "apollo3-cache-persist": {
+      "src": "../../.pnpm/apollo3-cache-persist@0.15.0_@apollo+client@4.0.11_graphql-ws@6.0.6_@fastify+websocket@_866afe53e768927dbd22c81568b4e66e/node_modules/apollo3-cache-persist/lib/index.js",
+      "file": "apollo3-cache-persist.js",
+      "fileHash": "7fc781ce",
+      "needsInterop": false
+    },
+    "clsx": {
+      "src": "../../.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs",
+      "file": "clsx.js",
+      "fileHash": "a4d7ba82",
+      "needsInterop": false
+    },
+    "d3": {
+      "src": "../../.pnpm/d3@7.9.0/node_modules/d3/src/index.js",
+      "file": "d3.js",
+      "fileHash": "542fc378",
+      "needsInterop": false
+    },
+    "date-fns": {
+      "src": "../../.pnpm/date-fns@3.6.0/node_modules/date-fns/index.mjs",
+      "file": "date-fns.js",
+      "fileHash": "f379eff7",
+      "needsInterop": false
+    },
+    "dompurify": {
+      "src": "../../.pnpm/dompurify@3.3.1/node_modules/dompurify/dist/purify.es.mjs",
+      "file": "dompurify.js",
+      "fileHash": "ce266d6b",
+      "needsInterop": false
+    },
+    "idb": {
+      "src": "../../.pnpm/idb@8.0.3/node_modules/idb/build/index.js",
+      "file": "idb.js",
+      "fileHash": "463a3e2c",
+      "needsInterop": false
+    },
+    "leaflet": {
+      "src": "../../.pnpm/leaflet@1.9.4/node_modules/leaflet/dist/leaflet-src.js",
+      "file": "leaflet.js",
+      "fileHash": "d0815e57",
+      "needsInterop": true
+    },
+    "lucide-react": {
+      "src": "../../.pnpm/lucide-react@0.562.0_react@18.3.1/node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "f5600a2e",
+      "needsInterop": false
+    },
+    "prop-types": {
+      "src": "../../.pnpm/prop-types@15.8.1/node_modules/prop-types/index.js",
+      "file": "prop-types.js",
+      "fileHash": "0cc5102b",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "b205769d",
+      "needsInterop": true
+    },
+    "react-markdown": {
+      "src": "../../.pnpm/react-markdown@10.1.0_@types+react@19.2.7_react@18.3.1/node_modules/react-markdown/index.js",
+      "file": "react-markdown.js",
+      "fileHash": "cf062c3e",
+      "needsInterop": false
+    },
+    "react-window": {
+      "src": "../../.pnpm/react-window@2.2.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/react-window/dist/react-window.js",
+      "file": "react-window.js",
+      "fileHash": "7ec3bff2",
+      "needsInterop": false
+    },
+    "reactflow": {
+      "src": "../../.pnpm/reactflow@11.11.4_@types+react@19.2.7_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/reactflow/dist/esm/index.mjs",
+      "file": "reactflow.js",
+      "fileHash": "7bf1aa20",
+      "needsInterop": false
+    },
+    "recharts": {
+      "src": "../../.pnpm/recharts@2.15.4_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/recharts/es6/index.js",
+      "file": "recharts.js",
+      "fileHash": "02e50aed",
+      "needsInterop": false
+    },
+    "remark-gfm": {
+      "src": "../../.pnpm/remark-gfm@4.0.1/node_modules/remark-gfm/index.js",
+      "file": "remark-gfm.js",
+      "fileHash": "ed1c8186",
+      "needsInterop": false
+    },
+    "vanilla-tilt": {
+      "src": "../../.pnpm/vanilla-tilt@1.8.1/node_modules/vanilla-tilt/lib/vanilla-tilt.es2015.js",
+      "file": "vanilla-tilt.js",
+      "fileHash": "92bc0fb6",
+      "needsInterop": false
+    },
+    "web-vitals": {
+      "src": "../../.pnpm/web-vitals@5.1.0/node_modules/web-vitals/dist/web-vitals.js",
+      "file": "web-vitals.js",
+      "fileHash": "0fd9f71c",
+      "needsInterop": false
+    },
+    "zustand/middleware": {
+      "src": "../../.pnpm/zustand@4.5.7_@types+react@19.2.7_react@18.3.1/node_modules/zustand/esm/middleware.mjs",
+      "file": "zustand_middleware.js",
+      "fileHash": "2b9e6561",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-2FPHOH32": {
+      "file": "chunk-2FPHOH32.js"
+    },
+    "chunk-2SNWWNFF": {
+      "file": "chunk-2SNWWNFF.js"
+    },
+    "chunk-LBQZPMCL": {
+      "file": "chunk-LBQZPMCL.js"
+    },
+    "chunk-HCWGAOZM": {
+      "file": "chunk-HCWGAOZM.js"
+    },
+    "chunk-2VB4XVCT": {
+      "file": "chunk-2VB4XVCT.js"
+    },
+    "chunk-HR2R5BSK": {
+      "file": "chunk-HR2R5BSK.js"
+    },
+    "chunk-MEB7XSX6": {
+      "file": "chunk-MEB7XSX6.js"
+    },
+    "chunk-YTPR3KG7": {
+      "file": "chunk-YTPR3KG7.js"
+    },
+    "chunk-HFGBZIVF": {
+      "file": "chunk-HFGBZIVF.js"
+    },
+    "chunk-DEX2RCYB": {
+      "file": "chunk-DEX2RCYB.js"
+    },
+    "chunk-SHKDMIPV": {
+      "file": "chunk-SHKDMIPV.js"
+    },
+    "chunk-4TE4AOGQ": {
+      "file": "chunk-4TE4AOGQ.js"
+    },
+    "chunk-AT3QSBN7": {
+      "file": "chunk-AT3QSBN7.js"
+    },
+    "chunk-LSOS6EAY": {
+      "file": "chunk-LSOS6EAY.js"
+    },
+    "chunk-ST4AGMGU": {
+      "file": "chunk-ST4AGMGU.js"
+    },
+    "chunk-QJSJWK6O": {
+      "file": "chunk-QJSJWK6O.js"
+    },
+    "chunk-WFGI53CT": {
+      "file": "chunk-WFGI53CT.js"
+    },
+    "chunk-U3R7WRSZ": {
+      "file": "chunk-U3R7WRSZ.js"
+    },
+    "chunk-RE4KGIUM": {
+      "file": "chunk-RE4KGIUM.js"
+    },
+    "chunk-XO35FAC6": {
+      "file": "chunk-XO35FAC6.js"
+    },
+    "chunk-EWTE5DHJ": {
+      "file": "chunk-EWTE5DHJ.js"
+    }
+  }
+}

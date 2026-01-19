@@ -1,0 +1,183 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Figure gradients -->
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <!-- Muscle activation gradients -->
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="activationMin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D7377" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#065F5F" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft shadow -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE LAYER - Youth Front View (Less defined, softer transitions) -->
+  <g id="muscles" opacity="0" class="muscle-layer">
+    <!-- Pectoralis (less defined, smaller) -->
+    <path id="muscle-chest-left" class="muscle" data-muscle="pectoralis-major-left"
+      d="M 168 190 Q 195 185 200 192 Q 200 212 198 222 Q 182 225 168 218 Q 162 205 168 190"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+    <path id="muscle-chest-right" class="muscle" data-muscle="pectoralis-major-right"
+      d="M 232 190 Q 205 185 200 192 Q 200 212 202 222 Q 218 225 232 218 Q 238 205 232 190"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Anterior Deltoids (smaller) -->
+    <ellipse id="muscle-front-delt-left" class="muscle" data-muscle="anterior-deltoid-left"
+      cx="155" cy="190" rx="12" ry="18"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-front-delt-right" class="muscle" data-muscle="anterior-deltoid-right"
+      cx="245" cy="190" rx="12" ry="18"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Biceps (smaller, less defined) -->
+    <ellipse id="muscle-bicep-left" class="muscle" data-muscle="biceps-left"
+      cx="140" cy="258" rx="11" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-bicep-right" class="muscle" data-muscle="biceps-right"
+      cx="260" cy="258" rx="11" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)"/>
+
+    <!-- Forearm Flexors -->
+    <ellipse id="muscle-forearm-left" class="muscle" data-muscle="forearm-flexors-left"
+      cx="132" cy="318" rx="8" ry="26"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-forearm-right" class="muscle" data-muscle="forearm-flexors-right"
+      cx="268" cy="318" rx="8" ry="26"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+
+    <!-- Rectus Abdominis (less defined) -->
+    <path id="muscle-abs" class="muscle" data-muscle="rectus-abdominis"
+      d="M 185 235 Q 200 232 215 235 Q 218 275 215 330 Q 200 335 185 330 Q 182 275 185 235"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+
+    <!-- Quadriceps (less defined, proportional to youth) -->
+    <path id="muscle-quad-left" class="muscle" data-muscle="quadriceps-left"
+      d="M 168 365 Q 182 360 195 368 Q 192 430 185 475 Q 170 472 166 435 Q 162 398 168 365"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+    <path id="muscle-quad-right" class="muscle" data-muscle="quadriceps-right"
+      d="M 232 365 Q 218 360 205 368 Q 208 430 215 475 Q 230 472 234 435 Q 238 398 232 365"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Tibialis Anterior -->
+    <ellipse id="muscle-tibialis-left" class="muscle" data-muscle="tibialis-anterior-left"
+      cx="176" cy="508" rx="8" ry="24"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+    <ellipse id="muscle-tibialis-right" class="muscle" data-muscle="tibialis-anterior-right"
+      cx="224" cy="508" rx="8" ry="24"
+      fill="url(#activationMin)" filter="url(#muscleGlow)"/>
+  </g>
+
+  <!-- FIGURE LAYER - Youth Front View (Proportional changes: larger head relative to body, shorter limbs) -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (proportionally larger for youth - ~6.5 head canon instead of 8) -->
+    <ellipse cx="200" cy="72" rx="42" ry="48"/>
+
+    <!-- Neck (shorter, thicker relative) -->
+    <path d="M 180 118 Q 200 125 220 118 L 225 148 Q 200 155 175 148 Z"/>
+
+    <!-- Trapezius (less developed) -->
+    <path d="M 155 152 Q 175 148 200 152 Q 225 148 245 152 Q 250 165 247 178 L 153 178 Q 150 165 155 152" fill="url(#figureGrad)"/>
+
+    <!-- Torso (straighter, less defined waist) -->
+    <path d="M 153 178 Q 142 182 140 195 Q 145 255 155 335 Q 175 350 200 355 Q 225 350 245 335 Q 255 255 260 195 Q 258 182 247 178 Z"/>
+
+    <!-- Left Shoulder (smaller, rounded) -->
+    <ellipse cx="140" cy="188" rx="18" ry="22"/>
+
+    <!-- Right Shoulder -->
+    <ellipse cx="260" cy="188" rx="18" ry="22"/>
+
+    <!-- Left Upper Arm (shorter, less defined) -->
+    <ellipse cx="132" cy="242" rx="14" ry="38"/>
+
+    <!-- Right Upper Arm -->
+    <ellipse cx="268" cy="242" rx="14" ry="38"/>
+
+    <!-- Left Forearm (shorter) -->
+    <ellipse cx="125" cy="315" rx="11" ry="35"/>
+
+    <!-- Right Forearm -->
+    <ellipse cx="275" cy="315" rx="11" ry="35"/>
+
+    <!-- Left Hand (proportionally larger for youth) -->
+    <ellipse cx="122" cy="362" rx="12" ry="16"/>
+
+    <!-- Right Hand -->
+    <ellipse cx="278" cy="362" rx="12" ry="16"/>
+
+    <!-- Pelvis/Hip (narrower, straighter) -->
+    <path d="M 162 332 Q 200 350 238 332 Q 245 358 235 378 Q 200 390 165 378 Q 155 358 162 332"/>
+
+    <!-- Left Thigh (shorter, less tapered) -->
+    <ellipse cx="178" cy="418" rx="24" ry="48"/>
+
+    <!-- Right Thigh -->
+    <ellipse cx="222" cy="418" rx="24" ry="48"/>
+
+    <!-- Left Knee -->
+    <ellipse cx="176" cy="468" rx="14" ry="15"/>
+
+    <!-- Right Knee -->
+    <ellipse cx="224" cy="468" rx="14" ry="15"/>
+
+    <!-- Left Lower Leg (shorter) -->
+    <ellipse cx="175" cy="512" rx="14" ry="40"/>
+
+    <!-- Right Lower Leg -->
+    <ellipse cx="225" cy="512" rx="14" ry="40"/>
+
+    <!-- Left Foot (proportionally larger) -->
+    <ellipse cx="174" cy="560" rx="18" ry="10"/>
+
+    <!-- Right Foot -->
+    <ellipse cx="226" cy="560" rx="18" ry="10"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.6">
+    <circle cx="200" cy="148" r="4"/> <!-- Neck -->
+    <circle cx="140" cy="188" r="4"/> <!-- Left shoulder -->
+    <circle cx="260" cy="188" r="4"/> <!-- Right shoulder -->
+    <circle cx="128" cy="280" r="3"/> <!-- Left elbow -->
+    <circle cx="272" cy="280" r="3"/> <!-- Right elbow -->
+    <circle cx="122" cy="345" r="3"/> <!-- Left wrist -->
+    <circle cx="278" cy="345" r="3"/> <!-- Right wrist -->
+    <circle cx="175" cy="368" r="4"/> <!-- Left hip -->
+    <circle cx="225" cy="368" r="4"/> <!-- Right hip -->
+    <circle cx="176" cy="468" r="3"/> <!-- Left knee -->
+    <circle cx="224" cy="468" r="3"/> <!-- Right knee -->
+    <circle cx="174" cy="550" r="3"/> <!-- Left ankle -->
+    <circle cx="226" cy="550" r="3"/> <!-- Right ankle -->
+  </g>
+
+  <!-- Center line guide (hidden by default) -->
+  <line id="centerline" x1="200" y1="24" x2="200" y2="570" stroke="#334155" stroke-width="0.5" stroke-dasharray="5,5" opacity="0"/>
+</svg>

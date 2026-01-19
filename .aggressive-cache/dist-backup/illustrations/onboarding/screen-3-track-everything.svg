@@ -1,0 +1,276 @@
+<svg viewBox="0 0 390 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Onboarding Screen 3: "Track Everything"
+    Visual: Timeline/calendar with progress charts and achievements
+    Animation: Calendar populates, charts grow, achievements float up
+  -->
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0f"/>
+      <stop offset="50%" stop-color="#0f0f18"/>
+      <stop offset="100%" stop-color="#0a0a0f"/>
+    </linearGradient>
+
+    <!-- Card gradient -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <!-- Chart gradient -->
+    <linearGradient id="chartGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#14FFEC" stop-opacity="0.8"/>
+    </linearGradient>
+
+    <!-- Bar gradients -->
+    <linearGradient id="barGrad1" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0D7377"/>
+      <stop offset="100%" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="barGrad2" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="barGrad3" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </linearGradient>
+
+    <!-- Achievement glow -->
+    <radialGradient id="achievementGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FBBF24" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.3"/>
+    </radialGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft shadow -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+
+    <!-- Achievement icons -->
+    <symbol id="trophy" viewBox="0 0 24 24">
+      <path d="M12 17L7 22H17L12 17ZM19 5H17V3H7V5H5C3.9 5 3 5.9 3 7V8C3 10.55 4.92 12.63 7.39 12.94C8.02 14.44 9.37 15.57 11 15.9V17H13V15.9C14.63 15.57 15.98 14.44 16.61 12.94C19.08 12.63 21 10.55 21 8V7C21 5.9 20.1 5 19 5Z" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="flame" viewBox="0 0 24 24">
+      <path d="M12 23C16.5 23 20 19.5 20 15C20 11.5 17.5 7.5 14 5.5C14 8 12.5 10 10 10C7.5 10 6 8 6 5.5C2.5 7.5 0 11.5 0 15C0 19.5 3.5 23 8 23C8 20 10 18 12 18C14 18 16 20 16 23" fill="currentColor"/>
+    </symbol>
+
+    <symbol id="star" viewBox="0 0 24 24">
+      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+    </symbol>
+  </defs>
+
+  <!-- BACKGROUND -->
+  <rect width="390" height="600" fill="url(#bgGrad)"/>
+
+  <!-- CALENDAR CARD -->
+  <g id="calendar-card" transform="translate(30, 80)" filter="url(#softShadow)">
+    <!-- Card background -->
+    <rect width="330" height="140" rx="12" fill="url(#cardGrad)" stroke="#334155" stroke-width="1"/>
+
+    <!-- Card header -->
+    <text x="15" y="28" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#94A3B8">THIS WEEK</text>
+
+    <!-- Days of week -->
+    <g transform="translate(15, 45)" font-family="Inter, sans-serif" font-size="10" fill="#64748B">
+      <text x="0" y="0">M</text>
+      <text x="45" y="0">T</text>
+      <text x="90" y="0">W</text>
+      <text x="135" y="0">T</text>
+      <text x="180" y="0">F</text>
+      <text x="225" y="0">S</text>
+      <text x="270" y="0">S</text>
+    </g>
+
+    <!-- Workout dots (animated appearance) -->
+    <g transform="translate(20, 70)">
+      <!-- Monday - completed -->
+      <circle cx="0" cy="0" r="14" fill="#14B8A6" opacity="0.2"/>
+      <circle cx="0" cy="0" r="10" fill="#14B8A6">
+        <animate attributeName="r" values="0;10" dur="0.3s" fill="freeze"/>
+      </circle>
+      <text x="0" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0F172A">✓</text>
+
+      <!-- Tuesday - completed -->
+      <circle cx="45" cy="0" r="14" fill="#14B8A6" opacity="0.2"/>
+      <circle cx="45" cy="0" r="10" fill="#14B8A6">
+        <animate attributeName="r" values="0;10" dur="0.3s" fill="freeze" begin="0.1s"/>
+      </circle>
+      <text x="45" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0F172A">✓</text>
+
+      <!-- Wednesday - rest -->
+      <circle cx="90" cy="0" r="10" fill="#334155" stroke="#475569" stroke-width="1"/>
+      <text x="90" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#64748B">R</text>
+
+      <!-- Thursday - completed -->
+      <circle cx="135" cy="0" r="14" fill="#14B8A6" opacity="0.2"/>
+      <circle cx="135" cy="0" r="10" fill="#14B8A6">
+        <animate attributeName="r" values="0;10" dur="0.3s" fill="freeze" begin="0.2s"/>
+      </circle>
+      <text x="135" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0F172A">✓</text>
+
+      <!-- Friday - completed -->
+      <circle cx="180" cy="0" r="14" fill="#14B8A6" opacity="0.2"/>
+      <circle cx="180" cy="0" r="10" fill="#14B8A6">
+        <animate attributeName="r" values="0;10" dur="0.3s" fill="freeze" begin="0.3s"/>
+      </circle>
+      <text x="180" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0F172A">✓</text>
+
+      <!-- Saturday - today (pulsing) -->
+      <circle cx="225" cy="0" r="14" fill="#F97316" opacity="0.3">
+        <animate attributeName="r" values="12;16;12" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="225" cy="0" r="10" fill="#F97316"/>
+      <text x="225" y="4" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#FFF">GO</text>
+
+      <!-- Sunday - upcoming -->
+      <circle cx="270" cy="0" r="10" fill="#1E293B" stroke="#334155" stroke-width="1" stroke-dasharray="3,2"/>
+    </g>
+
+    <!-- Streak indicator -->
+    <g transform="translate(260, 105)">
+      <rect x="0" y="0" width="55" height="24" rx="12" fill="#F97316" opacity="0.2"/>
+      <use href="#flame" x="8" y="4" width="16" height="16" fill="#F97316"/>
+      <text x="28" y="16" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#F97316">5</text>
+    </g>
+  </g>
+
+  <!-- LINE CHART CARD -->
+  <g id="chart-card" transform="translate(30, 235)" filter="url(#softShadow)">
+    <!-- Card background -->
+    <rect width="330" height="130" rx="12" fill="url(#cardGrad)" stroke="#334155" stroke-width="1"/>
+
+    <!-- Card header -->
+    <text x="15" y="25" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#94A3B8">PROGRESS</text>
+    <text x="280" y="25" font-family="Inter, sans-serif" font-size="11" fill="#14B8A6">+12%</text>
+
+    <!-- Chart area -->
+    <g transform="translate(20, 40)">
+      <!-- Grid lines -->
+      <line x1="0" y1="0" x2="290" y2="0" stroke="#334155" stroke-width="0.5" stroke-dasharray="4,4"/>
+      <line x1="0" y1="25" x2="290" y2="25" stroke="#334155" stroke-width="0.5" stroke-dasharray="4,4"/>
+      <line x1="0" y1="50" x2="290" y2="50" stroke="#334155" stroke-width="0.5" stroke-dasharray="4,4"/>
+      <line x1="0" y1="75" x2="290" y2="75" stroke="#334155" stroke-width="0.5"/>
+
+      <!-- Area fill -->
+      <path d="M 0 75 L 0 60 Q 40 55 70 50 Q 110 52 145 40 Q 180 45 210 30 Q 250 25 290 15 L 290 75 Z" fill="url(#chartGrad)" opacity="0.5">
+        <animate attributeName="opacity" values="0;0.5" dur="1s" fill="freeze"/>
+      </path>
+
+      <!-- Line -->
+      <path d="M 0 60 Q 40 55 70 50 Q 110 52 145 40 Q 180 45 210 30 Q 250 25 290 15"
+            fill="none" stroke="#14FFEC" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)">
+        <animate attributeName="stroke-dasharray" values="0,500;500,0" dur="1.5s" fill="freeze"/>
+      </path>
+
+      <!-- Data points -->
+      <circle cx="0" cy="60" r="4" fill="#14FFEC">
+        <animate attributeName="r" values="0;4" dur="0.3s" fill="freeze" begin="0.5s"/>
+      </circle>
+      <circle cx="70" cy="50" r="4" fill="#14FFEC">
+        <animate attributeName="r" values="0;4" dur="0.3s" fill="freeze" begin="0.7s"/>
+      </circle>
+      <circle cx="145" cy="40" r="4" fill="#14FFEC">
+        <animate attributeName="r" values="0;4" dur="0.3s" fill="freeze" begin="0.9s"/>
+      </circle>
+      <circle cx="210" cy="30" r="4" fill="#14FFEC">
+        <animate attributeName="r" values="0;4" dur="0.3s" fill="freeze" begin="1.1s"/>
+      </circle>
+      <circle cx="290" cy="15" r="5" fill="#14FFEC" filter="url(#glow)">
+        <animate attributeName="r" values="0;5" dur="0.3s" fill="freeze" begin="1.3s"/>
+      </circle>
+    </g>
+  </g>
+
+  <!-- BAR CHART CARD -->
+  <g id="volume-card" transform="translate(30, 380)" filter="url(#softShadow)">
+    <!-- Card background -->
+    <rect width="200" height="100" rx="12" fill="url(#cardGrad)" stroke="#334155" stroke-width="1"/>
+
+    <!-- Card header -->
+    <text x="15" y="25" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#94A3B8">VOLUME BY MUSCLE</text>
+
+    <!-- Bars -->
+    <g transform="translate(20, 40)">
+      <!-- Chest bar -->
+      <rect x="0" y="30" width="40" height="0" rx="4" fill="url(#barGrad1)">
+        <animate attributeName="height" values="0;30" dur="0.5s" fill="freeze" begin="0.3s"/>
+        <animate attributeName="y" values="30;0" dur="0.5s" fill="freeze" begin="0.3s"/>
+      </rect>
+      <text x="20" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#64748B">Chest</text>
+
+      <!-- Back bar -->
+      <rect x="55" y="30" width="40" height="0" rx="4" fill="url(#barGrad2)">
+        <animate attributeName="height" values="0;45" dur="0.5s" fill="freeze" begin="0.5s"/>
+        <animate attributeName="y" values="30;-15" dur="0.5s" fill="freeze" begin="0.5s"/>
+      </rect>
+      <text x="75" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#64748B">Back</text>
+
+      <!-- Legs bar -->
+      <rect x="110" y="30" width="40" height="0" rx="4" fill="url(#barGrad3)">
+        <animate attributeName="height" values="0;38" dur="0.5s" fill="freeze" begin="0.7s"/>
+        <animate attributeName="y" values="30;-8" dur="0.5s" fill="freeze" begin="0.7s"/>
+      </rect>
+      <text x="130" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="#64748B">Legs</text>
+    </g>
+  </g>
+
+  <!-- ACHIEVEMENTS FLOATING -->
+  <g id="achievements" transform="translate(250, 380)">
+    <!-- Achievement 1 -->
+    <g transform="translate(0, 0)">
+      <circle r="22" fill="url(#achievementGlow)" filter="url(#glow)">
+        <animate attributeName="cy" values="0;-5;0" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="18" fill="#1E293B" stroke="#FBBF24" stroke-width="2"/>
+      <use href="#trophy" x="-10" y="-10" width="20" height="20" fill="#FBBF24"/>
+    </g>
+
+    <!-- Achievement 2 -->
+    <g transform="translate(50, 25)">
+      <circle r="20" fill="url(#achievementGlow)" filter="url(#glow)" opacity="0.8">
+        <animate attributeName="cy" values="0;-4;0" dur="2.2s" repeatCount="indefinite" begin="0.3s"/>
+      </circle>
+      <circle r="16" fill="#1E293B" stroke="#FBBF24" stroke-width="2"/>
+      <use href="#star" x="-9" y="-9" width="18" height="18" fill="#FBBF24"/>
+    </g>
+
+    <!-- Achievement 3 (locked) -->
+    <g transform="translate(25, 60)" opacity="0.5">
+      <circle r="18" fill="#1E293B" stroke="#475569" stroke-width="2" stroke-dasharray="4,3"/>
+      <text x="0" y="5" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#475569">?</text>
+    </g>
+  </g>
+
+  <!-- TEXT -->
+  <g id="text">
+    <text x="195" y="515" text-anchor="middle" font-family="Outfit, sans-serif" font-size="28" font-weight="700" fill="#FFFFFF">
+      Track Everything
+    </text>
+    <text x="195" y="545" text-anchor="middle" font-family="Outfit, sans-serif" font-size="14" fill="#94A3B8">
+      Workouts, progress, achievements—all in one place.
+    </text>
+  </g>
+
+  <!-- PROGRESS DOTS -->
+  <g id="progress" transform="translate(195, 580)">
+    <circle cx="-50" cy="3" r="3" fill="#334155"/>
+    <circle cx="-35" cy="3" r="3" fill="#334155"/>
+    <rect x="-22" y="0" width="24" height="6" rx="3" fill="#14B8A6"/>
+    <circle cx="15" cy="3" r="3" fill="#334155"/>
+    <circle cx="30" cy="3" r="3" fill="#334155"/>
+  </g>
+</svg>

@@ -1,0 +1,164 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Back Extension (Hyperextension) - Top Position
+    View: Side
+    Primary Muscles: Erector Spinae (95%), Gluteus Maximus (80%), Hamstrings (65%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- HYPEREXTENSION BENCH -->
+  <g id="equipment-bench" fill="#3F3F46" stroke="#52525B" stroke-width="2">
+    <!-- Hip pad (angled) -->
+    <rect x="180" y="280" width="80" height="25" rx="5" transform="rotate(-35 220 292)"/>
+
+    <!-- Ankle pads/rollers -->
+    <ellipse cx="340" cy="365" rx="15" ry="10" fill="#27272A"/>
+    <ellipse cx="340" cy="395" rx="15" ry="10" fill="#27272A"/>
+
+    <!-- Frame -->
+    <rect x="195" y="310" width="15" height="150" rx="3"/>
+    <rect x="310" y="320" width="15" height="140" rx="3"/>
+
+    <!-- Base -->
+    <rect x="180" y="450" width="160" height="15" rx="4"/>
+
+    <!-- Foot platform -->
+    <rect x="320" y="410" width="40" height="15" rx="3"/>
+  </g>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Erector Spinae - PRIMARY (95%) -->
+    <path id="muscle-erector" data-muscle="erector-spinae" data-activation="95"
+      d="M 160 185 Q 185 172 200 200 Q 212 265 200 330 Q 178 345 162 325 Q 148 265 160 185"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.88;1;0.88" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Lumbar region emphasis -->
+    <ellipse id="muscle-lumbar" data-muscle="lumbar-erector" data-activation="95"
+      cx="185" cy="295" rx="18" ry="35"
+      fill="url(#activationMax)" filter="url(#muscleGlow)" transform="rotate(-35 185 295)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </ellipse>
+
+    <!-- Gluteus Maximus - PRIMARY (80%) -->
+    <path id="muscle-glutes" data-muscle="gluteus-maximus" data-activation="80"
+      d="M 210 295 Q 250 278 278 318 Q 298 385 278 450 Q 235 475 208 440 Q 188 375 210 295"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Hamstrings - SECONDARY (65%) -->
+    <path id="muscle-hamstrings" data-muscle="hamstrings" data-activation="65"
+      d="M 260 380 Q 295 365 320 405 Q 340 475 325 545 Q 285 570 258 540 Q 240 475 260 380"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Thoracic Erector -->
+    <ellipse id="muscle-thoracic" data-muscle="thoracic-erector" data-activation="70"
+      cx="165" cy="220" rx="15" ry="40"
+      fill="url(#activationMed)" filter="url(#muscleGlow)" transform="rotate(-35 165 220)" opacity="0.7"/>
+
+    <!-- Core (anti-flexion) -->
+    <path id="muscle-core" data-muscle="rectus-abdominis" data-activation="35"
+      d="M 140 220 Q 158 212 168 238 Q 178 295 168 350 Q 150 362 138 345 Q 128 295 140 220"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.4"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Back Extension (top position - body horizontal) -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (looking down) -->
+    <ellipse cx="85" cy="195" rx="28" ry="32" transform="rotate(-35 85 195)"/>
+
+    <!-- Neck -->
+    <path d="M 108 215 Q 128 225 148 250 L 168 280 Q 148 298 128 270 Z"/>
+
+    <!-- Shoulder -->
+    <ellipse cx="160" cy="275" rx="24" ry="20" transform="rotate(-35 160 275)"/>
+
+    <!-- Upper Back (extended position) -->
+    <path d="M 148 285 Q 185 265 218 305 Q 250 375 240 455 L 188 485 Q 150 420 148 285"/>
+
+    <!-- Arms (crossed at chest or behind head) -->
+    <ellipse cx="125" cy="245" rx="14" ry="35" transform="rotate(-60 125 245)"/>
+    <ellipse cx="110" cy="215" rx="12" ry="28" transform="rotate(-75 110 215)"/>
+
+    <!-- Hands (at temples) -->
+    <ellipse cx="95" cy="185" rx="10" ry="8" transform="rotate(-75 95 185)"/>
+
+    <!-- Torso (horizontal - extended) -->
+    <path d="M 185 440 Q 225 425 260 465 Q 295 540 285 620 Q 250 655 215 645 Q 180 630 180 575 Q 178 505 185 440"/>
+
+    <!-- Pelvis (on pad) -->
+    <path d="M 235 380 Q 280 362 315 405 Q 345 475 320 545 Q 275 575 240 552 Q 210 505 235 380"/>
+
+    <!-- Thigh (angled down) -->
+    <path d="M 285 470 Q 325 455 360 495 Q 395 565 380 640 Q 340 670 305 648 Q 275 595 285 470"/>
+
+    <!-- Lower Leg (hooked under ankle pads) -->
+    <path d="M 350 450 Q 330 420 320 365 Q 318 310 335 265 Q 365 250 390 268 Q 402 315 395 370 Q 382 430 350 450"/>
+
+    <!-- Feet (against foot plate) -->
+    <ellipse cx="360" cy="415" rx="20" ry="12"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="100" cy="205" r="4"/> <!-- Neck -->
+    <circle cx="160" cy="275" r="4"/> <!-- Shoulder -->
+    <circle cx="255" cy="485" r="5"/> <!-- Hip -->
+    <circle cx="340" cy="540" r="4"/> <!-- Knee -->
+    <circle cx="360" cy="380" r="4"/> <!-- Ankle -->
+  </g>
+
+  <!-- HORIZONTAL LINE INDICATOR -->
+  <g id="horizontal-indicator" opacity="0.4">
+    <line x1="80" y1="290" x2="300" y2="290" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="155" y="280" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">neutral spine</text>
+  </g>
+
+  <!-- MOVEMENT ARC -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 85 250 Q 70 300 100 350" fill="none" stroke="#14B8A6" stroke-width="2" stroke-dasharray="6,4">
+      <animate attributeName="stroke-dashoffset" values="0;20" dur="1s" repeatCount="indefinite"/>
+    </path>
+    <text x="50" y="310" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">EXTEND</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="190" cy="320" rx="35" ry="60" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3" transform="rotate(-35 190 320)">
+      <animate attributeName="ry" values="55;65;55" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+</svg>

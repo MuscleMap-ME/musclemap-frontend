@@ -95,6 +95,7 @@ const LogsPanel = lazy(() => import('../components/admin/LogsPanel'));
 const BackupPanel = lazy(() => import('../components/admin/BackupPanel'));
 const MarkdownEditor = lazy(() => import('../components/admin/MarkdownEditor'));
 const UserAnalyticsPanel = lazy(() => import('../components/admin/UserAnalyticsPanel'));
+const BuildDaemonPanel = lazy(() => import('../components/admin/BuildDaemonPanel'));
 
 // ============================================
 // CONSTANTS
@@ -116,6 +117,7 @@ const NAV_SECTIONS = [
   { id: 'scheduler', label: 'Scheduler', icon: Calendar },
   { id: 'env', label: 'Environment', icon: FileCode },
   { id: 'deploy', label: 'Deployments', icon: Rocket, link: '/empire/deploy' },
+  { id: 'build-daemon', label: 'Build Daemon', icon: Zap },
   { id: 'commands', label: 'Command Center', icon: Terminal, link: '/empire/commands' },
   { id: 'realtime-metrics', label: 'Real-time Metrics', icon: Activity },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
@@ -1207,6 +1209,17 @@ export default function EmpireControl() {
                   </div>
                 }>
                   <DeployPanel />
+                </Suspense>
+              )}
+
+              {/* Build Daemon Panel Section */}
+              {activeSection === 'build-daemon' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <BuildDaemonPanel />
                 </Suspense>
               )}
 

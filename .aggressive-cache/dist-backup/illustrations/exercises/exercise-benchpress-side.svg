@@ -1,0 +1,161 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Barbell Bench Press - Bottom Position
+    View: Side
+    Primary Muscles: Pectoralis Major (95%), Triceps (80%), Anterior Deltoid (75%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- BENCH -->
+  <g id="bench" filter="url(#softShadow)">
+    <!-- Bench pad -->
+    <rect x="80" y="310" width="240" height="25" fill="#27272A" rx="4"/>
+    <!-- Bench legs -->
+    <rect x="95" y="335" width="12" height="65" fill="#3F3F46"/>
+    <rect x="293" y="335" width="12" height="65" fill="#3F3F46"/>
+    <!-- Cross bar -->
+    <rect x="95" y="385" width="210" height="8" fill="#52525B" rx="2"/>
+  </g>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Pectoralis Major - PRIMARY (95%) -->
+    <path id="muscle-chest" data-muscle="pectoralis-major" data-activation="95"
+      d="M 145 265 Q 175 250 200 265 Q 200 295 195 315 Q 165 320 145 310 Q 140 290 145 265"
+      fill="url(#activationMax)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.8;0.95;0.8" dur="2s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Triceps - SECONDARY (80%) -->
+    <ellipse id="muscle-triceps" data-muscle="triceps" data-activation="80"
+      cx="90" cy="220" rx="14" ry="35"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)" transform="rotate(-20 90 220)">
+      <animate attributeName="opacity" values="0.7;0.85;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Anterior Deltoid - SECONDARY (75%) -->
+    <ellipse id="muscle-front-delt" data-muscle="anterior-deltoid" data-activation="75"
+      cx="125" cy="255" rx="15" ry="22"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)"/>
+
+    <!-- Biceps - STABILIZER (15%) -->
+    <ellipse id="muscle-biceps" data-muscle="biceps" data-activation="15"
+      cx="105" cy="225" rx="12" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-15 105 225)" opacity="0.4"/>
+
+    <!-- Core - STABILIZER (25%) -->
+    <path id="muscle-core" data-muscle="rectus-abdominis" data-activation="25"
+      d="M 165 330 Q 195 325 220 332 Q 225 365 220 395 Q 190 400 165 395 Q 160 365 165 330"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" opacity="0.5"/>
+  </g>
+
+  <!-- FIGURE LAYER - Side View Supine Bench Press -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head (on bench, looking up) -->
+    <ellipse cx="295" cy="280" rx="35" ry="32"/>
+
+    <!-- Neck -->
+    <path d="M 260 278 Q 270 290 260 300 L 240 295 Q 245 280 260 278"/>
+
+    <!-- Torso (supine on bench) -->
+    <path d="M 145 310 Q 145 280 155 265 Q 185 255 220 265 Q 240 280 240 310 L 145 310"/>
+
+    <!-- Upper chest arch -->
+    <path d="M 175 265 Q 195 250 215 265" fill="none" stroke="#64748B" stroke-width="1"/>
+
+    <!-- Shoulder/Scapula retracted -->
+    <ellipse cx="145" cy="285" rx="18" ry="14"/>
+
+    <!-- Upper Arm (horizontal, elbows bent ~90 degrees) -->
+    <ellipse cx="115" cy="260" rx="16" ry="40" transform="rotate(-75 115 260)"/>
+
+    <!-- Forearm (vertical, holding bar) -->
+    <ellipse cx="80" cy="195" rx="13" ry="38" transform="rotate(-10 80 195)"/>
+
+    <!-- Hand (gripping bar) -->
+    <ellipse cx="75" cy="155" rx="12" ry="15"/>
+
+    <!-- Pelvis/Hips -->
+    <path d="M 145 310 Q 145 345 160 370 Q 195 380 230 370 Q 245 345 245 310"/>
+
+    <!-- Thigh -->
+    <ellipse cx="265" cy="385" rx="25" ry="50" transform="rotate(15 265 385)"/>
+
+    <!-- Lower Leg (feet on floor) -->
+    <ellipse cx="320" cy="450" rx="14" ry="45" transform="rotate(30 320 450)"/>
+
+    <!-- Foot -->
+    <ellipse cx="355" cy="490" rx="18" ry="10" transform="rotate(20 355 490)"/>
+  </g>
+
+  <!-- BARBELL -->
+  <g id="equipment" filter="url(#softShadow)">
+    <!-- Bar (at chest level - bottom position) -->
+    <rect x="30" y="145" width="120" height="6" fill="#71717A" rx="3"/>
+
+    <!-- Collar -->
+    <rect x="45" y="138" width="10" height="20" fill="#52525B" rx="2"/>
+
+    <!-- Plates (45kg plate visible from side) -->
+    <rect x="15" y="125" width="30" height="46" fill="#3F3F46" rx="4"/>
+    <circle cx="30" cy="148" r="8" fill="#52525B"/>
+
+    <!-- Grip marks on bar -->
+    <line x1="60" y1="148" x2="70" y2="148" stroke="#94A3B8" stroke-width="2" stroke-dasharray="2,2"/>
+    <line x1="90" y1="148" x2="100" y2="148" stroke="#94A3B8" stroke-width="2" stroke-dasharray="2,2"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="145" cy="285" r="4"/> <!-- Shoulder -->
+    <circle cx="90" cy="185" r="3"/> <!-- Elbow -->
+    <circle cx="75" cy="155" r="3"/> <!-- Wrist -->
+    <circle cx="200" cy="345" r="4"/> <!-- Hip -->
+    <circle cx="295" cy="415" r="3"/> <!-- Knee -->
+    <circle cx="345" cy="480" r="3"/> <!-- Ankle -->
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="50" y1="500" x2="380" y2="500" stroke="#334155" stroke-width="2" stroke-dasharray="8,4"/>
+
+  <!-- MOVEMENT DIRECTION INDICATOR -->
+  <g id="movement-indicator" opacity="0.6">
+    <path d="M 55 120 L 55 95 L 45 107 Z" fill="#14B8A6"/>
+    <path d="M 55 80 L 55 55 L 45 67 Z" fill="#14B8A6" opacity="0.4"/>
+    <text x="35" y="45" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">PUSH</text>
+  </g>
+
+  <!-- BAR PATH GUIDE (optional) -->
+  <path id="bar-path" d="M 75 148 Q 85 100 75 60" fill="none" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+</svg>

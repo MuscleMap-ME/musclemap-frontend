@@ -1,0 +1,189 @@
+<svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Exercise: Barbell Upright Row - Top Position
+    View: Front
+    Primary Muscles: Lateral Deltoid (90%), Upper Trapezius (85%), Anterior Deltoid (70%)
+  -->
+  <defs>
+    <linearGradient id="figureGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="activationMax" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#DC2626" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="activationHigh" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#EA580C" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="activationMed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="activationLow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0D9488" stop-opacity="0.35"/>
+    </linearGradient>
+    <filter id="muscleGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- MUSCLE ACTIVATION LAYER -->
+  <g id="muscles" opacity="0.85">
+    <!-- Left Lateral Deltoid - PRIMARY (90%) -->
+    <ellipse id="muscle-lat-delt-left" data-muscle="lateral-deltoid-left" data-activation="90"
+      cx="115" cy="180" rx="22" ry="28"
+      fill="url(#activationMax)" filter="url(#muscleGlow)" transform="rotate(-15 115 180)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Right Lateral Deltoid - PRIMARY (90%) -->
+    <ellipse id="muscle-lat-delt-right" data-muscle="lateral-deltoid-right" data-activation="90"
+      cx="285" cy="180" rx="22" ry="28"
+      fill="url(#activationMax)" filter="url(#muscleGlow)" transform="rotate(15 285 180)">
+      <animate attributeName="opacity" values="0.85;0.98;0.85" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- Upper Trapezius - PRIMARY (85%) -->
+    <path id="muscle-upper-traps" data-muscle="trapezius-upper" data-activation="85"
+      d="M 165 130 Q 200 115 235 130 Q 250 145 235 165 Q 200 180 165 165 Q 150 145 165 130"
+      fill="url(#activationHigh)" filter="url(#muscleGlow)">
+      <animate attributeName="opacity" values="0.78;0.92;0.78" dur="2s" repeatCount="indefinite" begin="0.1s"/>
+    </path>
+
+    <!-- Left Anterior Deltoid - SECONDARY (70%) -->
+    <ellipse id="muscle-front-delt-left" data-muscle="anterior-deltoid-left" data-activation="70"
+      cx="140" cy="190" rx="18" ry="22"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Right Anterior Deltoid - SECONDARY (70%) -->
+    <ellipse id="muscle-front-delt-right" data-muscle="anterior-deltoid-right" data-activation="70"
+      cx="260" cy="190" rx="18" ry="22"
+      fill="url(#activationMed)" filter="url(#muscleGlow)"/>
+
+    <!-- Biceps (assist) -->
+    <ellipse id="muscle-bicep-left" data-muscle="biceps-left" data-activation="45"
+      cx="130" cy="235" rx="14" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-35 130 235)" opacity="0.5"/>
+    <ellipse id="muscle-bicep-right" data-muscle="biceps-right" data-activation="45"
+      cx="270" cy="235" rx="14" ry="28"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(35 270 235)" opacity="0.5"/>
+
+    <!-- Forearm Flexors -->
+    <ellipse id="muscle-forearm-left" data-muscle="forearm-flexors-left" data-activation="40"
+      cx="150" cy="275" rx="10" ry="24"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(-50 150 275)" opacity="0.45"/>
+    <ellipse id="muscle-forearm-right" data-muscle="forearm-flexors-right" data-activation="40"
+      cx="250" cy="275" rx="10" ry="24"
+      fill="url(#activationLow)" filter="url(#muscleGlow)" transform="rotate(50 250 275)" opacity="0.45"/>
+  </g>
+
+  <!-- FIGURE LAYER - Front View Upright Row -->
+  <g id="figure" fill="url(#figureGrad)" stroke="#64748B" stroke-width="1.5" filter="url(#softShadow)">
+    <!-- Head -->
+    <ellipse cx="200" cy="85" rx="32" ry="38"/>
+
+    <!-- Neck -->
+    <rect x="186" y="120" width="28" height="22" rx="7"/>
+
+    <!-- Trapezius/Shoulders (elevated) -->
+    <path d="M 115 160 Q 155 140 200 145 Q 245 140 285 160 Q 305 185 295 215 L 105 215 Q 95 185 115 160"/>
+
+    <!-- Shoulders (elevated position) -->
+    <ellipse cx="115" cy="195" rx="28" ry="24"/>
+    <ellipse cx="285" cy="195" rx="28" ry="24"/>
+
+    <!-- Torso -->
+    <path d="M 125 215 Q 110 245 115 310 Q 135 400 165 455 Q 188 475 200 475 Q 212 475 235 455 Q 265 400 285 310 Q 290 245 275 215 Q 200 200 125 215"/>
+
+    <!-- Left Upper Arm (abducted, elbow up) -->
+    <ellipse cx="125" cy="230" rx="18" ry="40" transform="rotate(-40 125 230)"/>
+
+    <!-- Right Upper Arm (abducted, elbow up) -->
+    <ellipse cx="275" cy="230" rx="18" ry="40" transform="rotate(40 275 230)"/>
+
+    <!-- Left Forearm (pointed down toward bar) -->
+    <ellipse cx="160" cy="280" rx="13" ry="35" transform="rotate(-60 160 280)"/>
+
+    <!-- Right Forearm (pointed down toward bar) -->
+    <ellipse cx="240" cy="280" rx="13" ry="35" transform="rotate(60 240 280)"/>
+
+    <!-- Hands (gripping bar at chest height) -->
+    <ellipse cx="180" cy="295" rx="12" ry="10"/>
+    <ellipse cx="220" cy="295" rx="12" ry="10"/>
+
+    <!-- Pelvis -->
+    <path d="M 165 455 Q 200 480 235 455 Q 252 500 235 540 Q 200 560 165 540 Q 148 500 165 455"/>
+
+    <!-- Legs -->
+    <ellipse cx="178" cy="580" rx="28" ry="55"/>
+    <ellipse cx="222" cy="580" rx="28" ry="55"/>
+
+    <!-- Lower Legs -->
+    <ellipse cx="175" cy="660" rx="18" ry="50"/>
+    <ellipse cx="225" cy="660" rx="18" ry="50"/>
+  </g>
+
+  <!-- BARBELL (at upper chest level) -->
+  <g id="equipment-barbell" filter="url(#softShadow)">
+    <!-- Bar -->
+    <rect x="140" y="290" width="120" height="10" fill="#71717A" rx="5"/>
+
+    <!-- Plates (left) -->
+    <rect x="110" y="275" width="35" height="40" fill="#3F3F46" rx="5"/>
+    <rect x="85" y="280" width="28" height="30" fill="#52525B" rx="4"/>
+
+    <!-- Plates (right) -->
+    <rect x="255" y="275" width="35" height="40" fill="#3F3F46" rx="5"/>
+    <rect x="287" y="280" width="28" height="30" fill="#52525B" rx="4"/>
+
+    <!-- Grip markings -->
+    <line x1="175" y1="292" x2="175" y2="298" stroke="#94A3B8" stroke-width="2"/>
+    <line x1="225" y1="292" x2="225" y2="298" stroke="#94A3B8" stroke-width="2"/>
+  </g>
+
+  <!-- JOINT MARKERS -->
+  <g id="joints" fill="#94A3B8" opacity="0.5">
+    <circle cx="200" cy="140" r="4"/> <!-- Neck -->
+    <circle cx="115" cy="195" r="4"/> <!-- Left shoulder -->
+    <circle cx="285" cy="195" r="4"/> <!-- Right shoulder -->
+    <circle cx="105" cy="260" r="3"/> <!-- Left elbow -->
+    <circle cx="295" cy="260" r="3"/> <!-- Right elbow -->
+    <circle cx="180" cy="295" r="3"/> <!-- Left wrist -->
+    <circle cx="220" cy="295" r="3"/> <!-- Right wrist -->
+  </g>
+
+  <!-- ELBOW POSITION INDICATOR -->
+  <g id="elbow-indicator" opacity="0.4">
+    <line x1="105" y1="260" x2="105" y2="195" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="295" y1="260" x2="295" y2="195" stroke="#14B8A6" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="70" y="225" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">elbows high</text>
+    <text x="300" y="225" fill="#14B8A6" font-family="Inter, sans-serif" font-size="8">elbows high</text>
+  </g>
+
+  <!-- MOVEMENT INDICATOR -->
+  <g id="movement-indicator" opacity="0.5">
+    <path d="M 200 330 L 200 270 L 190 295 Z" fill="#14B8A6"/>
+    <text x="210" y="310" fill="#14B8A6" font-family="Inter, sans-serif" font-size="10">PULL</text>
+  </g>
+
+  <!-- CONTRACTION INDICATOR -->
+  <g id="contraction" opacity="0.5">
+    <ellipse cx="200" cy="170" rx="90" ry="40" fill="none" stroke="#EF4444" stroke-width="2" stroke-dasharray="4,3">
+      <animate attributeName="ry" values="35;45;35" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+
+  <!-- GROUND LINE -->
+  <line x1="130" y1="710" x2="270" y2="710" stroke="#334155" stroke-width="2"/>
+</svg>
