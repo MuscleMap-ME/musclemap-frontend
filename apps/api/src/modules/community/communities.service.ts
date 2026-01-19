@@ -871,9 +871,9 @@ export const communitiesService = {
   ): Promise<CommunityEvent[]> {
     const { upcoming = true, limit = 20, offset = 0 } = options;
 
-    let whereClause = 'community_id = $1';
+    let whereClause = 'e.community_id = $1';
     if (upcoming) {
-      whereClause += " AND starts_at > NOW() AND status = 'scheduled'";
+      whereClause += " AND e.starts_at > NOW() AND e.status = 'scheduled'";
     }
 
     const rows = await queryAll<{
@@ -892,17 +892,19 @@ export const communitiesService = {
       is_virtual: boolean;
       virtual_url: string | null;
       max_participants: number | null;
-      participant_count: number;
+      participant_count: string; // COUNT() returns string in pg
       status: string;
       created_at: Date;
     }>(
       `SELECT
-        id, community_id, virtual_hangout_id, creator_id, title, description,
-        event_type, starts_at, ends_at, timezone, location_name, location_address,
-        is_virtual, virtual_url, max_participants, participant_count, status, created_at
-       FROM community_events
+        e.id, e.community_id, e.virtual_hangout_id, e.creator_id, e.title, e.description,
+        e.event_type, e.starts_at, e.ends_at, e.timezone, e.location_name, e.location_address,
+        e.is_virtual, e.virtual_url, e.max_participants,
+        (SELECT COUNT(*) FROM event_participants WHERE event_id = e.id AND status != 'cancelled') as participant_count,
+        e.status, e.created_at
+       FROM community_events e
        WHERE ${whereClause}
-       ORDER BY starts_at ${upcoming ? 'ASC' : 'DESC'}
+       ORDER BY e.starts_at ${upcoming ? 'ASC' : 'DESC'}
        LIMIT $2 OFFSET $3`,
       [communityId, limit, offset]
     );
@@ -923,7 +925,7 @@ export const communitiesService = {
       isVirtual: r.is_virtual,
       virtualUrl: r.virtual_url ?? undefined,
       maxParticipants: r.max_participants ?? undefined,
-      participantCount: r.participant_count,
+      participantCount: parseInt(r.participant_count, 10) || 0,
       status: r.status as CommunityEvent['status'],
       createdAt: r.created_at,
     }));

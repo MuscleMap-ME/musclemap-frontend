@@ -119,9 +119,6 @@ export async function registerEconomyRoutes(app: FastifyInstance) {
     });
   });
 
-  // Short alias for wallet (frontend compatibility)
-  app.get('/wallet', { preHandler: authenticate }, async (request, reply) => {
-    const balance = await economyService.getBalance(request.user!.userId);
-    return reply.send({ data: { balance } });
-  });
+  // NOTE: /wallet route removed - it conflicts with credits.ts /wallet route
+  // which is more comprehensive. Use /api/wallet (from credits.ts) or /api/economy/wallet instead.
 }

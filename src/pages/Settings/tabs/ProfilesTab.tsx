@@ -8,9 +8,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Layers, Plus, Edit2, Trash2, Check, X, Zap, Home, Building, Trophy } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, Check, X, Zap } from 'lucide-react';
 import { usePreferencesStore, usePreferenceProfiles } from '../../../store/preferencesStore';
 import type { PreferenceProfile } from '@musclemap/shared';
+import { useToast } from '../../../hooks';
 
 // ============================================
 // PRESET PROFILES
@@ -270,6 +271,166 @@ function CreateProfileModal({
   );
 }
 
+function EditProfileModal({
+  profile,
+  onClose,
+  onSave,
+}: {
+  profile: PreferenceProfile;
+  onClose: () => void;
+  onSave: (profileId: string, updates: Partial<PreferenceProfile>) => Promise<void>;
+}) {
+  const [name, setName] = useState(profile.name);
+  const [description, setDescription] = useState(profile.description || '');
+  const [icon, setIcon] = useState(profile.icon || '');
+  const [color, setColor] = useState(profile.color || '#3B82F6');
+  const [isSaving, setIsSaving] = useState(false);
+  const { success, error } = useToast();
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+
+    setIsSaving(true);
+    try {
+      await onSave(profile.id, {
+        name: name.trim(),
+        description: description.trim(),
+        icon,
+        color,
+      });
+      success('Profile updated successfully');
+      onClose();
+    } catch (_err) {
+      error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg">Edit Profile</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Preview */}
+          <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-xl">
+            <div
+              className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+              style={{ backgroundColor: color + '30' }}
+            >
+              {icon || ''}
+            </div>
+            <div>
+              <div className="font-bold">{name || 'Profile Name'}</div>
+              <div className="text-xs text-gray-400">{description || 'No description'}</div>
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Profile"
+              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-2 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-sm text-gray-400 mb-1 block">Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-2 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Icon & Color */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="text-sm text-gray-400 mb-1 block">Icon</label>
+              <input
+                type="text"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-2 text-center text-2xl focus:border-purple-500 focus:outline-none"
+                maxLength={2}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-sm text-gray-400 mb-1 block">Color</label>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-full h-10 bg-gray-700 border border-gray-600 rounded-xl cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Preset quick select */}
+          <div>
+            <label className="text-sm text-gray-400 mb-2 block">Quick presets</label>
+            <div className="grid grid-cols-4 gap-2">
+              {PROFILE_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => {
+                    setIcon(preset.icon);
+                    setColor(preset.color);
+                  }}
+                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  title={preset.name}
+                >
+                  <span className="text-xl">{preset.icon}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={onClose}
+            disabled={isSaving}
+            className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!name.trim() || isSaving}
+            className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -278,15 +439,17 @@ export default function ProfilesTab() {
   const {
     profiles,
     activeProfile,
-    loadProfiles,
-    createProfile,
-    deleteProfile,
-    activateProfile,
-    deactivateProfile,
+    load: loadProfiles,
+    create: createProfile,
+    update: updateProfile,
+    remove: deleteProfile,
+    activate: activateProfile,
+    deactivate: deactivateProfile,
   } = usePreferenceProfiles();
 
   const isSaving = usePreferencesStore((s) => s.isSaving);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<PreferenceProfile | null>(null);
 
   // Load profiles on mount
   useEffect(() => {
@@ -365,9 +528,7 @@ export default function ProfilesTab() {
                 profile={profile}
                 isActive={activeProfile?.id === profile.id}
                 onActivate={() => activateProfile(profile.id)}
-                onEdit={() => {
-                  // TODO: Implement edit modal
-                }}
+                onEdit={() => setEditingProfile(profile)}
                 onDelete={() => deleteProfile(profile.id)}
               />
             ))}
@@ -435,6 +596,15 @@ export default function ProfilesTab() {
         <CreateProfileModal
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreate}
+        />
+      )}
+
+      {/* Edit Profile Modal */}
+      {editingProfile && (
+        <EditProfileModal
+          profile={editingProfile}
+          onClose={() => setEditingProfile(null)}
+          onSave={updateProfile}
         />
       )}
     </div>

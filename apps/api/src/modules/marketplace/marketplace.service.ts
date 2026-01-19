@@ -476,28 +476,21 @@ export const marketplaceService = {
 
       // Update listing
       await client.query(
-        `UPDATE marketplace_listings SET status = 'sold', buyer_id = $1, final_price = $2,
-         platform_fee = $3, updated_at = NOW() WHERE id = $4`,
-        [buyerId, price, platformFee, listingId]
+        `UPDATE marketplace_listings SET status = 'sold', sold_to_id = $1, sold_price = $2,
+         sold_at = NOW(), updated_at = NOW() WHERE id = $3`,
+        [buyerId, price, listingId]
       );
 
       // Record transaction
       await client.query(
         `INSERT INTO marketplace_transactions (
           id, listing_id, seller_id, buyer_id, cosmetic_id,
-          sale_price, platform_fee, seller_proceeds, transaction_type
+          sale_price, platform_fee, seller_received, transaction_type
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'buy_now')`,
         [
           uuidv4(), listingId, listing.seller_id, buyerId, listing.cosmetic_id,
           price, platformFee, sellerProceeds,
         ]
-      );
-
-      // Record price history
-      await client.query(
-        `INSERT INTO price_history (cosmetic_id, sale_price, listing_type)
-         VALUES ($1, $2, $3)`,
-        [listing.cosmetic_id, price, listing.listing_type]
       );
 
       // Decline pending offers
@@ -772,7 +765,7 @@ export const marketplaceService = {
     return queryAll(
       `SELECT w.*, l.price, l.listing_type, l.expires_at, l.status,
         c.name as cosmetic_name, c.icon as cosmetic_icon, c.rarity
-       FROM user_watchlist w
+       FROM marketplace_watchlist w
        JOIN marketplace_listings l ON w.listing_id = l.id
        JOIN spirit_animal_cosmetics c ON l.cosmetic_id = c.id
        WHERE w.user_id = $1
@@ -793,18 +786,32 @@ export const marketplaceService = {
     }
 
     await query(
-      `INSERT INTO user_watchlist (user_id, listing_id, price_alert_threshold)
+      `INSERT INTO marketplace_watchlist (user_id, listing_id, price_alert)
        VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, listing_id) DO UPDATE SET price_alert_threshold = $3`,
+       ON CONFLICT (user_id, listing_id) DO UPDATE SET price_alert = $3`,
       [userId, listingId, priceAlert]
+    );
+
+    // Increment watchlist count on listing
+    await query(
+      `UPDATE marketplace_listings SET watchlist_count = watchlist_count + 1 WHERE id = $1`,
+      [listingId]
     );
   },
 
   async removeFromWatchlist(userId: string, listingId: string) {
-    await query(
-      `DELETE FROM user_watchlist WHERE user_id = $1 AND listing_id = $2`,
+    const result = await query(
+      `DELETE FROM marketplace_watchlist WHERE user_id = $1 AND listing_id = $2`,
       [userId, listingId]
     );
+
+    // Decrement watchlist count on listing if row was deleted
+    if (result.rowCount && result.rowCount > 0) {
+      await query(
+        `UPDATE marketplace_listings SET watchlist_count = GREATEST(0, watchlist_count - 1) WHERE id = $1`,
+        [listingId]
+      );
+    }
   },
 
   // =====================================================

@@ -17,7 +17,10 @@ import {
   geoHangoutsService,
   paymentsService,
   socialSpendingService,
+  creditService,
 } from '../../modules/economy';
+import { streaksService } from '../../modules/engagement/streaks.service';
+import { dailyLoginService } from '../../modules/engagement/daily-login.service';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
 
@@ -701,6 +704,471 @@ export async function economyEnhancedRoutes(fastify: FastifyInstance) {
       const boost = await socialSpendingService.getActiveBoost(targetType, targetId);
 
       return reply.send({ boost, hasBost: !!boost });
+    },
+  });
+
+  // ============================================
+  // STREAK FREEZE PURCHASE
+  // ============================================
+
+  // Get streak freeze pricing and user status
+  fastify.get('/utility/streak-freeze', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+
+      // Get current streak status
+      const streakStatus = await dailyLoginService.getStatus(userId);
+      const allStreaks = await streaksService.getAllStreaks(userId);
+
+      // Define pricing (50 credits per freeze as per economy plan)
+      const STREAK_FREEZE_PRICE = 50;
+      const MAX_FREEZES_OWNED = 5;
+
+      return reply.send({
+        price: STREAK_FREEZE_PRICE,
+        maxOwned: MAX_FREEZES_OWNED,
+        currentOwned: streakStatus.streakFreezesOwned,
+        canPurchase: streakStatus.streakFreezesOwned < MAX_FREEZES_OWNED,
+        loginStreak: {
+          current: streakStatus.currentStreak,
+          atRisk: streakStatus.streakAtRisk,
+        },
+        workoutStreak: {
+          current: allStreaks.streaks.find((s) => s.streakType === 'workout')?.currentStreak ?? 0,
+        },
+      });
+    },
+  });
+
+  // Purchase a streak freeze
+  fastify.post('/utility/streak-freeze/purchase', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+      const body = z
+        .object({
+          quantity: z.number().min(1).max(5).default(1),
+        })
+        .parse(request.body || {});
+
+      const STREAK_FREEZE_PRICE = 50;
+      const MAX_FREEZES_OWNED = 5;
+
+      // Check current freeze count
+      const streakStatus = await dailyLoginService.getStatus(userId);
+      const canPurchase = MAX_FREEZES_OWNED - streakStatus.streakFreezesOwned;
+
+      if (canPurchase <= 0) {
+        return reply.status(400).send({
+          error: `Already own maximum freezes (${MAX_FREEZES_OWNED})`,
+        });
+      }
+
+      const quantityToBuy = Math.min(body.quantity, canPurchase);
+      const totalCost = quantityToBuy * STREAK_FREEZE_PRICE;
+
+      // Deduct credits using charge method
+      const chargeResult = await creditService.charge({
+        userId,
+        action: 'purchase.streak_freeze',
+        amount: totalCost,
+        metadata: { quantity: quantityToBuy },
+        idempotencyKey: `streak-freeze-${userId}-${Date.now()}`,
+      });
+
+      if (!chargeResult.success) {
+        return reply.status(402).send({
+          error: chargeResult.error || 'Insufficient credits',
+          required: totalCost,
+        });
+      }
+
+      // Add freezes to user
+      const { query } = await import('../../db/client');
+      await query(
+        `UPDATE user_login_streaks
+         SET streak_freezes_owned = COALESCE(streak_freezes_owned, 0) + $1
+         WHERE user_id = $2`,
+        [quantityToBuy, userId]
+      );
+
+      // Create earn event for visibility
+      await earnEventsService.createEvent({
+        userId,
+        amount: -totalCost,
+        source: 'purchase.streak_freeze',
+        description: `Purchased ${quantityToBuy} streak freeze${quantityToBuy > 1 ? 's' : ''}`,
+        forceAnimationType: 'purchase',
+        forceIcon: 'shield',
+      });
+
+      return reply.status(201).send({
+        success: true,
+        purchased: quantityToBuy,
+        totalCost,
+        newBalance: chargeResult.newBalance,
+        freezesOwned: streakStatus.streakFreezesOwned + quantityToBuy,
+      });
+    },
+  });
+
+  // Use a streak freeze
+  fastify.post('/utility/streak-freeze/use', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+      const body = z
+        .object({
+          streakType: z.enum(['login', 'workout', 'nutrition', 'sleep', 'social']).default('login'),
+        })
+        .parse(request.body || {});
+
+      try {
+        // Currently only login streak freezes are implemented
+        if (body.streakType !== 'login') {
+          return reply.status(400).send({
+            error: `Streak freezes for ${body.streakType} are not yet implemented. Only login streak freezes are available.`,
+          });
+        }
+
+        const result = await dailyLoginService.useStreakFreeze(userId);
+
+        return reply.send({
+          success: result.success,
+          streakType: body.streakType,
+          freezesRemaining: result.freezesRemaining,
+          message: `Streak freeze applied to ${body.streakType} streak`,
+        });
+      } catch (error: any) {
+        return reply.status(400).send({ error: error.message });
+      }
+    },
+  });
+
+  // ============================================
+  // REAL-TIME EARN EVENTS (SSE STREAMING)
+  // ============================================
+
+  // SSE endpoint for real-time credit earn events
+  fastify.get('/earn-events/stream', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable Nginx buffering
+      });
+
+      // Send initial connection event
+      reply.raw.write(`event: connected\ndata: ${JSON.stringify({ userId, timestamp: new Date().toISOString() })}\n\n`);
+
+      // Poll for new events every 2 seconds
+      let lastEventId: string | null = null;
+      let isConnected = true;
+
+      const pollInterval = setInterval(async () => {
+        if (!isConnected) {
+          clearInterval(pollInterval);
+          return;
+        }
+
+        try {
+          // Get unseen events
+          const events = await earnEventsService.getUnseenEvents(userId, 10);
+
+          if (events.length > 0) {
+            // Filter to only new events (after lastEventId)
+            const newEvents = lastEventId
+              ? events.filter((e) => e.id > lastEventId!)
+              : events;
+
+            if (newEvents.length > 0) {
+              // Send each event
+              for (const event of newEvents) {
+                reply.raw.write(
+                  `event: earn\ndata: ${JSON.stringify({
+                    id: event.id,
+                    amount: event.amount,
+                    source: event.source,
+                    description: event.description,
+                    animationType: event.animationType,
+                    icon: event.icon,
+                    color: event.color,
+                    createdAt: event.createdAt,
+                  })}\n\n`
+                );
+                lastEventId = event.id;
+              }
+
+              // Mark as seen
+              await earnEventsService.markEventsSeen(
+                userId,
+                newEvents.map((e) => e.id)
+              );
+            }
+          }
+        } catch (error) {
+          log.warn({ userId, error }, 'Error polling earn events');
+        }
+      }, 2000);
+
+      // Send heartbeat every 30 seconds to keep connection alive
+      const heartbeatInterval = setInterval(() => {
+        if (!isConnected) {
+          clearInterval(heartbeatInterval);
+          return;
+        }
+        reply.raw.write(`: heartbeat\n\n`);
+      }, 30000);
+
+      // Clean up on disconnect
+      request.raw.on('close', () => {
+        isConnected = false;
+        clearInterval(pollInterval);
+        clearInterval(heartbeatInterval);
+        log.debug({ userId }, 'Earn events SSE connection closed');
+      });
+
+      // Don't end the response - keep it open for SSE
+      // reply.raw.end() will be called when the client disconnects
+    },
+  });
+
+  // ============================================
+  // CREDIT SUBSCRIPTIONS
+  // ============================================
+
+  // Get subscription tiers
+  fastify.get('/subscriptions/tiers', {
+    handler: async (_request: FastifyRequest, reply: FastifyReply) => {
+      // Subscription tiers from the economy plan
+      const tiers = [
+        {
+          id: 'bronze',
+          name: 'Bronze',
+          pricePerMonth: 499, // $4.99
+          creditsPerMonth: 600,
+          effectiveRate: 83, // $0.83 per 100 credits
+          perks: ['5% store discount'],
+          stripePriceId: process.env.STRIPE_BRONZE_PRICE_ID,
+        },
+        {
+          id: 'silver',
+          name: 'Silver',
+          pricePerMonth: 999, // $9.99
+          creditsPerMonth: 1400,
+          effectiveRate: 71, // $0.71 per 100 credits
+          perks: ['10% store discount', 'Priority support'],
+          stripePriceId: process.env.STRIPE_SILVER_PRICE_ID,
+        },
+        {
+          id: 'gold',
+          name: 'Gold',
+          pricePerMonth: 1999, // $19.99
+          creditsPerMonth: 3200,
+          effectiveRate: 62, // $0.62 per 100 credits
+          perks: ['15% store discount', 'Priority support', 'Early access'],
+          popular: true,
+          stripePriceId: process.env.STRIPE_GOLD_PRICE_ID,
+        },
+        {
+          id: 'platinum',
+          name: 'Platinum',
+          pricePerMonth: 4999, // $49.99
+          creditsPerMonth: 9000,
+          effectiveRate: 55, // $0.55 per 100 credits
+          perks: ['20% store discount', 'Priority support', 'Early access', 'Exclusive items'],
+          bestValue: true,
+          stripePriceId: process.env.STRIPE_PLATINUM_PRICE_ID,
+        },
+      ];
+
+      return reply.send({ tiers });
+    },
+  });
+
+  // Get user's current subscription
+  fastify.get('/subscriptions/current', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+
+      const { queryOne } = await import('../../db/client');
+
+      const subscription = await queryOne<{
+        id: string;
+        tier: string;
+        status: string;
+        current_period_start: Date;
+        current_period_end: Date;
+        cancel_at_period_end: boolean;
+        stripe_subscription_id: string | null;
+      }>(
+        `SELECT * FROM credit_subscriptions WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      if (!subscription) {
+        return reply.send({ subscription: null });
+      }
+
+      return reply.send({
+        subscription: {
+          id: subscription.id,
+          tier: subscription.tier,
+          status: subscription.status,
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        },
+      });
+    },
+  });
+
+  // Create subscription checkout (Stripe)
+  fastify.post('/subscriptions/checkout', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+      const body = z
+        .object({
+          tier: z.enum(['bronze', 'silver', 'gold', 'platinum']),
+          successUrl: z.string().url(),
+          cancelUrl: z.string().url(),
+        })
+        .parse(request.body);
+
+      // Map tier to Stripe price ID
+      const priceIdMap: Record<string, string | undefined> = {
+        bronze: process.env.STRIPE_BRONZE_PRICE_ID,
+        silver: process.env.STRIPE_SILVER_PRICE_ID,
+        gold: process.env.STRIPE_GOLD_PRICE_ID,
+        platinum: process.env.STRIPE_PLATINUM_PRICE_ID,
+      };
+
+      const priceId = priceIdMap[body.tier];
+      if (!priceId) {
+        return reply.status(400).send({
+          error: 'Subscription tier not configured. Please contact support.',
+        });
+      }
+
+      try {
+        // Create Stripe checkout session for subscription
+        const stripe = paymentsService.getStripeClient();
+        if (!stripe) {
+          return reply.status(503).send({
+            error: 'Payment processing not available',
+          });
+        }
+
+        // Get or create Stripe customer
+        const { queryOne, query } = await import('../../db/client');
+        let stripeCustomerId = await queryOne<{ stripe_customer_id: string }>(
+          `SELECT stripe_customer_id FROM users WHERE id = $1`,
+          [userId]
+        );
+
+        if (!stripeCustomerId?.stripe_customer_id) {
+          // Get user email
+          const user = await queryOne<{ email: string; username: string }>(
+            `SELECT email, username FROM users WHERE id = $1`,
+            [userId]
+          );
+
+          if (!user?.email) {
+            return reply.status(400).send({ error: 'User email not found' });
+          }
+
+          // Create Stripe customer
+          const customer = await stripe.customers.create({
+            email: user.email,
+            metadata: { userId, username: user.username },
+          });
+
+          await query(
+            `UPDATE users SET stripe_customer_id = $1 WHERE id = $2`,
+            [customer.id, userId]
+          );
+
+          stripeCustomerId = { stripe_customer_id: customer.id };
+        }
+
+        // Create checkout session
+        const session = await stripe.checkout.sessions.create({
+          customer: stripeCustomerId.stripe_customer_id,
+          mode: 'subscription',
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          success_url: body.successUrl,
+          cancel_url: body.cancelUrl,
+          metadata: {
+            userId,
+            tier: body.tier,
+            type: 'subscription',
+          },
+        });
+
+        return reply.send({
+          checkoutUrl: session.url,
+          sessionId: session.id,
+        });
+      } catch (error: any) {
+        log.error({ userId, error }, 'Failed to create subscription checkout');
+        return reply.status(400).send({ error: error.message });
+      }
+    },
+  });
+
+  // Cancel subscription
+  fastify.post('/subscriptions/cancel', {
+    preHandler: [authenticate],
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = (request as any).user.id;
+
+      const { queryOne, query } = await import('../../db/client');
+
+      const subscription = await queryOne<{
+        id: string;
+        stripe_subscription_id: string | null;
+      }>(
+        `SELECT id, stripe_subscription_id FROM credit_subscriptions WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      if (!subscription) {
+        return reply.status(404).send({ error: 'No active subscription found' });
+      }
+
+      // Cancel in Stripe
+      if (subscription.stripe_subscription_id) {
+        const stripe = paymentsService.getStripeClient();
+        if (stripe) {
+          await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+            cancel_at_period_end: true,
+          });
+        }
+      }
+
+      // Update local record
+      await query(
+        `UPDATE credit_subscriptions SET cancel_at_period_end = true, updated_at = NOW() WHERE id = $1`,
+        [subscription.id]
+      );
+
+      return reply.send({
+        success: true,
+        message: 'Subscription will be canceled at the end of the current billing period',
+      });
     },
   });
 

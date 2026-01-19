@@ -3,15 +3,246 @@
  *
  * Provides convenient endpoints for the AdminControl and EmpireControl frontend pages.
  * These consolidate various admin operations into a single endpoint namespace.
+ *
+ * Emergency Mode Features:
+ * - Maintenance Mode: Returns 503 for all non-admin requests
+ * - Read-Only Mode: Blocks POST/PUT/DELETE/PATCH for non-admin requests
  */
 
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireRole } from './auth';
 import { queryAll, queryOne, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { getRedis, isRedisAvailable } from '../../lib/redis';
 
 const log = loggers.api;
+
+// Redis keys for emergency modes
+const REDIS_KEYS = {
+  MAINTENANCE_MODE: 'system:maintenance_mode',
+  READ_ONLY_MODE: 'system:read_only_mode',
+  MAINTENANCE_MESSAGE: 'system:maintenance_message',
+  MAINTENANCE_STARTED_BY: 'system:maintenance_started_by',
+  MAINTENANCE_STARTED_AT: 'system:maintenance_started_at',
+  READ_ONLY_STARTED_BY: 'system:read_only_started_by',
+  READ_ONLY_STARTED_AT: 'system:read_only_started_at',
+} as const;
+
+// Database fallback for when Redis is not available
+interface SystemSetting {
+  key: string;
+  value: string;
+  updated_at: Date;
+  updated_by: string | null;
+}
+
+/**
+ * Get emergency mode status from Redis or database
+ */
+async function getEmergencyModeStatus(): Promise<{
+  maintenanceMode: boolean;
+  readOnlyMode: boolean;
+  maintenanceMessage: string | null;
+  maintenanceStartedBy: string | null;
+  maintenanceStartedAt: string | null;
+  readOnlyStartedBy: string | null;
+  readOnlyStartedAt: string | null;
+}> {
+  const redis = getRedis();
+
+  if (redis && isRedisAvailable()) {
+    // Try Redis first (fast path)
+    const [
+      maintenanceMode,
+      readOnlyMode,
+      maintenanceMessage,
+      maintenanceStartedBy,
+      maintenanceStartedAt,
+      readOnlyStartedBy,
+      readOnlyStartedAt,
+    ] = await Promise.all([
+      redis.get(REDIS_KEYS.MAINTENANCE_MODE),
+      redis.get(REDIS_KEYS.READ_ONLY_MODE),
+      redis.get(REDIS_KEYS.MAINTENANCE_MESSAGE),
+      redis.get(REDIS_KEYS.MAINTENANCE_STARTED_BY),
+      redis.get(REDIS_KEYS.MAINTENANCE_STARTED_AT),
+      redis.get(REDIS_KEYS.READ_ONLY_STARTED_BY),
+      redis.get(REDIS_KEYS.READ_ONLY_STARTED_AT),
+    ]);
+
+    return {
+      maintenanceMode: maintenanceMode === 'true',
+      readOnlyMode: readOnlyMode === 'true',
+      maintenanceMessage,
+      maintenanceStartedBy,
+      maintenanceStartedAt,
+      readOnlyStartedBy,
+      readOnlyStartedAt,
+    };
+  }
+
+  // Fallback to database
+  const settings = await queryAll<SystemSetting>(
+    `SELECT key, value, updated_at, updated_by
+     FROM system_settings
+     WHERE key IN ($1, $2)`,
+    ['maintenance_mode', 'read_only_mode']
+  );
+
+  const maintenanceSetting = settings.find((s) => s.key === 'maintenance_mode');
+  const readOnlySetting = settings.find((s) => s.key === 'read_only_mode');
+
+  return {
+    maintenanceMode: maintenanceSetting?.value === 'true',
+    readOnlyMode: readOnlySetting?.value === 'true',
+    maintenanceMessage: null, // Not stored in DB fallback
+    maintenanceStartedBy: maintenanceSetting?.updated_by || null,
+    maintenanceStartedAt: maintenanceSetting?.updated_at?.toISOString() || null,
+    readOnlyStartedBy: readOnlySetting?.updated_by || null,
+    readOnlyStartedAt: readOnlySetting?.updated_at?.toISOString() || null,
+  };
+}
+
+/**
+ * Set maintenance mode status
+ */
+async function setMaintenanceMode(
+  enabled: boolean,
+  adminId: string,
+  message?: string
+): Promise<void> {
+  const redis = getRedis();
+  const now = new Date().toISOString();
+
+  if (redis && isRedisAvailable()) {
+    if (enabled) {
+      await Promise.all([
+        redis.set(REDIS_KEYS.MAINTENANCE_MODE, 'true'),
+        redis.set(REDIS_KEYS.MAINTENANCE_STARTED_BY, adminId),
+        redis.set(REDIS_KEYS.MAINTENANCE_STARTED_AT, now),
+        message
+          ? redis.set(REDIS_KEYS.MAINTENANCE_MESSAGE, message)
+          : redis.del(REDIS_KEYS.MAINTENANCE_MESSAGE),
+      ]);
+    } else {
+      await Promise.all([
+        redis.del(REDIS_KEYS.MAINTENANCE_MODE),
+        redis.del(REDIS_KEYS.MAINTENANCE_STARTED_BY),
+        redis.del(REDIS_KEYS.MAINTENANCE_STARTED_AT),
+        redis.del(REDIS_KEYS.MAINTENANCE_MESSAGE),
+      ]);
+    }
+  }
+
+  // Also persist to database for durability
+  await query(
+    `INSERT INTO system_settings (key, value, updated_by, updated_at)
+     VALUES ('maintenance_mode', $1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = NOW()`,
+    [enabled ? 'true' : 'false', adminId]
+  );
+}
+
+/**
+ * Set read-only mode status
+ */
+async function setReadOnlyMode(enabled: boolean, adminId: string): Promise<void> {
+  const redis = getRedis();
+  const now = new Date().toISOString();
+
+  if (redis && isRedisAvailable()) {
+    if (enabled) {
+      await Promise.all([
+        redis.set(REDIS_KEYS.READ_ONLY_MODE, 'true'),
+        redis.set(REDIS_KEYS.READ_ONLY_STARTED_BY, adminId),
+        redis.set(REDIS_KEYS.READ_ONLY_STARTED_AT, now),
+      ]);
+    } else {
+      await Promise.all([
+        redis.del(REDIS_KEYS.READ_ONLY_MODE),
+        redis.del(REDIS_KEYS.READ_ONLY_STARTED_BY),
+        redis.del(REDIS_KEYS.READ_ONLY_STARTED_AT),
+      ]);
+    }
+  }
+
+  // Also persist to database for durability
+  await query(
+    `INSERT INTO system_settings (key, value, updated_by, updated_at)
+     VALUES ('read_only_mode', $1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_by = $2, updated_at = NOW()`,
+    [enabled ? 'true' : 'false', adminId]
+  );
+}
+
+/**
+ * Check if user is admin
+ */
+function isAdmin(request: FastifyRequest): boolean {
+  return request.user?.roles?.includes('admin') ?? false;
+}
+
+/**
+ * Emergency mode middleware - checks maintenance and read-only modes
+ * This should be registered early in the request lifecycle
+ */
+export async function emergencyModeMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  // Skip for health check endpoints
+  if (request.url === '/health' || request.url === '/ready' || request.url === '/metrics') {
+    return;
+  }
+
+  // Skip for admin control endpoints (so admins can disable emergency modes)
+  if (request.url.startsWith('/api/admin-control/emergency')) {
+    return;
+  }
+
+  const status = await getEmergencyModeStatus();
+
+  // Check maintenance mode first (more restrictive)
+  if (status.maintenanceMode) {
+    // Allow admins through
+    if (isAdmin(request)) {
+      return;
+    }
+
+    log.info({ url: request.url, ip: request.ip }, 'Request blocked by maintenance mode');
+
+    return reply.status(503).send({
+      error: {
+        code: 'MAINTENANCE_MODE',
+        message: status.maintenanceMessage || 'The system is currently under maintenance. Please try again later.',
+        statusCode: 503,
+      },
+    });
+  }
+
+  // Check read-only mode for mutating requests
+  if (status.readOnlyMode) {
+    const mutatingMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+    if (mutatingMethods.includes(request.method)) {
+      // Allow admins through
+      if (isAdmin(request)) {
+        return;
+      }
+
+      log.info({ url: request.url, method: request.method, ip: request.ip }, 'Request blocked by read-only mode');
+
+      return reply.status(503).send({
+        error: {
+          code: 'READ_ONLY_MODE',
+          message: 'The system is currently in read-only mode. Write operations are temporarily disabled.',
+          statusCode: 503,
+        },
+      });
+    }
+  }
+}
 
 const adjustCreditsSchema = z.object({
   userId: z.string().uuid(),
@@ -19,9 +250,36 @@ const adjustCreditsSchema = z.object({
   reason: z.string().min(1).max(500),
 });
 
+// Export getEmergencyModeStatus for use in other parts of the application
+export { getEmergencyModeStatus };
+
 export async function registerAdminControlRoutes(app: FastifyInstance) {
   // Helper middleware for admin check
   const adminOnly = [authenticate, requireRole('admin')];
+
+  // Public endpoint for checking system status (no auth required)
+  // This allows the frontend to show maintenance/read-only banners to users
+  app.get('/admin-control/system-status', async (_request, reply) => {
+    try {
+      const status = await getEmergencyModeStatus();
+
+      return reply.send({
+        maintenanceMode: status.maintenanceMode,
+        maintenanceMessage: status.maintenanceMessage,
+        readOnlyMode: status.readOnlyMode,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      log.error({ err }, 'Failed to get system status');
+      // Return safe defaults if status check fails
+      return reply.send({
+        maintenanceMode: false,
+        maintenanceMessage: null,
+        readOnlyMode: false,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
 
   // Get all users (paginated)
   app.get('/admin-control/users', { preHandler: adminOnly }, async (request, reply) => {
@@ -257,40 +515,131 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     return reply.send({ data: scripts });
   });
 
-  // Emergency status
+  // Emergency status - returns current maintenance and read-only mode status
   app.get('/admin-control/emergency/status', { preHandler: adminOnly }, async (_request, reply) => {
-    // Check system status
-    const dbOk = await queryOne('SELECT 1');
+    try {
+      // Get emergency mode status
+      const status = await getEmergencyModeStatus();
 
-    return reply.send({
-      maintenanceMode: false,
-      readOnly: false,
-      databaseConnected: !!dbOk,
-      timestamp: new Date().toISOString(),
-    });
+      // Check database connectivity
+      const dbOk = await queryOne('SELECT 1');
+
+      // Check Redis connectivity
+      const redis = getRedis();
+      const redisOk = redis && isRedisAvailable();
+
+      return reply.send({
+        maintenanceMode: status.maintenanceMode,
+        maintenanceMessage: status.maintenanceMessage,
+        maintenanceStartedBy: status.maintenanceStartedBy,
+        maintenanceStartedAt: status.maintenanceStartedAt,
+        readOnlyMode: status.readOnlyMode,
+        readOnlyStartedBy: status.readOnlyStartedBy,
+        readOnlyStartedAt: status.readOnlyStartedAt,
+        databaseConnected: !!dbOk,
+        redisConnected: !!redisOk,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      log.error({ err }, 'Failed to get emergency status');
+      return reply.status(500).send({
+        error: { code: 'STATUS_CHECK_FAILED', message: 'Failed to check emergency status', statusCode: 500 },
+      });
+    }
   });
 
-  // Emergency actions
+  // Emergency actions - enable/disable maintenance and read-only modes
   app.post('/admin-control/emergency/:action', { preHandler: adminOnly }, async (request, reply) => {
     const { action } = request.params as { action: string };
+    const body = request.body as { message?: string } | undefined;
     const adminId = request.user!.userId;
 
     log.warn({ adminId, action }, 'Emergency action triggered');
 
-    switch (action) {
-      case 'maintenance-on':
-        // Would set maintenance mode - placeholder
-        return reply.send({ success: true, message: 'Maintenance mode enabled' });
-      case 'maintenance-off':
-        return reply.send({ success: true, message: 'Maintenance mode disabled' });
-      case 'readonly-on':
-        return reply.send({ success: true, message: 'Read-only mode enabled' });
-      case 'readonly-off':
-        return reply.send({ success: true, message: 'Read-only mode disabled' });
-      default:
-        return reply.status(400).send({
-          error: { code: 'INVALID_ACTION', message: `Unknown action: ${action}`, statusCode: 400 },
-        });
+    try {
+      switch (action) {
+        case 'maintenance-on': {
+          await setMaintenanceMode(true, adminId, body?.message);
+
+          // Log to audit
+          await query(
+            `INSERT INTO audit_log (user_id, action, details)
+             VALUES ($1, 'emergency_maintenance_on', $2)`,
+            [adminId, JSON.stringify({ message: body?.message })]
+          );
+
+          log.warn({ adminId, message: body?.message }, 'MAINTENANCE MODE ENABLED');
+
+          return reply.send({
+            success: true,
+            message: 'Maintenance mode enabled',
+            maintenanceMode: true,
+          });
+        }
+        case 'maintenance-off': {
+          await setMaintenanceMode(false, adminId);
+
+          // Log to audit
+          await query(
+            `INSERT INTO audit_log (user_id, action, details)
+             VALUES ($1, 'emergency_maintenance_off', $2)`,
+            [adminId, JSON.stringify({})]
+          );
+
+          log.info({ adminId }, 'Maintenance mode disabled');
+
+          return reply.send({
+            success: true,
+            message: 'Maintenance mode disabled',
+            maintenanceMode: false,
+          });
+        }
+        case 'readonly-on': {
+          await setReadOnlyMode(true, adminId);
+
+          // Log to audit
+          await query(
+            `INSERT INTO audit_log (user_id, action, details)
+             VALUES ($1, 'emergency_readonly_on', $2)`,
+            [adminId, JSON.stringify({})]
+          );
+
+          log.warn({ adminId }, 'READ-ONLY MODE ENABLED');
+
+          return reply.send({
+            success: true,
+            message: 'Read-only mode enabled',
+            readOnlyMode: true,
+          });
+        }
+        case 'readonly-off': {
+          await setReadOnlyMode(false, adminId);
+
+          // Log to audit
+          await query(
+            `INSERT INTO audit_log (user_id, action, details)
+             VALUES ($1, 'emergency_readonly_off', $2)`,
+            [adminId, JSON.stringify({})]
+          );
+
+          log.info({ adminId }, 'Read-only mode disabled');
+
+          return reply.send({
+            success: true,
+            message: 'Read-only mode disabled',
+            readOnlyMode: false,
+          });
+        }
+        default:
+          return reply.status(400).send({
+            error: { code: 'INVALID_ACTION', message: `Unknown action: ${action}`, statusCode: 400 },
+          });
+      }
+    } catch (err) {
+      log.error({ err, action, adminId }, 'Failed to execute emergency action');
+      return reply.status(500).send({
+        error: { code: 'ACTION_FAILED', message: 'Failed to execute emergency action', statusCode: 500 },
+      });
     }
   });
 

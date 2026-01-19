@@ -1142,6 +1142,442 @@ export async function registerMascotRoutes(app: FastifyInstance): Promise<void> 
   });
 
   // =====================================================
+  // CREDIT LOAN ROUTES (Stage 5+)
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/loan
+   * Get credit loan offer status
+   */
+  app.get('/mascot/companion/loan', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const offer = await mascotPowersService.getCreditLoanOffer(userId);
+      return reply.send({ data: offer });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get loan offer');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get loan offer', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/loan/take
+   * Take a credit loan from mascot
+   */
+  app.post('/mascot/companion/loan/take', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { amount } = request.body as { amount: number };
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'Valid amount required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await mascotPowersService.takeCreditLoan(userId, amount);
+
+      if (!result.success) {
+        const statusCode = result.error === 'LOAN_NOT_AVAILABLE' ? 403 :
+                          result.error === 'EXISTING_LOAN' ? 409 :
+                          result.error === 'AMOUNT_EXCEEDS_MAX' ? 400 : 400;
+        return reply.status(statusCode).send({
+          error: { code: result.error, message: 'Failed to take loan', statusCode },
+        });
+      }
+
+      return reply.send({ data: { success: true, newBalance: result.newBalance } });
+    } catch (error) {
+      log.error({ error, userId, amount }, 'Failed to take loan');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to take loan', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/loan/repay
+   * Repay credit loan
+   */
+  app.post('/mascot/companion/loan/repay', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { amount } = request.body as { amount?: number };
+
+    try {
+      const result = await mascotPowersService.repayCreditLoan(userId, amount);
+
+      if (!result.success) {
+        const statusCode = result.error === 'NO_ACTIVE_LOAN' ? 404 :
+                          result.error === 'INSUFFICIENT_CREDITS' ? 402 : 400;
+        return reply.status(statusCode).send({
+          error: { code: result.error, message: 'Failed to repay loan', statusCode },
+        });
+      }
+
+      return reply.send({
+        data: {
+          success: true,
+          amountRepaid: result.amountRepaid,
+          remainingDebt: result.remainingDebt,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to repay loan');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to repay loan', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/negotiated-rate
+   * Get negotiated workout rate (Stage 4+)
+   */
+  app.get('/mascot/companion/negotiated-rate', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const rate = await mascotPowersService.getNegotiatedRate(userId);
+      return reply.send({ data: rate });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get negotiated rate');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get negotiated rate', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // FORM FINDER ROUTES (Exercise Alternatives)
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/exercise-alternatives/:exerciseId
+   * Get exercise alternatives
+   */
+  app.get('/mascot/companion/exercise-alternatives/:exerciseId', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { exerciseId } = request.params as { exerciseId: string };
+    const { reason } = request.query as { reason?: 'equipment' | 'preference' | 'easier' | 'harder' };
+
+    try {
+      const alternatives = await mascotPowersService.getExerciseAlternatives(userId, exerciseId, reason);
+      return reply.send({ data: alternatives });
+    } catch (error) {
+      log.error({ error, userId, exerciseId }, 'Failed to get exercise alternatives');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get alternatives', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/exercise-avoidance
+   * Set exercise avoidance preference
+   */
+  app.post('/mascot/companion/exercise-avoidance', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { exerciseId, avoidanceType, reason } = request.body as {
+      exerciseId: string;
+      avoidanceType: 'favorite' | 'avoid' | 'injured' | 'no_equipment' | 'too_difficult' | 'too_easy';
+      reason?: string;
+    };
+
+    if (!exerciseId || !avoidanceType) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'exerciseId and avoidanceType required', statusCode: 400 },
+      });
+    }
+
+    try {
+      await mascotPowersService.setExerciseAvoidance(userId, exerciseId, avoidanceType, reason);
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, exerciseId }, 'Failed to set exercise avoidance');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to set avoidance', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/exercise-avoidances
+   * Get user's exercise avoidances
+   */
+  app.get('/mascot/companion/exercise-avoidances', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const avoidances = await mascotPowersService.getExerciseAvoidances(userId);
+      return reply.send({ data: avoidances });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get exercise avoidances');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get avoidances', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // CREW HELPER ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/crew-suggestions
+   * Get crew suggestions based on archetype and activity
+   */
+  app.get('/mascot/companion/crew-suggestions', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const suggestions = await mascotPowersService.getCrewSuggestions(userId);
+      return reply.send({ data: suggestions });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get crew suggestions');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get crew suggestions', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/crew-coordination
+   * Create crew coordination event
+   */
+  app.post('/mascot/companion/crew-coordination', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { crewId, coordinationType, proposedTime, workoutType } = request.body as {
+      crewId: string;
+      coordinationType: 'workout_reminder' | 'time_suggestion' | 'group_workout' | 'challenge_invite';
+      proposedTime?: string;
+      workoutType?: string;
+    };
+
+    if (!crewId || !coordinationType) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'crewId and coordinationType required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await mascotPowersService.createCrewCoordination(
+        userId,
+        crewId,
+        coordinationType,
+        proposedTime ? new Date(proposedTime) : undefined,
+        workoutType
+      );
+
+      if (!result.success) {
+        return reply.status(403).send({
+          error: { code: 'COORDINATION_FAILED', message: 'Cannot coordinate this type', statusCode: 403 },
+        });
+      }
+
+      return reply.send({ data: { success: true, coordinationId: result.coordinationId } });
+    } catch (error) {
+      log.error({ error, userId, crewId }, 'Failed to create crew coordination');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to coordinate', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // RIVALRY MANAGEMENT ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/rivalry-alerts
+   * Get rivalry alerts
+   */
+  app.get('/mascot/companion/rivalry-alerts', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const alerts = await mascotPowersService.getRivalryAlerts(userId);
+      return reply.send({ data: alerts });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get rivalry alerts');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get rivalry alerts', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/rivalry-alerts/:alertId/seen
+   * Mark rivalry alert as seen
+   */
+  app.post('/mascot/companion/rivalry-alerts/:alertId/seen', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { alertId } = request.params as { alertId: string };
+
+    try {
+      await mascotPowersService.markRivalryAlertSeen(userId, alertId);
+      return reply.send({ data: { success: true } });
+    } catch (error) {
+      log.error({ error, userId, alertId }, 'Failed to mark rivalry alert seen');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to mark seen', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/trash-talk
+   * Get trash talk message for rivalry
+   */
+  app.get('/mascot/companion/trash-talk', { preHandler: authenticate }, async (request, reply) => {
+    const { context } = request.query as { context?: string };
+
+    if (!context) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'context required', statusCode: 400 },
+      });
+    }
+
+    try {
+      const message = await mascotPowersService.getTrashTalk(context, {});
+      return reply.send({ data: { message } });
+    } catch (error) {
+      log.error({ error, context }, 'Failed to get trash talk');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get trash talk', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // PROGRAM GENERATION ROUTES (Stage 5+)
+  // =====================================================
+
+  /**
+   * POST /mascot/companion/generate-program
+   * Generate a workout program
+   */
+  app.post('/mascot/companion/generate-program', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { programType, goal, durationWeeks, daysPerWeek, equipment } = request.body as {
+      programType: 'strength' | 'hypertrophy' | 'powerbuilding' | 'athletic' | 'custom';
+      goal: 'build_muscle' | 'increase_strength' | 'lose_fat' | 'improve_endurance' | 'general_fitness';
+      durationWeeks: number;
+      daysPerWeek: number;
+      equipment?: string[];
+    };
+
+    if (!programType || !goal || !durationWeeks || !daysPerWeek) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'programType, goal, durationWeeks, and daysPerWeek required', statusCode: 400 },
+      });
+    }
+
+    if (durationWeeks < 1 || durationWeeks > 16) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'durationWeeks must be between 1 and 16', statusCode: 400 },
+      });
+    }
+
+    if (daysPerWeek < 1 || daysPerWeek > 7) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION', message: 'daysPerWeek must be between 1 and 7', statusCode: 400 },
+      });
+    }
+
+    try {
+      const result = await mascotPowersService.generateProgram(userId, {
+        programType,
+        goal,
+        durationWeeks,
+        daysPerWeek,
+        equipment,
+      });
+
+      if (!result.success) {
+        const statusCode = result.error === 'STAGE_5_REQUIRED' ? 403 :
+                          result.error === 'INSUFFICIENT_CREDITS' ? 402 : 400;
+        return reply.status(statusCode).send({
+          error: {
+            code: result.error,
+            message: 'Failed to generate program',
+            statusCode,
+            creditCost: result.creditCost,
+          },
+        });
+      }
+
+      return reply.send({ data: { success: true, program: result.program } });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to generate program');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to generate program', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * GET /mascot/companion/active-program
+   * Get user's active program
+   */
+  app.get('/mascot/companion/active-program', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const program = await mascotPowersService.getActiveProgram(userId);
+      return reply.send({ data: program });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get active program');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get active program', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
+  // VOLUME TRACKING & INJURY PREVENTION ROUTES
+  // =====================================================
+
+  /**
+   * GET /mascot/companion/volume-stats
+   * Get volume stats for all muscle groups
+   */
+  app.get('/mascot/companion/volume-stats', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { weeks } = request.query as { weeks?: string };
+
+    try {
+      const stats = await mascotPowersService.getVolumeStats(userId, weeks ? parseInt(weeks, 10) : 4);
+      return reply.send({ data: stats });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to get volume stats');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to get volume stats', statusCode: 500 },
+      });
+    }
+  });
+
+  /**
+   * POST /mascot/companion/check-overtraining
+   * Check for overtraining and get recommendations
+   */
+  app.post('/mascot/companion/check-overtraining', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    try {
+      const result = await mascotPowersService.checkOvertraining(userId);
+      return reply.send({ data: result });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to check overtraining');
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to check overtraining', statusCode: 500 },
+      });
+    }
+  });
+
+  // =====================================================
   // MASTER ABILITIES ROUTES
   // =====================================================
 

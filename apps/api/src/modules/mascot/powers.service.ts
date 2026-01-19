@@ -114,6 +114,76 @@ export interface MascotPowersSummary {
 // SERVICE
 // =====================================================
 
+// =====================================================
+// ADDITIONAL TYPES
+// =====================================================
+
+export interface CreditLoanOffer {
+  available: boolean;
+  maxAmount: number;
+  interestRate: number;
+  currentLoan: number;
+  canBorrow: boolean;
+  reason?: string;
+}
+
+export interface ExerciseAlternative {
+  exerciseId: string;
+  exerciseName: string;
+  reason: string;
+  similarityScore: number;
+  equipment: string[];
+  difficulty: string;
+}
+
+export interface CrewSuggestion {
+  crewId: string;
+  crewName: string;
+  matchScore: number;
+  matchReasons: string[];
+  memberCount: number;
+}
+
+export interface GeneratedProgram {
+  id: string;
+  name: string;
+  type: string;
+  goal: string;
+  durationWeeks: number;
+  daysPerWeek: number;
+  schedule: Record<string, unknown>;
+  workouts: ProgramWorkout[];
+  creditCost: number;
+}
+
+export interface ProgramWorkout {
+  weekNumber: number;
+  dayNumber: number;
+  name: string;
+  focusAreas: string[];
+  exercises: ProgramExercise[];
+  durationMinutes: number;
+  isDeload: boolean;
+}
+
+export interface ProgramExercise {
+  exerciseId: string;
+  exerciseName: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  notes?: string;
+}
+
+export interface VolumeStats {
+  muscleGroup: string;
+  weeklyVolume: number;
+  averageIntensity: number;
+  frequency: number;
+  trend: 'increasing' | 'stable' | 'decreasing';
+  recommendation?: string;
+}
+
 export const mascotPowersService = {
   // =====================================================
   // ENERGY MANAGEMENT
@@ -384,6 +454,199 @@ export const mascotPowersService = {
     `, [alertId, userId]);
   },
 
+  /**
+   * Get credit loan offer for user (Stage 5+)
+   */
+  async getCreditLoanOffer(userId: string): Promise<CreditLoanOffer> {
+    const stage = await this.getCompanionStage(userId);
+
+    // Only stage 5+ can get loans
+    if (stage < 5) {
+      return {
+        available: false,
+        maxAmount: 0,
+        interestRate: 0,
+        currentLoan: 0,
+        canBorrow: false,
+        reason: 'Credit loans require Stage 5 companion',
+      };
+    }
+
+    // Get loan config
+    const config = await queryOne<{
+      max_loan_amount: number;
+      interest_rate: number;
+    }>(`
+      SELECT
+        (config->>'max_loan_amount')::INTEGER as max_loan_amount,
+        (config->>'interest_rate')::DECIMAL as interest_rate
+      FROM mascot_credit_guardian_config
+      WHERE feature_name = 'credit_loan' AND min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    // Check for existing loan
+    const existingLoan = await queryOne<{
+      amount: number;
+      created_at: Date;
+    }>(`
+      SELECT amount, created_at FROM mascot_credit_loans
+      WHERE user_id = $1 AND repaid = FALSE
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    const maxAmount = config?.max_loan_amount || 500;
+    const interestRate = Number(config?.interest_rate || 0);
+    const currentLoan = existingLoan?.amount || 0;
+
+    return {
+      available: true,
+      maxAmount,
+      interestRate,
+      currentLoan,
+      canBorrow: currentLoan === 0,
+      reason: currentLoan > 0 ? 'You have an outstanding loan to repay first' : undefined,
+    };
+  },
+
+  /**
+   * Take a credit loan from mascot (Stage 5+)
+   */
+  async takeCreditLoan(
+    userId: string,
+    amount: number
+  ): Promise<{ success: boolean; error?: string; newBalance?: number }> {
+    const offer = await this.getCreditLoanOffer(userId);
+
+    if (!offer.available) {
+      return { success: false, error: 'LOAN_NOT_AVAILABLE' };
+    }
+
+    if (!offer.canBorrow) {
+      return { success: false, error: 'EXISTING_LOAN' };
+    }
+
+    if (amount > offer.maxAmount) {
+      return { success: false, error: 'AMOUNT_EXCEEDS_MAX' };
+    }
+
+    if (amount <= 0) {
+      return { success: false, error: 'INVALID_AMOUNT' };
+    }
+
+    // Create loan record
+    await query(`
+      INSERT INTO mascot_credit_loans (user_id, amount, interest_rate)
+      VALUES ($1, $2, $3)
+    `, [userId, amount, offer.interestRate]);
+
+    // Add credits to user
+    await economyService.addCredits(
+      userId,
+      amount,
+      'mascot_credit_loan',
+      { loanAmount: amount, interestRate: offer.interestRate }
+    );
+
+    const newBalance = await economyService.getBalance(userId);
+
+    log.info({ userId, amount, interestRate: offer.interestRate }, 'Mascot credit loan taken');
+
+    return { success: true, newBalance };
+  },
+
+  /**
+   * Repay credit loan
+   */
+  async repayCreditLoan(
+    userId: string,
+    amount?: number
+  ): Promise<{ success: boolean; error?: string; amountRepaid?: number; remainingDebt?: number }> {
+    const loan = await queryOne<{
+      id: string;
+      amount: number;
+      interest_rate: number;
+      amount_repaid: number;
+    }>(`
+      SELECT id, amount, interest_rate, COALESCE(amount_repaid, 0) as amount_repaid
+      FROM mascot_credit_loans
+      WHERE user_id = $1 AND repaid = FALSE
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (!loan) {
+      return { success: false, error: 'NO_ACTIVE_LOAN' };
+    }
+
+    const totalOwed = loan.amount + Math.floor(loan.amount * loan.interest_rate);
+    const remaining = totalOwed - loan.amount_repaid;
+    const repayAmount = amount ? Math.min(amount, remaining) : remaining;
+
+    // Check user balance
+    const balance = await economyService.getBalance(userId);
+    if (balance < repayAmount) {
+      return { success: false, error: 'INSUFFICIENT_CREDITS' };
+    }
+
+    // Charge user
+    const chargeResult = await economyService.charge({
+      userId,
+      action: 'mascot_loan_repayment',
+      amount: repayAmount,
+      metadata: { loanId: loan.id, repayAmount },
+      idempotencyKey: `loan-repay-${userId}-${loan.id}-${Date.now()}`,
+    });
+
+    if (!chargeResult.success) {
+      return { success: false, error: chargeResult.error || 'CHARGE_FAILED' };
+    }
+
+    const newRepaid = loan.amount_repaid + repayAmount;
+    const fullyRepaid = newRepaid >= totalOwed;
+
+    await query(`
+      UPDATE mascot_credit_loans
+      SET amount_repaid = $1, repaid = $2, repaid_at = $3
+      WHERE id = $4
+    `, [newRepaid, fullyRepaid, fullyRepaid ? new Date() : null, loan.id]);
+
+    log.info({ userId, repayAmount, fullyRepaid }, 'Mascot loan repayment');
+
+    return {
+      success: true,
+      amountRepaid: repayAmount,
+      remainingDebt: fullyRepaid ? 0 : totalOwed - newRepaid,
+    };
+  },
+
+  /**
+   * Get negotiated workout rate (Stage 4+)
+   * Returns a discount percentage for the next workout
+   */
+  async getNegotiatedRate(userId: string): Promise<{ discountPercent: number; available: boolean }> {
+    const stage = await this.getCompanionStage(userId);
+
+    if (stage < 4) {
+      return { discountPercent: 0, available: false };
+    }
+
+    const config = await queryOne<{ discount_percent: number }>(`
+      SELECT (config->>'discount_percent')::INTEGER as discount_percent
+      FROM mascot_credit_guardian_config
+      WHERE feature_name = 'negotiated_rate' AND min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    return {
+      discountPercent: config?.discount_percent || 10,
+      available: true,
+    };
+  },
+
   // =====================================================
   // PHASE 3: JOURNEY & PROGRESS
   // =====================================================
@@ -496,6 +759,186 @@ export const mascotPowersService = {
   },
 
   // =====================================================
+  // PHASE 3.5: FORM FINDER (Exercise Alternatives)
+  // =====================================================
+
+  /**
+   * Get exercise alternatives based on muscle activation similarity
+   */
+  async getExerciseAlternatives(
+    userId: string,
+    exerciseId: string,
+    reason?: 'equipment' | 'preference' | 'easier' | 'harder'
+  ): Promise<ExerciseAlternative[]> {
+    const stage = await this.getCompanionStage(userId);
+
+    // Check if user's stage allows this feature
+    const config = await queryOne<{
+      can_suggest_alternatives: boolean;
+      can_suggest_progressions: boolean;
+      can_remember_equipment: boolean;
+    }>(`
+      SELECT can_suggest_alternatives, can_suggest_progressions, can_remember_equipment
+      FROM mascot_form_finder_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_suggest_alternatives) {
+      return [];
+    }
+
+    // Get user's equipment preferences if available
+    const equipmentPrefs = await queryOne<{ equipment_available: string[] }>(`
+      SELECT equipment_available FROM mascot_scheduler_prefs WHERE user_id = $1
+    `, [userId]);
+
+    const userEquipment = equipmentPrefs?.equipment_available || [];
+
+    // Get the original exercise's muscle activations
+    const originalActivations = await queryAll<{ muscle_id: string; activation: number }>(`
+      SELECT muscle_id, activation FROM exercise_activations WHERE exercise_id = $1
+    `, [exerciseId]);
+
+    if (originalActivations.length === 0) {
+      return [];
+    }
+
+    // Find similar exercises based on muscle activation
+    const primaryMuscles = originalActivations
+      .filter(a => a.activation >= 0.6)
+      .map(a => a.muscle_id);
+
+    if (primaryMuscles.length === 0) {
+      return [];
+    }
+
+    const alternatives = await queryAll<{
+      exercise_id: string;
+      exercise_name: string;
+      equipment: string[];
+      difficulty: string;
+      similarity_score: number;
+    }>(`
+      WITH original_activations AS (
+        SELECT muscle_id, activation FROM exercise_activations WHERE exercise_id = $1
+      ),
+      candidate_exercises AS (
+        SELECT DISTINCT e.id, e.name, e.equipment, e.difficulty
+        FROM exercises e
+        JOIN exercise_activations ea ON ea.exercise_id = e.id
+        WHERE ea.muscle_id = ANY($2::TEXT[])
+          AND e.id != $1
+          AND e.status = 'active'
+      ),
+      scored_candidates AS (
+        SELECT
+          ce.id AS exercise_id,
+          ce.name AS exercise_name,
+          ce.equipment,
+          ce.difficulty,
+          (
+            SELECT SUM(LEAST(ea.activation, oa.activation))
+            FROM exercise_activations ea
+            JOIN original_activations oa ON oa.muscle_id = ea.muscle_id
+            WHERE ea.exercise_id = ce.id
+          ) / NULLIF((SELECT SUM(activation) FROM original_activations), 0) AS similarity_score
+        FROM candidate_exercises ce
+      )
+      SELECT
+        exercise_id,
+        exercise_name,
+        equipment,
+        difficulty,
+        COALESCE(similarity_score, 0) AS similarity_score
+      FROM scored_candidates
+      WHERE similarity_score >= 0.5
+      ORDER BY similarity_score DESC
+      LIMIT 10
+    `, [exerciseId, primaryMuscles]);
+
+    // Filter by reason if provided
+    let filteredAlternatives = alternatives;
+
+    if (reason === 'equipment' && userEquipment.length > 0 && config.can_remember_equipment) {
+      filteredAlternatives = alternatives.filter(a =>
+        a.equipment.length === 0 || a.equipment.some(eq => userEquipment.includes(eq))
+      );
+    } else if (reason === 'easier' && config.can_suggest_progressions) {
+      filteredAlternatives = alternatives.filter(a =>
+        a.difficulty === 'beginner' || a.difficulty === 'intermediate'
+      );
+    } else if (reason === 'harder' && config.can_suggest_progressions) {
+      filteredAlternatives = alternatives.filter(a =>
+        a.difficulty === 'advanced' || a.difficulty === 'expert'
+      );
+    }
+
+    // Log the suggestion
+    if (filteredAlternatives.length > 0) {
+      await query(`
+        INSERT INTO mascot_exercise_suggestions
+        (user_id, original_exercise_id, suggested_exercise_id, suggestion_reason, companion_stage)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [userId, exerciseId, filteredAlternatives[0].exercise_id, reason || 'similar_activation', stage]);
+    }
+
+    return filteredAlternatives.map(a => ({
+      exerciseId: a.exercise_id,
+      exerciseName: a.exercise_name,
+      reason: reason || 'similar_activation',
+      similarityScore: Number(a.similarity_score),
+      equipment: a.equipment || [],
+      difficulty: a.difficulty,
+    }));
+  },
+
+  /**
+   * Record user's exercise avoidance/preference
+   */
+  async setExerciseAvoidance(
+    userId: string,
+    exerciseId: string,
+    avoidanceType: 'favorite' | 'avoid' | 'injured' | 'no_equipment' | 'too_difficult' | 'too_easy',
+    reason?: string
+  ): Promise<void> {
+    await query(`
+      INSERT INTO mascot_exercise_avoidances (user_id, exercise_id, avoidance_type, reason)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, exercise_id) DO UPDATE SET
+        avoidance_type = $3,
+        reason = $4,
+        created_at = NOW()
+    `, [userId, exerciseId, avoidanceType, reason || null]);
+  },
+
+  /**
+   * Get user's avoided exercises
+   */
+  async getExerciseAvoidances(userId: string): Promise<{
+    exerciseId: string;
+    avoidanceType: string;
+    reason: string | null;
+  }[]> {
+    const results = await queryAll<{
+      exercise_id: string;
+      avoidance_type: string;
+      reason: string | null;
+    }>(`
+      SELECT exercise_id, avoidance_type, reason
+      FROM mascot_exercise_avoidances
+      WHERE user_id = $1
+    `, [userId]);
+
+    return results.map(r => ({
+      exerciseId: r.exercise_id,
+      avoidanceType: r.avoidance_type,
+      reason: r.reason,
+    }));
+  },
+
+  // =====================================================
   // PHASE 4: SOCIAL & COMMUNITY
   // =====================================================
 
@@ -597,6 +1040,241 @@ export const mascotPowersService = {
     }
 
     return message;
+  },
+
+  // =====================================================
+  // PHASE 4.5: CREW HELPER
+  // =====================================================
+
+  /**
+   * Get crew suggestions for user based on archetype and activity
+   */
+  async getCrewSuggestions(userId: string): Promise<CrewSuggestion[]> {
+    const stage = await this.getCompanionStage(userId);
+
+    const config = await queryOne<{
+      can_suggest_crews: boolean;
+    }>(`
+      SELECT can_suggest_crews
+      FROM mascot_crew_helper_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_suggest_crews) {
+      return [];
+    }
+
+    // Check if user already has a crew
+    const existingCrewship = await queryOne<{ crew_id: string }>(`
+      SELECT crew_id FROM crew_members WHERE user_id = $1 AND status = 'active'
+    `, [userId]);
+
+    if (existingCrewship) {
+      // User already in a crew, don't suggest
+      return [];
+    }
+
+    // Get user's archetype
+    const userProfile = await queryOne<{
+      current_archetype: string;
+    }>(`SELECT current_archetype FROM users WHERE id = $1`, [userId]);
+
+    // Find matching crews
+    const suggestions = await queryAll<{
+      id: string;
+      name: string;
+      archetype_focus: string | null;
+      member_count: number;
+      activity_level: string;
+    }>(`
+      SELECT
+        c.id,
+        c.name,
+        c.archetype_focus,
+        COUNT(cm.user_id) as member_count,
+        CASE
+          WHEN COUNT(cm.user_id) FILTER (WHERE cm.last_activity_at > NOW() - INTERVAL '7 days') > COUNT(cm.user_id) * 0.5 THEN 'high'
+          WHEN COUNT(cm.user_id) FILTER (WHERE cm.last_activity_at > NOW() - INTERVAL '14 days') > COUNT(cm.user_id) * 0.3 THEN 'medium'
+          ELSE 'low'
+        END as activity_level
+      FROM crews c
+      LEFT JOIN crew_members cm ON cm.crew_id = c.id AND cm.status = 'active'
+      WHERE c.is_public = TRUE
+        AND c.status = 'active'
+      GROUP BY c.id, c.name, c.archetype_focus
+      HAVING COUNT(cm.user_id) < 50
+      ORDER BY
+        CASE WHEN c.archetype_focus = $1 THEN 0 ELSE 1 END,
+        COUNT(cm.user_id) DESC
+      LIMIT 5
+    `, [userProfile?.current_archetype || '']);
+
+    // Calculate match scores and reasons
+    const results: CrewSuggestion[] = suggestions.map(s => {
+      const matchReasons: string[] = [];
+      let matchScore = 50; // Base score
+
+      if (s.archetype_focus === userProfile?.current_archetype) {
+        matchReasons.push(`Focuses on ${s.archetype_focus} archetype like you`);
+        matchScore += 30;
+      }
+
+      if (s.activity_level === 'high') {
+        matchReasons.push('Very active community');
+        matchScore += 15;
+      } else if (s.activity_level === 'medium') {
+        matchReasons.push('Moderately active');
+        matchScore += 5;
+      }
+
+      if (s.member_count >= 10 && s.member_count <= 30) {
+        matchReasons.push('Perfect sized team');
+        matchScore += 10;
+      }
+
+      return {
+        crewId: s.id,
+        crewName: s.name,
+        matchScore: Math.min(matchScore, 100),
+        matchReasons,
+        memberCount: s.member_count,
+      };
+    });
+
+    // Record suggestions
+    for (const suggestion of results) {
+      await query(`
+        INSERT INTO mascot_crew_suggestions
+        (user_id, crew_id, crew_name, match_score, match_reasons, companion_stage)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT DO NOTHING
+      `, [userId, suggestion.crewId, suggestion.crewName, suggestion.matchScore, JSON.stringify(suggestion.matchReasons), stage]);
+    }
+
+    return results;
+  },
+
+  /**
+   * Create crew coordination event (for workout scheduling)
+   */
+  async createCrewCoordination(
+    userId: string,
+    crewId: string,
+    coordinationType: 'workout_reminder' | 'time_suggestion' | 'group_workout' | 'challenge_invite',
+    proposedTime?: Date,
+    workoutType?: string
+  ): Promise<{ success: boolean; coordinationId?: string }> {
+    const stage = await this.getCompanionStage(userId);
+
+    const config = await queryOne<{
+      can_coordinate_times: boolean;
+    }>(`
+      SELECT can_coordinate_times
+      FROM mascot_crew_helper_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_coordinate_times && (coordinationType === 'time_suggestion' || coordinationType === 'group_workout')) {
+      return { success: false };
+    }
+
+    const result = await queryOne<{ id: string }>(`
+      INSERT INTO mascot_crew_coordination
+      (user_id, crew_id, coordination_type, proposed_time, workout_type, companion_stage)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id
+    `, [userId, crewId, coordinationType, proposedTime || null, workoutType || null, stage]);
+
+    return { success: true, coordinationId: result?.id };
+  },
+
+  /**
+   * Get rivalry alerts (notifications about rival activity)
+   */
+  async getRivalryAlerts(userId: string): Promise<{
+    id: string;
+    rivalUserId: string;
+    rivalUsername: string;
+    alertType: string;
+    rivalAction: string | null;
+    yourStanding: string | null;
+    suggestion: string | null;
+    createdAt: Date;
+  }[]> {
+    const results = await queryAll<{
+      id: string;
+      rival_user_id: string;
+      username: string;
+      alert_type: string;
+      rival_action: string | null;
+      your_standing: string | null;
+      suggestion: string | null;
+      created_at: Date;
+    }>(`
+      SELECT ra.id, ra.rival_user_id, u.username, ra.alert_type, ra.rival_action,
+             ra.your_standing, ra.suggestion, ra.created_at
+      FROM mascot_rivalry_alerts ra
+      JOIN users u ON u.id = ra.rival_user_id
+      WHERE ra.user_id = $1 AND ra.seen = FALSE
+      ORDER BY ra.created_at DESC
+      LIMIT 20
+    `, [userId]);
+
+    return results.map(r => ({
+      id: r.id,
+      rivalUserId: r.rival_user_id,
+      rivalUsername: r.username,
+      alertType: r.alert_type,
+      rivalAction: r.rival_action,
+      yourStanding: r.your_standing,
+      suggestion: r.suggestion,
+      createdAt: r.created_at,
+    }));
+  },
+
+  /**
+   * Mark rivalry alert as seen
+   */
+  async markRivalryAlertSeen(userId: string, alertId: string): Promise<void> {
+    await query(`
+      UPDATE mascot_rivalry_alerts
+      SET seen = TRUE
+      WHERE id = $1 AND user_id = $2
+    `, [alertId, userId]);
+  },
+
+  /**
+   * Create rivalry alert (used by workout completion hook)
+   */
+  async createRivalryAlert(
+    userId: string,
+    rivalryId: string,
+    rivalUserId: string,
+    alertType: string,
+    rivalAction?: string,
+    yourStanding?: string
+  ): Promise<void> {
+    const stage = await this.getCompanionStage(userId);
+
+    // Generate suggestion based on alert type
+    let suggestion: string | null = null;
+    if (alertType === 'rival_workout') {
+      suggestion = 'Time to match their effort! Start a workout now.';
+    } else if (alertType === 'losing_ground') {
+      suggestion = 'You\'re falling behind! A quick workout could close the gap.';
+    } else if (alertType === 'gaining_lead') {
+      suggestion = 'Keep the pressure on! Don\'t let them catch up.';
+    }
+
+    await query(`
+      INSERT INTO mascot_rivalry_alerts
+      (user_id, rivalry_id, rival_user_id, alert_type, rival_action, your_standing, suggestion, companion_stage)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [userId, rivalryId, rivalUserId, alertType, rivalAction || null, yourStanding || null, suggestion, stage]);
   },
 
   // =====================================================
@@ -763,6 +1441,485 @@ export const mascotPowersService = {
     `, [timing, stage]);
 
     return template?.template || null;
+  },
+
+  // =====================================================
+  // PHASE 6.5: VOLUME TRACKING & INJURY PREVENTION
+  // =====================================================
+
+  /**
+   * Get volume stats for all muscle groups over past weeks
+   */
+  async getVolumeStats(userId: string, weeks: number = 4): Promise<VolumeStats[]> {
+    const stage = await this.getCompanionStage(userId);
+
+    const config = await queryOne<{
+      can_track_volume: boolean;
+    }>(`
+      SELECT can_track_volume
+      FROM mascot_injury_prevention_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_track_volume) {
+      return [];
+    }
+
+    const results = await queryAll<{
+      muscle_group: string;
+      total_volume: number;
+      avg_intensity: number;
+      frequency: number;
+      prev_volume: number;
+    }>(`
+      WITH current_week AS (
+        SELECT muscle_group, SUM(total_volume) as total_volume, AVG(average_intensity) as avg_intensity, SUM(frequency) as frequency
+        FROM mascot_volume_tracking
+        WHERE user_id = $1 AND week_start >= DATE_TRUNC('week', CURRENT_DATE) - ($2 || ' weeks')::INTERVAL
+        GROUP BY muscle_group
+      ),
+      prev_week AS (
+        SELECT muscle_group, SUM(total_volume) as total_volume
+        FROM mascot_volume_tracking
+        WHERE user_id = $1 AND week_start >= DATE_TRUNC('week', CURRENT_DATE) - (($2 * 2) || ' weeks')::INTERVAL
+          AND week_start < DATE_TRUNC('week', CURRENT_DATE) - ($2 || ' weeks')::INTERVAL
+        GROUP BY muscle_group
+      )
+      SELECT
+        cw.muscle_group,
+        COALESCE(cw.total_volume, 0) as total_volume,
+        COALESCE(cw.avg_intensity, 0) as avg_intensity,
+        COALESCE(cw.frequency, 0) as frequency,
+        COALESCE(pw.total_volume, 0) as prev_volume
+      FROM current_week cw
+      LEFT JOIN prev_week pw ON pw.muscle_group = cw.muscle_group
+      ORDER BY cw.total_volume DESC
+    `, [userId, weeks]);
+
+    return results.map(r => {
+      const volumeChange = r.prev_volume > 0
+        ? ((r.total_volume - r.prev_volume) / r.prev_volume) * 100
+        : 0;
+
+      let trend: 'increasing' | 'stable' | 'decreasing';
+      if (volumeChange > 10) trend = 'increasing';
+      else if (volumeChange < -10) trend = 'decreasing';
+      else trend = 'stable';
+
+      let recommendation: string | undefined;
+      if (r.total_volume > 20000) {
+        recommendation = 'Volume is very high. Consider a deload week.';
+      } else if (r.frequency < 1) {
+        recommendation = 'Train this muscle group more frequently for better results.';
+      } else if (trend === 'increasing' && volumeChange > 25) {
+        recommendation = 'Volume increasing rapidly. Monitor for fatigue.';
+      }
+
+      return {
+        muscleGroup: r.muscle_group,
+        weeklyVolume: Number(r.total_volume),
+        averageIntensity: Number(r.avg_intensity),
+        frequency: Number(r.frequency),
+        trend,
+        recommendation,
+      };
+    });
+  },
+
+  /**
+   * Record volume after workout completion
+   */
+  async recordWorkoutVolume(
+    userId: string,
+    muscleVolumes: { muscleGroup: string; sets: number; reps: number; weight: number; intensity: number }[]
+  ): Promise<void> {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+    weekStart.setHours(0, 0, 0, 0);
+
+    for (const mv of muscleVolumes) {
+      const totalVolume = mv.sets * mv.reps * mv.weight;
+
+      await query(`
+        INSERT INTO mascot_volume_tracking
+        (user_id, muscle_group, week_start, total_sets, total_reps, total_volume, average_intensity, frequency)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+        ON CONFLICT (user_id, muscle_group, week_start) DO UPDATE SET
+          total_sets = mascot_volume_tracking.total_sets + $4,
+          total_reps = mascot_volume_tracking.total_reps + $5,
+          total_volume = mascot_volume_tracking.total_volume + $6,
+          average_intensity = (mascot_volume_tracking.average_intensity + $7) / 2,
+          frequency = mascot_volume_tracking.frequency + 1
+      `, [userId, mv.muscleGroup, weekStart, mv.sets, mv.reps, totalVolume, mv.intensity]);
+    }
+  },
+
+  /**
+   * Check for overtraining and create alerts if needed
+   */
+  async checkOvertraining(userId: string): Promise<{
+    alerts: { muscleGroup: string; riskLevel: string; recommendation: string }[];
+  }> {
+    const stage = await this.getCompanionStage(userId);
+
+    const config = await queryOne<{
+      can_warn_imbalance: boolean;
+    }>(`
+      SELECT can_warn_imbalance
+      FROM mascot_injury_prevention_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_warn_imbalance) {
+      return { alerts: [] };
+    }
+
+    const volumeStats = await this.getVolumeStats(userId, 2);
+    const alerts: { muscleGroup: string; riskLevel: string; recommendation: string }[] = [];
+
+    for (const stats of volumeStats) {
+      if (stats.weeklyVolume > 25000 || (stats.trend === 'increasing' && stats.frequency > 4)) {
+        const riskLevel = stats.weeklyVolume > 30000 ? 'high' : 'medium';
+        const recommendation = stats.weeklyVolume > 30000
+          ? `Take a deload week for ${stats.muscleGroup}. Volume is critically high.`
+          : `Consider reducing ${stats.muscleGroup} volume next week.`;
+
+        alerts.push({
+          muscleGroup: stats.muscleGroup,
+          riskLevel,
+          recommendation,
+        });
+
+        // Create alert in database
+        await query(`
+          INSERT INTO mascot_overtraining_alerts
+          (user_id, alert_type, affected_area, risk_level, current_volume, recommendation, companion_stage)
+          VALUES ($1, 'high_volume', $2, $3, $4, $5, $6)
+        `, [userId, stats.muscleGroup, riskLevel, stats.weeklyVolume, recommendation, stage]);
+      }
+    }
+
+    return { alerts };
+  },
+
+  // =====================================================
+  // PHASE 6.6: WORKOUT PROGRAM GENERATION
+  // =====================================================
+
+  /**
+   * Generate a workout program (Stage 5+)
+   */
+  async generateProgram(
+    userId: string,
+    params: {
+      programType: 'strength' | 'hypertrophy' | 'powerbuilding' | 'athletic' | 'custom';
+      goal: 'build_muscle' | 'increase_strength' | 'lose_fat' | 'improve_endurance' | 'general_fitness';
+      durationWeeks: number;
+      daysPerWeek: number;
+      equipment?: string[];
+    }
+  ): Promise<{ success: boolean; program?: GeneratedProgram; error?: string; creditCost?: number }> {
+    const stage = await this.getCompanionStage(userId);
+
+    const config = await queryOne<{
+      can_generate_program: boolean;
+      max_program_weeks: number;
+      credit_cost_per_program: number;
+    }>(`
+      SELECT can_generate_program, max_program_weeks, credit_cost_per_program
+      FROM mascot_generator_config
+      WHERE min_companion_stage <= $1
+      ORDER BY min_companion_stage DESC
+      LIMIT 1
+    `, [stage]);
+
+    if (!config?.can_generate_program) {
+      return { success: false, error: 'STAGE_5_REQUIRED' };
+    }
+
+    if (params.durationWeeks > config.max_program_weeks) {
+      return { success: false, error: 'DURATION_EXCEEDS_MAX', creditCost: config.credit_cost_per_program };
+    }
+
+    // Check and charge credits
+    const creditCost = config.credit_cost_per_program;
+    if (creditCost > 0) {
+      const balance = await economyService.getBalance(userId);
+      if (balance < creditCost) {
+        return { success: false, error: 'INSUFFICIENT_CREDITS', creditCost };
+      }
+
+      const chargeResult = await economyService.charge({
+        userId,
+        action: 'mascot_program_generation',
+        amount: creditCost,
+        metadata: { programType: params.programType, goal: params.goal },
+        idempotencyKey: `program-gen-${userId}-${Date.now()}`,
+      });
+
+      if (!chargeResult.success) {
+        return { success: false, error: chargeResult.error || 'CHARGE_FAILED', creditCost };
+      }
+    }
+
+    // Generate the program
+    const program = await this.buildProgram(userId, params, stage);
+
+    // Store in database
+    const result = await queryOne<{ id: string }>(`
+      INSERT INTO mascot_generated_programs
+      (user_id, program_name, program_type, duration_weeks, days_per_week, goal, schedule, workouts, equipment_required, companion_stage, credit_cost)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+    `, [
+      userId,
+      program.name,
+      params.programType,
+      params.durationWeeks,
+      params.daysPerWeek,
+      params.goal,
+      JSON.stringify(program.schedule),
+      JSON.stringify(program.workouts),
+      JSON.stringify(params.equipment || []),
+      stage,
+      creditCost,
+    ]);
+
+    // Store individual workouts
+    for (const workout of program.workouts) {
+      await query(`
+        INSERT INTO mascot_program_workouts
+        (program_id, week_number, day_number, workout_name, focus_areas, exercises, target_duration_minutes, is_deload)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        result?.id,
+        workout.weekNumber,
+        workout.dayNumber,
+        workout.name,
+        JSON.stringify(workout.focusAreas),
+        JSON.stringify(workout.exercises),
+        workout.durationMinutes,
+        workout.isDeload,
+      ]);
+    }
+
+    log.info({ userId, programType: params.programType, goal: params.goal, creditCost }, 'Workout program generated');
+
+    return {
+      success: true,
+      program: {
+        ...program,
+        id: result?.id || '',
+        creditCost,
+      },
+    };
+  },
+
+  /**
+   * Build program logic (internal helper)
+   */
+  async buildProgram(
+    userId: string,
+    params: {
+      programType: string;
+      goal: string;
+      durationWeeks: number;
+      daysPerWeek: number;
+      equipment?: string[];
+    },
+    stage: number
+  ): Promise<Omit<GeneratedProgram, 'id' | 'creditCost'>> {
+    // Get exercises filtered by equipment
+    let exerciseQuery = `SELECT id, name, primary_muscle, difficulty FROM exercises WHERE status = 'active'`;
+    const queryParams: unknown[] = [];
+
+    if (params.equipment && params.equipment.length > 0) {
+      exerciseQuery += ` AND (equipment IS NULL OR equipment && $1::TEXT[])`;
+      queryParams.push(params.equipment);
+    }
+
+    const exercises = await queryAll<{
+      id: string;
+      name: string;
+      primary_muscle: string;
+      difficulty: string;
+    }>(exerciseQuery, queryParams);
+
+    // Group exercises by muscle
+    const exercisesByMuscle: Record<string, typeof exercises> = {};
+    for (const ex of exercises) {
+      if (!exercisesByMuscle[ex.primary_muscle]) {
+        exercisesByMuscle[ex.primary_muscle] = [];
+      }
+      exercisesByMuscle[ex.primary_muscle].push(ex);
+    }
+
+    // Define splits based on days per week
+    const splits = this.getSplitForDays(params.daysPerWeek, params.programType);
+
+    // Generate workouts
+    const workouts: ProgramWorkout[] = [];
+    const deloadWeek = params.durationWeeks >= 4 ? params.durationWeeks : null;
+
+    for (let week = 1; week <= params.durationWeeks; week++) {
+      const isDeload = week === deloadWeek;
+
+      for (let day = 1; day <= params.daysPerWeek; day++) {
+        const split = splits[(day - 1) % splits.length];
+        const workoutExercises: ProgramExercise[] = [];
+
+        for (const muscleGroup of split.muscles) {
+          const muscleExercises = exercisesByMuscle[muscleGroup] || [];
+          if (muscleExercises.length === 0) continue;
+
+          // Pick 2-3 exercises per muscle group
+          const numExercises = muscleGroup === split.primaryMuscle ? 3 : 2;
+          const selected = muscleExercises.slice(0, numExercises);
+
+          for (const ex of selected) {
+            const baseReps = params.goal === 'increase_strength' ? '5' :
+                            params.goal === 'build_muscle' ? '8-12' :
+                            params.goal === 'improve_endurance' ? '15-20' : '10';
+            const baseSets = params.goal === 'increase_strength' ? 5 : 4;
+
+            workoutExercises.push({
+              exerciseId: ex.id,
+              exerciseName: ex.name,
+              sets: isDeload ? Math.ceil(baseSets / 2) : baseSets,
+              reps: isDeload ? '10' : baseReps,
+              restSeconds: params.goal === 'increase_strength' ? 180 : 90,
+              notes: isDeload ? 'Deload week - reduce intensity by 40%' : undefined,
+            });
+          }
+        }
+
+        workouts.push({
+          weekNumber: week,
+          dayNumber: day,
+          name: `${split.name} - Week ${week}`,
+          focusAreas: split.muscles,
+          exercises: workoutExercises,
+          durationMinutes: 45 + workoutExercises.length * 5,
+          isDeload,
+        });
+      }
+    }
+
+    // Create schedule
+    const schedule: Record<string, string> = {};
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    for (let i = 0; i < params.daysPerWeek; i++) {
+      const dayIndex = i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 4 : i === 3 ? 5 : i + 1;
+      schedule[dayNames[dayIndex]] = splits[i % splits.length].name;
+    }
+
+    return {
+      name: `${params.programType.charAt(0).toUpperCase() + params.programType.slice(1)} ${params.durationWeeks}-Week Program`,
+      type: params.programType,
+      goal: params.goal,
+      durationWeeks: params.durationWeeks,
+      daysPerWeek: params.daysPerWeek,
+      schedule,
+      workouts,
+    };
+  },
+
+  /**
+   * Get workout split based on days per week
+   */
+  getSplitForDays(daysPerWeek: number, programType: string): { name: string; muscles: string[]; primaryMuscle: string }[] {
+    // PPL split for 6 days
+    if (daysPerWeek >= 6) {
+      return [
+        { name: 'Push A', muscles: ['chest', 'shoulders', 'triceps'], primaryMuscle: 'chest' },
+        { name: 'Pull A', muscles: ['back', 'biceps', 'rear_delts'], primaryMuscle: 'back' },
+        { name: 'Legs A', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], primaryMuscle: 'quadriceps' },
+        { name: 'Push B', muscles: ['shoulders', 'chest', 'triceps'], primaryMuscle: 'shoulders' },
+        { name: 'Pull B', muscles: ['back', 'biceps', 'forearms'], primaryMuscle: 'back' },
+        { name: 'Legs B', muscles: ['hamstrings', 'glutes', 'quadriceps', 'calves'], primaryMuscle: 'hamstrings' },
+      ];
+    }
+
+    // Upper/Lower for 4-5 days
+    if (daysPerWeek >= 4) {
+      return [
+        { name: 'Upper A', muscles: ['chest', 'back', 'shoulders', 'biceps', 'triceps'], primaryMuscle: 'chest' },
+        { name: 'Lower A', muscles: ['quadriceps', 'hamstrings', 'glutes', 'calves'], primaryMuscle: 'quadriceps' },
+        { name: 'Upper B', muscles: ['back', 'shoulders', 'chest', 'triceps', 'biceps'], primaryMuscle: 'back' },
+        { name: 'Lower B', muscles: ['hamstrings', 'glutes', 'quadriceps', 'calves'], primaryMuscle: 'hamstrings' },
+        { name: 'Full Body', muscles: ['chest', 'back', 'quadriceps', 'shoulders'], primaryMuscle: 'chest' },
+      ];
+    }
+
+    // Full body for 3 days
+    return [
+      { name: 'Full Body A', muscles: ['chest', 'back', 'quadriceps', 'shoulders'], primaryMuscle: 'chest' },
+      { name: 'Full Body B', muscles: ['back', 'hamstrings', 'chest', 'biceps'], primaryMuscle: 'back' },
+      { name: 'Full Body C', muscles: ['legs', 'shoulders', 'triceps', 'core'], primaryMuscle: 'quadriceps' },
+    ];
+  },
+
+  /**
+   * Get a user's active program
+   */
+  async getActiveProgram(userId: string): Promise<GeneratedProgram | null> {
+    const program = await queryOne<{
+      id: string;
+      program_name: string;
+      program_type: string;
+      goal: string;
+      duration_weeks: number;
+      days_per_week: number;
+      schedule: Record<string, unknown>;
+      credit_cost: number;
+    }>(`
+      SELECT id, program_name, program_type, goal, duration_weeks, days_per_week, schedule, credit_cost
+      FROM mascot_generated_programs
+      WHERE user_id = $1 AND status = 'active'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (!program) return null;
+
+    const workouts = await queryAll<{
+      week_number: number;
+      day_number: number;
+      workout_name: string;
+      focus_areas: string[];
+      exercises: ProgramExercise[];
+      target_duration_minutes: number;
+      is_deload: boolean;
+    }>(`
+      SELECT week_number, day_number, workout_name, focus_areas, exercises, target_duration_minutes, is_deload
+      FROM mascot_program_workouts
+      WHERE program_id = $1
+      ORDER BY week_number, day_number
+    `, [program.id]);
+
+    return {
+      id: program.id,
+      name: program.program_name,
+      type: program.program_type,
+      goal: program.goal,
+      durationWeeks: program.duration_weeks,
+      daysPerWeek: program.days_per_week,
+      schedule: program.schedule,
+      creditCost: program.credit_cost,
+      workouts: workouts.map(w => ({
+        weekNumber: w.week_number,
+        dayNumber: w.day_number,
+        name: w.workout_name || '',
+        focusAreas: w.focus_areas || [],
+        exercises: w.exercises || [],
+        durationMinutes: w.target_duration_minutes,
+        isDeload: w.is_deload,
+      })),
+    };
   },
 
   // =====================================================

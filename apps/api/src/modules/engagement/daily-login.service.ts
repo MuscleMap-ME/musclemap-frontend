@@ -10,6 +10,7 @@
 import crypto from 'crypto';
 import { db, queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
+import { xpService } from '../ranks/xp.service';
 import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 
@@ -276,6 +277,16 @@ export const dailyLoginService = {
     // Award credits
     const idempotencyKey = `daily-login:${userId}:${today}`;
     await creditService.addCredits(userId, reward.credits, 'daily_login', { day: newStreak }, idempotencyKey);
+
+    // Award XP
+    await xpService.awardXp({
+      userId,
+      amount: reward.xp,
+      sourceType: 'streak',
+      sourceId: `daily-login:${today}`,
+      reason: `Daily login day ${newStreak}`,
+      metadata: { day: newStreak, credits: reward.credits },
+    });
 
     // Create mystery box if milestone
     let mysteryBoxId: string | null = null;

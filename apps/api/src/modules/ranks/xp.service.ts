@@ -27,6 +27,20 @@ import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { rankService } from './index';
 
+// Import challenge progress tracker (lazy to avoid circular deps)
+let challengeProgressMiddleware: any = null;
+const getChallengeProgress = async () => {
+  if (!challengeProgressMiddleware) {
+    try {
+      const module = await import('../engagement/challenge-progress.middleware');
+      challengeProgressMiddleware = module.challengeProgressMiddleware;
+    } catch {
+      // Engagement module may not be initialized yet
+    }
+  }
+  return challengeProgressMiddleware;
+};
+
 const log = loggers.economy;
 
 // XP source amounts
@@ -184,6 +198,16 @@ export const xpService = {
       sourceType,
       reason,
     }, 'XP awarded');
+
+    // Track XP earned for challenge progress
+    try {
+      const progressTracker = await getChallengeProgress();
+      if (progressTracker) {
+        await progressTracker.trackXpEarned(userId, amount);
+      }
+    } catch (error) {
+      log.debug({ error }, 'Failed to track XP for challenges (non-critical)');
+    }
 
     return {
       success: true,

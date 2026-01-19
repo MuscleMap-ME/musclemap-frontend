@@ -488,6 +488,13 @@ export const paymentsService = {
       return null;
     }
   },
+
+  /**
+   * Get the Stripe client instance (for subscription management)
+   */
+  getStripeClient(): Stripe | null {
+    return stripe;
+  },
 };
 
 export default paymentsService;

@@ -79,6 +79,98 @@ export async function registerCreditsRoutes(app: FastifyInstance) {
     return reply.send({ data: wallet });
   });
 
+  // Get comprehensive credit summary (uses user_credit_summary view)
+  app.get('/me/credits/summary', { preHandler: authenticate }, async (request, reply) => {
+    const { queryOne, queryAll } = await import('../../db/client');
+    const userId = request.user!.userId;
+
+    // Get summary from the view
+    const summary = await queryOne<{
+      user_id: string;
+      username: string;
+      balance: number;
+      lifetime_earned: number;
+      lifetime_spent: number;
+      wealth_tier: number;
+      earned_today: number;
+      earned_this_week: number;
+    }>(
+      'SELECT * FROM user_credit_summary WHERE user_id = $1',
+      [userId]
+    );
+
+    // Get additional stats: recent bonuses, top earning sources
+    const [recentBonuses, topSources, streakInfo] = await Promise.all([
+      // Recent bonus events
+      queryAll<{
+        event_type_code: string;
+        credits_awarded: number;
+        created_at: Date;
+      }>(
+        `SELECT event_type_code, credits_awarded, created_at
+         FROM user_bonus_events
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        [userId]
+      ),
+      // Top earning sources this week
+      queryAll<{
+        source: string;
+        total: number;
+      }>(
+        `SELECT
+           COALESCE(action, 'unknown') as source,
+           SUM(amount) as total
+         FROM credit_ledger
+         WHERE user_id = $1
+           AND amount > 0
+           AND created_at >= DATE_TRUNC('week', CURRENT_DATE)
+         GROUP BY action
+         ORDER BY total DESC
+         LIMIT 5`,
+        [userId]
+      ),
+      // Streak info from daily login
+      queryOne<{
+        current_streak: number;
+        longest_streak: number;
+        streak_freezes_owned: number;
+      }>(
+        `SELECT
+           COALESCE(current_streak, 0) as current_streak,
+           COALESCE(longest_streak, 0) as longest_streak,
+           COALESCE(streak_freezes_owned, 0) as streak_freezes_owned
+         FROM user_login_streaks
+         WHERE user_id = $1`,
+        [userId]
+      )
+    ]);
+
+    return reply.send({
+      data: {
+        balance: summary?.balance ?? 0,
+        lifetimeEarned: summary?.lifetime_earned ?? 0,
+        lifetimeSpent: summary?.lifetime_spent ?? 0,
+        wealthTier: summary?.wealth_tier ?? 0,
+        earnedToday: summary?.earned_today ?? 0,
+        earnedThisWeek: summary?.earned_this_week ?? 0,
+        currentStreak: streakInfo?.current_streak ?? 0,
+        longestStreak: streakInfo?.longest_streak ?? 0,
+        streakFreezesOwned: streakInfo?.streak_freezes_owned ?? 0,
+        recentBonuses: recentBonuses.map(b => ({
+          eventType: b.event_type_code,
+          credits: b.credits_awarded,
+          at: b.created_at,
+        })),
+        topEarningSources: topSources.map(s => ({
+          source: s.source,
+          total: Number(s.total),
+        })),
+      },
+    });
+  });
+
   // Get transaction history (keyset pagination)
   app.get('/wallet/transactions', { preHandler: authenticate }, async (request, reply) => {
     const queryParams = request.query as { limit?: string; cursor?: string; action?: string };

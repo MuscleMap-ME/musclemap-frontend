@@ -16,6 +16,8 @@ import { queryOne, queryAll, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { creditService } from './credit.service';
 import { xpService, type XpSourceType } from '../ranks/xp.service';
+import { streaksService } from '../engagement/streaks.service';
+import { challengesService } from '../engagement/challenges.service';
 
 const log = loggers.economy;
 
@@ -612,6 +614,9 @@ export const earningService = {
     durationMinutes: number;
     totalVolume?: number;
     exerciseCount: number;
+    muscleGroupsHit?: string[];
+    newExercisesTried?: number;
+    prsSet?: number;
   }): Promise<EarningResult[]> {
     const results: EarningResult[] = [];
 
@@ -640,6 +645,53 @@ export const earningService = {
 
     // Check and award streak achievements
     await this.checkStreakAwards(params.userId);
+
+    // ==========================================
+    // ENGAGEMENT SYSTEM INTEGRATION
+    // ==========================================
+
+    // Record workout streak activity
+    try {
+      await streaksService.recordActivity(params.userId, 'workout');
+      log.debug({ userId: params.userId }, 'Workout streak activity recorded');
+    } catch (streakError) {
+      log.warn({ userId: params.userId, error: streakError }, 'Failed to record workout streak');
+    }
+
+    // Update challenge progress for various tracking keys
+    try {
+      // Workouts completed challenge
+      await challengesService.updateProgress(params.userId, 'workoutsCompleted', 1);
+
+      // Sets logged challenge (using exercise count as proxy)
+      if (params.exerciseCount) {
+        await challengesService.updateProgress(params.userId, 'setsLogged', params.exerciseCount);
+      }
+
+      // Muscle groups hit challenge
+      if (params.muscleGroupsHit && params.muscleGroupsHit.length > 0) {
+        await challengesService.updateProgress(params.userId, 'muscleGroupsHit', params.muscleGroupsHit.length);
+      }
+
+      // Total volume challenge
+      if (params.totalVolume) {
+        await challengesService.updateProgress(params.userId, 'totalVolume', params.totalVolume);
+      }
+
+      // New exercises tried challenge
+      if (params.newExercisesTried && params.newExercisesTried > 0) {
+        await challengesService.updateProgress(params.userId, 'newExercisesTried', params.newExercisesTried);
+      }
+
+      // PRs set challenge
+      if (params.prsSet && params.prsSet > 0) {
+        await challengesService.updateProgress(params.userId, 'prsSet', params.prsSet);
+      }
+
+      log.debug({ userId: params.userId }, 'Challenge progress updated from workout');
+    } catch (challengeError) {
+      log.warn({ userId: params.userId, error: challengeError }, 'Failed to update challenge progress');
+    }
 
     return results;
   },

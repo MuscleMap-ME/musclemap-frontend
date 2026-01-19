@@ -8,6 +8,8 @@
  * - Time-limited events
  * - Recovery tracking for rest days
  * - Push notifications
+ * - Engagement summary for dashboard
+ * - Challenge progress auto-tracking
  */
 
 export { dailyLoginService, STREAK_FREEZE_COST } from './daily-login.service';
@@ -16,3 +18,5 @@ export { challengesService, CHALLENGE_TYPES } from './challenges.service';
 export { eventsService, type EventType } from './events.service';
 export { recoveryService } from './recovery.service';
 export { pushNotificationsService, type Platform, type NotificationType } from './push-notifications.service';
+export { engagementSummaryService, type EngagementSummary } from './summary.service';
+export { challengeProgressMiddleware } from './challenge-progress.middleware';

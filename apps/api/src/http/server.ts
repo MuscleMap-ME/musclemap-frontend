@@ -116,7 +116,7 @@ import { registerExerciseVideosRoutes } from './routes/exercise-videos';
 import { registerWatchRoutes } from './routes/watch';
 import { registerSkinsRoutes } from './routes/skins';
 import { registerBillingRoutes } from './routes/billing';
-import { registerAdminControlRoutes } from './routes/admin-control';
+import { registerAdminControlRoutes, emergencyModeMiddleware } from './routes/admin-control';
 // Marketplace module - services fully migrated to raw pg client
 import { marketplaceRoutes } from './routes/marketplace';
 // Workout session persistence (for recovery after crashes/restarts)
@@ -129,10 +129,12 @@ import { registerChallengeRoutes } from './routes/challenges';
 import { registerEventRoutes } from './routes/events';
 import { registerEngagementRecoveryRoutes } from './routes/engagement-recovery';
 import { registerPushNotificationRoutes } from './routes/push-notifications';
+import { registerEngagementSummaryRoutes } from './routes/engagement-summary';
+// Challenge auto-progress for workouts
+import { challengeProgressMiddleware } from '../modules/engagement/challenge-progress.middleware';
 
 // User Preferences & Customization system
-// TODO: Fix TypeScript errors in preferences.ts and preferences.service.ts
-// import preferencesRoutes from './routes/preferences';
+import preferencesRoutes from './routes/preferences.js';
 
 // Venue Records system
 import { registerVenuesRoutes } from './routes/venues';
@@ -413,6 +415,12 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register security middleware
   registerSecurityMiddleware(app as unknown as FastifyInstance);
 
+  // Register emergency mode middleware (maintenance mode, read-only mode)
+  // This checks Redis/database for emergency flags and blocks requests accordingly
+  app.addHook('onRequest', async (request, reply) => {
+    await emergencyModeMiddleware(request, reply);
+  });
+
   // Register metrics routes (/metrics endpoint)
   await registerMetricsRoutes(app as unknown as FastifyInstance);
 
@@ -632,13 +640,16 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerEventRoutes(api);
     await registerEngagementRecoveryRoutes(api);
     await registerPushNotificationRoutes(api);
+    await registerEngagementSummaryRoutes(api);
+
+    // Register challenge progress middleware for auto-tracking
+    challengeProgressMiddleware.register(api);
 
     // ========================================
     // USER PREFERENCES & CUSTOMIZATION
     // Dashboard layouts, profiles, sound packs, hydration, device settings
     // ========================================
-    // TODO: Re-enable after fixing TypeScript errors
-    // await api.register(preferencesRoutes);
+    await api.register(preferencesRoutes);
 
     // ========================================
     // DEPLOYMENT MANAGEMENT

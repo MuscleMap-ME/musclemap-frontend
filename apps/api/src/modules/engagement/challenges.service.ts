@@ -11,6 +11,7 @@
 import crypto from 'crypto';
 import { db, queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
+import { xpService } from '../ranks/xp.service';
 import { ValidationError, NotFoundError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 
@@ -403,6 +404,16 @@ export const challengesService = {
       idempotencyKey
     );
 
+    // Award XP
+    await xpService.awardXp({
+      userId,
+      amount: challenge.xp_reward,
+      sourceType: 'achievement',
+      sourceId: `challenge:${challengeId}`,
+      reason: `Daily challenge completed: ${challenge.challenge_type}`,
+      metadata: { challengeId, challengeType: challenge.challenge_type },
+    });
+
     // Mark as claimed
     await query(
       `UPDATE daily_challenges SET is_claimed = TRUE, claimed_at = NOW()
@@ -410,7 +421,7 @@ export const challengesService = {
       [challengeId]
     );
 
-    log.info({ userId, challengeId, credits: challenge.credit_reward }, 'Challenge claimed');
+    log.info({ userId, challengeId, credits: challenge.credit_reward, xp: challenge.xp_reward }, 'Challenge claimed');
 
     return {
       credits: challenge.credit_reward,
@@ -546,6 +557,16 @@ export const challengesService = {
       idempotencyKey
     );
 
+    // Award XP
+    await xpService.awardXp({
+      userId,
+      amount: challenge.xp_reward,
+      sourceType: 'achievement',
+      sourceId: `weekly-challenge:${weekStart}`,
+      reason: `Weekly challenge completed: ${challenge.challenge_type}`,
+      metadata: { type: 'weekly', challengeType: challenge.challenge_type },
+    });
+
     // Mark as claimed
     await query(
       `UPDATE weekly_challenges SET is_claimed = TRUE, claimed_at = NOW()
@@ -553,7 +574,7 @@ export const challengesService = {
       [challenge.id]
     );
 
-    log.info({ userId, credits: challenge.credit_reward }, 'Weekly challenge claimed');
+    log.info({ userId, credits: challenge.credit_reward, xp: challenge.xp_reward }, 'Weekly challenge claimed');
 
     return {
       credits: challenge.credit_reward,

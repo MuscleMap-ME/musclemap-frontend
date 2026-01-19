@@ -1745,24 +1745,308 @@ export async function registerOrganizationsRoutes(app: FastifyInstance) {
       });
     }
 
-    // In production, this would generate a real report
-    // For now, return a placeholder
+    // Get organization details
+    const org = await db.queryOne<{
+      name: string;
+      settings: { required_standards?: string[]; compliance_threshold?: number }
+    }>(
+      `SELECT name, settings FROM organizations WHERE id = $1`,
+      [orgId]
+    );
+
+    if (!org) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Organization not found', statusCode: 404 },
+      });
+    }
+
+    const settings = org.settings || {};
+    const requiredStandards = settings.required_standards || [];
+    const complianceThreshold = settings.compliance_threshold ?? 80;
+
+    // Build unit filter if specified
+    let unitFilter = '';
+    const baseParams: unknown[] = [orgId];
+    if (body.unit_ids && body.unit_ids.length > 0) {
+      unitFilter = ` AND orc.unit_id = ANY($2)`;
+      baseParams.push(body.unit_ids);
+    }
+
+    // Get aggregate readiness data from cache
+    const standardFilter = body.standard_id
+      ? ` AND orc.standard_id = $${baseParams.length + 1}`
+      : '';
+    if (body.standard_id) {
+      baseParams.push(body.standard_id);
+    }
+
+    const aggregateData = await db.queryAll<{
+      unit_id: string | null;
+      unit_name: string | null;
+      standard_id: string;
+      total_members: number;
+      members_opted_in: number;
+      members_ready: number;
+      members_at_risk: number;
+      members_not_ready: number;
+      average_readiness: number | null;
+      compliance_rate: number | null;
+      trend_direction: string | null;
+      computed_at: string;
+    }>(
+      `SELECT
+         orc.unit_id,
+         ou.name as unit_name,
+         orc.standard_id,
+         orc.total_members,
+         orc.members_opted_in,
+         orc.members_ready,
+         orc.members_at_risk,
+         orc.members_not_ready,
+         orc.average_readiness,
+         orc.compliance_rate,
+         orc.trend_direction,
+         orc.computed_at
+       FROM organization_readiness_cache orc
+       LEFT JOIN organization_units ou ON orc.unit_id = ou.id
+       WHERE orc.org_id = $1${unitFilter}${standardFilter}
+       ORDER BY ou.name NULLS FIRST, orc.standard_id`,
+      baseParams
+    );
+
+    // Get member-level data if requested
+    let memberData: Array<{
+      user_id: string;
+      username: string;
+      display_name: string | null;
+      unit_name: string | null;
+      standard_id: string;
+      readiness_score: number | null;
+      last_assessment_at: string | null;
+      status: string;
+    }> = [];
+
+    if (body.include_individual) {
+      const memberParams: unknown[] = [orgId, 'active'];
+      let memberUnitFilter = '';
+      if (body.unit_ids && body.unit_ids.length > 0) {
+        memberUnitFilter = ` AND om.unit_id = ANY($3)`;
+        memberParams.push(body.unit_ids);
+      }
+
+      const standards = body.standard_id ? [body.standard_id] : requiredStandards;
+      if (standards.length > 0) {
+        memberParams.push(standards);
+        const standardParamIndex = memberParams.length;
+
+        const rawMemberData = await db.queryAll<{
+          user_id: string;
+          username: string;
+          display_name: string | null;
+          unit_name: string | null;
+          standard_id: string;
+          readiness_score: number | null;
+          last_assessment_at: string | null;
+        }>(
+          `SELECT
+             om.user_id,
+             u.username,
+             u.display_name,
+             ou.name as unit_name,
+             ucg.pt_test_id as standard_id,
+             crc.readiness_score,
+             crc.last_assessment_at
+           FROM organization_members om
+           JOIN users u ON u.id = om.user_id
+           LEFT JOIN organization_units ou ON ou.id = om.unit_id
+           LEFT JOIN user_career_goals ucg ON ucg.user_id = om.user_id AND ucg.pt_test_id = ANY($${standardParamIndex})
+           LEFT JOIN career_readiness_cache crc ON crc.goal_id = ucg.id
+           WHERE om.org_id = $1 AND om.status = $2 AND om.share_readiness = true${memberUnitFilter}
+           ORDER BY ou.name NULLS FIRST, u.username`,
+          memberParams
+        );
+
+        // Add status based on readiness score
+        memberData = rawMemberData.map(m => ({
+          ...m,
+          status: m.readiness_score === null
+            ? 'no_data'
+            : m.readiness_score >= complianceThreshold
+              ? 'ready'
+              : m.readiness_score >= 70
+                ? 'at_risk'
+                : 'not_ready',
+        }));
+      }
+    }
+
+    // Get historical data if date range specified
+    let historyData: Array<{
+      snapshot_date: string;
+      unit_name: string | null;
+      standard_id: string;
+      average_readiness: number | null;
+      compliance_rate: number | null;
+      total_members: number;
+    }> = [];
+
+    if (body.date_range) {
+      const historyParams: unknown[] = [orgId, body.date_range.start, body.date_range.end];
+      let historyUnitFilter = '';
+      if (body.unit_ids && body.unit_ids.length > 0) {
+        historyUnitFilter = ` AND ors.unit_id = ANY($4)`;
+        historyParams.push(body.unit_ids);
+      }
+
+      const historyStandardFilter = body.standard_id
+        ? ` AND ors.standard_id = $${historyParams.length + 1}`
+        : '';
+      if (body.standard_id) {
+        historyParams.push(body.standard_id);
+      }
+
+      historyData = await db.queryAll<{
+        snapshot_date: string;
+        unit_name: string | null;
+        standard_id: string;
+        average_readiness: number | null;
+        compliance_rate: number | null;
+        total_members: number;
+      }>(
+        `SELECT
+           ors.snapshot_date,
+           ou.name as unit_name,
+           ors.standard_id,
+           ors.average_readiness,
+           ors.compliance_rate,
+           ors.total_members
+         FROM organization_readiness_snapshots ors
+         LEFT JOIN organization_units ou ON ors.unit_id = ou.id
+         WHERE ors.org_id = $1
+           AND ors.snapshot_date >= $2
+           AND ors.snapshot_date <= $3${historyUnitFilter}${historyStandardFilter}
+         ORDER BY ors.snapshot_date DESC, ou.name NULLS FIRST`,
+        historyParams
+      );
+    }
+
     const reportId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+    const generatedAt = new Date().toISOString();
+
+    // Generate report based on format
+    if (body.format === 'csv') {
+      // Generate CSV content
+      const lines: string[] = [];
+
+      // Header section
+      lines.push(`# Organization Readiness Report`);
+      lines.push(`# Organization: ${org.name}`);
+      lines.push(`# Generated: ${generatedAt}`);
+      lines.push(`# Compliance Threshold: ${complianceThreshold}%`);
+      lines.push('');
+
+      // Aggregate summary section
+      lines.push('## Aggregate Readiness Summary');
+      lines.push('Unit,Standard,Total Members,Opted In,Ready,At Risk,Not Ready,Avg Readiness,Compliance Rate,Trend');
+      for (const row of aggregateData) {
+        lines.push([
+          row.unit_name || 'Organization-wide',
+          row.standard_id,
+          row.total_members,
+          row.members_opted_in,
+          row.members_ready,
+          row.members_at_risk,
+          row.members_not_ready,
+          row.average_readiness !== null ? `${row.average_readiness}%` : 'N/A',
+          row.compliance_rate !== null ? `${row.compliance_rate}%` : 'N/A',
+          row.trend_direction || 'N/A',
+        ].join(','));
+      }
+      lines.push('');
+
+      // Individual member section (if requested)
+      if (body.include_individual && memberData.length > 0) {
+        lines.push('## Individual Member Readiness');
+        lines.push('Username,Display Name,Unit,Standard,Readiness Score,Status,Last Assessment');
+        for (const member of memberData) {
+          lines.push([
+            member.username,
+            member.display_name || '',
+            member.unit_name || 'Unassigned',
+            member.standard_id || 'N/A',
+            member.readiness_score !== null ? `${member.readiness_score}%` : 'N/A',
+            member.status,
+            member.last_assessment_at || 'Never',
+          ].join(','));
+        }
+        lines.push('');
+      }
+
+      // Historical section (if date range provided)
+      if (historyData.length > 0) {
+        lines.push('## Historical Readiness');
+        lines.push('Date,Unit,Standard,Avg Readiness,Compliance Rate,Total Members');
+        for (const snapshot of historyData) {
+          lines.push([
+            snapshot.snapshot_date,
+            snapshot.unit_name || 'Organization-wide',
+            snapshot.standard_id,
+            snapshot.average_readiness !== null ? `${snapshot.average_readiness}%` : 'N/A',
+            snapshot.compliance_rate !== null ? `${snapshot.compliance_rate}%` : 'N/A',
+            snapshot.total_members,
+          ].join(','));
+        }
+      }
+
+      const csvContent = lines.join('\n');
+
+      await auditLog(orgId, userId, 'report.generated', 'report', reportId, null, {
+        format: body.format,
+        include_individual: body.include_individual,
+        row_count: aggregateData.length + memberData.length + historyData.length,
+      });
+
+      log.info({ userId, orgId, reportId, format: body.format }, 'Report generated');
+
+      // Return CSV directly with appropriate headers
+      return reply
+        .header('Content-Type', 'text/csv')
+        .header('Content-Disposition', `attachment; filename="readiness-report-${orgId}-${generatedAt.split('T')[0]}.csv"`)
+        .send(csvContent);
+    }
+
+    // For PDF and XLSX formats, return JSON data that can be rendered client-side
+    // These formats would typically require external libraries (pdfkit, exceljs)
+    const reportData = {
+      report_id: reportId,
+      organization: org.name,
+      generated_at: generatedAt,
+      compliance_threshold: complianceThreshold,
+      format: body.format,
+      aggregate: aggregateData,
+      members: body.include_individual ? memberData : undefined,
+      history: historyData.length > 0 ? historyData : undefined,
+      summary: {
+        total_units: new Set(aggregateData.filter(a => a.unit_id).map(a => a.unit_id)).size,
+        total_members: aggregateData.reduce((sum, a) => a.unit_id === null ? a.total_members : sum, 0),
+        average_compliance: aggregateData.length > 0
+          ? Math.round(aggregateData.filter(a => a.compliance_rate !== null).reduce((sum, a) => sum + (a.compliance_rate || 0), 0) / aggregateData.filter(a => a.compliance_rate !== null).length * 10) / 10
+          : null,
+      },
+    };
 
     await auditLog(orgId, userId, 'report.generated', 'report', reportId, null, {
       format: body.format,
       include_individual: body.include_individual,
+      row_count: aggregateData.length + memberData.length + historyData.length,
     });
 
-    log.info({ userId, orgId, reportId, format: body.format }, 'Report generation requested');
+    log.info({ userId, orgId, reportId, format: body.format }, 'Report generated');
 
+    // For PDF/XLSX, return JSON data with a note about client-side rendering
     return reply.send({
-      data: {
-        download_url: `https://musclemap.me/api/organizations/${orgId}/reports/${reportId}`,
-        expires_at: expiresAt,
-        format: body.format,
-      },
+      data: reportData,
+      message: `${body.format.toUpperCase()} format requested - use the returned data to generate the report client-side or implement server-side rendering with appropriate libraries`,
     });
   });
 

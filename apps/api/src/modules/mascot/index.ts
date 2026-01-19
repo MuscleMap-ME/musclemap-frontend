@@ -37,6 +37,13 @@ export type {
   MilestoneProgress,
   SocialAction,
   MascotPowersSummary,
+  CreditLoanOffer,
+  ExerciseAlternative,
+  CrewSuggestion,
+  GeneratedProgram,
+  ProgramWorkout,
+  ProgramExercise,
+  VolumeStats,
 } from './powers.service';
 export type {
   SpiritCosmetic,

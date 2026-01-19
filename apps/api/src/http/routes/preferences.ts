@@ -9,12 +9,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from './auth.js';
 import * as preferencesService from '../../services/preferences.service.js';
-import {
+import type {
   UserPreferences,
   Platform,
   HydrationSource,
   DashboardWidget,
-} from '@musclemap.me/shared';
+} from '@musclemap/shared';
 
 // ============================================
 // VALIDATION SCHEMAS
@@ -218,7 +218,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const result = await preferencesService.getUserPreferences(userId);
 
@@ -234,7 +234,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences/effective',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const preferences = await preferencesService.getEffectivePreferences(userId);
 
@@ -250,7 +250,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const body = updatePreferencesSchema.parse(request.body);
       const result = await preferencesService.updateUserPreferences(userId, body as Partial<UserPreferences>);
@@ -267,7 +267,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences/reset',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const preferences = await preferencesService.resetUserPreferences(userId);
 
@@ -287,7 +287,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences/profiles',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const profiles = await preferencesService.listProfiles(userId);
 
@@ -303,7 +303,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences/profiles',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const body = createProfileSchema.parse(request.body);
       const profile = await preferencesService.createProfile(userId, {
@@ -323,11 +323,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // GET /me/preferences/profiles/:id - Get profile
-  fastify.get(
+  fastify.get<{ Params: { id: string } }>(
     '/me/preferences/profiles/:id',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { id } = request.params;
 
       const profile = await preferencesService.getProfile(userId, id);
@@ -347,11 +347,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // PATCH /me/preferences/profiles/:id - Update profile
-  fastify.patch(
+  fastify.patch<{ Params: { id: string } }>(
     '/me/preferences/profiles/:id',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { id } = request.params;
 
       const body = updateProfileSchema.parse(request.body);
@@ -380,11 +380,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // DELETE /me/preferences/profiles/:id - Delete profile
-  fastify.delete(
+  fastify.delete<{ Params: { id: string } }>(
     '/me/preferences/profiles/:id',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { id } = request.params;
 
       const deleted = await preferencesService.deleteProfile(userId, id);
@@ -404,11 +404,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // POST /me/preferences/profiles/:id/activate - Activate profile
-  fastify.post(
+  fastify.post<{ Params: { id: string } }>(
     '/me/preferences/profiles/:id/activate',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { id } = request.params;
 
       const activated = await preferencesService.activateProfile(userId, id);
@@ -432,7 +432,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/preferences/profiles/deactivate',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       await preferencesService.deactivateProfile(userId);
 
@@ -448,11 +448,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   // ============================================
 
   // GET /me/dashboard/layout - Get current layout
-  fastify.get(
+  fastify.get<{ Querystring: { platform?: string; profileId?: string } }>(
     '/me/dashboard/layout',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Querystring: { platform?: string; profileId?: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { platform = 'web', profileId } = request.query;
 
       const layout = await preferencesService.getDashboardLayout(
@@ -469,11 +469,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // PUT /me/dashboard/layout - Save layout
-  fastify.put(
+  fastify.put<{ Querystring: { platform?: string } }>(
     '/me/dashboard/layout',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Querystring: { platform?: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { platform = 'web' } = request.query;
 
       const body = saveDashboardLayoutSchema.parse(request.body);
@@ -515,7 +515,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/sounds/packs',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const [systemPacks, userPacks] = await Promise.all([
         preferencesService.getSystemSoundPacks(),
@@ -537,7 +537,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/sounds/packs',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const body = createSoundPackSchema.parse(request.body);
       const pack = await preferencesService.createUserSoundPack(userId, body);
@@ -550,11 +550,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // DELETE /me/sounds/packs/:id - Delete custom sound pack
-  fastify.delete(
+  fastify.delete<{ Params: { id: string } }>(
     '/me/sounds/packs/:id',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { id } = request.params;
 
       const deleted = await preferencesService.deleteUserSoundPack(userId, id);
@@ -582,7 +582,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/hydration/today',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const result = await preferencesService.getTodayHydration(userId);
 
@@ -594,11 +594,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // GET /me/hydration/history - Get hydration history
-  fastify.get(
+  fastify.get<{ Querystring: { days?: string } }>(
     '/me/hydration/history',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const days = parseInt(request.query.days || '7', 10);
 
       const history = await preferencesService.getHydrationHistory(userId, days);
@@ -615,7 +615,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/hydration/log',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const body = logHydrationSchema.parse(request.body);
       const log = await preferencesService.logHydration(
@@ -641,7 +641,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/devices',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const devices = await preferencesService.listDevices(userId);
 
@@ -657,7 +657,7 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
     '/me/devices/register',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+      const userId = request.user!.userId;
 
       const body = registerDeviceSchema.parse(request.body);
       const device = await preferencesService.registerDevice(userId, {
@@ -678,11 +678,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // PATCH /me/devices/:deviceId - Update device settings
-  fastify.patch(
+  fastify.patch<{ Params: { deviceId: string } }>(
     '/me/devices/:deviceId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { deviceId: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { deviceId } = request.params;
 
       const body = updateDeviceSchema.parse(request.body);
@@ -709,11 +709,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // DELETE /me/devices/:deviceId - Remove device
-  fastify.delete(
+  fastify.delete<{ Params: { deviceId: string } }>(
     '/me/devices/:deviceId',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { deviceId: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { deviceId } = request.params;
 
       const removed = await preferencesService.removeDevice(userId, deviceId);
@@ -733,11 +733,11 @@ export default async function preferencesRoutes(fastify: FastifyInstance): Promi
   );
 
   // POST /me/devices/:deviceId/sync - Sync device settings
-  fastify.post(
+  fastify.post<{ Params: { deviceId: string } }>(
     '/me/devices/:deviceId/sync',
     { preHandler: [authenticate] },
-    async (request: FastifyRequest<{ Params: { deviceId: string } }>, reply: FastifyReply) => {
-      const userId = (request as any).user.id;
+    async (request, reply) => {
+      const userId = request.user!.userId;
       const { deviceId } = request.params;
 
       const result = await preferencesService.syncDevice(userId, deviceId);

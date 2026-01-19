@@ -19,6 +19,7 @@ import { logger } from './lib/logger';
 import { getRedis, closeRedis, isRedisAvailable } from './lib/redis';
 import { config } from './config';
 import { startScheduler, stopScheduler } from './lib/scheduler';
+import { startJobScheduler, stopJobScheduler } from './http/routes/admin-scheduler';
 import { startBugFixWorker, stopBugFixWorker } from './jobs/bug-fix.queue';
 
 async function main(): Promise<void> {
@@ -67,6 +68,9 @@ async function main(): Promise<void> {
   // Start scheduled jobs (leaderboard rewards, mute expiry, etc.)
   startScheduler();
 
+  // Start database job scheduler (user-defined cron jobs from admin panel)
+  await startJobScheduler();
+
   // Start bug fix worker (processes confirmed bug reports)
   startBugFixWorker();
 
@@ -76,6 +80,9 @@ async function main(): Promise<void> {
 
     // Stop scheduler first
     stopScheduler();
+
+    // Stop database job scheduler
+    stopJobScheduler();
 
     // Stop bug fix worker
     await stopBugFixWorker();

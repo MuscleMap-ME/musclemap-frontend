@@ -794,9 +794,9 @@ export const geoHangoutsService = {
   ): Promise<HangoutEvent[]> {
     const { upcoming = true, limit = 20, offset = 0 } = options;
 
-    let whereClause = 'WHERE hangout_id = $1';
+    let whereClause = 'WHERE e.hangout_id = $1';
     if (upcoming) {
-      whereClause += " AND starts_at > NOW() AND status = 'scheduled'";
+      whereClause += " AND e.starts_at > NOW() AND e.status = 'scheduled'";
     }
 
     const rows = await queryAll<{
@@ -811,13 +811,16 @@ export const geoHangoutsService = {
       location_name: string | null;
       location_address: string | null;
       max_attendees: number | null;
-      attendees_count: number;
+      attendees_count: string; // COUNT() returns string in pg
       is_featured: boolean;
       status: string;
     }>(
-      `SELECT * FROM hangout_events
+      `SELECT e.id, e.hangout_id, e.created_by, e.title, e.description, e.starts_at, e.ends_at,
+        e.location_type, e.location_name, e.location_address, e.max_attendees, e.is_featured, e.status,
+        (SELECT COUNT(*) FROM hangout_event_attendees WHERE event_id = e.id AND status = 'going') as attendees_count
+       FROM hangout_events e
        ${whereClause}
-       ORDER BY starts_at ASC
+       ORDER BY e.starts_at ASC
        LIMIT $2 OFFSET $3`,
       [hangoutId, limit, offset]
     );
@@ -834,7 +837,7 @@ export const geoHangoutsService = {
       locationName: r.location_name || undefined,
       locationAddress: r.location_address || undefined,
       maxAttendees: r.max_attendees || undefined,
-      attendeesCount: r.attendees_count,
+      attendeesCount: parseInt(r.attendees_count, 10) || 0,
       isFeatured: r.is_featured,
       status: r.status as HangoutEvent['status'],
     }));

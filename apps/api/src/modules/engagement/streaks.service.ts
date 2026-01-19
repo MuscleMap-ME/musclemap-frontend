@@ -12,6 +12,7 @@
 
 import { db, queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
+import { xpService } from '../ranks/xp.service';
 import { ValidationError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 
@@ -327,6 +328,16 @@ export const streaksService = {
       idempotencyKey
     );
 
+    // Award XP
+    await xpService.awardXp({
+      userId,
+      amount: reward.xp,
+      sourceType: 'streak',
+      sourceId: `${streakType}-milestone:${milestoneDays}`,
+      reason: `${streakType} streak milestone: ${milestoneDays} days`,
+      metadata: { streakType, milestoneDays, badge: reward.badge },
+    });
+
     // Mark as claimed
     claimed[milestoneDays.toString()] = true;
     await query(
@@ -343,7 +354,7 @@ export const streaksService = {
       [userId, streakType, milestoneDays, reward.credits, reward.xp]
     );
 
-    log.info({ userId, streakType, milestoneDays, credits: reward.credits }, 'Streak milestone claimed');
+    log.info({ userId, streakType, milestoneDays, credits: reward.credits, xp: reward.xp }, 'Streak milestone claimed');
 
     return {
       credits: reward.credits,

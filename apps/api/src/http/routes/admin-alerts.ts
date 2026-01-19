@@ -16,6 +16,7 @@ import { query, queryOne, queryAll } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
+import { sendEmail, isEmailConfigured } from '../../services/email.service';
 
 const log = loggers.api;
 
@@ -195,6 +196,276 @@ function _evaluateCondition(
 }
 
 /**
+ * Format alert condition for display
+ */
+function formatCondition(condition: string, threshold: number): string {
+  switch (condition) {
+    case 'gt':
+      return `> ${threshold}`;
+    case 'lt':
+      return `< ${threshold}`;
+    case 'eq':
+      return `= ${threshold}`;
+    case 'change_percent':
+      return `changed by more than ${threshold}%`;
+    default:
+      return `${condition} ${threshold}`;
+  }
+}
+
+/**
+ * Send email alert notification
+ */
+async function sendEmailAlert(
+  config: { addresses: string[] },
+  alert: { name: string; metric: string; condition: string; threshold: number; actualValue: number }
+): Promise<boolean> {
+  if (!isEmailConfigured()) {
+    log.warn('Email service not configured - RESEND_API_KEY not set, skipping email alert');
+    return false;
+  }
+
+  const baseUrl = process.env.APP_URL || 'https://musclemap.me';
+  const conditionText = formatCondition(alert.condition, alert.threshold);
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">&#x1F6A8;</div>
+            <h1 style="color: #ef4444; margin: 0; font-size: 24px;">
+              Alert: ${escapeHtml(alert.name)}
+            </h1>
+          </div>
+
+          <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin: 24px 0; border-left: 4px solid #ef4444;">
+            <p style="margin: 0 0 8px; color: #666; font-size: 14px;">
+              <strong>Metric:</strong> ${escapeHtml(alert.metric)}
+            </p>
+            <p style="margin: 0 0 8px; color: #666; font-size: 14px;">
+              <strong>Condition:</strong> ${escapeHtml(conditionText)}
+            </p>
+            <p style="margin: 0; color: #ef4444; font-size: 18px; font-weight: bold;">
+              <strong>Actual Value:</strong> ${alert.actualValue}
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 32px;">
+            <a href="${baseUrl}/empire/alerts"
+               style="background: #0066FF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; display: inline-block;">
+              View Alert Dashboard
+            </a>
+          </div>
+
+          <p style="color: #666; font-size: 12px; text-align: center; margin-top: 24px;">
+            Triggered at ${new Date().toISOString()}
+          </p>
+        </div>
+
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 16px;">
+          This is an automated alert from MuscleMap monitoring.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Alert: ${alert.name}
+
+Metric: ${alert.metric}
+Condition: ${conditionText}
+Actual Value: ${alert.actualValue}
+
+Triggered at: ${new Date().toISOString()}
+
+View Alert Dashboard: ${baseUrl}/empire/alerts
+  `;
+
+  // Send to all configured addresses
+  let allSuccess = true;
+  for (const address of config.addresses) {
+    const result = await sendEmail({
+      to: address,
+      subject: `[ALERT] ${alert.name} - ${alert.metric} ${conditionText}`,
+      html,
+      text,
+    });
+
+    if (!result.success) {
+      log.error({ address, error: result.error }, 'Failed to send email alert');
+      allSuccess = false;
+    } else {
+      log.info({ address, emailId: result.id }, 'Email alert sent successfully');
+    }
+  }
+
+  return allSuccess;
+}
+
+/**
+ * Send Slack webhook alert notification
+ */
+async function sendSlackAlert(
+  config: { webhook_url: string; channel?: string },
+  alert: { name: string; metric: string; condition: string; threshold: number; actualValue: number }
+): Promise<boolean> {
+  const conditionText = formatCondition(alert.condition, alert.threshold);
+  const baseUrl = process.env.APP_URL || 'https://musclemap.me';
+
+  // Slack Block Kit message format
+  const payload = {
+    ...(config.channel ? { channel: config.channel } : {}),
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: `\u{1F6A8} Alert: ${alert.name}`,
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Metric:*\n${alert.metric}`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Condition:*\n${conditionText}`,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Actual Value:*\n\`${alert.actualValue}\``,
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Threshold:*\n\`${alert.threshold}\``,
+          },
+        ],
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `Triggered at ${new Date().toISOString()}`,
+          },
+        ],
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'View Dashboard',
+              emoji: true,
+            },
+            url: `${baseUrl}/empire/alerts`,
+          },
+        ],
+      },
+    ],
+  };
+
+  try {
+    const response = await fetch(config.webhook_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log.error(
+        { webhookUrl: config.webhook_url, status: response.status, error: errorText },
+        'Failed to send Slack alert'
+      );
+      return false;
+    }
+
+    log.info({ webhookUrl: config.webhook_url }, 'Slack alert sent successfully');
+    return true;
+  } catch (err) {
+    log.error({ webhookUrl: config.webhook_url, error: (err as Error).message }, 'Slack webhook error');
+    return false;
+  }
+}
+
+/**
+ * Send generic webhook alert notification
+ */
+async function sendWebhookAlert(
+  config: { url: string; headers?: Record<string, string>; method?: 'POST' | 'PUT' },
+  alert: { name: string; metric: string; condition: string; threshold: number; actualValue: number }
+): Promise<boolean> {
+  const payload = {
+    alert: {
+      name: alert.name,
+      metric: alert.metric,
+      condition: alert.condition,
+      threshold: alert.threshold,
+      actualValue: alert.actualValue,
+      conditionMet: true,
+    },
+    timestamp: new Date().toISOString(),
+    source: 'musclemap',
+    environment: process.env.NODE_ENV || 'development',
+  };
+
+  try {
+    const response = await fetch(config.url, {
+      method: config.method || 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'MuscleMap-Alert-System/1.0',
+        ...(config.headers || {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log.error({ url: config.url, status: response.status, error: errorText }, 'Failed to send webhook alert');
+      return false;
+    }
+
+    log.info({ url: config.url, status: response.status }, 'Webhook alert sent successfully');
+    return true;
+  } catch (err) {
+    log.error({ url: config.url, error: (err as Error).message }, 'Webhook error');
+    return false;
+  }
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
  * Send notifications to channels
  */
 async function notifyChannels(
@@ -212,24 +483,49 @@ async function notifyChannels(
     if (!channel) continue;
 
     try {
+      let success = false;
+
       switch (channel.type) {
-        case 'email':
-          // TODO: Integrate with email service
-          log.info({ channelId, type: 'email', alert }, 'Would send email alert');
-          notifiedChannels.push(channelId);
+        case 'email': {
+          const emailConfig = channel.config as { addresses: string[] };
+          if (!emailConfig.addresses || emailConfig.addresses.length === 0) {
+            log.warn({ channelId }, 'Email channel has no configured addresses');
+            break;
+          }
+          success = await sendEmailAlert(emailConfig, alert);
           break;
+        }
 
-        case 'slack':
-          // TODO: Integrate with Slack webhook
-          log.info({ channelId, type: 'slack', alert }, 'Would send Slack alert');
-          notifiedChannels.push(channelId);
+        case 'slack': {
+          const slackConfig = channel.config as { webhook_url: string; channel?: string };
+          if (!slackConfig.webhook_url) {
+            log.warn({ channelId }, 'Slack channel has no configured webhook URL');
+            break;
+          }
+          success = await sendSlackAlert(slackConfig, alert);
           break;
+        }
 
-        case 'webhook':
-          // TODO: Make HTTP request to webhook URL
-          log.info({ channelId, type: 'webhook', alert }, 'Would send webhook alert');
-          notifiedChannels.push(channelId);
+        case 'webhook': {
+          const webhookConfig = channel.config as {
+            url: string;
+            headers?: Record<string, string>;
+            method?: 'POST' | 'PUT';
+          };
+          if (!webhookConfig.url) {
+            log.warn({ channelId }, 'Webhook channel has no configured URL');
+            break;
+          }
+          success = await sendWebhookAlert(webhookConfig, alert);
           break;
+        }
+
+        default:
+          log.warn({ channelId, type: channel.type }, 'Unknown channel type');
+      }
+
+      if (success) {
+        notifiedChannels.push(channelId);
       }
     } catch (err) {
       log.error({ channelId, error: (err as Error).message }, 'Failed to notify channel');
