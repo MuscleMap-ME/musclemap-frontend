@@ -1,0 +1,40 @@
+# MuscleMap Webhook Endpoint Configuration
+#
+# Add this to your Caddyfile inside the musclemap.me block:
+#
+# musclemap.me {
+#     # ... existing config ...
+#
+#     import /var/www/musclemap.me/scripts/caddy/webhook.caddy
+# }
+#
+# Or copy the contents below directly into your Caddyfile.
+
+# GitHub Webhook endpoint
+handle /webhook/deploy {
+    # Only allow POST requests
+    @notpost not method POST
+    respond @notpost "Method not allowed" 405
+
+    # Rate limit: 10 requests per minute
+    rate_limit {
+        zone webhook {
+            key {remote_host}
+            events 10
+            window 1m
+        }
+    }
+
+    # Proxy to webhook listener
+    reverse_proxy 127.0.0.1:9000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+    }
+}
+
+# Webhook health check
+handle /webhook/health {
+    reverse_proxy 127.0.0.1:9000 {
+        rewrite * /health
+    }
+}

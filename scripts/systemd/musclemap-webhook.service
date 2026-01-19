@@ -1,0 +1,29 @@
+[Unit]
+Description=MuscleMap GitHub Webhook Listener
+Documentation=https://github.com/jeanpaulniko/musclemap
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/musclemap.me
+ExecStart=/usr/bin/node /var/www/musclemap.me/scripts/webhook-listener.js
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=WEBHOOK_PORT=9000
+EnvironmentFile=-/var/www/musclemap.me/.env.webhook
+
+# Logging
+StandardOutput=append:/var/log/musclemap/webhook-listener.log
+StandardError=append:/var/log/musclemap/webhook-listener.log
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=false
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target
