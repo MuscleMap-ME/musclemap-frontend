@@ -86,6 +86,14 @@ export const typeDefs = `#graphql
     economyActions: [EconomyAction!]!
     creditsBalance: Balance
 
+    # Enhanced Economy
+    creditEarningSummary: CreditEarningSummary
+    creditEarnEvents(unreadOnly: Boolean, limit: Int): EarnEventsResult
+    bonusEventTypes(enabledOnly: Boolean): [BonusEventType!]!
+    bonusEventHistory(limit: Int): [BonusEvent!]!
+    creditPackages: [CreditPackage!]!
+    transactionHistory(input: TransactionHistoryInput): TransactionHistoryResult!
+
     # Tips & Milestones
     tips(context: String, exerciseId: ID): [Tip!]!
     milestones: [Milestone!]!
@@ -205,6 +213,23 @@ export const typeDefs = `#graphql
     mascotPendingReactions(limit: Int): [MascotReaction!]!
     mascotWardrobe: MascotWardrobe
     mascotShop: [MascotShopItem!]!
+
+    # Mascot Advanced Powers
+    mascotAssistState: MascotAssistState
+    mascotExerciseAlternatives(exerciseId: ID!): [MascotExerciseAlternative!]!
+    mascotCrewSuggestions(limit: Int): [MascotCrewSuggestion!]!
+    mascotRivalryAlerts(limit: Int): [MascotRivalryAlert!]!
+    mascotCreditAlerts: [MascotCreditAlert!]!
+    mascotCreditLoanOffer: MascotCreditLoanOffer!
+    mascotVolumeStats(weeks: Int): [MascotVolumeStats!]!
+    mascotOvertrainingAlerts: [MascotOvertrainingAlert!]!
+    mascotWorkoutSuggestions(limit: Int): [MascotWorkoutSuggestion!]!
+    mascotMilestoneProgress: [MascotMilestoneProgress!]!
+    mascotMasterAbilities: [MascotMasterAbility!]!
+    mascotGeneratedPrograms(status: String): [MascotGeneratedProgram!]!
+    mascotNegotiatedRate: MascotNegotiatedRate
+    mascotHighfivePrefs: MascotHighfivePrefs
+    mascotPendingSocialActions: [MascotSocialAction!]!
   }
 
   type Mutation {
@@ -250,6 +275,14 @@ export const typeDefs = `#graphql
 
     # Economy
     chargeCredits(input: ChargeInput!): ChargeResult!
+
+    # Social Spending
+    sendTip(input: TipInput!): TipResult!
+    sendGift(input: GiftInput!): GiftResult!
+    sendSuperHighFive(input: SuperHighFiveInput!): SuperHighFiveResult!
+    boostPost(input: PostBoostInput!): PostBoostResult!
+    transferCredits(input: TransferInput!): TransferResult!
+    markEarnEventsShown(eventIds: [ID!]!): Boolean!
 
     # Tips & Milestones
     markTipSeen(tipId: ID!): Boolean!
@@ -370,6 +403,22 @@ export const typeDefs = `#graphql
     loadMascotPreset(presetId: ID!): MascotLoadout!
     deleteMascotPreset(presetId: ID!): Boolean!
     markMascotReactionsShown(reactionIds: [ID!]!): Boolean!
+
+    # Mascot Advanced Powers
+    useMascotAssist(workoutId: ID!, exerciseId: ID!, reason: String): MascotAssistResult!
+    saveStreak(streakType: String!, streakValue: Int!): MascotStreakSaveResult!
+    requestCreditLoan(amount: Int!): MascotCreditLoanResult!
+    repayCreditLoan(amount: Int!): MascotCreditLoanResult!
+    dismissCreditAlert(alertId: ID!): Boolean!
+    acknowledgeOvertrainingAlert(alertId: ID!): Boolean!
+    acceptWorkoutSuggestion(suggestionId: ID!): Boolean!
+    generateMascotProgram(input: MascotProgramGenerationInput!): MascotProgramGenerationResult!
+    activateGeneratedProgram(programId: ID!): Boolean!
+    unlockMasterAbility(abilityKey: String!): Boolean!
+    updateMascotHighfivePrefs(input: MascotHighfivePrefsInput!): MascotHighfivePrefs!
+    executeMascotSocialAction(actionId: ID!): Boolean!
+    setExerciseAvoidance(input: MascotExerciseAvoidanceInput!): Boolean!
+    removeExerciseAvoidance(exerciseId: ID!): Boolean!
   }
 
   type Subscription {
@@ -975,6 +1024,191 @@ export const typeDefs = `#graphql
     amount: Int!
     action: String!
     metadata: JSON
+  }
+
+  # Credit Earning Summary
+  type CreditEarningSummary {
+    balance: Int!
+    pending: Int!
+    lifetimeEarned: Int!
+    lifetimeSpent: Int!
+    wealthTier: WealthTier!
+    earnedToday: Int!
+    earnedThisWeek: Int!
+    earnedThisMonth: Int!
+    recentEarnings: [EarnEvent!]!
+    dailyAverage: Float!
+    streakBonus: Int
+  }
+
+  # Real-time earn events for celebration animations
+  type EarnEvent {
+    id: ID!
+    amount: Int!
+    source: String!
+    sourceId: ID
+    description: String
+    animationType: String!
+    icon: String
+    color: String
+    shown: Boolean!
+    createdAt: DateTime!
+  }
+
+  type EarnEventsResult {
+    events: [EarnEvent!]!
+    totalUnread: Int!
+  }
+
+  # Bonus event types
+  type BonusEventType {
+    id: ID!
+    code: String!
+    name: String!
+    description: String
+    probability: Float!
+    minCredits: Int!
+    maxCredits: Int!
+    triggerOn: String!
+    maxPerDay: Int!
+    maxPerWeek: Int!
+    icon: String
+    color: String
+    animation: String
+    enabled: Boolean!
+  }
+
+  type BonusEvent {
+    id: ID!
+    eventType: String!
+    creditsAwarded: Int!
+    createdAt: DateTime!
+  }
+
+  type BonusEventResult {
+    triggered: Boolean!
+    eventType: String
+    creditsAwarded: Int
+    eventId: ID
+    message: String
+  }
+
+  # Credit packages for purchase
+  type CreditPackage {
+    id: ID!
+    name: String!
+    priceCents: Int!
+    credits: Int!
+    bonusCredits: Int!
+    bonusPercent: Float!
+    totalCredits: Int!
+    popular: Boolean!
+    bestValue: Boolean!
+    displayOrder: Int!
+  }
+
+  # Social spending types
+  type TipResult {
+    success: Boolean!
+    error: String
+    transactionId: ID
+    amount: Int!
+    newBalance: Int!
+    recipientUsername: String
+  }
+
+  type GiftResult {
+    success: Boolean!
+    error: String
+    transactionId: ID
+    itemSku: String!
+    cost: Int!
+    fee: Int!
+    newBalance: Int!
+    recipientUsername: String
+  }
+
+  type SuperHighFiveResult {
+    success: Boolean!
+    error: String
+    transactionId: ID
+    type: String!
+    cost: Int!
+    newBalance: Int!
+    recipientUsername: String
+    animationUrl: String
+  }
+
+  type PostBoostResult {
+    success: Boolean!
+    error: String
+    transactionId: ID
+    cost: Int!
+    newBalance: Int!
+    boostEndsAt: DateTime
+    targetType: String!
+    targetId: ID!
+  }
+
+  # Enhanced transaction history
+  type TransactionHistoryResult {
+    transactions: [Transaction!]!
+    totalCount: Int!
+    hasMore: Boolean!
+    nextCursor: String
+  }
+
+  input TransactionHistoryInput {
+    action: String
+    fromDate: DateTime
+    toDate: DateTime
+    limit: Int
+    cursor: String
+  }
+
+  # Wallet transfer types
+  type TransferResult {
+    success: Boolean!
+    error: String
+    transactionId: ID
+    amount: Int!
+    fee: Int!
+    newBalance: Int!
+    recipientUsername: String
+  }
+
+  input TransferInput {
+    recipientId: ID!
+    amount: Int!
+    message: String
+  }
+
+  input TipInput {
+    recipientId: ID!
+    amount: Int!
+    message: String
+    isAnonymous: Boolean
+  }
+
+  input GiftInput {
+    recipientId: ID!
+    itemSku: String!
+    message: String
+    isAnonymous: Boolean
+  }
+
+  input SuperHighFiveInput {
+    recipientId: ID!
+    type: String!
+    targetType: String
+    targetId: ID
+    message: String
+  }
+
+  input PostBoostInput {
+    targetType: String!
+    targetId: ID!
+    durationHours: Int!
   }
 
   # ============================================
@@ -2551,6 +2785,230 @@ export const typeDefs = `#graphql
     creditCost: Int!
     energyCost: Int!
     canSaveAnyStreak: Boolean!
+  }
+
+  # ============================================
+  # MASCOT ADVANCED POWERS TYPES
+  # ============================================
+
+  type MascotExerciseAlternative {
+    exerciseId: ID!
+    exerciseName: String!
+    reason: String!
+    similarityScore: Float!
+    equipment: [String!]!
+    difficulty: String!
+  }
+
+  type MascotCrewSuggestion {
+    crewId: ID!
+    crewName: String!
+    matchScore: Int!
+    matchReasons: [String!]!
+    memberCount: Int!
+  }
+
+  type MascotRivalryAlert {
+    id: ID!
+    rivalUserId: ID!
+    rivalUsername: String!
+    alertType: String!
+    rivalAction: String
+    yourStanding: String
+    suggestion: String
+    createdAt: DateTime!
+  }
+
+  type MascotCreditLoanOffer {
+    available: Boolean!
+    maxAmount: Int!
+    interestRate: Float!
+    currentLoan: Int!
+    canBorrow: Boolean!
+    reason: String
+  }
+
+  type MascotCreditLoanResult {
+    success: Boolean!
+    error: String
+    newBalance: Int
+    amountRepaid: Int
+    remainingDebt: Int
+  }
+
+  type MascotVolumeStats {
+    muscleGroup: String!
+    weeklyVolume: Int!
+    averageIntensity: Float!
+    frequency: Int!
+    trend: String!
+    recommendation: String
+  }
+
+  type MascotOvertrainingAlert {
+    id: ID!
+    alertType: String!
+    affectedArea: String!
+    riskLevel: String!
+    recommendation: String
+  }
+
+  type MascotWorkoutSuggestion {
+    id: ID!
+    suggestedFor: DateTime!
+    suggestionType: String!
+    focusMuscles: [String!]!
+    recommendedExercises: [String!]!
+    durationMinutes: Int!
+    reason: String!
+  }
+
+  type MascotMilestoneProgress {
+    id: ID!
+    milestoneType: String!
+    milestoneName: String!
+    currentValue: Int!
+    targetValue: Int!
+    estimatedCompletion: DateTime
+    confidencePercent: Int!
+  }
+
+  type MascotMasterAbility {
+    abilityKey: String!
+    abilityName: String!
+    description: String!
+    category: String!
+    unlocked: Boolean!
+    creditCost: Int!
+  }
+
+  type MascotGeneratedProgram {
+    id: ID!
+    name: String!
+    type: String!
+    goal: String!
+    durationWeeks: Int!
+    daysPerWeek: Int!
+    schedule: JSON!
+    workouts: [MascotProgramWorkout!]!
+    creditCost: Int!
+  }
+
+  type MascotProgramWorkout {
+    weekNumber: Int!
+    dayNumber: Int!
+    name: String!
+    focusAreas: [String!]!
+    exercises: [MascotProgramExercise!]!
+    durationMinutes: Int!
+    isDeload: Boolean!
+  }
+
+  type MascotProgramExercise {
+    exerciseId: ID!
+    exerciseName: String!
+    sets: Int!
+    reps: String!
+    restSeconds: Int!
+    notes: String
+  }
+
+  type MascotProgramGenerationResult {
+    success: Boolean!
+    error: String
+    program: MascotGeneratedProgram
+    creditCost: Int
+  }
+
+  type MascotStreakSaveResult {
+    success: Boolean!
+    error: String
+    saveId: ID
+  }
+
+  type MascotAssistState {
+    chargesRemaining: Int!
+    chargesMax: Int!
+    lastChargeReset: DateTime
+    lastAssistUsed: DateTime
+    totalAssistsUsed: Int!
+    exercisesAssistedToday: Int!
+    canUseAssist: Boolean!
+    cooldownEndsAt: DateTime
+    companionStage: Int!
+    userRankTier: Int!
+    ability: MascotAssistAbility
+  }
+
+  type MascotAssistAbility {
+    id: ID!
+    name: String!
+    maxExercises: Int!
+    dailyCharges: Int!
+    cooldownHours: Int!
+  }
+
+  type MascotAssistResult {
+    success: Boolean!
+    error: String
+    assistLogId: ID
+    tuAwarded: Float
+    chargesRemaining: Int
+    message: String
+  }
+
+  type MascotCreditAlert {
+    id: ID!
+    alertType: String!
+    message: String!
+    currentBalance: Int!
+    workoutCost: Int
+    dismissed: Boolean!
+    createdAt: DateTime!
+  }
+
+  type MascotNegotiatedRate {
+    discountPercent: Int!
+    available: Boolean!
+  }
+
+  type MascotHighfivePrefs {
+    enabled: Boolean!
+    closeFriends: Boolean!
+    crew: Boolean!
+    allFollowing: Boolean!
+    dailyLimit: Int!
+    usedToday: Int!
+  }
+
+  type MascotSocialAction {
+    actionType: String!
+    targetUserId: ID!
+    targetUsername: String!
+    actionData: JSON!
+    priority: Int!
+  }
+
+  input MascotHighfivePrefsInput {
+    enabled: Boolean
+    closeFriends: Boolean
+    crew: Boolean
+    allFollowing: Boolean
+    dailyLimit: Int
+  }
+
+  input MascotProgramGenerationInput {
+    programType: String!
+    goal: String!
+    durationWeeks: Int!
+    daysPerWeek: Int!
+    equipment: [String!]
+  }
+
+  input MascotExerciseAvoidanceInput {
+    exerciseId: ID!
+    avoidanceType: String!
+    reason: String
   }
 
   type MascotTimelineItem {

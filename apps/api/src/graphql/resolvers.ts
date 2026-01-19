@@ -10,7 +10,14 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { queryOne, queryAll, query } from '../db/client';
 import { config } from '../config';
-import { economyService } from '../modules/economy';
+import {
+  economyService,
+  earnEventsService,
+  bonusEventsService,
+  socialSpendingService,
+  walletService,
+  paymentsService,
+} from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { careerService } from '../modules/career';
 import {
@@ -137,6 +144,56 @@ function buildWealthTierResponse(credits: number): WealthTierResponse {
     creditsToNext: creditsToNextTier(credits),
     progressPercent: wealthTierProgress(credits),
   };
+}
+
+// Transaction description helper
+function getTransactionDescription(action: string, amount: number, metadata?: any): string {
+  const actionDescriptions: Record<string, string> = {
+    'workout_complete': 'Workout completed',
+    'rep_complete': 'Reps completed',
+    'set_complete': 'Set completed',
+    'pr_set': 'Personal record',
+    'streak_bonus': 'Streak bonus',
+    'goal_complete': 'Goal completed',
+    'leaderboard_reward': 'Leaderboard placement',
+    'high_five_receive': 'High five received',
+    'daily_login': 'Daily login bonus',
+    'tip_sent': 'Tip sent',
+    'tip_received': 'Tip received',
+    'gift_sent': 'Gift sent',
+    'gift_received': 'Gift received',
+    'super_high_five': 'Super high five',
+    'post_boost': 'Post boost',
+    'transfer_sent': 'Credits transferred',
+    'transfer_received': 'Credits received',
+    'purchase': 'Credits purchased',
+    'refund': 'Refund',
+    'store_purchase': 'Store purchase',
+    'lucky_rep': 'Lucky rep bonus',
+    'golden_set': 'Golden set bonus',
+    'jackpot_workout': 'Jackpot workout',
+    'mystery_box': 'Mystery box reward',
+    'comeback_bonus': 'Comeback bonus',
+  };
+
+  // Check for specific action patterns
+  if (action.startsWith('bonus.')) {
+    const bonusType = action.replace('bonus.', '');
+    return actionDescriptions[bonusType] || `Bonus: ${bonusType}`;
+  }
+
+  if (action.startsWith('refund.')) {
+    return `Refund: ${action.replace('refund.', '')}`;
+  }
+
+  const description = actionDescriptions[action];
+  if (description) return description;
+
+  // Humanize action name if not found
+  return action
+    .replace(/_/g, ' ')
+    .replace(/\./g, ' - ')
+    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 // ============================================
@@ -756,6 +813,309 @@ export const resolvers = {
         credits: balance,
         pending: 0,
         lifetime: balance,
+      };
+    },
+
+    // Enhanced Economy
+    creditEarningSummary: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get balance info
+      const balanceRow = await queryOne<{
+        balance: number;
+        lifetime_earned: number;
+        lifetime_spent: number;
+      }>(
+        'SELECT balance, lifetime_earned, lifetime_spent FROM credit_balances WHERE user_id = $1',
+        [userId]
+      );
+
+      const balance = balanceRow?.balance ?? 0;
+      const lifetimeEarned = balanceRow?.lifetime_earned ?? 0;
+      const lifetimeSpent = balanceRow?.lifetime_spent ?? 0;
+
+      // Get today/week/month earnings
+      const earningsRow = await queryOne<{
+        today: string;
+        this_week: string;
+        this_month: string;
+        days_active: string;
+      }>(
+        `SELECT
+          COALESCE(SUM(CASE WHEN amount > 0 AND created_at >= CURRENT_DATE THEN amount ELSE 0 END), 0) as today,
+          COALESCE(SUM(CASE WHEN amount > 0 AND created_at >= DATE_TRUNC('week', CURRENT_DATE) THEN amount ELSE 0 END), 0) as this_week,
+          COALESCE(SUM(CASE WHEN amount > 0 AND created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN amount ELSE 0 END), 0) as this_month,
+          COUNT(DISTINCT DATE(created_at)) FILTER (WHERE amount > 0 AND created_at >= CURRENT_DATE - INTERVAL '30 days') as days_active
+        FROM credit_ledger WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Get recent earn events
+      const recentEarnings = await earnEventsService.getRecentEvents(userId, 10);
+
+      // Calculate daily average over last 30 days
+      const daysActive = parseInt(earningsRow?.days_active || '1') || 1;
+      const last30DaysEarned = await queryOne<{ total: string }>(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM credit_ledger
+         WHERE user_id = $1 AND amount > 0 AND created_at >= CURRENT_DATE - INTERVAL '30 days'`,
+        [userId]
+      );
+      const dailyAverage = parseFloat(last30DaysEarned?.total || '0') / Math.max(daysActive, 1);
+
+      // Get streak bonus if applicable
+      const streakRow = await queryOne<{ current_streak: number }>(
+        `SELECT current_streak FROM user_stats WHERE user_id = $1`,
+        [userId]
+      );
+
+      let streakBonus: number | null = null;
+      const streak = streakRow?.current_streak ?? 0;
+      if (streak >= 3) {
+        // Calculate streak bonus based on current streak
+        if (streak >= 365) streakBonus = 10000;
+        else if (streak >= 100) streakBonus = 2500;
+        else if (streak >= 60) streakBonus = 1000;
+        else if (streak >= 30) streakBonus = 500;
+        else if (streak >= 14) streakBonus = 200;
+        else if (streak >= 7) streakBonus = 75;
+        else if (streak >= 3) streakBonus = 25;
+      }
+
+      return {
+        balance,
+        pending: 0, // Future: implement pending credits for held transactions
+        lifetimeEarned,
+        lifetimeSpent,
+        wealthTier: buildWealthTierResponse(balance),
+        earnedToday: parseInt(earningsRow?.today || '0'),
+        earnedThisWeek: parseInt(earningsRow?.this_week || '0'),
+        earnedThisMonth: parseInt(earningsRow?.this_month || '0'),
+        recentEarnings: recentEarnings.map(e => ({
+          id: e.id,
+          amount: e.amount,
+          source: e.source,
+          sourceId: e.sourceId,
+          description: e.description,
+          animationType: e.animationType,
+          icon: e.icon,
+          color: e.color,
+          shown: e.shown,
+          createdAt: e.createdAt,
+        })),
+        dailyAverage,
+        streakBonus,
+      };
+    },
+
+    creditEarnEvents: async (
+      _: unknown,
+      args: { unreadOnly?: boolean; limit?: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      const events = args.unreadOnly !== false
+        ? await earnEventsService.getUnseenEvents(userId, limit)
+        : await earnEventsService.getRecentEvents(userId, limit);
+
+      // Get total unread count
+      const unreadResult = await queryOne<{ count: string }>(
+        'SELECT COUNT(*) as count FROM credit_earn_events WHERE user_id = $1 AND shown = false',
+        [userId]
+      );
+
+      return {
+        events: events.map(e => ({
+          id: e.id,
+          amount: e.amount,
+          source: e.source,
+          sourceId: e.sourceId,
+          description: e.description,
+          animationType: e.animationType,
+          icon: e.icon,
+          color: e.color,
+          shown: e.shown,
+          createdAt: e.createdAt,
+        })),
+        totalUnread: parseInt(unreadResult?.count || '0'),
+      };
+    },
+
+    bonusEventTypes: async (_: unknown, args: { enabledOnly?: boolean }) => {
+      const eventTypes = await bonusEventsService.getEventTypes(args.enabledOnly !== false);
+      return eventTypes.map(et => ({
+        id: et.id,
+        code: et.code,
+        name: et.name,
+        description: et.description,
+        probability: et.probability,
+        minCredits: et.minCredits,
+        maxCredits: et.maxCredits,
+        triggerOn: et.triggerOn,
+        maxPerDay: et.maxPerDay,
+        maxPerWeek: et.maxPerWeek,
+        icon: et.icon,
+        color: et.color,
+        animation: et.animation,
+        enabled: et.enabled,
+      }));
+    },
+
+    bonusEventHistory: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+      const events = await bonusEventsService.getUserBonusHistory(userId, limit);
+      return events.map(e => ({
+        id: e.id,
+        eventType: e.eventType,
+        creditsAwarded: e.creditsAwarded,
+        createdAt: e.createdAt,
+      }));
+    },
+
+    creditPackages: async () => {
+      const packages = await queryAll<{
+        id: string;
+        name: string;
+        price_cents: number;
+        credits: number;
+        bonus_credits: number;
+        bonus_percent: string;
+        popular: boolean;
+        best_value: boolean;
+        display_order: number;
+      }>(
+        `SELECT id, name, price_cents, credits, bonus_credits, bonus_percent, popular, best_value, display_order
+         FROM credit_packages WHERE enabled = true ORDER BY display_order`
+      );
+
+      return packages.map(p => ({
+        id: p.id,
+        name: p.name,
+        priceCents: p.price_cents,
+        credits: p.credits,
+        bonusCredits: p.bonus_credits,
+        bonusPercent: parseFloat(p.bonus_percent),
+        totalCredits: p.credits + p.bonus_credits,
+        popular: p.popular,
+        bestValue: p.best_value,
+        displayOrder: p.display_order,
+      }));
+    },
+
+    transactionHistory: async (
+      _: unknown,
+      args: {
+        input?: {
+          action?: string;
+          fromDate?: Date;
+          toDate?: Date;
+          limit?: number;
+          cursor?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const input = args.input || {};
+      const limit = Math.min(input.limit || 50, 100);
+
+      // Build query with filters
+      let sql = `SELECT id, action as type, amount, balance_after, metadata, created_at
+                 FROM credit_ledger WHERE user_id = $1`;
+      const params: any[] = [userId];
+      let paramIndex = 2;
+
+      if (input.action) {
+        sql += ` AND action = $${paramIndex}`;
+        params.push(input.action);
+        paramIndex++;
+      }
+
+      if (input.fromDate) {
+        sql += ` AND created_at >= $${paramIndex}`;
+        params.push(input.fromDate);
+        paramIndex++;
+      }
+
+      if (input.toDate) {
+        sql += ` AND created_at <= $${paramIndex}`;
+        params.push(input.toDate);
+        paramIndex++;
+      }
+
+      // Cursor-based pagination
+      if (input.cursor) {
+        try {
+          const decoded = Buffer.from(input.cursor, 'base64').toString('utf8');
+          const [cursorDate, cursorId] = decoded.split('|');
+          sql += ` AND (created_at < $${paramIndex} OR (created_at = $${paramIndex} AND id < $${paramIndex + 1}))`;
+          params.push(cursorDate, cursorId);
+          paramIndex += 2;
+        } catch (e) {
+          // Invalid cursor, ignore
+        }
+      }
+
+      sql += ` ORDER BY created_at DESC, id DESC LIMIT $${paramIndex}`;
+      params.push(limit + 1); // Fetch one extra to detect hasMore
+
+      const rows = await queryAll<{
+        id: string;
+        type: string;
+        amount: number;
+        balance_after: number;
+        metadata: any;
+        created_at: Date;
+      }>(sql, params);
+
+      const hasMore = rows.length > limit;
+      const transactions = rows.slice(0, limit);
+
+      // Get total count for this query
+      let countSql = `SELECT COUNT(*) as count FROM credit_ledger WHERE user_id = $1`;
+      const countParams: any[] = [userId];
+      let countParamIndex = 2;
+
+      if (input.action) {
+        countSql += ` AND action = $${countParamIndex}`;
+        countParams.push(input.action);
+        countParamIndex++;
+      }
+
+      if (input.fromDate) {
+        countSql += ` AND created_at >= $${countParamIndex}`;
+        countParams.push(input.fromDate);
+        countParamIndex++;
+      }
+
+      if (input.toDate) {
+        countSql += ` AND created_at <= $${countParamIndex}`;
+        countParams.push(input.toDate);
+      }
+
+      const countResult = await queryOne<{ count: string }>(countSql, countParams);
+
+      // Generate next cursor
+      let nextCursor: string | null = null;
+      if (hasMore && transactions.length > 0) {
+        const lastTx = transactions[transactions.length - 1];
+        nextCursor = Buffer.from(`${lastTx.created_at.toISOString()}|${lastTx.id}`).toString('base64');
+      }
+
+      return {
+        transactions: transactions.map(t => ({
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          description: getTransactionDescription(t.type, t.amount, t.metadata),
+          createdAt: t.created_at,
+          metadata: t.metadata,
+        })),
+        totalCount: parseInt(countResult?.count || '0'),
+        hasMore,
+        nextCursor,
       };
     },
 
@@ -1653,6 +2013,107 @@ export const resolvers = {
         owned: item.owned,
       }));
     },
+
+    // ============================================
+    // MASCOT ADVANCED POWERS QUERIES
+    // ============================================
+
+    mascotAssistState: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const state = await mascotPowersService.getAssistState(userId);
+      return state;
+    },
+
+    mascotExerciseAlternatives: async (
+      _: unknown,
+      args: { exerciseId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const alternatives = await mascotPowersService.getExerciseAlternatives(
+        userId,
+        args.exerciseId
+      );
+      return alternatives;
+    },
+
+    mascotCrewSuggestions: async (_: unknown, _args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const suggestions = await mascotPowersService.getCrewSuggestions(userId);
+      return suggestions;
+    },
+
+    mascotRivalryAlerts: async (_: unknown, _args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const alerts = await mascotPowersService.getRivalryAlerts(userId);
+      return alerts;
+    },
+
+    mascotCreditAlerts: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const alerts = await mascotPowersService.getCreditAlerts(userId);
+      return alerts;
+    },
+
+    mascotCreditLoanOffer: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const offer = await mascotPowersService.getCreditLoanOffer(userId);
+      return offer;
+    },
+
+    mascotVolumeStats: async (_: unknown, args: { weeks?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const stats = await mascotPowersService.getVolumeStats(userId, args.weeks || 4);
+      return stats;
+    },
+
+    mascotOvertrainingAlerts: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const alerts = await mascotPowersService.getOvertrainingAlerts(userId);
+      return alerts;
+    },
+
+    mascotWorkoutSuggestions: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const suggestions = await mascotPowersService.getWorkoutSuggestions(userId, args.limit || 7);
+      return suggestions;
+    },
+
+    mascotMilestoneProgress: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const progress = await mascotPowersService.getMilestoneProgress(userId);
+      return progress;
+    },
+
+    mascotMasterAbilities: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const abilities = await mascotPowersService.getMasterAbilities(userId);
+      return abilities;
+    },
+
+    mascotGeneratedPrograms: async (_: unknown, args: { status?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const programs = await mascotPowersService.getGeneratedPrograms(userId, args.status);
+      return programs;
+    },
+
+    mascotNegotiatedRate: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const rate = await mascotPowersService.getNegotiatedRate(userId);
+      return rate;
+    },
+
+    mascotHighfivePrefs: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const prefs = await mascotPowersService.getHighfivePrefs(userId);
+      return prefs;
+    },
+
+    mascotPendingSocialActions: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const actions = await mascotPowersService.getPendingSocialActions(userId);
+      return actions;
+    },
   },
 
   // ============================================
@@ -1964,6 +2425,269 @@ export const resolvers = {
         newBalance,
         error: result.error,
       };
+    },
+
+    // Social Spending
+    sendTip: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientId: string;
+          amount: number;
+          message?: string;
+          isAnonymous?: boolean;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { recipientId, amount, message } = args.input;
+
+      try {
+        const tip = await socialSpendingService.sendTip(userId, recipientId, amount, {
+          message,
+        });
+
+        // Get recipient username
+        const recipient = await queryOne<{ username: string }>(
+          'SELECT username FROM users WHERE id = $1',
+          [recipientId]
+        );
+
+        return {
+          success: true,
+          error: null,
+          transactionId: tip.id,
+          amount: tip.amount,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: recipient?.username,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to send tip',
+          transactionId: null,
+          amount: 0,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: null,
+        };
+      }
+    },
+
+    sendGift: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientId: string;
+          itemSku: string;
+          message?: string;
+          isAnonymous?: boolean;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { recipientId, itemSku, message } = args.input;
+
+      try {
+        const gift = await socialSpendingService.sendGift(userId, recipientId, itemSku, {
+          message,
+        });
+
+        const recipient = await queryOne<{ username: string }>(
+          'SELECT username FROM users WHERE id = $1',
+          [recipientId]
+        );
+
+        return {
+          success: true,
+          error: null,
+          transactionId: gift.id,
+          itemSku: gift.itemSku,
+          cost: gift.totalCost,
+          fee: Math.ceil(gift.totalCost * 0.1), // 10% fee
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: recipient?.username,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to send gift',
+          transactionId: null,
+          itemSku,
+          cost: 0,
+          fee: 0,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: null,
+        };
+      }
+    },
+
+    sendSuperHighFive: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientId: string;
+          type: string;
+          targetType?: string;
+          targetId?: string;
+          message?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { recipientId, type, targetType, targetId, message } = args.input;
+
+      try {
+        const highFive = await socialSpendingService.sendSuperHighFive(
+          userId,
+          recipientId,
+          type as 'super' | 'mega' | 'standing_ovation',
+          {
+            sourceType: targetType,
+            sourceId: targetId,
+            message,
+          }
+        );
+
+        const recipient = await queryOne<{ username: string }>(
+          'SELECT username FROM users WHERE id = $1',
+          [recipientId]
+        );
+
+        // Animation URLs based on type
+        const animationUrls: Record<string, string> = {
+          super: '/animations/high-five-super.json',
+          mega: '/animations/high-five-mega.json',
+          standing_ovation: '/animations/standing-ovation.json',
+        };
+
+        return {
+          success: true,
+          error: null,
+          transactionId: highFive.id,
+          type: highFive.type,
+          cost: highFive.cost,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: recipient?.username,
+          animationUrl: animationUrls[highFive.type] || null,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to send super high five',
+          transactionId: null,
+          type,
+          cost: 0,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: null,
+          animationUrl: null,
+        };
+      }
+    },
+
+    boostPost: async (
+      _: unknown,
+      args: {
+        input: {
+          targetType: string;
+          targetId: string;
+          durationHours: number;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { targetType, targetId, durationHours } = args.input;
+
+      try {
+        // Determine boost option based on duration
+        const boostOption = durationHours <= 24 ? '24h' : '7d';
+        const boost = await socialSpendingService.boostPost(userId, targetType, targetId, boostOption);
+
+        return {
+          success: true,
+          error: null,
+          transactionId: boost.id,
+          cost: boost.cost,
+          newBalance: await economyService.getBalance(userId),
+          boostEndsAt: boost.endsAt.toISOString(),
+          targetType: boost.targetType,
+          targetId: boost.targetId,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to boost post',
+          transactionId: null,
+          cost: 0,
+          newBalance: await economyService.getBalance(userId),
+          boostEndsAt: null,
+          targetType,
+          targetId,
+        };
+      }
+    },
+
+    transferCredits: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientId: string;
+          amount: number;
+          message?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { recipientId, amount, message } = args.input;
+
+      try {
+        const transfer = await walletService.transfer({
+          senderId: userId,
+          recipientId,
+          amount,
+          note: message,
+          tipType: 'user',
+        });
+
+        const recipient = await queryOne<{ username: string }>(
+          'SELECT username FROM users WHERE id = $1',
+          [recipientId]
+        );
+
+        return {
+          success: true,
+          error: null,
+          transactionId: transfer.transferId,
+          amount,
+          fee: 0, // No fee for P2P transfers
+          newBalance: transfer.senderNewBalance,
+          recipientUsername: recipient?.username,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to transfer credits',
+          transactionId: null,
+          amount: 0,
+          fee: 0,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: null,
+        };
+      }
+    },
+
+    markEarnEventsShown: async (
+      _: unknown,
+      args: { eventIds: string[] },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await earnEventsService.markEventsSeen(userId, args.eventIds);
+      return true;
     },
 
     // Tips
@@ -2668,6 +3392,165 @@ export const resolvers = {
     markMascotReactionsShown: async (_: unknown, args: { reactionIds: string[] }, context: Context) => {
       const { userId } = requireAuth(context);
       await mascotTimelineService.markReactionsShown(userId, args.reactionIds);
+      return true;
+    },
+
+    // ============================================
+    // MASCOT ADVANCED POWERS MUTATIONS
+    // ============================================
+
+    useMascotAssist: async (
+      _: unknown,
+      args: { workoutId: string; exerciseId: string; reason?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const result = await mascotPowersService.useMascotAssist(
+        userId,
+        args.workoutId,
+        args.exerciseId,
+        args.reason
+      );
+      return result;
+    },
+
+    saveStreak: async (
+      _: unknown,
+      args: { streakType: string; streakValue: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const validStreakTypes = ['workout_streak', 'login_streak', 'goal_streak', 'challenge_streak'] as const;
+      const streakType = validStreakTypes.includes(args.streakType as typeof validStreakTypes[number])
+        ? args.streakType as typeof validStreakTypes[number]
+        : 'workout_streak';
+      const result = await mascotPowersService.saveStreak(userId, streakType, args.streakValue);
+      return result;
+    },
+
+    requestCreditLoan: async (_: unknown, args: { amount: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await mascotPowersService.requestCreditLoan(userId, args.amount);
+      return result;
+    },
+
+    repayCreditLoan: async (_: unknown, args: { amount: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await mascotPowersService.repayCreditLoan(userId, args.amount);
+      return result;
+    },
+
+    dismissCreditAlert: async (_: unknown, args: { alertId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.dismissCreditAlert(userId, args.alertId);
+      return true;
+    },
+
+    acknowledgeOvertrainingAlert: async (_: unknown, args: { alertId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.acknowledgeOvertrainingAlert(userId, args.alertId);
+      return true;
+    },
+
+    acceptWorkoutSuggestion: async (_: unknown, args: { suggestionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.acceptWorkoutSuggestion(userId, args.suggestionId);
+      return true;
+    },
+
+    generateMascotProgram: async (
+      _: unknown,
+      args: {
+        input: {
+          programType: string;
+          goal: string;
+          durationWeeks: number;
+          daysPerWeek: number;
+          equipment?: string[];
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const validProgramTypes = ['strength', 'hypertrophy', 'powerbuilding', 'athletic', 'custom'] as const;
+      const validGoals = ['build_muscle', 'increase_strength', 'lose_fat', 'improve_endurance', 'general_fitness'] as const;
+
+      const programType = validProgramTypes.includes(args.input.programType as typeof validProgramTypes[number])
+        ? args.input.programType as typeof validProgramTypes[number]
+        : 'strength';
+      const goal = validGoals.includes(args.input.goal as typeof validGoals[number])
+        ? args.input.goal as typeof validGoals[number]
+        : 'general_fitness';
+
+      const result = await mascotPowersService.generateProgram(userId, {
+        programType,
+        goal,
+        durationWeeks: args.input.durationWeeks,
+        daysPerWeek: args.input.daysPerWeek,
+        equipment: args.input.equipment,
+      });
+      return result;
+    },
+
+    activateGeneratedProgram: async (_: unknown, args: { programId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.activateGeneratedProgram(userId, args.programId);
+      return true;
+    },
+
+    unlockMasterAbility: async (_: unknown, args: { abilityKey: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.unlockMasterAbility(userId, args.abilityKey);
+      return true;
+    },
+
+    updateMascotHighfivePrefs: async (
+      _: unknown,
+      args: {
+        input: {
+          enabled?: boolean;
+          closeFriends?: boolean;
+          crew?: boolean;
+          allFollowing?: boolean;
+          dailyLimit?: number;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const prefs = await mascotPowersService.updateHighfivePrefs(userId, args.input);
+      return prefs;
+    },
+
+    executeMascotSocialAction: async (_: unknown, args: { actionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.executeSocialAction(userId, args.actionId);
+      return true;
+    },
+
+    setExerciseAvoidance: async (
+      _: unknown,
+      args: {
+        input: {
+          exerciseId: string;
+          avoidanceType: string;
+          reason?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const validTypes = ['favorite', 'avoid', 'injured', 'no_equipment', 'too_difficult', 'too_easy'] as const;
+      const avoidanceType = validTypes.includes(args.input.avoidanceType as typeof validTypes[number])
+        ? args.input.avoidanceType as typeof validTypes[number]
+        : 'avoid';
+      await mascotPowersService.setExerciseAvoidance(userId, args.input.exerciseId, avoidanceType, args.input.reason);
+      return true;
+    },
+
+    removeExerciseAvoidance: async (_: unknown, args: { exerciseId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await mascotPowersService.removeExerciseAvoidance(userId, args.exerciseId);
       return true;
     },
 

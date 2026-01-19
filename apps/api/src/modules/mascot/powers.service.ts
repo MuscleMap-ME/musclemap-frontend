@@ -2171,6 +2171,422 @@ export const mascotPowersService = {
 
     return result?.stage || 1;
   },
+
+  // =====================================================
+  // GRAPHQL ENDPOINT IMPLEMENTATIONS
+  // =====================================================
+
+  /**
+   * Get mascot assist state
+   */
+  async getAssistState(userId: string): Promise<{
+    chargesRemaining: number;
+    chargesMax: number;
+    lastChargeReset: Date | null;
+    lastAssistUsed: Date | null;
+    totalAssistsUsed: number;
+    exercisesAssistedToday: number;
+    canUseAssist: boolean;
+    cooldownEndsAt: Date | null;
+    companionStage: number;
+    userRankTier: number;
+    ability: { id: string; name: string; maxExercises: number; dailyCharges: number; cooldownHours: number } | null;
+  }> {
+    const state = await queryOne<{
+      charges_remaining: number;
+      charges_max: number;
+      last_charge_reset: Date;
+      last_assist_used: Date;
+      total_assists_used: number;
+      exercises_assisted_today: number;
+    }>(`SELECT * FROM user_mascot_assist_state WHERE user_id = $1`, [userId]);
+
+    const stage = await this.getCompanionStage(userId);
+
+    const ability = await queryOne<{
+      id: string;
+      name: string;
+      max_exercises_per_workout: number;
+      daily_charges: number;
+      cooldown_hours: number;
+    }>(`SELECT * FROM get_mascot_assist_ability($1)`, [userId]);
+
+    const user = await queryOne<{ current_rank: string }>(`SELECT current_rank FROM users WHERE id = $1`, [userId]);
+    const rankTier = await queryOne<{ tier: number }>(`
+      SELECT tier FROM rank_definitions WHERE name = $1
+    `, [user?.current_rank || 'Novice']);
+
+    const cooldownEndsAt = state?.last_assist_used && ability?.cooldown_hours
+      ? new Date(state.last_assist_used.getTime() + ability.cooldown_hours * 3600000)
+      : null;
+
+    const now = new Date();
+    const canUseAssist = (state?.charges_remaining || 0) > 0 &&
+      (cooldownEndsAt === null || cooldownEndsAt < now);
+
+    return {
+      chargesRemaining: state?.charges_remaining || 1,
+      chargesMax: state?.charges_max || 1,
+      lastChargeReset: state?.last_charge_reset || null,
+      lastAssistUsed: state?.last_assist_used || null,
+      totalAssistsUsed: state?.total_assists_used || 0,
+      exercisesAssistedToday: state?.exercises_assisted_today || 0,
+      canUseAssist,
+      cooldownEndsAt,
+      companionStage: stage,
+      userRankTier: rankTier?.tier || 1,
+      ability: ability ? {
+        id: ability.id,
+        name: ability.name,
+        maxExercises: ability.max_exercises_per_workout,
+        dailyCharges: ability.daily_charges,
+        cooldownHours: ability.cooldown_hours,
+      } : null,
+    };
+  },
+
+  /**
+   * Use mascot assist
+   */
+  async useMascotAssist(
+    userId: string,
+    workoutId: string,
+    exerciseId: string,
+    reason?: string
+  ): Promise<{ success: boolean; error?: string; assistLogId?: string; tuAwarded?: number; chargesRemaining?: number; message?: string }> {
+    const state = await this.getAssistState(userId);
+
+    if (!state.canUseAssist) {
+      return { success: false, error: 'No assist charges available or on cooldown' };
+    }
+
+    if (!state.ability) {
+      return { success: false, error: 'No assist ability available' };
+    }
+
+    if (state.exercisesAssistedToday >= state.ability.maxExercises) {
+      return { success: false, error: 'Maximum exercises assisted today reached' };
+    }
+
+    // Get exercise info
+    const exercise = await queryOne<{ name: string }>(`SELECT name FROM exercises WHERE id = $1`, [exerciseId]);
+
+    // Calculate TU to award (50% of normal)
+    const tuAwarded = 5; // Base TU for mascot assist
+
+    // Log the assist
+    const assistLog = await queryOne<{ id: string }>(`
+      INSERT INTO mascot_assist_log (user_id, workout_id, exercise_id, exercise_name, ability_id, companion_stage, user_rank_tier, sets_completed, tu_awarded, reason)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, $9)
+      RETURNING id
+    `, [userId, workoutId, exerciseId, exercise?.name || 'Unknown', state.ability.id, state.companionStage, state.userRankTier, tuAwarded, reason || 'tired']);
+
+    // Update state
+    await query(`
+      UPDATE user_mascot_assist_state
+      SET charges_remaining = charges_remaining - 1,
+          last_assist_used = NOW(),
+          total_assists_used = total_assists_used + 1,
+          exercises_assisted_today = exercises_assisted_today + 1,
+          updated_at = NOW()
+      WHERE user_id = $1
+    `, [userId]);
+
+    // Add assisted exercise to workout
+    await query(`
+      UPDATE workouts
+      SET mascot_assisted_exercises = array_append(mascot_assisted_exercises, $2)
+      WHERE id = $1
+    `, [workoutId, exerciseId]);
+
+    return {
+      success: true,
+      assistLogId: assistLog?.id,
+      tuAwarded,
+      chargesRemaining: state.chargesRemaining - 1,
+      message: `${state.ability.name} helped you complete ${exercise?.name || 'this exercise'}!`,
+    };
+  },
+
+  /**
+   * Request a credit loan
+   */
+  async requestCreditLoan(
+    userId: string,
+    amount: number
+  ): Promise<{ success: boolean; error?: string; newBalance?: number; amountRepaid?: number; remainingDebt?: number }> {
+    const offer = await this.getCreditLoanOffer(userId);
+
+    if (!offer.canBorrow) {
+      return { success: false, error: offer.reason || 'Cannot borrow at this time' };
+    }
+
+    if (amount > offer.maxAmount - offer.currentLoan) {
+      return { success: false, error: `Maximum additional loan is ${offer.maxAmount - offer.currentLoan} credits` };
+    }
+
+    // Record the loan
+    await query(`
+      INSERT INTO mascot_credit_loans (user_id, amount_borrowed, amount_owed, interest_rate, companion_stage)
+      VALUES ($1, $2, $2, $3, (SELECT stage FROM user_companion_state WHERE user_id = $1))
+      ON CONFLICT (user_id) DO UPDATE SET
+        amount_borrowed = mascot_credit_loans.amount_borrowed + $2,
+        amount_owed = mascot_credit_loans.amount_owed + $2,
+        last_borrow_at = NOW()
+    `, [userId, amount, offer.interestRate]);
+
+    // Credit the user
+    const result = await economyService.addCredits(userId, amount, 'mascot_loan', { loanAmount: amount });
+
+    return {
+      success: true,
+      newBalance: result.newBalance,
+      remainingDebt: offer.currentLoan + amount,
+    };
+  },
+
+  /**
+   * Acknowledge overtraining alert
+   */
+  async acknowledgeOvertrainingAlert(userId: string, alertId: string): Promise<void> {
+    await query(`
+      UPDATE mascot_overtraining_alerts
+      SET acknowledged = TRUE
+      WHERE id = $1 AND user_id = $2
+    `, [alertId, userId]);
+  },
+
+  /**
+   * Accept workout suggestion
+   */
+  async acceptWorkoutSuggestion(userId: string, suggestionId: string): Promise<void> {
+    await query(`
+      UPDATE mascot_workout_suggestions
+      SET accepted_at = NOW()
+      WHERE id = $1 AND user_id = $2
+    `, [suggestionId, userId]);
+  },
+
+  /**
+   * Activate generated program
+   */
+  async activateGeneratedProgram(userId: string, programId: string): Promise<void> {
+    // Deactivate any current programs
+    await query(`
+      UPDATE mascot_generated_programs
+      SET status = 'paused'
+      WHERE user_id = $1 AND status = 'active'
+    `, [userId]);
+
+    // Activate the specified program
+    await query(`
+      UPDATE mascot_generated_programs
+      SET status = 'active', started_at = NOW()
+      WHERE id = $1 AND user_id = $2
+    `, [programId, userId]);
+  },
+
+  /**
+   * Execute social action
+   */
+  async executeSocialAction(userId: string, actionId: string): Promise<void> {
+    const action = await queryOne<{
+      action_type: string;
+      target_user_id: string;
+      action_data: Record<string, unknown>;
+    }>(`SELECT * FROM mascot_pending_social_actions WHERE id = $1 AND user_id = $2`, [actionId, userId]);
+
+    if (!action) {
+      throw new Error('Social action not found');
+    }
+
+    // Mark as executed
+    await query(`
+      UPDATE mascot_pending_social_actions
+      SET executed_at = NOW()
+      WHERE id = $1
+    `, [actionId]);
+
+    // Execute the action based on type
+    switch (action.action_type) {
+      case 'highfive':
+        // Would trigger high-five to the target user
+        log.info(`Executing mascot highfive from ${userId} to ${action.target_user_id}`);
+        break;
+      case 'message':
+        // Would trigger message to the target user
+        log.info(`Executing mascot message from ${userId} to ${action.target_user_id}`);
+        break;
+      default:
+        log.warn(`Unknown social action type: ${action.action_type}`);
+    }
+  },
+
+  /**
+   * Remove exercise avoidance
+   */
+  async removeExerciseAvoidance(userId: string, exerciseId: string): Promise<void> {
+    await query(`
+      DELETE FROM user_exercise_avoidances
+      WHERE user_id = $1 AND exercise_id = $2
+    `, [userId, exerciseId]);
+  },
+
+  /**
+   * Get multiple workout suggestions
+   */
+  async getWorkoutSuggestions(userId: string, limit: number = 7): Promise<WorkoutSuggestion[]> {
+    const rows = await queryAll<{
+      id: string;
+      suggested_for: Date;
+      suggestion_type: string;
+      focus_muscles: string[];
+      recommended_exercises: string[];
+      duration_minutes: number;
+      reason: string;
+    }>(`
+      SELECT id, suggested_for, suggestion_type, focus_muscles, recommended_exercises, duration_minutes, reason
+      FROM mascot_workout_suggestions
+      WHERE user_id = $1 AND accepted_at IS NULL AND suggested_for >= CURRENT_DATE
+      ORDER BY suggested_for ASC
+      LIMIT $2
+    `, [userId, limit]);
+
+    return rows.map(row => ({
+      id: row.id,
+      suggestedFor: row.suggested_for,
+      suggestionType: row.suggestion_type,
+      focusMuscles: row.focus_muscles || [],
+      recommendedExercises: row.recommended_exercises || [],
+      durationMinutes: row.duration_minutes,
+      reason: row.reason,
+    }));
+  },
+
+  /**
+   * Get milestone progress
+   */
+  async getMilestoneProgress(userId: string): Promise<MilestoneProgress[]> {
+    return this.getMilestones(userId);
+  },
+
+  /**
+   * Get generated programs
+   */
+  async getGeneratedPrograms(userId: string, status?: string): Promise<{
+    id: string;
+    name: string;
+    type: string;
+    goal: string;
+    durationWeeks: number;
+    daysPerWeek: number;
+    schedule: Record<string, unknown>;
+    workouts: Array<{
+      weekNumber: number;
+      dayNumber: number;
+      name: string;
+      focusAreas: string[];
+      exercises: Array<{
+        exerciseId: string;
+        exerciseName: string;
+        sets: number;
+        reps: string;
+        restSeconds: number;
+        notes: string | null;
+      }>;
+      durationMinutes: number;
+      isDeload: boolean;
+    }>;
+    creditCost: number;
+  }[]> {
+    let whereClause = 'WHERE user_id = $1';
+    const params: (string | undefined)[] = [userId];
+
+    if (status) {
+      whereClause += ' AND status = $2';
+      params.push(status);
+    }
+
+    const programs = await queryAll<{
+      id: string;
+      program_name: string;
+      program_type: string;
+      goal: string;
+      duration_weeks: number;
+      days_per_week: number;
+      schedule: Record<string, unknown>;
+      workouts: unknown[];
+      credit_cost: number;
+    }>(`
+      SELECT id, program_name, program_type, goal, duration_weeks, days_per_week, schedule, workouts, credit_cost
+      FROM mascot_generated_programs
+      ${whereClause}
+      ORDER BY created_at DESC
+    `, params.filter(Boolean) as string[]);
+
+    return programs.map(p => ({
+      id: p.id,
+      name: p.program_name,
+      type: p.program_type,
+      goal: p.goal,
+      durationWeeks: p.duration_weeks,
+      daysPerWeek: p.days_per_week,
+      schedule: p.schedule || {},
+      workouts: (p.workouts || []).map((w: unknown) => {
+        const workout = w as Record<string, unknown>;
+        return {
+          weekNumber: workout.weekNumber as number || 1,
+          dayNumber: workout.dayNumber as number || 1,
+          name: workout.name as string || '',
+          focusAreas: workout.focusAreas as string[] || [],
+          exercises: ((workout.exercises as unknown[]) || []).map((e: unknown) => {
+            const ex = e as Record<string, unknown>;
+            return {
+              exerciseId: ex.exerciseId as string || '',
+              exerciseName: ex.exerciseName as string || '',
+              sets: ex.sets as number || 3,
+              reps: ex.reps as string || '8-12',
+              restSeconds: ex.restSeconds as number || 60,
+              notes: ex.notes as string | null,
+            };
+          }),
+          durationMinutes: workout.durationMinutes as number || 45,
+          isDeload: workout.isDeload as boolean || false,
+        };
+      }),
+      creditCost: p.credit_cost || 0,
+    }));
+  },
+
+  /**
+   * Get pending social actions
+   */
+  async getPendingSocialActions(userId: string): Promise<SocialAction[]> {
+    const rows = await queryAll<{
+      id: string;
+      action_type: string;
+      target_user_id: string;
+      target_username: string;
+      action_data: Record<string, unknown>;
+      priority: number;
+    }>(`
+      SELECT psa.id, psa.action_type, psa.target_user_id,
+             u.username as target_username, psa.action_data, psa.priority
+      FROM mascot_pending_social_actions psa
+      JOIN users u ON u.id = psa.target_user_id
+      WHERE psa.user_id = $1 AND psa.executed_at IS NULL
+      ORDER BY psa.priority DESC, psa.created_at ASC
+      LIMIT 10
+    `, [userId]);
+
+    return rows.map(row => ({
+      actionType: row.action_type,
+      targetUserId: row.target_user_id,
+      targetUsername: row.target_username,
+      actionData: row.action_data || {},
+      priority: row.priority || 5,
+    }));
+  },
 };
 
 export default mascotPowersService;
