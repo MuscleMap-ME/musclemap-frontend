@@ -19,6 +19,7 @@ import {
   paymentsService,
 } from '../modules/economy';
 import { statsService } from '../modules/stats';
+import { longTermAnalyticsService } from '../modules/analytics';
 import { careerService } from '../modules/career';
 import {
   sleepService,
@@ -52,6 +53,9 @@ import { prescriptionEngine } from '../modules/prescription';
 import { privacyService } from '../modules/community';
 import { virtualHangoutsService } from '../modules/community/virtual-hangouts.service';
 import { tipsService } from '../modules/tips';
+import { journeyHealthService } from '../modules/journey';
+import { issuesService } from '../services/issues.service';
+import * as equipmentService from '../services/equipment.service';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -88,13 +92,16 @@ interface Context {
 // AUTH HELPERS
 // ============================================
 
-function requireAuth(context: Context): { userId: string; email: string; roles: string[] } {
+function requireAuth(context: Context): { userId: string; email: string; roles: string[]; isAdmin: boolean } {
   if (!context.user) {
     throw new GraphQLError('Authentication required', {
       extensions: { code: 'UNAUTHENTICATED' },
     });
   }
-  return context.user;
+  return {
+    ...context.user,
+    isAdmin: context.user.roles?.includes('admin') || false,
+  };
 }
 
 function hashPassword(password: string): string {
@@ -784,6 +791,44 @@ export const resolvers = {
         stat: 'xp',
         value: entry.xp || 0,
       }));
+    },
+
+    // Long-Term Analytics
+    yearlyStats: async (_: unknown, args: { year: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getYearlyStats(userId, args.year);
+    },
+
+    yearsList: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getYearsList(userId);
+    },
+
+    monthlyTrends: async (_: unknown, args: { months?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getMonthlyTrends(userId, args.months || 12);
+    },
+
+    progressVelocity: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getProgressVelocity(userId);
+    },
+
+    projectedMilestones: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getProjectedMilestones(userId);
+    },
+
+    yearInReview: async (_: unknown, args: { year: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return longTermAnalyticsService.getYearInReview(userId, args.year);
+    },
+
+    allTimeTuLeaderboard: async (_: unknown, args: { limit?: number; offset?: number }) => {
+      return longTermAnalyticsService.getAllTimeTuLeaderboard(
+        args.limit || 100,
+        args.offset || 0
+      );
     },
 
     // Community
@@ -2148,6 +2193,64 @@ export const resolvers = {
     },
 
     // ============================================
+    // JOURNEY HEALTH QUERIES
+    // ============================================
+
+    journeyHealth: async (_: unknown, args: { journeyId: string }, context: Context) => {
+      requireAuth(context);
+      const health = await journeyHealthService.getJourneyHealth(args.journeyId);
+      if (!health) return null;
+      return {
+        ...health,
+        riskFactors: health.riskFactors.map((f) => ({
+          factor: f.factor,
+          weight: f.weight,
+          days: f.days ?? null,
+          ratio: f.ratio ?? null,
+          progressGap: f.progressGap ?? null,
+          completed: f.completed ?? null,
+          total: f.total ?? null,
+        })),
+      };
+    },
+
+    journeyHealthAlerts: async (
+      _: unknown,
+      args: { journeyId?: string; status?: string; limit?: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const alerts = await journeyHealthService.getHealthAlerts(userId, {
+        journeyId: args.journeyId,
+        status: args.status as 'active' | 'acknowledged' | 'dismissed' | 'resolved' | undefined,
+        limit: args.limit,
+      });
+      return alerts;
+    },
+
+    journeyRecommendations: async (_: unknown, args: { journeyId: string }, context: Context) => {
+      requireAuth(context);
+      const recommendations = await journeyHealthService.getRecommendations(args.journeyId);
+      return recommendations;
+    },
+
+    stalledJourneys: async (_: unknown, args: { thresholdDays?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const stalled = await journeyHealthService.detectStalledJourneys(userId, args.thresholdDays);
+      return stalled;
+    },
+
+    journeyHealthHistory: async (
+      _: unknown,
+      args: { journeyId: string; days?: number },
+      context: Context
+    ) => {
+      requireAuth(context);
+      const history = await journeyHealthService.getHealthHistory(args.journeyId, args.days);
+      return history;
+    },
+
+    // ============================================
     // CRITICAL MISSING RESOLVERS
     // ============================================
 
@@ -3250,6 +3353,322 @@ export const resolvers = {
         lastWorkout: workoutStats?.last_workout,
         strengthScore: 0, // TODO: Calculate from stats
         consistencyScore: 0, // TODO: Calculate from workout frequency
+      };
+    },
+
+    // ============================================
+    // Equipment Queries
+    // ============================================
+    equipmentTypes: async () => {
+      const types = await equipmentService.getEquipmentTypes();
+      return types.map(t => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        description: t.description,
+        icon: t.iconUrl,
+      }));
+    },
+
+    equipmentCategories: async () => {
+      const categories = await equipmentService.getEquipmentCategories();
+      return categories.map(c => ({
+        id: c,
+        name: c,
+        description: null,
+      }));
+    },
+
+    equipmentByCategory: async (_: unknown, args: { category: string }) => {
+      const types = await equipmentService.getEquipmentTypesByCategory(args.category);
+      return types.map(t => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        description: t.description,
+        icon: t.iconUrl,
+      }));
+    },
+
+    homeEquipment: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const equipment = await equipmentService.getUserHomeEquipment(userId);
+      return equipment.map(e => ({
+        id: e.id,
+        userId: e.userId,
+        equipmentId: e.equipmentTypeId,
+        equipment: {
+          id: e.equipmentTypeId,
+          name: e.equipmentName,
+          category: e.category,
+          description: null,
+          icon: null,
+        },
+        addedAt: new Date(),
+      }));
+    },
+
+    homeEquipmentIds: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return equipmentService.getUserHomeEquipmentIds(userId);
+    },
+
+    locationEquipment: async (_: unknown, args: { locationId: string }) => {
+      const equipment = await equipmentService.getLocationEquipment(args.locationId);
+      return equipment.map(e => ({
+        id: `${args.locationId}_${e.equipmentTypeId}`,
+        locationId: args.locationId,
+        equipmentId: e.equipmentTypeId,
+        equipment: {
+          id: e.equipmentTypeId,
+          name: e.equipmentName,
+          category: e.category,
+          description: null,
+          icon: null,
+        },
+        status: e.isVerified ? 'verified' : 'reported',
+        lastVerified: e.lastReportedAt ? new Date(e.lastReportedAt) : null,
+        verifiedBy: null,
+      }));
+    },
+
+    // ============================================
+    // PT Test Queries
+    // ============================================
+    ptTests: async () => {
+      const tests = await queryAll<{
+        id: string;
+        name: string;
+        description: string;
+        category: string;
+        scoring_type: string;
+        time_limit_seconds: number;
+        equipment_required: string[];
+      }>(`
+        SELECT id, name, description, category, scoring_type, time_limit_seconds, equipment_required
+        FROM pt_tests ORDER BY category, name
+      `);
+      return tests.map(t => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        scoringType: t.scoring_type,
+        timeLimitSeconds: t.time_limit_seconds,
+        equipmentRequired: t.equipment_required || [],
+      }));
+    },
+
+    ptTest: async (_: unknown, args: { id: string }) => {
+      const test = await queryOne<{
+        id: string;
+        name: string;
+        description: string;
+        category: string;
+        scoring_type: string;
+        time_limit_seconds: number;
+        equipment_required: string[];
+        instructions: string;
+      }>(`
+        SELECT id, name, description, category, scoring_type, time_limit_seconds, equipment_required, instructions
+        FROM pt_tests WHERE id = $1
+      `, [args.id]);
+      if (!test) return null;
+      return {
+        id: test.id,
+        name: test.name,
+        description: test.description,
+        category: test.category,
+        scoringType: test.scoring_type,
+        timeLimitSeconds: test.time_limit_seconds,
+        equipmentRequired: test.equipment_required || [],
+        instructions: test.instructions,
+      };
+    },
+
+    myArchetypePTTests: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const user = await queryOne<{ archetype_id: string }>(`
+        SELECT current_identity_id as archetype_id FROM users WHERE id = $1
+      `, [userId]);
+
+      if (!user?.archetype_id) return [];
+
+      const tests = await queryAll<{
+        id: string;
+        name: string;
+        description: string;
+        category: string;
+        scoring_type: string;
+        time_limit_seconds: number;
+        equipment_required: string[];
+      }>(`
+        SELECT pt.id, pt.name, pt.description, pt.category, pt.scoring_type, pt.time_limit_seconds, pt.equipment_required
+        FROM pt_tests pt
+        JOIN archetype_pt_tests apt ON pt.id = apt.pt_test_id
+        WHERE apt.archetype_id = $1
+        ORDER BY pt.category, pt.name
+      `, [user.archetype_id]);
+
+      return tests.map(t => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        scoringType: t.scoring_type,
+        timeLimitSeconds: t.time_limit_seconds,
+        equipmentRequired: t.equipment_required || [],
+      }));
+    },
+
+    ptTestResults: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const results = await queryAll<{
+        id: string;
+        pt_test_id: string;
+        test_name: string;
+        score: number;
+        raw_value: number;
+        unit: string;
+        notes: string;
+        created_at: Date;
+      }>(`
+        SELECT r.id, r.pt_test_id, pt.name as test_name, r.score, r.raw_value, r.unit, r.notes, r.created_at
+        FROM pt_test_results r
+        JOIN pt_tests pt ON r.pt_test_id = pt.id
+        WHERE r.user_id = $1
+        ORDER BY r.created_at DESC LIMIT 100
+      `, [userId]);
+
+      return results.map(r => ({
+        id: r.id,
+        testId: r.pt_test_id,
+        testName: r.test_name,
+        score: r.score,
+        rawValue: r.raw_value,
+        unit: r.unit,
+        notes: r.notes,
+        createdAt: r.created_at,
+      }));
+    },
+
+    ptTestResult: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await queryOne<{
+        id: string;
+        pt_test_id: string;
+        test_name: string;
+        score: number;
+        raw_value: number;
+        unit: string;
+        notes: string;
+        created_at: Date;
+      }>(`
+        SELECT r.id, r.pt_test_id, pt.name as test_name, r.score, r.raw_value, r.unit, r.notes, r.created_at
+        FROM pt_test_results r
+        JOIN pt_tests pt ON r.pt_test_id = pt.id
+        WHERE r.id = $1 AND r.user_id = $2
+      `, [args.id, userId]);
+
+      if (!result) return null;
+      return {
+        id: result.id,
+        testId: result.pt_test_id,
+        testName: result.test_name,
+        score: result.score,
+        rawValue: result.raw_value,
+        unit: result.unit,
+        notes: result.notes,
+        createdAt: result.created_at,
+      };
+    },
+
+    ptTestLeaderboard: async (_: unknown, args: { testId: string }) => {
+      const entries = await queryAll<{
+        user_id: string;
+        username: string;
+        avatar_url: string;
+        score: number;
+        raw_value: number;
+        created_at: Date;
+      }>(`
+        SELECT DISTINCT ON (r.user_id)
+          r.user_id, u.username, u.avatar_url, r.score, r.raw_value, r.created_at
+        FROM pt_test_results r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.pt_test_id = $1
+        ORDER BY r.user_id, r.score DESC, r.created_at DESC
+      `, [args.testId]);
+
+      const sorted = entries.sort((a, b) => b.score - a.score);
+      return sorted.map((e, index) => ({
+        rank: index + 1,
+        userId: e.user_id,
+        username: e.username,
+        avatar: e.avatar_url,
+        score: e.score,
+        rawValue: e.raw_value,
+        achievedAt: e.created_at,
+      }));
+    },
+
+    // ============================================
+    // Limitation Queries
+    // ============================================
+    limitations: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limitations = await queryAll<{
+        id: string;
+        body_region: string;
+        description: string;
+        severity: string;
+        start_date: Date;
+        end_date: Date;
+        is_active: boolean;
+        excluded_exercises: string[];
+        created_at: Date;
+      }>(`
+        SELECT id, body_region, description, severity, start_date, end_date, is_active, excluded_exercises, created_at
+        FROM user_limitations WHERE user_id = $1
+        ORDER BY is_active DESC, created_at DESC
+      `, [userId]);
+
+      return limitations.map(l => ({
+        id: l.id,
+        userId,
+        bodyRegion: l.body_region,
+        description: l.description,
+        severity: l.severity,
+        startDate: l.start_date,
+        endDate: l.end_date,
+        active: l.is_active,
+        excludedExercises: l.excluded_exercises || [],
+        createdAt: l.created_at,
+      }));
+    },
+
+    // ============================================
+    // Onboarding Status Query
+    // ============================================
+    onboardingStatus: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const profile = await queryOne<{
+        completed: boolean;
+        current_step: string;
+        completed_steps: string[];
+      }>(`
+        SELECT completed, current_step, completed_steps
+        FROM onboarding_profiles WHERE user_id = $1
+      `, [userId]);
+
+      const steps = ['welcome', 'goals', 'experience', 'equipment', 'schedule', 'archetype'];
+      return {
+        userId,
+        completed: profile?.completed || false,
+        currentStep: profile?.current_step || 'welcome',
+        completedSteps: profile?.completed_steps || [],
+        totalSteps: steps.length,
+        remainingSteps: steps.filter(s => !profile?.completed_steps?.includes(s)),
       };
     },
   },
@@ -4693,6 +5112,93 @@ export const resolvers = {
       return true;
     },
 
+    // ============================================
+    // JOURNEY HEALTH MUTATIONS
+    // ============================================
+
+    calculateJourneyHealth: async (_: unknown, args: { journeyId: string }, context: Context) => {
+      requireAuth(context);
+      const health = await journeyHealthService.calculateHealthScore(args.journeyId);
+      if (!health) {
+        throw new GraphQLError('Failed to calculate health score', {
+          extensions: { code: 'INTERNAL_ERROR' },
+        });
+      }
+      return {
+        ...health,
+        riskFactors: health.riskFactors.map((f) => ({
+          factor: f.factor,
+          weight: f.weight,
+          days: f.days ?? null,
+          ratio: f.ratio ?? null,
+          progressGap: f.progressGap ?? null,
+          completed: f.completed ?? null,
+          total: f.total ?? null,
+        })),
+      };
+    },
+
+    acknowledgeJourneyAlert: async (_: unknown, args: { alertId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const alert = await journeyHealthService.acknowledgeAlert(args.alertId, userId);
+      if (!alert) {
+        throw new GraphQLError('Alert not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+      return alert;
+    },
+
+    dismissJourneyAlert: async (_: unknown, args: { alertId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await journeyHealthService.dismissAlert(args.alertId, userId);
+      return true;
+    },
+
+    generateJourneyRecommendations: async (_: unknown, args: { journeyId: string }, context: Context) => {
+      requireAuth(context);
+      const recommendations = await journeyHealthService.generateRecommendations(args.journeyId);
+      return recommendations;
+    },
+
+    markRecommendationViewed: async (_: unknown, args: { recommendationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await journeyHealthService.markRecommendationViewed(args.recommendationId, userId);
+      return true;
+    },
+
+    markRecommendationActioned: async (_: unknown, args: { recommendationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await journeyHealthService.markRecommendationActioned(args.recommendationId, userId);
+      return true;
+    },
+
+    provideRecommendationFeedback: async (
+      _: unknown,
+      args: { recommendationId: string; wasHelpful: boolean; feedbackText?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await journeyHealthService.provideFeedback(
+        args.recommendationId,
+        userId,
+        args.wasHelpful,
+        args.feedbackText
+      );
+      return true;
+    },
+
+    recalculateAllJourneyHealth: async (_: unknown, __: unknown, context: Context) => {
+      const { isAdmin } = requireAuth(context);
+      if (!isAdmin) {
+        throw new GraphQLError('Admin access required', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+      const result = await journeyHealthService.recalculateAllHealthScores();
+      return result;
+    },
+
     // Career Readiness Mutations
     createCareerGoal: async (
       _: unknown,
@@ -5443,21 +5949,21 @@ export const resolvers = {
       };
     },
 
-    deleteLimitation: async (_: unknown, args: { limitationId: string }, context: Context) => {
+    deleteLimitation: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
 
       const limitation = await queryOne<{ user_id: string }>(
         'SELECT user_id FROM user_limitations WHERE id = $1',
-        [args.limitationId]
+        [args.id]
       );
 
       if (!limitation || limitation.user_id !== userId) {
         throw new GraphQLError('Limitation not found or access denied', { extensions: { code: 'NOT_FOUND' } });
       }
 
-      await query('DELETE FROM user_limitations WHERE id = $1', [args.limitationId]);
+      await query('DELETE FROM user_limitations WHERE id = $1', [args.id]);
 
-      return { success: true };
+      return true;
     },
 
     // Prescription Engine
@@ -5561,6 +6067,828 @@ export const resolvers = {
         allowMessages: settings?.allow_messages ?? true,
         showOnLeaderboards: settings?.show_on_leaderboards ?? true,
         showOnlineStatus: settings?.show_online_status ?? true,
+      };
+    },
+
+    // ============================================
+    // ADDITIONAL MISSING MUTATIONS - Added 2026-01-19 (batch 2)
+    // ============================================
+
+    // Goal Milestones
+    createGoalMilestone: async (
+      _: unknown,
+      args: { goalId: string; input: { title: string; target: number } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { goalId, input } = args;
+
+      // Verify goal ownership
+      const goal = await queryOne<{ user_id: string }>(
+        'SELECT user_id FROM goals WHERE id = $1',
+        [goalId]
+      );
+
+      if (!goal || goal.user_id !== userId) {
+        throw new GraphQLError('Goal not found or access denied', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      const milestoneId = `milestone_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO goal_milestones (id, goal_id, title, target_value, achieved)
+         VALUES ($1, $2, $3, $4, false)`,
+        [milestoneId, goalId, input.title, input.target]
+      );
+
+      return {
+        id: milestoneId,
+        goalId,
+        title: input.title,
+        target: input.target,
+        achieved: false,
+        achievedAt: null,
+      };
+    },
+
+    // Update Home Equipment (bulk update)
+    updateHomeEquipment: async (_: unknown, args: { equipmentIds: string[] }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Remove all existing equipment
+      await query('DELETE FROM user_equipment WHERE user_id = $1', [userId]);
+
+      // Add new equipment
+      const results = [];
+      for (const equipmentId of args.equipmentIds) {
+        await query(
+          `INSERT INTO user_equipment (user_id, equipment_id) VALUES ($1, $2)
+           ON CONFLICT (user_id, equipment_id) DO NOTHING`,
+          [userId, equipmentId]
+        );
+
+        const equipment = await queryOne<{ id: string; name: string; category: string }>(
+          'SELECT id, name, category FROM equipment WHERE id = $1',
+          [equipmentId]
+        );
+
+        if (equipment) {
+          results.push({
+            id: `ue_${crypto.randomBytes(12).toString('hex')}`,
+            userId,
+            equipmentId,
+            equipment: {
+              id: equipment.id,
+              name: equipment.name,
+              category: equipment.category,
+            },
+            addedAt: new Date(),
+          });
+        }
+      }
+
+      return results;
+    },
+
+    // Issues System - Subscribe to Issue
+    subscribeToIssue: async (_: unknown, args: { issueId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const result = await issuesService.subscribe(args.issueId, userId);
+      return result.subscribed;
+    },
+
+    // Issues System - Create Comment
+    createIssueComment: async (
+      _: unknown,
+      args: { issueId: string; content: string },
+      context: Context
+    ) => {
+      const { userId, isAdmin } = requireAuth(context);
+
+      const comment = await issuesService.createComment(
+        args.issueId,
+        userId,
+        args.content,
+        undefined,
+        isAdmin
+      );
+
+      return {
+        id: comment.id,
+        issueId: comment.issueId,
+        authorId: comment.authorId,
+        author: {
+          id: comment.authorId,
+          username: comment.authorUsername,
+          displayName: comment.authorDisplayName,
+          avatar: comment.authorAvatarUrl,
+        },
+        content: comment.content,
+        isStaffReply: comment.isStaffReply,
+        isSolution: comment.isSolution,
+        createdAt: comment.createdAt,
+      };
+    },
+
+    // Issues System - Mark Comment as Solution
+    markCommentAsSolution: async (
+      _: unknown,
+      args: { issueId: string; commentId: string },
+      context: Context
+    ) => {
+      const { userId, isAdmin } = requireAuth(context);
+
+      // Check if user is author or admin
+      const issue = await issuesService.getIssueById(args.issueId);
+      if (!issue) {
+        throw new GraphQLError('Issue not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (issue.authorId !== userId && !isAdmin) {
+        throw new GraphQLError('Only issue author or admins can mark solutions', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      await issuesService.markCommentAsSolution(args.commentId, args.issueId, userId);
+
+      return issuesService.getIssueById(args.issueId, userId);
+    },
+
+    // Issues System - Update Issue
+    updateIssue: async (
+      _: unknown,
+      args: { id: string; input: { title?: string; description?: string; status?: string; priority?: string; labels?: string[] } },
+      context: Context
+    ) => {
+      const { userId, isAdmin } = requireAuth(context);
+
+      const updated = await issuesService.updateIssue(args.id, userId, {
+        title: args.input.title,
+        description: args.input.description,
+        status: args.input.status !== undefined ? parseInt(args.input.status) : undefined,
+        priority: args.input.priority !== undefined ? parseInt(args.input.priority) : undefined,
+        labelIds: args.input.labels,
+      }, isAdmin);
+
+      return {
+        id: updated.id,
+        issueNumber: updated.issueNumber,
+        title: updated.title,
+        description: updated.description,
+        type: updated.type,
+        status: updated.status,
+        priority: updated.priority,
+        author: {
+          id: updated.authorId,
+          username: updated.authorUsername,
+          displayName: updated.authorDisplayName,
+          avatar: updated.authorAvatarUrl,
+        },
+        voteCount: updated.voteCount,
+        commentCount: updated.commentCount,
+        hasVoted: updated.hasVoted,
+        isSubscribed: updated.isSubscribed,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      };
+    },
+
+    // Issues System - Create Dev Update
+    createUpdate: async (
+      _: unknown,
+      args: { input: { title: string; content: string; type: string } },
+      context: Context
+    ) => {
+      const { userId, isAdmin } = requireAuth(context);
+
+      if (!isAdmin) {
+        throw new GraphQLError('Only admins can create updates', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      const typeMap: Record<string, number> = {
+        'UPDATE': 0, 'RELEASE': 1, 'ANNOUNCEMENT': 2, 'BUGFIX': 3, 'MAINTENANCE': 4
+      };
+
+      const update = await issuesService.createDevUpdate(userId, {
+        title: args.input.title,
+        content: args.input.content,
+        type: typeMap[args.input.type] ?? 0,
+        isPublished: true,
+      });
+
+      return {
+        id: update.id,
+        title: update.title,
+        content: update.content,
+        type: args.input.type,
+        author: {
+          id: update.authorId,
+          username: update.authorUsername,
+          displayName: update.authorDisplayName,
+        },
+        publishedAt: update.publishedAt,
+        createdAt: update.createdAt,
+      };
+    },
+
+    // Issues System - Create Roadmap Item
+    createRoadmapItem: async (
+      _: unknown,
+      args: { input: { title: string; description: string; quarter?: string } },
+      context: Context
+    ) => {
+      const { userId, isAdmin } = requireAuth(context);
+
+      if (!isAdmin) {
+        throw new GraphQLError('Only admins can create roadmap items', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      const itemId = `roadmap_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO roadmap_items (id, title, description, quarter, status, progress, is_public)
+         VALUES ($1, $2, $3, $4, 0, 0, true)`,
+        [itemId, args.input.title, args.input.description, args.input.quarter]
+      );
+
+      return {
+        id: itemId,
+        title: args.input.title,
+        description: args.input.description,
+        quarter: args.input.quarter,
+        status: 'PLANNED',
+        progress: 0,
+        voteCount: 0,
+        hasVoted: false,
+        createdAt: new Date(),
+      };
+    },
+
+    // Issues System - Vote on Roadmap Item
+    voteOnRoadmapItem: async (_: unknown, args: { itemId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const result = await issuesService.voteRoadmapItem(args.itemId, userId);
+
+      const item = await queryOne<any>(
+        'SELECT * FROM roadmap_items WHERE id = $1',
+        [args.itemId]
+      );
+
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        quarter: item.quarter,
+        status: ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'PAUSED', 'CANCELLED'][item.status],
+        progress: item.progress,
+        voteCount: result.voteCount,
+        hasVoted: result.voted,
+        createdAt: item.created_at,
+      };
+    },
+
+    // Issues System - Admin Bulk Update
+    adminBulkUpdateIssues: async (
+      _: unknown,
+      args: { issueIds: string[]; status: string },
+      context: Context
+    ) => {
+      const { isAdmin } = requireAuth(context);
+
+      if (!isAdmin) {
+        throw new GraphQLError('Only admins can bulk update issues', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      const statusNum = parseInt(args.status);
+      await query(
+        `UPDATE issues SET status = $1, updated_at = NOW() WHERE id = ANY($2)`,
+        [statusNum, args.issueIds]
+      );
+
+      const issues = await queryAll<any>(
+        `SELECT i.*, u.username as author_username, u.display_name as author_display_name
+         FROM issues i
+         LEFT JOIN users u ON i.author_id = u.id
+         WHERE i.id = ANY($1)`,
+        [args.issueIds]
+      );
+
+      return issues.map((i: any) => ({
+        id: i.id,
+        issueNumber: i.issue_number,
+        title: i.title,
+        description: i.description,
+        type: i.type,
+        status: i.status,
+        priority: i.priority,
+        author: {
+          id: i.author_id,
+          username: i.author_username,
+          displayName: i.author_display_name,
+        },
+        voteCount: i.vote_count,
+        commentCount: i.comment_count,
+        createdAt: i.created_at,
+        updatedAt: i.updated_at,
+      }));
+    },
+
+    // Onboarding - Update Profile
+    updateOnboardingProfile: async (
+      _: unknown,
+      args: { input: { displayName?: string; fitnessGoals?: string[]; experienceLevel?: string; preferredWorkoutTime?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      // Update user profile
+      if (input.displayName) {
+        await query('UPDATE users SET display_name = $1 WHERE id = $2', [input.displayName, userId]);
+      }
+
+      // Update onboarding data
+      await query(
+        `INSERT INTO user_onboarding (user_id, fitness_goals, experience_level, preferred_workout_time)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id) DO UPDATE SET
+           fitness_goals = COALESCE(EXCLUDED.fitness_goals, user_onboarding.fitness_goals),
+           experience_level = COALESCE(EXCLUDED.experience_level, user_onboarding.experience_level),
+           preferred_workout_time = COALESCE(EXCLUDED.preferred_workout_time, user_onboarding.preferred_workout_time),
+           updated_at = NOW()`,
+        [userId, input.fitnessGoals, input.experienceLevel, input.preferredWorkoutTime]
+      );
+
+      const onboarding = await queryOne<any>(
+        `SELECT u.display_name, o.*
+         FROM users u
+         LEFT JOIN user_onboarding o ON u.id = o.user_id
+         WHERE u.id = $1`,
+        [userId]
+      );
+
+      return {
+        displayName: onboarding?.display_name,
+        fitnessGoals: onboarding?.fitness_goals || [],
+        experienceLevel: onboarding?.experience_level,
+        preferredWorkoutTime: onboarding?.preferred_workout_time,
+      };
+    },
+
+    // Onboarding - Set Home Equipment
+    setHomeEquipmentOnboarding: async (
+      _: unknown,
+      args: { input: { type: string; kettlebellCount?: number; extras?: string[] } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      // Store onboarding equipment preferences
+      await query(
+        `INSERT INTO user_onboarding (user_id, equipment_type, kettlebell_count, equipment_extras)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id) DO UPDATE SET
+           equipment_type = EXCLUDED.equipment_type,
+           kettlebell_count = EXCLUDED.kettlebell_count,
+           equipment_extras = EXCLUDED.equipment_extras,
+           updated_at = NOW()`,
+        [userId, input.type, input.kettlebellCount || 0, input.extras || []]
+      );
+
+      return true;
+    },
+
+    // Onboarding - Complete
+    completeOnboarding: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `UPDATE user_onboarding SET completed = true, completed_at = NOW() WHERE user_id = $1`,
+        [userId]
+      );
+
+      await query(
+        `UPDATE users SET onboarding_completed = true WHERE id = $1`,
+        [userId]
+      );
+
+      return {
+        success: true,
+        message: 'Onboarding completed successfully',
+      };
+    },
+
+    // Onboarding - Skip
+    skipOnboarding: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `UPDATE users SET onboarding_completed = true, onboarding_skipped = true WHERE id = $1`,
+        [userId]
+      );
+
+      return true;
+    },
+
+    // Stats - Recalculate
+    recalculateStats: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const stats = await statsService.recalculateAllStats(userId);
+
+      return {
+        userId: stats.userId,
+        level: 1,
+        xp: 0,
+        xpToNextLevel: 100,
+        strength: stats.strength,
+        constitution: stats.constitution,
+        dexterity: stats.dexterity,
+        power: stats.power,
+        endurance: stats.endurance,
+        vitality: stats.vitality,
+      };
+    },
+
+    // Stats - Update Extended Profile
+    updateExtendedProfile: async (
+      _: unknown,
+      args: { input: { height?: number; weight?: number; age?: number; gender?: string; fitnessLevel?: string; goals?: string[]; preferredUnits?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      await statsService.updateExtendedProfile(userId, {
+        gender: input.gender,
+      });
+
+      // Update user profile for other fields
+      if (input.height || input.weight || input.age || input.fitnessLevel || input.goals) {
+        await query(
+          `UPDATE user_profiles SET
+            height = COALESCE($2, height),
+            weight = COALESCE($3, weight),
+            age = COALESCE($4, age),
+            fitness_level = COALESCE($5, fitness_level),
+            goals = COALESCE($6, goals),
+            preferred_units = COALESCE($7, preferred_units),
+            updated_at = NOW()
+           WHERE user_id = $1`,
+          [userId, input.height, input.weight, input.age, input.fitnessLevel, input.goals, input.preferredUnits]
+        );
+      }
+
+      const profile = await statsService.getExtendedProfile(userId);
+      const userProfile = await queryOne<any>(
+        'SELECT height, weight, age, fitness_level, goals, preferred_units FROM user_profiles WHERE user_id = $1',
+        [userId]
+      );
+
+      return {
+        height: userProfile?.height,
+        weight: userProfile?.weight,
+        age: userProfile?.age,
+        gender: profile.gender,
+        fitnessLevel: userProfile?.fitness_level,
+        goals: userProfile?.goals || [],
+        preferredUnits: userProfile?.preferred_units || 'metric',
+      };
+    },
+
+    // Community - Update Presence
+    updatePresence: async (_: unknown, args: { status: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `INSERT INTO user_presence (user_id, status, last_seen_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           status = EXCLUDED.status,
+           last_seen_at = NOW()`,
+        [userId, args.status]
+      );
+
+      return {
+        userId,
+        status: args.status,
+        lastSeenAt: new Date(),
+      };
+    },
+
+    // Milestones - Claim
+    claimMilestone: async (_: unknown, args: { milestoneId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const milestone = await queryOne<{ id: string; reward_credits: number; claimed: boolean }>(
+        'SELECT id, reward_credits, claimed FROM milestones WHERE id = $1 AND user_id = $2',
+        [args.milestoneId, userId]
+      );
+
+      if (!milestone) {
+        throw new GraphQLError('Milestone not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (milestone.claimed) {
+        throw new GraphQLError('Milestone already claimed', { extensions: { code: 'CONFLICT' } });
+      }
+
+      await query(
+        `UPDATE milestones SET claimed = true, claimed_at = NOW() WHERE id = $1`,
+        [args.milestoneId]
+      );
+
+      // Award credits if any
+      if (milestone.reward_credits) {
+        await query(
+          `UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2`,
+          [milestone.reward_credits, userId]
+        );
+      }
+
+      return {
+        success: true,
+        creditsEarned: milestone.reward_credits || 0,
+      };
+    },
+
+    // Milestones - Update Progress
+    updateMilestoneProgress: async (
+      _: unknown,
+      args: { milestoneId: string; progress: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const milestone = await queryOne<{ id: string; target_value: number }>(
+        'SELECT id, target_value FROM milestones WHERE id = $1 AND user_id = $2',
+        [args.milestoneId, userId]
+      );
+
+      if (!milestone) {
+        throw new GraphQLError('Milestone not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      const completed = args.progress >= milestone.target_value;
+
+      await query(
+        `UPDATE milestones SET current_value = $1, completed = $2, completed_at = $3 WHERE id = $4`,
+        [args.progress, completed, completed ? new Date() : null, args.milestoneId]
+      );
+
+      const updated = await queryOne<any>(
+        'SELECT * FROM milestones WHERE id = $1',
+        [args.milestoneId]
+      );
+
+      return {
+        id: updated.id,
+        title: updated.title,
+        description: updated.description,
+        type: updated.type,
+        targetValue: updated.target_value,
+        currentValue: updated.current_value,
+        completed: updated.completed,
+        completedAt: updated.completed_at,
+        claimed: updated.claimed,
+        claimedAt: updated.claimed_at,
+        rewardCredits: updated.reward_credits,
+      };
+    },
+
+    // Privacy - Enable Minimalist Mode
+    enableMinimalistMode: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `INSERT INTO user_privacy_mode (user_id, minimalist_mode, opt_out_leaderboards, exclude_from_stats_comparison)
+         VALUES ($1, true, true, true)
+         ON CONFLICT (user_id) DO UPDATE SET
+           minimalist_mode = true,
+           opt_out_leaderboards = true,
+           exclude_from_stats_comparison = true,
+           updated_at = NOW()`,
+        [userId]
+      );
+
+      const settings = await queryOne<any>(
+        'SELECT * FROM user_privacy_settings WHERE user_id = $1',
+        [userId]
+      );
+
+      return {
+        profileVisibility: settings?.profile_visibility || 'private',
+        showInLeaderboards: false,
+        showWorkoutHistory: false,
+        allowMessages: settings?.allow_messages || 'none',
+        shareProgress: false,
+      };
+    },
+
+    // Privacy - Disable Minimalist Mode
+    disableMinimalistMode: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `UPDATE user_privacy_mode SET
+           minimalist_mode = false,
+           opt_out_leaderboards = false,
+           exclude_from_stats_comparison = false,
+           updated_at = NOW()
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      const settings = await queryOne<any>(
+        'SELECT * FROM user_privacy_settings WHERE user_id = $1',
+        [userId]
+      );
+
+      return {
+        profileVisibility: settings?.profile_visibility || 'public',
+        showInLeaderboards: settings?.show_on_leaderboards ?? true,
+        showWorkoutHistory: true,
+        allowMessages: settings?.allow_messages || 'all',
+        shareProgress: true,
+      };
+    },
+
+    // PT Tests - Submit Results
+    submitPTTestResults: async (
+      _: unknown,
+      args: { input: { testId: string; scores: Record<string, unknown> } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { testId, scores } = args.input;
+
+      const resultId = `ptr_${crypto.randomBytes(12).toString('hex')}`;
+
+      // Calculate total score based on test scoring rules
+      let totalScore = 0;
+      let passed = true;
+
+      for (const [_key, value] of Object.entries(scores)) {
+        if (typeof value === 'number') {
+          totalScore += value;
+        } else if (typeof value === 'object' && value !== null) {
+          const scoreObj = value as { value?: number; passed?: boolean };
+          if (scoreObj.value) totalScore += scoreObj.value;
+          if (scoreObj.passed === false) passed = false;
+        }
+      }
+
+      await query(
+        `INSERT INTO user_pt_results (id, user_id, pt_test_id, test_date, component_results, total_score, passed)
+         VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)`,
+        [resultId, userId, testId, JSON.stringify(scores), totalScore, passed]
+      );
+
+      const test = await queryOne<{ name: string }>(
+        'SELECT name FROM pt_tests WHERE id = $1',
+        [testId]
+      );
+
+      return {
+        id: resultId,
+        userId,
+        testId,
+        testName: test?.name || 'Unknown Test',
+        scores,
+        totalScore,
+        passed,
+        completedAt: new Date(),
+      };
+    },
+
+    // Personalization - Check Exercise
+    checkExercisePersonalization: async (
+      _: unknown,
+      args: { exerciseId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      // Get user limitations
+      const limitations = await queryAll<{ body_part: string }>(
+        `SELECT body_part FROM user_limitations WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      // Get exercise info
+      const exercise = await queryOne<{ primary_muscles: string[]; secondary_muscles: string[] }>(
+        'SELECT primary_muscles, secondary_muscles FROM exercises WHERE id = $1',
+        [args.exerciseId]
+      );
+
+      if (!exercise) {
+        return { suitable: false, warnings: ['Exercise not found'], alternatives: [] };
+      }
+
+      const allMuscles = [...(exercise.primary_muscles || []), ...(exercise.secondary_muscles || [])];
+      const limitedBodyParts = limitations.map(l => l.body_part.toLowerCase());
+
+      const warnings: string[] = [];
+      let suitable = true;
+
+      for (const muscle of allMuscles) {
+        const muscleLower = muscle.toLowerCase();
+        for (const limited of limitedBodyParts) {
+          if (muscleLower.includes(limited) || limited.includes(muscleLower)) {
+            warnings.push(`This exercise targets ${muscle}, which you have marked as limited`);
+            suitable = false;
+          }
+        }
+      }
+
+      // Get alternatives if not suitable
+      let alternatives: any[] = [];
+      if (!suitable && exercise.primary_muscles?.length > 0) {
+        const altExercises = await queryAll<any>(
+          `SELECT id, name, description, type, primary_muscles, secondary_muscles, equipment, difficulty
+           FROM exercises
+           WHERE id != $1
+           AND primary_muscles && $2
+           AND NOT (primary_muscles && $3::text[])
+           LIMIT 5`,
+          [args.exerciseId, exercise.primary_muscles, limitedBodyParts]
+        );
+
+        alternatives = altExercises.map(e => ({
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          type: e.type,
+          primaryMuscles: e.primary_muscles,
+          secondaryMuscles: e.secondary_muscles,
+          equipment: e.equipment,
+          difficulty: e.difficulty,
+        }));
+      }
+
+      return {
+        suitable,
+        warnings,
+        alternatives,
+      };
+    },
+
+    // Limitations - Check Workout
+    checkWorkoutLimitations: async (
+      _: unknown,
+      args: { exerciseIds: string[] },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const limitations = await queryAll<{ body_part: string; severity: string }>(
+        `SELECT body_part, severity FROM user_limitations WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      if (limitations.length === 0) {
+        return { safe: true, warnings: [], blockedExercises: [], suggestions: [] };
+      }
+
+      const exercises = await queryAll<{ id: string; name: string; primary_muscles: string[]; secondary_muscles: string[] }>(
+        `SELECT id, name, primary_muscles, secondary_muscles FROM exercises WHERE id = ANY($1)`,
+        [args.exerciseIds]
+      );
+
+      const warnings: string[] = [];
+      const blockedExercises: string[] = [];
+      const limitedBodyParts = limitations.map(l => l.body_part.toLowerCase());
+
+      for (const exercise of exercises) {
+        const allMuscles = [...(exercise.primary_muscles || []), ...(exercise.secondary_muscles || [])];
+        for (const muscle of allMuscles) {
+          const muscleLower = muscle.toLowerCase();
+          for (const limited of limitedBodyParts) {
+            if (muscleLower.includes(limited) || limited.includes(muscleLower)) {
+              warnings.push(`${exercise.name} may affect your ${limited} limitation`);
+              blockedExercises.push(exercise.id);
+            }
+          }
+        }
+      }
+
+      return {
+        safe: blockedExercises.length === 0,
+        warnings: Array.from(new Set(warnings)),
+        blockedExercises: Array.from(new Set(blockedExercises)),
+        suggestions: ['Consider warming up affected areas', 'Reduce weight/intensity if needed'],
       };
     },
   },

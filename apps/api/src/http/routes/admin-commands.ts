@@ -836,7 +836,18 @@ const MAX_HISTORY = 100;
 
 export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   // Middleware for all routes - must call both in single hook
+  // Special handling for SSE stream endpoint which passes token as query param
   fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Check if this is the SSE stream endpoint with token in query
+    const url = request.url || '';
+    if (url.includes('/admin/commands/stream/')) {
+      const query = request.query as { token?: string };
+      if (query.token && !request.headers.authorization) {
+        // Inject the token into the authorization header for authenticate()
+        request.headers.authorization = `Bearer ${query.token}`;
+      }
+    }
+
     await authenticate(request, reply);
     if (reply.sent) return;
     await requireAdmin(request, reply);
