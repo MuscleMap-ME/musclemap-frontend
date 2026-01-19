@@ -33,7 +33,12 @@ export function useCommunityStats(options = {}) {
 
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Failed to fetch ${key}`);
+      if (!res.ok) {
+        console.warn(`Failed to fetch ${key}: ${res.status}`);
+        // Return null/empty instead of throwing - don't break the whole page
+        setter(null);
+        return null;
+      }
       const json = await res.json();
       const data = json.data;
 
@@ -42,7 +47,9 @@ export function useCommunityStats(options = {}) {
       return data;
     } catch (err) {
       console.error(`Error fetching ${key}:`, err);
-      throw err;
+      // Return null instead of throwing - don't break the whole page
+      setter(null);
+      return null;
     }
   }, []);
 
@@ -105,21 +112,24 @@ export function useCommunityStats(options = {}) {
     setLoading(true);
     setError(null);
 
-    try {
-      await Promise.all([
-        fetchSummary(),
-        fetchArchetypes(),
-        fetchExercises(),
-        fetchFunnel(),
-        fetchCredits(),
-        fetchGeographic(),
-        fetchNowStats(),
-      ]);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    // Use Promise.allSettled to not fail if one endpoint fails
+    const results = await Promise.allSettled([
+      fetchSummary(),
+      fetchArchetypes(),
+      fetchExercises(),
+      fetchFunnel(),
+      fetchCredits(),
+      fetchGeographic(),
+      fetchNowStats(),
+    ]);
+
+    // Check if any critical endpoints failed
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      console.warn(`${failures.length} community stats endpoints failed`);
     }
+
+    setLoading(false);
   }, [
     fetchSummary,
     fetchArchetypes,

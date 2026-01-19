@@ -540,23 +540,29 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
   });
 
   // Community stats archetypes endpoint
+  // Note: user_archetypes table doesn't exist - use journey_type from user_journeys instead
   app.get('/community/stats/archetypes', async (request, reply) => {
-    const archetypes = await queryAll<{ archetype_id: string; name: string; count: string }>(
-      `SELECT ua.archetype_id, a.name, COUNT(*)::int as count
-       FROM user_archetypes ua
-       JOIN archetypes a ON ua.archetype_id = a.id
-       GROUP BY ua.archetype_id, a.name
-       ORDER BY count DESC
-       LIMIT 10`
-    );
+    try {
+      const archetypes = await queryAll<{ journey_type: string; count: string }>(
+        `SELECT journey_type, COUNT(DISTINCT user_id)::int as count
+         FROM user_journeys
+         WHERE journey_type IS NOT NULL
+         GROUP BY journey_type
+         ORDER BY count DESC
+         LIMIT 10`
+      );
 
-    return reply.send({
-      data: archetypes.map((a) => ({
-        id: a.archetype_id,
-        name: a.name,
-        count: parseInt(a.count || '0'),
-      })),
-    });
+      return reply.send({
+        data: archetypes.map((a) => ({
+          id: a.journey_type,
+          name: a.journey_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          count: parseInt(a.count || '0'),
+        })),
+      });
+    } catch (err) {
+      // Return empty data if query fails
+      return reply.send({ data: [] });
+    }
   });
 
   // Community stats exercises endpoint
