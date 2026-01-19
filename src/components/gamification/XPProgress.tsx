@@ -3,10 +3,14 @@ import React from 'react';
 export interface XPProgressProps {
   /** Current XP amount */
   currentXP: number;
-  /** XP required to reach next level */
-  levelXP: number;
+  /** XP required to reach next level (also accepts xpForNextLevel for compatibility) */
+  levelXP?: number;
+  /** Alias for levelXP - XP needed for next level */
+  xpForNextLevel?: number;
   /** Current level */
   level: number;
+  /** Optional level title/name */
+  levelTitle?: string;
   /** Optional size variant */
   size?: 'sm' | 'md' | 'lg';
   /** Optional className */
@@ -46,13 +50,19 @@ const sizeStyles = {
 export const XPProgress: React.FC<XPProgressProps> = ({
   currentXP,
   levelXP,
+  xpForNextLevel,
   level,
+  levelTitle,
   size = 'md',
   className = '',
 }) => {
   const styles = sizeStyles[size];
-  const percentage = Math.min((currentXP / levelXP) * 100, 100);
-  const xpRemaining = levelXP - currentXP;
+  // Support both levelXP and xpForNextLevel props, defaulting to 1000 if neither provided
+  const xpRequired = levelXP ?? xpForNextLevel ?? 1000;
+  // Ensure currentXP is a valid number
+  const safeCurrentXP = typeof currentXP === 'number' && !isNaN(currentXP) ? currentXP : 0;
+  const percentage = xpRequired > 0 ? Math.min((safeCurrentXP / xpRequired) * 100, 100) : 0;
+  const xpRemaining = Math.max(0, xpRequired - safeCurrentXP);
 
   return (
     <div className={`rounded-xl bg-slate-800/50 border border-slate-700/50 ${styles.container} ${className}`}>
@@ -62,12 +72,12 @@ export const XPProgress: React.FC<XPProgressProps> = ({
             {level}
           </div>
           <div>
-            <p className={`${styles.text} text-slate-400`}>Level {level}</p>
+            <p className={`${styles.text} text-slate-400`}>Level {level}{levelTitle ? ` - ${levelTitle}` : ''}</p>
             <p className="text-xs text-slate-500">{xpRemaining.toLocaleString()} XP to next</p>
           </div>
         </div>
         <span className={`${styles.value} font-bold font-mono text-purple-400`}>
-          {currentXP.toLocaleString()} XP
+          {safeCurrentXP.toLocaleString()} XP
         </span>
       </div>
       <div className={`${styles.bar} bg-slate-700 rounded-full overflow-hidden`}>
