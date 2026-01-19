@@ -547,8 +547,6 @@ export async function up(): Promise<void> {
       SELECT
         DATE(created_at) as signup_date,
         COUNT(*) as signup_count,
-        COUNT(*) FILTER (WHERE current_archetype_id IS NOT NULL) as with_archetype,
-        COUNT(*) FILTER (WHERE total_xp > 0) as with_activity,
         NOW() as calculated_at
       FROM users
       WHERE created_at > NOW() - INTERVAL '90 days'
