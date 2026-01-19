@@ -14,7 +14,7 @@
  * - Supports incremental updates
  */
 
-import { query, queryOne, queryAll, transaction } from '../db/client';
+import { query, queryAll, transaction } from '../db/client';
 import { loggers } from '../lib/logger';
 import { getRedis } from '../lib/redis';
 
@@ -24,28 +24,11 @@ const log = loggers.core;
 // TYPES
 // ============================================
 
-interface UserSummary {
-  userId: string;
-  totalSessions: number;
-  sessions7d: number;
-  sessions30d: number;
-  totalWorkouts: number;
-  workouts7d: number;
-  workouts30d: number;
-  totalFeatureInteractions: number;
-  featureInteractions7d: number;
-  featureInteractions30d: number;
-  uniqueFeaturesUsed: number;
-  firstActivityAt: string | null;
-  lastActivityAt: string | null;
-  daysActiveTotal: number;
-  daysActive7d: number;
-  daysActive30d: number;
-  engagementScore: number;
-  engagementTrend: 'rising' | 'stable' | 'declining' | 'churned' | 'new';
-  socialInteractions30d: number;
-  creditTransactions30d: number;
-}
+// UserSummary interface for reference (used in updateUserSummaries)
+// Fields: userId, totalSessions, sessions7d/30d, totalWorkouts, workouts7d/30d,
+// totalFeatureInteractions, featureInteractions7d/30d, uniqueFeaturesUsed,
+// firstActivityAt, lastActivityAt, daysActiveTotal, daysActive7d/30d,
+// engagementScore, engagementTrend, socialInteractions30d, creditTransactions30d
 
 interface SegmentCriteria {
   minWorkouts30d?: number;
@@ -75,33 +58,12 @@ const BATCH_SIZE = 500;
 // HELPER FUNCTIONS
 // ============================================
 
-function determineEngagementTrend(
-  currentScore: number,
-  previousScore: number | null,
-  daysActive30d: number,
-  daysSinceSignup: number
-): 'rising' | 'stable' | 'declining' | 'churned' | 'new' {
-  // New user (< 7 days old)
-  if (daysSinceSignup < 7) {
-    return 'new';
-  }
-
-  // Churned (no activity in 30+ days)
-  if (daysActive30d === 0) {
-    return 'churned';
-  }
-
-  // If no previous score, can't determine trend
-  if (previousScore === null) {
-    return 'stable';
-  }
-
-  const change = currentScore - previousScore;
-
-  if (change >= 10) return 'rising';
-  if (change <= -10) return 'declining';
-  return 'stable';
-}
+// Engagement trend determination logic:
+// - 'new': daysSinceSignup < 7
+// - 'churned': daysActive30d === 0
+// - 'rising': score change >= 10 from previous
+// - 'declining': score change <= -10 from previous
+// - 'stable': otherwise
 
 // ============================================
 // DAILY ROLLUPS

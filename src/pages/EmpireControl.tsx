@@ -49,6 +49,7 @@ import {
   Star,
   Target,
   Trophy,
+  UserPlus,
   Users,
   Wallet,
   X,
@@ -91,6 +92,7 @@ const FeatureFlagsPanel = lazy(() => import('../components/admin/FeatureFlagsPan
 const LogsPanel = lazy(() => import('../components/admin/LogsPanel'));
 const BackupPanel = lazy(() => import('../components/admin/BackupPanel'));
 const MarkdownEditor = lazy(() => import('../components/admin/MarkdownEditor'));
+const UserAnalyticsPanel = lazy(() => import('../components/admin/UserAnalyticsPanel'));
 
 // ============================================
 // CONSTANTS
@@ -121,7 +123,8 @@ const NAV_SECTIONS = [
   { id: 'docs', label: 'Documentation', icon: BookOpen },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
   { id: 'bug-tracker', label: 'Bug Tracker', icon: Bug },
-  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'user-analytics', label: 'User Analytics', icon: UserPlus },
+  { id: 'analytics', label: 'GA Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },
   { id: 'scorecard', label: 'Test Scorecard', icon: Target, link: '/empire/scorecard' },
   { id: 'users', label: 'Users', icon: Users },
@@ -1138,6 +1141,17 @@ export default function EmpireControl() {
                   </div>
                 }>
                   <MetricsPanel />
+                </Suspense>
+              )}
+
+              {/* User Analytics Panel Section */}
+              {activeSection === 'user-analytics' && (
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-64">
+                    <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                  </div>
+                }>
+                  <UserAnalyticsPanel />
                 </Suspense>
               )}
 

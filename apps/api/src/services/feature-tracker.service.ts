@@ -57,10 +57,7 @@ export interface FeatureDefinition {
   trackingEnabled: boolean;
 }
 
-interface PrivacySettings {
-  minimalistMode: boolean;
-  optOutAnalytics: boolean;
-}
+// Privacy settings checked: minimalistMode (opt_out column in user_privacy_mode)
 
 // Feature category mapping (derived from feature_id prefix or lookup)
 const FEATURE_CATEGORIES: Record<string, string> = {
