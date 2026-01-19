@@ -10,9 +10,11 @@
 # 4. Sets proper NODE_OPTIONS for Vite's high memory usage
 # 5. Moves compression to post-build to reduce peak memory
 # 6. Automatically restarts PM2 after successful build
+# 7. INCREMENTAL BUILDS: Skips unchanged packages to save time
 #
 # Usage:
-#   ./scripts/build-safe.sh              # Full build with PM2 management
+#   ./scripts/build-safe.sh              # Incremental build with PM2 management
+#   ./scripts/build-safe.sh --force      # Force rebuild everything
 #   ./scripts/build-safe.sh --no-pm2     # Build only (don't touch PM2)
 #   ./scripts/build-safe.sh --packages   # Build packages only
 #   ./scripts/build-safe.sh --frontend   # Build frontend only
@@ -27,17 +29,22 @@ LOCK_TIMEOUT=600  # 10 minutes max wait for lock
 MIN_MEMORY_PACKAGES=400   # MB needed for package builds
 MIN_MEMORY_API=600        # MB needed for API build
 MIN_MEMORY_FRONTEND=2000  # MB needed for Vite build
+BUILD_CACHE_DIR=".build-cache"  # Directory to store build hashes
 
 # Parse arguments
 MANAGE_PM2=true
 BUILD_PACKAGES=true
 BUILD_API=true
 BUILD_FRONTEND=true
+FORCE_REBUILD=false
 
 for arg in "$@"; do
     case $arg in
         --no-pm2)
             MANAGE_PM2=false
+            ;;
+        --force)
+            FORCE_REBUILD=true
             ;;
         --packages)
             BUILD_API=false
@@ -52,8 +59,9 @@ for arg in "$@"; do
             BUILD_FRONTEND=false
             ;;
         --help)
-            echo "Usage: $0 [--no-pm2] [--packages|--api|--frontend]"
+            echo "Usage: $0 [--no-pm2] [--force] [--packages|--api|--frontend]"
             echo "  --no-pm2     Don't stop/start PM2 during build"
+            echo "  --force      Force rebuild everything (ignore cache)"
             echo "  --packages   Only build workspace packages"
             echo "  --api        Only build API"
             echo "  --frontend   Only build frontend"
@@ -76,6 +84,156 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 stage() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
+skip() { echo -e "${GREEN}[SKIP]${NC} $1 (unchanged)"; }
+
+# =============================================================================
+# Incremental Build Support
+# =============================================================================
+
+# Ensure build cache directory exists
+mkdir -p "$BUILD_CACHE_DIR"
+
+# Calculate hash of source files in a directory
+# Uses find + md5/shasum to create a content-based hash
+get_source_hash() {
+    local dir=$1
+    local src_dir="$dir/src"
+    local pkg_json="$dir/package.json"
+    local tsconfig="$dir/tsconfig.json"
+
+    # If src directory doesn't exist, check for direct .ts files
+    if [ ! -d "$src_dir" ]; then
+        src_dir="$dir"
+    fi
+
+    # Create hash from:
+    # 1. All TypeScript/JavaScript source files
+    # 2. package.json (dependencies might change)
+    # 3. tsconfig.json (build config might change)
+    {
+        find "$src_dir" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -exec cat {} \; 2>/dev/null
+        cat "$pkg_json" 2>/dev/null
+        cat "$tsconfig" 2>/dev/null
+    } | {
+        # Use md5 on macOS, md5sum on Linux
+        if command -v md5 &> /dev/null; then
+            md5 -q
+        else
+            md5sum | cut -d' ' -f1
+        fi
+    }
+}
+
+# Check if a package needs rebuilding
+# Returns 0 if rebuild needed, 1 if can skip
+needs_rebuild() {
+    local pkg_name=$1
+    local pkg_dir=$2
+
+    # Force rebuild if --force flag is set
+    if [ "$FORCE_REBUILD" = true ]; then
+        return 0
+    fi
+
+    local cache_file="$BUILD_CACHE_DIR/${pkg_name}.hash"
+    local dist_dir="$pkg_dir/dist"
+
+    # Rebuild if dist doesn't exist
+    if [ ! -d "$dist_dir" ]; then
+        log "$pkg_name: No dist/ found, will build"
+        return 0
+    fi
+
+    # Rebuild if no cached hash
+    if [ ! -f "$cache_file" ]; then
+        log "$pkg_name: No build cache, will build"
+        return 0
+    fi
+
+    # Compare current hash with cached hash
+    local current_hash=$(get_source_hash "$pkg_dir")
+    local cached_hash=$(cat "$cache_file" 2>/dev/null)
+
+    if [ "$current_hash" != "$cached_hash" ]; then
+        log "$pkg_name: Source changed, will rebuild"
+        return 0
+    fi
+
+    # No rebuild needed
+    return 1
+}
+
+# Save the build hash after successful build
+save_build_hash() {
+    local pkg_name=$1
+    local pkg_dir=$2
+    local cache_file="$BUILD_CACHE_DIR/${pkg_name}.hash"
+
+    get_source_hash "$pkg_dir" > "$cache_file"
+}
+
+# Check if frontend needs rebuilding
+frontend_needs_rebuild() {
+    # Force rebuild if --force flag is set
+    if [ "$FORCE_REBUILD" = true ]; then
+        return 0
+    fi
+
+    local cache_file="$BUILD_CACHE_DIR/frontend.hash"
+    local dist_dir="./dist"
+
+    # Rebuild if dist doesn't exist
+    if [ ! -d "$dist_dir" ]; then
+        log "Frontend: No dist/ found, will build"
+        return 0
+    fi
+
+    # Rebuild if no cached hash
+    if [ ! -f "$cache_file" ]; then
+        log "Frontend: No build cache, will build"
+        return 0
+    fi
+
+    # Calculate hash from src/, public/, and config files
+    local current_hash
+    current_hash=$({
+        find ./src -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" \) -exec cat {} \; 2>/dev/null
+        find ./public -type f -exec cat {} \; 2>/dev/null
+        cat ./package.json ./vite.config.js ./index.html 2>/dev/null
+    } | {
+        if command -v md5 &> /dev/null; then
+            md5 -q
+        else
+            md5sum | cut -d' ' -f1
+        fi
+    })
+
+    local cached_hash=$(cat "$cache_file" 2>/dev/null)
+
+    if [ "$current_hash" != "$cached_hash" ]; then
+        log "Frontend: Source changed, will rebuild"
+        return 0
+    fi
+
+    return 1
+}
+
+# Save frontend build hash
+save_frontend_hash() {
+    local cache_file="$BUILD_CACHE_DIR/frontend.hash"
+
+    {
+        find ./src -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" \) -exec cat {} \; 2>/dev/null
+        find ./public -type f -exec cat {} \; 2>/dev/null
+        cat ./package.json ./vite.config.js ./index.html 2>/dev/null
+    } | {
+        if command -v md5 &> /dev/null; then
+            md5 -q
+        else
+            md5sum | cut -d' ' -f1
+        fi
+    } > "$cache_file"
+}
 
 # Get available memory in MB (works on Linux)
 get_available_memory() {
@@ -148,71 +306,157 @@ check_memory() {
     return 0
 }
 
-# Build workspace packages
+# Build workspace packages (with incremental support)
 build_packages() {
     stage "Building Workspace Packages"
     check_memory $MIN_MEMORY_PACKAGES "packages" || return 1
 
-    log "Building shared..."
-    pnpm -C packages/shared build
+    local built_count=0
+    local skipped_count=0
 
-    log "Building core..."
-    pnpm -C packages/core build
-
-    log "Building plugin-sdk..."
-    pnpm -C packages/plugin-sdk build
-
-    # client and ui can build in parallel (no interdependency)
-    log "Building client and ui in parallel..."
-    pnpm -C packages/client build &
-    local pid_client=$!
-    pnpm -C packages/ui build &
-    local pid_ui=$!
-
-    # Wait for both and check exit codes
-    local failed=0
-    wait $pid_client || failed=1
-    wait $pid_ui || failed=1
-
-    if [ $failed -eq 1 ]; then
-        error "Package build failed"
-        return 1
+    # Build shared (dependency for others)
+    if needs_rebuild "shared" "packages/shared"; then
+        log "Building shared..."
+        pnpm -C packages/shared build
+        save_build_hash "shared" "packages/shared"
+        ((built_count++))
+    else
+        skip "packages/shared"
+        ((skipped_count++))
     fi
 
-    success "All packages built"
+    # Build core (depends on shared)
+    if needs_rebuild "core" "packages/core"; then
+        log "Building core..."
+        pnpm -C packages/core build
+        save_build_hash "core" "packages/core"
+        ((built_count++))
+    else
+        skip "packages/core"
+        ((skipped_count++))
+    fi
+
+    # Build plugin-sdk (depends on core)
+    if needs_rebuild "plugin-sdk" "packages/plugin-sdk"; then
+        log "Building plugin-sdk..."
+        pnpm -C packages/plugin-sdk build
+        save_build_hash "plugin-sdk" "packages/plugin-sdk"
+        ((built_count++))
+    else
+        skip "packages/plugin-sdk"
+        ((skipped_count++))
+    fi
+
+    # client and ui can build in parallel (no interdependency)
+    local need_client=false
+    local need_ui=false
+
+    needs_rebuild "client" "packages/client" && need_client=true
+    needs_rebuild "ui" "packages/ui" && need_ui=true
+
+    if [ "$need_client" = true ] || [ "$need_ui" = true ]; then
+        log "Building client and ui..."
+        local failed=0
+
+        if [ "$need_client" = true ]; then
+            pnpm -C packages/client build &
+            local pid_client=$!
+        fi
+
+        if [ "$need_ui" = true ]; then
+            pnpm -C packages/ui build &
+            local pid_ui=$!
+        fi
+
+        # Wait and check exit codes
+        if [ "$need_client" = true ]; then
+            if wait $pid_client; then
+                save_build_hash "client" "packages/client"
+                ((built_count++))
+            else
+                failed=1
+            fi
+        else
+            skip "packages/client"
+            ((skipped_count++))
+        fi
+
+        if [ "$need_ui" = true ]; then
+            if wait $pid_ui; then
+                save_build_hash "ui" "packages/ui"
+                ((built_count++))
+            else
+                failed=1
+            fi
+        else
+            skip "packages/ui"
+            ((skipped_count++))
+        fi
+
+        if [ $failed -eq 1 ]; then
+            error "Package build failed"
+            return 1
+        fi
+    else
+        skip "packages/client"
+        skip "packages/ui"
+        ((skipped_count+=2))
+    fi
+
+    success "Packages: $built_count built, $skipped_count skipped"
 }
 
-# Build API
+# Build API (with incremental support)
 build_api() {
     stage "Building API"
-    check_memory $MIN_MEMORY_API "API" || return 1
 
-    pnpm -C apps/api build
-    success "API built"
+    if needs_rebuild "api" "apps/api"; then
+        check_memory $MIN_MEMORY_API "API" || return 1
+        pnpm -C apps/api build
+        save_build_hash "api" "apps/api"
+        success "API built"
+    else
+        skip "apps/api"
+    fi
 }
 
-# Build frontend with Vite
+# Build frontend with Vite (with incremental support)
 build_frontend() {
     stage "Building Frontend (Vite)"
-    check_memory $MIN_MEMORY_FRONTEND "frontend" || return 1
 
-    # Set Node.js memory limit for Vite's Rollup bundler
-    # 4GB is safe on 8GB machine when PM2 is stopped
-    export NODE_OPTIONS="--max-old-space-size=4096"
+    if frontend_needs_rebuild; then
+        check_memory $MIN_MEMORY_FRONTEND "frontend" || return 1
 
-    # Skip inline compression to reduce peak memory
-    # Compression will be done in post-build stage
-    export SKIP_COMPRESSION=true
+        # Set Node.js memory limit for Vite's Rollup bundler
+        # 4GB is safe on 8GB machine when PM2 is stopped
+        export NODE_OPTIONS="--max-old-space-size=4096"
 
-    log "Building with NODE_OPTIONS: $NODE_OPTIONS"
-    log "SKIP_COMPRESSION: $SKIP_COMPRESSION"
+        # Skip inline compression to reduce peak memory
+        # Compression will be done in post-build stage
+        export SKIP_COMPRESSION=true
 
-    pnpm build
+        # Enable low memory mode to reduce Rollup parallelism
+        # This prevents OOM during the module transformation phase
+        # Trades build speed for memory efficiency on 8GB servers
+        export LOW_MEMORY=true
 
-    unset NODE_OPTIONS
-    unset SKIP_COMPRESSION
+        log "Building with NODE_OPTIONS: $NODE_OPTIONS"
+        log "SKIP_COMPRESSION: $SKIP_COMPRESSION"
+        log "LOW_MEMORY: $LOW_MEMORY"
 
-    success "Frontend built"
+        pnpm build
+
+        unset NODE_OPTIONS
+        unset SKIP_COMPRESSION
+        unset LOW_MEMORY
+
+        # Save hash after successful build
+        save_frontend_hash
+
+        success "Frontend built"
+    else
+        skip "Frontend (no changes detected)"
+    fi
 }
 
 # Compress assets post-build
@@ -272,6 +516,8 @@ main() {
     log "Build started at $(date)"
     log "Available memory: $(get_available_memory)MB"
     log "PM2 management: $MANAGE_PM2"
+    log "Force rebuild: $FORCE_REBUILD"
+    log "Build cache: $BUILD_CACHE_DIR/"
 
     # Acquire lock (prevents concurrent builds)
     acquire_lock

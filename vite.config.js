@@ -15,6 +15,18 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
 // See: scripts/build-safe.sh and scripts/compress-assets.sh
 const skipCompression = process.env.SKIP_COMPRESSION === 'true'
 
+// Low memory mode: Reduce parallelism for memory-constrained environments
+// Set LOW_MEMORY=true on 8GB servers to prevent OOM during builds
+const lowMemoryMode = process.env.LOW_MEMORY === 'true'
+
+// Log build mode for debugging
+if (skipCompression) {
+  console.log('[vite] SKIP_COMPRESSION=true - compression deferred to post-build')
+}
+if (lowMemoryMode) {
+  console.log('[vite] LOW_MEMORY=true - reducing parallelism for memory-constrained builds')
+}
+
 export default defineConfig({
   // Define environment variables from package.json
   define: {
@@ -99,6 +111,15 @@ export default defineConfig({
     target: 'es2020',
     // Warning limit - we still want to be alerted for large chunks
     chunkSizeWarningLimit: 300,
+    // Low memory mode: Use esbuild minification (faster, less memory than terser)
+    minify: 'esbuild',
+    // Reduce memory pressure by limiting concurrent file operations
+    // Normal: 20 parallel ops, Low memory: 2 parallel ops
+    ...(lowMemoryMode && {
+      // These options reduce peak memory at cost of build speed
+      cssCodeSplit: true,  // Split CSS to reduce memory per chunk
+      reportCompressedSize: false,  // Skip compressed size calculation
+    }),
     // Disable modulepreload for heavy vendor chunks
     // They will be loaded on-demand when the page that needs them is visited
     modulePreload: {
@@ -125,6 +146,12 @@ export default defineConfig({
       },
     },
     rollupOptions: {
+      // Low memory mode: Reduce Rollup's parallelism during transformation
+      // This is the KEY setting that prevents OOM during module transformation
+      ...(lowMemoryMode && {
+        maxParallelFileOps: 2,  // Default is 20, reduce to 2 for 8GB servers
+        cache: false,  // Disable Rollup cache to save memory (trades speed for memory)
+      }),
       output: {
         // Strategic chunk splitting for optimal caching and loading
         // Chunks are split by usage pattern and load priority
