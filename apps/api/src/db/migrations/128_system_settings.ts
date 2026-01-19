@@ -23,7 +23,7 @@ export async function up(): Promise<void> {
       value TEXT NOT NULL,
       description TEXT,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
   `);
