@@ -48,6 +48,10 @@ import {
   mascotTimelineService,
   STAGE_THRESHOLDS,
 } from '../modules/mascot';
+import { prescriptionEngine } from '../modules/prescription';
+import { privacyService } from '../modules/community';
+import { virtualHangoutsService } from '../modules/community/virtual-hangouts.service';
+import { tipsService } from '../modules/tips';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -2113,6 +2117,610 @@ export const resolvers = {
       const { userId } = requireAuth(context);
       const actions = await mascotPowersService.getPendingSocialActions(userId);
       return actions;
+    },
+
+    // ============================================
+    // CRITICAL MISSING RESOLVERS
+    // ============================================
+
+    // 1. User profile (current user's profile)
+    profile: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const user = await queryOne<{
+        id: string;
+        username: string;
+        display_name: string | null;
+        bio: string | null;
+        bio_rich_json: Record<string, unknown> | null;
+        avatar: string | null;
+        location: string | null;
+        website: string | null;
+        social_links: Record<string, string> | null;
+        fitness_goals: string[] | null;
+        preferred_workout_time: string | null;
+        experience_level: string | null;
+        profile_visibility: string;
+        created_at: Date;
+      }>(
+        `SELECT
+          u.id, u.username, u.display_name, u.bio, u.bio_rich_json,
+          u.avatar, u.location, u.website, u.social_links,
+          up.fitness_goals, up.preferred_workout_time, up.experience_level,
+          COALESCE(ps.profile_visibility, 'public') as profile_visibility,
+          u.created_at
+        FROM users u
+        LEFT JOIN user_profiles up ON up.user_id = u.id
+        LEFT JOIN user_privacy_settings ps ON ps.user_id = u.id
+        WHERE u.id = $1`,
+        [userId]
+      );
+
+      if (!user) {
+        return null;
+      }
+
+      // Get credit balance for wealth tier
+      const credits = await economyService.getBalance(user.id);
+
+      return {
+        id: user.id,
+        userId: user.id,
+        displayName: user.display_name,
+        bio: user.bio,
+        bioRichJson: user.bio_rich_json,
+        avatar: user.avatar,
+        location: user.location,
+        website: user.website,
+        socialLinks: user.social_links,
+        fitnessGoals: user.fitness_goals,
+        preferredWorkoutTime: user.preferred_workout_time,
+        experienceLevel: user.experience_level,
+        visibility: user.profile_visibility,
+        wealthTier: buildWealthTierResponse(credits),
+        createdAt: user.created_at,
+      };
+    },
+
+    // 2. Get goal by ID
+    goal: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const goal = await queryOne<{
+        id: string;
+        user_id: string;
+        type: string;
+        title: string;
+        description: string | null;
+        target: number;
+        current_value: number;
+        unit: string;
+        deadline: Date | null;
+        status: string;
+        created_at: Date;
+        updated_at: Date;
+      }>(
+        `SELECT id, user_id, type, title, description, target, current_value, unit, deadline, status, created_at, updated_at
+         FROM goals WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      if (!goal) {
+        return null;
+      }
+
+      // Get milestones for this goal
+      const milestones = await queryAll<{
+        id: string;
+        goal_id: string;
+        title: string;
+        target: number;
+        achieved: boolean;
+        achieved_at: Date | null;
+      }>(
+        `SELECT id, goal_id, title, target, achieved, achieved_at
+         FROM goal_milestones WHERE goal_id = $1
+         ORDER BY target`,
+        [args.id]
+      );
+
+      return {
+        id: goal.id,
+        userId: goal.user_id,
+        type: goal.type,
+        title: goal.title,
+        description: goal.description,
+        target: goal.target,
+        current: goal.current_value,
+        unit: goal.unit,
+        deadline: goal.deadline,
+        status: goal.status,
+        milestones: milestones.map(m => ({
+          id: m.id,
+          goalId: m.goal_id,
+          title: m.title,
+          target: m.target,
+          achieved: m.achieved,
+          achievedAt: m.achieved_at,
+        })),
+        createdAt: goal.created_at,
+        updatedAt: goal.updated_at,
+      };
+    },
+
+    // 3. Goal suggestions (AI-powered)
+    goalSuggestions: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get user's workout history and stats to generate smart suggestions
+      const stats = await queryOne<{
+        workouts_count: string;
+        total_tu: string;
+        avg_exercises_per_workout: string;
+      }>(
+        `SELECT
+          COUNT(*) as workouts_count,
+          COALESCE(SUM(total_tu), 0) as total_tu,
+          COALESCE(AVG(
+            (SELECT COUNT(*) FROM workout_exercises we WHERE we.workout_id = w.id)
+          ), 0) as avg_exercises_per_workout
+        FROM workouts w
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
+        [userId]
+      );
+
+      const workoutsCount = parseInt(stats?.workouts_count || '0', 10);
+      const totalTu = parseInt(stats?.total_tu || '0', 10);
+
+      // Get existing goals to avoid duplicates
+      const existingGoals = await queryAll<{ type: string }>(
+        `SELECT type FROM goals WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+      const existingTypes = new Set(existingGoals.map(g => g.type));
+
+      const suggestions: Array<{
+        type: string;
+        title: string;
+        description: string;
+        target: number;
+        unit: string;
+        reasoning: string;
+      }> = [];
+
+      // Suggest based on current activity
+      if (!existingTypes.has('weekly_workouts')) {
+        const targetWorkouts = workoutsCount < 3 ? 3 : workoutsCount < 5 ? 4 : 5;
+        suggestions.push({
+          type: 'weekly_workouts',
+          title: `Complete ${targetWorkouts} workouts per week`,
+          description: 'Build consistency with regular workout sessions',
+          target: targetWorkouts,
+          unit: 'workouts',
+          reasoning: workoutsCount < 3
+            ? 'Starting with 3 workouts/week is ideal for building a habit'
+            : `Based on your recent activity, ${targetWorkouts} workouts/week is achievable`,
+        });
+      }
+
+      if (!existingTypes.has('monthly_tu')) {
+        const targetTu = Math.max(1000, Math.round(totalTu * 1.2));
+        suggestions.push({
+          type: 'monthly_tu',
+          title: `Earn ${targetTu.toLocaleString()} Training Units this month`,
+          description: 'Increase your overall training volume',
+          target: targetTu,
+          unit: 'TU',
+          reasoning: totalTu > 0
+            ? 'A 20% increase over your current pace is challenging but achievable'
+            : 'A great starting goal to build training volume',
+        });
+      }
+
+      if (!existingTypes.has('strength')) {
+        suggestions.push({
+          type: 'strength',
+          title: 'Improve core strength',
+          description: 'Focus on compound movements to build overall strength',
+          target: 30,
+          unit: 'days',
+          reasoning: 'Core strength is foundational for all fitness goals',
+        });
+      }
+
+      if (!existingTypes.has('consistency')) {
+        suggestions.push({
+          type: 'consistency',
+          title: 'Build a 14-day workout streak',
+          description: 'Develop the habit of regular training',
+          target: 14,
+          unit: 'days',
+          reasoning: 'Consistency beats intensity for long-term progress',
+        });
+      }
+
+      return suggestions;
+    },
+
+    // 4. Privacy settings
+    privacy: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const settings = await privacyService.getSettings(userId);
+
+      return {
+        profileVisibility: settings.profileVisibility,
+        showInLeaderboards: settings.showInLeaderboards,
+        showWorkoutHistory: settings.showWorkoutHistory,
+        allowMessages: settings.allowDirectMessages ? 'everyone' : 'connections',
+        shareProgress: settings.activityVisibility === 'public',
+        minimalistMode: settings.ghostModeEnabled,
+      };
+    },
+
+    // 5. Muscle stats (training volume by muscle group)
+    myMuscleStats: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get muscle activation data from recent workouts
+      const muscleData = await queryAll<{
+        muscle_id: string;
+        total_sets: string;
+        total_reps: string;
+        last_trained: Date | null;
+      }>(
+        `SELECT
+          ea.muscle_id,
+          SUM(we.sets)::text as total_sets,
+          SUM(we.reps * we.sets)::text as total_reps,
+          MAX(w.created_at) as last_trained
+        FROM workout_exercises we
+        JOIN workouts w ON w.id = we.workout_id
+        JOIN exercise_activations ea ON ea.exercise_id = we.exercise_id
+        WHERE w.user_id = $1
+          AND w.created_at > NOW() - INTERVAL '30 days'
+        GROUP BY ea.muscle_id`,
+        [userId]
+      );
+
+      const muscleGroups = muscleData.map(m => ({
+        muscle: m.muscle_id,
+        totalSets: parseInt(m.total_sets, 10),
+        totalReps: parseInt(m.total_reps, 10),
+        lastTrained: m.last_trained,
+      }));
+
+      // Get last trained dates by muscle
+      const lastTrained: Record<string, Date | null> = {};
+      for (const m of muscleData) {
+        lastTrained[m.muscle_id] = m.last_trained;
+      }
+
+      // Get weekly volume breakdown
+      const weeklyData = await queryAll<{
+        week_start: string;
+        muscle_id: string;
+        volume: string;
+      }>(
+        `SELECT
+          DATE_TRUNC('week', w.created_at)::text as week_start,
+          ea.muscle_id,
+          SUM(we.sets * we.reps * COALESCE(we.weight, 1))::text as volume
+        FROM workout_exercises we
+        JOIN workouts w ON w.id = we.workout_id
+        JOIN exercise_activations ea ON ea.exercise_id = we.exercise_id
+        WHERE w.user_id = $1
+          AND w.created_at > NOW() - INTERVAL '8 weeks'
+        GROUP BY DATE_TRUNC('week', w.created_at), ea.muscle_id
+        ORDER BY week_start`,
+        [userId]
+      );
+
+      const weeklyVolume: Record<string, number> = {};
+      for (const w of weeklyData) {
+        const key = `${w.week_start}_${w.muscle_id}`;
+        weeklyVolume[key] = parseInt(w.volume, 10);
+      }
+
+      return {
+        muscleGroups,
+        lastTrained,
+        weeklyVolume,
+      };
+    },
+
+    // 6. Economy pricing (credit packages)
+    economyPricing: async () => {
+      const packages = await queryAll<{
+        id: string;
+        name: string;
+        credits: number;
+        price_cents: number;
+        currency: string;
+        bonus_credits: number | null;
+        is_active: boolean;
+      }>(
+        `SELECT id, name, credits, price_cents, currency, bonus_credits, is_active
+         FROM credit_packages
+         WHERE is_active = TRUE
+         ORDER BY credits`
+      );
+
+      // If no packages in DB, return default pricing
+      if (packages.length === 0) {
+        return [
+          { id: 'pkg_starter', name: 'Starter', credits: 100, price: 4.99, currency: 'USD', bonus: 0 },
+          { id: 'pkg_basic', name: 'Basic', credits: 500, price: 19.99, currency: 'USD', bonus: 50 },
+          { id: 'pkg_pro', name: 'Pro', credits: 1200, price: 39.99, currency: 'USD', bonus: 200 },
+          { id: 'pkg_elite', name: 'Elite', credits: 3000, price: 79.99, currency: 'USD', bonus: 750 },
+        ];
+      }
+
+      return packages.map(p => ({
+        id: p.id,
+        name: p.name,
+        credits: p.credits,
+        price: p.price_cents / 100,
+        currency: p.currency,
+        bonus: p.bonus_credits || 0,
+      }));
+    },
+
+    // 7. Message conversations
+    conversations: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const convos = await queryAll<{
+        id: string;
+        participant_ids: string[];
+        last_message_at: Date | null;
+        created_at: Date;
+        updated_at: Date;
+      }>(
+        `SELECT c.id, c.participant_ids, c.last_message_at, c.created_at, c.updated_at
+         FROM conversations c
+         WHERE $1 = ANY(c.participant_ids)
+         ORDER BY c.last_message_at DESC NULLS LAST
+         LIMIT 50`,
+        [userId]
+      );
+
+      // Get participants and last messages
+      const result = await Promise.all(
+        convos.map(async (c) => {
+          // Get participant details
+          const participants = await queryAll<{
+            id: string;
+            username: string;
+            display_name: string | null;
+            avatar: string | null;
+          }>(
+            `SELECT id, username, display_name, avatar
+             FROM users WHERE id = ANY($1)`,
+            [c.participant_ids]
+          );
+
+          // Get last message
+          const lastMessage = await queryOne<{
+            id: string;
+            conversation_id: string;
+            sender_id: string;
+            content: string;
+            is_read: boolean;
+            created_at: Date;
+          }>(
+            `SELECT id, conversation_id, sender_id, content, is_read, created_at
+             FROM messages WHERE conversation_id = $1
+             ORDER BY created_at DESC LIMIT 1`,
+            [c.id]
+          );
+
+          // Get unread count
+          const unreadResult = await queryOne<{ count: string }>(
+            `SELECT COUNT(*) as count FROM messages
+             WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE`,
+            [c.id, userId]
+          );
+
+          return {
+            id: c.id,
+            participants: participants.map(p => ({
+              id: p.id,
+              username: p.username,
+              displayName: p.display_name,
+              avatar: p.avatar,
+            })),
+            lastMessage: lastMessage ? {
+              id: lastMessage.id,
+              conversationId: lastMessage.conversation_id,
+              senderId: lastMessage.sender_id,
+              content: lastMessage.content,
+              read: lastMessage.is_read,
+              createdAt: lastMessage.created_at,
+            } : null,
+            unreadCount: parseInt(unreadResult?.count || '0', 10),
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+          };
+        })
+      );
+
+      return result;
+    },
+
+    // 8. User milestones
+    milestones: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const milestones = await tipsService.getMilestones(userId);
+
+      // Get claimed status from user_milestones
+      const claimedStatus = await queryAll<{ milestone_id: string; reward_claimed: number }>(
+        `SELECT milestone_id, reward_claimed FROM user_milestones WHERE user_id = $1`,
+        [userId]
+      );
+      const claimedMap = new Map(claimedStatus.map(c => [c.milestone_id, c.reward_claimed > 0]));
+
+      return milestones.map(m => ({
+        id: m.id,
+        type: m.metric,
+        title: m.name,
+        description: m.description || '',
+        target: m.threshold,
+        current: m.current_value,
+        reward: m.reward_value ? parseInt(m.reward_value, 10) : 0,
+        claimed: claimedMap.get(m.id) || false,
+        unlockedAt: m.completed_at ? new Date(m.completed_at) : null,
+      }));
+    },
+
+    // 9. Get specific hangout by ID
+    hangout: async (_: unknown, args: { id: string }, context: Context) => {
+      const hangoutId = parseInt(args.id, 10);
+      if (isNaN(hangoutId)) {
+        return null;
+      }
+
+      const hangout = await virtualHangoutsService.getHangoutById(hangoutId, context.user?.userId);
+
+      if (!hangout) {
+        return null;
+      }
+
+      // Get the theme
+      const theme = await queryOne<{
+        id: string;
+        name: string;
+        description: string | null;
+        icon_url: string | null;
+        min_members: number;
+        max_members: number;
+      }>(
+        `SELECT id, name, description, icon_url,
+                COALESCE(min_participants, 1) as min_members,
+                COALESCE(max_participants, 100) as max_members
+         FROM virtual_hangout_themes WHERE id = $1`,
+        [hangout.themeId]
+      );
+
+      // Get members (limited)
+      const { members } = await virtualHangoutsService.getMembers(hangoutId, { limit: 10 });
+
+      return {
+        id: String(hangout.id),
+        typeId: hangout.themeId,
+        type: theme ? {
+          id: theme.id,
+          name: theme.name,
+          description: theme.description || '',
+          icon: theme.icon_url,
+          minParticipants: theme.min_members,
+          maxParticipants: theme.max_members,
+        } : null,
+        title: hangout.customName || hangout.themeName,
+        description: hangout.customDescription,
+        hostId: '', // Virtual hangouts don't have a single host
+        host: null,
+        location: {
+          lat: 0,
+          lng: 0,
+          address: 'Virtual',
+          placeName: hangout.themeName,
+        },
+        startsAt: hangout.createdAt,
+        endsAt: null,
+        status: hangout.isActive ? 'active' : 'inactive',
+        members: members.map(m => ({
+          userId: m.userId,
+          user: {
+            id: m.userId,
+            username: m.username,
+            displayName: m.displayName,
+            avatar: m.avatarUrl,
+          },
+          role: m.role === 2 ? 'admin' : m.role === 1 ? 'moderator' : 'member',
+          joinedAt: m.joinedAt,
+        })),
+        memberCount: hangout.memberCount,
+        maxMembers: null, // Virtual hangouts typically don't have a max
+        posts: null,
+      };
+    },
+
+    // 10. Workout prescription
+    prescription: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Try to get a stored prescription first
+      const stored = await queryOne<{
+        id: string;
+        user_id: string;
+        exercises: unknown;
+        warmup: unknown;
+        cooldown: unknown;
+        total_duration: number;
+        muscle_coverage: Record<string, number> | null;
+        difficulty: string;
+        created_at: Date;
+      }>(
+        `SELECT id, user_id, exercises, warmup, cooldown, total_duration, muscle_coverage, difficulty, created_at
+         FROM prescription_history WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      if (stored) {
+        // JSONB columns are already parsed by pg driver
+        const exercises = stored.exercises as Array<{
+          exerciseId: string;
+          name: string;
+          type: string;
+          sets: number;
+          reps: number;
+          restSeconds: number;
+          primaryMuscles: string[];
+          score: number;
+          scoreBreakdown: Record<string, number>;
+        }>;
+        const warmup = stored.warmup as typeof exercises;
+        const cooldown = stored.cooldown as typeof exercises;
+
+        return {
+          id: stored.id,
+          userId: stored.user_id,
+          exercises: exercises.map(e => ({
+            exerciseId: e.exerciseId,
+            name: e.name,
+            type: e.type,
+            sets: e.sets,
+            reps: e.reps,
+            restSeconds: e.restSeconds,
+            primaryMuscles: e.primaryMuscles,
+          })),
+          warmup: warmup?.map(e => ({
+            exerciseId: e.exerciseId,
+            name: e.name,
+            type: e.type,
+            sets: e.sets,
+            reps: e.reps,
+            restSeconds: e.restSeconds,
+            primaryMuscles: e.primaryMuscles,
+          })),
+          cooldown: cooldown?.map(e => ({
+            exerciseId: e.exerciseId,
+            name: e.name,
+            type: e.type,
+            sets: e.sets,
+            reps: e.reps,
+            restSeconds: e.restSeconds,
+            primaryMuscles: e.primaryMuscles,
+          })),
+          targetDuration: stored.total_duration,
+          actualDuration: stored.total_duration,
+          muscleCoverage: stored.muscle_coverage,
+          difficulty: stored.difficulty,
+          createdAt: stored.created_at,
+        };
+      }
+
+      return null;
     },
   },
 

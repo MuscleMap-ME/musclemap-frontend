@@ -23,5 +23,5 @@
     "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/modules/organizations", "src/modules/marketplace", "src/http/routes/marketplace.ts", "src/db/migrations/114_marketplace_trading_system.ts"]
+  "exclude": ["node_modules", "dist", "src/modules/organizations", "src/modules/marketplace", "src/http/routes/marketplace.ts", "src/db/migrations/114_marketplace_trading_system.ts", "src/db/migrations/131_user_preferences_system.ts", "src/modules/notifications/slack.service.ts"]
 }
