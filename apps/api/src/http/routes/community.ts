@@ -641,29 +641,7 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     });
   });
 
-  // NOTE: /admin-control/users moved to admin-control.ts (more complete version with search/pagination)
-
-  // Admin audit credits endpoint
-  app.get('/admin-control/audit/credits', { preHandler: authenticate }, async (request, reply) => {
-    const roles = request.user!.roles || [];
-    if (!roles.includes('admin') && !roles.includes('owner')) {
-      return reply.status(403).send({
-        error: { code: 'FORBIDDEN', message: 'Admin or owner role required', statusCode: 403 },
-      });
-    }
-
-    const [totalGifted, totalTransactions] = await Promise.all([
-      queryOne<{ total: string }>(
-        `SELECT COALESCE(SUM(amount), 0) as total FROM wallet_transactions WHERE action LIKE '%gift%' OR action LIKE '%grant%'`
-      ),
-      queryOne<{ count: string }>('SELECT COUNT(*)::int as count FROM wallet_transactions'),
-    ]);
-
-    return reply.send({
-      totalGifted: parseInt(totalGifted?.total || '0'),
-      totalTransactions: parseInt(totalTransactions?.count || '0'),
-    });
-  });
+  // NOTE: All /admin-control/* routes moved to admin-control.ts
 
   // WebSocket for real-time updates
   app.get('/community/ws', { websocket: true }, (socket, request) => {

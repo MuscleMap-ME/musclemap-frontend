@@ -401,6 +401,31 @@ pnpm competitive-analysis:check        # Check dates
 
 **Recommended Frequency:** Monthly
 
+#### `run-approved-command.sh` - Approved Commands Runner
+Executes commands from a pre-approved list, enabling Claude to run common server commands without repeated approval prompts.
+
+```bash
+./scripts/run-approved-command.sh              # Interactive menu
+./scripts/run-approved-command.sh --list       # List all approved commands
+./scripts/run-approved-command.sh --search "pm2"  # Search commands
+./scripts/run-approved-command.sh --execute "exact command"  # Execute specific
+./scripts/run-approved-command.sh --add "new command"  # Add new approved command
+```
+
+**Key Files:**
+- `scripts/approved-commands.txt` - List of approved commands (one per line)
+- `scripts/approved-commands.log` - Execution audit log
+
+**Usage with Claude:**
+1. Claude logs commands requiring approval to `approved-commands.txt`
+2. User approves the `run-approved-command.sh` script once
+3. Claude can then execute any pre-approved command via the script
+
+**Security:**
+- Commands must exactly match lines in `approved-commands.txt`
+- All executions are logged with timestamps
+- Review `approved-commands.txt` periodically
+
 ### Performance Utilities Library
 
 The `lib/perf-utils.sh` library provides shared utilities for script performance:
