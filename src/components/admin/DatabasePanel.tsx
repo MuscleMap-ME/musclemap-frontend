@@ -442,12 +442,45 @@ export default function DatabasePanel() {
   // Fetch table list
   const fetchTables = useCallback(async () => {
     try {
+      // First try the stats endpoint which has size info
+      const statsRes = await fetch(`${API_BASE}/admin/database/stats`, {
+        headers: getAuthHeader(),
+      });
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        // Map backend response to frontend expected structure
+        const mappedTables = (statsData.tables || []).map((t: {
+          table_name: string;
+          row_count: number;
+          total_size: string;
+          index_size: string;
+        }) => ({
+          name: t.table_name,
+          rowCount: t.row_count || 0,
+          size: t.total_size || '-',
+          indexSize: t.index_size || '-',
+        }));
+        setTables(mappedTables);
+        return;
+      }
+
+      // Fallback to tables endpoint
       const res = await fetch(`${API_BASE}/admin/database/tables`, {
         headers: getAuthHeader(),
       });
       if (res.ok) {
         const data = await res.json();
-        setTables(data.tables || []);
+        // Map backend response to frontend expected structure
+        const mappedTables = (data.tables || []).map((t: {
+          table_name: string;
+          row_count: number;
+        }) => ({
+          name: t.table_name,
+          rowCount: t.row_count || 0,
+          size: '-',
+          indexSize: '-',
+        }));
+        setTables(mappedTables);
       }
     } catch (err) {
       console.error('Failed to fetch tables:', err);
@@ -457,12 +490,18 @@ export default function DatabasePanel() {
   // Fetch connection pool stats
   const fetchPoolStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/database/pool`, {
+      const res = await fetch(`${API_BASE}/admin/database/connections`, {
         headers: getAuthHeader(),
       });
       if (res.ok) {
         const data = await res.json();
-        setPoolStats(data);
+        // Map backend response to frontend expected structure
+        setPoolStats({
+          totalCount: data.pool?.totalConnections || 0,
+          activeCount: data.database?.active_connections || 0,
+          idleCount: data.pool?.idleConnections || data.database?.idle_connections || 0,
+          waitingCount: data.pool?.waitingClients || data.database?.waiting_connections || 0,
+        });
       }
     } catch (err) {
       console.error('Failed to fetch pool stats:', err);
@@ -477,7 +516,8 @@ export default function DatabasePanel() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSlowQueries(data.queries || []);
+        // Backend returns 'slowQueries', frontend expects 'queries'
+        setSlowQueries(data.slowQueries || data.queries || []);
       }
     } catch (err) {
       console.error('Failed to fetch slow queries:', err);

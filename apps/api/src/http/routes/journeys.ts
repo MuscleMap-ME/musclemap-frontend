@@ -1155,4 +1155,49 @@ export async function registerJourneysRoutes(app: FastifyInstance) {
 
     return reply.send({ data: { suggestions } });
   });
+
+  /**
+   * GET /journey/milestones
+   * Get all milestones across user's active journeys (for mobile app)
+   * Returns milestones in format expected by mobile app
+   */
+  app.get('/journey/milestones', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    // Get all milestones from user's active journeys
+    const rows = await db.queryAll<{
+      id: string;
+      title: string;
+      description: string | null;
+      target_value: number;
+      is_achieved: boolean;
+      achieved_at: string | null;
+      journey_id: string;
+      journey_type: string;
+      current_value: number | null;
+    }>(
+      `SELECT
+        jm.id, jm.title, jm.description, jm.target_value, jm.is_achieved, jm.achieved_at,
+        uj.id as journey_id, uj.journey_type, uj.current_value
+       FROM journey_milestones jm
+       JOIN user_journeys uj ON jm.journey_id = uj.id
+       WHERE jm.user_id = $1 AND uj.status = 'active'
+       ORDER BY jm.is_achieved ASC, jm.target_value ASC`,
+      [userId]
+    );
+
+    // Transform to mobile app expected format
+    const milestones = rows.map(m => ({
+      id: m.id,
+      name: m.title,
+      description: m.description || '',
+      category: m.journey_type,
+      target: m.target_value,
+      current: m.current_value || 0,
+      achieved: m.is_achieved,
+      achievedAt: m.achieved_at,
+    }));
+
+    return reply.send({ milestones });
+  });
 }
