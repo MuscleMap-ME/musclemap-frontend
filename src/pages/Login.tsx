@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 import Logo from '../components/Logo';
 import { sanitizeEmail } from '../utils/sanitize';
 import { trackLogin, setUserProperties } from '../lib/analytics';
+import { CockatriceToast } from '../components/mascot/cockatrice';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -92,7 +93,15 @@ export default function Login() {
           <p className="text-gray-400 mt-2">Welcome back</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-gray-800/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 space-y-4">
-          {error && <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg text-red-300 text-sm">{error}</div>}
+          {error && (
+            <CockatriceToast
+              message={error}
+              category="auth"
+              onDismiss={() => setError('')}
+              onRetry={handleSubmit}
+              shouldReport={error.includes('500') || error.includes('server')}
+            />
+          )}
           <div>
             <label className="block text-gray-300 text-sm mb-1">Email</label>
             <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="you@example.com" required />

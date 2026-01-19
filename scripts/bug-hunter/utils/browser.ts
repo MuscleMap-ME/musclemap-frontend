@@ -41,9 +41,27 @@ const DEFAULT_OPTIONS: BrowserOptions = {
 export async function createBrowser(options: BrowserOptions = {}): Promise<Browser> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
+  // Parse additional Chromium args from environment (set by PM2)
+  const envArgs = process.env.PLAYWRIGHT_CHROMIUM_ARGS?.split(' ').filter(Boolean) || [];
+
+  // Memory-optimized Chromium args for production
+  const chromiumArgs = [
+    ...envArgs,
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--disable-translate',
+    '--metrics-recording-only',
+    '--no-first-run',
+    '--safebrowsing-disable-auto-update',
+    // Memory optimization
+    '--js-flags=--max-old-space-size=512',
+  ];
+
   const browser = await chromium.launch({
     headless: opts.headless,
     slowMo: opts.slowMo,
+    args: chromiumArgs,
   });
 
   return browser;

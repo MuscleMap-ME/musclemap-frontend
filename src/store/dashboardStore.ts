@@ -17,7 +17,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector, persist } from 'zustand/middleware';
-import { DashboardWidget, WidgetDefinition, Platform } from '@musclemap.me/shared';
+import { DashboardWidget, WidgetDefinition, Platform } from '@musclemap/shared';
 
 // ============================================
 // TYPES

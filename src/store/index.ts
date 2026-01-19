@@ -182,6 +182,67 @@ export {
 } from './adventureMapStore';
 
 // ============================================
+// PREFERENCES STORE
+// ============================================
+export {
+  usePreferencesStore,
+  useCoachingSettings,
+  useGuidanceLevel,
+  useDashboardSettings,
+  useNotificationSettings,
+  useHydrationSettingsFromPrefs,
+  useSoundSettings,
+  useWorkoutSettings,
+  useDisplaySettings,
+  usePrivacySettings,
+  useMusicSettings,
+  usePreferenceProfiles,
+  useEffectivePreferences,
+  usePreferencesState,
+  default as preferencesStore,
+} from './preferencesStore';
+
+// ============================================
+// DASHBOARD STORE
+// ============================================
+export {
+  useDashboardStore,
+  useDashboardLayout,
+  useWidgetManager,
+  useDashboardState,
+  default as dashboardStore,
+} from './dashboardStore';
+
+// ============================================
+// HYDRATION STORE
+// ============================================
+export {
+  useHydrationStore,
+  useHydrationTracker,
+  useHydrationReminders,
+  useHydrationSettings,
+  useHydrationWorkoutMode,
+  default as hydrationStore,
+} from './hydrationStore';
+
+// ============================================
+// MUSIC STORE
+// ============================================
+export {
+  useMusicStore,
+  useMusicPlayback,
+  useMusicConnections,
+  useMusicPlaylists,
+  useMusicWorkoutIntegration,
+  useMusicUI,
+  initializeSpotifyPlayer,
+  disconnectSpotifyPlayer,
+  default as musicStore,
+} from './musicStore';
+
+export type { MusicProvider, Track, Playlist, MusicConnection } from './musicStore';
+
+// ============================================
 // STORE UTILITIES
 // ============================================
 

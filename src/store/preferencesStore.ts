@@ -32,7 +32,7 @@ import {
   mergeWithDefaults,
   applyProfileOverrides,
   GuidanceLevel,
-} from '@musclemap.me/shared';
+} from '@musclemap/shared';
 
 // ============================================
 // TYPES

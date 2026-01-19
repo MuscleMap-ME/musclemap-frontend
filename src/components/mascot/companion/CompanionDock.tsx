@@ -13,11 +13,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCompanion } from './CompanionContext';
 import CompanionCharacter from './CompanionCharacter';
 import CompanionReaction from './CompanionReaction';
+import { useUser } from '../../../contexts/UserContext';
 
 // Lazy load the panel
 const CompanionPanel = lazy(() => import('./CompanionPanel'));
 
 export default function CompanionDock() {
+  const { user } = useUser();
   const {
     state,
     panelOpen,
@@ -28,8 +30,8 @@ export default function CompanionDock() {
     stageName,
   } = useCompanion();
 
-  // Don't render if no state or companion is hidden
-  if (!state || !state.is_visible) {
+  // Don't render if user is not logged in, no state, or companion is hidden
+  if (!user || !state || !state.is_visible) {
     return null;
   }
 

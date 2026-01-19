@@ -12,7 +12,8 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3001),
-  HOST: z.string().default('0.0.0.0'),
+  // In production, bind to localhost only - Caddy handles external traffic
+  HOST: z.string().default(process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0'),
   // PostgreSQL configuration
   DATABASE_URL: z.string().optional(),
   PGHOST: z.string().default('localhost'),
@@ -69,7 +70,7 @@ function loadConfig(): EnvConfig {
     return {
       NODE_ENV: 'development',
       PORT: 3001,
-      HOST: '0.0.0.0',
+      HOST: '0.0.0.0', // Dev always binds to all interfaces
       DATABASE_URL: undefined,
       PGHOST: 'localhost',
       PGPORT: 5432,

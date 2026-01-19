@@ -429,7 +429,7 @@ export interface DashboardWidget {
   settings: Record<string, unknown>;
 }
 
-export interface DashboardLayout {
+export interface DashboardLayoutConfig {
   id: string;
   userId: string;
   profileId?: string;
