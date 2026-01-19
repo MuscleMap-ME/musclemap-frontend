@@ -253,6 +253,11 @@ export default defineConfig({
     commonjsOptions: {
       // Helps with tree-shaking
       transformMixedEsModules: true,
+      // Fix "Dynamic require of 'react' is not supported" error
+      // This tells Rollup how to handle CommonJS require() calls
+      requireReturnsDefault: 'auto',
+      // Explicitly tell Rollup that react is an ES module
+      esmExternals: ['react', 'react-dom', 'react/jsx-runtime'],
     },
   },
   // CRITICAL: Configure Vite's dependency optimization for MAXIMUM caching
