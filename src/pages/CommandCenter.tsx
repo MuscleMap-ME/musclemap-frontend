@@ -543,10 +543,17 @@ export default function CommandCenter() {
 
         // Connect to SSE stream
         const token = localStorage.getItem('musclemap_token');
-        const es = new EventSource(`/api/admin/commands/stream/${data.executionId}?token=${token}`);
+        const streamUrl = `/api/admin/commands/stream/${data.executionId}?token=${token}`;
+        console.log('[CommandCenter] Connecting to SSE:', streamUrl);
+        const es = new EventSource(streamUrl);
         eventSourceRef.current = es;
 
+        es.onopen = () => {
+          console.log('[CommandCenter] SSE connection opened');
+        };
+
         es.onmessage = (event) => {
+          console.log('[CommandCenter] SSE message received:', event.data);
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'output') {
@@ -564,13 +571,23 @@ export default function CommandCenter() {
               setExecutionOutput(msg.output || '');
               setActiveExecution((prev) => prev ? { ...prev, status: msg.status } : null);
               es.close();
+            } else if (msg.type === 'error') {
+              console.error('[CommandCenter] SSE error message:', msg.message);
+              setExecutionOutput(`Error: ${msg.message}`);
+              setActiveExecution((prev) => prev ? { ...prev, status: 'failed' } : null);
+              es.close();
             }
-          } catch {
-            // Ignore parse errors
+          } catch (e) {
+            console.error('[CommandCenter] SSE parse error:', e, 'data:', event.data);
           }
         };
 
-        es.onerror = () => {
+        es.onerror = (e) => {
+          console.error('[CommandCenter] SSE connection error:', e, 'readyState:', es.readyState);
+          // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
+          if (es.readyState === EventSource.CLOSED) {
+            setActiveExecution((prev) => prev ? { ...prev, status: 'failed' } : null);
+          }
           es.close();
         };
       }
