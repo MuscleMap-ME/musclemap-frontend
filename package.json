@@ -80,7 +80,37 @@
     "bug-hunter:process": "tsx scripts/bug-hunter/index.ts --process-queue",
     "validate:graphql": "npx tsx scripts/validate-graphql.ts",
     "validate:graphql:fix": "npx tsx scripts/validate-graphql.ts --fix",
-    "validate:all": "pnpm typecheck && pnpm lint && pnpm validate:graphql"
+    "validate:all": "pnpm typecheck && pnpm lint && pnpm validate:graphql",
+    "validate:migrations": "sh ./scripts/deployment/validate-migrations.sh",
+    "validate:migrations:safety": "npx tsx scripts/deployment/migration-safety-check.ts",
+    "validate:graphql-contract": "npx tsx scripts/deployment/graphql-contract-check.ts",
+    "validate:graphql-contract:update": "npx tsx scripts/deployment/graphql-contract-check.ts --update-baseline",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
+    "test:post-deploy": "npx tsx scripts/deployment/post-deploy-validation.ts",
+    "test:post-deploy:prod": "npx tsx scripts/deployment/post-deploy-validation.ts --base-url https://musclemap.me",
+    "test:post-deploy:verbose": "npx tsx scripts/deployment/post-deploy-validation.ts --verbose",
+    "deploy:validate": "npx tsx scripts/deployment/post-deploy-validation.ts --base-url https://musclemap.me --fail-fast",
+    "deploy:track": "npx tsx scripts/deployment/deployment-tracker.ts",
+    "deploy:track:list": "npx tsx scripts/deployment/deployment-tracker.ts list",
+    "deploy:track:stats": "npx tsx scripts/deployment/deployment-tracker.ts stats",
+    "deploy:rollback": "sh ./scripts/deployment/auto-rollback.sh",
+    "deploy:rollback:dry": "sh ./scripts/deployment/auto-rollback.sh --dry-run",
+    "deploy:preview": "sh ./scripts/deployment/deploy-preview.sh",
+    "monitor:uptime": "npx tsx scripts/deployment/uptime-monitor.ts",
+    "monitor:uptime:daemon": "npx tsx scripts/deployment/uptime-monitor.ts --daemon",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings=0"
+    ],
+    "*.{js,jsx}": [
+      "eslint --fix --max-warnings=0"
+    ],
+    "apps/api/src/db/migrations/*.ts": [
+      "./scripts/deployment/validate-migrations.sh"
+    ]
   },
   "dependencies": {
     "@apollo/client": "^4.0.11",

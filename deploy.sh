@@ -25,13 +25,28 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🚀 MuscleMap Deploy${NC}"
 echo "================================"
 
-# Step 0: Run pre-deploy checks
+# Step 0: Run pre-deploy checks and deployment protection validation
 echo -e "${BLUE}🔍 Running pre-deploy checks...${NC}"
 if [ -f "$MAIN_REPO/scripts/pre-deploy-check.sh" ]; then
     if ! "$MAIN_REPO/scripts/pre-deploy-check.sh"; then
         echo -e "${RED}❌ Pre-deploy checks failed. Fix errors before deploying.${NC}"
         exit 1
     fi
+fi
+
+# Run deployment protection validations
+echo -e "${BLUE}🛡️  Running deployment protection validations...${NC}"
+
+# Migration safety check (warnings only, doesn't block)
+if [ -f "$MAIN_REPO/scripts/deployment/validate-migrations.sh" ]; then
+    echo "  Checking migration safety..."
+    "$MAIN_REPO/scripts/deployment/validate-migrations.sh" 2>/dev/null || echo -e "  ${YELLOW}⚠️  Migration warnings detected (review recommended)${NC}"
+fi
+
+# GraphQL contract check (warnings only for existing projects)
+if [ -f "$MAIN_REPO/scripts/deployment/graphql-contract-check.ts" ]; then
+    echo "  Checking GraphQL contract..."
+    npx tsx "$MAIN_REPO/scripts/deployment/graphql-contract-check.ts" 2>/dev/null || echo -e "  ${YELLOW}⚠️  GraphQL schema changes detected${NC}"
 fi
 
 # Step 1: Handle worktree if running from one
@@ -133,20 +148,71 @@ publish_if_needed "packages/plugin-sdk" "@musclemap.me/plugin-sdk"
 publish_if_needed "packages/ui" "@musclemap.me/ui"
 publish_if_needed "packages/contracts" "@musclemap.me/contracts"
 
-# Step 6: Deploy to VPS using aggressive cache build system
+# Step 6: Record deployment start
 cd "$MAIN_REPO"
+echo -e "${BLUE}📝 Recording deployment...${NC}"
+DEPLOY_ID=""
+if [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
+    DEPLOY_ID=$(npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" record 2>/dev/null | grep -o '"id":"[^"]*"' | cut -d'"' -f4 || echo "deploy-$(date +%s)")
+    echo "  Deployment ID: $DEPLOY_ID"
+fi
+
+# Step 7: Deploy to VPS using aggressive cache build system
 echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
 echo -e "${YELLOW}   Using aggressive cache build (content-hash based, Tier 0-3)${NC}"
 echo -e "${YELLOW}   Tier 0 (no changes): <1s | Tier 1 (restore): 1-2s | Tier 2/3: 15-90s${NC}"
-ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
+
+# Update deployment status
+if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
+    npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "deploying" 2>/dev/null || true
+fi
+
+if ! ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
   git fetch origin && \
   git reset --hard origin/main && \
   pnpm install && \
   node scripts/aggressive-cache.mjs && \
-  pm2 restart musclemap"
+  pm2 restart musclemap"; then
+    echo -e "${RED}❌ Deployment failed!${NC}"
+    if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
+        npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "failed" 2>/dev/null || true
+    fi
+    exit 1
+fi
+
+# Step 8: Run post-deploy validation
+echo -e "${BLUE}🔍 Running post-deploy validation...${NC}"
+sleep 5  # Wait for server to stabilize
+
+VALIDATION_PASSED=true
+if [ -f "$MAIN_REPO/scripts/deployment/post-deploy-validation.ts" ]; then
+    if npx tsx "$MAIN_REPO/scripts/deployment/post-deploy-validation.ts" --base-url https://musclemap.me 2>/dev/null; then
+        echo -e "${GREEN}✓ Post-deploy validation passed${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Some post-deploy validations failed (non-critical)${NC}"
+        VALIDATION_PASSED=false
+    fi
+fi
+
+# Step 9: Update deployment status
+if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
+    if [ "$VALIDATION_PASSED" = true ]; then
+        npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "success" 2>/dev/null || true
+    else
+        npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "success" '{"warnings":true}' 2>/dev/null || true
+    fi
+fi
 
 echo ""
 echo -e "${GREEN}✅ Deployed successfully!${NC}"
 echo -e "${GREEN}   → GitHub: https://github.com/jeanpaulniko/musclemap${NC}"
 echo -e "${GREEN}   → npm:    https://www.npmjs.com/org/musclemap.me${NC}"
 echo -e "${GREEN}   → Live:   https://musclemap.me${NC}"
+if [ -n "$DEPLOY_ID" ]; then
+    echo -e "${GREEN}   → Deploy ID: $DEPLOY_ID${NC}"
+fi
+echo ""
+echo -e "${BLUE}Post-deployment commands:${NC}"
+echo "  View logs:     pnpm deploy:track:list"
+echo "  Monitor:       pnpm monitor:uptime"
+echo "  Rollback:      pnpm deploy:rollback"

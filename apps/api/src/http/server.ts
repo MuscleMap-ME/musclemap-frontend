@@ -22,6 +22,7 @@ import { logger, loggers } from '../lib/logger';
 import { closeDatabase, healthCheck as dbHealthCheck, getPoolStats } from '../db/client';
 import { closeRedis, isRedisAvailable } from '../lib/redis';
 import { initializePubSub, cleanupPubSub } from '../lib/pubsub';
+import { trackError, getErrorStats } from '../lib/error-tracker';
 
 // Route modules
 import { registerAuthRoutes } from './routes/auth';
@@ -253,6 +254,15 @@ export async function createServer(): Promise<FastifyInstance> {
       stack: statusCode >= 500 ? errorStack : undefined,
       statusCode,
     }, 'Request error');
+
+    // Track error in production error tracker (for monitoring and alerting)
+    if (statusCode >= 400 && error instanceof Error) {
+      trackError(error, request, {
+        statusCode,
+        errorType,
+        requestId: request.id,
+      });
+    }
 
     // Don't expose internal errors in production
     const message = isProduction && statusCode >= 500

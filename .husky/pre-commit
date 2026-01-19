@@ -1,0 +1,37 @@
+#!/bin/sh
+# Pre-commit hook for MuscleMap
+#
+# This hook runs automatically before every commit to ensure code quality.
+# To bypass (not recommended): git commit --no-verify
+
+# Skip in CI environments
+if [ "$CI" = "true" ]; then
+    exit 0
+fi
+
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged for staged files
+echo ""
+echo "📝 Linting staged files..."
+npx lint-staged
+
+# Run migration validation (fast)
+echo ""
+echo "🗄️  Validating migrations..."
+if [ -f ./scripts/deployment/validate-migrations.sh ]; then
+    chmod +x ./scripts/deployment/validate-migrations.sh
+    ./scripts/deployment/validate-migrations.sh
+fi
+
+# Run TypeScript check (cached for speed)
+echo ""
+echo "📘 TypeScript check..."
+if [ -f ./scripts/pre-deploy-check.sh ]; then
+    ./scripts/pre-deploy-check.sh --fast 2>/dev/null || pnpm typecheck
+else
+    pnpm typecheck
+fi
+
+echo ""
+echo "✅ Pre-commit checks passed!"

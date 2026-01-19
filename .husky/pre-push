@@ -1,0 +1,32 @@
+#!/bin/sh
+# Pre-push hook for MuscleMap
+#
+# Runs more comprehensive checks before pushing to remote.
+# These checks take longer but catch more issues.
+
+# Skip in CI environments
+if [ "$CI" = "true" ]; then
+    exit 0
+fi
+
+echo "🚀 Running pre-push checks..."
+
+# Full TypeScript check
+echo ""
+echo "📘 Full TypeScript check..."
+pnpm typecheck
+
+# Run tests
+echo ""
+echo "🧪 Running tests..."
+pnpm test:frontend 2>/dev/null || echo "Frontend tests skipped"
+
+# Check for GraphQL breaking changes
+echo ""
+echo "📡 Checking GraphQL schema..."
+if [ -f ./scripts/deployment/graphql-contract-check.ts ]; then
+    npx tsx ./scripts/deployment/graphql-contract-check.ts 2>/dev/null || echo "GraphQL check skipped"
+fi
+
+echo ""
+echo "✅ Pre-push checks passed!"

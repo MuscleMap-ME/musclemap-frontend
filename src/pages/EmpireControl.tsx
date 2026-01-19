@@ -303,10 +303,15 @@ export default function EmpireControl() {
       const authData = localStorage.getItem('musclemap-auth');
       if (authData) {
         const parsed = JSON.parse(authData);
-        return { Authorization: `Bearer ${parsed?.state?.token}` };
+        const token = parsed?.state?.token;
+        console.log('[Empire] Auth data structure:', { hasState: !!parsed?.state, hasToken: !!token });
+        if (token) {
+          return { Authorization: `Bearer ${token}` };
+        }
       }
-    } catch {
-      // Failed to parse auth data
+      console.log('[Empire] No auth data found in localStorage');
+    } catch (err) {
+      console.error('[Empire] Failed to parse auth data:', err);
     }
     return {};
   }, []);
@@ -338,15 +343,22 @@ export default function EmpireControl() {
   // Fetch users
   const fetchUsers = useCallback(async () => {
     try {
+      const headers = getAuthHeader();
+      console.log('[Empire] Fetching users with auth:', !!headers.Authorization);
       const res = await fetch('/api/admin-control/users?limit=20', {
-        headers: getAuthHeader(),
+        headers,
       });
+      console.log('[Empire] Users response status:', res.status);
       if (res.ok) {
         const data = await res.json();
+        console.log('[Empire] Users fetched:', data.data?.length || 0);
         setUsers(data.data || data.users || []);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('[Empire] Users fetch failed:', res.status, errorData);
       }
-    } catch {
-      // Failed to fetch users
+    } catch (err) {
+      console.error('[Empire] Users fetch error:', err);
     }
   }, [getAuthHeader]);
 
