@@ -71,6 +71,10 @@ const D3_SUBPACKAGES = new Set([
 
 /**
  * Packages that have subpath exports which should use the parent bundle
+ *
+ * NOTE: zustand is NOT included here because zustand/middleware has separate
+ * exports (persist, createJSONStorage) that aren't in the main zustand bundle.
+ * Let Vite resolve zustand subpaths normally through node_modules.
  */
 const SUBPATH_BUNDLES = {
   'three/': 'three-bundle.mjs',
@@ -78,7 +82,7 @@ const SUBPATH_BUNDLES = {
   'framer-motion/': 'framer-motion-bundle.mjs',
   'recharts/': 'recharts-bundle.mjs',
   'graphql/': 'graphql-bundle.mjs',
-  'zustand/': 'zustand-bundle.mjs',
+  // zustand/ excluded - middleware subpath has separate exports
 };
 
 export default function prebundledVendors(options = {}) {
