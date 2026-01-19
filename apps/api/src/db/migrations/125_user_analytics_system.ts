@@ -597,13 +597,13 @@ export async function up(): Promise<void> {
     log.info('Adding analytics scheduled jobs...');
 
     await db.query(`
-      INSERT INTO scheduled_jobs (id, name, cron_expression, handler, is_enabled, description, timeout_seconds)
+      INSERT INTO scheduled_jobs (id, name, cron_expression, command, enabled, description)
       VALUES
-        ('job_analytics_daily_rollups', 'Analytics Daily Rollups', '15 0 * * *', 'analytics.calculateDailyRollups', TRUE, 'Calculate daily analytics rollups', 300),
-        ('job_analytics_user_summaries', 'Update User Summaries', '*/15 * * * *', 'analytics.updateUserSummaries', TRUE, 'Update user activity summaries for active users', 180),
-        ('job_analytics_segments', 'Recalculate Segments', '0 * * * *', 'analytics.recalculateSegments', TRUE, 'Recalculate dynamic segment memberships', 300),
-        ('job_analytics_cohorts', 'Update Cohort Retention', '30 1 * * *', 'analytics.updateCohortRetention', TRUE, 'Update cohort retention metrics', 600),
-        ('job_analytics_refresh_mvs', 'Refresh Analytics MVs', '*/15 * * * *', 'analytics.refreshMaterializedViews', TRUE, 'Refresh analytics materialized views', 120)
+        ('job_analytics_daily_rollups', 'Analytics Daily Rollups', '15 0 * * *', 'analytics.calculateDailyRollups', TRUE, 'Calculate daily analytics rollups'),
+        ('job_analytics_user_summaries', 'Update User Summaries', '*/15 * * * *', 'analytics.updateUserSummaries', TRUE, 'Update user activity summaries for active users'),
+        ('job_analytics_segments', 'Recalculate Segments', '0 * * * *', 'analytics.recalculateSegments', TRUE, 'Recalculate dynamic segment memberships'),
+        ('job_analytics_cohorts', 'Update Cohort Retention', '30 1 * * *', 'analytics.updateCohortRetention', TRUE, 'Update cohort retention metrics'),
+        ('job_analytics_refresh_mvs', 'Refresh Analytics MVs', '*/15 * * * *', 'analytics.refreshMaterializedViews', TRUE, 'Refresh analytics materialized views')
       ON CONFLICT (id) DO NOTHING
     `);
     log.info('Analytics scheduled jobs added');
