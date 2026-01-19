@@ -736,14 +736,23 @@ export default function MetricsPanel() {
     }));
   }, []);
 
-  // Initial load and WebSocket setup
+  // Ref to track WebSocket connection status without causing re-renders
+  const wsConnectedRef = useRef(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    wsConnectedRef.current = wsConnected;
+  }, [wsConnected]);
+
+  // Initial load and WebSocket setup - runs only once on mount
   useEffect(() => {
     fetchMetrics();
     connectWebSocket();
 
     // Fallback polling every 5 seconds if WebSocket fails
+    // Uses ref to check connection status without being a dependency
     const pollInterval = setInterval(() => {
-      if (!wsConnected) {
+      if (!wsConnectedRef.current) {
         fetchMetrics();
       }
     }, 5000);
@@ -752,7 +761,8 @@ export default function MetricsPanel() {
       clearInterval(pollInterval);
       disconnectWebSocket();
     };
-  }, [fetchMetrics, connectWebSocket, disconnectWebSocket, wsConnected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run on mount/unmount
 
   // Refetch when time range changes
   useEffect(() => {

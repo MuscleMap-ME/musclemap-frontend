@@ -14,7 +14,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { authenticate, requireAdmin } from './auth';
+import { authenticate, requireAdmin, verifyToken } from './auth';
 
 // ============================================
 // SCHEMAS
@@ -708,7 +708,25 @@ export default async function adminMetricsRoutes(fastify: FastifyInstance): Prom
       // Verify admin access via token in query string
       const token = (request.query as { token?: string }).token;
       if (!token) {
-        socket.send(JSON.stringify({ error: 'Authentication required' }));
+        socket.send(JSON.stringify({ error: 'Authentication required', type: 'error' }));
+        socket.close();
+        return;
+      }
+
+      // Validate JWT token and check admin role
+      let user: { userId: string; roles?: string[]; role?: string } | null = null;
+      try {
+        user = verifyToken(token);
+      } catch (err) {
+        socket.send(JSON.stringify({ error: 'Invalid or expired token', type: 'error' }));
+        socket.close();
+        return;
+      }
+
+      // Check admin access
+      const isAdmin = user?.roles?.includes('admin') || user?.role === 'admin';
+      if (!isAdmin) {
+        socket.send(JSON.stringify({ error: 'Admin access required', type: 'error' }));
         socket.close();
         return;
       }
