@@ -219,6 +219,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   ),
+  Crown: ({ className = 'w-5 h-5' }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm0 0v2a2 2 0 002 2h10a2 2 0 002-2v-2" />
+    </svg>
+  ),
 };
 
 // ============================================
@@ -1307,6 +1312,17 @@ export default function Dashboard() {
                   gradient="from-[var(--brand-pulse-500)] to-rose-600"
                   delay={0.2}
                 />
+                {/* Empire Control - Admin only */}
+                {user?.is_admin && (
+                  <QuickActionCard
+                    to="/empire"
+                    icon={Icons.Crown}
+                    label="Empire Control"
+                    description="Admin dashboard & controls"
+                    gradient="from-amber-500 to-orange-600"
+                    delay={0.3}
+                  />
+                )}
               </div>
             </div>
 
