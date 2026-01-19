@@ -589,23 +589,24 @@ export const tradingService = {
     let itemValue = 0;
 
     if (itemIds.length > 0) {
-      const items = await queryAll<{ id: string; base_price: number }>(
-        `SELECT c.id, c.base_price
+      // FIXED: Batch query instead of N+1 pattern
+      // Get items and their average sale prices in a single query
+      const itemsWithPrices = await queryAll<{ id: string; base_price: number; avg_sale: number | null }>(
+        `SELECT c.id, c.base_price, avg_prices.avg_sale
          FROM user_spirit_cosmetics u
          JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+         LEFT JOIN (
+           SELECT cosmetic_id, AVG(sale_price) as avg_sale
+           FROM marketplace_transactions
+           WHERE created_at > NOW() - INTERVAL '30 days'
+           GROUP BY cosmetic_id
+         ) avg_prices ON avg_prices.cosmetic_id = c.id
          WHERE u.id = ANY($1)`,
         [itemIds]
       );
 
-      // Get average sale prices for these items
-      for (const item of items) {
-        const avgSale = await queryOne<{ avg: number | null }>(
-          `SELECT AVG(sale_price) as avg FROM marketplace_transactions
-           WHERE cosmetic_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
-          [item.id]
-        );
-
-        itemValue += avgSale?.avg || item.base_price || 100;
+      for (const item of itemsWithPrices) {
+        itemValue += item.avg_sale || item.base_price || 100;
       }
     }
 
@@ -613,31 +614,37 @@ export const tradingService = {
   },
 
   async estimateTradeValue(itemIds: string[]) {
-    const values: { itemId: string; name: string; estimatedValue: number }[] = [];
-
-    for (const itemId of itemIds) {
-      const item = await queryOne<Cosmetic & { user_cosmetic_id: string }>(
-        `SELECT c.*, u.id as user_cosmetic_id
-         FROM user_spirit_cosmetics u
-         JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
-         WHERE u.id = $1`,
-        [itemId]
-      );
-
-      if (!item) continue;
-
-      const avgSale = await queryOne<{ avg: number | null }>(
-        `SELECT AVG(sale_price) as avg FROM marketplace_transactions
-         WHERE cosmetic_id = $1 AND created_at > NOW() - INTERVAL '30 days'`,
-        [item.id]
-      );
-
-      values.push({
-        itemId,
-        name: item.name,
-        estimatedValue: Math.round(avgSale?.avg || item.base_price || 100),
-      });
+    if (itemIds.length === 0) {
+      return { itemValues: [], totalValue: 0 };
     }
+
+    // FIXED: Batch query instead of N+1 pattern
+    // Get all items and their average sale prices in a single query
+    const itemsWithPrices = await queryAll<{
+      user_cosmetic_id: string;
+      id: string;
+      name: string;
+      base_price: number;
+      avg_sale: number | null;
+    }>(
+      `SELECT u.id as user_cosmetic_id, c.id, c.name, c.base_price, avg_prices.avg_sale
+       FROM user_spirit_cosmetics u
+       JOIN spirit_animal_cosmetics c ON u.cosmetic_id = c.id
+       LEFT JOIN (
+         SELECT cosmetic_id, AVG(sale_price) as avg_sale
+         FROM marketplace_transactions
+         WHERE created_at > NOW() - INTERVAL '30 days'
+         GROUP BY cosmetic_id
+       ) avg_prices ON avg_prices.cosmetic_id = c.id
+       WHERE u.id = ANY($1)`,
+      [itemIds]
+    );
+
+    const values = itemsWithPrices.map(item => ({
+      itemId: item.user_cosmetic_id,
+      name: item.name,
+      estimatedValue: Math.round(item.avg_sale || item.base_price || 100),
+    }));
 
     const totalValue = values.reduce((sum, v) => sum + v.estimatedValue, 0);
 

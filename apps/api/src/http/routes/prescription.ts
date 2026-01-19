@@ -109,10 +109,8 @@ async function generatePrescription(
 
   const recentExercises = new Set<string>();
   for (const w of recentWorkouts) {
-    // exercise_data is JSONB so it may already be parsed as an object
-    const exercises = typeof w.exercise_data === 'string'
-      ? JSON.parse(w.exercise_data || '[]')
-      : (w.exercise_data || []);
+    // FIXED: exercise_data is JSONB - PostgreSQL always returns it as already-parsed object
+    const exercises = (w.exercise_data || []) as Array<{ exerciseId: string }>;
     for (const e of exercises) {
       recentExercises.add(e.exerciseId);
     }
@@ -129,10 +127,8 @@ async function generatePrescription(
 
   // Reduce needs for recently worked muscles
   for (const w of recentWorkouts) {
-    // exercise_data is JSONB so it may already be parsed as an object
-    const exercises = typeof w.exercise_data === 'string'
-      ? JSON.parse(w.exercise_data || '[]')
-      : (w.exercise_data || []);
+    // FIXED: exercise_data is JSONB - PostgreSQL always returns it as already-parsed object
+    const exercises = (w.exercise_data || []) as Array<{ exerciseId: string }>;
     for (const _e of exercises) {
       // This is simplified - in reality we'd calculate actual activation
       for (const [muscleId, need] of muscleNeeds) {

@@ -59,7 +59,10 @@
     "bug-hunter:status": "tsx scripts/bug-hunter/index.ts --status",
     "bug-hunter:coverage": "tsx scripts/bug-hunter/index.ts --coverage",
     "bug-hunter:queue": "tsx scripts/bug-hunter/index.ts --queue",
-    "bug-hunter:process": "tsx scripts/bug-hunter/index.ts --process-queue"
+    "bug-hunter:process": "tsx scripts/bug-hunter/index.ts --process-queue",
+    "validate:graphql": "npx tsx scripts/validate-graphql.ts",
+    "validate:graphql:fix": "npx tsx scripts/validate-graphql.ts --fix",
+    "validate:all": "pnpm typecheck && pnpm lint && pnpm validate:graphql"
   },
   "dependencies": {
     "@apollo/client": "^4.0.11",

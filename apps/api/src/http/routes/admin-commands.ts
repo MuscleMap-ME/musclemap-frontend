@@ -839,8 +839,10 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authenticate);
   fastify.addHook('preHandler', requireAdmin);
 
+  log.info('Command Center routes registered');
+
   // Get command hierarchy
-  fastify.get('/api/admin/commands/hierarchy', async (request, reply) => {
+  fastify.get('/admin/commands/hierarchy', async (request, reply) => {
     return {
       categories: COMMAND_HIERARCHY,
       totalCommands: ALL_COMMANDS.length,
@@ -848,7 +850,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Search commands
-  fastify.get('/api/admin/commands/search', async (request, reply) => {
+  fastify.get('/admin/commands/search', async (request, reply) => {
     const { q, category, dangerous } = request.query as {
       q?: string;
       category?: string;
@@ -884,7 +886,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Execute command
-  fastify.post('/api/admin/commands/execute', async (request, reply) => {
+  fastify.post('/admin/commands/execute', async (request, reply) => {
     const { cmd } = request.body as { cmd: string };
     const user = request.user as JwtPayload;
 
@@ -1004,7 +1006,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Stream execution output (SSE)
-  fastify.get('/api/admin/commands/stream/:id', async (request, reply) => {
+  fastify.get('/admin/commands/stream/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
     reply.raw.writeHead(200, {
@@ -1048,7 +1050,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Cancel execution
-  fastify.post('/api/admin/commands/cancel/:id', async (request, reply) => {
+  fastify.post('/admin/commands/cancel/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const exec = activeExecutions.get(id);
@@ -1075,7 +1077,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Get execution history
-  fastify.get('/api/admin/commands/history', async (request, reply) => {
+  fastify.get('/admin/commands/history', async (request, reply) => {
     const { limit = 50 } = request.query as { limit?: number };
     return {
       history: executionHistory.slice(0, limit),
@@ -1089,7 +1091,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Get single execution details
-  fastify.get('/api/admin/commands/execution/:id', async (request, reply) => {
+  fastify.get('/admin/commands/execution/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const active = activeExecutions.get(id);

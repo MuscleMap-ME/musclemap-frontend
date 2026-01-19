@@ -133,24 +133,22 @@ export const tipsService = {
       return milestoneResult;
     }
 
-    // Goal-specific tip
+    // Goal-specific tip - FIXED: Batch query instead of N+1 pattern
     if (goals.length > 0) {
-      for (const goal of goals) {
-        const tip = await queryOne<Tip>(`
-          SELECT t.* FROM tips t
-          LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
-          WHERE t.trigger_type = 'goal'
-            AND t.trigger_value = $2
-            AND t.display_context = 'post_workout'
-            AND uts.tip_id IS NULL
-          ORDER BY RANDOM()
-          LIMIT 1
-        `, [userId, goal]);
+      const tip = await queryOne<Tip>(`
+        SELECT t.* FROM tips t
+        LEFT JOIN user_tips_seen uts ON uts.tip_id = t.id AND uts.user_id = $1
+        WHERE t.trigger_type = 'goal'
+          AND t.trigger_value = ANY($2)
+          AND t.display_context = 'post_workout'
+          AND uts.tip_id IS NULL
+        ORDER BY RANDOM()
+        LIMIT 1
+      `, [userId, goals]);
 
-        if (tip) {
-          await this.markSeen(tip.id, userId);
-          return { tip, milestone: null };
-        }
+      if (tip) {
+        await this.markSeen(tip.id, userId);
+        return { tip, milestone: null };
       }
     }
 
@@ -236,16 +234,17 @@ export const tipsService = {
     const stats = await this.getUserStats(userId);
     const streak = await this.calculateStreak(userId);
 
-    // Get all milestones
-    const milestones = await queryAll<Milestone>('SELECT * FROM milestones ORDER BY threshold ASC');
+    // Get all milestones with user's completion status - FIXED: Single query instead of N+1
+    const milestones = await queryAll<Milestone & { completed_at: Date | null; current_value: number | null }>(`
+      SELECT m.*, um.completed_at, um.current_value
+      FROM milestones m
+      LEFT JOIN user_milestones um ON um.milestone_id = m.id AND um.user_id = $1
+      ORDER BY m.threshold ASC
+    `, [userId]);
 
     for (const m of milestones) {
-      const userMilestone = await queryOne<UserMilestone>(`
-        SELECT * FROM user_milestones WHERE user_id = $1 AND milestone_id = $2
-      `, [userId, m.id]);
-
       // Already completed
-      if (userMilestone?.completed_at) continue;
+      if (m.completed_at) continue;
 
       // Check if threshold met
       let currentValue = 0;

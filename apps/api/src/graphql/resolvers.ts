@@ -419,28 +419,55 @@ export const resolvers = {
       }));
     },
 
-    // Workouts
-    myWorkouts: async (_: unknown, args: { limit?: number; offset?: number }, context: Context) => {
+    // Workouts - uses keyset pagination for O(1) performance
+    myWorkouts: async (_: unknown, args: { limit?: number; offset?: number; cursor?: string }, context: Context) => {
       const { userId } = requireAuth(context);
       const limit = Math.min(args.limit || 50, 100);
-      const offset = args.offset || 0;
 
-      const workouts = await queryAll(
-        `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
-         FROM workouts WHERE user_id = $1
-         ORDER BY date DESC, created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [userId, limit, offset]
-      );
+      // Support both cursor-based (preferred) and offset-based (legacy) pagination
+      let workouts;
+      if (args.cursor) {
+        // Keyset pagination - O(1) performance
+        const [cursorDate, cursorId] = args.cursor.split('_');
+        workouts = await queryAll(
+          `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
+           FROM workouts WHERE user_id = $1
+           AND (date, created_at, id) < ($2::date, $3::timestamptz, $4::uuid)
+           ORDER BY date DESC, created_at DESC, id DESC
+           LIMIT $5`,
+          [userId, cursorDate, cursorDate, cursorId, limit]
+        );
+      } else if (args.offset) {
+        // Legacy offset pagination - O(n) performance, kept for backwards compatibility
+        workouts = await queryAll(
+          `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
+           FROM workouts WHERE user_id = $1
+           ORDER BY date DESC, created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, args.offset]
+        );
+      } else {
+        // First page - no cursor needed
+        workouts = await queryAll(
+          `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
+           FROM workouts WHERE user_id = $1
+           ORDER BY date DESC, created_at DESC, id DESC
+           LIMIT $2`,
+          [userId, limit]
+        );
+      }
 
       return workouts.map((w: any) => ({
         id: w.id,
         userId: w.user_id,
-        exercises: JSON.parse(w.exercise_data || '[]'),
+        // FIXED: exercise_data is JSONB - PostgreSQL returns it as already-parsed object
+        exercises: w.exercise_data || [],
         duration: null,
         notes: w.notes,
         totalTU: w.total_tu,
         createdAt: w.created_at,
+        // Add cursor for next page
+        cursor: `${w.date}_${w.id}`,
       }));
     },
 
@@ -492,7 +519,8 @@ export const resolvers = {
       return {
         id: workout.id,
         userId: workout.user_id,
-        exercises: JSON.parse(workout.exercise_data || '[]'),
+        // FIXED: exercise_data is JSONB - PostgreSQL returns it as already-parsed object
+        exercises: workout.exercise_data || [],
         duration: null,
         notes: workout.notes,
         totalTU: workout.total_tu,
@@ -2721,6 +2749,509 @@ export const resolvers = {
 
       return null;
     },
+
+    // ============================================
+    // MISSING QUERY RESOLVERS - Added 2026-01-19
+    // ============================================
+
+    // Conversations/Messaging
+    conversationMessages: async (_: unknown, args: { conversationId: string; limit?: number; cursor?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      // Verify user is participant in conversation
+      const participant = await queryOne<{ id: string }>(
+        `SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2`,
+        [args.conversationId, userId]
+      );
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      let messages;
+      if (args.cursor) {
+        messages = await queryAll<any>(
+          `SELECT m.*, u.username as sender_username, u.avatar_url as sender_avatar
+           FROM messages m
+           JOIN users u ON m.sender_id = u.id
+           WHERE m.conversation_id = $1
+           AND m.created_at < $2
+           ORDER BY m.created_at DESC
+           LIMIT $3`,
+          [args.conversationId, args.cursor, limit]
+        );
+      } else {
+        messages = await queryAll<any>(
+          `SELECT m.*, u.username as sender_username, u.avatar_url as sender_avatar
+           FROM messages m
+           JOIN users u ON m.sender_id = u.id
+           WHERE m.conversation_id = $1
+           ORDER BY m.created_at DESC
+           LIMIT $2`,
+          [args.conversationId, limit]
+        );
+      }
+
+      return messages.map((m: any) => ({
+        id: m.id,
+        conversationId: m.conversation_id,
+        senderId: m.sender_id,
+        sender: {
+          id: m.sender_id,
+          username: m.sender_username,
+          avatar: m.sender_avatar,
+        },
+        content: m.content,
+        createdAt: m.created_at,
+        readAt: m.read_at,
+      }));
+    },
+
+    // User stats for public profiles
+    userStats: async (_: unknown, args: { userId: string }) => {
+      const stats = await queryOne<any>(
+        `SELECT
+          (SELECT COUNT(*) FROM workouts WHERE user_id = $1) as total_workouts,
+          (SELECT COALESCE(SUM(total_tu), 0) FROM workouts WHERE user_id = $1) as total_tu,
+          (SELECT COUNT(*) FROM user_follows WHERE following_id = $1) as followers,
+          (SELECT COUNT(*) FROM user_follows WHERE follower_id = $1) as following,
+          (SELECT level FROM users WHERE id = $1) as level,
+          (SELECT xp FROM users WHERE id = $1) as xp`,
+        [args.userId]
+      );
+
+      if (!stats) return null;
+
+      return {
+        totalWorkouts: Number(stats.total_workouts) || 0,
+        totalTU: Number(stats.total_tu) || 0,
+        followers: Number(stats.followers) || 0,
+        following: Number(stats.following) || 0,
+        level: stats.level || 1,
+        xp: stats.xp || 0,
+      };
+    },
+
+    // Economy wallet info
+    economyWallet: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const wallet = await walletService.getWalletDetails(userId);
+      return wallet;
+    },
+
+    // Economy transaction history
+    economyHistory: async (_: unknown, args: { limit?: number; cursor?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      let transactions;
+      if (args.cursor) {
+        transactions = await queryAll<any>(
+          `SELECT * FROM credit_ledger
+           WHERE user_id = $1 AND created_at < $2
+           ORDER BY created_at DESC
+           LIMIT $3`,
+          [userId, args.cursor, limit]
+        );
+      } else {
+        transactions = await queryAll<any>(
+          `SELECT * FROM credit_ledger
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT $2`,
+          [userId, limit]
+        );
+      }
+
+      return transactions.map((t: any) => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        balance: t.balance_after,
+        description: t.description,
+        referenceType: t.reference_type,
+        referenceId: t.reference_id,
+        createdAt: t.created_at,
+      }));
+    },
+
+    // Economy transactions (alias)
+    economyTransactions: async (_: unknown, args: { limit?: number; cursor?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      const transactions = await queryAll<any>(
+        `SELECT * FROM credit_ledger
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [userId, limit]
+      );
+
+      return transactions.map((t: any) => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        balance: t.balance_after,
+        description: t.description,
+        createdAt: t.created_at,
+      }));
+    },
+
+    // Nearby hangouts
+    nearbyHangouts: async (_: unknown, args: { latitude: number; longitude: number; radiusKm?: number; limit?: number }) => {
+      const radiusKm = args.radiusKm || 10;
+      const limit = Math.min(args.limit || 20, 50);
+
+      const hangouts = await queryAll<any>(
+        `SELECT h.*, u.username as host_username, u.avatar_url as host_avatar,
+         (SELECT COUNT(*) FROM hangout_members WHERE hangout_id = h.id) as member_count,
+         ST_Distance(
+           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+           ST_SetSRID(ST_MakePoint(h.longitude, h.latitude), 4326)::geography
+         ) / 1000 as distance_km
+         FROM hangouts h
+         JOIN users u ON h.host_id = u.id
+         WHERE h.status = 'active'
+         AND h.end_time > NOW()
+         AND ST_DWithin(
+           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+           ST_SetSRID(ST_MakePoint(h.longitude, h.latitude), 4326)::geography,
+           $3 * 1000
+         )
+         ORDER BY distance_km ASC
+         LIMIT $4`,
+        [args.longitude, args.latitude, radiusKm, limit]
+      );
+
+      return hangouts.map((h: any) => ({
+        id: h.id,
+        title: h.title,
+        description: h.description,
+        type: h.type,
+        latitude: h.latitude,
+        longitude: h.longitude,
+        address: h.address,
+        startTime: h.start_time,
+        endTime: h.end_time,
+        maxParticipants: h.max_participants,
+        memberCount: Number(h.member_count),
+        distanceKm: Number(h.distance_km),
+        host: {
+          id: h.host_id,
+          username: h.host_username,
+          avatar: h.host_avatar,
+        },
+      }));
+    },
+
+    // Updates/changelog
+    updates: async (_: unknown, args: { limit?: number }) => {
+      const limit = Math.min(args.limit || 20, 50);
+      const updates = await queryAll<any>(
+        `SELECT * FROM app_updates ORDER BY published_at DESC LIMIT $1`,
+        [limit]
+      );
+
+      return updates.map((u: any) => ({
+        id: u.id,
+        version: u.version,
+        title: u.title,
+        content: u.content,
+        type: u.type,
+        publishedAt: u.published_at,
+      }));
+    },
+
+    // Roadmap items
+    roadmap: async (_: unknown, args: { status?: string }) => {
+      let query = `SELECT r.*,
+        (SELECT COUNT(*) FROM roadmap_votes WHERE roadmap_item_id = r.id) as vote_count
+        FROM roadmap_items r`;
+      const params: any[] = [];
+
+      if (args.status) {
+        query += ` WHERE r.status = $1`;
+        params.push(args.status);
+      }
+
+      query += ` ORDER BY vote_count DESC, r.created_at DESC`;
+
+      const items = await queryAll<any>(query, params);
+
+      return items.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        status: r.status,
+        category: r.category,
+        priority: r.priority,
+        voteCount: Number(r.vote_count),
+        createdAt: r.created_at,
+        targetDate: r.target_date,
+      }));
+    },
+
+    // Issues for admin
+    adminIssues: async (_: unknown, args: { status?: string; limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      // Check admin role
+      const user = await queryOne<{ roles: string[] }>('SELECT roles FROM users WHERE id = $1', [userId]);
+      if (!user?.roles?.includes('admin')) {
+        throw new GraphQLError('Admin access required', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      const limit = Math.min(args.limit || 50, 100);
+      let query = `SELECT i.*, u.username as author_username
+        FROM issues i
+        LEFT JOIN users u ON i.author_id = u.id`;
+      const params: any[] = [];
+
+      if (args.status) {
+        query += ` WHERE i.status = $1`;
+        params.push(args.status);
+      }
+
+      query += ` ORDER BY i.created_at DESC LIMIT $${params.length + 1}`;
+      params.push(limit);
+
+      const issues = await queryAll<any>(query, params);
+
+      return issues.map((i: any) => ({
+        id: i.id,
+        title: i.title,
+        description: i.description,
+        status: i.status,
+        priority: i.priority,
+        type: i.type,
+        author: i.author_id ? { id: i.author_id, username: i.author_username } : null,
+        createdAt: i.created_at,
+        updatedAt: i.updated_at,
+      }));
+    },
+
+    // Issue labels
+    issueLabels: async () => {
+      const labels = await queryAll<any>('SELECT * FROM issue_labels ORDER BY name ASC');
+      return labels.map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        color: l.color,
+        description: l.description,
+      }));
+    },
+
+    // Issue stats
+    issueStats: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const user = await queryOne<{ roles: string[] }>('SELECT roles FROM users WHERE id = $1', [userId]);
+      if (!user?.roles?.includes('admin')) {
+        throw new GraphQLError('Admin access required', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      const stats = await queryOne<any>(`
+        SELECT
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'open') as open,
+          COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+          COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+          COUNT(*) FILTER (WHERE status = 'closed') as closed
+        FROM issues
+      `);
+
+      return {
+        total: Number(stats?.total) || 0,
+        open: Number(stats?.open) || 0,
+        inProgress: Number(stats?.in_progress) || 0,
+        resolved: Number(stats?.resolved) || 0,
+        closed: Number(stats?.closed) || 0,
+      };
+    },
+
+    // Personalization context
+    personalizationContext: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const user = await queryOne<any>(`
+        SELECT u.*, a.name as archetype_name, a.focus_areas
+        FROM users u
+        LEFT JOIN archetypes a ON u.archetype_id = a.id
+        WHERE u.id = $1
+      `, [userId]);
+
+      const recentWorkouts = await queryOne<{ count: number }>(`
+        SELECT COUNT(*) as count FROM workouts
+        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'
+      `, [userId]);
+
+      const goals = await queryAll<any>(`
+        SELECT * FROM goals WHERE user_id = $1 AND status = 'active'
+      `, [userId]);
+
+      return {
+        userId,
+        level: user?.level || 1,
+        archetype: user?.archetype_id ? { id: user.archetype_id, name: user.archetype_name } : null,
+        focusAreas: user?.focus_areas || [],
+        recentWorkoutCount: recentWorkouts?.count || 0,
+        activeGoals: goals.map((g: any) => ({ id: g.id, type: g.type, title: g.title })),
+        preferences: user?.preferences || {},
+      };
+    },
+
+    // Personalization recommendations
+    personalizationRecommendations: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Simple recommendations based on user data
+      const recommendations: any[] = [];
+
+      // Check workout frequency
+      const weeklyWorkouts = await queryOne<{ count: number }>(`
+        SELECT COUNT(*) as count FROM workouts
+        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'
+      `, [userId]);
+
+      if ((weeklyWorkouts?.count || 0) < 3) {
+        recommendations.push({
+          type: 'workout_frequency',
+          title: 'Increase Workout Frequency',
+          description: 'Try to hit at least 3 workouts per week for optimal progress',
+          priority: 'high',
+        });
+      }
+
+      // Check for muscle imbalances (simplified)
+      const muscleWork = await queryAll<any>(`
+        SELECT muscle_id, SUM(activation) as total_activation
+        FROM workout_muscle_activations wma
+        JOIN workouts w ON wma.workout_id = w.id
+        WHERE w.user_id = $1 AND w.date >= CURRENT_DATE - INTERVAL '30 days'
+        GROUP BY muscle_id
+      `, [userId]);
+
+      if (muscleWork.length > 0) {
+        const avg = muscleWork.reduce((sum: number, m: any) => sum + Number(m.total_activation), 0) / muscleWork.length;
+        const neglected = muscleWork.filter((m: any) => Number(m.total_activation) < avg * 0.5);
+
+        if (neglected.length > 0) {
+          recommendations.push({
+            type: 'muscle_balance',
+            title: 'Address Muscle Imbalances',
+            description: 'Some muscle groups need more attention',
+            priority: 'medium',
+            data: { neglectedMuscles: neglected.map((m: any) => m.muscle_id) },
+          });
+        }
+      }
+
+      return recommendations;
+    },
+
+    // Onboarding profile
+    onboardingProfile: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const profile = await queryOne<any>(`
+        SELECT * FROM onboarding_profiles WHERE user_id = $1
+      `, [userId]);
+
+      if (!profile) {
+        return {
+          userId,
+          completed: false,
+          currentStep: 'welcome',
+          steps: ['welcome', 'goals', 'experience', 'equipment', 'schedule', 'archetype'],
+        };
+      }
+
+      return {
+        userId,
+        completed: profile.completed,
+        currentStep: profile.current_step,
+        completedSteps: profile.completed_steps || [],
+        fitnessGoals: profile.fitness_goals || [],
+        experienceLevel: profile.experience_level,
+        availableEquipment: profile.available_equipment || [],
+        weeklySchedule: profile.weekly_schedule || {},
+        preferredWorkoutDuration: profile.preferred_duration,
+      };
+    },
+
+    // Privacy summary
+    privacySummary: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const settings = await queryOne<any>(`
+        SELECT * FROM user_privacy_settings WHERE user_id = $1
+      `, [userId]);
+
+      const defaultSettings = {
+        profileVisibility: 'public',
+        workoutVisibility: 'followers',
+        statsVisibility: 'public',
+        allowMessages: true,
+        showOnLeaderboards: true,
+        showOnlineStatus: true,
+      };
+
+      return settings || { userId, ...defaultSettings };
+    },
+
+    // Personalization plan
+    personalizationPlan: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const plan = await queryOne<any>(`
+        SELECT * FROM user_personalization_plans WHERE user_id = $1
+      `, [userId]);
+
+      if (!plan) {
+        return null;
+      }
+
+      return {
+        id: plan.id,
+        userId,
+        weeklyPlan: plan.weekly_plan || [],
+        recommendations: plan.recommendations || [],
+        createdAt: plan.created_at,
+        updatedAt: plan.updated_at,
+      };
+    },
+
+    // Personalization summary
+    personalizationSummary: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const user = await queryOne<any>(`
+        SELECT u.*, a.name as archetype_name
+        FROM users u
+        LEFT JOIN archetypes a ON u.archetype_id = a.id
+        WHERE u.id = $1
+      `, [userId]);
+
+      const workoutStats = await queryOne<any>(`
+        SELECT
+          COUNT(*) as total_workouts,
+          AVG(total_tu) as avg_tu,
+          MAX(date) as last_workout
+        FROM workouts WHERE user_id = $1
+      `, [userId]);
+
+      return {
+        userId,
+        archetype: user?.archetype_id ? { id: user.archetype_id, name: user.archetype_name } : null,
+        level: user?.level || 1,
+        totalWorkouts: Number(workoutStats?.total_workouts) || 0,
+        averageTU: Number(workoutStats?.avg_tu) || 0,
+        lastWorkout: workoutStats?.last_workout,
+        strengthScore: 0, // TODO: Calculate from stats
+        consistencyScore: 0, // TODO: Calculate from workout frequency
+      };
+    },
   },
 
   // ============================================
@@ -2872,7 +3403,8 @@ export const resolvers = {
             workout: {
               id: workout.id,
               userId: workout.user_id,
-              exercises: JSON.parse(workout.exercise_data || '[]'),
+              // FIXED: exercise_data is JSONB - PostgreSQL returns it as already-parsed object
+              exercises: workout.exercise_data || [],
               totalTU: workout.total_tu,
               createdAt: workout.created_at,
             },
@@ -4407,6 +4939,628 @@ export const resolvers = {
         passed,
         assessedAt: testDate,
         createdAt: new Date(),
+      };
+    },
+
+    // ============================================
+    // MISSING MUTATION RESOLVERS - Added 2026-01-19
+    // ============================================
+
+    // Messaging System
+    createConversation: async (_: unknown, args: { participantIds: string[] }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Create unique conversation ID
+      const conversationId = `conv_${crypto.randomBytes(12).toString('hex')}`;
+
+      // Check for existing 1:1 conversation
+      if (args.participantIds.length === 1) {
+        const existing = await queryOne<{ id: string }>(`
+          SELECT c.id FROM conversations c
+          JOIN conversation_participants cp1 ON c.id = cp1.conversation_id AND cp1.user_id = $1
+          JOIN conversation_participants cp2 ON c.id = cp2.conversation_id AND cp2.user_id = $2
+          WHERE c.type = 'direct'
+        `, [userId, args.participantIds[0]]);
+
+        if (existing) {
+          const conv = await queryOne<any>('SELECT * FROM conversations WHERE id = $1', [existing.id]);
+          return { id: conv.id, type: conv.type, createdAt: conv.created_at };
+        }
+      }
+
+      // Create new conversation
+      await query(
+        `INSERT INTO conversations (id, type, created_by) VALUES ($1, $2, $3)`,
+        [conversationId, args.participantIds.length === 1 ? 'direct' : 'group', userId]
+      );
+
+      // Add participants
+      const allParticipants = [userId, ...args.participantIds];
+      for (const participantId of allParticipants) {
+        await query(
+          `INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2)`,
+          [conversationId, participantId]
+        );
+      }
+
+      return { id: conversationId, type: args.participantIds.length === 1 ? 'direct' : 'group', createdAt: new Date() };
+    },
+
+    sendMessage: async (_: unknown, args: { conversationId: string; content: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        `SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2`,
+        [args.conversationId, userId]
+      );
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      const messageId = `msg_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO messages (id, conversation_id, sender_id, content) VALUES ($1, $2, $3, $4)`,
+        [messageId, args.conversationId, userId, args.content]
+      );
+
+      // Update conversation last_message_at
+      await query(
+        `UPDATE conversations SET last_message_at = NOW() WHERE id = $1`,
+        [args.conversationId]
+      );
+
+      const sender = await queryOne<{ username: string; avatar_url: string }>(
+        'SELECT username, avatar_url FROM users WHERE id = $1',
+        [userId]
+      );
+
+      return {
+        id: messageId,
+        conversationId: args.conversationId,
+        senderId: userId,
+        sender: { id: userId, username: sender?.username, avatar: sender?.avatar_url },
+        content: args.content,
+        createdAt: new Date(),
+      };
+    },
+
+    markConversationRead: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `UPDATE messages SET read_at = NOW()
+         WHERE conversation_id = $1 AND sender_id != $2 AND read_at IS NULL`,
+        [args.conversationId, userId]
+      );
+
+      await query(
+        `UPDATE conversation_participants SET last_read_at = NOW()
+         WHERE conversation_id = $1 AND user_id = $2`,
+        [args.conversationId, userId]
+      );
+
+      return { success: true };
+    },
+
+    deleteMessage: async (_: unknown, args: { messageId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ sender_id: string }>(
+        'SELECT sender_id FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (message.sender_id !== userId) {
+        throw new GraphQLError('Can only delete your own messages', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query('DELETE FROM messages WHERE id = $1', [args.messageId]);
+
+      return { success: true };
+    },
+
+    // Hangout System
+    createHangout: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { title, description, type, latitude, longitude, address, startTime, endTime, maxParticipants } = args.input;
+
+      const hangoutId = `hangout_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO hangouts (id, host_id, title, description, type, latitude, longitude, address, start_time, end_time, max_participants, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')`,
+        [hangoutId, userId, title, description, type, latitude, longitude, address, startTime, endTime, maxParticipants || 10]
+      );
+
+      // Host automatically joins
+      await query(
+        `INSERT INTO hangout_members (hangout_id, user_id, role) VALUES ($1, $2, 'host')`,
+        [hangoutId, userId]
+      );
+
+      return {
+        id: hangoutId,
+        hostId: userId,
+        title,
+        description,
+        type,
+        latitude,
+        longitude,
+        address,
+        startTime,
+        endTime,
+        maxParticipants: maxParticipants || 10,
+        status: 'active',
+        createdAt: new Date(),
+      };
+    },
+
+    joinHangout: async (_: unknown, args: { hangoutId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const hangout = await queryOne<{ max_participants: number; status: string }>(
+        'SELECT max_participants, status FROM hangouts WHERE id = $1',
+        [args.hangoutId]
+      );
+
+      if (!hangout) {
+        throw new GraphQLError('Hangout not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (hangout.status !== 'active') {
+        throw new GraphQLError('Hangout is no longer active', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      const memberCount = await queryOne<{ count: number }>(
+        'SELECT COUNT(*) as count FROM hangout_members WHERE hangout_id = $1',
+        [args.hangoutId]
+      );
+
+      if ((memberCount?.count || 0) >= hangout.max_participants) {
+        throw new GraphQLError('Hangout is full', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      // Check if already a member
+      const existing = await queryOne<{ id: string }>(
+        'SELECT id FROM hangout_members WHERE hangout_id = $1 AND user_id = $2',
+        [args.hangoutId, userId]
+      );
+
+      if (existing) {
+        throw new GraphQLError('Already a member of this hangout', { extensions: { code: 'CONFLICT' } });
+      }
+
+      await query(
+        `INSERT INTO hangout_members (hangout_id, user_id, role) VALUES ($1, $2, 'member')`,
+        [args.hangoutId, userId]
+      );
+
+      return { success: true, hangoutId: args.hangoutId };
+    },
+
+    leaveHangout: async (_: unknown, args: { hangoutId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const member = await queryOne<{ role: string }>(
+        'SELECT role FROM hangout_members WHERE hangout_id = $1 AND user_id = $2',
+        [args.hangoutId, userId]
+      );
+
+      if (!member) {
+        throw new GraphQLError('Not a member of this hangout', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      if (member.role === 'host') {
+        // If host leaves, cancel the hangout
+        await query('UPDATE hangouts SET status = $1 WHERE id = $2', ['cancelled', args.hangoutId]);
+      }
+
+      await query(
+        'DELETE FROM hangout_members WHERE hangout_id = $1 AND user_id = $2',
+        [args.hangoutId, userId]
+      );
+
+      return { success: true };
+    },
+
+    createHangoutPost: async (_: unknown, args: { hangoutId: string; content: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Verify membership
+      const member = await queryOne<{ id: string }>(
+        'SELECT id FROM hangout_members WHERE hangout_id = $1 AND user_id = $2',
+        [args.hangoutId, userId]
+      );
+
+      if (!member) {
+        throw new GraphQLError('Must be a member to post', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      const postId = `hpost_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO hangout_posts (id, hangout_id, user_id, content) VALUES ($1, $2, $3, $4)`,
+        [postId, args.hangoutId, userId, args.content]
+      );
+
+      return {
+        id: postId,
+        hangoutId: args.hangoutId,
+        userId,
+        content: args.content,
+        createdAt: new Date(),
+      };
+    },
+
+    // Goal System
+    updateGoal: async (_: unknown, args: { goalId: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { title, description, target, deadline } = args.input;
+
+      const goal = await queryOne<{ user_id: string }>(
+        'SELECT user_id FROM goals WHERE id = $1',
+        [args.goalId]
+      );
+
+      if (!goal) {
+        throw new GraphQLError('Goal not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (goal.user_id !== userId) {
+        throw new GraphQLError('Cannot update another user\'s goal', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        `UPDATE goals SET
+          title = COALESCE($2, title),
+          description = COALESCE($3, description),
+          target = COALESCE($4, target),
+          deadline = COALESCE($5, deadline),
+          updated_at = NOW()
+         WHERE id = $1`,
+        [args.goalId, title, description, target, deadline]
+      );
+
+      const updated = await queryOne<any>('SELECT * FROM goals WHERE id = $1', [args.goalId]);
+
+      return {
+        id: updated.id,
+        userId: updated.user_id,
+        type: updated.type,
+        title: updated.title,
+        description: updated.description,
+        target: updated.target,
+        current: updated.current_value,
+        unit: updated.unit,
+        deadline: updated.deadline,
+        status: updated.status,
+        createdAt: updated.created_at,
+        updatedAt: updated.updated_at,
+      };
+    },
+
+    recordGoalProgress: async (_: unknown, args: { goalId: string; value: number; note?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const goal = await queryOne<{ user_id: string; current_value: number; target: number }>(
+        'SELECT user_id, current_value, target FROM goals WHERE id = $1',
+        [args.goalId]
+      );
+
+      if (!goal) {
+        throw new GraphQLError('Goal not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (goal.user_id !== userId) {
+        throw new GraphQLError('Cannot update another user\'s goal', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      const newValue = (goal.current_value || 0) + args.value;
+
+      await query(
+        `UPDATE goals SET current_value = $2, updated_at = NOW() WHERE id = $1`,
+        [args.goalId, newValue]
+      );
+
+      // Log progress entry
+      await query(
+        `INSERT INTO goal_progress (goal_id, user_id, value, note) VALUES ($1, $2, $3, $4)`,
+        [args.goalId, userId, args.value, args.note]
+      );
+
+      // Check if goal is completed
+      const completed = newValue >= goal.target;
+      if (completed) {
+        await query(`UPDATE goals SET status = 'completed', completed_at = NOW() WHERE id = $1`, [args.goalId]);
+      }
+
+      return {
+        goalId: args.goalId,
+        newValue,
+        completed,
+        progress: Math.min(100, Math.round((newValue / goal.target) * 100)),
+      };
+    },
+
+    // Issue/Feedback System
+    createIssue: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { title, description, type, priority } = args.input;
+
+      const issueId = `issue_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO issues (id, author_id, title, description, type, priority, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'open')`,
+        [issueId, userId, title, description, type || 'bug', priority || 'medium']
+      );
+
+      return {
+        id: issueId,
+        authorId: userId,
+        title,
+        description,
+        type: type || 'bug',
+        priority: priority || 'medium',
+        status: 'open',
+        createdAt: new Date(),
+      };
+    },
+
+    voteOnIssue: async (_: unknown, args: { issueId: string; vote: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Check if already voted
+      const existing = await queryOne<{ vote: string }>(
+        'SELECT vote FROM issue_votes WHERE issue_id = $1 AND user_id = $2',
+        [args.issueId, userId]
+      );
+
+      if (existing) {
+        if (existing.vote === args.vote) {
+          // Remove vote
+          await query('DELETE FROM issue_votes WHERE issue_id = $1 AND user_id = $2', [args.issueId, userId]);
+        } else {
+          // Change vote
+          await query('UPDATE issue_votes SET vote = $3 WHERE issue_id = $1 AND user_id = $2', [args.issueId, userId, args.vote]);
+        }
+      } else {
+        // New vote
+        await query(
+          'INSERT INTO issue_votes (issue_id, user_id, vote) VALUES ($1, $2, $3)',
+          [args.issueId, userId, args.vote]
+        );
+      }
+
+      const counts = await queryOne<{ up: number; down: number }>(`
+        SELECT
+          COUNT(*) FILTER (WHERE vote = 'up') as up,
+          COUNT(*) FILTER (WHERE vote = 'down') as down
+        FROM issue_votes WHERE issue_id = $1
+      `, [args.issueId]);
+
+      return {
+        issueId: args.issueId,
+        upvotes: Number(counts?.up) || 0,
+        downvotes: Number(counts?.down) || 0,
+      };
+    },
+
+    // Equipment Management
+    addHomeEquipment: async (_: unknown, args: { equipmentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `INSERT INTO user_equipment (user_id, equipment_id) VALUES ($1, $2)
+         ON CONFLICT (user_id, equipment_id) DO NOTHING`,
+        [userId, args.equipmentId]
+      );
+
+      return { success: true, equipmentId: args.equipmentId };
+    },
+
+    removeHomeEquipment: async (_: unknown, args: { equipmentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'DELETE FROM user_equipment WHERE user_id = $1 AND equipment_id = $2',
+        [userId, args.equipmentId]
+      );
+
+      return { success: true, equipmentId: args.equipmentId };
+    },
+
+    // Limitations/Injuries
+    createLimitation: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { bodyPart, description, severity, startDate, endDate } = args.input;
+
+      const limitationId = `lim_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO user_limitations (id, user_id, body_part, description, severity, start_date, end_date, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')`,
+        [limitationId, userId, bodyPart, description, severity || 'moderate', startDate || new Date(), endDate]
+      );
+
+      return {
+        id: limitationId,
+        userId,
+        bodyPart,
+        description,
+        severity: severity || 'moderate',
+        startDate: startDate || new Date(),
+        endDate,
+        status: 'active',
+        createdAt: new Date(),
+      };
+    },
+
+    updateLimitation: async (_: unknown, args: { limitationId: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { description, severity, endDate, status } = args.input;
+
+      const limitation = await queryOne<{ user_id: string }>(
+        'SELECT user_id FROM user_limitations WHERE id = $1',
+        [args.limitationId]
+      );
+
+      if (!limitation || limitation.user_id !== userId) {
+        throw new GraphQLError('Limitation not found or access denied', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      await query(
+        `UPDATE user_limitations SET
+          description = COALESCE($2, description),
+          severity = COALESCE($3, severity),
+          end_date = COALESCE($4, end_date),
+          status = COALESCE($5, status),
+          updated_at = NOW()
+         WHERE id = $1`,
+        [args.limitationId, description, severity, endDate, status]
+      );
+
+      const updated = await queryOne<any>('SELECT * FROM user_limitations WHERE id = $1', [args.limitationId]);
+
+      return {
+        id: updated.id,
+        userId: updated.user_id,
+        bodyPart: updated.body_part,
+        description: updated.description,
+        severity: updated.severity,
+        startDate: updated.start_date,
+        endDate: updated.end_date,
+        status: updated.status,
+        updatedAt: updated.updated_at,
+      };
+    },
+
+    deleteLimitation: async (_: unknown, args: { limitationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const limitation = await queryOne<{ user_id: string }>(
+        'SELECT user_id FROM user_limitations WHERE id = $1',
+        [args.limitationId]
+      );
+
+      if (!limitation || limitation.user_id !== userId) {
+        throw new GraphQLError('Limitation not found or access denied', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      await query('DELETE FROM user_limitations WHERE id = $1', [args.limitationId]);
+
+      return { success: true };
+    },
+
+    // Prescription Engine
+    generatePrescription: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const prescription = await prescriptionEngine.prescribe({
+        userContext: {
+          userId,
+          ...args.input,
+        },
+        ...args.input,
+      });
+
+      return prescription;
+    },
+
+    // Preview Workout (TU/XP calculation before save)
+    previewWorkout: async (_: unknown, args: { exercises: any[] }, context: Context) => {
+      requireAuth(context);
+
+      const { totalTU, muscleActivations } = await calculateTU(args.exercises);
+
+      // Estimate XP (simplified - 10 XP per TU)
+      const estimatedXP = Math.round(totalTU * 10);
+
+      return {
+        totalTU,
+        estimatedXP,
+        muscleActivations: Object.entries(muscleActivations).map(([muscleId, activation]) => ({
+          muscleId,
+          activation: activation as number,
+        })),
+      };
+    },
+
+    // Block/Unblock Users
+    blockUser: async (_: unknown, args: { userId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      if (args.userId === userId) {
+        throw new GraphQLError('Cannot block yourself', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      await query(
+        `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2)
+         ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+        [userId, args.userId]
+      );
+
+      // Remove any follows
+      await query('DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2', [userId, args.userId]);
+      await query('DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2', [args.userId, userId]);
+
+      return { success: true };
+    },
+
+    unblockUser: async (_: unknown, args: { userId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
+        [userId, args.userId]
+      );
+
+      return { success: true };
+    },
+
+    // Update Privacy Settings
+    updatePrivacy: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `INSERT INTO user_privacy_settings (user_id, profile_visibility, workout_visibility, stats_visibility, allow_messages, show_on_leaderboards, show_online_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id) DO UPDATE SET
+           profile_visibility = COALESCE(EXCLUDED.profile_visibility, user_privacy_settings.profile_visibility),
+           workout_visibility = COALESCE(EXCLUDED.workout_visibility, user_privacy_settings.workout_visibility),
+           stats_visibility = COALESCE(EXCLUDED.stats_visibility, user_privacy_settings.stats_visibility),
+           allow_messages = COALESCE(EXCLUDED.allow_messages, user_privacy_settings.allow_messages),
+           show_on_leaderboards = COALESCE(EXCLUDED.show_on_leaderboards, user_privacy_settings.show_on_leaderboards),
+           show_online_status = COALESCE(EXCLUDED.show_online_status, user_privacy_settings.show_online_status),
+           updated_at = NOW()`,
+        [
+          userId,
+          args.input.profileVisibility,
+          args.input.workoutVisibility,
+          args.input.statsVisibility,
+          args.input.allowMessages,
+          args.input.showOnLeaderboards,
+          args.input.showOnlineStatus,
+        ]
+      );
+
+      const settings = await queryOne<any>('SELECT * FROM user_privacy_settings WHERE user_id = $1', [userId]);
+
+      return {
+        profileVisibility: settings?.profile_visibility || 'public',
+        workoutVisibility: settings?.workout_visibility || 'followers',
+        statsVisibility: settings?.stats_visibility || 'public',
+        allowMessages: settings?.allow_messages ?? true,
+        showOnLeaderboards: settings?.show_on_leaderboards ?? true,
+        showOnlineStatus: settings?.show_online_status ?? true,
       };
     },
   },
