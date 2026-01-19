@@ -74,7 +74,7 @@ function ProfileCard({
   onEdit,
   onDelete,
 }: {
-  profile: UserPreferenceProfile;
+  profile: PreferenceProfile;
   isActive: boolean;
   onActivate: () => void;
   onEdit: () => void;
@@ -142,7 +142,7 @@ function CreateProfileModal({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (profile: Partial<UserPreferenceProfile>) => void;
+  onCreate: (profile: Partial<PreferenceProfile>) => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -293,8 +293,8 @@ export default function ProfilesTab() {
     loadProfiles();
   }, [loadProfiles]);
 
-  const handleCreate = (profile: Partial<UserPreferenceProfile>) => {
-    createProfile(profile as Omit<UserPreferenceProfile, 'id' | 'userId' | 'createdAt'>);
+  const handleCreate = (profile: Partial<PreferenceProfile>) => {
+    createProfile(profile as Omit<PreferenceProfile, 'id' | 'userId' | 'createdAt'>);
   };
 
   return (
