@@ -55,3 +55,6 @@ scripts/bug-hunter/data/
 
 # Build cache for incremental builds
 .build-cache/
+
+# Vendor pre-bundle cache (regenerate with: node scripts/prebundle-vendors.mjs)
+.vendor-cache/
