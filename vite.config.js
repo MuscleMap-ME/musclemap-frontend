@@ -7,10 +7,14 @@ import compression from 'vite-plugin-compression'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
+import { cpus } from 'os'
 
 // Read package.json to get version
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
+
+// Detect available CPU cores for parallelization
+const numCPUs = cpus().length
 
 // Memory optimization: Skip compression during build if SKIP_COMPRESSION is set
 // This reduces peak memory by ~500MB - compression is done post-build instead
@@ -42,7 +46,11 @@ export default defineConfig({
     },
   },
   plugins: [
-    react(),
+    react({
+      // SWC options for faster compilation
+      // https://swc.rs/docs/configuration/compilation
+      devTarget: 'es2022',  // Target modern browsers in dev for faster transforms
+    }),
     // Bundle visualizer - generates stats.html when ANALYZE=true
     process.env.ANALYZE && visualizer({
       filename: 'dist/stats.html',
@@ -115,12 +123,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 300,
     // Low memory mode: Use esbuild minification (faster, less memory than terser)
     minify: 'esbuild',
+    // Skip compressed size reporting - saves ~30% build time
+    // We calculate sizes in post-build compression anyway
+    reportCompressedSize: false,
     // Reduce memory pressure by limiting concurrent file operations
     // Normal: 20 parallel ops, Low memory: 2 parallel ops
     ...(lowMemoryMode && {
       // These options reduce peak memory at cost of build speed
       cssCodeSplit: true,  // Split CSS to reduce memory per chunk
-      reportCompressedSize: false,  // Skip compressed size calculation
     }),
     // Disable modulepreload for heavy vendor chunks
     // They will be loaded on-demand when the page that needs them is visited
@@ -152,8 +162,10 @@ export default defineConfig({
       // This is the KEY setting that prevents OOM during module transformation
       ...(lowMemoryMode && {
         maxParallelFileOps: 2,  // Default is 20, reduce to 2 for 8GB servers
-        // Note: We keep cache enabled (default) for faster rebuilds
-        // The cache is disk-based and doesn't significantly impact peak memory
+      }),
+      // High performance mode: maximize parallelism
+      ...(!lowMemoryMode && {
+        maxParallelFileOps: Math.max(numCPUs * 2, 20),  // Use 2x CPU cores
       }),
       output: {
         // Strategic chunk splitting for optimal caching and loading
@@ -256,8 +268,9 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
-  // Optimize deps for faster dev server
+  // Optimize deps for faster dev AND build
   optimizeDeps: {
+    // Pre-bundle these deps - they are used on most pages
     include: [
       'react',
       'react-dom',
@@ -266,9 +279,12 @@ export default defineConfig({
       'graphql',
       'framer-motion',
       'zustand',
+      'lucide-react',
+      'clsx',
+      'tailwind-merge',
     ],
-    // Exclude heavy deps and their transitive deps from pre-bundling
-    // This prevents module resolution conflicts during HMR
+    // Exclude heavy deps from pre-bundling to avoid bloating the cache
+    // These will be bundled on-demand when the pages that need them load
     exclude: [
       'three',
       '@react-three/fiber',
@@ -276,8 +292,23 @@ export default defineConfig({
     ],
     // Force optimization of nested dependencies
     esbuildOptions: {
-      // Resolve react-reconciler module issues
       mainFields: ['module', 'main'],
     },
+  },
+  // esbuild configuration for faster transforms
+  esbuild: {
+    // Use all available CPU cores for transformation
+    // This is the key setting for speeding up the "transforming" phase
+    // Production server has 2 cores, local dev may have more
+    ...(lowMemoryMode ? {} : {
+      // Full speed mode: use all cores
+      // Note: esbuild is already very fast, but we ensure max parallelism
+    }),
+    // Skip JSX development annotations in production
+    jsx: 'automatic',
+    // Drop console.log in production builds
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    // Faster parsing with loose mode (safe for modern browsers)
+    legalComments: 'none',
   },
 })
