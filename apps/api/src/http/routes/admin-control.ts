@@ -15,6 +15,7 @@ import { authenticate, requireRole } from './auth';
 import { queryAll, queryOne, query } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { getRedis, isRedisAvailable } from '../../lib/redis';
+import { creditService } from '../../modules/economy/credit.service';
 
 const log = loggers.api;
 
@@ -312,11 +313,13 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
       credit_balance: number;
       status: string;
     }>(
-      `SELECT id, username, email, display_name, avatar_url, roles, created_at, total_xp, credit_balance,
-              COALESCE(status, 'active') as status
-       FROM users
-       WHERE ${whereClause}
-       ORDER BY created_at DESC
+      `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.roles, u.created_at, u.total_xp,
+              COALESCE(cb.balance, 0) as credit_balance,
+              COALESCE(u.moderation_status, 'active') as status
+       FROM users u
+       LEFT JOIN credit_balances cb ON cb.user_id = u.id
+       WHERE ${whereClause.replace(/username/g, 'u.username').replace(/email/g, 'u.email').replace(/display_name/g, 'u.display_name')}
+       ORDER BY u.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
       queryParams
     );
@@ -406,10 +409,10 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     const [totalGifted, totalTransactions, recentTransactions] = await Promise.all([
       queryOne<{ total: string }>(
         `SELECT COALESCE(SUM(amount), 0)::text as total
-         FROM wallet_transactions
-         WHERE action LIKE '%gift%' OR action LIKE '%grant%'`
+         FROM credit_ledger
+         WHERE action LIKE '%gift%' OR action LIKE '%grant%' OR action = 'admin_adjustment'`
       ),
-      queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM wallet_transactions'),
+      queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM credit_ledger'),
       queryAll<{
         id: string;
         user_id: string;
@@ -418,7 +421,7 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
         created_at: Date;
       }>(
         `SELECT id, user_id, action, amount, created_at
-         FROM wallet_transactions
+         FROM credit_ledger
          ORDER BY created_at DESC
          LIMIT 20`
       ),
@@ -443,30 +446,24 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     const adminId = request.user!.userId;
 
     try {
-      // Update user's credit balance
-      await query(
-        `UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2`,
-        [data.amount, data.userId]
-      );
-
-      // Log the transaction
-      await query(
-        `INSERT INTO wallet_transactions (user_id, action, amount, balance_before, balance_after, metadata)
-         SELECT $1, 'admin_adjustment', $2, credit_balance - $2, credit_balance, $3
-         FROM users WHERE id = $1`,
-        [data.userId, data.amount, JSON.stringify({ adminId, reason: data.reason })]
+      // Use the credit service to add credits properly
+      const result = await creditService.addCredits(
+        data.userId,
+        data.amount,
+        'admin_adjustment',
+        { adminId, reason: data.reason }
       );
 
       // Log to audit
       await query(
         `INSERT INTO audit_log (user_id, action, details)
          VALUES ($1, 'admin_credit_adjustment', $2)`,
-        [adminId, JSON.stringify({ targetUserId: data.userId, amount: data.amount, reason: data.reason })]
+        [adminId, JSON.stringify({ targetUserId: data.userId, amount: data.amount, reason: data.reason, newBalance: result.newBalance })]
       );
 
-      log.info({ adminId, userId: data.userId, amount: data.amount }, 'Admin credit adjustment');
+      log.info({ adminId, userId: data.userId, amount: data.amount, newBalance: result.newBalance }, 'Admin credit adjustment');
 
-      return reply.send({ success: true });
+      return reply.send({ success: true, newBalance: result.newBalance });
     } catch (err) {
       log.error({ err }, 'Failed to adjust credits');
       return reply.status(500).send({
