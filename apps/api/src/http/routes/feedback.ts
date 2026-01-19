@@ -7,6 +7,7 @@
  * - Questions/support
  * - General feedback
  * - FAQ browsing
+ * - Screenshot uploads for bug reports
  */
 
 import { FastifyInstance } from 'fastify';
@@ -15,6 +16,17 @@ import { authenticate, optionalAuth } from './auth';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { SlackNotifications } from '../../modules/notifications/slack.service';
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import { pipeline } from 'stream/promises';
+import { createWriteStream } from 'fs';
+
+// Upload configuration
+const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || '/var/www/musclemap.me/uploads';
+const FEEDBACK_UPLOADS_DIR = 'feedback';
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 const log = loggers.http;
 
@@ -97,6 +109,83 @@ const faqHelpfulSchema = z.object({
 });
 
 export async function registerFeedbackRoutes(app: FastifyInstance) {
+  // ============================================
+  // SCREENSHOT UPLOADS
+  // ============================================
+
+  // Ensure upload directory exists
+  const uploadDir = path.join(UPLOAD_BASE_DIR, FEEDBACK_UPLOADS_DIR);
+  await fs.mkdir(uploadDir, { recursive: true }).catch(() => {
+    log.warn('Could not create upload directory, uploads may fail');
+  });
+
+  // Upload screenshot for bug report
+  app.post('/feedback/upload', { preHandler: authenticate }, async (request, reply) => {
+    try {
+      // Get the file from multipart
+      const data = await request.file();
+
+      if (!data) {
+        return reply.status(400).send({ error: 'No file uploaded' });
+      }
+
+      // Validate mime type
+      if (!ALLOWED_MIME_TYPES.includes(data.mimetype)) {
+        return reply.status(400).send({
+          error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP',
+        });
+      }
+
+      // Generate unique filename
+      const fileExt = data.mimetype.split('/')[1] === 'jpeg' ? 'jpg' : data.mimetype.split('/')[1];
+      const uniqueId = crypto.randomBytes(16).toString('hex');
+      const filename = `${Date.now()}-${uniqueId}.${fileExt}`;
+      const filepath = path.join(uploadDir, filename);
+
+      // Stream file to disk with size limit
+      let bytesWritten = 0;
+      const writeStream = createWriteStream(filepath);
+
+      const fileStream = data.file;
+
+      // Check size as we stream
+      fileStream.on('data', (chunk: Buffer) => {
+        bytesWritten += chunk.length;
+        if (bytesWritten > MAX_FILE_SIZE) {
+          fileStream.destroy(new Error('File too large'));
+          writeStream.destroy();
+          // Clean up partial file
+          fs.unlink(filepath).catch(() => {});
+        }
+      });
+
+      try {
+        await pipeline(fileStream, writeStream);
+      } catch (err: unknown) {
+        // Clean up on error
+        await fs.unlink(filepath).catch(() => {});
+        if ((err as Error).message === 'File too large') {
+          return reply.status(400).send({ error: 'File too large. Maximum 5MB.' });
+        }
+        throw err;
+      }
+
+      // Generate public URL
+      const publicUrl = `/uploads/${FEEDBACK_UPLOADS_DIR}/${filename}`;
+
+      log.info({ userId: request.user!.userId, filename, size: bytesWritten }, 'Feedback screenshot uploaded');
+
+      return reply.send({
+        url: publicUrl,
+        filename,
+        size: bytesWritten,
+      });
+    } catch (error) {
+      log.error({ error }, 'Failed to upload feedback screenshot');
+      return reply.status(500).send({ error: 'Failed to upload file' });
+    }
+  });
+
   // ============================================
   // SUBMIT FEEDBACK
   // ============================================

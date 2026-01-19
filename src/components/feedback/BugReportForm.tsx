@@ -1,12 +1,12 @@
 /**
  * BugReportForm Component
  *
- * A form for users to report bugs, with auto-detected device info
- * and the option to submit directly to GitHub Issues.
+ * A form for users to report bugs, with auto-detected device info,
+ * screenshot upload support, and the option to submit directly to GitHub Issues.
  */
 
-import { useState, useEffect } from 'react';
-import { ExternalLink, Copy, Check } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ExternalLink, Copy, Check, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 const GITHUB_REPO = 'https://github.com/musclemap/musclemap-frontend';
 
@@ -20,8 +20,65 @@ interface DeviceInfo {
   appVersion: string;
 }
 
+interface Screenshot {
+  id: string;
+  file: File;
+  preview: string;
+  uploading: boolean;
+  uploaded: boolean;
+  url?: string;
+  error?: string;
+}
+
 interface BugReportFormProps {
   onSuccess?: () => void;
+}
+
+const MAX_SCREENSHOTS = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// Compress image before upload
+async function compressImage(file: File, maxWidth = 1920, quality = 0.8): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Scale down if too large
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to compress image'));
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// Generate unique ID for screenshots
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 export function BugReportForm({ onSuccess }: BugReportFormProps) {
@@ -40,6 +97,195 @@ export function BugReportForm({ onSuccess }: BugReportFormProps) {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Screenshot upload state
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      screenshots.forEach((s) => URL.revokeObjectURL(s.preview));
+    };
+  }, []);
+
+  // Handle file selection
+  const handleFiles = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    const remainingSlots = MAX_SCREENSHOTS - screenshots.length;
+
+    if (remainingSlots <= 0) {
+      setErrors((prev) => ({
+        ...prev,
+        screenshots: `Maximum ${MAX_SCREENSHOTS} screenshots allowed`,
+      }));
+      return;
+    }
+
+    const filesToAdd = fileArray.slice(0, remainingSlots);
+    const newScreenshots: Screenshot[] = [];
+
+    for (const file of filesToAdd) {
+      // Validate file type
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setErrors((prev) => ({
+          ...prev,
+          screenshots: `Invalid file type: ${file.name}. Use JPEG, PNG, GIF, or WebP.`,
+        }));
+        continue;
+      }
+
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        setErrors((prev) => ({
+          ...prev,
+          screenshots: `File too large: ${file.name}. Maximum 5MB.`,
+        }));
+        continue;
+      }
+
+      const screenshot: Screenshot = {
+        id: generateId(),
+        file,
+        preview: URL.createObjectURL(file),
+        uploading: false,
+        uploaded: false,
+      };
+
+      newScreenshots.push(screenshot);
+    }
+
+    if (newScreenshots.length > 0) {
+      setScreenshots((prev) => [...prev, ...newScreenshots]);
+      setErrors((prev) => {
+        const { screenshots: _, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [screenshots.length]);
+
+  // Remove screenshot
+  const removeScreenshot = useCallback((id: string) => {
+    setScreenshots((prev) => {
+      const screenshot = prev.find((s) => s.id === id);
+      if (screenshot) {
+        URL.revokeObjectURL(screenshot.preview);
+      }
+      return prev.filter((s) => s.id !== id);
+    });
+  }, []);
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(false);
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFiles(files);
+      }
+    },
+    [handleFiles]
+  );
+
+  // Handle paste from clipboard
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const imageFiles: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        handleFiles(imageFiles);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [handleFiles]);
+
+  // Upload screenshots to server
+  const uploadScreenshots = async (): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+
+    for (const screenshot of screenshots) {
+      if (screenshot.uploaded && screenshot.url) {
+        uploadedUrls.push(screenshot.url);
+        continue;
+      }
+
+      try {
+        setScreenshots((prev) =>
+          prev.map((s) => (s.id === screenshot.id ? { ...s, uploading: true } : s))
+        );
+
+        // Compress image before upload
+        const compressed = await compressImage(screenshot.file);
+        const formData = new FormData();
+        formData.append('file', compressed, screenshot.file.name);
+
+        const response = await fetch('/api/feedback/upload', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+        const url = data.url;
+
+        setScreenshots((prev) =>
+          prev.map((s) =>
+            s.id === screenshot.id ? { ...s, uploading: false, uploaded: true, url } : s
+          )
+        );
+
+        uploadedUrls.push(url);
+      } catch (error) {
+        setScreenshots((prev) =>
+          prev.map((s) =>
+            s.id === screenshot.id
+              ? { ...s, uploading: false, error: 'Upload failed' }
+              : s
+          )
+        );
+      }
+    }
+
+    return uploadedUrls;
+  };
 
   useEffect(() => {
     const info: DeviceInfo = {
@@ -96,7 +342,11 @@ export function BugReportForm({ onSuccess }: BugReportFormProps) {
     return Object.keys(newErrors).length === 0;
   }
 
-  function generateGitHubIssueUrl(): string {
+  function generateGitHubIssueUrl(screenshotUrls: string[]): string {
+    const screenshotSection = screenshotUrls.length > 0
+      ? `\n\n## Screenshots\n${screenshotUrls.map((url, i) => `![Screenshot ${i + 1}](${url})`).join('\n')}`
+      : '';
+
     const body = `## Bug Description
 ${formData.description}
 
@@ -118,7 +368,7 @@ ${formData.severity}
 - **Screen Size:** ${deviceInfo?.screenSize}
 - **App Version:** ${deviceInfo?.appVersion}
 - **URL:** ${deviceInfo?.url}
-- **Timestamp:** ${deviceInfo?.timestamp}
+- **Timestamp:** ${deviceInfo?.timestamp}${screenshotSection}
 
 ---
 _Submitted via MuscleMap Feedback Center_`;
@@ -140,16 +390,50 @@ _Submitted via MuscleMap Feedback Center_`;
     setIsSubmitting(true);
 
     try {
+      // Upload screenshots first if any
+      let screenshotUrls: string[] = [];
+      if (screenshots.length > 0) {
+        screenshotUrls = await uploadScreenshots();
+      }
+
       if (submitToGitHub) {
-        const issueUrl = generateGitHubIssueUrl();
+        const issueUrl = generateGitHubIssueUrl(screenshotUrls);
         window.open(issueUrl, '_blank');
       } else {
-        // For now, just log - in production this would hit an internal API
-        console.log('Bug report submitted:', { ...formData, deviceInfo });
+        // Submit to internal API
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: 'bug_report',
+            title: formData.title,
+            description: formData.description,
+            priority: formData.severity,
+            stepsToReproduce: formData.stepsToReproduce,
+            expectedBehavior: formData.expectedBehavior,
+            actualBehavior: formData.actualBehavior,
+            attachments: screenshotUrls,
+            userAgent: deviceInfo?.userAgent,
+            screenSize: deviceInfo?.screenSize,
+            appVersion: deviceInfo?.appVersion,
+            platform: deviceInfo?.os,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to submit bug report');
+        }
       }
       onSuccess?.();
     } catch (error) {
       console.error('Failed to submit bug report:', error);
+      setErrors((prev) => ({
+        ...prev,
+        submit: 'Failed to submit bug report. Please try again.',
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -282,6 +566,119 @@ Timestamp: ${deviceInfo.timestamp}`;
         </select>
       </div>
 
+      {/* Screenshots */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-200">
+          Screenshots (optional)
+        </label>
+        <p className="text-xs text-gray-400 mb-2">
+          Add up to {MAX_SCREENSHOTS} screenshots. You can drag & drop, paste from clipboard, or click to upload.
+        </p>
+
+        {/* Drop zone */}
+        <div
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`
+            relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
+            ${isDragActive
+              ? 'border-blue-500 bg-blue-500/10'
+              : 'border-white/20 hover:border-white/40 bg-white/5'
+            }
+            ${screenshots.length >= MAX_SCREENSHOTS ? 'opacity-50 cursor-not-allowed' : ''}
+          `}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => e.target.files && handleFiles(e.target.files)}
+            className="hidden"
+            disabled={screenshots.length >= MAX_SCREENSHOTS}
+          />
+
+          <div className="flex flex-col items-center gap-2">
+            {isDragActive ? (
+              <>
+                <Upload className="w-8 h-8 text-blue-400" />
+                <span className="text-blue-400 font-medium">Drop images here</span>
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-8 h-8 text-gray-400" />
+                <span className="text-gray-400">
+                  {screenshots.length >= MAX_SCREENSHOTS
+                    ? 'Maximum screenshots reached'
+                    : 'Click or drag images here'}
+                </span>
+                <span className="text-xs text-gray-500">
+                  JPEG, PNG, GIF, WebP up to 5MB
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Screenshot previews */}
+        {screenshots.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-3">
+            {screenshots.map((screenshot) => (
+              <div
+                key={screenshot.id}
+                className="relative group aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10"
+              >
+                <img
+                  src={screenshot.preview}
+                  alt="Screenshot preview"
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Upload status overlay */}
+                {screenshot.uploading && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                  </div>
+                )}
+
+                {screenshot.error && (
+                  <div className="absolute inset-0 bg-red-900/60 flex items-center justify-center">
+                    <span className="text-xs text-red-200 px-2 text-center">
+                      {screenshot.error}
+                    </span>
+                  </div>
+                )}
+
+                {screenshot.uploaded && (
+                  <div className="absolute top-1 left-1">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                )}
+
+                {/* Remove button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeScreenshot(screenshot.id);
+                  }}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {errors.screenshots && (
+          <p className="text-sm text-red-400">{errors.screenshots}</p>
+        )}
+      </div>
+
       {/* Device Info */}
       {deviceInfo && (
         <div className="p-4 rounded-lg bg-white/5 border border-white/10">
@@ -331,23 +728,35 @@ Timestamp: ${deviceInfo.timestamp}`;
           />
           <div>
             <span className="font-medium text-white">Submit directly to GitHub</span>
-            <p className="text-sm text-gray-400">You'll need to sign in to GitHub</p>
+            <p className="text-sm text-gray-400">You&apos;ll need to sign in to GitHub</p>
           </div>
         </label>
         <ExternalLink className="w-4 h-4 text-gray-400" />
       </div>
 
+      {/* Submit Error */}
+      {errors.submit && (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+          <p className="text-sm text-red-400">{errors.submit}</p>
+        </div>
+      )}
+
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isSubmitting}
-        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-medium rounded-lg transition-colors"
+        disabled={isSubmitting || screenshots.some((s) => s.uploading)}
+        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
       >
-        {isSubmitting
-          ? 'Submitting...'
-          : submitToGitHub
-          ? 'Open GitHub Issue'
-          : 'Submit Report'}
+        {isSubmitting ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            {screenshots.some((s) => s.uploading) ? 'Uploading screenshots...' : 'Submitting...'}
+          </>
+        ) : submitToGitHub ? (
+          'Open GitHub Issue'
+        ) : (
+          'Submit Report'
+        )}
       </button>
     </form>
   );
