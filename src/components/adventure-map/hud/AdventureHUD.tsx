@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CompanionWidget from './CompanionWidget';
 import StatsBar from './StatsBar';
 import CreditsWidget from './CreditsWidget';
-import MinimapWidget from './MinimapWidget';
+// MinimapWidget is available for future use
+// import MinimapWidget from './MinimapWidget';
 import type { AdventureHUDProps } from '../types';
 
 export default function AdventureHUD({
@@ -115,7 +116,7 @@ export default function AdventureHUD({
 function MobileHUD({
   stats,
   companionData,
-  currentLocation,
+  currentLocation: _currentLocation,
   isExpanded,
   onToggleExpand,
   onMenuClick,

@@ -664,7 +664,7 @@ export default function UserAnalyticsPanel() {
 
   // Features data
   const [features, setFeatures] = useState<FeatureData[]>([]);
-  const [featureCategory, setFeatureCategory] = useState<string | null>(null);
+  const [featureCategory, _setFeatureCategory] = useState<string | null>(null);
 
   // Segments data
   const [segments, setSegments] = useState<SegmentData[]>([]);
@@ -803,7 +803,7 @@ export default function UserAnalyticsPanel() {
         fetchCohorts();
         break;
     }
-  }, [activeView, timeRange, featureCategory]);
+  }, [activeView, timeRange, featureCategory, fetchDashboard, fetchUsers, fetchFeatures, fetchSegments, fetchCohorts]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -835,7 +835,7 @@ export default function UserAnalyticsPanel() {
     } catch {
       setError('Failed to refresh');
     }
-  }, [activeView]);
+  }, [activeView, fetchDashboard, fetchUsers, fetchFeatures, fetchSegments, fetchCohorts]);
 
   return (
     <div className="space-y-6">

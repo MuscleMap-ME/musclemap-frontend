@@ -5,7 +5,7 @@
  */
 
 import type { Position, LocationId } from '../types';
-import { LOCATIONS, PATH_CONNECTIONS, getLocation } from './mapLayout';
+import { PATH_CONNECTIONS, getLocation } from './mapLayout';
 
 // ============================================
 // A* PATHFINDING

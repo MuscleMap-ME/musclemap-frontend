@@ -150,7 +150,7 @@ export async function up(): Promise<void> {
       ALTER TABLE user_journeys
       ADD COLUMN chain_name TEXT,
       ADD COLUMN chain_position INTEGER DEFAULT 0,
-      ADD COLUMN previous_journey_id UUID REFERENCES user_journeys(id) ON DELETE SET NULL,
+      ADD COLUMN previous_journey_id TEXT REFERENCES user_journeys(id) ON DELETE SET NULL,
       ADD COLUMN next_journey_unlocked BOOLEAN DEFAULT FALSE
     `);
 

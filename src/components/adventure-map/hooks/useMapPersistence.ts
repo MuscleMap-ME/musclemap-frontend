@@ -6,7 +6,7 @@
  * This hook provides additional utilities for state management.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useAdventureMapStore } from '../../../store/adventureMapStore';
 import { getStartingLocation } from '../data/mapLayout';
 import type { Position, LocationId } from '../types';
