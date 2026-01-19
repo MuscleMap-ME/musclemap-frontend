@@ -1,0 +1,31 @@
+{
+  "packages": {
+    "shared": {
+      "hash": "f056bb29b51accfd33bc50d6ce5cfdfad20009052834a72407192f1e01b7f6b4",
+      "fileCount": 10,
+      "buildTime": 1768835797935
+    },
+    "core": {
+      "hash": "757e82ac4536bdbd77796c2e3c2821d111a4ffd54c111455ac18b355c8fd4f51",
+      "fileCount": 12,
+      "buildTime": 1768835798356
+    },
+    "plugin-sdk": {
+      "hash": "8e193ec51bee8e6ee14521b406ae63d316d81ef796f60a30b1ae71084fb8ef8f",
+      "fileCount": 7,
+      "buildTime": 1768835798890
+    },
+    "client": {
+      "hash": "1dc927d0d25b0901cff1f8a8db726af824b307c22b5200f094d189ef5455665d",
+      "fileCount": 16,
+      "buildTime": 1768835799875
+    },
+    "ui": {
+      "hash": "d8fb08f726baab0892dea0da5f59d749e8b7aef5a2538d17b5b1250cc66a0561",
+      "fileCount": 16,
+      "buildTime": 1768835800028
+    }
+  },
+  "frontend": {},
+  "api": {}
+}

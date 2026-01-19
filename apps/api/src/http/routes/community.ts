@@ -641,51 +641,7 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
     });
   });
 
-  // Admin control users endpoint (for EmpireControl)
-  app.get('/admin-control/users', { preHandler: authenticate }, async (request, reply) => {
-    const roles = request.user!.roles || [];
-    if (!roles.includes('admin') && !roles.includes('owner')) {
-      return reply.status(403).send({
-        error: { code: 'FORBIDDEN', message: 'Admin or owner role required', statusCode: 403 },
-      });
-    }
-
-    const params = request.query as { limit?: string };
-    const limit = Math.min(parseInt(params.limit || '50'), 100);
-
-    const users = await queryAll<{
-      id: string;
-      username: string;
-      email: string;
-      display_name: string;
-      avatar_url: string;
-      roles: string[];
-      created_at: Date;
-      total_xp: number;
-      current_rank: string;
-    }>(
-      `SELECT id, username, email, display_name, avatar_url, roles, created_at, total_xp, current_rank
-       FROM users
-       ORDER BY created_at DESC
-       LIMIT $1`,
-      [limit]
-    );
-
-    return reply.send({
-      data: users.map((u) => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        displayName: u.display_name,
-        avatarUrl: u.avatar_url,
-        roles: u.roles || [],
-        createdAt: u.created_at,
-        totalXp: u.total_xp || 0,
-        currentRank: u.current_rank || 'novice',
-      })),
-      total: users.length,
-    });
-  });
+  // NOTE: /admin-control/users moved to admin-control.ts (more complete version with search/pagination)
 
   // Admin audit credits endpoint
   app.get('/admin-control/audit/credits', { preHandler: authenticate }, async (request, reply) => {
