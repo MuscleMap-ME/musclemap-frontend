@@ -297,7 +297,7 @@ export const DISCOVERABLE_FEATURES = [
     name: 'Profile Customization',
     description: 'Personalize your avatar, bio, and display preferences',
     icon: 'UserCog',
-    route: '/profile/edit',
+    route: '/profile',
     category: FEATURE_CATEGORIES.SETTINGS,
     isNew: false,
     isPopular: false,

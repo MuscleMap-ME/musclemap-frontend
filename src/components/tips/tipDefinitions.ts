@@ -107,7 +107,7 @@ export const TIP_DEFINITIONS = {
     message: 'Complete your profile to unlock all features and earn bonus credits!',
     action: {
       label: 'Complete Profile',
-      to: '/profile/edit',
+      to: '/profile',
     },
     priority: 2,
   },
@@ -244,7 +244,7 @@ export const TIP_DEFINITIONS = {
     message: 'Complete your profile for bonus XP',
     action: {
       label: 'Complete Profile',
-      to: '/profile/edit',
+      to: '/profile',
     },
     priority: 1,
   },
@@ -255,7 +255,7 @@ export const TIP_DEFINITIONS = {
     message: 'Add a profile photo to personalize your experience.',
     action: {
       label: 'Add Photo',
-      to: '/profile/edit',
+      to: '/profile',
     },
     priority: 2,
   },
