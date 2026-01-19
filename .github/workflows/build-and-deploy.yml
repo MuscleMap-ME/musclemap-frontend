@@ -1,0 +1,115 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      - name: Build API
+        run: pnpm build:api
+
+      - name: Build frontend
+        run: pnpm build
+        env:
+          # CI has plenty of memory - no need for LOW_MEMORY mode
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Compress assets
+        run: |
+          # Install brotli
+          sudo apt-get install -y brotli
+          ./scripts/compress-assets.sh
+
+      - name: Create deployment artifact
+        run: |
+          # Create tarball of built files
+          tar -czf deploy-artifact.tar.gz \
+            dist/ \
+            apps/api/dist/ \
+            packages/*/dist/ \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            ecosystem.config.cjs
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-artifact
+          path: deploy-artifact.tar.gz
+          retention-days: 7
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-artifact
+
+      - name: Deploy to server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: musclemap.me
+          SERVER_USER: root
+          DEPLOY_PATH: /var/www/musclemap.me
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+
+          # Copy artifact to server
+          scp deploy-artifact.tar.gz $SERVER_USER@$SERVER_HOST:/tmp/
+
+          # Deploy on server
+          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+            cd /var/www/musclemap.me
+
+            # Backup current deployment
+            cp -r dist dist.backup 2>/dev/null || true
+
+            # Extract new build (overwrites dist directories)
+            tar -xzf /tmp/deploy-artifact.tar.gz
+
+            # Install production dependencies only (fast, no build needed)
+            pnpm install --prod --frozen-lockfile
+
+            # Graceful restart PM2 (zero downtime)
+            pm2 reload musclemap --update-env
+
+            # Cleanup
+            rm /tmp/deploy-artifact.tar.gz
+            rm -rf dist.backup
+
+            echo "Deployment complete!"
+          ENDSSH

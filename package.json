@@ -108,7 +108,7 @@
     "@types/react-window": "^2.0.0",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react-swc": "^4.2.2",
     "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.23",
     "concurrently": "^8.2.2",

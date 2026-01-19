@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// Use SWC-based React plugin for 20x faster transforms than Babel
+// SWC is written in Rust - native speed without custom C code
+import react from '@vitejs/plugin-react-swc'
 import { visualizer } from 'rollup-plugin-visualizer'
 import compression from 'vite-plugin-compression'
 import { readFileSync } from 'fs'
@@ -150,7 +152,8 @@ export default defineConfig({
       // This is the KEY setting that prevents OOM during module transformation
       ...(lowMemoryMode && {
         maxParallelFileOps: 2,  // Default is 20, reduce to 2 for 8GB servers
-        cache: false,  // Disable Rollup cache to save memory (trades speed for memory)
+        // Note: We keep cache enabled (default) for faster rebuilds
+        // The cache is disk-based and doesn't significantly impact peak memory
       }),
       output: {
         // Strategic chunk splitting for optimal caching and loading

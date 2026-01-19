@@ -26,25 +26,33 @@ set -e
 # Configuration
 LOCK_FILE="/tmp/musclemap-build.lock"
 LOCK_TIMEOUT=600  # 10 minutes max wait for lock
-MIN_MEMORY_PACKAGES=400   # MB needed for package builds
-MIN_MEMORY_API=600        # MB needed for API build
-MIN_MEMORY_FRONTEND=2000  # MB needed for Vite build
 BUILD_CACHE_DIR=".build-cache"  # Directory to store build hashes
 
+# Memory requirements (MB) - adjusted based on whether PM2 is running
+# With PM2 running: ~1GB used by Node processes, so we need less available
+# Without PM2: Full memory available for build
+MIN_MEMORY_PACKAGES=300   # MB needed for package builds
+MIN_MEMORY_API=400        # MB needed for API build
+MIN_MEMORY_FRONTEND=1500  # MB needed for Vite build (with LOW_MEMORY mode)
+
 # Parse arguments
-MANAGE_PM2=true
+MANAGE_PM2=false  # Default: Keep PM2 running (production safe)
 BUILD_PACKAGES=true
 BUILD_API=true
 BUILD_FRONTEND=true
 FORCE_REBUILD=false
+AGGRESSIVE_MEMORY=false  # Use more aggressive memory limits
 
 for arg in "$@"; do
     case $arg in
-        --no-pm2)
-            MANAGE_PM2=false
+        --stop-pm2)
+            MANAGE_PM2=true  # Explicitly request PM2 stop (for maintenance windows)
             ;;
         --force)
             FORCE_REBUILD=true
+            ;;
+        --aggressive)
+            AGGRESSIVE_MEMORY=true  # Use lower memory limits (slower but safer)
             ;;
         --packages)
             BUILD_API=false
@@ -59,12 +67,15 @@ for arg in "$@"; do
             BUILD_FRONTEND=false
             ;;
         --help)
-            echo "Usage: $0 [--no-pm2] [--force] [--packages|--api|--frontend]"
-            echo "  --no-pm2     Don't stop/start PM2 during build"
+            echo "Usage: $0 [--stop-pm2] [--force] [--aggressive] [--packages|--api|--frontend]"
+            echo "  --stop-pm2   Stop PM2 during build (use during maintenance windows)"
             echo "  --force      Force rebuild everything (ignore cache)"
+            echo "  --aggressive Use aggressive memory limits (slower, but safer)"
             echo "  --packages   Only build workspace packages"
             echo "  --api        Only build API"
             echo "  --frontend   Only build frontend"
+            echo ""
+            echo "Default: Keeps PM2 running to avoid downtime on production servers"
             exit 0
             ;;
     esac
@@ -427,9 +438,26 @@ build_frontend() {
     if frontend_needs_rebuild; then
         check_memory $MIN_MEMORY_FRONTEND "frontend" || return 1
 
-        # Set Node.js memory limit for Vite's Rollup bundler
-        # 4GB is safe on 8GB machine when PM2 is stopped
-        export NODE_OPTIONS="--max-old-space-size=4096"
+        # Determine memory limit based on available memory and mode
+        local available_mem=$(get_available_memory)
+        local node_mem=3072  # Default 3GB for Node.js heap
+
+        if [ "$MANAGE_PM2" = false ]; then
+            # PM2 is running, use conservative memory limit
+            # Leave ~2GB for PM2 processes and OS
+            if [ "$available_mem" -lt 3000 ]; then
+                node_mem=2048  # 2GB if memory is tight
+            fi
+        else
+            # PM2 is stopped, can use more memory
+            node_mem=4096  # 4GB
+        fi
+
+        if [ "$AGGRESSIVE_MEMORY" = true ]; then
+            node_mem=1536  # Very conservative 1.5GB
+        fi
+
+        export NODE_OPTIONS="--max-old-space-size=${node_mem}"
 
         # Skip inline compression to reduce peak memory
         # Compression will be done in post-build stage
@@ -437,10 +465,11 @@ build_frontend() {
 
         # Enable low memory mode to reduce Rollup parallelism
         # This prevents OOM during the module transformation phase
-        # Trades build speed for memory efficiency on 8GB servers
         export LOW_MEMORY=true
 
-        log "Building with NODE_OPTIONS: $NODE_OPTIONS"
+        log "Available memory: ${available_mem}MB"
+        log "Node.js heap limit: ${node_mem}MB"
+        log "PM2 running: $([ "$MANAGE_PM2" = false ] && echo "yes (production safe)" || echo "no (stopped)")"
         log "SKIP_COMPRESSION: $SKIP_COMPRESSION"
         log "LOW_MEMORY: $LOW_MEMORY"
 
@@ -515,8 +544,9 @@ main() {
 
     log "Build started at $(date)"
     log "Available memory: $(get_available_memory)MB"
-    log "PM2 management: $MANAGE_PM2"
+    log "PM2 management: $([ "$MANAGE_PM2" = true ] && echo "will stop" || echo "keep running (production safe)")"
     log "Force rebuild: $FORCE_REBUILD"
+    log "Aggressive memory: $AGGRESSIVE_MEMORY"
     log "Build cache: $BUILD_CACHE_DIR/"
 
     # Acquire lock (prevents concurrent builds)
