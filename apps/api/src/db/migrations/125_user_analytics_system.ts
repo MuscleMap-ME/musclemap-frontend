@@ -425,11 +425,12 @@ export async function up(): Promise<void> {
 
         -- Metadata
         metadata JSONB NOT NULL DEFAULT '{}',
-        calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-        UNIQUE(rollup_date, rollup_type, dimension_key, COALESCE(dimension_value, ''))
+        calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+
+    // Unique constraint using index (allows COALESCE)
+    await db.query('CREATE UNIQUE INDEX idx_analytics_rollups_unique ON analytics_daily_rollups(rollup_date, rollup_type, dimension_key, COALESCE(dimension_value, \'\'))');
 
     // Date range queries
     await db.query('CREATE INDEX idx_analytics_rollups_date ON analytics_daily_rollups(rollup_date DESC)');
