@@ -10,6 +10,127 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import { cpus } from 'os'
 
+/**
+ * CRITICAL: Fix for "Dynamic require of 'react' is not supported" error
+ *
+ * The use-sync-external-store package uses CommonJS require() internally.
+ * When bundled by Vite/Rollup, this becomes a broken polyfill that throws at runtime.
+ *
+ * Solution: Create a virtual module that exports useSyncExternalStore directly from React.
+ * Since React 18+ has useSyncExternalStore built-in, we don't need the shim.
+ */
+function useSyncExternalStoreFix() {
+  const virtualModules = {
+    'use-sync-external-store': `
+      import * as React from 'react';
+      export const useSyncExternalStore = React.useSyncExternalStore;
+    `,
+    'use-sync-external-store/shim': `
+      import * as React from 'react';
+      export const useSyncExternalStore = React.useSyncExternalStore;
+    `,
+    'use-sync-external-store/shim/index.js': `
+      import * as React from 'react';
+      export const useSyncExternalStore = React.useSyncExternalStore;
+    `,
+    'use-sync-external-store/with-selector': `
+      import * as React from 'react';
+      import { useSyncExternalStore } from 'react';
+
+      function is(x, y) {
+        return (x === y && (x !== 0 || 1 / x === 1 / y)) || (x !== x && y !== y);
+      }
+      const objectIs = typeof Object.is === 'function' ? Object.is : is;
+
+      export function useSyncExternalStoreWithSelector(
+        subscribe,
+        getSnapshot,
+        getServerSnapshot,
+        selector,
+        isEqual
+      ) {
+        const selectedSnapshot = React.useMemo(() => {
+          let hasMemo = false;
+          let memoizedSnapshot;
+          let memoizedSelection;
+
+          return () => {
+            const nextSnapshot = getSnapshot();
+            if (!hasMemo) {
+              hasMemo = true;
+              memoizedSnapshot = nextSnapshot;
+              memoizedSelection = selector(nextSnapshot);
+              return memoizedSelection;
+            }
+            if (objectIs(memoizedSnapshot, nextSnapshot)) {
+              return memoizedSelection;
+            }
+            const nextSelection = selector(nextSnapshot);
+            if (isEqual !== undefined && isEqual(memoizedSelection, nextSelection)) {
+              memoizedSnapshot = nextSnapshot;
+              return memoizedSelection;
+            }
+            memoizedSnapshot = nextSnapshot;
+            memoizedSelection = nextSelection;
+            return nextSelection;
+          };
+        }, [getSnapshot, selector, isEqual]);
+
+        const getSnapshotWithSelector = React.useCallback(
+          () => selectedSnapshot(),
+          [selectedSnapshot]
+        );
+
+        return useSyncExternalStore(
+          subscribe,
+          getSnapshotWithSelector,
+          getServerSnapshot === undefined ? undefined : () => selector(getServerSnapshot())
+        );
+      }
+
+      export default { useSyncExternalStoreWithSelector };
+    `,
+    'use-sync-external-store/shim/with-selector': `
+      import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector';
+      export { useSyncExternalStoreWithSelector };
+      export default { useSyncExternalStoreWithSelector };
+    `,
+    'use-sync-external-store/shim/with-selector.js': `
+      import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/with-selector';
+      export { useSyncExternalStoreWithSelector };
+      export default { useSyncExternalStoreWithSelector };
+    `,
+  };
+
+  return {
+    name: 'use-sync-external-store-fix',
+    enforce: 'pre',
+    resolveId(id) {
+      if (virtualModules[id]) {
+        return '\0' + id;
+      }
+      // Also handle deep imports
+      if (id.startsWith('use-sync-external-store/cjs/')) {
+        // Redirect CJS imports to our virtual modules
+        if (id.includes('with-selector')) {
+          return '\0use-sync-external-store/with-selector';
+        }
+        return '\0use-sync-external-store';
+      }
+      return null;
+    },
+    load(id) {
+      if (id.startsWith('\0')) {
+        const realId = id.slice(1);
+        if (virtualModules[realId]) {
+          return virtualModules[realId];
+        }
+      }
+      return null;
+    },
+  };
+}
+
 // Read package.json to get version
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'))
@@ -44,9 +165,17 @@ export default defineConfig({
       // Map npm package names to local packages
       '@musclemap.me/shared': resolve(__dirname, 'packages/shared/src'),
       '@musclemap.me/core': resolve(__dirname, 'packages/core/src'),
+      // Note: use-sync-external-store aliases handled by useSyncExternalStoreFix() plugin
     },
+    // Prefer ESM module resolution to avoid CommonJS require() issues
+    mainFields: ['module', 'jsnext:main', 'jsnext', 'main'],
+    // Force these conditions for package.json exports resolution
+    conditions: ['import', 'module', 'browser', 'default'],
   },
   plugins: [
+    // CRITICAL: Fix "Dynamic require of 'react' is not supported" error
+    // Must be FIRST so it intercepts use-sync-external-store imports before other plugins
+    useSyncExternalStoreFix(),
     // CRITICAL: Pre-bundled vendors FIRST - uses cached ESM bundles for heavy deps
     // This DRAMATICALLY reduces transform count from ~10k to ~800 modules
     // Run `node scripts/prebundle-vendors.mjs` to create/update cache
@@ -256,8 +385,19 @@ export default defineConfig({
       // Fix "Dynamic require of 'react' is not supported" error
       // This tells Rollup how to handle CommonJS require() calls
       requireReturnsDefault: 'auto',
-      // Explicitly tell Rollup that react is an ES module
+      // Explicitly tell Rollup that these are ES modules (don't use require())
       esmExternals: ['react', 'react-dom', 'react/jsx-runtime'],
+      // CRITICAL: Include use-sync-external-store in CommonJS transformation
+      // This package uses require() internally which causes "Dynamic require" errors
+      include: [
+        /node_modules/,
+      ],
+      // Force these packages to be treated as external ESM
+      // Prevents rollup from generating the broken require() shim
+      ignore: (id) => {
+        // Don't ignore - we want all CommonJS to be transformed
+        return false;
+      },
     },
   },
   // CRITICAL: Configure Vite's dependency optimization for MAXIMUM caching
@@ -272,6 +412,12 @@ export default defineConfig({
       'graphql',
       'framer-motion',
       'zustand',
+      'zustand/react',
+      // CRITICAL: Pre-bundle use-sync-external-store to fix "Dynamic require" error
+      // This package uses CommonJS internally - pre-bundling converts it to ESM
+      'use-sync-external-store',
+      'use-sync-external-store/shim',
+      'use-sync-external-store/shim/with-selector',
       'lucide-react',
       'clsx',
       'tailwind-merge',
