@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { REGIONS } from '../data/regions';
+// REGIONS data is available via ../data/regions if needed
 import type { Position, RegionId } from '../types';
 
 interface MinimapWidgetProps {
