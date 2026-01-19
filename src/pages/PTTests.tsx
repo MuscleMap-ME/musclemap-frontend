@@ -437,8 +437,10 @@ export default function PTTests() {
   const loadTests = async () => {
     try {
       const response = await api.get('/pt-tests');
-      setTests(response.data?.tests || []);
-      setTestsByInstitution(response.data?.byInstitution || {});
+      // API returns { data: { tests, byInstitution } }, api.get wraps in { data: response }
+      const apiData = response.data?.data || response.data || {};
+      _setTests(apiData.tests || []);
+      setTestsByInstitution(apiData.byInstitution || {});
     } catch (error) {
       console.error('Failed to load PT tests:', error);
     } finally {
@@ -449,7 +451,8 @@ export default function PTTests() {
   const loadResults = async () => {
     try {
       const response = await api.get('/pt-tests/results?limit=20');
-      setResults(response.data?.results || []);
+      const apiData = response.data?.data || response.data || {};
+      setResults(apiData.results || []);
     } catch (error) {
       console.error('Failed to load results:', error);
     }
@@ -458,7 +461,8 @@ export default function PTTests() {
   const loadMyArchetypeTest = async () => {
     try {
       const response = await api.get('/pt-tests/my-archetype');
-      setMyArchetypeTest(response.data?.test);
+      const apiData = response.data?.data || response.data || {};
+      setMyArchetypeTest(apiData.test);
     } catch (error) {
       console.error('Failed to load archetype test:', error);
     }

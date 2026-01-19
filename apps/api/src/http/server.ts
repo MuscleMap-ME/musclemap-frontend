@@ -103,6 +103,7 @@ import adminFeaturesRoutes from './routes/admin-features';
 import adminMetricsRoutes from './routes/admin-metrics';
 import adminAlertsRoutes from './routes/admin-alerts';
 import adminDocsRoutes from './routes/admin-docs';
+import adminAnalyticsRoutes from './routes/admin-analytics';
 import betaTesterRoutes from './routes/beta-tester';
 import { registerPluginRoutes } from './routes/plugins';
 import oneRepMaxRoutes from './routes/one-rep-max';
@@ -541,6 +542,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Real-time metrics (admin only - requests, latency, websockets)
     await adminMetricsRoutes(api);
+
+    // User analytics (admin only - new users, features, segments, cohorts)
+    await adminAnalyticsRoutes(api);
 
     // Alert configuration (admin only - rules, channels, history)
     await adminAlertsRoutes(api);
