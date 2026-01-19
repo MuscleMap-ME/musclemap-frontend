@@ -188,11 +188,10 @@ export default defineConfig({
             return 'apollo-vendor';
           }
 
-          // Three.js and React Three Fiber - only for 3D pages (~800KB)
-          // Kept separate so pages without 3D never load this
-          if (id.includes('node_modules/three/') ||
-              id.includes('@react-three/fiber') ||
-              id.includes('@react-three/drei')) {
+          // Three.js ONLY - without React Three Fiber wrappers
+          // R3F has CommonJS issues - let it bundle with main app code
+          if (id.includes('node_modules/three/') &&
+              !id.includes('@react-three')) {
             return 'three-vendor';
           }
 
@@ -272,12 +271,11 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
     ],
-    // Exclude heavy deps from Vite's pre-bundling
-    // These use our custom pre-bundled files in .vendor-cache/ instead
+    // Exclude three.js from Vite's pre-bundling
+    // It uses our custom pre-bundled file in .vendor-cache/ instead
+    // Note: @react-three/* are NOT excluded - let Vite handle them normally
     exclude: [
       'three',
-      '@react-three/fiber',
-      '@react-three/drei',
     ],
     // Force optimization of nested dependencies
     esbuildOptions: {
