@@ -524,6 +524,45 @@ export default function CommandCenter() {
     return () => clearTimeout(timer);
   }, [isAuthorized, searchQuery]);
 
+  // Polling fallback for when SSE doesn't work (Cloudflare buffers HTTP/2 streams)
+  const pollForResult = useCallback(async (executionId: string) => {
+    console.log('[CommandCenter] Starting polling fallback for:', executionId);
+    let attempts = 0;
+    const maxAttempts = 60; // 30 seconds max
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        console.log('[CommandCenter] Polling timeout');
+        setActiveExecution((prev) => prev ? { ...prev, status: 'timeout' } : null);
+        return;
+      }
+
+      try {
+        const res = await fetchWithAuth(`/api/admin/commands/status/${executionId}`);
+        const data = await res.json();
+
+        if (data.output) {
+          setExecutionOutput(data.output);
+        }
+
+        if (data.status !== 'running') {
+          console.log('[CommandCenter] Polling complete:', data.status);
+          setActiveExecution((prev) => prev ? { ...prev, status: data.status } : null);
+          return;
+        }
+
+        attempts++;
+        setTimeout(poll, 500); // Poll every 500ms
+      } catch (e) {
+        console.error('[CommandCenter] Polling error:', e);
+        attempts++;
+        setTimeout(poll, 1000); // Retry after 1s on error
+      }
+    };
+
+    poll();
+  }, []);
+
   // Execute command
   const executeCommand = useCallback(async (cmd: string) => {
     try {
@@ -541,19 +580,36 @@ export default function CommandCenter() {
         });
         setExecutionOutput('');
 
-        // Connect to SSE stream
+        // Try SSE first, with polling fallback
         const token = localStorage.getItem('musclemap_token');
         const streamUrl = `/api/admin/commands/stream/${data.executionId}?token=${token}`;
         console.log('[CommandCenter] Connecting to SSE:', streamUrl);
         const es = new EventSource(streamUrl);
         eventSourceRef.current = es;
 
+        let receivedData = false;
+        let sseTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        // Set a timeout - if no data in 3 seconds, switch to polling
+        sseTimeout = setTimeout(() => {
+          if (!receivedData) {
+            console.log('[CommandCenter] SSE timeout, switching to polling');
+            es.close();
+            pollForResult(data.executionId);
+          }
+        }, 3000);
+
         es.onopen = () => {
           console.log('[CommandCenter] SSE connection opened');
         };
 
         es.onmessage = (event) => {
-          console.log('[CommandCenter] SSE message received:', event.data);
+          receivedData = true;
+          if (sseTimeout) {
+            clearTimeout(sseTimeout);
+            sseTimeout = null;
+          }
+          console.log('[CommandCenter] SSE message received:', event.data.substring(0, 100));
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'output') {
@@ -584,17 +640,21 @@ export default function CommandCenter() {
 
         es.onerror = (e) => {
           console.error('[CommandCenter] SSE connection error:', e, 'readyState:', es.readyState);
-          // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
-          if (es.readyState === EventSource.CLOSED) {
-            setActiveExecution((prev) => prev ? { ...prev, status: 'failed' } : null);
+          if (sseTimeout) {
+            clearTimeout(sseTimeout);
           }
           es.close();
+          // On SSE error, fall back to polling
+          if (!receivedData) {
+            console.log('[CommandCenter] SSE failed, switching to polling');
+            pollForResult(data.executionId);
+          }
         };
       }
     } catch (error) {
       console.error('Execution failed:', error);
     }
-  }, []);
+  }, [pollForResult]);
 
   // Cancel execution
   const cancelExecution = useCallback(async () => {

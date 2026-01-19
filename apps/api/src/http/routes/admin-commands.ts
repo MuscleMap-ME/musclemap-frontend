@@ -1063,6 +1063,40 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
     });
   });
 
+  // Get execution status (polling fallback for when SSE doesn't work)
+  fastify.get('/admin/commands/status/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    // Check active executions first
+    const exec = activeExecutions.get(id);
+    if (exec) {
+      return {
+        id,
+        status: exec.record.status,
+        output: exec.record.output,
+        command: exec.record.command,
+        startedAt: exec.record.startedAt,
+      };
+    }
+
+    // Check history
+    const historical = executionHistory.find((h) => h.id === id);
+    if (historical) {
+      return {
+        id,
+        status: historical.status,
+        output: historical.output,
+        command: historical.command,
+        startedAt: historical.startedAt,
+        completedAt: historical.completedAt,
+        exitCode: historical.exitCode,
+        durationMs: historical.durationMs,
+      };
+    }
+
+    return reply.status(404).send({ error: 'Execution not found' });
+  });
+
   // Cancel execution
   fastify.post('/admin/commands/cancel/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
