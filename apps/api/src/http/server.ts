@@ -134,6 +134,9 @@ import { registerPushNotificationRoutes } from './routes/push-notifications';
 // Venue Records system
 import { registerVenuesRoutes } from './routes/venues';
 
+// Deployment management (for Claude Code remote deploys)
+import { registerDeploymentRoutes } from './routes/deployment';
+
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
 
@@ -613,6 +616,12 @@ export async function createServer(): Promise<FastifyInstance> {
     // ========================================
     // TODO: Re-enable after fixing TypeScript errors
     // await api.register(preferencesRoutes);
+
+    // ========================================
+    // DEPLOYMENT MANAGEMENT
+    // Remote deployment control for Claude Code integration
+    // ========================================
+    await registerDeploymentRoutes(api);
   }, { prefix: '/api' });
 
   return app as unknown as FastifyInstance;
