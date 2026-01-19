@@ -131,6 +131,7 @@ import { registerEventRoutes } from './routes/events';
 import { registerEngagementRecoveryRoutes } from './routes/engagement-recovery';
 import { registerPushNotificationRoutes } from './routes/push-notifications';
 import { registerEngagementSummaryRoutes } from './routes/engagement-summary';
+import engagementMetricsRoutes from './routes/engagement-metrics';
 // Challenge auto-progress for workouts
 import { challengeProgressMiddleware } from '../modules/engagement/challenge-progress.middleware';
 
@@ -644,6 +645,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Register challenge progress middleware for auto-tracking
     challengeProgressMiddleware.register(api);
+
+    // Engagement metrics and notification triggers (admin/analytics)
+    await api.register(engagementMetricsRoutes, { prefix: '/engagement' });
 
     // ========================================
     // USER PREFERENCES & CUSTOMIZATION

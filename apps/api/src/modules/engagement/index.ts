@@ -20,3 +20,5 @@ export { recoveryService } from './recovery.service';
 export { pushNotificationsService, type Platform, type NotificationType } from './push-notifications.service';
 export { engagementSummaryService, type EngagementSummary } from './summary.service';
 export { challengeProgressMiddleware } from './challenge-progress.middleware';
+export { notificationTriggersService } from './notification-triggers.service';
+export { engagementMetricsService } from './engagement-metrics.service';

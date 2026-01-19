@@ -11,6 +11,7 @@ import { withLock } from './distributed-lock';
 import { queryAll, queryOne, query } from '../db/client';
 import earningService from '../modules/economy/earning.service';
 import { EmailService } from '../services/email.service';
+import { notificationTriggersService } from '../modules/engagement/notification-triggers.service';
 
 const log = loggers.core.child({ module: 'scheduler' });
 
@@ -557,7 +558,56 @@ export function startScheduler(): void {
     activeIntervals.push(snapshotInterval);
   }, msUntil4AM);
 
-  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, and beta tester snapshots');
+  // ============================================
+  // ENGAGEMENT NOTIFICATION TRIGGERS
+  // Process notifications, streak reminders, challenge expiration
+  // ============================================
+
+  // Process pending notifications - every minute
+  const notificationProcessInterval = setInterval(async () => {
+    try {
+      await withLock('scheduler:process-notifications', async () => {
+        await notificationTriggersService.processPendingNotifications();
+      }, { ttl: 30000 });
+    } catch (err) {
+      if (!(err as Error).message?.includes('Failed to acquire lock')) {
+        log.error({ err }, 'Error processing pending notifications');
+      }
+    }
+  }, 60 * 1000); // Every minute
+  activeIntervals.push(notificationProcessInterval);
+
+  // Engagement trigger check - runs all time-appropriate triggers hourly
+  const engagementTriggerInterval = setInterval(async () => {
+    try {
+      await withLock('scheduler:engagement-triggers', async () => {
+        const results = await notificationTriggersService.runAllTriggers();
+        const total = results.streakAtRisk + results.challengeExpiring + results.dailyReward + results.reEngagement;
+        if (total > 0) {
+          log.info(results, 'Engagement triggers processed');
+        }
+      }, { ttl: 120000 }); // 2 minute lock
+    } catch (err) {
+      if (!(err as Error).message?.includes('Failed to acquire lock')) {
+        log.error({ err }, 'Error running engagement triggers');
+      }
+    }
+  }, 60 * 60 * 1000); // Every hour
+  activeIntervals.push(engagementTriggerInterval);
+
+  // Run engagement triggers immediately on startup
+  setTimeout(async () => {
+    try {
+      await withLock('scheduler:engagement-triggers-startup', async () => {
+        const results = await notificationTriggersService.runAllTriggers();
+        log.info(results, 'Initial engagement triggers processed');
+      }, { ttl: 120000 });
+    } catch {
+      // Silent on startup
+    }
+  }, 5000); // Wait 5 seconds after startup
+
+  log.info('Scheduler started with leaderboard rewards, mute expiry, fraud cleanup, matview refresh, retention policies, credit archival, feedback digest, bug digest, beta tester snapshots, and engagement triggers');
 }
 
 /**
@@ -854,4 +904,17 @@ export async function triggerLeaderboardRewards(periodType: 'daily' | 'weekly' |
  */
 export async function triggerFeedbackDigest(): Promise<void> {
   await processFeedbackDigest();
+}
+
+/**
+ * Manually trigger engagement notification triggers (for admin/testing)
+ */
+export async function triggerEngagementNotifications(): Promise<{
+  streakAtRisk: number;
+  challengeExpiring: number;
+  dailyReward: number;
+  reEngagement: number;
+  processed: number;
+}> {
+  return notificationTriggersService.runAllTriggers();
 }
