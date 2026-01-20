@@ -225,7 +225,7 @@ jobs:
 
       - name: Build All
         run: |
-          NODE_OPTIONS="--max-old-space-size=8192" pnpm build:all
+          pnpm build:intelligent
         env:
           SKIP_COMPRESSION: true
 
@@ -436,7 +436,7 @@ jobs:
             pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
             echo "🔨 Building application..."
-            NODE_OPTIONS="--max-old-space-size=4096" pnpm build:safe
+            pnpm build:intelligent
 
             echo "✅ Deployment complete"
 

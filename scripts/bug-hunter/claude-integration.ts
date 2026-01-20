@@ -81,11 +81,11 @@ ${bug.rootCause.codeContext}
 2. **Implement Fix** - Make the necessary code changes to resolve the bug
 3. **Add Test** - Add a regression test if appropriate
 4. **Verify Locally** - Run \`pnpm typecheck\` and \`pnpm test\`
-5. **Build** - Run \`pnpm build:all\` to ensure everything compiles
+5. **Build** - Run \`pnpm build:intelligent\` to ensure everything compiles
 6. **Deploy** - Follow the deployment workflow in CLAUDE.md:
    - Commit changes with message: \`fix(auto): ${bug.title.slice(0, 50)}\`
    - Push to GitHub
-   - Deploy via SSH: \`ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:all && pm2 restart musclemap"\`
+   - Deploy via SSH: \`ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:intelligent && pm2 restart musclemap"\`
 7. **Verify** - Run \`pnpm test:frontend-health:prod\` to verify production
 
 ### Suggested Starting Point

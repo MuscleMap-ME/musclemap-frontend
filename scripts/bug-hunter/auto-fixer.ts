@@ -439,7 +439,7 @@ Co-Authored-By: Bug Hunter <bughunter@musclemap.me>`;
 
   private async runBuild(): Promise<boolean> {
     try {
-      await execAsync('pnpm build:all', { cwd: this.projectRoot, timeout: 300000 });
+      await execAsync('pnpm build:intelligent', { cwd: this.projectRoot, timeout: 300000 });
       return true;
     } catch {
       return false;
@@ -451,7 +451,7 @@ Co-Authored-By: Bug Hunter <bughunter@musclemap.me>`;
   // ============================================================================
 
   private async deploy(): Promise<string> {
-    const deployCommand = `ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:all && pm2 restart musclemap"`;
+    const deployCommand = `ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:intelligent && pm2 restart musclemap"`;
 
     await execAsync(deployCommand, { cwd: this.projectRoot, timeout: 600000 });
 

@@ -180,9 +180,9 @@ const COMMAND_HIERARCHY: Category[] = [
         name: 'Build',
         icon: 'Hammer',
         commands: [
-          { cmd: 'pnpm build:all', description: 'Build everything', timeout: 600000 },
-          { cmd: 'pnpm build:smart', description: 'Smart incremental build', timeout: 600000 },
-          { cmd: 'pnpm build:safe', description: 'Memory-safe build', timeout: 600000 },
+          { cmd: 'pnpm build:intelligent', description: 'Intelligent cached build (recommended)', timeout: 600000 },
+          { cmd: 'pnpm build:intelligent --staged', description: 'Staged build (low memory)', timeout: 600000 },
+          { cmd: 'pnpm build:intelligent --force', description: 'Force full rebuild', timeout: 600000 },
           { cmd: 'pnpm -C apps/api build', description: 'Build API only', timeout: 300000 },
           { cmd: 'pnpm -C packages/shared build', description: 'Build shared package' },
           { cmd: 'pnpm -C packages/core build', description: 'Build core package' },
@@ -205,16 +205,16 @@ const COMMAND_HIERARCHY: Category[] = [
         icon: 'Trash2',
         commands: [
           { cmd: 'pnpm clean', description: 'Clean build artifacts' },
-          { cmd: 'rm -rf node_modules/.cache && pnpm build:all', description: 'Clean cache and rebuild', timeout: 600000, dangerous: true },
-          { cmd: 'rm -rf dist && pnpm build:all', description: 'Clean dist and rebuild', timeout: 600000, dangerous: true },
+          { cmd: 'rm -rf node_modules/.cache && pnpm build:intelligent --force', description: 'Clean cache and rebuild', timeout: 600000, dangerous: true },
+          { cmd: 'rm -rf dist && pnpm build:intelligent --force', description: 'Clean dist and rebuild', timeout: 600000, dangerous: true },
         ],
       },
       {
         name: 'Full Deploy',
         icon: 'Rocket',
         commands: [
-          { cmd: 'cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:all && pm2 restart musclemap', description: 'Full deployment', timeout: 900000, dangerous: true },
-          { cmd: 'cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:smart && pm2 restart musclemap', description: 'Smart deployment', timeout: 600000, dangerous: true },
+          { cmd: 'cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:intelligent && pm2 restart musclemap', description: 'Full deployment', timeout: 900000, dangerous: true },
+          { cmd: 'cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:intelligent --staged && pm2 restart musclemap', description: 'Low-memory deployment', timeout: 600000, dangerous: true },
           { cmd: 'cd /var/www/musclemap.me && git pull && pnpm -C apps/api build && pm2 restart musclemap', description: 'Quick API deploy', timeout: 300000, dangerous: true },
         ],
       },
@@ -734,7 +734,7 @@ const COMMAND_HIERARCHY: Category[] = [
         icon: 'RefreshCw',
         commands: [
           { cmd: 'systemctl restart postgresql && sleep 2 && systemctl restart redis && sleep 2 && pm2 restart musclemap && sleep 3 && curl -s localhost:3001/health', description: 'Restart all services', dangerous: true },
-          { cmd: 'cd /var/www/musclemap.me && git reset --hard HEAD~1 && pnpm install && pnpm build:all && pm2 restart musclemap', description: 'Rollback 1 commit', dangerous: true, timeout: 900000 },
+          { cmd: 'cd /var/www/musclemap.me && git reset --hard HEAD~1 && pnpm install && pnpm build:intelligent && pm2 restart musclemap', description: 'Rollback 1 commit', dangerous: true, timeout: 900000 },
           { cmd: 'redis-cli flushall && rm -rf /var/www/musclemap.me/node_modules/.cache /var/www/musclemap.me/.smart-cache /var/www/musclemap.me/.build-cache && pm2 restart musclemap', description: 'Clear all caches', dangerous: true },
         ],
       },

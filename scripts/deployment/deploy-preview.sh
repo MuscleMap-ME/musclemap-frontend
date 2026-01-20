@@ -168,7 +168,7 @@ echo -e "\n${BLUE}[3/6] Installing dependencies...${NC}"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 echo -e "\n${BLUE}[4/6] Building application...${NC}"
-NODE_OPTIONS="--max-old-space-size=2048" pnpm build:all
+pnpm build:intelligent
 
 echo -e "\n${BLUE}[5/6] Configuring environment...${NC}"
 

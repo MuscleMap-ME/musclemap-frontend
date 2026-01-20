@@ -216,9 +216,9 @@ fi
 log_step 3 $TOTAL_STEPS "Building application..."
 
 if [ "$DRY_RUN" = true ]; then
-    echo "  Would run: pnpm build:all"
+    echo "  Would run: pnpm build:intelligent"
 else
-    if ! NODE_OPTIONS="--max-old-space-size=4096" pnpm build:all; then
+    if ! pnpm build:intelligent; then
         log "RED" "  ❌ Build failed"
         exit 1
     fi
@@ -285,7 +285,7 @@ else
         echo '📦 Installing dependencies...'
         pnpm install --frozen-lockfile 2>/dev/null || pnpm install
         echo '🔨 Building...'
-        ./scripts/build-safe.sh 2>/dev/null || NODE_OPTIONS='--max-old-space-size=4096' pnpm build:all
+        pnpm build:intelligent
         echo '✅ Deployment complete'
     "; then
         log "RED" "  ❌ Deployment failed"

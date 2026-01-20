@@ -185,7 +185,7 @@ export class RollbackSystem {
       await execAsync('git push origin main', { cwd: this.projectRoot });
 
       // Deploy the revert
-      const deployCommand = `ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:all && pm2 restart musclemap"`;
+      const deployCommand = `ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:intelligent && pm2 restart musclemap"`;
       await execAsync(deployCommand, { cwd: this.projectRoot, timeout: 600000 });
 
       // Log the rollback
@@ -242,7 +242,7 @@ export class RollbackSystem {
       await execAsync('git push --force origin main', { cwd: this.projectRoot });
 
       // Deploy
-      const deployCommand = `ssh root@musclemap.me "cd /var/www/musclemap.me && git fetch && git reset --hard origin/main && pnpm install && pnpm build:all && pm2 restart musclemap"`;
+      const deployCommand = `ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git fetch && git reset --hard origin/main && pnpm install && pnpm build:intelligent && pm2 restart musclemap"`;
       await execAsync(deployCommand, { cwd: this.projectRoot, timeout: 600000 });
 
       console.log(`   ✅ Emergency rollback complete`);
@@ -261,7 +261,7 @@ export class RollbackSystem {
       await execAsync('git push --force origin main', { cwd: this.projectRoot });
 
       // Deploy
-      const deployCommand = `ssh root@musclemap.me "cd /var/www/musclemap.me && git fetch && git reset --hard origin/main && pnpm install && pnpm build:all && pm2 restart musclemap"`;
+      const deployCommand = `ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git fetch && git reset --hard origin/main && pnpm install && pnpm build:intelligent && pm2 restart musclemap"`;
       await execAsync(deployCommand, { cwd: this.projectRoot, timeout: 600000 });
 
       console.log(`   ✅ Rollback to ${commitHash} complete`);

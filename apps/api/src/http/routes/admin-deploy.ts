@@ -371,7 +371,7 @@ async function executeDeployment(
     appendOutput(`[DRY RUN] 2. git checkout ${branch}`);
     appendOutput('[DRY RUN] 3. git pull');
     appendOutput('[DRY RUN] 4. pnpm install');
-    appendOutput('[DRY RUN] 5. pnpm build:all');
+    appendOutput('[DRY RUN] 5. pnpm build:intelligent');
     appendOutput('[DRY RUN] 6. pnpm -C apps/api db:migrate');
     appendOutput('[DRY RUN] 7. pm2 restart musclemap');
     appendOutput('[DRY RUN] Deployment preview complete.');
@@ -396,7 +396,7 @@ async function executeDeployment(
     { name: 'checkout', cmd: `git checkout ${branch}`, desc: `Checking out ${branch}...` },
     { name: 'pull', cmd: 'git pull', desc: 'Pulling latest changes...' },
     { name: 'install', cmd: 'pnpm install', desc: 'Installing dependencies...' },
-    { name: 'build', cmd: 'pnpm build:all', desc: 'Building all packages...' },
+    { name: 'build', cmd: 'pnpm build:intelligent', desc: 'Building all packages...' },
     { name: 'migrate', cmd: 'pnpm -C apps/api db:migrate', desc: 'Running database migrations...' },
     { name: 'restart', cmd: 'pm2 restart musclemap', desc: 'Restarting API server...' },
   ];

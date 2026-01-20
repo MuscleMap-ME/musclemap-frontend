@@ -88,13 +88,9 @@ run_deploy() {
     log "Installing dependencies..."
     pnpm install 2>&1 | tee -a "$LOG_FILE"
 
-    # Run the memory-safe build
+    # Run the intelligent cached build
     log "Running build..."
-    if [ -f "$SCRIPT_DIR/build-safe.sh" ]; then
-        "$SCRIPT_DIR/build-safe.sh" 2>&1 | tee -a "$LOG_FILE"
-    else
-        pnpm build:all 2>&1 | tee -a "$LOG_FILE"
-    fi
+    pnpm build:intelligent 2>&1 | tee -a "$LOG_FILE"
 
     # Restart PM2
     log "Restarting PM2..."

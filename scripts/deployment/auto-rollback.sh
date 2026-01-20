@@ -108,7 +108,7 @@ if [ "$DRY_RUN" = true ]; then
     echo "  1. Stop PM2 processes"
     echo "  2. git reset --hard $ROLLBACK_COMMIT"
     echo "  3. pnpm install"
-    echo "  4. pnpm build:all"
+    echo "  4. pnpm build:intelligent"
     echo "  5. Start PM2 processes"
     echo "  6. Verify health check"
     exit 0
@@ -159,7 +159,7 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 # Step 4: Build
 echo -e "\n${BLUE}[4/6] Building application...${NC}"
-NODE_OPTIONS="--max-old-space-size=4096" pnpm build:all
+pnpm build:intelligent
 
 # Step 5: Start PM2
 echo -e "\n${BLUE}[5/6] Starting PM2 processes...${NC}"

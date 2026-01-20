@@ -81,3 +81,6 @@ scripts/deploy-branch.sh
 scripts/approved-commands.txt
 scripts/run-approved-command.sh
 scripts/add-approved-command.sh
+
+# GraphQL schema baseline
+.graphql-baseline/
