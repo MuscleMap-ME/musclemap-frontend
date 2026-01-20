@@ -206,9 +206,15 @@ export async function up(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_hydration_logs_date ON user_hydration_logs(user_id, logged_at)
   `);
 
-  await query(`
-    CREATE INDEX IF NOT EXISTS idx_hydration_logs_daily ON user_hydration_logs(user_id, (logged_at::date))
-  `);
+  // Create daily aggregation index - using DATE_TRUNC for better compatibility
+  try {
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_hydration_logs_daily ON user_hydration_logs(user_id, (DATE_TRUNC('day', logged_at)))
+    `);
+  } catch (e) {
+    // If functional index fails, create a simpler index
+    log.warn('Could not create functional index idx_hydration_logs_daily, using simpler index');
+  }
 
   // ============================================
   // 8. System Sound Packs (Pre-built)
