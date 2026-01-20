@@ -343,21 +343,24 @@ const ExerciseCard = ({ exercise, onClick }) => {
           </Suspense>
         </div>
       ) : muscleActivations.length > 0 ? (
-        // Fallback: Show 3D muscle visualization when no image available
-        <div className="relative h-32 bg-gradient-to-br from-[#0d0d12] to-[#0f0f18] border-b border-white/5">
+        // Fallback: Show muscle badge visualization when no image available
+        <div className="relative h-32 bg-gradient-to-br from-[#0d0d12] via-[#12121a] to-[#0f0f18] border-b border-white/5">
           <div className="absolute inset-0 flex items-center justify-center">
-            <MuscleViewer
+            {/* Large centered muscle badge */}
+            <MuscleActivationBadge
               muscles={muscleActivations}
-              mode="card"
-              interactive={false}
-              showLabels={false}
-              autoRotate={false}
-              className="w-20 h-full opacity-80"
+              size={80}
+              showGlow={true}
             />
           </div>
-          {/* Overlay with exercise type indicator */}
-          <div className="absolute bottom-1 left-1 text-[8px] text-gray-500 bg-black/60 px-1 rounded capitalize">
-            {exercise.type || 'bodyweight'}
+          {/* Muscle names */}
+          <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
+            <span className="text-[8px] text-gray-400 bg-black/60 px-1.5 py-0.5 rounded capitalize truncate max-w-[60%]">
+              {exercise.primaryMuscles?.slice(0, 2).join(', ') || exercise.type || 'bodyweight'}
+            </span>
+            <span className="text-[8px] text-violet-400 bg-violet-500/20 px-1.5 py-0.5 rounded">
+              No image
+            </span>
           </div>
         </div>
       ) : null}
