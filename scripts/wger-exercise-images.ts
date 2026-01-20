@@ -223,7 +223,7 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'bw-decline-pushup': 'Push-Ups | Decline', // wger id: 1112
   'bw-archer-pushup': 'Push-Up', // use standard pushup image
   'bw-dip': 'Dips', // wger id: 194
-  'bw-hspu': 'Shoulder Press, Dumbbells', // similar movement
+  // 'bw-hspu' - Handstand Push-Up NOT mapped (would show misleading shoulder press image)
   'fw-bench-press': 'Bench Press', // wger id: 73
   'fw-incline-bench': 'Incline Bench Press - Barbell', // wger id: 538
   'fw-db-bench': 'Dumbbell Bench Press', // wger id: 1676
@@ -386,11 +386,9 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'gym-straddle-planche': 'Push-Up',
   'gym-full-planche': 'Push-Up',
   'gym-adv-tuck-planche': 'Push-Up',
-  'gym-wall-handstand-chest': 'Shoulder Press, Dumbbells',
-  'gym-wall-handstand-back': 'Shoulder Press, Dumbbells',
-  'gym-freestanding-handstand': 'Shoulder Press, Dumbbells',
-  'gym-handstand-walk': 'Shoulder Press, Dumbbells',
-  'gym-press-handstand': 'Shoulder Press, Dumbbells',
+  // Handstand exercises intentionally NOT mapped - no accurate images in wger.de
+  // 'gym-wall-handstand-chest', 'gym-wall-handstand-back', 'gym-freestanding-handstand',
+  // 'gym-handstand-walk', 'gym-press-handstand' - all would show incorrect shoulder press image
   'gym-one-leg-l-sit': 'Plank',
   'gym-v-sit': 'Plank',
   'gym-ring-muscle-up': 'Pull-ups',
@@ -411,15 +409,12 @@ const MANUAL_MAPPINGS: Record<string, string> = {
 
   // ============================================
   // HAND BALANCING
+  // Note: Most handstand exercises don't have images in wger.de
+  // Only mapping exercises where we have accurate images
   // ============================================
-  'hb-handstand': 'Shoulder Press, Dumbbells',
-  'hb-handstand-walk': 'Shoulder Press, Dumbbells',
-  'hb-freestanding-handstand': 'Shoulder Press, Dumbbells',
-  'hb-press-handstand': 'Shoulder Press, Dumbbells',
-  'hb-one-arm-handstand': 'Shoulder Press, Dumbbells',
-  'hb-straddle-press': 'Shoulder Press, Dumbbells',
-  'hb-crow-pose': 'Plank',
-  'hb-canes': 'Dips',
+  'hb-crow-pose': 'Plank', // Similar isometric hold position
+  'hb-canes': 'Dips', // Similar support position
+  // Handstands intentionally NOT mapped - no accurate images available
 
   // ============================================
   // FLEXIBILITY / STRETCHING
