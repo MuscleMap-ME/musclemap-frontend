@@ -77,7 +77,7 @@ export default function AdminControl() {
         case 'pipelines': endpoint = '/api/admin-control/pipelines'; break;
         case 'scripts': endpoint = '/api/admin-control/scripts'; break;
         case 'audit': endpoint = '/api/admin-control/audit?limit=50'; break;
-        default: endpoint = '/api/trace/metrics/overview?hours=24';
+        default: endpoint = '/api/admin/metrics/realtime';
       }
       
       const res = await fetch(endpoint, {
@@ -142,20 +142,20 @@ export default function AdminControl() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <p className="text-sm text-gray-400 mb-1">Total Requests (24h)</p>
-                <p className="text-2xl font-bold">{data.overview?.total_requests || 0}</p>
+                <p className="text-sm text-gray-400 mb-1">Total Requests</p>
+                <p className="text-2xl font-bold">{data.requests?.total || 0}</p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <p className="text-sm text-gray-400 mb-1">Unique Users</p>
-                <p className="text-2xl font-bold">{data.overview?.unique_users || 0}</p>
+                <p className="text-sm text-gray-400 mb-1">Requests/sec</p>
+                <p className="text-2xl font-bold">{data.requests?.perSecond || 0}</p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-sm text-gray-400 mb-1">Avg Response</p>
-                <p className="text-2xl font-bold">{(data.overview?.avg_duration || 0).toFixed(1)}ms</p>
+                <p className="text-2xl font-bold">{(data.latency?.avg || 0).toFixed(1)}ms</p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-sm text-gray-400 mb-1">Errors</p>
-                <p className="text-2xl font-bold text-rose-400">{data.overview?.errors || 0}</p>
+                <p className="text-2xl font-bold text-rose-400">{data.errors?.total || 0}</p>
               </div>
             </div>
             
