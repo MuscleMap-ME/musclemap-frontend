@@ -64,11 +64,18 @@ export async function up(): Promise<void> {
 
   // Add foreign key from user_preferences to profiles now that profiles table exists
   await query(`
-    ALTER TABLE user_preferences
-    ADD CONSTRAINT fk_user_preferences_active_profile
-    FOREIGN KEY (active_profile_id)
-    REFERENCES user_preference_profiles(id)
-    ON DELETE SET NULL
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_preferences_active_profile'
+      ) THEN
+        ALTER TABLE user_preferences
+        ADD CONSTRAINT fk_user_preferences_active_profile
+        FOREIGN KEY (active_profile_id)
+        REFERENCES user_preference_profiles(id)
+        ON DELETE SET NULL;
+      END IF;
+    END $$
   `);
 
   // ============================================
@@ -358,6 +365,7 @@ export async function up(): Promise<void> {
   `);
 
   await query(`
+    DROP TRIGGER IF EXISTS trigger_user_preferences_updated_at ON user_preferences;
     CREATE TRIGGER trigger_user_preferences_updated_at
       BEFORE UPDATE ON user_preferences
       FOR EACH ROW
@@ -365,6 +373,7 @@ export async function up(): Promise<void> {
   `);
 
   await query(`
+    DROP TRIGGER IF EXISTS trigger_user_profiles_updated_at ON user_preference_profiles;
     CREATE TRIGGER trigger_user_profiles_updated_at
       BEFORE UPDATE ON user_preference_profiles
       FOR EACH ROW
@@ -372,6 +381,7 @@ export async function up(): Promise<void> {
   `);
 
   await query(`
+    DROP TRIGGER IF EXISTS trigger_dashboard_layouts_updated_at ON user_dashboard_layouts;
     CREATE TRIGGER trigger_dashboard_layouts_updated_at
       BEFORE UPDATE ON user_dashboard_layouts
       FOR EACH ROW
@@ -379,6 +389,7 @@ export async function up(): Promise<void> {
   `);
 
   await query(`
+    DROP TRIGGER IF EXISTS trigger_device_settings_updated_at ON user_device_settings;
     CREATE TRIGGER trigger_device_settings_updated_at
       BEFORE UPDATE ON user_device_settings
       FOR EACH ROW
