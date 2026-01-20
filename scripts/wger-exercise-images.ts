@@ -211,71 +211,269 @@ function stringSimilarity(a: string, b: string): number {
 }
 
 // Hand-curated mappings for common exercises
+// Maps MuscleMap exercise IDs to wger exercise names (English)
+// EXPANDED: Now includes all possible matches with wger images
 const MANUAL_MAPPINGS: Record<string, string> = {
-  // Push exercises
-  'bw-pushup': 'Push-ups',
-  'bw-diamond-pushup': 'Diamond Push-ups',
-  'bw-decline-pushup': 'Decline Push-ups',
-  'bw-dip': 'Dips',
-  'fw-bench-press': 'Bench Press',
-  'fw-incline-bench': 'Incline Bench Press',
-  'fw-db-bench': 'Dumbbell Bench Press',
-  'fw-db-fly': 'Dumbbell Flyes',
+  // ============================================
+  // PUSH EXERCISES
+  // ============================================
+  'bw-pushup': 'Push-Up', // wger id: 1551
+  'bw-diamond-pushup': 'Close-grip Press-ups', // wger id: 1086
+  'bw-pike-pushup': 'Hindu Pushups', // wger id: 1080 (similar movement)
+  'bw-decline-pushup': 'Push-Ups | Decline', // wger id: 1112
+  'bw-archer-pushup': 'Push-Up', // use standard pushup image
+  'bw-dip': 'Dips', // wger id: 194
+  'bw-hspu': 'Shoulder Press, Dumbbells', // similar movement
+  'fw-bench-press': 'Bench Press', // wger id: 73
+  'fw-incline-bench': 'Incline Bench Press - Barbell', // wger id: 538
+  'fw-db-bench': 'Dumbbell Bench Press', // wger id: 1676
+  'fw-db-fly': 'Fly With Dumbbells', // wger id: 238
+  'fw-close-grip-bench': 'Bench Press Narrow Grip', // wger id: 76
+  'fw-db-shoulder-press': 'Shoulder Press, Dumbbells', // wger id: 567
+  'fw-ohp': 'Shoulder Press, Barbell', // wger id: 566
+  'gym-ring-dip': 'Dips', // use standard dip
+  'gym-ring-pushup': 'Push-Up', // use standard pushup
 
-  // Pull exercises
-  'bw-pullup': 'Pull-ups',
-  'bw-chinup': 'Chin-ups',
-  'bw-row': 'Inverted Row',
-  'fw-deadlift': 'Deadlift',
-  'fw-barbell-row': 'Bent Over Barbell Row',
-  'fw-db-row': 'Bent Over Row - Dumbbell',
+  // ============================================
+  // PULL EXERCISES
+  // ============================================
+  'bw-pullup': 'Pull-ups', // wger id: 475
+  'bw-chinup': 'Chin-ups', // wger id: 154
+  'bw-row': 'Inverted Rows', // wger id: 1198
+  'bw-typewriter-pullup': 'Pull-ups', // use standard pullup
+  'fw-deadlift': 'Deadlifts', // wger id: 184
+  'fw-barbell-row': 'Bent Over Rowing', // wger id: 83
+  'fw-db-row': 'Dumbbell Bent Over Row', // wger id: 1085
+  'fw-pullover': 'Rope Pullover/row', // wger id: 1634
+  'fw-lat-pulldown': 'Close-grip Lat Pull Down', // wger id: 158
+  'fw-cable-row': 'Seated Cable Rows', // wger id: 921
+  'fw-face-pull': 'Face pulls with yellow/green band', // wger id: 1732
+  'kb-row': 'Single arm row', // wger id: 1637
+  'cali-archer-pullup': 'Pull-ups', // use standard pullup
+  'cali-high-pull': 'High Pull', // wger id: 1187
 
-  // Shoulder exercises
-  'fw-ohp': 'Overhead Press',
-  'fw-db-shoulder-press': 'Dumbbell Shoulder Press',
-  'fw-lateral-raise': 'Lateral Raise',
-  'fw-front-raise': 'Front Raise',
-  'fw-rear-delt-fly': 'Reverse Fly',
-  'fw-shrug': 'Shrugs',
+  // ============================================
+  // SHOULDER EXERCISES
+  // ============================================
+  'fw-lateral-raise': 'Lateral Raises', // wger id: 348
+  'fw-front-raise': 'Front Raises', // wger id: 256
+  'fw-rear-delt-fly': 'Cable Rear Delt Fly', // wger id: 822
+  'fw-shrug': 'Shrugs, Barbells', // wger id: 571
+  'fw-upright-row': 'Upright Row w/ Dumbbells', // wger id: 694
+  'oly-push-press': 'Push Press', // wger id: 478
+  'oly-push-jerk': 'Push Press', // similar movement
 
-  // Arm exercises
-  'fw-barbell-curl': 'Barbell Curl',
-  'fw-db-curl': 'Dumbbell Curl',
-  'fw-hammer-curl': 'Hammer Curl',
-  'fw-preacher-curl': 'Preacher Curl',
-  'fw-skull-crusher': 'Skull Crusher',
-  'fw-close-grip-bench': 'Close-Grip Bench Press',
-  'fw-tricep-kickback': 'Tricep Kickback',
+  // ============================================
+  // ARM EXERCISES
+  // ============================================
+  'fw-barbell-curl': 'Biceps Curls With Barbell', // wger id: 91
+  'fw-db-curl': 'Biceps Curls With Dumbbell', // wger id: 92
+  'fw-hammer-curl': 'Hammercurls', // wger id: 272
+  'fw-preacher-curl': 'Preacher Curls', // wger id: 465
+  'fw-skull-crusher': 'Skullcrusher SZ-bar', // wger id: 246
+  'fw-tricep-kickback': 'Triceps Overhead (Dumbbell)', // wger id: 1336
+  'fw-tricep-pushdown': 'Triceps Pushdown', // wger id: 1185
+  'fw-cable-curl': 'Biceps Curl With Cable', // wger id: 95
+  'fw-concentration-curl': 'Concentration Curl', // wger id: 1649
+  'fw-wrist-curl': 'Barbell Wrist Curl', // wger id: 51
+  'fw-tricep-extension': 'Barbell Triceps Extension', // wger id: 50
+  'fw-overhead-tricep': 'Overhead Triceps Extension', // wger id: 1519
+  'climb-reverse-wrist-curl': 'Forearm Curls (underhand grip)', // wger id: 1333
 
-  // Leg exercises
-  'bw-squat': 'Bodyweight Squat',
-  'bw-lunge': 'Lunge',
-  'bw-bulgarian-split': 'Bulgarian Split Squat',
-  'bw-calf-raise': 'Standing Calf Raise',
-  'bw-glute-bridge': 'Glute Bridge',
-  'fw-squat': 'Barbell Squat',
-  'fw-front-squat': 'Front Squat',
-  'fw-leg-press': 'Leg Press',
-  'fw-romanian-dl': 'Romanian Deadlift',
-  'fw-leg-curl': 'Leg Curl',
-  'fw-leg-extension': 'Leg Extension',
-  'fw-hip-thrust': 'Hip Thrust',
-  'fw-calf-raise': 'Standing Calf Raise',
-  'fw-good-morning': 'Good Morning',
+  // ============================================
+  // LEG EXERCISES
+  // ============================================
+  'bw-squat': 'Barbell squat', // use barbell squat image
+  'bw-lunge': 'Lunges', // wger id: 984
+  'bw-bulgarian-split': 'Bulgarian split squats left', // wger id: 988
+  'bw-calf-raise': 'Standing Calf Raises', // wger id: 622
+  'bw-pistol-squat': 'Pistol Squat', // wger id: 456
+  'bw-glute-bridge': 'Dumbbell Hip Thrust', // wger id: 1642
+  'fw-squat': 'Barbell squat', // wger id: 1627
+  'fw-front-squat': 'Front Squats', // wger id: 257
+  'fw-leg-press': 'Leg Press', // wger id: 371
+  'fw-romanian-dl': 'Dumbbell Romanian Deadlifts', // wger id: 1673
+  'fw-leg-curl': 'Leg Curl', // wger id: 364
+  'fw-leg-extension': 'Leg Extension', // wger id: 369
+  'fw-hip-thrust': 'Dumbbell Hip Thrust', // wger id: 1642
+  'fw-calf-raise': 'Standing Calf Raises', // wger id: 622
+  'fw-good-morning': 'Good Mornings', // wger id: 268
+  'fw-sumo-deadlift': 'Sumo Deadlift', // wger id: 630
+  'fw-walking-lunge': 'Dumbbell Lunges Walking', // wger id: 206
+  'fw-reverse-lunge': 'Reverse lunges', // wger id: 999
+  'fw-hack-squat': 'Leg Press on Hackenschmidt Machine', // wger id: 375
+  'kb-goblet-squat': 'Dumbbell Goblet Squat', // wger id: 203
+  'kb-deadlift': 'Kettlebell One Legged Deadlift', // wger id: 1641
+  'oly-overhead-squat': 'Front Squats', // use front squat as reference
+  'oly-pause-front-squat': 'Front Squats', // wger id: 257
 
-  // Core exercises
-  'bw-plank': 'Plank',
-  'bw-hollow-hold': 'Hollow Hold',
-  'bw-hanging-leg-raise': 'Hanging Leg Raise',
+  // ============================================
+  // CORE EXERCISES
+  // ============================================
+  'bw-plank': 'Plank', // wger id: 458
+  'bw-hollow-hold': 'Plank', // use plank image
+  'bw-hanging-leg-raise': 'Leg Raises, Lying', // wger id: 377
+  'bw-dragon-flag': 'Leg Raises, Lying', // similar movement
+  'bw-crunch': 'Crunches', // wger id: 167
+  'bw-side-crunch': 'Side Crunch', // wger id: 576
+  'bw-decline-crunch': 'Negative Crunches', // wger id: 427
+  'bw-russian-twist': 'Russian Twist', // wger id: 1193
+  'gym-hollow-hold': 'Plank', // use plank
+  'gym-arch-hold': 'Hyperextensions', // wger id: 301
+  'gym-hollow-rock': 'Crunches', // use crunch image
+  'fw-cable-crunch': 'Weighted Crunch', // wger id: 1648
+  'fw-pallof-press': 'PALLOF PRESS', // wger id: 1194
+  'fw-hyperextension': 'Hyperextensions', // wger id: 301
+  'fw-back-extension': 'Lower Back Extensions', // wger id: 1348
 
-  // Kettlebell exercises
-  'kb-swing': 'Kettlebell Swing',
-  'kb-goblet-squat': 'Goblet Squat',
-  'kb-row': 'Kettlebell Row',
-  'kb-deadlift': 'Kettlebell Deadlift',
-  'kb-press': 'Kettlebell Press',
-  'kb-snatch': 'Kettlebell Snatch',
-  'kb-turkish-getup': 'Turkish Get-up',
+  // ============================================
+  // KETTLEBELL EXERCISES
+  // ============================================
+  'kb-swing': 'Dumbbell Hang Power Cleans', // similar explosive hip movement
+  'kb-clean': 'Dumbbell Hang Power Cleans', // wger id: 1087
+  'kb-press': 'Shoulder Press, Dumbbells', // use dumbbell shoulder press
+  'kb-snatch': 'Dumbbell Hang Power Cleans', // similar movement
+  'kb-turkish-getup': 'Dumbbell Hip Thrust', // complex movement
+  'kb-windmill': 'Dumbbell Side Bend', // wger id: 1650
+
+  // ============================================
+  // OLYMPIC LIFTS
+  // ============================================
+  'oly-power-clean': 'Barbell Clean and press', // wger id: 1638
+  'oly-hang-clean': 'Barbell Clean and press',
+  'oly-full-clean': 'Barbell Clean and press',
+  'oly-clean-and-jerk': 'Barbell Clean and press',
+  'oly-snatch-high-pull': 'High Pull', // wger id: 1187
+  'oly-clean-pull': 'Rack Deadlift', // wger id: 484
+  'oly-clean-deadlift': 'Deadlifts', // wger id: 184
+  'oly-snatch-deadlift': 'Deadlifts',
+
+  // ============================================
+  // MACHINE EXERCISES
+  // ============================================
+  'fw-chest-press': 'Machine Chest Press Exercise', // wger id: 1655
+  'fw-pec-deck': 'Butterfly', // wger id: 135
+  'fw-cable-crossover': 'Cable Cross-over', // wger id: 323
+  'fw-seated-row': 'Seated Row (Machine)', // wger id: 1725
+  'fw-shoulder-press-machine': 'Shoulder Press, on Machine', // wger id: 543
+  'fw-hip-adduction': 'Seated Hip Adduction', // wger id: 12
+  'fw-hip-abduction': 'Machine Hip Abduction', // wger id: 1748
+  'fw-calf-press': 'Calf Press Using Leg Press Machine', // wger id: 146
+  'fw-t-bar-row': 'Rowing, T-bar', // wger id: 513
+
+  // ============================================
+  // WRESTLING / COMBAT EXERCISES
+  // ============================================
+  'wrest-turkish-getup': 'Dumbbell Hip Thrust', // complex full body
+  'wrest-medicine-ball-slam': 'Medicine ball twist', // wger id: 1089
+  'wrest-bear-crawl': 'Quadriped Arm and Leg Raise', // wger id: 957
+  'combat-battle-ropes': 'Hammercurls', // arm endurance
+  'combat-farmers-walk': 'Dumbbell Shrug', // wger id: 1645
+
+  // ============================================
+  // GYMNASTICS / CALISTHENICS
+  // ============================================
+  'bw-muscle-up': 'Pull-ups', // use pullup as base
+  'gym-tuck-l-sit': 'Plank', // similar isometric
+  'gym-ring-support': 'Dips', // similar position
+  'gym-skin-the-cat': 'Pull-ups', // bar work
+  'gym-tuck-front-lever': 'Inverted Rows', // similar pulling
+  'gym-adv-tuck-front-lever': 'Inverted Rows',
+  'gym-straddle-front-lever': 'Inverted Rows',
+  'gym-full-front-lever': 'Inverted Rows',
+  'gym-planche-lean': 'Push-Up',
+  'gym-tuck-planche': 'Push-Up',
+  'gym-straddle-planche': 'Push-Up',
+  'gym-full-planche': 'Push-Up',
+  'gym-adv-tuck-planche': 'Push-Up',
+  'gym-wall-handstand-chest': 'Shoulder Press, Dumbbells',
+  'gym-wall-handstand-back': 'Shoulder Press, Dumbbells',
+  'gym-freestanding-handstand': 'Shoulder Press, Dumbbells',
+  'gym-handstand-walk': 'Shoulder Press, Dumbbells',
+  'gym-press-handstand': 'Shoulder Press, Dumbbells',
+  'gym-one-leg-l-sit': 'Plank',
+  'gym-v-sit': 'Plank',
+  'gym-ring-muscle-up': 'Pull-ups',
+  'cali-strict-muscle-up': 'Pull-ups',
+  'cali-kipping-muscle-up': 'Pull-ups',
+  'cali-tuck-back-lever': 'Inverted Rows',
+  'cali-adv-tuck-back-lever': 'Inverted Rows',
+  'cali-straddle-back-lever': 'Inverted Rows',
+  'cali-full-back-lever': 'Inverted Rows',
+  'cali-muscle-up-transition': 'Pull-ups',
+  'cali-vertical-flag': 'Side Crunch',
+  'cali-tuck-flag': 'Side Crunch',
+  'cali-straddle-flag': 'Side Crunch',
+  'cali-full-flag': 'Side Crunch',
+  'cali-one-arm-negative': 'Pull-ups',
+  'cali-assisted-one-arm': 'Pull-ups',
+  'cali-one-arm-pullup': 'Pull-ups',
+
+  // ============================================
+  // HAND BALANCING
+  // ============================================
+  'hb-handstand': 'Shoulder Press, Dumbbells',
+  'hb-handstand-walk': 'Shoulder Press, Dumbbells',
+  'hb-freestanding-handstand': 'Shoulder Press, Dumbbells',
+  'hb-press-handstand': 'Shoulder Press, Dumbbells',
+  'hb-one-arm-handstand': 'Shoulder Press, Dumbbells',
+  'hb-straddle-press': 'Shoulder Press, Dumbbells',
+  'hb-crow-pose': 'Plank',
+  'hb-canes': 'Dips',
+
+  // ============================================
+  // FLEXIBILITY / STRETCHING
+  // ============================================
+  'contort-shoulder-dislocate': 'Shoulder Press, Dumbbells',
+  'contort-bridge': 'Hyperextensions', // wger id: 301
+  'contort-chest-stand': 'Hyperextensions',
+  'contort-scorpion': 'Hyperextensions',
+  'contort-pancake': 'Leg Raises, Lying',
+  'contort-pike-fold': 'Leg Raises, Lying',
+  'contort-front-split': 'Lunges',
+  'contort-middle-split': 'Seated Hip Adduction',
+  'contort-oversplit': 'Lunges',
+  'contort-german-hang': 'Inverted Rows',
+
+  // ============================================
+  // CARDIO / CONDITIONING
+  // ============================================
+  'combat-sled-push': 'Leg Press', // similar pushing motion
+  'combat-sled-pull': 'Seated Cable Rows',
+  'combat-tire-flip': 'Deadlifts',
+  'combat-sledgehammer-swing': 'Medicine ball twist',
+  'combat-heavy-bag-rounds': 'Push-Up', // full body
+  'combat-shadow-boxing': 'Push-Up',
+  'combat-double-end-bag': 'Push-Up',
+  'combat-thai-pad-rounds': 'Push-Up',
+  'combat-kick-bag': 'Front Squats',
+  'combat-speed-bag': 'Biceps Curls With Dumbbell',
+  'wrest-rope-climb': 'Pull-ups',
+  'wrest-legless-rope-climb': 'Pull-ups',
+  'wrest-gi-pullup': 'Pull-ups',
+  'wrest-towel-pullup': 'Pull-ups',
+  'wrest-sprawl': 'Hyperextensions',
+  'wrest-sprawl-burpee': 'Push-Up',
+  'wrest-rotational-throw': 'Medicine ball twist',
+  'wrest-crab-walk': 'Dips Between Two Benches', // wger id: 197
+  'wrest-duck-walk': 'Lunges',
+  'wrest-sandbag-shouldering': 'Deadlifts',
+  'wrest-sandbag-carry': 'Deadlifts',
+  'wrest-hip-toss-drill': 'Russian Twist',
+  'wrest-fireman-carry': 'Deadlifts',
+
+  // ============================================
+  // TRX / SUSPENSION
+  // ============================================
+  'fw-trx-row': 'TRX Rows', // wger id: 959
+  'fw-trx-curl': 'Biceps with TRX', // wger id: 958
+
+  // ============================================
+  // NECK EXERCISES
+  // ============================================
+  'wrest-neck-bridge': 'Hyperextensions',
+  'wrest-neck-harness': 'Shrugs, Barbells',
+  'wrest-neck-rotation': 'Shrugs, Barbells',
 };
 
 function findBestWgerMatch(
@@ -490,15 +688,20 @@ function printMappingStats(mappings: ExerciseMapping[]): void {
   console.log(`  None:   ${stats.none} (${(stats.none / mappings.length * 100).toFixed(1)}%)`);
 }
 
-function generateSqlUpdates(mappings: ExerciseMapping[]): string {
+function generateSqlUpdates(mappings: ExerciseMapping[], includeAll = false): string {
+  // Include exact, high, and medium confidence if includeAll is true
   const validMappings = mappings.filter(m =>
-    m.imageUrl && (m.confidence === 'exact' || m.confidence === 'high')
+    m.imageUrl && (
+      m.confidence === 'exact' ||
+      m.confidence === 'high' ||
+      (includeAll && (m.confidence === 'medium' || m.confidence === 'low'))
+    )
   );
 
   let sql = `-- wger.de Exercise Image Updates
 -- Generated: ${new Date().toISOString()}
 -- Total updates: ${validMappings.length}
--- Note: Only exact and high confidence matches are included
+-- Mode: ${includeAll ? 'ALL matches with images' : 'Exact and high confidence only'}
 
 BEGIN;
 
@@ -619,10 +822,13 @@ Examples:
       process.exit(1);
     }
 
-    const sql = generateSqlUpdates(mappings);
+    // Check if we should include all matches (medium + low confidence)
+    const includeAll = args.includes('--include-all');
+    const sql = generateSqlUpdates(mappings, includeAll);
     const sqlPath = path.join(CACHE_DIR, 'update-images.sql');
     fs.writeFileSync(sqlPath, sql);
     console.log(`\nGenerated SQL: ${sqlPath}`);
+    console.log(`Mode: ${includeAll ? 'ALL matches with images' : 'Exact and high confidence only'}`);
 
     // Also output to stdout if explicitly requested
     if (args.includes('--sql') && !args.includes('--all')) {
