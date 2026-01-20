@@ -1,1 +1,1 @@
-../private/scripts/intelligent-cache.mjs
+aggressive-cache.mjs
