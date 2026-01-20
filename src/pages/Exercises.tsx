@@ -343,22 +343,19 @@ const ExerciseCard = ({ exercise, onClick }) => {
           </Suspense>
         </div>
       ) : muscleActivations.length > 0 ? (
-        // Fallback: Show muscle badge visualization when no image available
-        <div className="relative h-32 bg-gradient-to-br from-[#0d0d12] via-[#12121a] to-[#0f0f18] border-b border-white/5">
-          <div className="absolute inset-0 flex items-center justify-center">
-            {/* Large centered muscle badge */}
-            <MuscleActivationBadge
-              muscles={muscleActivations}
-              size={80}
-              showGlow={true}
-            />
-          </div>
-          {/* Muscle names */}
+        // Fallback: Show muscle activation badge when no image available
+        <div className="relative h-32 bg-gradient-to-br from-[#0d0d12] via-[#12121a] to-[#0f0f18] border-b border-white/5 flex items-center justify-center">
+          <MuscleActivationBadge
+            muscles={muscleActivations}
+            size={72}
+            showGlow={true}
+          />
+          {/* Muscle names and type */}
           <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between">
             <span className="text-[8px] text-gray-400 bg-black/60 px-1.5 py-0.5 rounded capitalize truncate max-w-[60%]">
               {exercise.primaryMuscles?.slice(0, 2).join(', ') || exercise.type || 'bodyweight'}
             </span>
-            <span className="text-[8px] text-violet-400 bg-violet-500/20 px-1.5 py-0.5 rounded">
+            <span className="text-[8px] text-violet-400/70 bg-violet-500/10 px-1.5 py-0.5 rounded">
               No image
             </span>
           </div>
