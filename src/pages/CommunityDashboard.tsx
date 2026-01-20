@@ -113,7 +113,7 @@ export default function CommunityDashboard() {
     snapshot,
     events: wsEvents,
     error: wsError,
-  } = useWebSocket('/ws/community', {
+  } = useWebSocket('/api/community/ws/public', {
     autoConnect: true,
     token,
   });
