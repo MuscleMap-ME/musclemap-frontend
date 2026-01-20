@@ -436,33 +436,44 @@ export default function BuildDaemonPanel() {
               </div>
             ) : (
               status?.build.history.map((job) => (
-                <div key={job.id} className="px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {job.status === 'completed' ? (
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-red-400" />
-                    )}
-                    <span className="font-mono text-sm text-gray-300">
-                      {job.id.slice(0, 8)}
-                    </span>
-                    {job.result?.tier !== undefined && (
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierBadges[job.result.tier]?.color}`}>
-                        {tierBadges[job.result.tier]?.label ?? `T${job.result.tier}`}
+                <div key={job.id} className={`px-4 py-3 ${job.status === 'failed' ? 'bg-red-500/5' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {job.status === 'completed' ? (
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-red-400" />
+                      )}
+                      <span className="font-mono text-sm text-gray-300">
+                        {job.id.slice(0, 8)}
                       </span>
-                    )}
+                      {job.status === 'failed' ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium text-red-400 bg-red-500/20">
+                          FAILED
+                        </span>
+                      ) : job.result?.tier !== undefined && (
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierBadges[job.result.tier]?.color}`}>
+                          {tierBadges[job.result.tier]?.label ?? `T${job.result.tier}`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <span>{job.source}</span>
+                      {job.duration && (
+                        <span className="text-gray-500">{formatDuration(job.duration)}</span>
+                      )}
+                      {job.completedAt && (
+                        <span className="text-gray-600 text-xs">
+                          {new Date(job.completedAt).toLocaleTimeString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <span>{job.source}</span>
-                    {job.duration && (
-                      <span className="text-gray-500">{formatDuration(job.duration)}</span>
-                    )}
-                    {job.completedAt && (
-                      <span className="text-gray-600 text-xs">
-                        {new Date(job.completedAt).toLocaleTimeString()}
-                      </span>
-                    )}
-                  </div>
+                  {job.status === 'failed' && job.error && (
+                    <div className="mt-2 text-xs text-red-400/80 font-mono truncate pl-7">
+                      {job.error}
+                    </div>
+                  )}
                 </div>
               ))
             )}
