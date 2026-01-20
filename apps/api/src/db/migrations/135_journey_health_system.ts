@@ -101,34 +101,34 @@ export async function up(): Promise<void> {
 
     // Unique constraint: one health score per user journey
     await db.query(`
-      CREATE UNIQUE INDEX idx_journey_health_scores_user_journey
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_journey_health_scores_user_journey
       ON journey_health_scores(user_journey_id)
     `);
 
     // Index for finding at-risk journeys by user
     await db.query(`
-      CREATE INDEX idx_journey_health_scores_user_risk
+      CREATE INDEX IF NOT EXISTS idx_journey_health_scores_user_risk
       ON journey_health_scores(user_id, risk_level, health_score)
     `);
 
     // Index for filtering by risk level
     await db.query(`
-      CREATE INDEX idx_journey_health_scores_risk_level
+      CREATE INDEX IF NOT EXISTS idx_journey_health_scores_risk_level
       ON journey_health_scores(risk_level)
       WHERE risk_level != 'healthy'
     `);
 
     // Keyset pagination index
     await db.query(`
-      CREATE INDEX idx_journey_health_scores_keyset
+      CREATE INDEX IF NOT EXISTS idx_journey_health_scores_keyset
       ON journey_health_scores(user_id, calculated_at DESC, id DESC)
     `);
 
     // Index for scheduled recalculation (find stale scores)
+    // Note: Cannot use NOW() in partial index - use regular index and filter in queries
     await db.query(`
-      CREATE INDEX idx_journey_health_scores_stale
+      CREATE INDEX IF NOT EXISTS idx_journey_health_scores_stale
       ON journey_health_scores(calculated_at)
-      WHERE calculated_at < NOW() - INTERVAL '1 day'
     `);
 
     log.info('Created journey_health_scores table with indexes');

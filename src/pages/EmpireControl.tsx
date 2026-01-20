@@ -297,6 +297,29 @@ export default function EmpireControl() {
   // Notification state
   const [notificationCount, setNotificationCount] = useState(0);
 
+  // Owner Powers state
+  const [ownerPowerModal, setOwnerPowerModal] = useState<string | null>(null);
+  const [unlimitedCreditsLoading, setUnlimitedCreditsLoading] = useState(false);
+  const [banUserSearch, setBanUserSearch] = useState('');
+  const [banUserResults, setBanUserResults] = useState<Array<{id: string; username: string; displayName?: string}>>([]);
+  const [banUserTarget, setBanUserTarget] = useState<{id: string; username: string; displayName?: string} | null>(null);
+  const [banReason, setBanReason] = useState('');
+  const [banLoading, setBanLoading] = useState(false);
+  const [achievementUserSearch, setAchievementUserSearch] = useState('');
+  const [achievementUserResults, setAchievementUserResults] = useState<Array<{id: string; username: string; displayName?: string}>>([]);
+  const [achievementUserTarget, setAchievementUserTarget] = useState<{id: string; username: string; displayName?: string} | null>(null);
+  const [achievementToGrant, setAchievementToGrant] = useState('');
+  const [achievementLoading, setAchievementLoading] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [systemOverrideAction, setSystemOverrideAction] = useState('');
+  const [systemOverrideLoading, setSystemOverrideLoading] = useState(false);
+  const [giftUserSearch, setGiftUserSearch] = useState('');
+  const [giftUserResults, setGiftUserResults] = useState<Array<{id: string; username: string; displayName?: string}>>([]);
+  const [giftUserTarget, setGiftUserTarget] = useState<{id: string; username: string; displayName?: string} | null>(null);
+  const [giftCreditsAmount, setGiftCreditsAmount] = useState(100);
+  const [giftCreditsLoading, setGiftCreditsLoading] = useState(false);
+
   // Get auth header
   const getAuthHeader = useCallback(() => {
     try {
@@ -755,6 +778,228 @@ export default function EmpireControl() {
     }
   };
 
+  // Owner Power handlers
+  const handleOwnerPower = (powerId: string) => {
+    setOwnerPowerModal(powerId);
+    // Reset states
+    setBanUserSearch('');
+    setBanUserResults([]);
+    setBanUserTarget(null);
+    setBanReason('');
+    setAchievementUserSearch('');
+    setAchievementUserResults([]);
+    setAchievementUserTarget(null);
+    setAchievementToGrant('');
+    setBroadcastMessage('');
+    setSystemOverrideAction('');
+    setGiftUserSearch('');
+    setGiftUserResults([]);
+    setGiftUserTarget(null);
+    setGiftCreditsAmount(100);
+  };
+
+  const handleUnlimitedCredits = async () => {
+    setUnlimitedCreditsLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/credits/owner-unlimited', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+      });
+      if (res.ok) {
+        alert('Your credits have been set to unlimited (1,000,000,000)!');
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to grant unlimited credits');
+      }
+    } catch {
+      alert('Failed to grant unlimited credits');
+    } finally {
+      setUnlimitedCreditsLoading(false);
+    }
+  };
+
+  const searchUsersForPower = async (query: string, setPower: 'ban' | 'achievement' | 'gift') => {
+    if (!query || query.length < 2) {
+      if (setPower === 'ban') setBanUserResults([]);
+      else if (setPower === 'achievement') setAchievementUserResults([]);
+      else setGiftUserResults([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/graphql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          query: `query SearchUsers($query: String!) {
+            searchUsers(query: $query, limit: 10) {
+              id
+              username
+              displayName
+            }
+          }`,
+          variables: { query },
+        }),
+      });
+      const data = await res.json();
+      const results = data.data?.searchUsers || [];
+      if (setPower === 'ban') setBanUserResults(results);
+      else if (setPower === 'achievement') setAchievementUserResults(results);
+      else setGiftUserResults(results);
+    } catch {
+      // Failed to search users
+    }
+  };
+
+  const handleBanUser = async () => {
+    if (!banUserTarget) return;
+    setBanLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/users/ban', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          userId: banUserTarget.id,
+          reason: banReason || 'Banned by owner',
+        }),
+      });
+      if (res.ok) {
+        alert(`User ${banUserTarget.username} has been banned!`);
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to ban user');
+      }
+    } catch {
+      alert('Failed to ban user');
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleGrantAchievement = async () => {
+    if (!achievementUserTarget || !achievementToGrant) return;
+    setAchievementLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/achievements/grant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          userId: achievementUserTarget.id,
+          achievementId: achievementToGrant,
+        }),
+      });
+      if (res.ok) {
+        alert(`Achievement granted to ${achievementUserTarget.username}!`);
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to grant achievement');
+      }
+    } catch {
+      alert('Failed to grant achievement');
+    } finally {
+      setAchievementLoading(false);
+    }
+  };
+
+  const handleBroadcastMessage = async () => {
+    if (!broadcastMessage) return;
+    setBroadcastLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          message: broadcastMessage,
+        }),
+      });
+      if (res.ok) {
+        alert('Broadcast message sent to all users!');
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to send broadcast');
+      }
+    } catch {
+      alert('Failed to send broadcast');
+    } finally {
+      setBroadcastLoading(false);
+    }
+  };
+
+  const handleSystemOverride = async (action: string) => {
+    setSystemOverrideAction(action);
+    setSystemOverrideLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/system/override', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        alert(`System override "${action}" executed!`);
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to execute system override');
+      }
+    } catch {
+      alert('Failed to execute system override');
+    } finally {
+      setSystemOverrideLoading(false);
+    }
+  };
+
+  const handleGiftCreditsFromPower = async () => {
+    if (!giftUserTarget || giftCreditsAmount <= 0) return;
+    setGiftCreditsLoading(true);
+    try {
+      const res = await fetch('/api/admin-control/credits/adjust', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          userId: giftUserTarget.id,
+          amount: giftCreditsAmount,
+          reason: 'Gift from owner',
+          type: 'admin_grant',
+        }),
+      });
+      if (res.ok) {
+        alert(`Gifted ${giftCreditsAmount} credits to ${giftUserTarget.username}!`);
+        setOwnerPowerModal(null);
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to gift credits');
+      }
+    } catch {
+      alert('Failed to gift credits');
+    } finally {
+      setGiftCreditsLoading(false);
+    }
+  };
+
   // Handle user actions
   const handleUserAction = (action, targetUser) => {
     switch (action) {
@@ -1080,7 +1325,7 @@ export default function EmpireControl() {
                           icon={power.icon}
                           label={power.name}
                           color={power.color}
-                          onClick={() => {}}
+                          onClick={() => handleOwnerPower(power.id)}
                         />
                       ))}
                     </div>
@@ -2663,11 +2908,15 @@ export default function EmpireControl() {
                     <h3 className="font-semibold mb-4">Owner Powers</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {OWNER_POWERS.map((power) => (
-                        <div key={power.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
+                        <button
+                          key={power.id}
+                          onClick={() => handleOwnerPower(power.id)}
+                          className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer text-left"
+                        >
                           <power.icon className="w-5 h-5" style={{ color: power.color }} />
                           <span className="text-sm">{power.name}</span>
                           <CheckCircle className="w-4 h-4 text-green-400 ml-auto" />
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </GlassSurface>
