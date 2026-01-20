@@ -153,7 +153,7 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
          COUNT(*)::text as count
        FROM workouts w
        CROSS JOIN LATERAL jsonb_array_elements(w.exercise_data) AS ex
-       JOIN exercises e ON e.id = (ex->>'exerciseId')::uuid
+       JOIN exercises e ON e.id = (ex->>'exerciseId')
        WHERE w.user_id = $1
        GROUP BY e.id, e.name
        ORDER BY COUNT(*) DESC
