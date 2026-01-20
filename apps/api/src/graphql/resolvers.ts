@@ -349,7 +349,7 @@ export const resolvers = {
       const limit = Math.min(args.limit || 100, 500);
       let sql = `SELECT id, name, description, type, primary_muscles, difficulty, cues,
                         equipment_required, equipment_optional, locations, is_compound,
-                        movement_pattern
+                        movement_pattern, image_url, video_url
                  FROM exercises WHERE 1=1`;
       const params: unknown[] = [];
       let paramIndex = 1;
@@ -385,8 +385,8 @@ export const resolvers = {
         difficulty: e.difficulty,
         instructions: e.cues ? (Array.isArray(e.cues) ? e.cues : [e.cues]) : [],
         tips: [],
-        imageUrl: null,
-        videoUrl: null,
+        imageUrl: e.image_url || null,
+        videoUrl: e.video_url || null,
       }));
     },
 
@@ -394,7 +394,7 @@ export const resolvers = {
       const e = await queryOne<any>(
         `SELECT id, name, description, type, primary_muscles, difficulty, cues,
                 equipment_required, equipment_optional, locations, is_compound,
-                movement_pattern
+                movement_pattern, image_url, video_url
          FROM exercises WHERE id = $1`,
         [args.id]
       );
@@ -410,8 +410,8 @@ export const resolvers = {
         difficulty: e.difficulty,
         instructions: e.cues ? (Array.isArray(e.cues) ? e.cues : [e.cues]) : [],
         tips: [],
-        imageUrl: null,
-        videoUrl: null,
+        imageUrl: e.image_url || null,
+        videoUrl: e.video_url || null,
       };
     },
 
