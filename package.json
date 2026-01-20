@@ -112,6 +112,13 @@
     "deploy:preview": "sh ./scripts/deployment/deploy-preview.sh",
     "monitor:uptime": "npx tsx scripts/deployment/uptime-monitor.ts",
     "monitor:uptime:daemon": "npx tsx scripts/deployment/uptime-monitor.ts --daemon",
+    "bundle:size": "node scripts/bundle-size-report.mjs",
+    "bundle:size:json": "node scripts/bundle-size-report.mjs --json",
+    "bundle:size:baseline": "node scripts/bundle-size-report.mjs --save-baseline",
+    "bundle:size:check": "node scripts/bundle-size-report.mjs --check 500",
+    "optimize:images": "sh ./scripts/convert-icons-webp.sh",
+    "migrate:barrel-imports": "node scripts/migrate-barrel-imports.mjs",
+    "migrate:barrel-imports:dry": "node scripts/migrate-barrel-imports.mjs --dry-run",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -176,6 +183,7 @@
     "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.23",
     "concurrently": "^8.2.2",
+    "critters": "^0.0.25",
     "esbuild": "^0.27.2",
     "eslint": "^9.18.0",
     "eslint-plugin-react": "^7.37.5",
@@ -191,6 +199,7 @@
     "tailwindcss": "^4.1.18",
     "vite": "^5.4.21",
     "vite-plugin-compression": "^0.5.1",
+    "vite-plugin-imagemin": "^0.6.1",
     "vitest": "^4.0.16",
     "ws": "^8.18.3"
   },
@@ -203,7 +212,13 @@
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "esbuild",
-      "sharp"
+      "sharp",
+      "cwebp-bin",
+      "gifsicle",
+      "jpegtran-bin",
+      "mozjpeg",
+      "optipng-bin",
+      "pngquant-bin"
     ]
   }
 }

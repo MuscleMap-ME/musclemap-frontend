@@ -55,6 +55,24 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off',
+      // Discourage barrel imports for better tree-shaking
+      // Import directly from source files instead of index.ts
+      // NOTE: This is intentionally set to 'off' because the barrel files
+      // themselves need to import from stores to re-export them.
+      // The deprecation warnings in the barrel files serve as guidance.
+      // Enable this rule in component files only if desired.
+      // 'no-restricted-imports': ['warn', {
+      //   patterns: [
+      //     {
+      //       group: ['@/hooks', '../hooks', './hooks', '*/hooks/index'],
+      //       message: 'Import hooks directly from source files for better tree-shaking.',
+      //     },
+      //     {
+      //       group: ['@/store', '../store', './store', '*/store/index'],
+      //       message: 'Import from specific store files for better tree-shaking.',
+      //     },
+      //   ],
+      // }],
     },
   },
   {

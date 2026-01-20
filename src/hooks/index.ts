@@ -3,6 +3,17 @@
  *
  * Central export for all custom React hooks.
  *
+ * ⚠️ DEPRECATION WARNING:
+ * Importing from this barrel file (@/hooks or ../hooks) prevents tree-shaking
+ * and increases bundle size. For better performance, import directly from
+ * the specific hook file instead.
+ *
+ * Example:
+ *   ❌ import { useAuth, useToast, useDebounce } from '@/hooks';
+ *   ✅ import { useAuth } from '@/store/authStore';
+ *   ✅ import { useToast } from '@/store/uiStore';
+ *   ✅ import { useDebounce } from '@/hooks/useDebounce';
+ *
  * HOOK CATEGORIES:
  * ----------------
  * 1. State Management Hooks (from stores)

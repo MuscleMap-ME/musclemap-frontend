@@ -4,6 +4,16 @@
  * Central export for all Zustand stores and their associated hooks.
  * This is the primary entry point for state management in MuscleMap.
  *
+ * ⚠️ DEPRECATION WARNING:
+ * Importing from this barrel file (@/store or ../store) prevents tree-shaking
+ * and increases bundle size. For better performance, import directly from
+ * the specific store file instead.
+ *
+ * Example:
+ *   ❌ import { useAuth, useToast } from '@/store';
+ *   ✅ import { useAuth } from '@/store/authStore';
+ *   ✅ import { useToast } from '@/store/uiStore';
+ *
  * ARCHITECTURE OVERVIEW:
  * ----------------------
  * MuscleMap uses a hybrid state management approach:
@@ -246,16 +256,19 @@ export type { MusicProvider, Track, Playlist, MusicConnection } from './musicSto
 // STORE UTILITIES
 // ============================================
 
+// Import stores directly for tree-shaking (avoid dynamic require())
+import { useUIStore } from './uiStore';
+import { useWorkoutSessionStore } from './workoutSessionStore';
+import { useMuscleVisualizationStore } from './muscleVisualizationStore';
+
 /**
  * Reset all stores to initial state
  * Useful for logout or testing
+ *
+ * NOTE: Using static imports instead of require() for tree-shaking.
+ * Dynamic require() prevents bundlers from analyzing dependencies.
  */
 export function resetAllStores() {
-  const { useUIStore } = require('./uiStore');
-  const { useWorkoutSessionStore } = require('./workoutSessionStore');
-  const { useMuscleVisualizationStore } = require('./muscleVisualizationStore');
-  const { useAuthStore: _useAuthStore } = require('./authStore');
-
   // Clear UI state
   useUIStore.setState({
     sidebarOpen: false,

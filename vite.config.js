@@ -4,11 +4,60 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { visualizer } from 'rollup-plugin-visualizer'
 import compression from 'vite-plugin-compression'
+import viteImagemin from 'vite-plugin-imagemin'
 import prebundledVendors from './vite-prebundled-vendors.js'
 import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import { cpus } from 'os'
+
+// Skip image optimization in dev mode or when SKIP_IMAGEMIN is set
+// Image optimization adds ~10s to builds but reduces image sizes by 30-50%
+const skipImagemin = process.env.NODE_ENV !== 'production' || process.env.SKIP_IMAGEMIN === 'true'
+
+/**
+ * Prefetch Hints Plugin
+ *
+ * Injects resource hints for likely-needed chunks to improve navigation.
+ * - preload: Critical path chunks (react-vendor)
+ * - prefetch: Likely next chunks (apollo-vendor, ui-vendor)
+ */
+function prefetchHintsPlugin() {
+  return {
+    name: 'vite-plugin-prefetch-hints',
+    enforce: 'post',
+    transformIndexHtml(html, ctx) {
+      // Only add hints in production builds
+      if (!ctx.bundle) return html;
+
+      const hints = [];
+      const criticalChunks = ['react-vendor']; // Always preload
+      const prefetchChunks = ['apollo-vendor']; // Prefetch for GraphQL
+
+      for (const [fileName, chunk] of Object.entries(ctx.bundle)) {
+        if (chunk.type !== 'chunk' || !fileName.endsWith('.js')) continue;
+
+        // Check if this is a critical chunk
+        const isCritical = criticalChunks.some(c => fileName.includes(c));
+        const shouldPrefetch = prefetchChunks.some(c => fileName.includes(c));
+
+        if (isCritical) {
+          hints.push(`<link rel="modulepreload" href="/${fileName}">`);
+        } else if (shouldPrefetch) {
+          hints.push(`<link rel="prefetch" href="/${fileName}" as="script">`);
+        }
+      }
+
+      // Insert hints before </head>
+      if (hints.length > 0) {
+        const hintsHtml = `\n  <!-- Prefetch hints for faster navigation -->\n  ${hints.join('\n  ')}\n`;
+        return html.replace('</head>', hintsHtml + '</head>');
+      }
+
+      return html;
+    },
+  };
+}
 
 /**
  * CRITICAL: Fix for "Dynamic require of 'react' is not supported" error
@@ -222,6 +271,32 @@ export default defineConfig({
       deleteOriginFile: false,
       filter: /\.(js|css|html|svg|json)$/i,
     }),
+    // Image optimization - reduces PNG/JPG/GIF sizes by 30-50%
+    // Only runs in production builds to speed up dev
+    !skipImagemin && viteImagemin({
+      gifsicle: {
+        optimizationLevel: 7,
+        interlaced: false,
+      },
+      optipng: {
+        optimizationLevel: 7,
+      },
+      mozjpeg: {
+        quality: 80,
+      },
+      pngquant: {
+        quality: [0.8, 0.9],
+        speed: 4,
+      },
+      svgo: {
+        plugins: [
+          { name: 'removeViewBox', active: false },
+          { name: 'removeEmptyAttrs', active: false },
+        ],
+      },
+    }),
+    // Prefetch hints - adds resource hints for faster navigation
+    prefetchHintsPlugin(),
   ].filter(Boolean),
   publicDir: 'public',
   server: {
@@ -271,6 +346,9 @@ export default defineConfig({
     // Skip compressed size reporting - saves ~30% build time
     // We calculate sizes in post-build compression anyway
     reportCompressedSize: false,
+    // Inline assets smaller than 2KB (default is 4KB)
+    // Reduces HTTP requests for tiny files while keeping bundle size down
+    assetsInlineLimit: 2048,
     // Reduce memory pressure by limiting concurrent file operations
     // Normal: 20 parallel ops, Low memory: 2 parallel ops
     ...(lowMemoryMode && {
@@ -284,7 +362,10 @@ export default defineConfig({
         // Only preload critical path chunks
         // Exclude heavy vendor chunks that are only needed for specific pages
         const heavyChunks = [
-          'three-vendor',     // 3D rendering - only dashboard/workout
+          'three-core',       // 3D core math - only 3D pages
+          'three-render',     // 3D renderers - only 3D pages
+          'three-extras',     // 3D helpers - only 3D pages
+          'three-vendor',     // 3D misc - only 3D pages
           'recharts-vendor',  // Charts - only stats pages
           'd3-vendor',        // Charts - only stats pages
           'reactflow-vendor', // Flow diagrams - only skill tree
@@ -328,10 +409,32 @@ export default defineConfig({
             return 'apollo-vendor';
           }
 
-          // Three.js ONLY - without React Three Fiber wrappers
-          // R3F has CommonJS issues - let it bundle with main app code
-          if (id.includes('node_modules/three/') &&
-              !id.includes('@react-three')) {
+          // Three.js split into multiple chunks for better loading
+          // Only pages with 3D content will load these
+          if (id.includes('node_modules/three/') && !id.includes('@react-three')) {
+            // Core Three.js math and scene fundamentals (~200KB)
+            if (id.includes('three/src/math') ||
+                id.includes('three/src/core') ||
+                id.includes('three/src/constants') ||
+                id.includes('three/src/Three.js')) {
+              return 'three-core';
+            }
+            // Renderers and materials (~250KB)
+            if (id.includes('three/src/renderers') ||
+                id.includes('three/src/materials') ||
+                id.includes('three/src/textures') ||
+                id.includes('three/src/objects')) {
+              return 'three-render';
+            }
+            // Loaders, helpers, extras (~200KB)
+            if (id.includes('three/src/loaders') ||
+                id.includes('three/src/helpers') ||
+                id.includes('three/src/extras') ||
+                id.includes('three/src/animation') ||
+                id.includes('three/src/geometries')) {
+              return 'three-extras';
+            }
+            // Anything else from three.js
             return 'three-vendor';
           }
 
@@ -433,11 +536,13 @@ export default defineConfig({
       'clsx',
       'tailwind-merge',
     ],
-    // Exclude three.js from Vite's pre-bundling
-    // It uses our custom pre-bundled file in .vendor-cache/ instead
+    // Exclude dependencies from Vite's pre-bundling
+    // - three: Uses our custom pre-bundled file in .vendor-cache/
+    // - sharp: Build-time only, not needed in browser bundle
     // Note: @react-three/* are NOT excluded - let Vite handle them normally
     exclude: [
       'three',
+      'sharp', // Build-time only image processing
     ],
     // Force optimization of nested dependencies
     esbuildOptions: {
