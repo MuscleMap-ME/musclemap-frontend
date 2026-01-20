@@ -27,23 +27,37 @@ let d3PreloadStarted = false;
  * Results are memoized and cached globally.
  */
 export function useCalculatedLayout(): Map<string, Position> {
-  const locations = useMemo(() => Object.values(LOCATIONS), []);
+  const locations = useMemo(() => {
+    try {
+      return Object.values(LOCATIONS);
+    } catch (error) {
+      console.error('[useCalculatedLayout] Error getting locations:', error);
+      return [];
+    }
+  }, []);
   const cacheKeyRef = useRef<string>('');
   const [d3Loaded, setD3Loaded] = useState(false);
 
   // Preload D3 on mount (only on desktop, non-blocking)
   useEffect(() => {
-    // Detect mobile - don't preload D3 on mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-                     (window.innerWidth < 768);
+    try {
+      // Detect mobile - don't preload D3 on mobile
+      const isMobile = typeof navigator !== 'undefined' &&
+        (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+         (typeof window !== 'undefined' && window.innerWidth < 768));
 
-    if (!isMobile && !d3PreloadStarted) {
-      d3PreloadStarted = true;
-      preloadD3().then((loaded) => {
-        if (loaded) {
-          setD3Loaded(true);
-        }
-      });
+      if (!isMobile && !d3PreloadStarted) {
+        d3PreloadStarted = true;
+        preloadD3().then((loaded) => {
+          if (loaded) {
+            setD3Loaded(true);
+          }
+        }).catch((error) => {
+          console.warn('[useCalculatedLayout] D3 preload failed:', error);
+        });
+      }
+    } catch (error) {
+      console.warn('[useCalculatedLayout] Mobile detection failed:', error);
     }
   }, []);
 
@@ -100,10 +114,16 @@ export function useLocationsWithCalculatedPositions(): MapLocation[] {
   const layout = useCalculatedLayout();
 
   return useMemo(() => {
-    return Object.values(LOCATIONS).map((loc) => ({
-      ...loc,
-      position: layout.get(loc.id) ?? loc.position,
-    }));
+    try {
+      return Object.values(LOCATIONS).map((loc) => ({
+        ...loc,
+        position: layout.get(loc.id) ?? loc.position,
+      }));
+    } catch (error) {
+      console.error('[useLocationsWithCalculatedPositions] Error:', error);
+      // Return locations with their original positions as fallback
+      return Object.values(LOCATIONS);
+    }
   }, [layout]);
 }
 

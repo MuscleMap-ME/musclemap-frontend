@@ -103,7 +103,7 @@ export function useCharacterMovement(
         const isComplete = advanceMovement();
 
         if (isComplete && targetLocation && onLocationReached) {
-          const location = LOCATIONS.find((l) => l.id === targetLocation);
+          const location = LOCATIONS[targetLocation as keyof typeof LOCATIONS];
           if (location) {
             onLocationReached(targetLocation, location.route);
           }
