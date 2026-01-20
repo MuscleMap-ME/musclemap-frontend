@@ -43,6 +43,7 @@ import { DailyChallenges } from '../components/challenges';
 // New Gamification & Analytics Components
 import { XPProgress, DailyQuests } from '../components/gamification';
 import { InsightCard } from '../components/analytics';
+import { RPGStatBar } from '../components/stats';
 
 // Celebration hooks
 import { useCelebrationCallbacks } from '../store';
@@ -531,43 +532,28 @@ const CharacterStatsCard = ({ characterStats, loading }) => {
           </svg>
         </div>
 
-        {/* Stat Bars - Show all 6 stats in responsive grid */}
-        <div className="flex-1 grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-2">
-          {STAT_ORDER.map((key) => {
+        {/* RPG-Style Stat Bars */}
+        <div className="flex-1 space-y-2">
+          {STAT_ORDER.map((key, index) => {
             const value = stats[key] || 0;
-            const percentage = Math.min((value / maxStat) * 100, 100);
             const meta = STAT_META[key];
 
             return (
-              <motion.div
+              <RPGStatBar
                 key={key}
-                className="space-y-1"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: STAT_ORDER.indexOf(key) * 0.05 }}
-              >
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: meta.color }}
-                    />
-                    <span className="font-semibold text-[var(--text-secondary)] truncate">{meta.abbr}</span>
-                  </div>
-                  <span className="font-bold flex-shrink-0" style={{ color: meta.color }}>
-                    {value.toFixed(0)}
-                  </span>
-                </div>
-                <div className="h-1.5 bg-[var(--glass-white-5)] rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: meta.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percentage}%` }}
-                    transition={{ duration: 0.6, delay: STAT_ORDER.indexOf(key) * 0.05 }}
-                  />
-                </div>
-              </motion.div>
+                statKey={key}
+                label={meta.name}
+                abbreviation={meta.abbr}
+                value={value}
+                maxValue={maxStat * 1.2}
+                color={meta.color}
+                description={meta.description}
+                delay={index * 0.06}
+                showSegments={true}
+                segmentCount={10}
+                size="sm"
+                variant="default"
+              />
             );
           })}
         </div>
