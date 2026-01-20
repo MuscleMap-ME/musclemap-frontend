@@ -118,6 +118,11 @@ export async function registerMiscRoutes(app: FastifyInstance) {
           videoUrl: e.video_url || null,
           videoThumbnailUrl: e.video_thumbnail_url || null,
           videoDurationSeconds: e.video_duration_seconds || null,
+          // wger.de image data
+          imageUrl: e.image_url || null,
+          imageLicense: e.image_license || null,
+          imageAuthor: e.image_author || null,
+          wgerId: e.wger_id || null,
         };
       }),
     });

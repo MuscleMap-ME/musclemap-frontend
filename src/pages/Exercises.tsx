@@ -301,6 +301,7 @@ const exerciseToMuscleActivations = (exercise: { primaryMuscles?: string[]; seco
 const ExerciseCard = ({ exercise, onClick }) => {
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
   const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
+  const hasWgerImage = !!exercise.imageUrl;
   const muscleActivations = useMemo(() => exerciseToMuscleActivations(exercise), [exercise]);
 
   return (
@@ -312,8 +313,21 @@ const ExerciseCard = ({ exercise, onClick }) => {
       onClick={() => onClick(exercise)}
       className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:bg-white/10 transition-all"
     >
-      {/* Illustration thumbnail */}
-      {hasIllustration && (
+      {/* Exercise image - prefer wger images, fall back to illustrations */}
+      {hasWgerImage ? (
+        <div className="relative h-32 bg-[#0d0d12] border-b border-white/5 overflow-hidden">
+          <img
+            src={exercise.imageUrl}
+            alt={exercise.name}
+            className="w-full h-full object-contain"
+            loading="lazy"
+          />
+          {/* Attribution badge */}
+          <div className="absolute bottom-1 right-1 text-[8px] text-gray-500 bg-black/60 px-1 rounded">
+            wger.de
+          </div>
+        </div>
+      ) : hasIllustration ? (
         <div className="relative h-32 bg-[#0d0d12] border-b border-white/5">
           <Suspense fallback={<IllustrationFallback />}>
             <ExerciseIllustration
@@ -327,7 +341,7 @@ const ExerciseCard = ({ exercise, onClick }) => {
             />
           </Suspense>
         </div>
-      )}
+      ) : null}
 
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
@@ -378,7 +392,9 @@ const ExerciseModal = ({ exercise, onClose }) => {
 
   const difficulty = DIFFICULTY_LABELS[exercise.difficulty] || DIFFICULTY_LABELS[2];
   const hasIllustration = exercise.illustration?.hasIllustration || hasExerciseIllustration(exercise.id);
+  const hasWgerImage = !!exercise.imageUrl;
   const muscleActivations = exerciseToMuscleActivations(exercise);
+  const hasVisual = hasWgerImage || hasIllustration;
 
   return (
     <motion.div
@@ -395,11 +411,23 @@ const ExerciseModal = ({ exercise, onClose }) => {
         onClick={e => e.stopPropagation()}
         className="bg-gray-900 border border-white/10 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
       >
-        {/* Visual header: Illustration + 3D Muscle Viewer side by side */}
+        {/* Visual header: Image/Illustration + 3D Muscle Viewer side by side */}
         <div className="relative border-b border-white/10 rounded-t-2xl overflow-hidden">
           <div className="flex">
-            {/* Exercise illustration */}
-            {hasIllustration && (
+            {/* Exercise image or illustration */}
+            {hasWgerImage ? (
+              <div className="flex-1 h-48 bg-[#0d0d12] relative">
+                <img
+                  src={exercise.imageUrl}
+                  alt={exercise.name}
+                  className="w-full h-full object-contain"
+                />
+                {/* Attribution */}
+                <div className="absolute bottom-2 left-2 text-[10px] text-gray-400 bg-black/70 px-2 py-0.5 rounded">
+                  Image: wger.de ({exercise.imageLicense || 'CC-BY-SA'})
+                </div>
+              </div>
+            ) : hasIllustration ? (
               <div className="flex-1 h-48 bg-[#0d0d12]">
                 <Suspense fallback={<IllustrationFallback />}>
                   <ExerciseIllustration
@@ -413,12 +441,12 @@ const ExerciseModal = ({ exercise, onClose }) => {
                   />
                 </Suspense>
               </div>
-            )}
+            ) : null}
             {/* 3D Muscle Visualization */}
             {muscleActivations.length > 0 && (
               <div className={clsx(
                 'h-48 bg-[#0d0d12]',
-                hasIllustration ? 'w-40 border-l border-white/5' : 'flex-1'
+                hasVisual ? 'w-40 border-l border-white/5' : 'flex-1'
               )}>
                 <MuscleViewer
                   muscles={muscleActivations}

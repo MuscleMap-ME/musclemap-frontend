@@ -27,6 +27,7 @@ out/
 .tmp/
 tmp/
 coverage/
+.wger-cache/
 
 # logs
 *.log
