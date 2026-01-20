@@ -762,6 +762,35 @@
     var(--shadow-xl);
 }
 
+/* Solid modal variant - use for modals where readability is critical */
+.modal-solid {
+  background: var(--void-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    var(--inner-glow-medium),
+    var(--shadow-xl),
+    0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Glass surface with solid background for modals */
+.glass-solid {
+  background: var(--void-surface);
+  border: 1px solid var(--border-default);
+  box-shadow:
+    var(--inner-glow-subtle),
+    var(--shadow-sm);
+}
+
+/* Elevated solid surface for modal content */
+.glass-solid-elevated {
+  background: var(--void-elevated);
+  border: 1px solid var(--border-medium);
+  box-shadow:
+    var(--inner-glow-light),
+    var(--shadow-md);
+}
+
 /* ============================================
    ACCESSIBILITY & REDUCED MOTION
    ============================================ */

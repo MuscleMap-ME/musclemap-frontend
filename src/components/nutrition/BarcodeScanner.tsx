@@ -279,7 +279,7 @@ export function BarcodeScanner({ isOpen, onClose, onFoodFound }) {
             exit={{ opacity: 0, scale: 0.9 }}
             className="fixed inset-x-4 top-[10%] bottom-[10%] z-50 flex items-center justify-center"
           >
-            <GlassSurface className="w-full max-w-lg p-6 max-h-full overflow-y-auto">
+            <GlassSurface depth="solid-elevated" className="w-full max-w-lg p-6 max-h-full overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">

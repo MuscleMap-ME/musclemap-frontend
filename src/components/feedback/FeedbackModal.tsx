@@ -584,7 +584,7 @@ export function FeedbackModal() {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-hidden rounded-t-3xl"
           >
-            <GlassSurface className="p-6 pb-safe max-h-[90vh] overflow-y-auto">
+            <GlassSurface depth="solid-elevated" className="p-6 pb-safe max-h-[90vh] overflow-y-auto">
               {/* Handle */}
               <div className="flex justify-center mb-4">
                 <div className="w-10 h-1 bg-white/20 rounded-full" />

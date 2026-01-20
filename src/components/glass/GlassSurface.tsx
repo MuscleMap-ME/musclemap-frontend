@@ -11,12 +11,15 @@ import clsx from 'clsx';
 /**
  * Depth presets map to CSS blur and opacity values
  * Higher depth = more blur = appears further back in z-space
+ * 'solid' variants use opaque backgrounds for better readability in modals
  */
 const DEPTH_PRESETS = {
   subtle: 'glass-subtle',
   default: 'glass',
   medium: 'glass-medium',
   heavy: 'glass-heavy',
+  solid: 'glass-solid',
+  'solid-elevated': 'glass-solid-elevated',
 };
 
 /**

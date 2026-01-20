@@ -453,8 +453,8 @@ export default function EmpireUserDetail() {
 
         {/* Gift Modal */}
         {giftModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <GlassSurface className="p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <GlassSurface depth="solid-elevated" className="p-6 max-w-md w-full">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <Gift className="w-5 h-5 text-green-400" />
                 Gift Credits to {user.username}

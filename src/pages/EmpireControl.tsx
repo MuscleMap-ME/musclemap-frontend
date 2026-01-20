@@ -3319,8 +3319,8 @@ export default function EmpireControl() {
 
       {/* Gift Modal */}
       {giftModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Gift className="w-5 h-5 text-green-400" />
               Gift Credits
@@ -3358,8 +3358,8 @@ export default function EmpireControl() {
       {/* Owner Power Modals */}
       {/* Unlimited Credits Modal */}
       {ownerPowerModal === 'unlimited_credits' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Infinity className="w-5 h-5 text-yellow-400" />
               Unlimited Credits
@@ -3393,8 +3393,8 @@ export default function EmpireControl() {
 
       {/* Gift Credits Modal (from Owner Powers) */}
       {ownerPowerModal === 'gift_credits' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Gift className="w-5 h-5 text-green-400" />
               Gift Credits to User
@@ -3465,8 +3465,8 @@ export default function EmpireControl() {
 
       {/* Ban User Modal */}
       {ownerPowerModal === 'ban_user' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-red-400" />
               Ban User
@@ -3537,8 +3537,8 @@ export default function EmpireControl() {
 
       {/* Grant Achievement Modal */}
       {ownerPowerModal === 'grant_achievements' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Award className="w-5 h-5 text-violet-400" />
               Grant Achievement
@@ -3610,8 +3610,8 @@ export default function EmpireControl() {
 
       {/* Broadcast Message Modal */}
       {ownerPowerModal === 'broadcast' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-cyan-400" />
               Broadcast Message
@@ -3649,8 +3649,8 @@ export default function EmpireControl() {
 
       {/* System Override Modal */}
       {ownerPowerModal === 'system_override' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <GlassSurface className="p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <GlassSurface depth="solid-elevated" className="p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5 text-orange-400" />
               System Override
