@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import { authenticate } from './auth';
 
 const execAsync = promisify(exec);
 
@@ -378,11 +379,15 @@ async function pm2Action(action: string, processName: string): Promise<ScriptRes
 // ============================================
 
 export default async function adminServerRoutes(fastify: FastifyInstance) {
-  // All routes require admin authentication
+  // All routes require authentication first, then admin check
+  fastify.addHook('preHandler', authenticate);
+
+  // Then check for admin role
   fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Check if user is authenticated and is admin
-    const user = (request as { user?: { role?: string } }).user;
-    if (!user || user.role !== 'admin') {
+    // Check if user is admin (authenticate already set request.user)
+    const user = (request as { user?: { roles?: string[]; role?: string } }).user;
+    const isAdmin = user?.roles?.includes('admin') || user?.roles?.includes('owner') || user?.role === 'admin';
+    if (!user || !isAdmin) {
       return reply.status(403).send({ error: 'Admin access required' });
     }
   });
