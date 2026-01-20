@@ -3358,6 +3358,372 @@ export default function EmpireControl() {
           </GlassSurface>
         </div>
       )}
+
+      {/* Owner Power Modals */}
+      {/* Unlimited Credits Modal */}
+      {ownerPowerModal === 'unlimited_credits' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Infinity className="w-5 h-5 text-yellow-400" />
+              Unlimited Credits
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Grant yourself 1 billion credits. Use this power wisely.
+            </p>
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-4">
+              <p className="text-sm text-yellow-400">
+                This will set your credit balance to 1,000,000,000 credits.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnlimitedCredits}
+                disabled={unlimitedCreditsLoading}
+                className="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {unlimitedCreditsLoading ? 'Granting...' : 'Grant Credits'}
+              </button>
+            </div>
+          </GlassSurface>
+        </div>
+      )}
+
+      {/* Gift Credits Modal (from Owner Powers) */}
+      {ownerPowerModal === 'gift_credits' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Gift className="w-5 h-5 text-green-400" />
+              Gift Credits to User
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Search User</label>
+              <input
+                type="text"
+                placeholder="Search by username..."
+                value={giftUserSearch}
+                onChange={(e) => {
+                  setGiftUserSearch(e.target.value);
+                  searchUsersForPower(e.target.value, 'gift');
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500"
+              />
+              {giftUserResults.length > 0 && !giftUserTarget && (
+                <div className="mt-2 bg-white/5 border border-white/10 rounded-lg max-h-40 overflow-y-auto">
+                  {giftUserResults.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => {
+                        setGiftUserTarget(user);
+                        setGiftUserSearch(user.username);
+                        setGiftUserResults([]);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors"
+                    >
+                      {user.displayName || user.username}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {giftUserTarget && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  Selected: {giftUserTarget.displayName || giftUserTarget.username}
+                </div>
+              )}
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Amount</label>
+              <input
+                type="number"
+                value={giftCreditsAmount}
+                onChange={(e) => setGiftCreditsAmount(parseInt(e.target.value) || 0)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGiftCreditsFromPower}
+                disabled={giftCreditsLoading || !giftUserTarget || giftCreditsAmount <= 0}
+                className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {giftCreditsLoading ? 'Sending...' : 'Send Gift'}
+              </button>
+            </div>
+          </GlassSurface>
+        </div>
+      )}
+
+      {/* Ban User Modal */}
+      {ownerPowerModal === 'ban_user' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-red-400" />
+              Ban User
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Search User</label>
+              <input
+                type="text"
+                placeholder="Search by username..."
+                value={banUserSearch}
+                onChange={(e) => {
+                  setBanUserSearch(e.target.value);
+                  searchUsersForPower(e.target.value, 'ban');
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500"
+              />
+              {banUserResults.length > 0 && !banUserTarget && (
+                <div className="mt-2 bg-white/5 border border-white/10 rounded-lg max-h-40 overflow-y-auto">
+                  {banUserResults.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => {
+                        setBanUserTarget(user);
+                        setBanUserSearch(user.username);
+                        setBanUserResults([]);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors"
+                    >
+                      {user.displayName || user.username}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {banUserTarget && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  Selected: {banUserTarget.displayName || banUserTarget.username}
+                </div>
+              )}
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Ban Reason</label>
+              <textarea
+                value={banReason}
+                onChange={(e) => setBanReason(e.target.value)}
+                placeholder="Reason for banning..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500 min-h-[80px]"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBanUser}
+                disabled={banLoading || !banUserTarget}
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {banLoading ? 'Banning...' : 'Ban User'}
+              </button>
+            </div>
+          </GlassSurface>
+        </div>
+      )}
+
+      {/* Grant Achievement Modal */}
+      {ownerPowerModal === 'grant_achievements' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-violet-400" />
+              Grant Achievement
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Search User</label>
+              <input
+                type="text"
+                placeholder="Search by username..."
+                value={achievementUserSearch}
+                onChange={(e) => {
+                  setAchievementUserSearch(e.target.value);
+                  searchUsersForPower(e.target.value, 'achievement');
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500"
+              />
+              {achievementUserResults.length > 0 && !achievementUserTarget && (
+                <div className="mt-2 bg-white/5 border border-white/10 rounded-lg max-h-40 overflow-y-auto">
+                  {achievementUserResults.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => {
+                        setAchievementUserTarget(user);
+                        setAchievementUserSearch(user.username);
+                        setAchievementUserResults([]);
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors"
+                    >
+                      {user.displayName || user.username}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {achievementUserTarget && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  Selected: {achievementUserTarget.displayName || achievementUserTarget.username}
+                </div>
+              )}
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Achievement ID</label>
+              <input
+                type="text"
+                value={achievementToGrant}
+                onChange={(e) => setAchievementToGrant(e.target.value)}
+                placeholder="e.g., first_workout, streak_7..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGrantAchievement}
+                disabled={achievementLoading || !achievementUserTarget || !achievementToGrant}
+                className="flex-1 px-4 py-2 bg-violet-500 hover:bg-violet-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {achievementLoading ? 'Granting...' : 'Grant Achievement'}
+              </button>
+            </div>
+          </GlassSurface>
+        </div>
+      )}
+
+      {/* Broadcast Message Modal */}
+      {ownerPowerModal === 'broadcast' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-cyan-400" />
+              Broadcast Message
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Send a message to all users. This will appear as a system notification.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">Message</label>
+              <textarea
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+                placeholder="Enter your broadcast message..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-violet-500 min-h-[120px]"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBroadcastMessage}
+                disabled={broadcastLoading || !broadcastMessage.trim()}
+                className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {broadcastLoading ? 'Sending...' : 'Broadcast'}
+              </button>
+            </div>
+          </GlassSurface>
+        </div>
+      )}
+
+      {/* System Override Modal */}
+      {ownerPowerModal === 'system_override' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <GlassSurface className="p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-orange-400" />
+              System Override
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Execute system-level commands. Use with extreme caution.
+            </p>
+            <div className="space-y-2 mb-4">
+              <button
+                onClick={() => handleSystemOverride('clear_cache')}
+                disabled={systemOverrideLoading}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-left flex items-center gap-3"
+              >
+                <Database className="w-5 h-5 text-blue-400" />
+                <div>
+                  <div className="font-medium">Clear All Caches</div>
+                  <div className="text-xs text-gray-400">Redis, GraphQL, and application caches</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleSystemOverride('maintenance_mode')}
+                disabled={systemOverrideLoading}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-left flex items-center gap-3"
+              >
+                <Settings className="w-5 h-5 text-yellow-400" />
+                <div>
+                  <div className="font-medium">Toggle Maintenance Mode</div>
+                  <div className="text-xs text-gray-400">Enable/disable maintenance mode</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleSystemOverride('restart_services')}
+                disabled={systemOverrideLoading}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-left flex items-center gap-3"
+              >
+                <RefreshCw className="w-5 h-5 text-green-400" />
+                <div>
+                  <div className="font-medium">Restart Services</div>
+                  <div className="text-xs text-gray-400">Gracefully restart all services</div>
+                </div>
+              </button>
+              <button
+                onClick={() => handleSystemOverride('force_sync')}
+                disabled={systemOverrideLoading}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-left flex items-center gap-3"
+              >
+                <Activity className="w-5 h-5 text-violet-400" />
+                <div>
+                  <div className="font-medium">Force Sync</div>
+                  <div className="text-xs text-gray-400">Synchronize all data and metrics</div>
+                </div>
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOwnerPowerModal(null)}
+                className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+            {systemOverrideLoading && (
+              <div className="mt-4 text-center text-sm text-gray-400">
+                Executing {systemOverrideAction}...
+              </div>
+            )}
+          </GlassSurface>
+        </div>
+      )}
     </div>
   );
 }
