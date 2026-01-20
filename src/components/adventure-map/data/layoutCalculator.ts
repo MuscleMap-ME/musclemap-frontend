@@ -3,12 +3,15 @@
  *
  * Uses D3 force simulation to automatically position map locations
  * with collision detection and region constraints.
+ *
+ * NOTE: D3 is dynamically imported to avoid issues on iOS Safari where
+ * static imports of large ESM bundles can fail silently.
  */
 
-import * as d3 from 'd3';
 import type { MapLocation, Region, Position, RegionId } from '../types';
 
-interface LayoutNode extends d3.SimulationNodeDatum {
+// D3 types (used for TypeScript, actual module is dynamically imported)
+interface LayoutNode {
   id: string;
   region: RegionId;
   tier: string;
@@ -16,12 +19,22 @@ interface LayoutNode extends d3.SimulationNodeDatum {
   y: number;
   fx?: number | null;
   fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
 }
 
-interface LayoutLink extends d3.SimulationLinkDatum<LayoutNode> {
+interface LayoutLink {
   source: string | LayoutNode;
   target: string | LayoutNode;
 }
+
+// Detect mobile devices - they should use grid layout for better performance
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+         (window.innerWidth < 768);
+};
 
 interface LayoutConfig {
   nodeRadius: number;
@@ -53,7 +66,11 @@ const TIER_MULTIPLIERS: Record<string, number> = {
 };
 
 /**
- * Calculate optimized positions for all locations using D3 force simulation
+ * Calculate optimized positions for all locations using D3 force simulation.
+ * On mobile devices, falls back to grid layout for better performance.
+ *
+ * NOTE: This function dynamically imports D3 to avoid iOS Safari issues.
+ * If D3 fails to load, it automatically falls back to grid layout.
  */
 export function calculateLayout(
   locations: MapLocation[],
@@ -61,6 +78,39 @@ export function calculateLayout(
   pathConnections: { from: string; to: string }[],
   config: Partial<LayoutConfig> = {}
 ): Map<string, Position> {
+  // On mobile, skip D3 entirely and use grid layout for better performance
+  // This also avoids iOS Safari module loading issues
+  if (isMobileDevice()) {
+    console.log('[layoutCalculator] Mobile device detected, using grid layout');
+    return calculateGridLayout(locations, regions);
+  }
+
+  // Try to use D3 force simulation (will be dynamically imported)
+  try {
+    return calculateLayoutWithD3(locations, regions, pathConnections, config);
+  } catch (error) {
+    console.warn('[layoutCalculator] D3 layout failed, using grid fallback:', error);
+    return calculateGridLayout(locations, regions);
+  }
+}
+
+/**
+ * Internal: Calculate layout using D3 force simulation.
+ * This is separated so we can catch errors and fallback gracefully.
+ */
+function calculateLayoutWithD3(
+  locations: MapLocation[],
+  regions: Record<RegionId, Region>,
+  pathConnections: { from: string; to: string }[],
+  config: Partial<LayoutConfig> = {}
+): Map<string, Position> {
+  // D3 is imported dynamically at the top of the file
+  // If D3 isn't available, this will throw and we'll use grid layout
+  const d3 = getD3();
+  if (!d3) {
+    throw new Error('D3 not available');
+  }
+
   const cfg = { ...DEFAULT_CONFIG, ...config };
 
   // Create nodes from locations
@@ -82,15 +132,19 @@ export function calculateLayout(
     };
 
     // Initialize near region center with slight randomization
-    const jitterX = (Math.random() - 0.5) * Math.min(100, region.bounds.width * 0.3);
-    const jitterY = (Math.random() - 0.5) * Math.min(100, region.bounds.height * 0.3);
+    // Use a seeded random for consistent layouts
+    const seed = loc.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const pseudoRandom = (seed % 100) / 100;
+    const jitterX = (pseudoRandom - 0.5) * Math.min(100, region.bounds.width * 0.3);
+    const jitterY = ((seed * 7) % 100) / 100 - 0.5;
+    const jitterYScaled = jitterY * Math.min(100, region.bounds.height * 0.3);
 
     return {
       id: loc.id,
       region: loc.region,
       tier: loc.tier,
       x: regionCenter.x + jitterX,
-      y: regionCenter.y + jitterY,
+      y: regionCenter.y + jitterYScaled,
       // Fix dashboard at center hub center
       ...(loc.isStarting ? { fx: regionCenter.x, fy: regionCenter.y } : {}),
     };
@@ -137,22 +191,22 @@ export function calculateLayout(
     .force(
       'link',
       d3
-        .forceLink<LayoutNode, LayoutLink>(links)
-        .id((d) => d.id)
+        .forceLink(links)
+        .id((d: LayoutNode) => d.id)
         .distance(cfg.linkDistance)
         .strength(0.3)
     )
     // Push all nodes apart (negative = repulsion)
     .force(
       'charge',
-      d3.forceManyBody<LayoutNode>().strength(cfg.chargeStrength)
+      d3.forceManyBody().strength(cfg.chargeStrength)
     )
     // Prevent node overlap (collision detection)
     .force(
       'collision',
       d3
-        .forceCollide<LayoutNode>()
-        .radius((d) => {
+        .forceCollide()
+        .radius((d: LayoutNode) => {
           const tierMult = TIER_MULTIPLIERS[d.tier] || 1;
           return (cfg.nodeRadius + cfg.labelHeight / 2) * tierMult;
         })
@@ -177,6 +231,40 @@ export function calculateLayout(
   }
 
   return positions;
+}
+
+// Cached D3 module reference
+let d3Module: typeof import('d3') | null = null;
+let d3LoadAttempted = false;
+
+/**
+ * Get D3 module synchronously (for use in calculateLayout).
+ * Returns null if D3 hasn't been loaded yet.
+ */
+function getD3(): typeof import('d3') | null {
+  return d3Module;
+}
+
+/**
+ * Preload D3 module asynchronously.
+ * Call this early to ensure D3 is ready when needed.
+ */
+export async function preloadD3(): Promise<boolean> {
+  if (d3Module) return true;
+  if (d3LoadAttempted) return d3Module !== null;
+
+  d3LoadAttempted = true;
+
+  try {
+    // Dynamic import of D3 - this is what avoids the iOS Safari issue
+    d3Module = await import('d3');
+    console.log('[layoutCalculator] D3 loaded successfully');
+    return true;
+  } catch (error) {
+    console.warn('[layoutCalculator] Failed to load D3:', error);
+    d3Module = null;
+    return false;
+  }
 }
 
 /**

@@ -77,6 +77,8 @@ export default function AdventureMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Position | null>(null);
+  // Track if we actually moved during drag to distinguish clicks from drags
+  const dragMovedRef = useRef(false);
   const [touchState, setTouchState] = useState<TouchState>({
     touches: [],
     initialDistance: null,
@@ -160,116 +162,173 @@ export default function AdventureMapCanvas({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
     setIsDragging(true);
+    dragMovedRef.current = false; // Reset movement tracking
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
   }, [pan]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging || !dragStart) return;
-    setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
-  }, [isDragging, dragStart, setPan]);
+
+    // Calculate how much we've moved
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    const moved = Math.abs(newX - pan.x) > 3 || Math.abs(newY - pan.y) > 3;
+
+    if (moved) {
+      dragMovedRef.current = true; // Mark that we actually dragged
+      setPan({ x: newX, y: newY });
+    }
+  }, [isDragging, dragStart, pan, setPan]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setDragStart(null);
+    // Note: dragMovedRef is NOT reset here - it's checked by click handler
   }, []);
 
-  // Wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom + delta)));
-  }, [zoom, setZoom]);
+  // Refs for touch state to avoid stale closures in native event handlers
+  const touchStateRef = useRef(touchState);
+  const isDraggingRef = useRef(isDragging);
+  const dragStartRef = useRef(dragStart);
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
 
-  // Touch event handlers for mobile pinch-to-zoom and pan
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touches = Array.from(e.touches).map((t) => ({
-      x: t.clientX,
-      y: t.clientY,
-    }));
+  // Keep refs in sync with state
+  useEffect(() => { touchStateRef.current = touchState; }, [touchState]);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+  useEffect(() => { dragStartRef.current = dragStart; }, [dragStart]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
 
-    if (touches.length === 2) {
-      // Pinch zoom start
-      const distance = getDistance(touches);
-      const center = getCenter(touches);
-      setTouchState({
-        touches,
-        initialDistance: distance,
-        initialZoom: zoom,
-        initialPan: pan,
-        lastCenter: center,
-      });
-    } else if (touches.length === 1) {
-      // Single touch pan start
-      setIsDragging(true);
-      setDragStart({ x: touches[0].x - pan.x, y: touches[0].y - pan.y });
-      setTouchState((prev) => ({ ...prev, touches, lastCenter: touches[0] }));
-    }
-  }, [zoom, pan]);
+  // Native event listeners for wheel and touch (non-passive to allow preventDefault)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent page scroll during map interaction
+    // Wheel zoom handler
+    const handleWheelEvent = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom((currentZoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom + delta)));
+    };
 
-    const touches = Array.from(e.touches).map((t) => ({
-      x: t.clientX,
-      y: t.clientY,
-    }));
+    // Touch start handler
+    const handleTouchStartEvent = (e: TouchEvent) => {
+      const touches = Array.from(e.touches).map((t) => ({
+        x: t.clientX,
+        y: t.clientY,
+      }));
 
-    if (touches.length === 2 && touchState.initialDistance) {
-      // Pinch zoom
-      const distance = getDistance(touches);
-      const scale = distance / touchState.initialDistance;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, touchState.initialZoom * scale));
+      if (touches.length === 2) {
+        // Pinch zoom start
+        const distance = getDistance(touches);
+        const centerPoint = getCenter(touches);
+        setTouchState({
+          touches,
+          initialDistance: distance,
+          initialZoom: zoomRef.current,
+          initialPan: panRef.current,
+          lastCenter: centerPoint,
+        });
+      } else if (touches.length === 1) {
+        // Single touch pan start
+        setIsDragging(true);
+        dragMovedRef.current = false;
+        setDragStart({ x: touches[0].x - panRef.current.x, y: touches[0].y - panRef.current.y });
+        setTouchState((prev) => ({ ...prev, touches, lastCenter: touches[0] }));
+      }
+    };
 
-      // Pan with center point
-      const center = getCenter(touches);
-      const panDelta = {
-        x: center.x - touchState.lastCenter.x,
-        y: center.y - touchState.lastCenter.y,
-      };
+    // Touch move handler
+    const handleTouchMoveEvent = (e: TouchEvent) => {
+      e.preventDefault(); // This now works because listener is non-passive
 
-      setZoom(newZoom);
-      setPan({
-        x: touchState.initialPan.x + panDelta.x,
-        y: touchState.initialPan.y + panDelta.y,
-      });
-    } else if (touches.length === 1 && isDragging && dragStart) {
-      // Single touch pan
-      setPan({
-        x: touches[0].x - dragStart.x,
-        y: touches[0].y - dragStart.y,
-      });
-    }
-  }, [touchState, isDragging, dragStart, setZoom, setPan]);
+      const touches = Array.from(e.touches).map((t) => ({
+        x: t.clientX,
+        y: t.clientY,
+      }));
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 0) {
-      // All fingers lifted
-      setIsDragging(false);
-      setDragStart(null);
-      setTouchState({
-        touches: [],
-        initialDistance: null,
-        initialZoom: zoom,
-        initialPan: pan,
-        lastCenter: { x: 0, y: 0 },
-      });
-    } else if (e.touches.length === 1) {
-      // One finger left - switch to pan mode
-      const touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      setIsDragging(true);
-      setDragStart({ x: touch.x - pan.x, y: touch.y - pan.y });
-      setTouchState({
-        touches: [touch],
-        initialDistance: null,
-        initialZoom: zoom,
-        initialPan: pan,
-        lastCenter: touch,
-      });
-    }
-  }, [zoom, pan]);
+      const currentTouchState = touchStateRef.current;
+      const currentIsDragging = isDraggingRef.current;
+      const currentDragStart = dragStartRef.current;
+      const currentPan = panRef.current;
+
+      if (touches.length === 2 && currentTouchState.initialDistance) {
+        // Pinch zoom
+        dragMovedRef.current = true;
+        const distance = getDistance(touches);
+        const scale = distance / currentTouchState.initialDistance;
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentTouchState.initialZoom * scale));
+
+        // Pan with center point
+        const centerPoint = getCenter(touches);
+        const panDelta = {
+          x: centerPoint.x - currentTouchState.lastCenter.x,
+          y: centerPoint.y - currentTouchState.lastCenter.y,
+        };
+
+        setZoom(newZoom);
+        setPan({
+          x: currentTouchState.initialPan.x + panDelta.x,
+          y: currentTouchState.initialPan.y + panDelta.y,
+        });
+      } else if (touches.length === 1 && currentIsDragging && currentDragStart) {
+        // Single touch pan - check if we actually moved
+        const newX = touches[0].x - currentDragStart.x;
+        const newY = touches[0].y - currentDragStart.y;
+        const moved = Math.abs(newX - currentPan.x) > 3 || Math.abs(newY - currentPan.y) > 3;
+
+        if (moved) {
+          dragMovedRef.current = true;
+          setPan({ x: newX, y: newY });
+        }
+      }
+    };
+
+    // Touch end handler
+    const handleTouchEndEvent = (e: TouchEvent) => {
+      const currentZoom = zoomRef.current;
+      const currentPan = panRef.current;
+
+      if (e.touches.length === 0) {
+        // All fingers lifted
+        setIsDragging(false);
+        setDragStart(null);
+        setTouchState({
+          touches: [],
+          initialDistance: null,
+          initialZoom: currentZoom,
+          initialPan: currentPan,
+          lastCenter: { x: 0, y: 0 },
+        });
+      } else if (e.touches.length === 1) {
+        // One finger left - switch to pan mode
+        const touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        setIsDragging(true);
+        setDragStart({ x: touch.x - currentPan.x, y: touch.y - currentPan.y });
+        setTouchState({
+          touches: [touch],
+          initialDistance: null,
+          initialZoom: currentZoom,
+          initialPan: currentPan,
+          lastCenter: touch,
+        });
+      }
+    };
+
+    // Add all event listeners with non-passive option
+    container.addEventListener('wheel', handleWheelEvent, { passive: false });
+    container.addEventListener('touchstart', handleTouchStartEvent, { passive: true }); // touchstart can be passive
+    container.addEventListener('touchmove', handleTouchMoveEvent, { passive: false }); // touchmove needs non-passive for preventDefault
+    container.addEventListener('touchend', handleTouchEndEvent, { passive: true }); // touchend can be passive
+
+    return () => {
+      container.removeEventListener('wheel', handleWheelEvent);
+      container.removeEventListener('touchstart', handleTouchStartEvent);
+      container.removeEventListener('touchmove', handleTouchMoveEvent);
+      container.removeEventListener('touchend', handleTouchEndEvent);
+    };
+  }, [setZoom, setPan]);
 
   // Handle touch tap to move character (for future use with tap detection)
   const _handleTouchTap = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
@@ -292,7 +351,17 @@ export default function AdventureMapCanvas({
 
   // Click on map to move character
   const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (isDragging) return;
+    // Don't process click if we were dragging (moved the map)
+    if (dragMovedRef.current) {
+      dragMovedRef.current = false; // Reset for next interaction
+      return;
+    }
+
+    // Check if click was on a LocationNode (they handle their own clicks)
+    const target = e.target as Element;
+    if (target.closest('.location-node')) {
+      return; // Let LocationNode handle its own click
+    }
 
     const svg = svgRef.current;
     if (!svg) return;
@@ -303,7 +372,7 @@ export default function AdventureMapCanvas({
     const y = (e.clientY - rect.top - pan.y) / zoom;
 
     handleMapClick({ x, y });
-  }, [isDragging, pan, zoom, handleMapClick]);
+  }, [pan, zoom, handleMapClick]);
 
   // Check if character is near a location (using calculated positions)
   const isCharacterNearLocation = useCallback((locationId: string): boolean => {
@@ -329,10 +398,6 @@ export default function AdventureMapCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{
         cursor: isDragging ? 'grabbing' : 'grab',
         background: `linear-gradient(180deg, ${THEME_COLORS.skyBlue} 0%, #E8F5E9 30%, ${THEME_COLORS.grassMedium} 50%, ${THEME_COLORS.grassDark} 100%)`,

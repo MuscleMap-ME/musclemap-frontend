@@ -50,7 +50,8 @@ export default function LocationNode({
     regionId
   );
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent bubbling to map canvas
     if (!isLocked && onClick) {
       onClick();
     }
