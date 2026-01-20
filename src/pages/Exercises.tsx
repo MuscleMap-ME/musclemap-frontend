@@ -313,7 +313,7 @@ const ExerciseCard = ({ exercise, onClick }) => {
       onClick={() => onClick(exercise)}
       className="bg-white/5 border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:bg-white/10 transition-all"
     >
-      {/* Exercise image - prefer wger images, fall back to illustrations */}
+      {/* Exercise image - prefer external images, fall back to illustrations, then muscle visualization */}
       {hasWgerImage ? (
         <div className="relative h-32 bg-[#0d0d12] border-b border-white/5 overflow-hidden">
           <img
@@ -322,9 +322,9 @@ const ExerciseCard = ({ exercise, onClick }) => {
             className="w-full h-full object-contain"
             loading="lazy"
           />
-          {/* Attribution badge */}
+          {/* Attribution badge - show source */}
           <div className="absolute bottom-1 right-1 text-[8px] text-gray-500 bg-black/60 px-1 rounded">
-            wger.de
+            {exercise.imageUrl?.includes('free-exercise-db') ? 'free-exercise-db' : 'wger.de'}
           </div>
         </div>
       ) : hasIllustration ? (
@@ -340,6 +340,24 @@ const ExerciseCard = ({ exercise, onClick }) => {
               className="w-full h-full"
             />
           </Suspense>
+        </div>
+      ) : muscleActivations.length > 0 ? (
+        // Fallback: Show 3D muscle visualization when no image available
+        <div className="relative h-32 bg-gradient-to-br from-[#0d0d12] to-[#0f0f18] border-b border-white/5">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <MuscleViewer
+              muscles={muscleActivations}
+              mode="card"
+              interactive={false}
+              showLabels={false}
+              autoRotate={false}
+              className="w-20 h-full opacity-80"
+            />
+          </div>
+          {/* Overlay with exercise type indicator */}
+          <div className="absolute bottom-1 left-1 text-[8px] text-gray-500 bg-black/60 px-1 rounded capitalize">
+            {exercise.type || 'bodyweight'}
+          </div>
         </div>
       ) : null}
 
@@ -422,9 +440,9 @@ const ExerciseModal = ({ exercise, onClose }) => {
                   alt={exercise.name}
                   className="w-full h-full object-contain"
                 />
-                {/* Attribution */}
+                {/* Attribution - show correct source */}
                 <div className="absolute bottom-2 left-2 text-[10px] text-gray-400 bg-black/70 px-2 py-0.5 rounded">
-                  Image: wger.de ({exercise.imageLicense || 'CC-BY-SA'})
+                  Image: {exercise.imageUrl?.includes('free-exercise-db') ? 'free-exercise-db' : 'wger.de'} ({exercise.imageLicense || 'CC-BY-SA'})
                 </div>
               </div>
             ) : hasIllustration ? (
