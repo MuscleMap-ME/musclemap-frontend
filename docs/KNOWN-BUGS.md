@@ -1,6 +1,6 @@
 # Known Bugs
 
-> Last updated: 2026-01-19T20:44:00.000Z
+> Last updated: 2026-01-20T15:30:00.000Z
 > Status: All bugs resolved
 
 ## Overview
@@ -17,6 +17,25 @@
 _No active bugs._
 
 ## Recently Fixed
+
+### 2026-01-20: JSONB parsing and SQL parameter issues in Organizations module
+
+- **Severity:** Medium
+- **Status:** ✅ FIXED & DEPLOYED
+- **Commit:** 15e4dfa
+- **Description:** Organizations module had two issues:
+  1. Unnecessary `JSON.parse()` on JSONB columns (PostgreSQL returns JSONB as objects)
+  2. LIMIT/OFFSET values used string interpolation instead of parameterized queries
+- **Root Cause:**
+  1. Incorrect assumption that JSONB columns needed parsing
+  2. String interpolation for query parameters instead of proper parameterization
+- **Fix:**
+  1. Removed `JSON.parse()` calls - use JSONB column values directly
+  2. Converted LIMIT/OFFSET to parameterized queries with bounds checking (max 1000, min 0)
+- **Files Modified:**
+  - `apps/api/src/http/routes/organizations.ts`
+  - `apps/api/src/modules/organizations/index.ts`
+- **Deployment:** Production deployment completed at 2026-01-20T15:28:00Z
 
 ### 2026-01-19: Missing /journey/milestones endpoint (Mobile App)
 
