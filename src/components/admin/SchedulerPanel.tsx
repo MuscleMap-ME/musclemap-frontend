@@ -687,7 +687,14 @@ export default function SchedulerPanel() {
       });
       if (res.ok) {
         const data = await res.json();
-        setJobs(data.jobs || []);
+        // Transform backend format to frontend expected format
+        const transformedJobs = (data.items || []).map((job) => ({
+          ...job,
+          cron: job.cronExpression,
+          handler: job.command,
+          status: job.enabled ? 'active' : 'disabled',
+        }));
+        setJobs(transformedJobs);
         setError(null);
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -710,7 +717,15 @@ export default function SchedulerPanel() {
       });
       if (res.ok) {
         const data = await res.json();
-        setHistory(data.history || []);
+        // Transform backend format to frontend expected format
+        const transformedHistory = (data.items || []).map((entry) => ({
+          ...entry,
+          success: entry.status === 'success',
+          timestamp: entry.startedAt,
+          duration: entry.durationMs,
+          result: entry.output,
+        }));
+        setHistory(transformedHistory);
       }
     } catch (err) {
       console.error('Failed to fetch history:', err);
