@@ -13,7 +13,6 @@ import {
   Check,
   X,
   Eye,
-  Clock,
   AlertTriangle,
   Shield,
   Image as ImageIcon,
@@ -21,8 +20,6 @@ import {
   Calendar,
   Loader2,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle,
   XCircle,
   Filter,
@@ -69,7 +66,7 @@ const REJECTION_REASONS = [
 ];
 
 const AdminExerciseImages: React.FC = () => {
-  const { getToken } = useAuth();
+  const { getAuthHeader } = useAuth();
   const [submissions, setSubmissions] = useState<ImageSubmission[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,9 +78,8 @@ const AdminExerciseImages: React.FC = () => {
   const fetchSubmissions = useCallback(async () => {
     try {
       setLoading(true);
-      const token = getToken();
       const response = await fetch('/api/exercise-images/admin/pending', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getAuthHeader(),
       });
       if (!response.ok) throw new Error('Failed to fetch submissions');
       const data = await response.json();
@@ -93,13 +89,12 @@ const AdminExerciseImages: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [getAuthHeader]);
 
   const fetchStats = useCallback(async () => {
     try {
-      const token = getToken();
       const response = await fetch('/api/exercise-images/admin/stats', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getAuthHeader(),
       });
       if (!response.ok) throw new Error('Failed to fetch stats');
       const data = await response.json();
@@ -107,7 +102,7 @@ const AdminExerciseImages: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
-  }, [getToken]);
+  }, [getAuthHeader]);
 
   useEffect(() => {
     fetchSubmissions();
@@ -117,12 +112,11 @@ const AdminExerciseImages: React.FC = () => {
   const handleReview = async (submissionId: string, action: 'approve' | 'reject', reason?: string) => {
     try {
       setReviewing(submissionId);
-      const token = getToken();
       const response = await fetch(`/api/exercise-images/admin/review/${submissionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...getAuthHeader(),
         },
         body: JSON.stringify({ action, reason }),
       });

@@ -9,10 +9,10 @@
  * - Daily/weekly active users
  */
 
-import { db, queryOne, queryAll, query } from '../../db/client';
+import { queryOne, queryAll } from '../../db/client';
 import { loggers } from '../../lib/logger';
 
-const log = loggers.economy;
+const _log = loggers.economy;
 
 interface StreakStats {
   streakType: string;

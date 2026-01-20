@@ -5,7 +5,7 @@
  * No Express dependencies - fully migrated to Fastify.
  */
 
-import Fastify, { FastifyInstance, FastifyError } from 'fastify';
+import Fastify, { FastifyInstance, FastifyError as _FastifyError } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -22,7 +22,7 @@ import { logger, loggers } from '../lib/logger';
 import { closeDatabase, healthCheck as dbHealthCheck, getPoolStats } from '../db/client';
 import { closeRedis, isRedisAvailable } from '../lib/redis';
 import { initializePubSub, cleanupPubSub } from '../lib/pubsub';
-import { trackError, getErrorStats } from '../lib/error-tracker';
+import { trackError, getErrorStats as _getErrorStats } from '../lib/error-tracker';
 
 // Route modules
 import { registerAuthRoutes } from './routes/auth';
@@ -191,7 +191,6 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // Error handler
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.setErrorHandler(async (error: any, request, reply) => {
     // Handle Zod validation errors - return 400 with details
     if (error instanceof ZodError) {

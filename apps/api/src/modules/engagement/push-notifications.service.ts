@@ -8,7 +8,7 @@
  * - Re-engagement campaigns
  */
 
-import { db, queryOne, queryAll, query } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { ValidationError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 
@@ -46,7 +46,7 @@ interface ScheduledNotification {
 }
 
 // Notification priorities (higher = more important)
-const NOTIFICATION_PRIORITIES: Record<NotificationType, number> = {
+const _NOTIFICATION_PRIORITIES: Record<NotificationType, number> = {
   streak_at_risk: 10,
   challenge_expiring: 8,
   event_starting: 7,

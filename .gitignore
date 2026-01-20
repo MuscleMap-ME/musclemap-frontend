@@ -65,3 +65,19 @@ scripts/bug-hunter/data/
 
 # Transform cache (Vite cache backup for persistence)
 .transform-cache/
+
+# Private configuration (sensitive deployment scripts)
+# These files are kept in a private submodule at private/
+# See scripts/setup-private.sh to set up symlinks
+private/
+CLAUDE.md
+ecosystem.config.cjs
+scripts/intelligent-cache.mjs
+scripts/build-daemon.mjs
+scripts/aggressive-cache.mjs
+scripts/chunked-build.mjs
+scripts/deploy.sh
+scripts/deploy-branch.sh
+scripts/approved-commands.txt
+scripts/run-approved-command.sh
+scripts/add-approved-command.sh

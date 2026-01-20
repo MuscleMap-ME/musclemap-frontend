@@ -530,7 +530,7 @@ export default async function adminServerRoutes(fastify: FastifyInstance) {
         socket.close();
         return;
       }
-    } catch (err) {
+    } catch (_err) {
       socket.send(JSON.stringify({ error: 'Invalid or expired token' }));
       socket.close();
       return;

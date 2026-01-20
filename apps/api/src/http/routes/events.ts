@@ -10,8 +10,8 @@
 
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { authenticate, optionalAuth } from './auth';
-import { eventsService, EventType } from '../../modules/engagement';
+import { authenticate, optionalAuth as _optionalAuth } from './auth';
+import { eventsService, EventType as _EventType } from '../../modules/engagement';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;

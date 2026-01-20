@@ -15,7 +15,7 @@ import { streaksService, type StreakType } from './streaks.service';
 import { challengesService } from './challenges.service';
 import { eventsService } from './events.service';
 import { recoveryService } from './recovery.service';
-import { queryOne, queryAll } from '../../db/client';
+import { queryOne, queryAll as _queryAll } from '../../db/client';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.economy;

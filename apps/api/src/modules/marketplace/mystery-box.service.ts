@@ -1,4 +1,4 @@
-import { queryOne, queryAll, query, transaction } from '../../db/client';
+import { queryOne, queryAll, transaction } from '../../db/client';
 import { PoolClient } from 'pg';
 
 // =====================================================

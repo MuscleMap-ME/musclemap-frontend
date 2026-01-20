@@ -15,14 +15,13 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import crypto from 'crypto';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 
-const execAsync = promisify(exec);
+const _execAsync = promisify(exec);
 const log = loggers.http;
 
 // JWT payload from authentication
@@ -856,7 +855,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   log.info('Command Center routes registered');
 
   // Get command hierarchy
-  fastify.get('/admin/commands/hierarchy', async (request, reply) => {
+  fastify.get('/admin/commands/hierarchy', async (_request, _reply) => {
     return {
       categories: COMMAND_HIERARCHY,
       totalCommands: ALL_COMMANDS.length,
@@ -864,7 +863,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Search commands
-  fastify.get('/admin/commands/search', async (request, reply) => {
+  fastify.get('/admin/commands/search', async (request, _reply) => {
     const { q, category, dangerous } = request.query as {
       q?: string;
       category?: string;
@@ -1125,7 +1124,7 @@ export default async function adminCommandsRoutes(fastify: FastifyInstance) {
   });
 
   // Get execution history
-  fastify.get('/admin/commands/history', async (request, reply) => {
+  fastify.get('/admin/commands/history', async (request, _reply) => {
     const { limit = 50 } = request.query as { limit?: number };
     return {
       history: executionHistory.slice(0, limit),

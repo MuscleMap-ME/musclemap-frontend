@@ -10,7 +10,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from './auth';
-import { pushNotificationsService, Platform } from '../../modules/engagement';
+import { pushNotificationsService, Platform as _Platform } from '../../modules/engagement';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;

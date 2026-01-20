@@ -201,7 +201,7 @@ async function validateBasicImageProperties(
     }
 
     return { valid: true, notes };
-  } catch (error) {
+  } catch (_error) {
     return { valid: false, reason: 'Invalid or corrupted image file', notes };
   }
 }
@@ -215,7 +215,7 @@ async function validateBasicImageProperties(
  */
 async function verifyExerciseContent(
   imageBuffer: Buffer,
-  exerciseName: string
+  _exerciseName: string
 ): Promise<{ score: number; notes: string[] }> {
   const notes: string[] = [];
   let score = 0.5; // Default neutral score

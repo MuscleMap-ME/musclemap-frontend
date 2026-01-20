@@ -108,6 +108,7 @@ export function useD3<T extends SVGSVGElement | HTMLCanvasElement>(
     if (cleanup) {
       cleanupRef.current = cleanup;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderFn, updateDimensions, ...deps]);
 
   // Handle resize

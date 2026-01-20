@@ -1,0 +1,11 @@
+CLAUDE.md
+ecosystem.config.cjs
+scripts/intelligent-cache.mjs
+scripts/build-daemon.mjs
+scripts/aggressive-cache.mjs
+scripts/chunked-build.mjs
+scripts/deploy.sh
+scripts/deploy-branch.sh
+scripts/approved-commands.txt
+scripts/run-approved-command.sh
+scripts/add-approved-command.sh

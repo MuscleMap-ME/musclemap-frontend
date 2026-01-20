@@ -11,7 +11,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from './auth';
-import { challengesService, CHALLENGE_TYPES } from '../../modules/engagement';
+import { challengesService, CHALLENGE_TYPES as _CHALLENGE_TYPES } from '../../modules/engagement';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;
@@ -118,7 +118,7 @@ export async function registerChallengeRoutes(app: FastifyInstance) {
     const types = challengesService.getChallengeTypes();
 
     // Format for frontend consumption
-    const formatted = Object.entries(types).map(([key, def]) => ({
+    const formatted = Object.entries(types).map(([_key, def]) => ({
       id: def.id,
       title: def.title,
       description: def.description,

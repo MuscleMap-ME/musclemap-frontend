@@ -18,17 +18,13 @@ import {
   Clock,
   Loader2,
   Play,
-  Pause,
   RefreshCw,
-  Server,
   Terminal,
   Trash2,
   Wifi,
   WifiOff,
   X,
   Zap,
-  Filter,
-  Download,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -83,8 +79,8 @@ const tierBadges: Record<number, { label: string; color: string }> = {
   3: { label: 'FULL', color: 'text-purple-400 bg-purple-500/20' },
 };
 
-// Status colors
-const statusColors: Record<string, string> = {
+// Status colors (reserved for future enhanced status display)
+const _statusColors: Record<string, string> = {
   queued: 'text-blue-400',
   running: 'text-yellow-400 animate-pulse',
   completed: 'text-green-400',
@@ -121,7 +117,7 @@ export default function BuildDaemonPanel() {
       } else {
         throw new Error('Daemon not responding');
       }
-    } catch (err) {
+    } catch (_err) {
       setStatus(null);
       setError('Daemon not running');
     }
@@ -211,7 +207,7 @@ export default function BuildDaemonPanel() {
       };
 
       wsRef.current = ws;
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to connect to daemon');
     }
   }, []);

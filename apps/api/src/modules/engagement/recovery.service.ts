@@ -7,7 +7,7 @@
  * - Rest day activities and rewards
  */
 
-import { db, queryOne, queryAll, query } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
 import { ValidationError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
@@ -421,7 +421,7 @@ export const recoveryService = {
     return 100; // 3+ days rest
   },
 
-  generateRecommendation(overall: number, muscles: Record<string, number>, factors: Record<string, number>): string {
+  generateRecommendation(overall: number, muscles: Record<string, number>, _factors: Record<string, number>): string {
     if (overall >= 90) {
       return 'Excellent recovery! You\'re ready for an intense workout.';
     }

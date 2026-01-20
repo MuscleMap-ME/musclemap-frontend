@@ -13,7 +13,7 @@ const engagementMetricsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
     try {
       await (request as any).jwtVerify();
-    } catch (err) {
+    } catch (_err) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
   });

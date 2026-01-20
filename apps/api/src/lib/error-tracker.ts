@@ -212,7 +212,7 @@ async function triggerAlert(errorCount: number, recentErrors: ErrorEvent[]): Pro
   }
 
   console.error('Error breakdown:');
-  for (const [fingerprint, errs] of grouped) {
+  for (const [_fingerprint, errs] of grouped) {
     console.error(`  - ${errs.length}x: ${errs[0].message.substring(0, 100)}`);
   }
 

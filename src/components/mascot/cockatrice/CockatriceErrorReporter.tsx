@@ -67,11 +67,11 @@ export default function CockatriceErrorReporter({
   const [isReporting, setIsReporting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccess, _setShowSuccess] = useState(false);
 
   // Detect error category and get appropriate message
   const category = detectErrorCategory(error, httpStatus);
-  const [message, setMessage] = useState<CockatriceMessage>(() =>
+  const [message, _setMessage] = useState<CockatriceMessage>(() =>
     getCockatriceMessage(category)
   );
 

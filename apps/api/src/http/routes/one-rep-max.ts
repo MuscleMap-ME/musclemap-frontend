@@ -42,7 +42,7 @@ import {
   OneRMFormulas,
   OneRMFormula,
   PowerliftingScores,
-  StrengthStandards,
+  StrengthStandards as _StrengthStandards,
 } from '../../services/one-rep-max.service';
 import { query } from '../../db/client';
 

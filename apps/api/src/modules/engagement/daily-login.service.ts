@@ -7,11 +7,10 @@
  * - Mystery box rewards at milestones
  */
 
-import crypto from 'crypto';
-import { db, queryOne, queryAll, query } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
 import { xpService } from '../ranks/xp.service';
-import { NotFoundError, ValidationError, ConflictError } from '../../lib/errors';
+import { ValidationError, ConflictError } from '../../lib/errors';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.economy;
@@ -40,7 +39,7 @@ const MILESTONE_DAYS = [7, 14, 21, 30, 60, 90, 100];
 export const STREAK_FREEZE_COST = 250;
 
 // Grace period in hours (36 hours from midnight)
-const GRACE_PERIOD_HOURS = 36;
+const _GRACE_PERIOD_HOURS = 36;
 
 interface LoginStatus {
   currentStreak: number;

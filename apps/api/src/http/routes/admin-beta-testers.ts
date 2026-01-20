@@ -9,7 +9,7 @@
  * - Viewing beta tester journal entries
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyRequest as _FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import { NotificationService } from '../../services/notification.service';
@@ -615,7 +615,7 @@ export default async function adminBetaTesterRoutes(fastify: FastifyInstance): P
         );
 
         return reply.send({ success: true });
-      } catch (error) {
+      } catch (_error) {
         return reply.status(500).send({ success: false, error: 'Failed to toggle star' });
       }
     }
@@ -637,7 +637,7 @@ export default async function adminBetaTesterRoutes(fastify: FastifyInstance): P
         );
 
         return reply.send({ success: true });
-      } catch (error) {
+      } catch (_error) {
         return reply.status(500).send({ success: false, error: 'Failed to toggle actionable' });
       }
     }

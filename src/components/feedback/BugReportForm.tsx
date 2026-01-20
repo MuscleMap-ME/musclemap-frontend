@@ -108,6 +108,7 @@ export function BugReportForm({ onSuccess }: BugReportFormProps) {
     return () => {
       screenshots.forEach((s) => URL.revokeObjectURL(s.preview));
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle file selection
@@ -273,7 +274,7 @@ export function BugReportForm({ onSuccess }: BugReportFormProps) {
         );
 
         uploadedUrls.push(url);
-      } catch (error) {
+      } catch (_error) {
         setScreenshots((prev) =>
           prev.map((s) =>
             s.id === screenshot.id

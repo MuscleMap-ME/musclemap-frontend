@@ -618,7 +618,7 @@ export async function registerDeploymentRoutes(app: FastifyInstance): Promise<vo
       }
 
       // Start async execution
-      const resultPromise = executeSequence(body.sequence, deploymentId, DEPLOY_CWD, initiatedBy, ip, userId);
+      const _resultPromise = executeSequence(body.sequence, deploymentId, DEPLOY_CWD, initiatedBy, ip, userId);
 
       // Return immediately with deployment ID for streaming
       return reply.status(202).send({

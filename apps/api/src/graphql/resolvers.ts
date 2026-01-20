@@ -16,7 +16,7 @@ import {
   bonusEventsService,
   socialSpendingService,
   walletService,
-  paymentsService,
+  paymentsService as _paymentsService,
 } from '../modules/economy';
 import { statsService } from '../modules/stats';
 import { longTermAnalyticsService } from '../modules/analytics';
@@ -47,7 +47,7 @@ import {
   spiritWardrobeService,
   appearanceGeneratorService,
   mascotTimelineService,
-  STAGE_THRESHOLDS,
+  STAGE_THRESHOLDS as _STAGE_THRESHOLDS,
 } from '../modules/mascot';
 import { prescriptionEngine } from '../modules/prescription';
 import { privacyService } from '../modules/community';
@@ -158,7 +158,7 @@ function buildWealthTierResponse(credits: number): WealthTierResponse {
 }
 
 // Transaction description helper
-function getTransactionDescription(action: string, amount: number, metadata?: any): string {
+function getTransactionDescription(action: string, _amount: number, _metadata?: any): string {
   const actionDescriptions: Record<string, string> = {
     'workout_complete': 'Workout completed',
     'rep_complete': 'Reps completed',
@@ -1130,7 +1130,7 @@ export const resolvers = {
           sql += ` AND (created_at < $${paramIndex} OR (created_at = $${paramIndex} AND id < $${paramIndex + 1}))`;
           params.push(cursorDate, cursorId);
           paramIndex += 2;
-        } catch (e) {
+        } catch (_e) {
           // Invalid cursor, ignore
         }
       }
@@ -6303,7 +6303,7 @@ export const resolvers = {
       args: { input: { title: string; description: string; quarter?: string } },
       context: Context
     ) => {
-      const { userId, isAdmin } = requireAuth(context);
+      const { userId: _userId, isAdmin } = requireAuth(context);
 
       if (!isAdmin) {
         throw new GraphQLError('Only admins can create roadmap items', {

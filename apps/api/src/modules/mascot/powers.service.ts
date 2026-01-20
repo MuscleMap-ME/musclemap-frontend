@@ -1731,7 +1731,7 @@ export const mascotPowersService = {
       daysPerWeek: number;
       equipment?: string[];
     },
-    stage: number
+    _stage: number
   ): Promise<Omit<GeneratedProgram, 'id' | 'creditCost'>> {
     // Get exercises filtered by equipment
     let exerciseQuery = `SELECT id, name, primary_muscle, difficulty FROM exercises WHERE status = 'active'`;
@@ -1831,7 +1831,7 @@ export const mascotPowersService = {
   /**
    * Get workout split based on days per week
    */
-  getSplitForDays(daysPerWeek: number, programType: string): { name: string; muscles: string[]; primaryMuscle: string }[] {
+  getSplitForDays(daysPerWeek: number, _programType: string): { name: string; muscles: string[]; primaryMuscle: string }[] {
     // PPL split for 6 days
     if (daysPerWeek >= 6) {
       return [

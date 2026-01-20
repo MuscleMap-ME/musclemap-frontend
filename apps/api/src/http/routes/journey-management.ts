@@ -24,7 +24,7 @@ const createSnapshotSchema = z.object({
   description: z.string().max(500).optional(),
 });
 
-const restoreSnapshotSchema = z.object({
+const _restoreSnapshotSchema = z.object({
   snapshotId: z.string(),
   components: z.array(z.enum([
     'archetype',

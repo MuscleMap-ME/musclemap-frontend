@@ -559,7 +559,7 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
           count: parseInt(a.count || '0'),
         })),
       });
-    } catch (err) {
+    } catch (_err) {
       // Return empty data if query fails
       return reply.send({ data: [] });
     }

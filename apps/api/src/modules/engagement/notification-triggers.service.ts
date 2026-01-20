@@ -9,7 +9,7 @@
  * - Rival activity (immediate on significant events)
  */
 
-import { db, queryAll, query } from '../../db/client';
+import { queryAll, query } from '../../db/client';
 import { pushNotificationsService } from './push-notifications.service';
 import { loggers } from '../../lib/logger';
 

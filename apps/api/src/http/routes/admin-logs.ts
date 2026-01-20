@@ -131,7 +131,7 @@ interface LogPattern {
 // HELPERS
 // ============================================
 
-const PROJECT_ROOT = process.env.PROJECT_ROOT || '/var/www/musclemap.me';
+const _PROJECT_ROOT = process.env.PROJECT_ROOT || '/var/www/musclemap.me';
 const PM2_HOME = process.env.PM2_HOME || path.join(process.env.HOME || '/root', '.pm2');
 
 /**

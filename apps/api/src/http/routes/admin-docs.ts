@@ -23,7 +23,7 @@ const log = loggers.http;
 // SCHEMAS
 // ============================================
 
-const FilePathSchema = z.object({
+const _FilePathSchema = z.object({
   filePath: z.string().min(1).refine(
     (p) => !p.includes('..') && !p.startsWith('/'),
     { message: 'Invalid file path - no directory traversal allowed' }
@@ -89,7 +89,7 @@ const PROJECT_ROOT = process.env.PROJECT_ROOT || '/var/www/musclemap.me';
 const DOCS_DIR = path.join(PROJECT_ROOT, 'docs');
 const DOCS_PLAIN_DIR = path.join(PROJECT_ROOT, 'docs-plain');
 
-const ALLOWED_DIRECTORIES = ['docs', 'docs-plain'];
+const _ALLOWED_DIRECTORIES = ['docs', 'docs-plain'];
 
 function getBaseDir(directory: string): string {
   if (directory === 'docs') return DOCS_DIR;

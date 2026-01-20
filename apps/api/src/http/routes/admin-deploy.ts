@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import crypto from 'crypto';
-import { query, queryOne, queryAll, transaction } from '../../db/client';
+import { query, queryOne, queryAll, transaction as _transaction } from '../../db/client';
 import { authenticate, requireAdmin } from './auth';
 import { loggers } from '../../lib/logger';
 
@@ -47,7 +47,7 @@ const DeployHistoryQuerySchema = z.object({
   branch: z.string().optional(),
 });
 
-const BranchPreviewSchema = z.object({
+const _BranchPreviewSchema = z.object({
   branch: z.string().min(1).max(100),
 });
 

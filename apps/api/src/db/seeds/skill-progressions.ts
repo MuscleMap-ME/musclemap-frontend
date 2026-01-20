@@ -1776,7 +1776,7 @@ export async function seedSkillProgressions(): Promise<void> {
 
   for (const prog of allProgressions) {
     const id = `${prog.skill_name}_level_${prog.level}`;
-    const description = prog.description || '';
+    const _description = prog.description || '';
 
     // Build prerequisites array including previous level
     const prereqs = prog.prerequisites || [];

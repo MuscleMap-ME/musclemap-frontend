@@ -12,17 +12,11 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
-import { pipeline } from 'stream/promises';
-import { createWriteStream } from 'fs';
-import fs from 'fs/promises';
-import path from 'path';
 import {
   processExerciseImage,
   validateImage,
   generateFilename,
   saveImages,
-  deleteImages,
-  getUploadDir,
   ensureUploadDirs,
 } from '../../services/image-processing.service';
 import { validateExerciseImage } from '../../services/exercise-image-validator.service';

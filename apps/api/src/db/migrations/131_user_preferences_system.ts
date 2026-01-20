@@ -218,7 +218,7 @@ export async function up(): Promise<void> {
     await query(`
       CREATE INDEX IF NOT EXISTS idx_hydration_logs_daily ON user_hydration_logs(user_id, (DATE_TRUNC('day', logged_at)))
     `);
-  } catch (e) {
+  } catch (_e) {
     // If functional index fails, create a simpler index
     log.warn('Could not create functional index idx_hydration_logs_daily, using simpler index');
   }

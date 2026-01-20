@@ -19,7 +19,7 @@ const log = loggers.http;
 
 const validStreakTypes: StreakType[] = ['workout', 'nutrition', 'sleep', 'social', 'login'];
 
-const recordActivitySchema = z.object({
+const _recordActivitySchema = z.object({
   streakType: z.enum(['workout', 'nutrition', 'sleep', 'social'] as const),
 });
 

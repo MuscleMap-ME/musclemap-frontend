@@ -717,7 +717,7 @@ export default async function adminMetricsRoutes(fastify: FastifyInstance): Prom
       let user: { userId: string; roles?: string[]; role?: string } | null = null;
       try {
         user = verifyToken(token);
-      } catch (err) {
+      } catch (_err) {
         socket.send(JSON.stringify({ error: 'Invalid or expired token', type: 'error' }));
         socket.close();
         return;

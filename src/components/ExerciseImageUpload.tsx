@@ -33,8 +33,8 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'i
 
 export const ExerciseImageUpload: React.FC<ExerciseImageUploadProps> = ({
   exerciseId,
-  exerciseName,
-  currentImageUrl,
+  exerciseName: _exerciseName, // Reserved for future use (e.g., display in header)
+  currentImageUrl: _currentImageUrl, // Reserved for future use (e.g., show current image)
   onUploadSuccess,
   onClose,
 }) => {

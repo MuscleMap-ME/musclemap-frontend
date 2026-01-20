@@ -9,7 +9,6 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { authenticate } from './auth';
 import { dailyLoginService, STREAK_FREEZE_COST } from '../../modules/engagement';
 import { loggers } from '../../lib/logger';

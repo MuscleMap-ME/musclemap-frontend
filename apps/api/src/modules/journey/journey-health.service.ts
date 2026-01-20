@@ -295,7 +295,7 @@ export const journeyHealthService = {
     }
 
     // Upsert the health score
-    const upsertResult = await queryOne<{
+    const _upsertResult = await queryOne<{
       id: string;
       calculated_at: Date;
     }>(

@@ -8,8 +8,7 @@
  * - Reward claiming
  */
 
-import crypto from 'crypto';
-import { db, queryOne, queryAll, query } from '../../db/client';
+import { queryOne, queryAll, query } from '../../db/client';
 import { creditService } from '../economy/credit.service';
 import { xpService } from '../ranks/xp.service';
 import { ValidationError, NotFoundError } from '../../lib/errors';
