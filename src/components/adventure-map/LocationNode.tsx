@@ -2,6 +2,7 @@
  * LocationNode
  *
  * Renders an interactive location marker on the adventure map.
+ * Theme park style with illustrated buildings instead of emoji circles.
  * Supports hover, selection, visited states, and character proximity.
  */
 
@@ -9,14 +10,23 @@ import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { LocationNodeProps } from './types';
 import { REGIONS } from './data/regions';
+import { getLocationIllustrationByProps } from './illustrations';
 
-// Size configurations based on tier
+// Size configurations based on tier - larger for illustrated buildings
 const TIER_SIZES = {
-  common: { radius: 18, iconSize: 14, labelOffset: 28 },
-  uncommon: { radius: 20, iconSize: 16, labelOffset: 32 },
-  rare: { radius: 24, iconSize: 18, labelOffset: 36 },
-  epic: { radius: 26, iconSize: 20, labelOffset: 40 },
-  legendary: { radius: 30, iconSize: 24, labelOffset: 44 },
+  common: { size: 60, labelOffset: 38 },
+  uncommon: { size: 68, labelOffset: 42 },
+  rare: { size: 76, labelOffset: 46 },
+  epic: { size: 84, labelOffset: 50 },
+  legendary: { size: 96, labelOffset: 56 },
+};
+
+// Theme park signpost colors
+const SIGN_COLORS = {
+  background: '#FFF8E1',
+  border: '#8D6E63',
+  text: '#5D4037',
+  shadow: '#4E342E',
 };
 
 export default function LocationNode({
@@ -32,6 +42,14 @@ export default function LocationNode({
   const config = TIER_SIZES[tier] || TIER_SIZES.common;
   const region = REGIONS[regionId];
 
+  // Get the appropriate illustration component for this location
+  const IllustrationComponent = getLocationIllustrationByProps(
+    location.id,
+    icon,
+    name,
+    regionId
+  );
+
   const handleClick = useCallback(() => {
     if (!isLocked && onClick) {
       onClick();
@@ -46,19 +64,19 @@ export default function LocationNode({
     if (onHover) onHover(false);
   }, [onHover]);
 
-  // Animation variants
+  // Animation variants - theme park bouncy feel
   const nodeVariants = {
-    idle: { scale: 1 },
-    hover: { scale: 1.1 },
-    selected: { scale: 1.15 },
-    locked: { scale: 1, filter: 'grayscale(1)' },
+    idle: { scale: 1, y: 0 },
+    hover: { scale: 1.08, y: -4 },
+    selected: { scale: 1.12, y: -6 },
+    locked: { scale: 0.95, filter: 'grayscale(0.8) opacity(0.6)' },
   };
 
   const pulseVariants = {
     idle: { opacity: 0, scale: 1 },
     nearby: {
-      opacity: [0, 0.6, 0],
-      scale: [1, 1.5, 1],
+      opacity: [0, 0.7, 0],
+      scale: [1, 1.3, 1],
       transition: { repeat: Infinity, duration: 1.5 },
     },
   };
@@ -71,6 +89,10 @@ export default function LocationNode({
     ? 'hover'
     : 'idle';
 
+  // Calculate illustration position (centered on position, offset up so it sits on the ground)
+  const illustrationX = position.x - config.size / 2;
+  const illustrationY = position.y - config.size * 0.8;
+
   return (
     <motion.g
       className={`location-node location-${location.id}`}
@@ -82,97 +104,101 @@ export default function LocationNode({
       animate={currentState}
       whileHover={!isLocked ? 'hover' : undefined}
       variants={nodeVariants}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
     >
-      {/* Glow filter definition */}
+      {/* Filter definitions */}
       <defs>
-        <filter id={`location-glow-${location.id}`} x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
+        <filter id={`location-glow-${location.id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="8" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
 
-        <radialGradient id={`location-gradient-${location.id}`}>
-          <stop offset="0%" stopColor={region?.theme.primary || '#3b82f6'} stopOpacity="0.9" />
-          <stop offset="100%" stopColor={region?.theme.secondary || '#1d4ed8'} stopOpacity="1" />
-        </radialGradient>
+        <filter id={`building-shadow-${location.id}`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="3" dy="5" stdDeviation="4" floodColor="#000" floodOpacity="0.25" />
+        </filter>
       </defs>
 
-      {/* Character nearby pulse ring */}
+      {/* Character nearby indicator - golden ring on ground */}
       {isCharacterNearby && !isLocked && (
-        <motion.circle
+        <motion.ellipse
           cx={position.x}
-          cy={position.y}
-          r={config.radius + 10}
+          cy={position.y + 5}
+          rx={config.size / 2 + 15}
+          ry={(config.size / 2 + 15) * 0.4}
           fill="none"
-          stroke={region?.theme.primary || '#3b82f6'}
-          strokeWidth={3}
+          stroke="#FFD700"
+          strokeWidth={4}
           variants={pulseVariants}
           animate="nearby"
         />
       )}
 
-      {/* Selection ring */}
+      {/* Selection indicator - sparkling ring */}
       {isSelected && (
-        <motion.circle
+        <motion.ellipse
           cx={position.x}
-          cy={position.y}
-          r={config.radius + 6}
+          cy={position.y + 5}
+          rx={config.size / 2 + 10}
+          ry={(config.size / 2 + 10) * 0.4}
           fill="none"
-          stroke="white"
-          strokeWidth={2}
-          strokeDasharray="4 2"
-          initial={{ rotate: 0 }}
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 10, ease: 'linear' }}
+          stroke="#FFD700"
+          strokeWidth={3}
+          strokeDasharray="8 4"
+          initial={{ strokeDashoffset: 0 }}
+          animate={{ strokeDashoffset: -24 }}
+          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
         />
       )}
 
-      {/* Outer glow ring */}
-      <motion.circle
-        cx={position.x}
-        cy={position.y}
-        r={config.radius + 4}
-        fill="none"
-        stroke={region?.theme.glow || 'rgba(59, 130, 246, 0.5)'}
-        strokeWidth={isHovered || isSelected ? 3 : 2}
-        filter={isHovered || isSelected ? `url(#location-glow-${location.id})` : undefined}
-        initial={{ opacity: 0.3 }}
-        animate={{ opacity: isHovered || isSelected ? 0.8 : 0.4 }}
-      />
+      {/* Hover glow effect */}
+      {(isHovered || isSelected) && (
+        <ellipse
+          cx={position.x}
+          cy={position.y + 5}
+          rx={config.size / 2 + 5}
+          ry={(config.size / 2 + 5) * 0.4}
+          fill="#FFD700"
+          opacity={0.3}
+          filter={`url(#location-glow-${location.id})`}
+        />
+      )}
 
-      {/* Main circle - glass effect */}
-      <circle
-        cx={position.x}
-        cy={position.y}
-        r={config.radius}
-        fill="rgba(0, 0, 0, 0.6)"
-        stroke={region?.theme.primary || '#3b82f6'}
-        strokeWidth={2}
-      />
-
-      {/* Inner gradient overlay */}
-      <circle
-        cx={position.x}
-        cy={position.y}
-        r={config.radius - 2}
-        fill={`url(#location-gradient-${location.id})`}
-        fillOpacity={0.3}
-      />
-
-      {/* Location icon */}
-      <text
-        x={position.x}
-        y={position.y + config.iconSize / 3}
-        textAnchor="middle"
-        fontSize={config.iconSize}
-        style={{ pointerEvents: 'none' }}
+      {/* Illustrated building */}
+      <g
+        transform={`translate(${illustrationX}, ${illustrationY})`}
+        filter={`url(#building-shadow-${location.id})`}
       >
-        {isLocked ? '🔒' : icon}
-      </text>
+        {isLocked ? (
+          // Locked state - show silhouette
+          <g opacity={0.5}>
+            <IllustrationComponent
+              size={config.size}
+              animate={false}
+            />
+            {/* Lock overlay */}
+            <g transform={`translate(${config.size / 2 - 12}, ${config.size / 2 - 8})`}>
+              <rect x="0" y="8" width="24" height="18" rx="3" fill="#5D4037" />
+              <path
+                d="M 6 8 V 4 C 6 -2 18 -2 18 4 V 8"
+                fill="none"
+                stroke="#5D4037"
+                strokeWidth="4"
+              />
+              <circle cx="12" cy="17" r="3" fill="#FFC107" />
+            </g>
+          </g>
+        ) : (
+          <IllustrationComponent
+            size={config.size}
+            animate={isHovered || isSelected || isCharacterNearby}
+          />
+        )}
+      </g>
 
-      {/* Visited checkmark */}
+      {/* Visited checkmark badge */}
       {isVisited && !isLocked && (
         <motion.g
           initial={{ scale: 0, opacity: 0 }}
@@ -180,17 +206,19 @@ export default function LocationNode({
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
           <circle
-            cx={position.x + config.radius - 4}
-            cy={position.y - config.radius + 4}
-            r={8}
-            fill="#22c55e"
+            cx={position.x + config.size / 2 - 8}
+            cy={illustrationY + 10}
+            r={10}
+            fill="#4CAF50"
+            stroke="white"
+            strokeWidth={2}
           />
           <text
-            x={position.x + config.radius - 4}
-            y={position.y - config.radius + 8}
+            x={position.x + config.size / 2 - 8}
+            y={illustrationY + 14}
             textAnchor="middle"
             fill="white"
-            fontSize={10}
+            fontSize={12}
             fontWeight="bold"
           >
             ✓
@@ -198,21 +226,23 @@ export default function LocationNode({
         </motion.g>
       )}
 
-      {/* Admin badge */}
+      {/* Admin badge - golden star */}
       {requiredRole === 'admin' && (
         <g>
           <circle
-            cx={position.x - config.radius + 4}
-            cy={position.y - config.radius + 4}
-            r={8}
-            fill="#fbbf24"
+            cx={position.x - config.size / 2 + 8}
+            cy={illustrationY + 10}
+            r={10}
+            fill="#FFD700"
+            stroke="#F57F17"
+            strokeWidth={2}
           />
           <text
-            x={position.x - config.radius + 4}
-            y={position.y - config.radius + 7}
+            x={position.x - config.size / 2 + 8}
+            y={illustrationY + 14}
             textAnchor="middle"
-            fill="#422006"
-            fontSize={8}
+            fill="#5D4037"
+            fontSize={12}
             fontWeight="bold"
           >
             ★
@@ -220,31 +250,44 @@ export default function LocationNode({
         </g>
       )}
 
-      {/* Location name label */}
+      {/* Location name signpost */}
       <motion.g
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isHovered || isSelected ? 1 : 0.8 }}
+        initial={{ opacity: 0.9 }}
+        animate={{ opacity: isHovered || isSelected ? 1 : 0.95 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Label background */}
+        {/* Signpost shadow */}
         <rect
-          x={position.x - 50}
-          y={position.y + config.labelOffset - 10}
-          width={100}
-          height={20}
-          rx={10}
-          fill="rgba(0, 0, 0, 0.75)"
-          style={{ backdropFilter: 'blur(4px)' }}
+          x={position.x - 52}
+          y={position.y + config.labelOffset - 7}
+          width={104}
+          height={22}
+          rx={4}
+          fill={SIGN_COLORS.shadow}
+          opacity={0.3}
+          transform="translate(2, 2)"
         />
 
-        {/* Label text */}
+        {/* Signpost background */}
+        <rect
+          x={position.x - 52}
+          y={position.y + config.labelOffset - 8}
+          width={104}
+          height={22}
+          rx={4}
+          fill={SIGN_COLORS.background}
+          stroke={SIGN_COLORS.border}
+          strokeWidth={2}
+        />
+
+        {/* Signpost text */}
         <text
           x={position.x}
-          y={position.y + config.labelOffset + 4}
+          y={position.y + config.labelOffset + 6}
           textAnchor="middle"
-          fill="white"
+          fill={SIGN_COLORS.text}
           fontSize={11}
-          fontWeight={500}
+          fontWeight={600}
           fontFamily="Inter, system-ui, sans-serif"
           style={{ pointerEvents: 'none' }}
         >
@@ -252,43 +295,59 @@ export default function LocationNode({
         </text>
       </motion.g>
 
-      {/* Tooltip on hover */}
+      {/* Detailed tooltip on hover */}
       {isHovered && !isLocked && (
         <motion.g
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
+          exit={{ opacity: 0, y: 5 }}
         >
+          {/* Tooltip shadow */}
           <rect
-            x={position.x - 80}
-            y={position.y - config.radius - 50}
-            width={160}
-            height={40}
+            x={position.x - 82}
+            y={illustrationY - 50}
+            width={164}
+            height={44}
             rx={8}
-            fill="rgba(0, 0, 0, 0.9)"
-            stroke={region?.theme.primary || '#3b82f6'}
-            strokeWidth={1}
+            fill="rgba(0,0,0,0.2)"
+            transform="translate(2, 2)"
           />
+
+          {/* Tooltip background */}
+          <rect
+            x={position.x - 82}
+            y={illustrationY - 52}
+            width={164}
+            height={44}
+            rx={8}
+            fill={SIGN_COLORS.background}
+            stroke={region?.theme.primary || SIGN_COLORS.border}
+            strokeWidth={2}
+          />
+
+          {/* Tooltip title */}
           <text
             x={position.x}
-            y={position.y - config.radius - 35}
+            y={illustrationY - 34}
             textAnchor="middle"
-            fill="white"
-            fontSize={12}
-            fontWeight={600}
+            fill={SIGN_COLORS.text}
+            fontSize={13}
+            fontWeight={700}
             fontFamily="Inter, system-ui, sans-serif"
           >
             {name}
           </text>
+
+          {/* Tooltip instruction */}
           <text
             x={position.x}
-            y={position.y - config.radius - 20}
+            y={illustrationY - 18}
             textAnchor="middle"
-            fill="#9ca3af"
+            fill="#8D6E63"
             fontSize={10}
             fontFamily="Inter, system-ui, sans-serif"
           >
-            Press Enter or Click
+            🎯 Click to visit
           </text>
         </motion.g>
       )}

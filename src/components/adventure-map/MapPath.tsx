@@ -16,33 +16,97 @@ interface MapPathProps {
   isHighlighted?: boolean;
 }
 
-// Path style configurations
+// Theme park path color palette
+const THEME_COLORS = {
+  pathTan: '#E8DBC4',
+  pathBorder: '#C9B896',
+  pathShadow: '#8B7355',
+  bridgeWood: '#8B4513',
+  bridgePlank: '#DEB887',
+  portalGold: '#FFD700',
+  portalGlow: '#FFF59D',
+};
+
+// Path style configurations - theme park style
 const PATH_STYLES = {
   road: {
-    strokeWidth: 6,
-    stroke: 'rgba(120, 120, 140, 0.4)',
+    strokeWidth: 18,
+    stroke: THEME_COLORS.pathTan,
+    borderStroke: THEME_COLORS.pathBorder,
     strokeDasharray: undefined,
     strokeLinecap: 'round' as const,
   },
   trail: {
-    strokeWidth: 3,
-    stroke: 'rgba(100, 100, 120, 0.35)',
-    strokeDasharray: '8 4',
+    strokeWidth: 12,
+    stroke: THEME_COLORS.pathTan,
+    borderStroke: THEME_COLORS.pathBorder,
+    strokeDasharray: undefined, // Solid for theme park look
     strokeLinecap: 'round' as const,
   },
   bridge: {
-    strokeWidth: 5,
-    stroke: 'rgba(139, 92, 246, 0.3)',
-    strokeDasharray: '12 6',
-    strokeLinecap: 'round' as const,
+    strokeWidth: 16,
+    stroke: THEME_COLORS.bridgePlank,
+    borderStroke: THEME_COLORS.bridgeWood,
+    strokeDasharray: '20 4', // Plank effect
+    strokeLinecap: 'butt' as const,
   },
   portal: {
-    strokeWidth: 2,
-    stroke: 'rgba(251, 191, 36, 0.5)',
-    strokeDasharray: '4 8',
+    strokeWidth: 8,
+    stroke: THEME_COLORS.portalGold,
+    borderStroke: THEME_COLORS.portalGlow,
+    strokeDasharray: '6 6',
     strokeLinecap: 'round' as const,
   },
 };
+
+// Generate organic curve control points for natural-looking paths
+function generateOrganicPath(from: Position, to: Position, waypoints?: Position[]): string {
+  const points: Position[] = [from, ...(waypoints || []), to];
+
+  if (points.length === 2) {
+    // Add slight curve even for direct connections
+    const midX = (from.x + to.x) / 2;
+    const midY = (from.y + to.y) / 2;
+
+    // Calculate perpendicular offset for natural curve
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Small perpendicular offset (10% of distance, alternating direction)
+    const offsetMagnitude = dist * 0.1;
+    const perpX = -dy / dist * offsetMagnitude;
+    const perpY = dx / dist * offsetMagnitude;
+
+    // Alternate curve direction based on position for variety
+    const curveDirection = ((from.x + from.y) % 2 === 0) ? 1 : -1;
+
+    const controlX = midX + perpX * curveDirection;
+    const controlY = midY + perpY * curveDirection;
+
+    return `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`;
+  }
+
+  // For paths with waypoints, use smooth Catmull-Rom-like curves
+  let d = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+    // Calculate control points for smooth curve
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+
+  return d;
+}
 
 export default function MapPath({
   path,
@@ -55,42 +119,13 @@ export default function MapPath({
   const fromPosition = useLocationPosition(from);
   const toPosition = useLocationPosition(to);
 
-  // Build path string (always call useMemo to avoid conditional hook call)
+  // Build organic curved path string
   const pathString = useMemo(() => {
     if (!fromPosition || !toPosition) {
       return '';
     }
 
-    const points: Position[] = [
-      fromPosition,
-      ...(waypoints || []),
-      toPosition,
-    ];
-
-    if (points.length === 2) {
-      // Simple line
-      return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-    }
-
-    // Curved path using quadratic bezier
-    let d = `M ${points[0].x} ${points[0].y}`;
-
-    for (let i = 1; i < points.length - 1; i++) {
-      const curr = points[i];
-      const next = points[i + 1];
-
-      // Control point calculation for smooth curve
-      const cpX = curr.x;
-      const cpY = curr.y;
-
-      d += ` Q ${cpX} ${cpY} ${(curr.x + next.x) / 2} ${(curr.y + next.y) / 2}`;
-    }
-
-    // Final segment
-    const last = points[points.length - 1];
-    d += ` L ${last.x} ${last.y}`;
-
-    return d;
+    return generateOrganicPath(fromPosition, toPosition, waypoints);
   }, [fromPosition, toPosition, waypoints]);
 
   // Early return after hooks
@@ -115,17 +150,29 @@ export default function MapPath({
         </defs>
       )}
 
-      {/* Base path shadow */}
+      {/* Path shadow (underneath) */}
       <path
         d={pathString}
         fill="none"
-        stroke="rgba(0, 0, 0, 0.3)"
-        strokeWidth={pathStyle.strokeWidth + 2}
+        stroke={THEME_COLORS.pathShadow}
+        strokeWidth={pathStyle.strokeWidth + 6}
+        strokeLinecap={pathStyle.strokeLinecap}
+        strokeDasharray={pathStyle.strokeDasharray}
+        opacity={0.4}
+        transform="translate(2, 3)"
+      />
+
+      {/* Path border/edge */}
+      <path
+        d={pathString}
+        fill="none"
+        stroke={pathStyle.borderStroke}
+        strokeWidth={pathStyle.strokeWidth + 4}
         strokeLinecap={pathStyle.strokeLinecap}
         strokeDasharray={pathStyle.strokeDasharray}
       />
 
-      {/* Main path */}
+      {/* Main path surface */}
       <motion.path
         d={pathString}
         fill="none"
@@ -138,17 +185,30 @@ export default function MapPath({
         transition={{ duration: 0.5, ease: 'easeOut' }}
       />
 
+      {/* Center line marking (for roads) */}
+      {style === 'road' && (
+        <path
+          d={pathString}
+          fill="none"
+          stroke="#D4C4A8"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeDasharray="12 8"
+          opacity={0.6}
+        />
+      )}
+
       {/* Highlighted overlay */}
       {isHighlighted && (
         <motion.path
           d={pathString}
           fill="none"
-          stroke="rgba(59, 130, 246, 0.6)"
-          strokeWidth={pathStyle.strokeWidth + 2}
+          stroke="#FFD700"
+          strokeWidth={pathStyle.strokeWidth + 4}
           strokeLinecap={pathStyle.strokeLinecap}
           filter={`url(#path-glow-${path.id})`}
           initial={{ opacity: 0 }}
-          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          animate={{ opacity: [0.2, 0.5, 0.2] }}
           transition={{ repeat: Infinity, duration: 1.5 }}
         />
       )}
@@ -158,14 +218,14 @@ export default function MapPath({
         <motion.path
           d={pathString}
           fill="none"
-          stroke="rgba(251, 191, 36, 0.8)"
-          strokeWidth={3}
+          stroke="#FFD700"
+          strokeWidth={4}
           strokeLinecap="round"
-          strokeDasharray="10 10"
+          strokeDasharray="15 10"
           filter={`url(#path-glow-${path.id})`}
           initial={{ strokeDashoffset: 0 }}
-          animate={{ strokeDashoffset: -20 }}
-          transition={{ repeat: Infinity, duration: 0.5, ease: 'linear' }}
+          animate={{ strokeDashoffset: -25 }}
+          transition={{ repeat: Infinity, duration: 0.4, ease: 'linear' }}
         />
       )}
 
@@ -176,37 +236,64 @@ export default function MapPath({
           <motion.circle
             cx={fromPosition.x}
             cy={fromPosition.y}
-            r={15}
+            r={20}
             fill="none"
-            stroke="rgba(251, 191, 36, 0.5)"
-            strokeWidth={2}
+            stroke={THEME_COLORS.portalGold}
+            strokeWidth={3}
             initial={{ scale: 0.8, opacity: 0.5 }}
             animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.5, 0.8, 0.5] }}
             transition={{ repeat: Infinity, duration: 2 }}
+          />
+          <circle
+            cx={fromPosition.x}
+            cy={fromPosition.y}
+            r={12}
+            fill={THEME_COLORS.portalGlow}
+            opacity={0.3}
           />
           {/* End portal ring */}
           <motion.circle
             cx={toPosition.x}
             cy={toPosition.y}
-            r={15}
+            r={20}
             fill="none"
-            stroke="rgba(251, 191, 36, 0.5)"
-            strokeWidth={2}
+            stroke={THEME_COLORS.portalGold}
+            strokeWidth={3}
             initial={{ scale: 0.8, opacity: 0.5 }}
             animate={{ scale: [1.2, 0.8, 1.2], opacity: [0.8, 0.5, 0.8] }}
             transition={{ repeat: Infinity, duration: 2 }}
           />
+          <circle
+            cx={toPosition.x}
+            cy={toPosition.y}
+            r={12}
+            fill={THEME_COLORS.portalGlow}
+            opacity={0.3}
+          />
         </>
       )}
 
-      {/* Bridge pillars for bridge style */}
+      {/* Bridge railings for bridge style */}
       {style === 'bridge' && (
         <>
+          {/* Bridge support posts */}
           <circle
             cx={(fromPosition.x + toPosition.x) / 2}
             cy={(fromPosition.y + toPosition.y) / 2}
-            r={4}
-            fill="rgba(139, 92, 246, 0.4)"
+            r={6}
+            fill={THEME_COLORS.bridgeWood}
+          />
+          <circle
+            cx={(fromPosition.x * 0.7 + toPosition.x * 0.3)}
+            cy={(fromPosition.y * 0.7 + toPosition.y * 0.3)}
+            r={5}
+            fill={THEME_COLORS.bridgeWood}
+          />
+          <circle
+            cx={(fromPosition.x * 0.3 + toPosition.x * 0.7)}
+            cy={(fromPosition.y * 0.3 + toPosition.y * 0.7)}
+            r={5}
+            fill={THEME_COLORS.bridgeWood}
           />
         </>
       )}

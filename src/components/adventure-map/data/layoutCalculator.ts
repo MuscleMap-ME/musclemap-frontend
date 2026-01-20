@@ -6,7 +6,7 @@
  */
 
 import * as d3 from 'd3';
-import type { MapLocation, Region, Position, RegionId, RegionBounds } from '../types';
+import type { MapLocation, Region, Position, RegionId } from '../types';
 
 interface LayoutNode extends d3.SimulationNodeDatum {
   id: string;

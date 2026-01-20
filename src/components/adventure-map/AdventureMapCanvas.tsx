@@ -12,19 +12,31 @@ import MapRegion from './MapRegion';
 import LocationNode from './LocationNode';
 import MapPath from './MapPath';
 import MapCharacter from './MapCharacter';
+import { MapTerrain } from './MapTerrain';
 import { useCharacterMovement } from './hooks/useCharacterMovement';
 import { useMapNavigation } from './hooks/useMapNavigation';
 import { useAdventureMapStore, useMapView, useLocationSelection, useMapProgress } from '../../store/adventureMapStore';
 import { REGIONS, getAllRegions } from './data/regions';
-import { getAllLocations, PATH_CONNECTIONS } from './data/mapLayout';
+import { PATH_CONNECTIONS } from './data/mapLayout';
 import { useLocationsWithCalculatedPositions } from './hooks/useCalculatedLayout';
 import type { AdventureMapCanvasProps, Position, CompanionData } from './types';
+
+// Theme park color palette
+const THEME_COLORS = {
+  grassLight: '#C4D93F',
+  grassMedium: '#8DC63F',
+  grassDark: '#6B9B2D',
+  skyBlue: '#87CEEB',
+  pathTan: '#E8DBC4',
+};
 
 // Map dimensions - expanded for better node spacing
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1400;
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2;
+// Default zoom for initial view (used by store initialization)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEFAULT_ZOOM = 0.6;
 
 // Touch gesture utilities
@@ -311,7 +323,7 @@ export default function AdventureMapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`adventure-map-canvas relative overflow-hidden bg-gradient-to-b from-[#0a0a12] to-[#14141c] touch-none ${className}`}
+      className={`adventure-map-canvas relative overflow-hidden touch-none ${className}`}
       tabIndex={0}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -321,26 +333,32 @@ export default function AdventureMapCanvas({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      style={{
+        cursor: isDragging ? 'grabbing' : 'grab',
+        background: `linear-gradient(180deg, ${THEME_COLORS.skyBlue} 0%, #E8F5E9 30%, ${THEME_COLORS.grassMedium} 50%, ${THEME_COLORS.grassDark} 100%)`,
+      }}
     >
-      {/* Background stars/particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        {[...Array(50)].map((_, i) => (
+      {/* Floating clouds decoration */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(8)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-white/20 rounded-full"
+            className="absolute bg-white/80 rounded-full"
             style={{
+              width: `${60 + Math.random() * 100}px`,
+              height: `${30 + Math.random() * 40}px`,
               left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              top: `${5 + Math.random() * 20}%`,
+              filter: 'blur(2px)',
             }}
             animate={{
-              opacity: [0.1, 0.4, 0.1],
-              scale: [0.8, 1.2, 0.8],
+              x: [0, 30, 0],
             }}
             transition={{
               repeat: Infinity,
-              duration: 2 + Math.random() * 3,
-              delay: Math.random() * 2,
+              duration: 20 + Math.random() * 20,
+              delay: Math.random() * 10,
+              ease: 'linear',
             }}
           />
         ))}
@@ -357,7 +375,7 @@ export default function AdventureMapCanvas({
           transformOrigin: 'center center',
         }}
       >
-        {/* Global filters */}
+        {/* Global filters and definitions */}
         <defs>
           <filter id="map-glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="10" result="blur" />
@@ -366,7 +384,35 @@ export default function AdventureMapCanvas({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+
+          {/* Grass texture pattern */}
+          <pattern id="grass-pattern" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+            <rect width="60" height="60" fill={THEME_COLORS.grassMedium} />
+            <circle cx="10" cy="15" r="3" fill={THEME_COLORS.grassLight} opacity="0.4" />
+            <circle cx="40" cy="25" r="4" fill={THEME_COLORS.grassDark} opacity="0.3" />
+            <circle cx="25" cy="45" r="3" fill={THEME_COLORS.grassLight} opacity="0.4" />
+            <circle cx="50" cy="50" r="2" fill={THEME_COLORS.grassDark} opacity="0.3" />
+          </pattern>
+
+          {/* Drop shadow filter for buildings */}
+          <filter id="building-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="3" dy="5" stdDeviation="4" floodColor="#000" floodOpacity="0.25" />
+          </filter>
         </defs>
+
+        {/* Base grass background */}
+        <rect
+          x="0"
+          y="0"
+          width={MAP_WIDTH}
+          height={MAP_HEIGHT}
+          fill="url(#grass-pattern)"
+        />
+
+        {/* Terrain layer (trees, water, decorations) */}
+        <g className="terrain-layer">
+          <MapTerrain width={MAP_WIDTH} height={MAP_HEIGHT} />
+        </g>
 
         {/* Paths layer (roads between locations) */}
         <g className="paths-layer">
@@ -420,60 +466,60 @@ export default function AdventureMapCanvas({
         </g>
       </svg>
 
-      {/* Zoom controls */}
+      {/* Zoom controls - theme park style */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
         <button
           onClick={() => zoomIn()}
-          className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+          className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center font-bold shadow-lg"
           aria-label="Zoom in"
         >
           +
         </button>
         <button
           onClick={() => zoomOut()}
-          className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+          className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center font-bold shadow-lg"
           aria-label="Zoom out"
         >
           -
         </button>
         <button
           onClick={() => center()}
-          className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center text-lg"
+          className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center text-lg shadow-lg"
           aria-label="Center on character"
         >
           ◎
         </button>
         <button
           onClick={() => reset()}
-          className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center text-sm"
+          className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center text-sm shadow-lg"
           aria-label="Reset view"
         >
           ↺
         </button>
       </div>
 
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-lg border border-white/10 p-3 z-10">
-        <div className="text-white/60 text-xs mb-2 font-medium">CONTROLS</div>
-        <div className="text-white/80 text-xs space-y-1">
-          <div>Arrow/WASD - Move</div>
-          <div>Click - Go to location</div>
-          <div>Enter - Enter location</div>
-          <div>Drag - Pan map</div>
-          <div>Scroll - Zoom</div>
+      {/* Legend - theme park style signpost */}
+      <div className="absolute top-4 left-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 p-3 z-10 shadow-lg">
+        <div className="text-amber-800 text-xs mb-2 font-bold uppercase tracking-wide">🗺️ Map Controls</div>
+        <div className="text-amber-900 text-xs space-y-1">
+          <div>⬆️ Arrow/WASD - Move</div>
+          <div>🖱️ Click - Go to location</div>
+          <div>⏎ Enter - Enter location</div>
+          <div>✋ Drag - Pan map</div>
+          <div>🔍 Scroll - Zoom</div>
         </div>
       </div>
 
-      {/* Current region indicator */}
-      <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg border border-white/10 px-4 py-2 z-10">
+      {/* Current region indicator - theme park style */}
+      <div className="absolute top-4 right-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 px-4 py-2 z-10 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{REGIONS[currentRegion]?.icon || '🏰'}</span>
           <div>
-            <div className="text-white font-medium text-sm">
+            <div className="text-amber-900 font-bold text-sm">
               {REGIONS[currentRegion]?.name || 'Unknown'}
             </div>
-            <div className="text-white/50 text-xs">
-              {visited.length} / {calculatedLocations.filter((l) => !l.requiredRole).length} discovered
+            <div className="text-amber-700 text-xs">
+              ⭐ {visited.length} / {calculatedLocations.filter((l) => !l.requiredRole).length} discovered
             </div>
           </div>
         </div>
