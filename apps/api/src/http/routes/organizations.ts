@@ -1581,10 +1581,11 @@ export async function registerOrganizationsRoutes(app: FastifyInstance) {
     const readinessData = await db.queryAll(query, params);
 
     // Get member readiness if allowed by org settings
-    const orgSettings = JSON.parse((await db.queryOne<{ settings: string }>(
+    const orgRow = await db.queryOne<{ settings: Record<string, unknown> }>(
       `SELECT settings FROM organizations WHERE id = $1`,
       [orgId]
-    ))?.settings || '{}');
+    );
+    const orgSettings = orgRow?.settings || {};
 
     let memberReadiness: unknown[] = [];
     if (orgSettings.allow_individual_scores && hasRole(membership, ['supervisor', 'admin', 'owner'])) {

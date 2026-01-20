@@ -845,8 +845,10 @@ export async function getMembers(orgId: string, filters: MemberFilters = {}): Pr
     paramIndex++;
   }
 
-  const limit = filters.limit || 50;
-  const offset = filters.offset || 0;
+  const limit = Math.min(filters.limit || 50, 1000);
+  const offset = Math.max(filters.offset || 0, 0);
+
+  values.push(limit, offset);
 
   const rows = await queryAll<Record<string, unknown>>(
     `SELECT m.*, u.username, u.display_name, u.email, u.avatar_url
@@ -854,7 +856,7 @@ export async function getMembers(orgId: string, filters: MemberFilters = {}): Pr
      JOIN users u ON u.id = m.user_id
      WHERE ${conditions.join(' AND ')}
      ORDER BY m.created_at DESC
-     LIMIT ${limit} OFFSET ${offset}`,
+     LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
     values
   );
 
