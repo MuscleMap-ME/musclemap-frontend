@@ -603,7 +603,7 @@ export async function up(): Promise<void> {
       INSERT INTO data_retention_policies (policy_name, target_table, retention_days, condition_sql, enabled)
       VALUES
         ('user_monthly_stats_old', 'user_monthly_stats', 2555, 'is_complete = TRUE', TRUE),
-        ('user_progress_trends_stale', 'user_progress_trends', NULL, NULL, FALSE)
+        ('user_progress_trends_stale', 'user_progress_trends', 0, NULL, FALSE)
       ON CONFLICT (policy_name) DO NOTHING
     `);
 
