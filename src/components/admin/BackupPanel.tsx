@@ -485,6 +485,7 @@ export default function BackupPanel() {
           'Content-Type': 'application/json',
           ...getAuthHeader(),
         },
+        body: JSON.stringify({ type: 'full', compress: true }),
       });
 
       if (res.ok) {
