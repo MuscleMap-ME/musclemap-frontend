@@ -825,36 +825,29 @@ export default function EmpireControl() {
     }
   };
 
-  const searchUsersForPower = async (query: string, setPower: 'ban' | 'achievement' | 'gift') => {
-    if (!query || query.length < 2) {
+  const searchUsersForPower = async (searchQuery: string, setPower: 'ban' | 'achievement' | 'gift') => {
+    if (!searchQuery || searchQuery.length < 2) {
       if (setPower === 'ban') setBanUserResults([]);
       else if (setPower === 'achievement') setAchievementUserResults([]);
       else setGiftUserResults([]);
       return;
     }
     try {
-      const res = await fetch(`/api/graphql`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify({
-          query: `query SearchUsers($query: String!) {
-            searchUsers(query: $query, limit: 10) {
-              id
-              username
-              displayName
-            }
-          }`,
-          variables: { query },
-        }),
+      const res = await fetch(`/api/admin-control/users?search=${encodeURIComponent(searchQuery)}&limit=10`, {
+        headers: getAuthHeader(),
       });
-      const data = await res.json();
-      const results = data.data?.searchUsers || [];
-      if (setPower === 'ban') setBanUserResults(results);
-      else if (setPower === 'achievement') setAchievementUserResults(results);
-      else setGiftUserResults(results);
+      if (res.ok) {
+        const data = await res.json();
+        // Map the response to the expected format
+        const results = (data.data || data.users || []).map((user: { id: string; username: string; display_name?: string }) => ({
+          id: user.id,
+          username: user.username,
+          displayName: user.display_name,
+        }));
+        if (setPower === 'ban') setBanUserResults(results);
+        else if (setPower === 'achievement') setAchievementUserResults(results);
+        else setGiftUserResults(results);
+      }
     } catch {
       // Failed to search users
     }
