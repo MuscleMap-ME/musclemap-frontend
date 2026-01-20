@@ -373,48 +373,29 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   // ============================================
   // GYMNASTICS / CALISTHENICS
   // ============================================
-  'bw-muscle-up': 'Pull-ups', // use pullup as base
-  'gym-tuck-l-sit': 'Plank', // similar isometric
+  // NOTE: Exercises with NO accurate image available should NOT be mapped
+  // This prevents showing misleading images (e.g., dumbbell press for handstands)
+  //
+  // NOT MAPPED (no accurate images exist in wger.de):
+  // - Handstands (all variations)
+  // - Planches (all variations)
+  // - Front Levers (all variations)
+  // - Back Levers (all variations)
+  // - L-sits (all variations)
+  // - Muscle-ups (all variations)
+  // - Human Flags (all variations)
+  //
+  // These exercises will use the 3D muscle visualization fallback instead
+  // ============================================
   'gym-ring-support': 'Dips', // similar position
   'gym-skin-the-cat': 'Pull-ups', // bar work
-  'gym-tuck-front-lever': 'Inverted Rows', // similar pulling
-  'gym-adv-tuck-front-lever': 'Inverted Rows',
-  'gym-straddle-front-lever': 'Inverted Rows',
-  'gym-full-front-lever': 'Inverted Rows',
-  'gym-planche-lean': 'Push-Up',
-  'gym-tuck-planche': 'Push-Up',
-  'gym-straddle-planche': 'Push-Up',
-  'gym-full-planche': 'Push-Up',
-  'gym-adv-tuck-planche': 'Push-Up',
-  // Handstand exercises intentionally NOT mapped - no accurate images in wger.de
-  // 'gym-wall-handstand-chest', 'gym-wall-handstand-back', 'gym-freestanding-handstand',
-  // 'gym-handstand-walk', 'gym-press-handstand' - all would show incorrect shoulder press image
-  'gym-one-leg-l-sit': 'Plank',
-  'gym-v-sit': 'Plank',
-  'gym-ring-muscle-up': 'Pull-ups',
-  'cali-strict-muscle-up': 'Pull-ups',
-  'cali-kipping-muscle-up': 'Pull-ups',
-  'cali-tuck-back-lever': 'Inverted Rows',
-  'cali-adv-tuck-back-lever': 'Inverted Rows',
-  'cali-straddle-back-lever': 'Inverted Rows',
-  'cali-full-back-lever': 'Inverted Rows',
-  'cali-muscle-up-transition': 'Pull-ups',
-  'cali-vertical-flag': 'Side Crunch',
-  'cali-tuck-flag': 'Side Crunch',
-  'cali-straddle-flag': 'Side Crunch',
-  'cali-full-flag': 'Side Crunch',
-  'cali-one-arm-negative': 'Pull-ups',
-  'cali-assisted-one-arm': 'Pull-ups',
-  'cali-one-arm-pullup': 'Pull-ups',
 
   // ============================================
   // HAND BALANCING
-  // Note: Most handstand exercises don't have images in wger.de
-  // Only mapping exercises where we have accurate images
+  // NOTE: NO handstand exercises are mapped because wger.de has no handstand images
+  // Showing shoulder press images for handstands is misleading
   // ============================================
-  'hb-crow-pose': 'Plank', // Similar isometric hold position
-  'hb-canes': 'Dips', // Similar support position
-  // Handstands intentionally NOT mapped - no accurate images available
+  // NOT MAPPED: crow pose, canes, all handstand variations
 
   // ============================================
   // FLEXIBILITY / STRETCHING

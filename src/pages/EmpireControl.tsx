@@ -1724,8 +1724,8 @@ export default function EmpireControl() {
               {/* Feedback Detail Modal */}
               {feedbackDetailOpen && selectedFeedback && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-                  <div className="bg-[#0f0f15] border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="sticky top-0 bg-[#0f0f15] border-b border-white/10 p-4 flex items-center justify-between">
+                  <div className="bg-[#1e1e2a] border border-white/10 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-[#1e1e2a] border-b border-white/10 p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {selectedFeedback.type === 'bug_report' && <Bug className="w-5 h-5 text-red-400" />}
                         {selectedFeedback.type === 'feature_request' && <Lightbulb className="w-5 h-5 text-green-400" />}
@@ -2492,8 +2492,8 @@ export default function EmpireControl() {
               {/* Bug Detail Modal */}
               {bugDetailOpen && selectedBug && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-                  <div className="bg-[#0f0f15] border border-white/10 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-                    <div className="sticky top-0 bg-[#0f0f15] border-b border-white/10 p-4 flex items-center justify-between">
+                  <div className="bg-[#1e1e2a] border border-white/10 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-[#1e1e2a] border-b border-white/10 p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Bug className={`w-5 h-5 ${
                           selectedBug.priority === 'critical' ? 'text-red-500' :

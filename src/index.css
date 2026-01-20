@@ -769,43 +769,47 @@
 }
 
 .modal-glass {
-  background: var(--glass-white-8);
+  background: rgba(26, 26, 36, 0.95);
   backdrop-filter: blur(var(--blur-2xl));
   -webkit-backdrop-filter: blur(var(--blur-2xl));
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-2xl);
-  box-shadow:
-    var(--inner-glow-medium),
-    var(--shadow-glass-xl);
-}
-
-/* Solid modal variant - use for modals where readability is critical */
-.modal-solid {
-  background: var(--void-surface);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   box-shadow:
     var(--inner-glow-medium),
     var(--shadow-glass-xl),
-    0 0 0 1px rgba(0, 0, 0, 0.5);
+    0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Solid modal variant - use for modals where readability is critical */
+.modal-solid {
+  background: #1a1a24;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    var(--inner-glow-medium),
+    var(--shadow-glass-xl),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(0, 0, 0, 0.5);
 }
 
 /* Glass surface with solid background for modals */
 .glass-solid {
-  background: var(--void-surface);
-  border: 1px solid var(--border-default);
+  background: #1a1a24;
+  border: 1px solid var(--border-medium);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-glass-sm);
+    var(--shadow-glass-md),
+    0 0 40px rgba(0, 0, 0, 0.4);
 }
 
 /* Elevated solid surface for modal content */
 .glass-solid-elevated {
-  background: var(--void-elevated);
-  border: 1px solid var(--border-medium);
+  background: #1e1e2a;
+  border: 1px solid var(--border-strong);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-glass-md);
+    var(--shadow-glass-lg),
+    0 0 60px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
@@ -966,6 +970,31 @@
 
 .swipeable:active {
   cursor: grabbing;
+}
+
+/* ============================================
+   MODAL BACKGROUND UTILITY
+   ============================================
+
+   Use .modal-bg instead of bg-gray-900 for modal backgrounds.
+   This ensures proper contrast against the page background.
+   ============================================ */
+
+.modal-bg {
+  background: #1e1e2a;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Override bg-gray-900 when used in fixed/modal contexts */
+.fixed .bg-gray-900,
+[class*="z-50"] .bg-gray-900 {
+  background: #1e1e2a !important;
+}
+
+/* Ensure bg-gray-900/95 also gets the fix */
+.fixed .bg-gray-900\/95,
+[class*="z-50"] .bg-gray-900\/95 {
+  background: rgba(30, 30, 42, 0.95) !important;
 }
 
 } /* End of @layer components */

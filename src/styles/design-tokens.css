@@ -658,9 +658,15 @@
   .glass-brand,
   .glass-pulse,
   .card-glass,
-  .nav-glass,
-  .modal-glass {
+  .nav-glass {
     background: rgba(15, 15, 25, 0.95) !important;
+  }
+
+  .modal-glass,
+  .glass-solid,
+  .glass-solid-elevated,
+  .modal-solid {
+    background: #1e1e2a !important;
   }
 
   .card-glass {
@@ -752,43 +758,47 @@
 }
 
 .modal-glass {
-  background: var(--glass-white-8);
+  background: rgba(26, 26, 36, 0.95);
   backdrop-filter: blur(var(--blur-2xl));
   -webkit-backdrop-filter: blur(var(--blur-2xl));
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-2xl);
-  box-shadow:
-    var(--inner-glow-medium),
-    var(--shadow-xl);
-}
-
-/* Solid modal variant - use for modals where readability is critical */
-.modal-solid {
-  background: var(--void-surface);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   box-shadow:
     var(--inner-glow-medium),
     var(--shadow-xl),
-    0 0 0 1px rgba(0, 0, 0, 0.5);
+    0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Solid modal variant - use for modals where readability is critical */
+.modal-solid {
+  background: #1a1a24;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    var(--inner-glow-medium),
+    var(--shadow-xl),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(0, 0, 0, 0.5);
 }
 
 /* Glass surface with solid background for modals */
 .glass-solid {
-  background: var(--void-surface);
-  border: 1px solid var(--border-default);
+  background: #1a1a24;
+  border: 1px solid var(--border-medium);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-sm);
+    var(--shadow-md),
+    0 0 40px rgba(0, 0, 0, 0.4);
 }
 
 /* Elevated solid surface for modal content */
 .glass-solid-elevated {
-  background: var(--void-elevated);
-  border: 1px solid var(--border-medium);
+  background: #1e1e2a;
+  border: 1px solid var(--border-strong);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-md);
+    var(--shadow-lg),
+    0 0 60px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
