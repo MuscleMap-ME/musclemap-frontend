@@ -346,6 +346,88 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     });
   });
 
+  // Get single user by ID
+  app.get('/admin-control/users/:userId', { preHandler: adminOnly }, async (request, reply) => {
+    const { userId } = request.params as { userId: string };
+
+    const user = await queryOne<{
+      id: string;
+      username: string;
+      email: string;
+      display_name: string;
+      avatar_url: string;
+      roles: string[];
+      created_at: Date;
+      total_xp: number;
+      credit_balance: number;
+      status: string;
+      wealth_tier: number;
+      current_rank: string;
+      level: number;
+    }>(
+      `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.roles, u.created_at,
+              u.total_xp, u.wealth_tier, u.current_rank, u.level,
+              COALESCE(cb.balance, 0) as credit_balance,
+              COALESCE(u.moderation_status, 'active') as status
+       FROM users u
+       LEFT JOIN credit_balances cb ON cb.user_id = u.id
+       WHERE u.id = $1`,
+      [userId]
+    );
+
+    if (!user) {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'User not found', statusCode: 404 },
+      });
+    }
+
+    // Get recent workouts count
+    const workoutStats = await queryOne<{ total: number; recent: number }>(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as recent
+       FROM workouts WHERE user_id = $1`,
+      [userId]
+    );
+
+    // Get recent activity (feature_usage_events if exists)
+    let recentActivity: Array<{ feature_id: string; action: string; created_at: string }> = [];
+    try {
+      recentActivity = await queryAll<{ feature_id: string; action: string; created_at: string }>(
+        `SELECT feature_id, action, created_at FROM feature_usage_events
+         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10`,
+        [userId]
+      );
+    } catch {
+      // Table might not exist
+    }
+
+    return reply.send({
+      data: {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.display_name,
+          avatarUrl: user.avatar_url,
+          roles: user.roles || [],
+          createdAt: user.created_at,
+          totalXp: user.total_xp || 0,
+          creditBalance: user.credit_balance || 0,
+          status: user.status,
+          wealthTier: user.wealth_tier || 0,
+          currentRank: user.current_rank || 'Unranked',
+          level: user.level || 1,
+        },
+        stats: {
+          totalWorkouts: workoutStats?.total || 0,
+          recentWorkouts: workoutStats?.recent || 0,
+        },
+        recentActivity,
+      },
+    });
+  });
+
   // Get groups/communities
   app.get('/admin-control/groups', { preHandler: adminOnly }, async (request, reply) => {
     const groups = await queryAll<{

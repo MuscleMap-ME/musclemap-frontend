@@ -18,10 +18,8 @@ import {
   Award,
   Ban,
   Calendar,
-  ChevronRight,
   Clock,
   Coins,
-  Crown,
   Gift,
   Loader2,
   Mail,
@@ -30,8 +28,6 @@ import {
   Shield,
   Star,
   Target,
-  TrendingUp,
-  User,
   UserCheck,
   UserX,
   Zap,
@@ -41,46 +37,33 @@ interface UserDetails {
   id: string;
   username: string;
   email: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  created_at: string;
-  current_archetype_id: string | null;
-  total_xp: number;
-  current_rank: string;
-  wealth_tier: number;
-  roles: string;
-  flags: string;
-  status?: string;
-  credit_balance?: number;
-  level?: number;
+  displayName: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  totalXp: number;
+  currentRank: string;
+  wealthTier: number;
+  roles: string[];
+  status: string;
+  creditBalance: number;
+  level: number;
 }
 
 interface ActivityEvent {
-  id: string;
   feature_id: string;
-  feature_category: string;
   action: string;
-  metadata?: string;
-  duration_ms: number;
   created_at: string;
 }
 
-interface UserAnalytics {
+interface UserStats {
+  totalWorkouts: number;
+  recentWorkouts: number;
+}
+
+interface UserData {
   user: UserDetails;
-  activity_summary: {
-    total_actions_7d: number;
-    total_actions_30d: number;
-    active_days_7d: number;
-    active_days_30d: number;
-    avg_session_duration_ms: number;
-  };
-  top_features: Array<{
-    feature_id: string;
-    feature_category: string;
-    action_count: number;
-    total_duration_ms: number;
-  }>;
-  recent_activity: ActivityEvent[];
+  stats: UserStats;
+  recentActivity: ActivityEvent[];
 }
 
 export default function EmpireUserDetail() {
@@ -89,7 +72,7 @@ export default function EmpireUserDetail() {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userData, setUserData] = useState<UserAnalytics | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
   const [giftAmount, setGiftAmount] = useState(100);
@@ -105,12 +88,13 @@ export default function EmpireUserDetail() {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`/api/admin/analytics/users/${userId}`, {
+      const res = await fetch(`/api/admin-control/users/${userId}`, {
         headers: getAuthHeader(),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to fetch user data');
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Failed to fetch user data');
       }
 
       const data = await res.json();
@@ -252,7 +236,7 @@ export default function EmpireUserDetail() {
     );
   }
 
-  const { user, activity_summary, top_features, recent_activity } = userData;
+  const { user, stats, recentActivity } = userData;
   const isBanned = user.status === 'banned';
 
   return (
@@ -278,13 +262,13 @@ export default function EmpireUserDetail() {
 
         {/* User Profile Header */}
         <GlassSurface className="p-6 mb-6">
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               {/* Avatar */}
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-3xl font-bold">
-                {user.avatar_url ? (
+                {user.avatarUrl ? (
                   <img
-                    src={user.avatar_url}
+                    src={user.avatarUrl}
                     alt={user.username}
                     className="w-full h-full rounded-full object-cover"
                   />
@@ -295,8 +279,8 @@ export default function EmpireUserDetail() {
 
               {/* Basic Info */}
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold">{user.display_name || user.username}</h1>
+                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                  <h1 className="text-2xl font-bold">{user.displayName || user.username}</h1>
                   {isBanned && (
                     <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full flex items-center gap-1">
                       <Ban className="w-3 h-3" />
@@ -317,7 +301,7 @@ export default function EmpireUserDetail() {
                 </p>
                 <p className="text-gray-500 text-sm flex items-center gap-2">
                   <Calendar className="w-3 h-3" />
-                  Joined {formatDate(user.created_at)}
+                  Joined {formatDate(user.createdAt)}
                 </p>
               </div>
             </div>
@@ -379,9 +363,9 @@ export default function EmpireUserDetail() {
               </div>
               <div>
                 <p className="text-gray-400 text-sm">Total XP</p>
-                <p className="text-xl font-bold">{(user.total_xp || 0).toLocaleString()}</p>
+                <p className="text-xl font-bold">{(user.totalXp || 0).toLocaleString()}</p>
                 <p className="text-xs text-gray-500">
-                  {user.current_rank || 'Unranked'}
+                  Level {user.level || 1} - {user.currentRank || 'Unranked'}
                 </p>
               </div>
             </div>
@@ -395,115 +379,77 @@ export default function EmpireUserDetail() {
               </div>
               <div>
                 <p className="text-gray-400 text-sm">Credits</p>
-                <p className="text-xl font-bold">{(user.credit_balance || 0).toLocaleString()}</p>
-                <p className={`text-xs ${getWealthTierColor(user.wealth_tier)}`}>
-                  {getWealthTierName(user.wealth_tier)}
+                <p className="text-xl font-bold">{(user.creditBalance || 0).toLocaleString()}</p>
+                <p className={`text-xs ${getWealthTierColor(user.wealthTier)}`}>
+                  {getWealthTierName(user.wealthTier)}
                 </p>
               </div>
             </div>
           </GlassSurface>
 
-          {/* Activity (7d) */}
+          {/* Total Workouts */}
           <GlassSurface className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-500/20 rounded-lg">
                 <Zap className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Actions (7d)</p>
-                <p className="text-xl font-bold">{activity_summary?.total_actions_7d || 0}</p>
+                <p className="text-gray-400 text-sm">Total Workouts</p>
+                <p className="text-xl font-bold">{stats?.totalWorkouts || 0}</p>
                 <p className="text-xs text-gray-500">
-                  {activity_summary?.active_days_7d || 0} active days
+                  {stats?.recentWorkouts || 0} in last 30 days
                 </p>
               </div>
             </div>
           </GlassSurface>
 
-          {/* Avg Session */}
+          {/* Level */}
           <GlassSurface className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-amber-500/20 rounded-lg">
-                <Clock className="w-5 h-5 text-amber-400" />
+                <Award className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Avg Session</p>
-                <p className="text-xl font-bold">
-                  {formatDuration(activity_summary?.avg_session_duration_ms || 0)}
-                </p>
-                <p className="text-xs text-gray-500">per session</p>
+                <p className="text-gray-400 text-sm">Level</p>
+                <p className="text-xl font-bold">{user.level || 1}</p>
+                <p className="text-xs text-gray-500">{user.currentRank || 'Recruit'}</p>
               </div>
             </div>
           </GlassSurface>
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Top Features */}
-          <GlassSurface className="p-4">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-400" />
-              Top Features Used
-            </h3>
-            {top_features && top_features.length > 0 ? (
-              <div className="space-y-3">
-                {top_features.slice(0, 8).map((feature, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{feature.feature_id}</p>
-                        <p className="text-xs text-gray-400">{feature.feature_category}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{feature.action_count}</p>
-                      <p className="text-xs text-gray-400">
-                        {formatDuration(feature.total_duration_ms)}
-                      </p>
-                    </div>
+        {/* Recent Activity */}
+        <GlassSurface className="p-4">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-violet-400" />
+            Recent Activity
+          </h3>
+          {recentActivity && recentActivity.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {recentActivity.map((event, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-white/5"
+                >
+                  <div className="p-2 bg-white/10 rounded-lg">
+                    <Target className="w-4 h-4 text-gray-400" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-400 py-8">No feature usage data</p>
-            )}
-          </GlassSurface>
-
-          {/* Recent Activity */}
-          <GlassSurface className="p-4">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-violet-400" />
-              Recent Activity
-            </h3>
-            {recent_activity && recent_activity.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {recent_activity.slice(0, 10).map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-start gap-3 p-2 rounded-lg bg-white/5"
-                  >
-                    <div className="p-2 bg-white/10 rounded-lg">
-                      <Target className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {event.feature_id} - {event.action}
-                      </p>
-                      <p className="text-xs text-gray-400">{event.feature_category}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(event.created_at)} ({formatDuration(event.duration_ms)})
-                      </p>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {event.feature_id}
+                    </p>
+                    <p className="text-xs text-gray-400">{event.action}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatDate(event.created_at)}
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-400 py-8">No recent activity</p>
-            )}
-          </GlassSurface>
-        </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-400 py-8">No recent activity recorded</p>
+          )}
+        </GlassSurface>
 
         {/* Gift Modal */}
         {giftModalOpen && (
