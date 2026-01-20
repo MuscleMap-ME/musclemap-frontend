@@ -2081,7 +2081,7 @@ export async function registerOrganizationsRoutes(app: FastifyInstance) {
     }
 
     return reply.send({
-      data: JSON.parse(org.settings),
+      data: org.settings,
     });
   });
 
@@ -2112,12 +2112,12 @@ export async function registerOrganizationsRoutes(app: FastifyInstance) {
       });
     }
 
-    const oldSettings = JSON.parse(org.settings);
+    const oldSettings = org.settings || {};
     const newSettings = { ...oldSettings, ...body };
 
     await db.query(
       `UPDATE organizations SET settings = $1, updated_at = $2 WHERE id = $3`,
-      [JSON.stringify(newSettings), new Date().toISOString(), orgId]
+      [newSettings, new Date().toISOString(), orgId]
     );
 
     await auditLog(orgId, userId, 'settings.updated', 'settings', null, oldSettings, newSettings);

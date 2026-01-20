@@ -145,6 +145,40 @@ export async function up(): Promise<void> {
       EXECUTE FUNCTION update_exercise_image_submissions_updated_at()
   `);
 
+  // ============================================
+  // 5. Add earning rule for exercise image contributions
+  // ============================================
+  await db.query(`
+    INSERT INTO earning_rules (code, name, description, category, credits_base, xp_base, max_per_day, enabled)
+    VALUES (
+      'exercise_image_approved',
+      'Exercise Image Contribution',
+      'Earn credits when your submitted exercise image is approved',
+      'contribution',
+      25,
+      50,
+      4,
+      TRUE
+    )
+    ON CONFLICT (code) DO NOTHING
+  `);
+
+  // Add bonus rule for first image on an exercise
+  await db.query(`
+    INSERT INTO earning_rules (code, name, description, category, credits_base, xp_base, max_per_day, enabled)
+    VALUES (
+      'exercise_image_first',
+      'First Exercise Image Bonus',
+      'Bonus for being the first to add an image to an exercise',
+      'contribution',
+      10,
+      25,
+      10,
+      TRUE
+    )
+    ON CONFLICT (code) DO NOTHING
+  `);
+
   log.info('Migration 137 complete: Exercise Image Contributions created');
 }
 

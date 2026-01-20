@@ -315,6 +315,340 @@ const JOB_COMMANDS: Record<string, () => Promise<{ success: boolean; output: str
     // The executeJob function handles custom SQL separately
     return { success: false, output: 'Custom SQL must be executed with job context' };
   },
+
+  // ============================================
+  // DATA CLEANUP HANDLERS
+  // ============================================
+
+  // Clean up old notifications (read > 90 days, all > 180 days)
+  'cleanup-notifications': async () => {
+    try {
+      // Delete read notifications older than 90 days
+      const readResult = await query(
+        `DELETE FROM notifications
+         WHERE read_at IS NOT NULL
+         AND created_at < NOW() - INTERVAL '90 days'`
+      );
+      const readCount = (readResult as { rowCount?: number })?.rowCount || 0;
+
+      // Delete all notifications older than 180 days
+      const allResult = await query(
+        `DELETE FROM notifications
+         WHERE created_at < NOW() - INTERVAL '180 days'`
+      );
+      const allCount = (allResult as { rowCount?: number })?.rowCount || 0;
+
+      return {
+        success: true,
+        output: `Cleaned up ${readCount} read notifications (>90 days) and ${allCount} old notifications (>180 days)`
+      };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup notifications: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old request logs (> 7 days)
+  'cleanup-request-logs': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM request_logs WHERE created_at < NOW() - INTERVAL '7 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old request logs (>7 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup request logs: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old activity events (> 365 days)
+  'cleanup-activity-events': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM activity_events WHERE created_at < NOW() - INTERVAL '365 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old activity events (>365 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup activity events: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old XP history (> 365 days)
+  'cleanup-xp-history': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM xp_history WHERE created_at < NOW() - INTERVAL '365 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old XP history entries (>365 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup XP history: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up expired sessions/tokens
+  'cleanup-expired-sessions': async () => {
+    try {
+      let totalCleaned = 0;
+
+      // Clean expired sessions if table exists
+      try {
+        const sessResult = await query(
+          `DELETE FROM user_sessions WHERE expires_at < NOW()`
+        );
+        totalCleaned += (sessResult as { rowCount?: number })?.rowCount || 0;
+      } catch {
+        // Table might not exist, skip
+      }
+
+      // Clean old failed login attempts (> 7 days)
+      try {
+        const loginResult = await query(
+          `DELETE FROM failed_login_attempts WHERE attempt_at < NOW() - INTERVAL '7 days'`
+        );
+        totalCleaned += (loginResult as { rowCount?: number })?.rowCount || 0;
+      } catch {
+        // Table might not exist, skip
+      }
+
+      // Clean old password reset tokens (> 24 hours - they should have been used by now)
+      try {
+        const resetResult = await query(
+          `DELETE FROM password_reset_tokens WHERE created_at < NOW() - INTERVAL '24 hours'`
+        );
+        totalCleaned += (resetResult as { rowCount?: number })?.rowCount || 0;
+      } catch {
+        // Table might not exist, skip
+      }
+
+      return { success: true, output: `Cleaned up ${totalCleaned} expired session/token records` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup sessions: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old scheduled job history (> 30 days)
+  'cleanup-job-history': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM scheduled_job_history WHERE started_at < NOW() - INTERVAL '30 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old job history entries (>30 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup job history: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old tracked errors (resolved > 30 days, all > 90 days)
+  'cleanup-tracked-errors': async () => {
+    try {
+      // Delete resolved errors older than 30 days
+      const resolvedResult = await query(
+        `DELETE FROM tracked_errors
+         WHERE resolved = TRUE
+         AND created_at < NOW() - INTERVAL '30 days'`
+      );
+      const resolvedCount = (resolvedResult as { rowCount?: number })?.rowCount || 0;
+
+      // Delete all errors older than 90 days
+      const allResult = await query(
+        `DELETE FROM tracked_errors
+         WHERE created_at < NOW() - INTERVAL '90 days'`
+      );
+      const allCount = (allResult as { rowCount?: number })?.rowCount || 0;
+
+      return {
+        success: true,
+        output: `Cleaned up ${resolvedCount} resolved errors (>30 days) and ${allCount} old errors (>90 days)`
+      };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup tracked errors: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old frontend errors (> 60 days)
+  'cleanup-frontend-errors': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM frontend_errors WHERE created_at < NOW() - INTERVAL '60 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old frontend errors (>60 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup frontend errors: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old error patterns (resolved > 30 days)
+  'cleanup-error-patterns': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM error_patterns
+         WHERE status = 'resolved'
+         AND updated_at < NOW() - INTERVAL '30 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} resolved error patterns (>30 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup error patterns: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old auto-healing executions (> 30 days)
+  'cleanup-auto-healing': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM auto_healing_executions WHERE created_at < NOW() - INTERVAL '30 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old auto-healing executions (>30 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup auto-healing: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old security audit logs (> 90 days)
+  'cleanup-security-audit-logs': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM security_audit_log WHERE created_at < NOW() - INTERVAL '90 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old security audit logs (>90 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup security audit logs: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up old deployment logs (> 90 days)
+  'cleanup-deployment-logs': async () => {
+    try {
+      const result = await query(
+        `DELETE FROM deployments WHERE created_at < NOW() - INTERVAL '90 days'`
+      );
+      const rowCount = (result as { rowCount?: number })?.rowCount || 0;
+      return { success: true, output: `Cleaned up ${rowCount} old deployment logs (>90 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup deployment logs: ${(err as Error).message}` };
+    }
+  },
+
+  // Clean up soft-deleted records (permanent deletion after 30 days)
+  'cleanup-soft-deleted': async () => {
+    try {
+      let totalCleaned = 0;
+      const tables = [
+        'workouts',
+        'workout_sets',
+        'goals',
+        'communities',
+        'competitions'
+      ];
+
+      for (const table of tables) {
+        try {
+          const result = await query(
+            `DELETE FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days'`
+          );
+          totalCleaned += (result as { rowCount?: number })?.rowCount || 0;
+        } catch {
+          // Table might not have deleted_at column, skip
+        }
+      }
+
+      return { success: true, output: `Permanently deleted ${totalCleaned} soft-deleted records (>30 days)` };
+    } catch (err) {
+      return { success: false, output: `Failed to cleanup soft-deleted: ${(err as Error).message}` };
+    }
+  },
+
+  // Run all cleanup jobs in sequence
+  'cleanup-all': async () => {
+    try {
+      const results: string[] = [];
+
+      // Run retention policies first (these are DB functions)
+      try {
+        const retentionResult = await queryAll<{ policy_name: string; deleted_count: number }>(
+          'SELECT * FROM run_all_retention_policies()'
+        );
+        const totalDeleted = retentionResult.reduce((sum, r) => sum + r.deleted_count, 0);
+        results.push(`Retention policies: ${totalDeleted} deleted`);
+      } catch {
+        results.push('Retention policies: skipped (function not available)');
+      }
+
+      // Archive old credit transactions
+      try {
+        const archiveResult = await queryOne<{ archived_count: number }>(
+          'SELECT * FROM archive_old_credit_transactions(6, 10000)'
+        );
+        results.push(`Credit archive: ${archiveResult?.archived_count || 0} archived`);
+      } catch {
+        results.push('Credit archive: skipped (function not available)');
+      }
+
+      // Cleanup expired mutes
+      const mutesResult = await query(
+        'DELETE FROM user_mutes WHERE mute_until IS NOT NULL AND mute_until < NOW()'
+      );
+      results.push(`Expired mutes: ${(mutesResult as { rowCount?: number })?.rowCount || 0} deleted`);
+
+      // Cleanup fraud flags
+      const fraudResult = await query(
+        `DELETE FROM economy_fraud_flags
+         WHERE status IN ('resolved_valid', 'resolved_invalid')
+         AND resolved_at < NOW() - INTERVAL '90 days'`
+      );
+      results.push(`Old fraud flags: ${(fraudResult as { rowCount?: number })?.rowCount || 0} deleted`);
+
+      // Cleanup job history
+      const histResult = await query(
+        'DELETE FROM scheduled_job_history WHERE started_at < NOW() - INTERVAL \'30 days\''
+      );
+      results.push(`Job history: ${(histResult as { rowCount?: number })?.rowCount || 0} deleted`);
+
+      return {
+        success: true,
+        output: `Cleanup completed:\n${results.join('\n')}`
+      };
+    } catch (err) {
+      return { success: false, output: `Cleanup failed: ${(err as Error).message}` };
+    }
+  },
+
+  // Vacuum and analyze database tables (maintenance)
+  'vacuum-analyze': async () => {
+    try {
+      // VACUUM ANALYZE commonly-written tables
+      const tables = [
+        'notifications',
+        'activity_events',
+        'xp_history',
+        'credit_ledger',
+        'workout_sets',
+        'workouts',
+        'tracked_errors',
+        'request_logs',
+        'scheduled_job_history'
+      ];
+
+      const results: string[] = [];
+      for (const table of tables) {
+        try {
+          await query(`VACUUM ANALYZE ${table}`);
+          results.push(`${table}: vacuumed`);
+        } catch {
+          results.push(`${table}: skipped`);
+        }
+      }
+
+      return { success: true, output: `Vacuum analyze completed:\n${results.join('\n')}` };
+    } catch (err) {
+      return { success: false, output: `Vacuum analyze failed: ${(err as Error).message}` };
+    }
+  },
 };
 
 /**
@@ -1374,16 +1708,36 @@ function describeCronExpression(expression: string): string {
  */
 function getCommandDescription(command: string): string {
   const descriptions: Record<string, string> = {
+    // Core maintenance
     'refresh-matviews': 'Refresh materialized views (XP rankings leaderboard)',
     'run-retention-policies': 'Execute data retention policies to clean up old data',
     'archive-credits': 'Archive old credit transactions (older than 6 months)',
-    'cleanup-expired-mutes': 'Remove expired user mutes from the database',
-    'cleanup-fraud-flags': 'Delete resolved fraud flags older than 90 days',
     'capture-performance-snapshot': 'Capture a performance metrics snapshot',
     'health-check': 'Verify database connectivity and basic system health',
     'send-daily-summary': 'Send daily summary emails (placeholder)',
     'beta-tester-snapshots': 'Create daily progress snapshots for beta testers',
     'custom-sql': 'Execute a custom SQL SELECT query (defined in job metadata)',
+
+    // Individual cleanup handlers
+    'cleanup-expired-mutes': 'Remove expired user mutes from the database',
+    'cleanup-fraud-flags': 'Delete resolved fraud flags older than 90 days',
+    'cleanup-notifications': 'Delete old notifications (read >90 days, all >180 days)',
+    'cleanup-request-logs': 'Delete old request logs (>7 days)',
+    'cleanup-activity-events': 'Delete old activity events (>365 days)',
+    'cleanup-xp-history': 'Delete old XP history entries (>365 days)',
+    'cleanup-expired-sessions': 'Delete expired sessions, tokens, and failed login attempts',
+    'cleanup-job-history': 'Delete old scheduled job history (>30 days)',
+    'cleanup-tracked-errors': 'Delete resolved errors (>30 days) and all errors (>90 days)',
+    'cleanup-frontend-errors': 'Delete old frontend errors (>60 days)',
+    'cleanup-error-patterns': 'Delete resolved error patterns (>30 days)',
+    'cleanup-auto-healing': 'Delete old auto-healing execution records (>30 days)',
+    'cleanup-security-audit-logs': 'Delete old security audit logs (>90 days)',
+    'cleanup-deployment-logs': 'Delete old deployment logs (>90 days)',
+    'cleanup-soft-deleted': 'Permanently delete soft-deleted records (>30 days)',
+
+    // Combined handlers
+    'cleanup-all': 'Run all cleanup operations in sequence (comprehensive)',
+    'vacuum-analyze': 'Run VACUUM ANALYZE on frequently-written tables',
   };
 
   return descriptions[command] || 'No description available';

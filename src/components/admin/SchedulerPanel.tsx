@@ -298,6 +298,34 @@ function JobModal({ job, onSave, onClose, loading }) {
   });
   const [cronMode, setCronMode] = useState('preset');
   const [errors, setErrors] = useState({});
+  const [availableCommands, setAvailableCommands] = useState([]);
+  const [commandsLoading, setCommandsLoading] = useState(true);
+
+  // Fetch available commands on mount
+  useEffect(() => {
+    const fetchCommands = async () => {
+      try {
+        const authData = localStorage.getItem('musclemap-auth');
+        let headers = {};
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          if (parsed?.state?.token) {
+            headers = { Authorization: `Bearer ${parsed.state.token}` };
+          }
+        }
+        const res = await fetch(`${API_BASE}/commands`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableCommands(data.commands || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch commands:', err);
+      } finally {
+        setCommandsLoading(false);
+      }
+    };
+    fetchCommands();
+  }, []);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -385,17 +413,33 @@ function JobModal({ job, onSave, onClose, loading }) {
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Handler *
             </label>
-            <input
-              type="text"
-              value={formData.handler}
-              onChange={(e) => handleChange('handler', e.target.value)}
-              placeholder="e.g., cleanup:stale-sessions"
-              className={`w-full px-3 py-2 bg-white/5 border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 font-mono text-sm ${
-                errors.handler ? 'border-red-500' : 'border-white/10'
-              }`}
-            />
+            {commandsLoading ? (
+              <div className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading available handlers...
+              </div>
+            ) : (
+              <select
+                value={formData.handler}
+                onChange={(e) => handleChange('handler', e.target.value)}
+                className={`w-full px-3 py-2 bg-white/5 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 ${
+                  errors.handler ? 'border-red-500' : 'border-white/10'
+                }`}
+              >
+                <option value="" className="bg-gray-900 text-gray-400">Select a handler...</option>
+                {availableCommands.map((cmd) => (
+                  <option key={cmd.name} value={cmd.name} className="bg-gray-900 text-white">
+                    {cmd.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {errors.handler && <p className="text-xs text-red-400 mt-1">{errors.handler}</p>}
-            <p className="text-xs text-gray-500 mt-1">The registered handler function to execute</p>
+            {formData.handler && availableCommands.find((c) => c.name === formData.handler) && (
+              <p className="text-xs text-cyan-400 mt-1">
+                {availableCommands.find((c) => c.name === formData.handler)?.description}
+              </p>
+            )}
           </div>
 
           {/* Cron Expression */}

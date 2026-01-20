@@ -116,6 +116,7 @@ import { registerRecoveryRoutes } from './routes/recovery';
 import { registerExerciseGroupRoutes } from './routes/exercise-groups';
 import rpeRoutes from './routes/rpe';
 import { registerExerciseVideosRoutes } from './routes/exercise-videos';
+import exerciseImagesRoutes from './routes/exercise-images';
 import { registerWatchRoutes } from './routes/watch';
 import { registerSkinsRoutes } from './routes/skins';
 import { registerBillingRoutes } from './routes/billing';
@@ -625,6 +626,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Exercise video demonstrations
     await registerExerciseVideosRoutes(api);
+
+    // Community exercise image contributions
+    await api.register(exerciseImagesRoutes);
 
     // Apple Watch companion app sync
     await registerWatchRoutes(api);
