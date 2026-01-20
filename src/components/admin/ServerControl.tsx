@@ -381,8 +381,17 @@ export default function ServerControl() {
         headers: getAuthHeader(),
       });
       if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          setStatus(data);
+        } catch {
+          console.error('Failed to parse status response:', text.substring(0, 200));
+        }
+      } else {
+        // Handle non-200 responses (auth errors, server errors)
+        const text = await res.text();
+        console.error(`Status fetch failed (${res.status}):`, text.substring(0, 200));
       }
     } catch (err) {
       console.error('Failed to fetch status:', err);
@@ -399,11 +408,20 @@ export default function ServerControl() {
         headers: getAuthHeader(),
       });
       if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs);
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          setLogs(data.logs);
+        } catch {
+          setLogs(`Error parsing logs: ${text.substring(0, 500)}`);
+        }
+      } else {
+        const text = await res.text();
+        setLogs(`Error fetching logs (${res.status}): ${text.substring(0, 500)}`);
       }
     } catch (err) {
       console.error('Failed to fetch logs:', err);
+      setLogs(`Network error: ${err.message}`);
     } finally {
       setLogsLoading(false);
     }
@@ -416,8 +434,13 @@ export default function ServerControl() {
         headers: getAuthHeader(),
       });
       if (res.ok) {
-        const data = await res.json();
-        setGitInfo(data);
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          setGitInfo(data);
+        } catch {
+          console.error('Failed to parse git info:', text.substring(0, 200));
+        }
       }
     } catch (err) {
       console.error('Failed to fetch git info:', err);
@@ -439,7 +462,17 @@ export default function ServerControl() {
         body: JSON.stringify({ script: scriptId }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Response isn't JSON - likely HTML error page or gateway error
+        data = {
+          success: false,
+          error: `Server returned non-JSON response (${res.status}): ${text.substring(0, 200)}`,
+        };
+      }
       setScriptOutput({ ...data, script: scriptId });
 
       // Refresh status after script execution
@@ -467,7 +500,14 @@ export default function ServerControl() {
         body: JSON.stringify({ action, process: processName }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error('Failed to parse process action response:', text.substring(0, 200));
+        return;
+      }
       if (data.success) {
         // Refresh status
         setTimeout(fetchStatus, 1000);
@@ -485,7 +525,16 @@ export default function ServerControl() {
         headers: getAuthHeader(),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          success: false,
+          error: `Server returned non-JSON response (${res.status}): ${text.substring(0, 200)}`,
+        };
+      }
       setScriptOutput({ ...data, script: 'git-pull' });
       fetchGitInfo();
     } catch (err) {
