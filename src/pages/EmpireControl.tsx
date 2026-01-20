@@ -210,16 +210,19 @@ function StatusIndicator({ status, label }) {
 function UserCard({ user, onAction }) {
   return (
     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold">
+      <Link
+        to={`/empire/user/${user.id}`}
+        className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer flex-1 min-w-0"
+      >
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold flex-shrink-0">
           {user.username?.charAt(0).toUpperCase() || '?'}
         </div>
-        <div>
-          <div className="font-medium">{user.displayName || user.username}</div>
-          <div className="text-xs text-gray-400">{user.email}</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">{user.displayName || user.username}</div>
+          <div className="text-xs text-gray-400 truncate">{user.email}</div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
+      </Link>
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={() => onAction('gift', user)}
           className="p-2 rounded-lg hover:bg-white/10 text-green-400"

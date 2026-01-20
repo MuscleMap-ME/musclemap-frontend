@@ -126,6 +126,7 @@ const AdminMetrics = lazy(() => import('./pages/AdminMetrics'));
 const AdminDisputes = lazy(() => import('./pages/AdminDisputes'));
 const AdminFraud = lazy(() => import('./pages/AdminFraud'));
 const EmpireControl = lazy(() => import('./pages/EmpireControl'));
+const EmpireUserDetail = lazy(() => import('./pages/EmpireUserDetail'));
 const TestScorecard = lazy(() => import('./pages/TestScorecard'));
 const DeploymentControl = lazy(() => import('./pages/DeploymentControl'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
@@ -556,6 +557,7 @@ function AppRoutes() {
           <Route path="/admin/disputes" element={<AdminRoute name="AdminDisputes"><AdminDisputes /></AdminRoute>} />
           <Route path="/admin/fraud" element={<AdminRoute name="AdminFraud"><AdminFraud /></AdminRoute>} />
           <Route path="/empire" element={<AdminRoute name="EmpireControl"><EmpireControl /></AdminRoute>} />
+          <Route path="/empire/user/:userId" element={<AdminRoute name="EmpireUserDetail"><EmpireUserDetail /></AdminRoute>} />
           <Route path="/empire/scorecard" element={<AdminRoute name="TestScorecard"><TestScorecard /></AdminRoute>} />
           <Route path="/empire/deploy" element={<AdminRoute name="DeploymentControl"><DeploymentControl /></AdminRoute>} />
           <Route path="/empire/commands" element={<AdminRoute name="CommandCenter"><CommandCenter /></AdminRoute>} />
