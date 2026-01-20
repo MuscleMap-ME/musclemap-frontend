@@ -203,11 +203,18 @@ async function getSystemStatus(): Promise<SystemStatus> {
   const [pgCheck, redisCheck, apiCheck, viteCheck] = await Promise.all([
     execAsync('pgrep -x postgres || pgrep -f "postgres.*5432"').then(() => true).catch(() => false),
     execAsync('pgrep -x redis-server || lsof -i:6379').then(() => true).catch(() => false),
-    execAsync('pm2 jlist').then(({ stdout }) => {
-      const processes = JSON.parse(stdout);
-      return processes.some((p: { name: string; pm2_env: { status: string } }) =>
-        p.name.includes('musclemap') && p.pm2_env.status === 'online'
-      );
+    execAsync('pm2 jlist 2>/dev/null').then(({ stdout }) => {
+      // pm2 jlist can have non-JSON prefix in some cases, find the JSON array start
+      const jsonStart = stdout.indexOf('[');
+      if (jsonStart === -1) return false;
+      try {
+        const processes = JSON.parse(stdout.substring(jsonStart));
+        return processes.some((p: { name: string; pm2_env: { status: string } }) =>
+          p.name.includes('musclemap') && p.pm2_env.status === 'online'
+        );
+      } catch {
+        return false;
+      }
     }).catch(() => false),
     execAsync('pgrep -f vite || lsof -i:5173').then(() => true).catch(() => false),
   ]);
@@ -215,24 +222,28 @@ async function getSystemStatus(): Promise<SystemStatus> {
   // Get PM2 processes
   let processes: ProcessInfo[] = [];
   try {
-    const { stdout } = await execAsync('pm2 jlist');
-    const pm2List = JSON.parse(stdout);
-    processes = pm2List.map((p: {
-      name: string;
-      pid: number;
-      pm2_env: { status: string; pm_uptime: number; restart_time: number };
-      monit: { cpu: number; memory: number };
-    }) => ({
-      name: p.name,
-      pid: p.pid,
-      status: p.pm2_env.status,
-      cpu: p.monit?.cpu || 0,
-      memory: p.monit?.memory || 0,
-      uptime: p.pm2_env.pm_uptime ? Date.now() - p.pm2_env.pm_uptime : 0,
-      restarts: p.pm2_env.restart_time || 0,
-    }));
+    const { stdout } = await execAsync('pm2 jlist 2>/dev/null');
+    // pm2 jlist can have non-JSON prefix in some cases, find the JSON array start
+    const jsonStart = stdout.indexOf('[');
+    if (jsonStart !== -1) {
+      const pm2List = JSON.parse(stdout.substring(jsonStart));
+      processes = pm2List.map((p: {
+        name: string;
+        pid: number;
+        pm2_env: { status: string; pm_uptime: number; restart_time: number };
+        monit: { cpu: number; memory: number };
+      }) => ({
+        name: p.name,
+        pid: p.pid,
+        status: p.pm2_env.status,
+        cpu: p.monit?.cpu || 0,
+        memory: p.monit?.memory || 0,
+        uptime: p.pm2_env.pm_uptime ? Date.now() - p.pm2_env.pm_uptime : 0,
+        restarts: p.pm2_env.restart_time || 0,
+      }));
+    }
   } catch {
-    // PM2 not available
+    // PM2 not available or parse error
   }
 
   // Get disk usage
