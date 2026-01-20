@@ -496,40 +496,93 @@ export const PATH_CONNECTIONS: PathConnection[] = [
 ];
 
 // ============================================
+// POSITION OVERRIDE SYSTEM
+// ============================================
+
+// Stores calculated positions from D3 force simulation
+let calculatedPositions: Map<string, Position> | null = null;
+
+/**
+ * Set calculated positions (called by useCalculatedLayout hook)
+ * These positions override the hardcoded positions in LOCATIONS
+ */
+export function setCalculatedPositions(positions: Map<string, Position>): void {
+  calculatedPositions = positions;
+}
+
+/**
+ * Get calculated positions map (for debugging)
+ */
+export function getCalculatedPositions(): Map<string, Position> | null {
+  return calculatedPositions;
+}
+
+/**
+ * Clear calculated positions (useful for testing)
+ */
+export function clearCalculatedPositions(): void {
+  calculatedPositions = null;
+}
+
+/**
+ * Get a location's position (uses calculated if available)
+ */
+function getPositionForLocation(location: MapLocation): Position {
+  return calculatedPositions?.get(location.id) ?? location.position;
+}
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
 /**
- * Get all locations as an array
+ * Get all locations as an array (with calculated positions applied)
  */
 export function getAllLocations(): MapLocation[] {
-  return Object.values(LOCATIONS);
+  return Object.values(LOCATIONS).map((loc) => ({
+    ...loc,
+    position: getPositionForLocation(loc),
+  }));
 }
 
 /**
- * Get a specific location by ID
+ * Get a specific location by ID (with calculated position applied)
  */
 export function getLocation(id: LocationId): MapLocation | undefined {
-  return LOCATIONS[id];
+  const loc = LOCATIONS[id];
+  if (!loc) return undefined;
+  return {
+    ...loc,
+    position: getPositionForLocation(loc),
+  };
 }
 
 /**
- * Get the starting location
+ * Get the starting location (with calculated position)
  */
 export function getStartingLocation(): MapLocation {
   const starting = Object.values(LOCATIONS).find((loc) => loc.isStarting);
-  return starting || LOCATIONS.dashboard;
+  const loc = starting || LOCATIONS.dashboard;
+  return {
+    ...loc,
+    position: getPositionForLocation(loc),
+  };
 }
 
 /**
- * Get locations in a specific region
+ * Get locations in a specific region (with calculated positions)
  */
 export function getLocationsByRegion(regionId: RegionId): MapLocation[] {
-  return Object.values(LOCATIONS).filter((loc) => loc.region === regionId);
+  return Object.values(LOCATIONS)
+    .filter((loc) => loc.region === regionId)
+    .map((loc) => ({
+      ...loc,
+      position: getPositionForLocation(loc),
+    }));
 }
 
 /**
- * Get adjacent locations (connected by paths)
+ * Get adjacent locations (connected by paths, with calculated positions)
  */
 export function getAdjacentLocations(locationId: LocationId): MapLocation[] {
   const adjacent: Set<LocationId> = new Set();
@@ -544,36 +597,50 @@ export function getAdjacentLocations(locationId: LocationId): MapLocation[] {
 
   return Array.from(adjacent)
     .map((id) => LOCATIONS[id])
-    .filter((loc): loc is MapLocation => loc !== undefined);
+    .filter((loc): loc is MapLocation => loc !== undefined)
+    .map((loc) => ({
+      ...loc,
+      position: getPositionForLocation(loc),
+    }));
 }
 
 /**
- * Get the closest location to a position
+ * Get the closest location to a position (using calculated positions)
  */
-export function getClosestLocation(position: Position): MapLocation | undefined {
+export function getClosestLocation(position: Position, maxDistance?: number): MapLocation | undefined {
   let closest: MapLocation | undefined;
   let minDistance = Infinity;
 
   for (const location of Object.values(LOCATIONS)) {
-    const dx = location.position.x - position.x;
-    const dy = location.position.y - position.y;
+    const locPosition = getPositionForLocation(location);
+    const dx = locPosition.x - position.x;
+    const dy = locPosition.y - position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < minDistance) {
       minDistance = distance;
-      closest = location;
+      closest = {
+        ...location,
+        position: locPosition,
+      };
     }
+  }
+
+  // If maxDistance specified, only return if within range
+  if (maxDistance !== undefined && minDistance > maxDistance) {
+    return undefined;
   }
 
   return closest;
 }
 
 /**
- * Check if character is near a location (within radius)
+ * Check if character is near a location (within radius, using calculated position)
  */
 export function isNearLocation(position: Position, location: MapLocation, radius = 30): boolean {
-  const dx = location.position.x - position.x;
-  const dy = location.position.y - position.y;
+  const locPosition = getPositionForLocation(location);
+  const dx = locPosition.x - position.x;
+  const dy = locPosition.y - position.y;
   return Math.sqrt(dx * dx + dy * dy) <= radius;
 }
 

@@ -8,7 +8,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { MapPath as MapPathType, Position } from './types';
-import { getLocation } from './data/mapLayout';
+import { useLocationPosition } from './hooks/useCalculatedLayout';
 
 interface MapPathProps {
   path: MapPathType;
@@ -51,20 +51,20 @@ export default function MapPath({
 }: MapPathProps) {
   const { from, to, waypoints, style = 'road' } = path;
 
-  // Get location positions
-  const fromLocation = getLocation(from);
-  const toLocation = getLocation(to);
+  // Get calculated positions for both endpoints
+  const fromPosition = useLocationPosition(from);
+  const toPosition = useLocationPosition(to);
 
   // Build path string (always call useMemo to avoid conditional hook call)
   const pathString = useMemo(() => {
-    if (!fromLocation || !toLocation) {
+    if (!fromPosition || !toPosition) {
       return '';
     }
 
     const points: Position[] = [
-      fromLocation.position,
+      fromPosition,
       ...(waypoints || []),
-      toLocation.position,
+      toPosition,
     ];
 
     if (points.length === 2) {
@@ -91,10 +91,10 @@ export default function MapPath({
     d += ` L ${last.x} ${last.y}`;
 
     return d;
-  }, [fromLocation, toLocation, waypoints]);
+  }, [fromPosition, toPosition, waypoints]);
 
   // Early return after hooks
-  if (!fromLocation || !toLocation || !pathString) {
+  if (!fromPosition || !toPosition || !pathString) {
     return null;
   }
 
@@ -174,8 +174,8 @@ export default function MapPath({
         <>
           {/* Start portal ring */}
           <motion.circle
-            cx={fromLocation.position.x}
-            cy={fromLocation.position.y}
+            cx={fromPosition.x}
+            cy={fromPosition.y}
             r={15}
             fill="none"
             stroke="rgba(251, 191, 36, 0.5)"
@@ -186,8 +186,8 @@ export default function MapPath({
           />
           {/* End portal ring */}
           <motion.circle
-            cx={toLocation.position.x}
-            cy={toLocation.position.y}
+            cx={toPosition.x}
+            cy={toPosition.y}
             r={15}
             fill="none"
             stroke="rgba(251, 191, 36, 0.5)"
@@ -203,8 +203,8 @@ export default function MapPath({
       {style === 'bridge' && (
         <>
           <circle
-            cx={(fromLocation.position.x + toLocation.position.x) / 2}
-            cy={(fromLocation.position.y + toLocation.position.y) / 2}
+            cx={(fromPosition.x + toPosition.x) / 2}
+            cy={(fromPosition.y + toPosition.y) / 2}
             r={4}
             fill="rgba(139, 92, 246, 0.4)"
           />

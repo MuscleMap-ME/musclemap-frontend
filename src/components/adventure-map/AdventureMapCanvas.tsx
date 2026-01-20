@@ -17,13 +17,15 @@ import { useMapNavigation } from './hooks/useMapNavigation';
 import { useAdventureMapStore, useMapView, useLocationSelection, useMapProgress } from '../../store/adventureMapStore';
 import { REGIONS, getAllRegions } from './data/regions';
 import { getAllLocations, PATH_CONNECTIONS } from './data/mapLayout';
+import { useLocationsWithCalculatedPositions } from './hooks/useCalculatedLayout';
 import type { AdventureMapCanvasProps, Position, CompanionData } from './types';
 
-// Map dimensions
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 800;
-const MIN_ZOOM = 0.5;
+// Map dimensions - expanded for better node spacing
+const MAP_WIDTH = 1800;
+const MAP_HEIGHT = 1400;
+const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2;
+const DEFAULT_ZOOM = 0.6;
 
 // Touch gesture utilities
 interface TouchState {
@@ -76,6 +78,9 @@ export default function AdventureMapCanvas({
   const { selected, hovered, setHovered } = useLocationSelection();
   const { visited, hasVisited } = useMapProgress();
   const currentRegion = useAdventureMapStore((s) => s.currentRegion);
+
+  // Get locations with D3-calculated positions (collision-free layout)
+  const calculatedLocations = useLocationsWithCalculatedPositions();
 
   // Navigation hook
   const { navigateToLocation, canNavigate } = useMapNavigation({
@@ -288,9 +293,9 @@ export default function AdventureMapCanvas({
     handleMapClick({ x, y });
   }, [isDragging, pan, zoom, handleMapClick]);
 
-  // Check if character is near a location
+  // Check if character is near a location (using calculated positions)
   const isCharacterNearLocation = useCallback((locationId: string): boolean => {
-    const location = getAllLocations().find((l) => l.id === locationId);
+    const location = calculatedLocations.find((l) => l.id === locationId);
     if (!location) return false;
 
     const dx = position.x - location.position.x;
@@ -298,7 +303,7 @@ export default function AdventureMapCanvas({
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     return distance < 40;
-  }, [position]);
+  }, [position, calculatedLocations]);
 
   // Get regions to render
   const regions = getAllRegions();
@@ -383,8 +388,8 @@ export default function AdventureMapCanvas({
               region={region}
               isActive={currentRegion === region.id}
             >
-              {/* Locations within this region */}
-              {getAllLocations().filter((loc) => loc.region === region.id).map((location) => (
+              {/* Locations within this region (using D3-calculated positions) */}
+              {calculatedLocations.filter((loc) => loc.region === region.id).map((location) => (
                 <LocationNode
                   key={location.id}
                   location={location}
@@ -468,7 +473,7 @@ export default function AdventureMapCanvas({
               {REGIONS[currentRegion]?.name || 'Unknown'}
             </div>
             <div className="text-white/50 text-xs">
-              {visited.length} / {getAllLocations().filter((l) => !l.requiredRole).length} discovered
+              {visited.length} / {calculatedLocations.filter((l) => !l.requiredRole).length} discovered
             </div>
           </div>
         </div>
