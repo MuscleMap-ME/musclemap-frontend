@@ -197,12 +197,14 @@ export function useCelebration() {
           />
 
           {/* Level Up */}
-          <LevelUpEffect
-            level={levelUpState.level}
-            active={levelUpState.active}
-            enableSound={levelUpState.enableSound}
-            onComplete={handleLevelUpComplete}
-          />
+          {levelUpState.active && (
+            <LevelUpEffect
+              level={levelUpState.level}
+              active={levelUpState.active}
+              enableSound={levelUpState.enableSound}
+              onComplete={handleLevelUpComplete}
+            />
+          )}
 
           {/* Streak Fire */}
           {streakState.active && (
@@ -216,11 +218,13 @@ export function useCelebration() {
           )}
 
           {/* Achievement */}
-          <AchievementBurst
-            achievement={achievementState.achievement}
-            active={achievementState.active}
-            onComplete={handleAchievementComplete}
-          />
+          {achievementState.active && achievementState.achievement && (
+            <AchievementBurst
+              achievement={achievementState.achievement}
+              active={achievementState.active}
+              onComplete={handleAchievementComplete}
+            />
+          )}
         </>,
         document.body
       );
