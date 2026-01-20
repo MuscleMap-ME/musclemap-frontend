@@ -246,21 +246,13 @@ export async function registerJourneyRoutes(app: FastifyInstance) {
       id: string;
       name: string;
       philosophy: string;
-      focus_areas: string;
+      focus_areas: string[] | null;
     }>('SELECT id, name, philosophy, focus_areas FROM archetypes');
 
     // Build paths array
     const paths = archetypes.map((a) => {
-      // Parse focus areas
-      let focusAreas: string[] = [];
-      if (a.focus_areas) {
-        try {
-          const parsed = JSON.parse(a.focus_areas);
-          focusAreas = Array.isArray(parsed) ? parsed : [a.focus_areas];
-        } catch {
-          focusAreas = a.focus_areas.split(',').map((s) => s.trim());
-        }
-      }
+      // focus_areas is JSONB - PostgreSQL returns it already parsed as array
+      const focusAreas: string[] = Array.isArray(a.focus_areas) ? a.focus_areas : [];
 
       // Calculate user's TU in this archetype (simplified - just use total for now)
       const userTU = a.id === currentArchetype ? totalTU : 0;

@@ -16,6 +16,7 @@ import {
 } from '../components/glass';
 import { InsightCard, WeeklyHeatmap, MiniChart } from '../components/analytics';
 import { MuscleViewer, MuscleHeatmap } from '../components/muscle-viewer';
+import { RPGStatBar } from '../components/stats';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
 
 // Lazy load heavy D3 chart component
@@ -218,45 +219,6 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
   );
 }
 
-// ============================================
-// STAT BAR COMPONENT
-// ============================================
-function StatBar({ statKey, value, maxValue }) {
-  const meta = STAT_META[statKey];
-  const percentage = Math.min((value / maxValue) * 100, 100);
-
-  return (
-    <motion.div
-      className="space-y-1"
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: STAT_ORDER.indexOf(statKey) * 0.1 }}
-    >
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: meta.color }}
-          />
-          <span className="font-semibold text-white/90">{meta.abbr}</span>
-          <span className="text-white/50 text-sm">{meta.name}</span>
-        </div>
-        <span className="font-bold" style={{ color: meta.color }}>
-          {value.toFixed(0)}
-        </span>
-      </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ backgroundColor: meta.color }}
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.8, delay: STAT_ORDER.indexOf(statKey) * 0.1 }}
-        />
-      </div>
-    </motion.div>
-  );
-}
 
 // ============================================
 // RANKING DISPLAY
@@ -785,16 +747,28 @@ export default function Stats() {
             )}
           </GlassCard>
 
-          {/* Stat Bars */}
+          {/* RPG-Style Stat Bars */}
           <GlassCard className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">Individual Stats</h2>
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <span className="text-2xl">⚔️</span>
+              Character Stats
+            </h2>
             <div className="space-y-4">
-              {stats && STAT_ORDER.map((key) => (
-                <StatBar
+              {stats && STAT_ORDER.map((key, index) => (
+                <RPGStatBar
                   key={key}
                   statKey={key}
+                  label={STAT_META[key].name}
+                  abbreviation={STAT_META[key].abbr}
                   value={stats[key] || 0}
                   maxValue={maxStat * 1.2}
+                  color={STAT_META[key].color}
+                  description={STAT_META[key].description}
+                  delay={index * 0.08}
+                  showSegments={true}
+                  segmentCount={12}
+                  size="md"
+                  variant="default"
                 />
               ))}
             </div>
