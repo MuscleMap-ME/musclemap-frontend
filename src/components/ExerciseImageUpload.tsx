@@ -12,7 +12,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useApi } from '../hooks/useApi';
 
 interface ExerciseImageUploadProps {
   exerciseId: string;
@@ -47,7 +46,6 @@ export const ExerciseImageUpload: React.FC<ExerciseImageUploadProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<UploadResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const api = useApi();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { hasExerciseIllustration } from '@musclemap/shared';
 import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
+import { ExerciseImageUploadButton } from '../components/ExerciseImageUpload';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -476,6 +477,18 @@ const ExerciseModal = ({ exercise, onClose }) => {
                 />
               </div>
             )}
+          </div>
+          {/* Community image upload button */}
+          <div className="px-4 py-2 bg-black/30 border-t border-white/5">
+            <ExerciseImageUploadButton
+              exerciseId={exercise.id}
+              exerciseName={exercise.name}
+              hasImage={hasWgerImage}
+              onUploadSuccess={() => {
+                // Refresh exercise data after upload
+                // The user will see "pending review" status
+              }}
+            />
           </div>
         </div>
 
