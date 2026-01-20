@@ -29,10 +29,25 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-// Configuration
-const DAEMON_HTTP_PORT = 9876;
-const DAEMON_WS_PORT = 9877;
-const DAEMON_HOST = 'localhost';
+// Configuration - Use proxied routes through Caddy
+// The build daemon runs on localhost:9876 (HTTP) and localhost:9877 (WS)
+// but is proxied through Caddy at /api/build-daemon/*
+const getApiBaseUrl = () => {
+  // In production, use the same origin with /api/build-daemon prefix
+  // In development, connect directly to localhost
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return `${window.location.origin}/api/build-daemon`;
+  }
+  return 'http://localhost:9876';
+};
+
+const getWsBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/api/build-daemon/ws`;
+  }
+  return 'ws://localhost:9877';
+};
 
 // Types
 interface BuildJob {
@@ -109,7 +124,7 @@ export default function BuildDaemonPanel() {
   // Fetch daemon status
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch(`http://${DAEMON_HOST}:${DAEMON_HTTP_PORT}/status`);
+      const response = await fetch(`${getApiBaseUrl()}/status`);
       if (response.ok) {
         const data = await response.json();
         setStatus(data);
@@ -128,7 +143,7 @@ export default function BuildDaemonPanel() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const ws = new WebSocket(`ws://${DAEMON_HOST}:${DAEMON_WS_PORT}`);
+      const ws = new WebSocket(getWsBaseUrl());
 
       ws.onopen = () => {
         setConnected(true);
@@ -219,7 +234,7 @@ export default function BuildDaemonPanel() {
     setError(null);
 
     try {
-      const response = await fetch(`http://${DAEMON_HOST}:${DAEMON_HTTP_PORT}/build`, {
+      const response = await fetch(`${getApiBaseUrl()}/build`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ force }),
