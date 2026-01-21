@@ -12,6 +12,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { getToken } from '../utils/auth';
 
 interface ExerciseImageUploadProps {
   exerciseId: string;
@@ -117,10 +118,13 @@ export const ExerciseImageUpload: React.FC<ExerciseImageUploadProps> = ({
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/exercise-images/upload');
 
-        // Get auth token
-        const token = localStorage.getItem('token');
+        // Get auth token from Zustand store
+        const token = getToken();
         if (token) {
           xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        } else {
+          reject(new Error('You must be logged in to upload images'));
+          return;
         }
 
         xhr.upload.addEventListener('progress', (e) => {
@@ -138,6 +142,8 @@ export const ExerciseImageUpload: React.FC<ExerciseImageUploadProps> = ({
               status: response.submission.status,
               message: response.message,
             });
+          } else if (xhr.status === 401) {
+            reject(new Error('Session expired. Please refresh the page and try again.'));
           } else {
             try {
               const errorResponse = JSON.parse(xhr.responseText);

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, Suspense, lazy, useMemo } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
 import { hasExerciseIllustration } from '@musclemap/shared';
 import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
+import { syncSessionToServer, clearAllSessionPersistence } from '../lib/sessionPersistence';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -198,6 +199,72 @@ export default function Workout() {
   const [weight, setWeight] = useState(0);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+
+  // Session tracking for real-time sync
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<number | null>(null);
+
+  // Initialize session when workout mode starts
+  useEffect(() => {
+    if ((mode === 'workout' || mode === 'manual') && !sessionIdRef.current) {
+      sessionIdRef.current = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStartRef.current = Date.now();
+    }
+  }, [mode]);
+
+  // Sync session to server when logged exercises change
+  const syncSession = useCallback(async (loggedExercises: typeof logged) => {
+    if (!token || !sessionIdRef.current || loggedExercises.length === 0) return;
+
+    const session = {
+      sessionId: sessionIdRef.current,
+      isActive: true,
+      startTime: sessionStartRef.current || Date.now(),
+      pausedAt: null,
+      totalPausedTime: 0,
+      exercises: loggedExercises.map(e => ({
+        id: e.id,
+        name: e.name,
+        primaryMuscles: e.primaryMuscles || e.primary_muscles || [],
+        secondaryMuscles: e.secondaryMuscles || e.secondary_muscles || [],
+      })),
+      currentExercise: loggedExercises[loggedExercises.length - 1] || null,
+      currentExerciseIndex: loggedExercises.length - 1,
+      currentSetIndex: 0,
+      sets: loggedExercises.map((e, i) => ({
+        id: `set-${i}`,
+        exerciseId: e.id,
+        exerciseName: e.name,
+        weight: e.weight || 0,
+        reps: e.reps || 0,
+        tag: 'working' as const,
+        timestamp: Date.now(),
+      })),
+      totalVolume: loggedExercises.reduce((sum, e) => sum + (e.weight || 0) * (e.reps || 0) * (e.sets || 1), 0),
+      totalReps: loggedExercises.reduce((sum, e) => sum + (e.reps || 0) * (e.sets || 1), 0),
+      estimatedCalories: loggedExercises.length * 50,
+      musclesWorked: [...new Set(loggedExercises.flatMap(e => e.primaryMuscles || e.primary_muscles || []))],
+      sessionPRs: [],
+      exerciseGroups: [],
+      activeGroupExerciseIndex: 0,
+      activeGroupRound: 1,
+      groupSets: [],
+      clientVersion: 1,
+    };
+
+    try {
+      await syncSessionToServer(session, false);
+    } catch (err) {
+      console.error('Failed to sync workout session:', err);
+    }
+  }, [token]);
+
+  // Sync whenever logged exercises change
+  useEffect(() => {
+    if (logged.length > 0 && (mode === 'workout' || mode === 'manual')) {
+      syncSession(logged);
+    }
+  }, [logged, mode, syncSession]);
 
   // Clear selected equipment when location changes (equipment varies by location)
   useEffect(() => {
@@ -431,6 +498,12 @@ export default function Workout() {
       });
       const data = await res.json();
       if (res.ok && data.data) {
+        // Clear the active session from server
+        if (sessionIdRef.current) {
+          await clearAllSessionPersistence('completed', data.data.id);
+          sessionIdRef.current = null;
+          sessionStartRef.current = null;
+        }
         setRewards({
           tuEarned: data.data.totalTU,
           characterStats: data.data.characterStats,
