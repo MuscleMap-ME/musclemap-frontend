@@ -312,7 +312,15 @@ export default function Workout() {
     if (mode === 'manual' && exercises.length === 0) {
       setLoading(true);
       fetch('/api/exercises').then(r => r.json()).then(d => {
-        setExercises(d.exercises || []);
+        // API returns {data: [...]} - normalize primaryMuscles from comma-separated string to array
+        const exerciseList = d.data || d.exercises || [];
+        const normalized = exerciseList.map(ex => ({
+          ...ex,
+          primary_muscles: typeof ex.primaryMuscles === 'string'
+            ? ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean)
+            : ex.primaryMuscles || [],
+        }));
+        setExercises(normalized);
         setLoading(false);
       }).catch(() => setLoading(false));
     }

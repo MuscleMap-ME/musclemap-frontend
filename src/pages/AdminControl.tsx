@@ -59,8 +59,9 @@ export default function AdminControl() {
       const res = await fetch('/api/admin-control/emergency/status', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
-      setEmergencyStatus(data.status || {});
+      const result = await res.json();
+      // Backend returns flat object with maintenanceMode, readOnlyMode, etc.
+      setEmergencyStatus(result || {});
     } catch {
       // Error occurred
     }
@@ -179,11 +180,14 @@ export default function AdminControl() {
           </div>
         );
 
-      case 'users':
+      case 'users': {
+        // Backend returns { data: [...], total: N }
+        const users = data.data || [];
+        const total = data.total || 0;
         return (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold">Users ({data.users?.length || 0})</h3>
+              <h3 className="font-semibold">Users ({total})</h3>
               {scope === 'SANDBOX' && (
                 <button className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium">
                   + Create Virtual User
@@ -203,71 +207,85 @@ export default function AdminControl() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(data.users || []).slice(0, 20).map(user => (
-                    <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
-                      <td className="px-4 py-3 text-sm">{user.id}</td>
-                      <td className="px-4 py-3 font-medium">{user.username}</td>
-                      <td className="px-4 py-3 text-sm text-gray-400">{user.email}</td>
-                      <td className="px-4 py-3">
-                        {user.suspended_at ? (
-                          <span className="px-2 py-0.5 text-xs bg-rose-500/20 text-rose-400 rounded-full">Suspended</span>
-                        ) : user.deleted_at ? (
-                          <span className="px-2 py-0.5 text-xs bg-gray-500/20 text-gray-400 rounded-full">Deleted</span>
-                        ) : (
-                          <span className="px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">Active</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {user.credit_balance || 0}
-                        {user.credit_frozen === 1 && <span className="ml-1 text-rose-400">(frozen)</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {user.suspended_at ? (
-                            <button onClick={() => handleUserAction(user.id, 'unsuspend')} className="text-xs text-emerald-400 hover:underline">Unsuspend</button>
-                          ) : (
-                            <button onClick={() => handleUserAction(user.id, 'suspend')} className="text-xs text-rose-400 hover:underline">Suspend</button>
-                          )}
-                          <button onClick={() => handleUserAction(user.id, user.credit_frozen ? 'unfreeze-credits' : 'freeze-credits')} className="text-xs text-amber-400 hover:underline">
-                            {user.credit_frozen ? 'Unfreeze' : 'Freeze'} Credits
-                          </button>
-                        </div>
-                      </td>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No users found</td>
                     </tr>
-                  ))}
+                  ) : (
+                    users.slice(0, 20).map(user => (
+                      <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-3 text-sm font-mono text-gray-400">{user.id?.slice(0, 8)}...</td>
+                        <td className="px-4 py-3 font-medium">{user.username}</td>
+                        <td className="px-4 py-3 text-sm text-gray-400">{user.email}</td>
+                        <td className="px-4 py-3">
+                          {user.status === 'banned' ? (
+                            <span className="px-2 py-0.5 text-xs bg-rose-500/20 text-rose-400 rounded-full">Banned</span>
+                          ) : user.status === 'suspended' ? (
+                            <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded-full">Suspended</span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">Active</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {user.creditBalance || 0}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            {user.status === 'banned' ? (
+                              <button onClick={() => handleUserAction(user.id, 'unban')} className="text-xs text-emerald-400 hover:underline">Unban</button>
+                            ) : (
+                              <button onClick={() => handleUserAction(user.id, 'ban')} className="text-xs text-rose-400 hover:underline">Ban</button>
+                            )}
+                            <button onClick={() => handleUserAction(user.id, 'verify')} className="text-xs text-blue-400 hover:underline">
+                              Verify
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         );
+      }
 
-      case 'groups':
+      case 'groups': {
+        // Backend returns { data: [...] }
+        const groups = data.data || [];
         return (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold">Groups ({data.groups?.length || 0})</h3>
+              <h3 className="font-semibold">Groups ({groups.length})</h3>
               <button className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium">
                 + Create Group
               </button>
             </div>
             <div className="grid gap-4">
-              {(data.groups || []).map(group => (
-                <div key={group.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold">{group.name}</h4>
-                    <span className="text-xs text-gray-500">ID: {group.id}</span>
-                  </div>
-                  <p className="text-sm text-gray-400 mb-3">{group.description || 'No description'}</p>
-                  <div className="flex gap-4 text-sm">
-                    <span>Priority: {group.priority_tier}</span>
-                    {group.credit_pool_enabled && <span>Pool: {group.credit_pool_balance}</span>}
-                    {group.max_concurrent_pipelines && <span>Max Pipelines: {group.max_concurrent_pipelines}</span>}
-                  </div>
+              {groups.length === 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-gray-500">
+                  No communities found
                 </div>
-              ))}
+              ) : (
+                groups.map(group => (
+                  <div key={group.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold">{group.name}</h4>
+                      <span className="text-xs text-gray-500">ID: {group.id?.slice(0, 8)}...</span>
+                    </div>
+                    <p className="text-sm text-gray-400 mb-3">{group.description || 'No description'}</p>
+                    <div className="flex gap-4 text-sm text-gray-400">
+                      <span>Members: {group.memberCount || 0}</span>
+                      <span>Created: {group.createdAt ? format(new Date(group.createdAt), 'MMM d, yyyy') : 'N/A'}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         );
+      }
 
       case 'emergency':
         return (
@@ -284,87 +302,243 @@ export default function AdminControl() {
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold">Credit System</h4>
-                    <p className="text-sm text-gray-400">Freeze all credit transactions system-wide</p>
+                    <h4 className="font-semibold">Maintenance Mode</h4>
+                    <p className="text-sm text-gray-400">Block all non-admin requests (returns 503)</p>
                   </div>
                   <button
-                    onClick={() => handleEmergencyAction(emergencyStatus.credits_frozen ? 'unfreeze-credits' : 'freeze-credits')}
+                    onClick={() => handleEmergencyAction(emergencyStatus.maintenanceMode ? 'maintenance-off' : 'maintenance-on')}
                     className={clsx(
                       'px-4 py-2 rounded-xl font-medium transition-all',
-                      emergencyStatus.credits_frozen 
-                        ? 'bg-emerald-600 hover:bg-emerald-700' 
+                      emergencyStatus.maintenanceMode
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
                         : 'bg-rose-600 hover:bg-rose-700'
                     )}
                   >
-                    {emergencyStatus.credits_frozen ? 'Unfreeze Credits' : 'Freeze Credits'}
+                    {emergencyStatus.maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
                   </button>
                 </div>
+                {emergencyStatus.maintenanceMode && (
+                  <div className="mt-3 p-3 bg-rose-500/10 rounded-lg text-sm">
+                    <span className="text-rose-400 font-medium">ACTIVE</span>
+                    {emergencyStatus.maintenanceStartedBy && (
+                      <span className="text-gray-400 ml-2">Started by: {emergencyStatus.maintenanceStartedBy}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold">Pipeline Execution</h4>
-                    <p className="text-sm text-gray-400">Pause all pipeline executions</p>
+                    <h4 className="font-semibold">Read-Only Mode</h4>
+                    <p className="text-sm text-gray-400">Block all write operations (POST/PUT/DELETE/PATCH)</p>
                   </div>
                   <button
-                    onClick={() => handleEmergencyAction(emergencyStatus.pipelines_paused ? 'resume-pipelines' : 'pause-pipelines')}
+                    onClick={() => handleEmergencyAction(emergencyStatus.readOnlyMode ? 'readonly-off' : 'readonly-on')}
                     className={clsx(
                       'px-4 py-2 rounded-xl font-medium transition-all',
-                      emergencyStatus.pipelines_paused 
-                        ? 'bg-emerald-600 hover:bg-emerald-700' 
-                        : 'bg-rose-600 hover:bg-rose-700'
+                      emergencyStatus.readOnlyMode
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-amber-600 hover:bg-amber-700'
                     )}
                   >
-                    {emergencyStatus.pipelines_paused ? 'Resume Pipelines' : 'Pause Pipelines'}
+                    {emergencyStatus.readOnlyMode ? 'Disable Read-Only' : 'Enable Read-Only'}
                   </button>
                 </div>
+                {emergencyStatus.readOnlyMode && (
+                  <div className="mt-3 p-3 bg-amber-500/10 rounded-lg text-sm">
+                    <span className="text-amber-400 font-medium">ACTIVE</span>
+                    {emergencyStatus.readOnlyStartedBy && (
+                      <span className="text-gray-400 ml-2">Started by: {emergencyStatus.readOnlyStartedBy}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">Script Execution</h4>
-                    <p className="text-sm text-gray-400">Pause all script executions</p>
+                <h4 className="font-semibold mb-3">System Status</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                    <span>Database</span>
+                    <StatusBadge active={!emergencyStatus.databaseConnected} labelOn="Disconnected" labelOff="Connected" />
                   </div>
-                  <button
-                    onClick={() => handleEmergencyAction(emergencyStatus.scripts_paused ? 'resume-scripts' : 'pause-scripts')}
-                    className={clsx(
-                      'px-4 py-2 rounded-xl font-medium transition-all',
-                      emergencyStatus.scripts_paused 
-                        ? 'bg-emerald-600 hover:bg-emerald-700' 
-                        : 'bg-rose-600 hover:bg-rose-700'
-                    )}
-                  >
-                    {emergencyStatus.scripts_paused ? 'Resume Scripts' : 'Pause Scripts'}
-                  </button>
+                  <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                    <span>Redis</span>
+                    <StatusBadge active={!emergencyStatus.redisConnected} labelOn="Disconnected" labelOff="Connected" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         );
 
-      case 'audit':
+      case 'audit': {
+        // Backend returns { data: [...] }
+        const logs = data.data || [];
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold">Audit Logs</h3>
+            <h3 className="font-semibold">Audit Logs ({logs.length})</h3>
             <div className="space-y-2">
-              {(data.logs || []).map(log => (
-                <div key={log.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{log.action}</span>
-                    <span className="text-xs text-gray-500">{format(new Date(log.created_at), 'MMM d, HH:mm:ss')}</span>
-                  </div>
-                  <div className="flex gap-4 text-sm text-gray-400">
-                    {log.entity_type && <span>Entity: {log.entity_type}</span>}
-                    {log.entity_id && <span>ID: {log.entity_id}</span>}
-                    {log.actor_id && <span>Actor: {log.actor_id}</span>}
-                  </div>
+              {logs.length === 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-gray-500">
+                  No audit logs found
                 </div>
-              ))}
+              ) : (
+                logs.map(log => (
+                  <div key={log.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{log.action}</span>
+                      <span className="text-xs text-gray-500">{log.createdAt ? format(new Date(log.createdAt), 'MMM d, HH:mm:ss') : 'N/A'}</span>
+                    </div>
+                    <div className="flex gap-4 text-sm text-gray-400">
+                      {log.userId && <span>User: {log.userId?.slice(0, 8)}...</span>}
+                      {log.details && (
+                        <span className="truncate max-w-xs">{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         );
+      }
+
+      case 'scripts': {
+        // Backend returns { data: [...] }
+        const scripts = data.data || [];
+        return (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Admin Scripts ({scripts.length})</h3>
+            <div className="grid gap-4">
+              {scripts.length === 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-gray-500">
+                  No scripts available
+                </div>
+              ) : (
+                scripts.map(script => (
+                  <div key={script.id} className="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <Icons.Script />
+                          {script.name}
+                        </h4>
+                        <p className="text-sm text-gray-400 mt-1">{script.description}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Run ${script.name}?`)) {
+                            // Execute script via API
+                            fetch(`/api/admin-control/scripts/${script.id}/run`, {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${token}` }
+                            }).then(() => {
+                              alert(`${script.name} executed successfully`);
+                            }).catch(() => {
+                              alert(`Failed to execute ${script.name}`);
+                            });
+                          }
+                        }}
+                        className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium flex items-center gap-2"
+                      >
+                        <Icons.Play />
+                        Run
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      case 'pipelines': {
+        // Backend returns { data: [...] }
+        const pipelines = data.data || [];
+        return (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Deployment Pipelines ({pipelines.length})</h3>
+            <div className="space-y-2">
+              {pipelines.length === 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-gray-500">
+                  No deployment logs found
+                </div>
+              ) : (
+                pipelines.map(pipeline => (
+                  <div key={pipeline.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{pipeline.name}</span>
+                      <span className={clsx(
+                        'px-2 py-0.5 text-xs rounded-full',
+                        pipeline.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
+                        pipeline.status === 'failed' ? 'bg-rose-500/20 text-rose-400' :
+                        pipeline.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      )}>
+                        {pipeline.status}
+                      </span>
+                    </div>
+                    <div className="flex gap-4 text-sm text-gray-400">
+                      <span>Started: {pipeline.startedAt ? format(new Date(pipeline.startedAt), 'MMM d, HH:mm') : 'N/A'}</span>
+                      {pipeline.completedAt && (
+                        <span>Completed: {format(new Date(pipeline.completedAt), 'HH:mm')}</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      case 'credits': {
+        // Backend returns { totalGifted, totalTransactions, recentTransactions }
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-sm text-gray-400 mb-1">Total Gifted</p>
+                <p className="text-2xl font-bold">{data.totalGifted || 0}</p>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-sm text-gray-400 mb-1">Total Transactions</p>
+                <p className="text-2xl font-bold">{data.totalTransactions || 0}</p>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-4">Recent Transactions</h3>
+              <div className="space-y-2">
+                {(data.recentTransactions || []).length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-gray-500">
+                    No transactions found
+                  </div>
+                ) : (
+                  (data.recentTransactions || []).map(tx => (
+                    <div key={tx.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{tx.action}</span>
+                        <span className={clsx(
+                          'font-mono',
+                          tx.amount > 0 ? 'text-emerald-400' : 'text-rose-400'
+                        )}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount}
+                        </span>
+                      </div>
+                      <div className="flex gap-4 text-sm text-gray-400">
+                        <span>User: {tx.userId?.slice(0, 8)}...</span>
+                        <span>{tx.createdAt ? format(new Date(tx.createdAt), 'MMM d, HH:mm') : 'N/A'}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       default:
         return <div className="text-center py-20 text-gray-500">Section not implemented</div>;
