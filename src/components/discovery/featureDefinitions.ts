@@ -211,7 +211,7 @@ export const DISCOVERABLE_FEATURES = [
     name: 'Milestones',
     description: 'Track major achievements and celebrate your progress',
     icon: '🚀',
-    route: '/milestones',
+    route: '/achievements',
     category: FEATURE_CATEGORIES.TRACKING,
     isNew: false,
     isPopular: false,

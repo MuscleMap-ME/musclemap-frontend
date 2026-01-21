@@ -544,6 +544,7 @@ function AppRoutes() {
           <Route path="/nutrition/history" element={<ProtectedRoute name="NutritionHistory"><NutritionHistory /></ProtectedRoute>} />
 
           {/* Achievement routes */}
+          <Route path="/milestones" element={<Navigate to="/achievements" replace />} /> {/* Alias for milestones */}
           <Route path="/achievements" element={<ProtectedRoute name="Achievements"><Achievements /></ProtectedRoute>} />
           <Route path="/achievements/verify/:achievementId" element={<ProtectedRoute name="AchievementVerification"><AchievementVerification /></ProtectedRoute>} />
           <Route path="/achievements/my-verifications" element={<ProtectedRoute name="MyVerifications"><MyVerifications /></ProtectedRoute>} />

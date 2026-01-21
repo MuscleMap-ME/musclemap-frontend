@@ -91,14 +91,22 @@ function ArchetypeChart({ data }) {
     );
   }
 
+  // Transform API data: { id, name, count } → { name, value, percentage }
+  const total = data.reduce((sum, item) => sum + (item.count ?? item.userCount ?? 0), 0);
+  const chartData = data.map(item => ({
+    name: item.name,
+    value: item.count ?? item.userCount ?? 0,
+    percentage: total > 0 ? Math.round(((item.count ?? item.userCount ?? 0) / total) * 100) : 0,
+  }));
+
   return (
     <div className="bg-gray-800 rounded-xl p-4">
       <h3 className="text-lg font-bold text-white mb-4">Archetype Distribution</h3>
       <ResponsiveContainer width="100%" height={250}>
         <PieChart>
           <Pie
-            data={data}
-            dataKey="userCount"
+            data={chartData}
+            dataKey="value"
             nameKey="name"
             cx="50%"
             cy="50%"
@@ -106,7 +114,7 @@ function ArchetypeChart({ data }) {
             label={({ name, percentage }) => `${name} (${percentage}%)`}
             labelLine={{ stroke: '#6b7280' }}
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
@@ -129,11 +137,17 @@ function ExerciseRanking({ data }) {
     );
   }
 
+  // Transform API data: { id, name, count } → { name, value }
+  const chartData = data.slice(0, 10).map(item => ({
+    name: item.name,
+    value: item.count ?? item.usageCount ?? 0,
+  }));
+
   return (
     <div className="bg-gray-800 rounded-xl p-4">
       <h3 className="text-lg font-bold text-white mb-4">Popular Exercises</h3>
       <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data.slice(0, 10)} layout="vertical">
+        <BarChart data={chartData} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis type="number" stroke="#9ca3af" />
           <YAxis
@@ -147,7 +161,7 @@ function ExerciseRanking({ data }) {
             contentStyle={{ background: '#1f2937', border: 'none', borderRadius: '8px' }}
             itemStyle={{ color: '#fff' }}
           />
-          <Bar dataKey="usageCount" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -206,7 +220,8 @@ function FunnelChartComponent({ data }) {
 }
 
 function CreditDistribution({ data }) {
-  if (!data?.buckets || data.buckets.length === 0) {
+  // API returns { totalCredits, totalSpent, avgBalance }
+  if (!data || (data.totalCredits === undefined && !data?.buckets)) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 h-64 flex items-center justify-center text-gray-400">
         No credit data available
@@ -214,52 +229,59 @@ function CreditDistribution({ data }) {
     );
   }
 
-  // Order buckets logically
-  const orderedBuckets = ['negative', '0', '1-100', '101-500', '501-1000', '1001-5000', '5000+'];
-  const chartData = orderedBuckets
-    .map((bucket) => {
-      const found = data.buckets.find((b) => b.bucket === bucket);
-      return found ? { name: bucket, count: found.count } : null;
-    })
-    .filter(Boolean);
+  // If API returns buckets (old format), use bar chart
+  if (data.buckets && data.buckets.length > 0) {
+    const orderedBuckets = ['negative', '0', '1-100', '101-500', '501-1000', '1001-5000', '5000+'];
+    const chartData = orderedBuckets
+      .map((bucket) => {
+        const found = data.buckets.find((b) => b.bucket === bucket);
+        return found ? { name: bucket, count: found.count } : null;
+      })
+      .filter(Boolean);
 
+    return (
+      <div className="bg-gray-800 rounded-xl p-4">
+        <h3 className="text-lg font-bold text-white mb-4">Credit Distribution</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 10 }} />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip
+              contentStyle={{ background: '#1f2937', border: 'none', borderRadius: '8px' }}
+              itemStyle={{ color: '#fff' }}
+            />
+            <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
+  // New format: show summary stats as cards
   return (
     <div className="bg-gray-800 rounded-xl p-4">
-      <h3 className="text-lg font-bold text-white mb-4">Credit Distribution</h3>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 10 }} />
-          <YAxis stroke="#9ca3af" />
-          <Tooltip
-            contentStyle={{ background: '#1f2937', border: 'none', borderRadius: '8px' }}
-            itemStyle={{ color: '#fff' }}
-          />
-          <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      {data.stats && (
-        <div className="grid grid-cols-4 gap-2 mt-4 text-center">
-          <div>
-            <div className="text-xs text-gray-400">Min</div>
-            <div className="text-sm font-bold text-white">{data.stats.min}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Max</div>
-            <div className="text-sm font-bold text-white">{data.stats.max}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Average</div>
-            <div className="text-sm font-bold text-white">{data.stats.average}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Total</div>
-            <div className="text-sm font-bold text-white">
-              {data.stats.total.toLocaleString()}
-            </div>
+      <h3 className="text-lg font-bold text-white mb-4">Credit Economy</h3>
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="bg-gray-700 rounded-lg p-3">
+          <div className="text-xs text-gray-400 mb-1">Total in Circulation</div>
+          <div className="text-lg font-bold text-green-400">
+            {(data.totalCredits ?? 0).toLocaleString()}
           </div>
         </div>
-      )}
+        <div className="bg-gray-700 rounded-lg p-3">
+          <div className="text-xs text-gray-400 mb-1">Total Spent</div>
+          <div className="text-lg font-bold text-red-400">
+            {(data.totalSpent ?? 0).toLocaleString()}
+          </div>
+        </div>
+        <div className="bg-gray-700 rounded-lg p-3">
+          <div className="text-xs text-gray-400 mb-1">Avg Balance</div>
+          <div className="text-lg font-bold text-purple-400">
+            {Math.round(data.avgBalance ?? 0).toLocaleString()}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
