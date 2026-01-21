@@ -9,6 +9,7 @@
  */
 
 import React, { Suspense, lazy } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCompanion } from './CompanionContext';
 import CompanionCharacter from './CompanionCharacter';
@@ -18,8 +19,12 @@ import { useUser } from '../../../contexts/UserContext';
 // Lazy load the panel
 const CompanionPanel = lazy(() => import('./CompanionPanel'));
 
+// Pages where the companion dock should be hidden to avoid UI overlap
+const HIDDEN_ON_PATHS = ['/messages'];
+
 export default function CompanionDock() {
   const { user } = useUser();
+  const location = useLocation();
   const {
     state,
     panelOpen,
@@ -31,7 +36,8 @@ export default function CompanionDock() {
   } = useCompanion();
 
   // Don't render if user is not logged in, no state, or companion is hidden
-  if (!user || !state || !state.is_visible) {
+  // Also hide on certain pages where it would overlap with important UI elements
+  if (!user || !state || !state.is_visible || HIDDEN_ON_PATHS.includes(location.pathname)) {
     return null;
   }
 
