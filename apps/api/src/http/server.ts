@@ -188,6 +188,8 @@ export async function createServer(): Promise<FastifyInstance> {
     bodyLimit: 10 * 1024 * 1024, // 10MB
     // Request ID generation
     genReqId: () => `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`,
+    // Increase plugin timeout for slower production server startup
+    pluginTimeout: 120000, // 2 minutes (default is 30s)
   });
 
   // Error handler
