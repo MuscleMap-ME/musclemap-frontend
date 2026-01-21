@@ -690,7 +690,7 @@ export function AnimatedXP({ value, ...props }) {
 export function AnimatedTU({ value, ...props }) {
   return (
     <AnimatedNumber
-      value={value}
+      value={Math.round(value)}
       format="comma"
       suffix=" TU"
       glowOnChange

@@ -343,7 +343,7 @@ export function JourneyManagement() {
                     </div>
                     {snapshot.totalTu > 0 && (
                       <div className="text-xs text-gray-500 mt-1">
-                        {snapshot.totalTu.toLocaleString()} TU | {snapshot.totalWorkouts} workouts
+                        {Math.round(snapshot.totalTu).toLocaleString()} TU | {snapshot.totalWorkouts} workouts
                       </div>
                     )}
                   </div>

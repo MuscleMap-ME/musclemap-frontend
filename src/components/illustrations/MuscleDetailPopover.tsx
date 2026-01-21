@@ -185,7 +185,7 @@ const MuscleDetailPopover = ({
                       backgroundColor: workout.tuEarned > 0 ? groupColor.color : undefined,
                       opacity: workout.tuEarned > 0 ? 0.7 : 0.2,
                     }}
-                    title={`${workout.date}: ${workout.tuEarned} TU`}
+                    title={`${workout.date}: ${Math.round(workout.tuEarned)} TU`}
                   />
                 ))}
               </div>

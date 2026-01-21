@@ -517,7 +517,7 @@ export default function Journey() {
                       </div>
                       <div className="flex-1">
                         <div className="font-medium">{level.name}</div>
-                        <div className="text-xs text-gray-400">{level.total_tu.toLocaleString()} TU required</div>
+                        <div className="text-xs text-gray-400">{Math.round(level.total_tu).toLocaleString()} TU required</div>
                       </div>
                     </div>
                   ))}
@@ -660,7 +660,7 @@ export default function Journey() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-purple-400">{workout.tu} TU</div>
+                      <div className="text-2xl font-bold text-purple-400">{Math.round(workout.tu)} TU</div>
                     </div>
                   </div>
                 </div>

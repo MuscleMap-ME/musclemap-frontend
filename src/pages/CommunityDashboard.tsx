@@ -30,9 +30,19 @@ const TABS = [
 
 const ADMIN_TABS = [{ id: 'monitor', label: 'Monitor', icon: '🔍' }];
 
-function QuickStats({ nowStats, connected }) {
+function QuickStats({ nowStats, summary, credits, connected }) {
   return (
-    <div className="grid grid-cols-3 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {/* Total Members - most important stat */}
+      <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-4 text-center">
+        <div className="text-3xl font-bold text-white">
+          {(summary?.totalUsers || 0).toLocaleString()}
+        </div>
+        <div className="text-sm text-white/80">Total Members</div>
+        <div className="text-xs text-white/60 mt-1">All time</div>
+      </div>
+
+      {/* Active Now - real-time presence */}
       <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-xl p-4 text-center">
         <div className="text-3xl font-bold text-white">
           {nowStats?.activeUsers || 0}
@@ -50,22 +60,22 @@ function QuickStats({ nowStats, connected }) {
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-4 text-center">
+      {/* Workouts today */}
+      <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-xl p-4 text-center">
         <div className="text-3xl font-bold text-white">
-          {nowStats?.topExercises?.[0]?.count || 0}
+          {(summary?.workoutsCount || 0).toLocaleString()}
         </div>
-        <div className="text-sm text-white/80 truncate">
-          {nowStats?.topExercises?.[0]?.name || 'Top Exercise'}
-        </div>
-        <div className="text-xs text-white/60 mt-1">Last 15 min</div>
+        <div className="text-sm text-white/80">Workouts</div>
+        <div className="text-xs text-white/60 mt-1">{summary?.window || '24h'}</div>
       </div>
 
-      <div className="bg-gradient-to-br from-blue-600 to-cyan-700 rounded-xl p-4 text-center">
+      {/* Credits in circulation */}
+      <div className="bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl p-4 text-center">
         <div className="text-3xl font-bold text-white">
-          {nowStats?.topExercises?.length || 0}
+          {(credits?.totalCredits || 0).toLocaleString()}
         </div>
-        <div className="text-sm text-white/80">Exercises</div>
-        <div className="text-xs text-white/60 mt-1">Trending</div>
+        <div className="text-sm text-white/80">Credits</div>
+        <div className="text-xs text-white/60 mt-1">In circulation</div>
       </div>
     </div>
   );
@@ -240,7 +250,7 @@ export default function CommunityDashboard() {
         </div>
 
         {/* Quick Stats */}
-        <QuickStats nowStats={nowStats} connected={connected} />
+        <QuickStats nowStats={nowStats} summary={summary} credits={credits} connected={connected} />
 
         {/* Top Exercises Bar */}
         <TopExercisesBar exercises={nowStats?.topExercises} />

@@ -68,7 +68,7 @@ function OverviewCards({ overview, credits }) {
       />
       <StatCard
         title="Total TU"
-        value={(overview.totalWorkoutVolume ?? 0).toLocaleString()}
+        value={Math.round(overview.totalWorkoutVolume ?? 0).toLocaleString()}
         subtitle="Training units"
         icon="💪"
       />
