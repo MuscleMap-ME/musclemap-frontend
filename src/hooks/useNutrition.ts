@@ -86,7 +86,7 @@ export function useNutritionPreferencesAPI() {
   const enable = useCallback(async () => {
     setLoading(true);
     try {
-      const prefs = await fetchAPI('/me/nutrition/enable', { method: 'POST' });
+      const prefs = await fetchAPI('/me/nutrition/enable', { method: 'POST', body: JSON.stringify({}) });
       setPreferences(prefs);
       return prefs;
     } catch (err) {
