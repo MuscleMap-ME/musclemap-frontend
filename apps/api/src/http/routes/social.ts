@@ -8,12 +8,86 @@ import { FastifyPluginAsync } from 'fastify';
 import { socialService } from '../../modules/social';
 import { authenticate } from './auth';
 import { loggers } from '../../lib/logger';
+import { db } from '../../db/client';
 
 const log = loggers.http.child({ module: 'social-routes' });
 
 const socialRoutes: FastifyPluginAsync = async (fastify) => {
   // All routes require authentication
   fastify.addHook('preHandler', authenticate);
+
+  // ===========================================
+  // USER SEARCH
+  // ===========================================
+
+  /**
+   * GET /users/search
+   * Search for users by username or display name
+   * Used for finding users to message, follow, etc.
+   */
+  fastify.get<{ Querystring: { q: string } }>('/users/search', async (request, reply) => {
+    const { q } = request.query;
+    const currentUserId = request.user!.userId;
+
+    if (!q || q.length < 2) {
+      return reply.status(400).send({
+        success: false,
+        error: 'Search query must be at least 2 characters',
+      });
+    }
+
+    try {
+      // Search for users by username or display_name
+      // Exclude:
+      // - The current user
+      // - Users who have blocked the current user
+      // - Users the current user has blocked
+      const users = await db.queryAll<{
+        id: string;
+        username: string;
+        display_name: string;
+        avatar_url: string | null;
+        city: string | null;
+      }>(
+        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.city
+        FROM users u
+        WHERE (LOWER(u.username) LIKE $1 OR LOWER(u.display_name) LIKE $1)
+          AND u.id != $2
+          AND u.id NOT IN (
+            SELECT blocker_id FROM user_blocks WHERE blocked_id = $2
+          )
+          AND u.id NOT IN (
+            SELECT blocked_id FROM user_blocks WHERE blocker_id = $2
+          )
+        ORDER BY
+          CASE
+            WHEN LOWER(u.username) = LOWER($3) THEN 0
+            WHEN LOWER(u.username) LIKE LOWER($3) || '%' THEN 1
+            ELSE 2
+          END,
+          u.username ASC
+        LIMIT 20`,
+        [`%${q.toLowerCase()}%`, currentUserId, q]
+      );
+
+      return reply.send({
+        success: true,
+        users: users.map(u => ({
+          id: u.id,
+          username: u.username,
+          displayName: u.display_name,
+          avatarUrl: u.avatar_url,
+          city: u.city,
+        })),
+      });
+    } catch (error) {
+      log.error({ error, q }, 'Failed to search users');
+      return reply.status(500).send({
+        success: false,
+        error: 'Search failed',
+      });
+    }
+  });
 
   // ===========================================
   // FOLLOWS
