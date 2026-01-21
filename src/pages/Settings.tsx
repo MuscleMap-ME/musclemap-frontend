@@ -27,6 +27,7 @@ export default function Settings() {
   });
   const [userLevel, setUserLevel] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [messagingEnabled, setMessagingEnabled] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -37,7 +38,25 @@ export default function Settings() {
       else setSettings(prev => ({ ...prev, ...s }));
       if (p.level) setUserLevel(p.level);
     }).catch(() => {});
+
+    // Fetch messaging privacy setting
+    api.get('/messaging/privacy').then((res) => {
+      if (res.data?.data?.messagingEnabled !== undefined) {
+        setMessagingEnabled(res.data.data.messagingEnabled);
+      }
+    }).catch(() => {});
   }, []);
+
+  const toggleMessaging = async () => {
+    const newValue = !messagingEnabled;
+    setMessagingEnabled(newValue);
+    try {
+      await api.put('/messaging/privacy', { enabled: newValue });
+    } catch {
+      // Revert on error
+      setMessagingEnabled(!newValue);
+    }
+  };
 
   const save = async (updates) => {
     setSaving(true);
@@ -247,6 +266,27 @@ export default function Settings() {
               </div>
               <Toggle value={settings.show_progress} onChange={() => save({ show_progress: settings.show_progress ? 0 : 1 })} />
             </div>
+
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="font-medium">Allow Messages</div>
+                <div className="text-sm text-gray-400">Let others send you direct messages</div>
+              </div>
+              <Toggle value={messagingEnabled} onChange={toggleMessaging} />
+            </div>
+
+            <Link
+              to="/messages"
+              className="block p-3 bg-gray-700/50 rounded-xl hover:bg-gray-700 transition-colors mt-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span>✉️</span>
+                  <span className="text-sm">Manage Blocked Users</span>
+                </div>
+                <span className="text-gray-400 text-sm">→</span>
+              </div>
+            </Link>
           </div>
         </section>
       </main>

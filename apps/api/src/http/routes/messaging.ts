@@ -172,8 +172,9 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
       }
     }
 
-    // Check for blocked users
+    // Check for blocked users and privacy settings
     for (const participantId of data.participantIds) {
+      // Check block status (bidirectional)
       const blocked = await queryOne(
         `SELECT 1 FROM user_blocks
          WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)`,
@@ -182,6 +183,17 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
       if (blocked) {
         return reply.status(400).send({
           error: { code: 'BLOCKED', message: 'Cannot create conversation with blocked user', statusCode: 400 },
+        });
+      }
+
+      // Check if the participant has disabled messaging
+      const privacySettings = await queryOne<{ opt_out_messaging: boolean }>(
+        `SELECT opt_out_messaging FROM user_privacy_mode WHERE user_id = $1`,
+        [participantId]
+      );
+      if (privacySettings?.opt_out_messaging) {
+        return reply.status(400).send({
+          error: { code: 'MESSAGING_DISABLED', message: 'This user has disabled messaging', statusCode: 400 },
         });
       }
     }
@@ -288,6 +300,37 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
       return reply.status(403).send({
         error: { code: 'FORBIDDEN', message: 'Not a participant in this conversation', statusCode: 403 },
       });
+    }
+
+    // Get other participants to check their privacy settings and block status
+    const otherParticipants = await queryAll<{ user_id: string }>(
+      `SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2`,
+      [id, senderId]
+    );
+
+    // Check if any recipient has blocked the sender or has messaging disabled
+    for (const other of otherParticipants) {
+      // Check block status
+      const blocked = await queryOne(
+        `SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+        [other.user_id, senderId]
+      );
+      if (blocked) {
+        return reply.status(403).send({
+          error: { code: 'BLOCKED', message: 'You cannot send messages to this user', statusCode: 403 },
+        });
+      }
+
+      // Check if recipient has disabled messaging
+      const privacySettings = await queryOne<{ opt_out_messaging: boolean }>(
+        `SELECT opt_out_messaging FROM user_privacy_mode WHERE user_id = $1`,
+        [other.user_id]
+      );
+      if (privacySettings?.opt_out_messaging) {
+        return reply.status(403).send({
+          error: { code: 'MESSAGING_DISABLED', message: 'This user has disabled messaging', statusCode: 403 },
+        });
+      }
     }
 
     // Validate reply target
@@ -436,6 +479,94 @@ export async function registerMessagingRoutes(app: FastifyInstance) {
     log.info({ blockerId, blockedId }, 'User unblocked');
 
     return reply.send({ data: { unblocked: true } });
+  });
+
+  // Get list of blocked users
+  app.get('/messaging/blocked', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const blockedUsers = await queryAll<{
+      blocked_id: string;
+      username: string;
+      display_name: string;
+      avatar_url: string;
+      created_at: Date;
+    }>(
+      `SELECT ub.blocked_id, u.username, u.display_name, u.avatar_url, ub.created_at
+       FROM user_blocks ub
+       JOIN users u ON ub.blocked_id = u.id
+       WHERE ub.blocker_id = $1
+       ORDER BY ub.created_at DESC`,
+      [userId]
+    );
+
+    return reply.send({
+      data: blockedUsers.map(b => ({
+        userId: b.blocked_id,
+        username: b.username,
+        displayName: b.display_name,
+        avatarUrl: b.avatar_url,
+        blockedAt: b.created_at,
+      })),
+    });
+  });
+
+  // Check if a specific user is blocked
+  app.get('/messaging/block/:userId', { preHandler: authenticate }, async (request, reply) => {
+    const { userId: targetId } = request.params as { userId: string };
+    const userId = request.user!.userId;
+
+    const blocked = await queryOne(
+      `SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+      [userId, targetId]
+    );
+
+    const blockedBy = await queryOne(
+      `SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+      [targetId, userId]
+    );
+
+    return reply.send({
+      data: {
+        isBlocked: !!blocked,      // Current user has blocked target
+        isBlockedBy: !!blockedBy,  // Target has blocked current user
+      },
+    });
+  });
+
+  // Get messaging privacy settings
+  app.get('/messaging/privacy', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+
+    const settings = await queryOne<{ opt_out_messaging: boolean }>(
+      `SELECT opt_out_messaging FROM user_privacy_mode WHERE user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        messagingEnabled: !settings?.opt_out_messaging,
+      },
+    });
+  });
+
+  // Update messaging privacy settings
+  app.put('/messaging/privacy', { preHandler: authenticate }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const { enabled } = request.body as { enabled: boolean };
+
+    await query(
+      `INSERT INTO user_privacy_mode (user_id, opt_out_messaging, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET opt_out_messaging = $2, updated_at = NOW()`,
+      [userId, !enabled]
+    );
+
+    log.info({ userId, messagingEnabled: enabled }, 'Messaging privacy updated');
+
+    return reply.send({
+      data: { messagingEnabled: enabled },
+    });
   });
 
   // WebSocket for messaging

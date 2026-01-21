@@ -38,7 +38,11 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchUsers, setSearchUsers] = useState('');
   const [userResults, setUserResults] = useState([]);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [sendError, setSendError] = useState('');
   const messagesEndRef = useRef(null);
+  const moreMenuRef = useRef(null);
 
   const fetchConversations = useCallback(async () => {
     if (!token || !currentUserId) return;
@@ -122,6 +126,7 @@ export default function Messages() {
     if (!newMessage.trim() || !activeConversation) return;
 
     const messageContent = sanitizeText(newMessage);
+    setSendError('');
 
     try {
       // Sanitize message content before sending
@@ -131,6 +136,14 @@ export default function Messages() {
         body: JSON.stringify({ content: messageContent })
       });
       const data = await res.json();
+
+      // Handle error responses (blocked, messaging disabled, etc.)
+      if (data.error) {
+        setSendError(data.error.message || 'Failed to send message');
+        setTimeout(() => setSendError(''), 5000);
+        return;
+      }
+
       if (data.data) {
         const msg = data.data;
         // Add message to the messages list
@@ -154,7 +167,8 @@ export default function Messages() {
         setActiveConversation(prev => prev ? { ...prev, last_message: messageContent } : prev);
       }
     } catch {
-      // Error occurred
+      setSendError('Failed to send message');
+      setTimeout(() => setSendError(''), 5000);
     }
   };
 
@@ -179,6 +193,11 @@ export default function Messages() {
         body: JSON.stringify({ type: 'direct', participantIds: [userId] })
       });
       const data = await res.json();
+      if (data.error) {
+        setSendError(data.error.message || 'Cannot start conversation');
+        setTimeout(() => setSendError(''), 3000);
+        return;
+      }
       if (data.data?.id) {
         setShowNewChat(false);
         fetchConversations();
@@ -188,6 +207,80 @@ export default function Messages() {
       // Error occurred
     }
   };
+
+  // Get the other user's ID from the active conversation
+  const getOtherUserId = useCallback(() => {
+    if (!activeConversation || activeConversation.type === 'group') return null;
+    const otherParticipant = activeConversation.participants?.find(p => p.userId !== currentUserId);
+    return otherParticipant?.userId;
+  }, [activeConversation, currentUserId]);
+
+  // Check block status when conversation changes
+  const checkBlockStatus = useCallback(async () => {
+    const otherUserId = getOtherUserId();
+    if (!otherUserId || !token) {
+      setIsBlocked(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/messaging/block/${otherUserId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setIsBlocked(data.data?.isBlocked || false);
+    } catch {
+      setIsBlocked(false);
+    }
+  }, [getOtherUserId, token]);
+
+  useEffect(() => {
+    if (activeConversation) {
+      checkBlockStatus();
+    }
+  }, [activeConversation, checkBlockStatus]);
+
+  // Block user
+  const blockUser = async () => {
+    const otherUserId = getOtherUserId();
+    if (!otherUserId) return;
+    try {
+      await fetch(`/api/messaging/block/${otherUserId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setIsBlocked(true);
+      setShowMoreMenu(false);
+    } catch {
+      // Error occurred
+    }
+  };
+
+  // Unblock user
+  const unblockUser = async () => {
+    const otherUserId = getOtherUserId();
+    if (!otherUserId) return;
+    try {
+      await fetch(`/api/messaging/block/${otherUserId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setIsBlocked(false);
+      setShowMoreMenu(false);
+    } catch {
+      // Error occurred
+    }
+  };
+
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const formatTime = (date) => {
     const d = new Date(date);
@@ -327,9 +420,36 @@ export default function Messages() {
               <div className="flex items-center gap-2">
                 <button className="p-2 rounded-xl hover:bg-white/5"><Icons.Star /></button>
                 <button className="p-2 rounded-xl hover:bg-white/5"><Icons.Archive /></button>
-                <button className="p-2 rounded-xl hover:bg-white/5"><Icons.More /></button>
+                <div className="relative" ref={moreMenuRef}>
+                  <button
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="p-2 rounded-xl hover:bg-white/5"
+                  >
+                    <Icons.More />
+                  </button>
+                  {showMoreMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-[#1a1a24] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                      {activeConversation.type === 'direct' && (
+                        <button
+                          onClick={isBlocked ? unblockUser : blockUser}
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-white/5 flex items-center gap-3 text-red-400 hover:text-red-300"
+                        >
+                          <Icons.Block />
+                          {isBlocked ? 'Unblock User' : 'Block User'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Blocked Warning */}
+            {isBlocked && (
+              <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/20 text-red-400 text-sm text-center">
+                You have blocked this user. They cannot send you messages.
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -361,6 +481,11 @@ export default function Messages() {
 
             {/* Input */}
             <form onSubmit={sendMessage} className="p-4 border-t border-white/5">
+              {sendError && (
+                <div className="mb-3 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                  {sendError}
+                </div>
+              )}
               <div className="flex gap-3">
                 <input
                   type="text"
