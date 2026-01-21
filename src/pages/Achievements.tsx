@@ -207,34 +207,46 @@ export default function Achievements() {
           <h3 className="text-lg font-semibold mb-4">Active Challenges</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ChallengeCard
-              title="Achievement Hunter"
-              description="Unlock 5 achievements this week"
-              progress={earnedSet.size % 5}
-              total={5}
-              xpReward={250}
-              difficulty="medium"
-              icon="🏆"
-              timeRemaining="4d 8h"
+              challenge={{
+                id: 'achievement-hunter',
+                type: { id: 'achievement_hunter', title: 'Achievement Hunter', icon: '🏆' },
+                difficulty: 'medium',
+                description: 'Unlock 5 achievements this week',
+                currentProgress: earnedSet.size % 5,
+                target: 5,
+                isComplete: (earnedSet.size % 5) >= 5,
+                isClaimed: false,
+                percentage: ((earnedSet.size % 5) / 5) * 100,
+                rewards: { xp: 250, credits: 100 },
+              }}
             />
             <ChallengeCard
-              title="Consistency King"
-              description="Log workouts 5 days in a row"
-              progress={3}
-              total={5}
-              xpReward={150}
-              difficulty="easy"
-              icon="🔥"
-              timeRemaining="2d 12h"
+              challenge={{
+                id: 'consistency-king',
+                type: { id: 'consistency_king', title: 'Consistency King', icon: '🔥' },
+                difficulty: 'easy',
+                description: 'Log workouts 5 days in a row',
+                currentProgress: 3,
+                target: 5,
+                isComplete: false,
+                isClaimed: false,
+                percentage: (3 / 5) * 100,
+                rewards: { xp: 150, credits: 50 },
+              }}
             />
             <ChallengeCard
-              title="Master Collector"
-              description="Earn 1,000 credits from achievements"
-              progress={totalCredits}
-              total={1000}
-              xpReward={500}
-              difficulty="hard"
-              icon="💎"
-              timeRemaining="6d 23h"
+              challenge={{
+                id: 'master-collector',
+                type: { id: 'master_collector', title: 'Master Collector', icon: '💎' },
+                difficulty: 'hard',
+                description: 'Earn 1,000 credits from achievements',
+                currentProgress: Math.min(totalCredits, 1000),
+                target: 1000,
+                isComplete: totalCredits >= 1000,
+                isClaimed: false,
+                percentage: Math.min((totalCredits / 1000) * 100, 100),
+                rewards: { xp: 500, credits: 250 },
+              }}
             />
           </div>
         </div>

@@ -49,33 +49,33 @@ function StatCard({ title, value, subtitle, icon, trend }) {
   );
 }
 
-function OverviewCards({ overview }) {
+function OverviewCards({ overview, credits }) {
   if (!overview) return null;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <StatCard
         title="Total Users"
-        value={overview.users?.total?.toLocaleString() || '0'}
-        subtitle={`+${overview.users?.newInWindow || 0} new`}
+        value={(overview.totalUsers ?? 0).toLocaleString()}
+        subtitle={`+${overview.newUsersInWindow ?? 0} new`}
         icon="👥"
       />
       <StatCard
         title="Workouts"
-        value={overview.workouts?.countInWindow?.toLocaleString() || '0'}
-        subtitle={`${overview.overview?.window || '24h'}`}
+        value={(overview.workoutsCount ?? 0).toLocaleString()}
+        subtitle={overview.window || '24h'}
         icon="🏋️"
       />
       <StatCard
         title="Total TU"
-        value={overview.workouts?.totalTuInWindow?.toLocaleString() || '0'}
+        value={(overview.totalWorkoutVolume ?? 0).toLocaleString()}
         subtitle="Training units"
         icon="💪"
       />
       <StatCard
         title="Credits"
-        value={overview.credits?.totalInCirculation?.toLocaleString() || '0'}
-        subtitle={`Avg: ${overview.credits?.averagePerUser || 0}`}
+        value={(credits?.totalCredits ?? 0).toLocaleString()}
+        subtitle={`Avg: ${Math.round(credits?.avgBalance ?? 0)}`}
         icon="🪙"
       />
     </div>
@@ -155,7 +155,9 @@ function ExerciseRanking({ data }) {
 }
 
 function FunnelChartComponent({ data }) {
-  if (!data?.stages || data.stages.length === 0) {
+  // API returns { registered, onboarded, firstWorkout, activeLastWeek }
+  // Transform into stages format for display
+  if (!data || (data.registered === undefined && !data?.stages)) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 h-64 flex items-center justify-center text-gray-400">
         No funnel data available
@@ -163,11 +165,23 @@ function FunnelChartComponent({ data }) {
     );
   }
 
+  // Build stages from flat API response
+  const baseCount = data.registered || 0;
+  const stages = data.stages || [
+    { name: 'Registered', count: data.registered ?? 0 },
+    { name: 'Onboarded', count: data.onboarded ?? 0 },
+    { name: 'First Workout', count: data.firstWorkout ?? 0 },
+    { name: 'Active (7d)', count: data.activeLastWeek ?? 0 },
+  ].map(stage => ({
+    ...stage,
+    percentage: baseCount > 0 ? Math.round((stage.count / baseCount) * 100) : 0,
+  }));
+
   return (
     <div className="bg-gray-800 rounded-xl p-4">
       <h3 className="text-lg font-bold text-white mb-4">User Journey Funnel</h3>
       <div className="space-y-2">
-        {data.stages.map((stage, index) => (
+        {stages.map((stage, index) => (
           <div key={stage.name} className="relative">
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm text-gray-300">{stage.name}</span>
@@ -336,7 +350,7 @@ export default function StatsDashboard({
       </div>
 
       {/* Overview Cards */}
-      <OverviewCards overview={overview} />
+      <OverviewCards overview={overview} credits={credits} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

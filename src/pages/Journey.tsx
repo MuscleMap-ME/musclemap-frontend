@@ -3,8 +3,67 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../store/authStore";
 import { ArchetypeCard } from "../components/archetypes";
-import { ChallengeCard, XPProgress } from "../components/gamification";
+import { XPProgress } from "../components/gamification";
 import { MuscleViewer, MuscleHeatmap } from "../components/muscle-viewer";
+
+// Simple static challenge card for Journey page (uses old individual props API)
+function SimpleChallengeCard({ title, description, progress, total, xpReward, difficulty, icon, timeRemaining }: {
+  title: string;
+  description: string;
+  progress: number;
+  total: number;
+  xpReward: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  icon: string;
+  timeRemaining: string;
+}) {
+  const percentage = Math.min(100, (progress / total) * 100);
+  const isComplete = progress >= total;
+
+  const difficultyColors = {
+    easy: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+    medium: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+    hard: 'text-red-400 bg-red-500/10 border-red-500/30',
+  };
+
+  return (
+    <div className={`relative p-4 rounded-xl bg-gray-700/50 border ${isComplete ? 'border-emerald-500/40' : 'border-gray-600'}`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <h3 className="font-semibold text-white">{title}</h3>
+            <p className="text-sm text-gray-400">{description}</p>
+          </div>
+        </div>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${difficultyColors[difficulty]}`}>
+          {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+        </span>
+      </div>
+
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-sm mb-1.5">
+          <span className="text-gray-400">{progress.toLocaleString()} / {total.toLocaleString()}</span>
+          <span className="text-gray-300 font-medium">{Math.round(percentage)}%</span>
+        </div>
+        <div className="h-2 bg-gray-600 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${isComplete ? 'bg-emerald-500' : 'bg-blue-500'}`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 uppercase">Reward:</span>
+          <span className="text-sm text-yellow-400">+{xpReward} XP</span>
+        </div>
+        <span className="text-xs text-gray-500">{timeRemaining}</span>
+      </div>
+    </div>
+  );
+}
 import type { MuscleActivation } from "../components/muscle-viewer/types";
 
 // Archetype icons and colors
@@ -421,7 +480,7 @@ export default function Journey() {
             <div className="bg-gray-800 rounded-2xl p-4">
               <h3 className="text-sm text-gray-400 uppercase mb-4">Active Challenges</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ChallengeCard
+                <SimpleChallengeCard
                   title="Volume Master"
                   description={`Lift ${(25000).toLocaleString()} lbs this week`}
                   progress={data.stats?.weekly?.tu || 0}
@@ -431,7 +490,7 @@ export default function Journey() {
                   icon="🏋️"
                   timeRemaining="5d 12h"
                 />
-                <ChallengeCard
+                <SimpleChallengeCard
                   title="Streak Builder"
                   description="Maintain a 7-day workout streak"
                   progress={data.streak || 0}
