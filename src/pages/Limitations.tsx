@@ -247,6 +247,11 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
     onSubmit({
       ...formData,
       maxWeightLbs: formData.maxWeightLbs ? parseInt(formData.maxWeightLbs, 10) : null,
+      // Convert empty strings to null for date fields (PostgreSQL requires null, not empty string)
+      onsetDate: formData.onsetDate || null,
+      expectedRecoveryDate: formData.expectedRecoveryDate || null,
+      // Convert empty bodyRegionId to null
+      bodyRegionId: formData.bodyRegionId || null,
     });
   };
 
