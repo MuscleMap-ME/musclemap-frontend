@@ -56,6 +56,17 @@ const GOAL_INTENSITIES = [
   { value: 'aggressive', label: 'Aggressive', description: '~1.5 lb/week' },
 ];
 
+// Unit conversion helpers
+const lbsToKg = (lbs: number) => lbs * 0.453592;
+const kgToLbs = (kg: number) => kg / 0.453592;
+const ftInToCm = (ft: number, inches: number) => (ft * 12 + inches) * 2.54;
+const cmToFtIn = (cm: number) => {
+  const totalInches = cm / 2.54;
+  const ft = Math.floor(totalInches / 12);
+  const inches = Math.round(totalInches % 12);
+  return { ft, inches };
+};
+
 /**
  * Goal calculator form
  */
@@ -70,6 +81,57 @@ function GoalCalculator({ onCalculate, isLoading }) {
     goalIntensity: 'moderate',
   });
 
+  // Unit preferences (default to imperial for US users)
+  const [useImperial, setUseImperial] = useState(true);
+  const [weightLbs, setWeightLbs] = useState('');
+  const [heightFt, setHeightFt] = useState('');
+  const [heightIn, setHeightIn] = useState('');
+
+  // Handle weight change with unit conversion
+  const handleWeightChange = (value: string, isImperial: boolean) => {
+    if (isImperial) {
+      setWeightLbs(value);
+      if (value) {
+        const kg = lbsToKg(parseFloat(value));
+        setFormData({ ...formData, weightKg: kg.toFixed(1) });
+      } else {
+        setFormData({ ...formData, weightKg: '' });
+      }
+    } else {
+      setFormData({ ...formData, weightKg: value });
+      if (value) {
+        const lbs = kgToLbs(parseFloat(value));
+        setWeightLbs(lbs.toFixed(1));
+      } else {
+        setWeightLbs('');
+      }
+    }
+  };
+
+  // Handle height change with unit conversion
+  const handleHeightChange = (ft: string, inches: string) => {
+    setHeightFt(ft);
+    setHeightIn(inches);
+    if (ft || inches) {
+      const cm = ftInToCm(parseFloat(ft) || 0, parseFloat(inches) || 0);
+      setFormData({ ...formData, heightCm: cm.toFixed(0) });
+    } else {
+      setFormData({ ...formData, heightCm: '' });
+    }
+  };
+
+  const handleHeightCmChange = (value: string) => {
+    setFormData({ ...formData, heightCm: value });
+    if (value) {
+      const { ft, inches } = cmToFtIn(parseFloat(value));
+      setHeightFt(ft.toString());
+      setHeightIn(inches.toString());
+    } else {
+      setHeightFt('');
+      setHeightIn('');
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onCalculate({
@@ -82,32 +144,111 @@ function GoalCalculator({ onCalculate, isLoading }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Unit Toggle */}
+      <div className="flex justify-end">
+        <div className="inline-flex rounded-lg border border-white/10 p-1">
+          <button
+            type="button"
+            onClick={() => setUseImperial(true)}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              useImperial ? 'bg-green-500/20 text-green-400' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            lbs / ft
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseImperial(false)}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              !useImperial ? 'bg-green-500/20 text-green-400' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            kg / cm
+          </button>
+        </div>
+      </div>
+
       {/* Body Metrics */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-400 mb-2">Weight (kg)</label>
-          <input
-            type="number"
-            step="0.1"
-            required
-            value={formData.weightKg}
-            onChange={(e) => setFormData({ ...formData, weightKg: e.target.value })}
-            className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
-                       focus:outline-none focus:border-green-500/50"
-            placeholder="70"
-          />
+          <label className="block text-sm text-gray-400 mb-2">
+            Weight ({useImperial ? 'lbs' : 'kg'})
+          </label>
+          {useImperial ? (
+            <input
+              type="number"
+              step="0.1"
+              required
+              value={weightLbs}
+              onChange={(e) => handleWeightChange(e.target.value, true)}
+              className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
+                         focus:outline-none focus:border-green-500/50"
+              placeholder="155"
+            />
+          ) : (
+            <input
+              type="number"
+              step="0.1"
+              required
+              value={formData.weightKg}
+              onChange={(e) => handleWeightChange(e.target.value, false)}
+              className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
+                         focus:outline-none focus:border-green-500/50"
+              placeholder="70"
+            />
+          )}
+          {useImperial && formData.weightKg && (
+            <p className="text-xs text-gray-500 mt-1">= {formData.weightKg} kg</p>
+          )}
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-2">Height (cm)</label>
-          <input
-            type="number"
-            required
-            value={formData.heightCm}
-            onChange={(e) => setFormData({ ...formData, heightCm: e.target.value })}
-            className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
-                       focus:outline-none focus:border-green-500/50"
-            placeholder="175"
-          />
+          <label className="block text-sm text-gray-400 mb-2">
+            Height ({useImperial ? 'ft / in' : 'cm'})
+          </label>
+          {useImperial ? (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="8"
+                  required
+                  value={heightFt}
+                  onChange={(e) => handleHeightChange(e.target.value, heightIn)}
+                  className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
+                             focus:outline-none focus:border-green-500/50"
+                  placeholder="5"
+                />
+                <span className="text-xs text-gray-500 mt-1 block text-center">ft</span>
+              </div>
+              <div className="flex-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="11"
+                  value={heightIn}
+                  onChange={(e) => handleHeightChange(heightFt, e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
+                             focus:outline-none focus:border-green-500/50"
+                  placeholder="9"
+                />
+                <span className="text-xs text-gray-500 mt-1 block text-center">in</span>
+              </div>
+            </div>
+          ) : (
+            <input
+              type="number"
+              required
+              value={formData.heightCm}
+              onChange={(e) => handleHeightCmChange(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 text-white
+                         focus:outline-none focus:border-green-500/50"
+              placeholder="175"
+            />
+          )}
+          {useImperial && formData.heightCm && (
+            <p className="text-xs text-gray-500 mt-1">= {formData.heightCm} cm</p>
+          )}
         </div>
       </div>
 

@@ -512,7 +512,7 @@
   "src/pages/NewIssue.tsx": "e210be401dcb2ea70197a7af2186cf93",
   "src/pages/Nutrition.tsx": "3562204befcb9f6525bc04a0fed3dd12",
   "src/pages/NutritionHistory.tsx": "b561d4284c86963ffd91af872f015596",
-  "src/pages/NutritionSettings.tsx": "2383bd7d9d9f050e846960967151822b",
+  "src/pages/NutritionSettings.tsx": "4477dc6989fc4796108be854be0d0088",
   "src/pages/Onboarding.tsx": "c5971d41c560d577fd5ff802492e8710",
   "src/pages/PTTests.tsx": "5a0a5995210cbab541b113fe8926e5ab",
   "src/pages/PersonalRecords.tsx": "d2a33d248af53ff35b35e8341c00b166",
