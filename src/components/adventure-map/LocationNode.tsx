@@ -100,7 +100,8 @@ export default function LocationNode({
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{ cursor: isLocked ? 'not-allowed' : 'pointer', pointerEvents: 'auto' }}
       initial="idle"
       animate={currentState}
       whileHover={!isLocked ? 'hover' : undefined}
@@ -121,6 +122,16 @@ export default function LocationNode({
           <feDropShadow dx="3" dy="5" stdDeviation="4" floodColor="#000" floodOpacity="0.25" />
         </filter>
       </defs>
+
+      {/* Invisible hit area for easier clicking */}
+      <rect
+        x={position.x - config.size / 2 - 10}
+        y={illustrationY - 10}
+        width={config.size + 20}
+        height={config.size + config.labelOffset + 30}
+        fill="transparent"
+        style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
+      />
 
       {/* Character nearby indicator - golden ring on ground */}
       {isCharacterNearby && !isLocked && (

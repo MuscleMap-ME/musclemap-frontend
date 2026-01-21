@@ -532,30 +532,34 @@ export default function AdventureMapCanvas({
       </svg>
 
       {/* Zoom controls - theme park style */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+      <div
+        className="absolute bottom-4 right-4 flex flex-col gap-2 z-10"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={() => zoomIn()}
+          onClick={(e) => { e.stopPropagation(); zoomIn(); }}
           className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center font-bold shadow-lg"
           aria-label="Zoom in"
         >
           +
         </button>
         <button
-          onClick={() => zoomOut()}
+          onClick={(e) => { e.stopPropagation(); zoomOut(); }}
           className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center font-bold shadow-lg"
           aria-label="Zoom out"
         >
           -
         </button>
         <button
-          onClick={() => center()}
+          onClick={(e) => { e.stopPropagation(); center(); }}
           className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center text-lg shadow-lg"
           aria-label="Center on character"
         >
           ◎
         </button>
         <button
-          onClick={() => reset()}
+          onClick={(e) => { e.stopPropagation(); reset(); }}
           className="w-10 h-10 rounded-lg bg-white/90 backdrop-blur-sm border-2 border-amber-600 text-amber-800 hover:bg-amber-100 transition-colors flex items-center justify-center text-sm shadow-lg"
           aria-label="Reset view"
         >
@@ -564,7 +568,11 @@ export default function AdventureMapCanvas({
       </div>
 
       {/* Legend - theme park style signpost */}
-      <div className="absolute top-4 left-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 p-3 z-10 shadow-lg">
+      <div
+        className="absolute top-4 left-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 p-3 z-10 shadow-lg"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <div className="text-amber-800 text-xs mb-2 font-bold uppercase tracking-wide">🗺️ Map Controls</div>
         <div className="text-amber-900 text-xs space-y-1">
           <div>⬆️ Arrow/WASD - Move</div>
@@ -576,7 +584,11 @@ export default function AdventureMapCanvas({
       </div>
 
       {/* Current region indicator - theme park style */}
-      <div className="absolute top-4 right-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 px-4 py-2 z-10 shadow-lg">
+      <div
+        className="absolute top-4 right-4 bg-amber-50/95 backdrop-blur-sm rounded-lg border-2 border-amber-700 px-4 py-2 z-10 shadow-lg"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-2">
           <span className="text-2xl">{REGIONS[currentRegion]?.icon || '🏰'}</span>
           <div>
