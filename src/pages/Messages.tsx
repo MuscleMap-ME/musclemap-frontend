@@ -121,16 +121,19 @@ export default function Messages() {
     e.preventDefault();
     if (!newMessage.trim() || !activeConversation) return;
 
+    const messageContent = sanitizeText(newMessage);
+
     try {
       // Sanitize message content before sending
       const res = await fetch(`/api/messaging/conversations/${activeConversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: sanitizeText(newMessage) })
+        body: JSON.stringify({ content: messageContent })
       });
       const data = await res.json();
       if (data.data) {
         const msg = data.data;
+        // Add message to the messages list
         setMessages([...messages, {
           id: msg.id,
           content: msg.content,
@@ -139,6 +142,16 @@ export default function Messages() {
           created_at: msg.createdAt
         }]);
         setNewMessage('');
+
+        // Update the conversation list to show the last message
+        setConversations(prev => prev.map(conv =>
+          conv.id === activeConversation.id
+            ? { ...conv, last_message: messageContent, last_activity_at: msg.createdAt }
+            : conv
+        ));
+
+        // Update active conversation's last message
+        setActiveConversation(prev => prev ? { ...prev, last_message: messageContent } : prev);
       }
     } catch {
       // Error occurred
