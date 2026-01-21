@@ -32,7 +32,7 @@ const useScrollPosition = () => {
 
 /**
  * Animated MuscleMap Logo
- * Uses the custom MM icon with breathing pulse effect
+ * Uses the official MuscleMap logo image with breathing pulse effect
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
   return (
@@ -44,40 +44,29 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
       style={{
         width: size,
         height: size,
-        background: '#1a1a1a',
         boxShadow: 'var(--glow-brand-sm)',
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      animate={
+        breathing
+          ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
+          : {}
+      }
     >
-      {/* MM Logo - Two rounded squares with M letters */}
-      <div className="flex items-center gap-0.5" style={{ transform: `scale(${size / 40})` }}>
-        <motion.div
-          className="flex items-center justify-center rounded-md bg-black"
-          style={{ width: 14, height: 14 }}
-          animate={
-            breathing
-              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
-              : {}
-          }
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
-        </motion.div>
-        <motion.div
-          className="flex items-center justify-center rounded-md bg-black"
-          style={{ width: 14, height: 14 }}
-          animate={
-            breathing
-              ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
-              : {}
-          }
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-        >
-          <span className="text-white font-bold text-[10px]" style={{ fontFamily: 'Georgia, serif' }}>M</span>
-        </motion.div>
-      </div>
+      {/* Official MuscleMap Logo */}
+      <picture>
+        <source srcSet="/logo.avif" type="image/avif" />
+        <source srcSet="/logo.webp" type="image/webp" />
+        <img
+          src="/logo.png"
+          alt="MuscleMap"
+          width={size}
+          height={size}
+          className="w-full h-full object-contain"
+        />
+      </picture>
     </motion.div>
   );
 };

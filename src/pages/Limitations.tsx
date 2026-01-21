@@ -685,10 +685,12 @@ export default function Limitations() {
 
       <AddLimitationModal
         isOpen={showModal}
-        onClose={() => { setShowModal(false); setEditingLimitation(null); }}
+        onClose={() => { setShowModal(false); setEditingLimitation(null); setError(null); }}
         onSubmit={handleAddLimitation}
         bodyRegions={bodyRegions}
         editingLimitation={editingLimitation}
+        saving={saving}
+        error={error}
       />
     </div>
   );
