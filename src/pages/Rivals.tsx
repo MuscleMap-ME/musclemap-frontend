@@ -146,6 +146,9 @@ export default function Rivals() {
 
   // Challenge user
   const handleChallenge = async (userId) => {
+    // Optimistically remove user from search results to prevent duplicate challenges
+    setSearchResults((prev) => prev.filter((u) => u.id !== userId));
+
     try {
       await api.post('/rivals/challenge', { opponentId: userId });
       setSearchQuery('');
@@ -153,7 +156,12 @@ export default function Rivals() {
       setShowSearch(false);
       loadData();
     } catch (err) {
+      // Show error but don't re-add the user to prevent retry on "already exists"
       setError(err.message || 'Failed to send challenge');
+      // Refresh search to get accurate list
+      if (searchQuery.length >= 2) {
+        handleSearch(searchQuery);
+      }
     }
   };
 

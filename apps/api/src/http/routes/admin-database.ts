@@ -18,6 +18,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { db, getPoolMetrics } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { authenticate } from './auth';
 
 const log = loggers.api;
 
@@ -202,12 +203,15 @@ function formatBytes(bytes: number): string {
 // ============================================
 
 export default async function adminDatabaseRoutes(fastify: FastifyInstance) {
-  // All routes require admin authentication
+  // All routes require authentication first to populate request.user
+  fastify.addHook('preHandler', authenticate);
+
+  // Then check for admin role
   fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Check if user is authenticated and is admin
+    // Check if user is admin (authenticate already set request.user)
     const user = (request as { user?: { role?: string; roles?: string[] } }).user;
     const roles = user?.roles || [];
-    const isAdmin = user?.role === 'admin' || roles.includes('admin') || roles.includes('super_admin');
+    const isAdmin = user?.role === 'admin' || roles.includes('admin') || roles.includes('super_admin') || roles.includes('owner');
 
     if (!user || !isAdmin) {
       return reply.status(403).send({ error: 'Admin access required' });

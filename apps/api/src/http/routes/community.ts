@@ -93,14 +93,28 @@ async function getPresenceByGeoBucket(): Promise<Array<{ geoBucket: string; coun
 
 /**
  * Get count of users currently working out (have an active workout session)
+ * Combines: active_workout_sessions table + workout_sessions with no end + recent workouts
  */
 async function getActiveWorkoutCount(): Promise<number> {
-  // Check for workouts started in the last hour that haven't been completed
+  // Check multiple sources for active users:
+  // 1. active_workout_sessions table (explicit active sessions)
+  // 2. workout_sessions with no ended_at (in-progress sessions)
+  // 3. Workouts created in last 30 min (recently active)
   const result = await queryOne<{ count: string }>(
-    `SELECT COUNT(DISTINCT user_id)::int as count
-     FROM workouts
-     WHERE date = CURRENT_DATE
-     AND created_at > NOW() - INTERVAL '1 hour'`
+    `SELECT COUNT(DISTINCT user_id)::int as count FROM (
+       -- Active workout sessions
+       SELECT user_id FROM active_workout_sessions
+       WHERE last_activity_at > NOW() - INTERVAL '30 minutes'
+       UNION
+       -- In-progress workout sessions (no end time)
+       SELECT user_id FROM workout_sessions
+       WHERE ended_at IS NULL
+       AND started_at > NOW() - INTERVAL '2 hours'
+       UNION
+       -- Recently completed workouts (within 30 min)
+       SELECT user_id FROM workouts
+       WHERE created_at > NOW() - INTERVAL '30 minutes'
+     ) active_users`
   );
   return parseInt(result?.count || '0');
 }
@@ -480,8 +494,9 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
 
   // Community now stats endpoint (for CommunityDashboard)
   app.get('/community/now', async (request, reply) => {
-    const [activeCount, topExercises] = await Promise.all([
+    const [presenceCount, workoutCount, topExercises] = await Promise.all([
       getActiveUserCount(),
+      getActiveWorkoutCount(),
       queryAll<{ exercise_id: string; name: string; count: string }>(
         `SELECT w.exercise_data::jsonb->>0 as exercise_id, e.name, COUNT(*) as count
          FROM workouts w
@@ -494,9 +509,13 @@ export async function registerCommunityRoutes(app: FastifyInstance) {
       ),
     ]);
 
+    // Take the higher of presence tracking vs actual workout activity
+    const activeCount = Math.max(presenceCount, workoutCount);
+
     return reply.send({
       data: {
         activeUsers: activeCount,
+        activeWorkouts: workoutCount,
         topExercises: topExercises.map((ex) => ({
           exerciseId: ex.exercise_id,
           name: ex.name || 'Unknown',
