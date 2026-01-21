@@ -94,6 +94,20 @@ function scoreExercise(
 }
 
 /**
+ * Parse primary_muscles from database (can be comma-separated string or JSON array)
+ */
+function parsePrimaryMuscles(raw: string | string[] | null): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  // Handle JSON array format like '{"chest-mid","triceps-lateral"}'
+  if (typeof raw === 'string' && raw.startsWith('{')) {
+    return raw.slice(1, -1).split(',').map(s => s.replace(/"/g, '').trim()).filter(Boolean);
+  }
+  // Handle comma-separated format
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/**
  * Generate a workout prescription
  */
 async function generatePrescription(
@@ -148,7 +162,7 @@ async function generatePrescription(
     rest_seconds: number;
     locations: string[];
     equipment_required: string[];
-    primary_muscles: string[];
+    primary_muscles: string | string[];
   }>('SELECT * FROM exercises');
 
   // Score and sort exercises
@@ -161,7 +175,8 @@ async function generatePrescription(
     .sort((a, b) => b.score - a.score);
 
   // Select exercises to fit time budget
-  const selectedExercises: any[] = [];
+  const selectedExerciseIds: string[] = [];
+  const selectedRaw: typeof exercises = [];
   let totalTime = 0;
   const targetTime = constraints.timeAvailable * 60; // Convert to seconds
   const warmupTime = 5 * 60; // 5 min warmup
@@ -171,28 +186,54 @@ async function generatePrescription(
   for (const { exercise } of scoredExercises) {
     const exerciseTime = (exercise.estimated_seconds + exercise.rest_seconds) * 3; // 3 sets per exercise
     if (totalTime + exerciseTime <= workoutTime) {
-      selectedExercises.push({
-        id: exercise.id,
-        name: exercise.name,
-        sets: 3,
-        estimatedSeconds: exercise.estimated_seconds,
-        restSeconds: exercise.rest_seconds,
-      });
+      selectedExerciseIds.push(exercise.id);
+      selectedRaw.push(exercise);
       totalTime += exerciseTime;
     }
-    if (selectedExercises.length >= 8) break; // Max 8 exercises
+    if (selectedExerciseIds.length >= 8) break; // Max 8 exercises
   }
 
-  // Calculate muscle coverage
-  const exerciseIds = selectedExercises.map((e) => e.id);
-  const placeholders = exerciseIds.map((_, i) => `$${i + 1}`).join(',');
-  const activations = exerciseIds.length > 0
+  // Get muscle activations for selected exercises (for secondary muscles)
+  const placeholders = selectedExerciseIds.map((_, i) => `$${i + 1}`).join(',');
+  const activations = selectedExerciseIds.length > 0
     ? await queryAll<{ exercise_id: string; muscle_id: string; activation: number }>(
         `SELECT exercise_id, muscle_id, activation FROM exercise_activations WHERE exercise_id IN (${placeholders})`,
-        exerciseIds
+        selectedExerciseIds
       )
     : [];
 
+  // Build activation map by exercise
+  const activationByExercise: Record<string, Array<{ muscle_id: string; activation: number }>> = {};
+  for (const act of activations) {
+    if (!activationByExercise[act.exercise_id]) {
+      activationByExercise[act.exercise_id] = [];
+    }
+    activationByExercise[act.exercise_id].push(act);
+  }
+
+  // Build selected exercises with muscle data
+  const selectedExercises = selectedRaw.map((exercise) => {
+    const primaryMuscles = parsePrimaryMuscles(exercise.primary_muscles);
+    const exActivations = activationByExercise[exercise.id] || [];
+
+    // Secondary muscles are activations that aren't primary (activation < 60%)
+    const secondaryMuscles = exActivations
+      .filter(a => a.activation < 60 && !primaryMuscles.includes(a.muscle_id))
+      .map(a => a.muscle_id);
+
+    return {
+      id: exercise.id,
+      name: exercise.name,
+      sets: 3,
+      reps: 10, // Default reps
+      estimatedSeconds: exercise.estimated_seconds,
+      restSeconds: exercise.rest_seconds,
+      primaryMuscles,
+      secondaryMuscles,
+    };
+  });
+
+  // Calculate muscle coverage
   const muscleCoverage: Record<string, number> = {};
   for (const act of activations) {
     muscleCoverage[act.muscle_id] = (muscleCoverage[act.muscle_id] || 0) + act.activation;

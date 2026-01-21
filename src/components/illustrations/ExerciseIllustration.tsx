@@ -5,20 +5,21 @@
  * Supports interactive mode where clicking muscles shows details.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import {
   getActivationColor,
   ACTIVATION_COLORS,
+  getExerciseIllustration,
 } from '@musclemap/shared';
 
 /**
  * ExerciseIllustration - Main component
  */
 const ExerciseIllustration = ({
-  exerciseId: _exerciseId,
-  illustrationUrl,
+  exerciseId,
+  illustrationUrl: providedUrl,
   muscleActivations = [], // Array of { muscleId, activation }
   size = 'md', // 'sm' | 'md' | 'lg' | 'full'
   interactive = false,
@@ -27,6 +28,13 @@ const ExerciseIllustration = ({
   animate = true,
   className,
 }) => {
+  // Auto-resolve illustration URL from exerciseId if not provided
+  const illustrationUrl = useMemo(() => {
+    if (providedUrl) return providedUrl;
+    if (!exerciseId) return null;
+    const illustration = getExerciseIllustration(exerciseId);
+    return illustration?.file || null;
+  }, [providedUrl, exerciseId]);
   const [svgContent, setSvgContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
