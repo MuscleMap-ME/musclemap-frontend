@@ -182,16 +182,19 @@ export default function Rivals() {
 
   if (loading) {
     return (
-      <GlassSurface className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Loading rivals...</p>
-        </div>
-      </GlassSurface>
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <GlassSurface className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-white/60">Loading rivals...</p>
+          </div>
+        </GlassSurface>
+      </div>
     );
   }
 
   return (
+    <div className="min-h-screen bg-[#0a0a0f]">
     <GlassSurface className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
@@ -440,5 +443,6 @@ export default function Rivals() {
         </div>
       </div>
     </GlassSurface>
+    </div>
   );
 }
