@@ -161,7 +161,9 @@ export default function Crews() {
       ]);
 
       setMyCrew(crewRes.data);
-      setLeaderboard(leaderboardRes.data || []);
+      // API response is { data: { data: [...] } }, so extract the inner array
+      const leaderboardData = leaderboardRes.data?.data || leaderboardRes.data || [];
+      setLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
     } catch (err) {
       setError(err.message || 'Failed to load crews data');
     } finally {
@@ -183,7 +185,8 @@ export default function Crews() {
     setSearching(true);
     try {
       const response = await api.get(`/crews/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(response.data || []);
+      const searchData = response.data?.data || response.data || [];
+      setSearchResults(Array.isArray(searchData) ? searchData : []);
     } catch (err) {
       console.error('Search failed:', err);
     } finally {

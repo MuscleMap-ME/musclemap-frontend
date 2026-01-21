@@ -96,6 +96,9 @@ export default function AdventureMapCanvas({
   // Get locations with D3-calculated positions (collision-free layout)
   const calculatedLocations = useLocationsWithCalculatedPositions();
 
+  // Loading state - show loading indicator if no locations yet
+  const isLoading = !calculatedLocations || calculatedLocations.length === 0;
+
   // Navigation hook
   const { navigateToLocation, canNavigate } = useMapNavigation({
     onBeforeNavigate: onLocationEnter
@@ -389,6 +392,27 @@ export default function AdventureMapCanvas({
   // Get regions to render
   const regions = getAllRegions();
 
+  // Show loading state if locations not ready
+  if (isLoading) {
+    return (
+      <div
+        className={`adventure-map-canvas relative overflow-hidden ${className}`}
+        style={{
+          background: `linear-gradient(180deg, ${THEME_COLORS.skyBlue} 0%, #E8F5E9 30%, ${THEME_COLORS.grassMedium} 50%, ${THEME_COLORS.grassDark} 100%)`,
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg p-6 shadow-lg border-2 border-amber-600">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+              <span className="text-amber-800 font-semibold">Loading Adventure Map...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -435,9 +459,16 @@ export default function AdventureMapCanvas({
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
         className="w-full h-full"
         onClick={handleSvgClick}
+        onPointerDown={(e) => {
+          // Allow clicks on location nodes to propagate, but track for drag detection
+          if (!(e.target as Element).closest('.location-node')) {
+            // Map background click - don't stop propagation, let drag handler work
+          }
+        }}
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: 'center center',
+          touchAction: 'none', // Prevent browser handling of touch gestures
         }}
       >
         {/* Global filters and definitions */}

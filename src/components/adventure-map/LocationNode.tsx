@@ -50,12 +50,17 @@ export default function LocationNode({
     regionId
   );
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent | React.PointerEvent) => {
     e.stopPropagation(); // Prevent bubbling to map canvas
+    e.preventDefault(); // Prevent any default behavior
     if (!isLocked && onClick) {
       onClick();
     }
   }, [isLocked, onClick]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation(); // Critical: prevent drag from starting when clicking locations
+  }, []);
 
   const handleMouseEnter = useCallback(() => {
     if (onHover) onHover(true);
@@ -98,9 +103,11 @@ export default function LocationNode({
     <motion.g
       className={`location-node location-${location.id}`}
       onClick={handleClick}
+      onPointerUp={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={handlePointerDown}
+      onTouchStart={handlePointerDown as unknown as React.TouchEventHandler}
       style={{ cursor: isLocked ? 'not-allowed' : 'pointer', pointerEvents: 'auto' }}
       initial="idle"
       animate={currentState}

@@ -233,7 +233,7 @@ export default function AdventureMapFullscreen({
           >
             <h1 className={`text-white font-bold ${isMobile ? 'text-sm' : 'text-lg'}`}>Adventure Map</h1>
             <p className={`text-white/50 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-              {visited.length} / {Object.values(LOCATIONS).filter((l) => !l.isAdminOnly).length} discovered
+              {visited.length} / {Object.values(LOCATIONS).filter((l) => !l.requiredRole).length} discovered
             </p>
           </div>
 

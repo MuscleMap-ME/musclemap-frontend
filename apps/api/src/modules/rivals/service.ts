@@ -109,7 +109,7 @@ export const rivalsService = {
   ): Promise<RivalWithUser> {
     // Check if rivalry already exists (bidirectional check)
     const existing = await queryOne<RivalRow>(
-      `SELECT * FROM rivals
+      `SELECT * FROM rivalries
        WHERE ((challenger_id = $1 AND challenged_id = $2)
               OR (challenger_id = $2 AND challenged_id = $1))
          AND status IN ('pending', 'active')`,
@@ -133,7 +133,7 @@ export const rivalsService = {
 
     try {
       await execute(
-        `INSERT INTO rivals (id, challenger_id, challenged_id, status, created_at)
+        `INSERT INTO rivalries (id, challenger_id, challenged_id, status, created_at)
          VALUES ($1, $2, $3, 'pending', NOW())`,
         [id, challengerId, challengedId]
       );
@@ -157,7 +157,7 @@ export const rivalsService = {
    * Get a rivalry by ID
    */
   async getRivalry(id: string): Promise<Rival | null> {
-    const row = await queryOne<RivalRow>(`SELECT * FROM rivals WHERE id = $1`, [id]);
+    const row = await queryOne<RivalRow>(`SELECT * FROM rivalries WHERE id = $1`, [id]);
     return row ? mapRival(row) : null;
   },
 
@@ -184,7 +184,7 @@ export const rivalsService = {
       throw new Error('Only the challenged user can accept');
 
     await execute(
-      `UPDATE rivals SET status = 'active', started_at = NOW() WHERE id = $1`,
+      `UPDATE rivalries SET status = 'active', started_at = NOW() WHERE id = $1`,
       [id]
     );
 
@@ -202,7 +202,7 @@ export const rivalsService = {
     if (rival.challengedId !== userId)
       throw new Error('Only the challenged user can decline');
 
-    await execute(`UPDATE rivals SET status = 'declined' WHERE id = $1`, [id]);
+    await execute(`UPDATE rivalries SET status = 'declined' WHERE id = $1`, [id]);
   },
 
   /**
@@ -216,7 +216,7 @@ export const rivalsService = {
       throw new Error('Only participants can end rivalry');
 
     await execute(
-      `UPDATE rivals SET status = 'ended', ended_at = NOW() WHERE id = $1`,
+      `UPDATE rivalries SET status = 'ended', ended_at = NOW() WHERE id = $1`,
       [id]
     );
   },
@@ -232,7 +232,7 @@ export const rivalsService = {
 
     if (status) {
       rows = await queryAll<RivalRow>(
-        `SELECT * FROM rivals
+        `SELECT * FROM rivalries
          WHERE (challenger_id = $1 OR challenged_id = $1) AND status = $2
          ORDER BY
            CASE status
@@ -245,7 +245,7 @@ export const rivalsService = {
       );
     } else {
       rows = await queryAll<RivalRow>(
-        `SELECT * FROM rivals
+        `SELECT * FROM rivalries
          WHERE (challenger_id = $1 OR challenged_id = $1) AND status != 'declined'
          ORDER BY
            CASE status
@@ -266,7 +266,7 @@ export const rivalsService = {
    */
   async getPendingRequests(userId: string): Promise<RivalWithUser[]> {
     const rows = await queryAll<RivalRow>(
-      `SELECT * FROM rivals
+      `SELECT * FROM rivalries
        WHERE challenged_id = $1 AND status = 'pending'
        ORDER BY created_at DESC`,
       [userId]
@@ -281,7 +281,7 @@ export const rivalsService = {
   async getUserStats(userId: string): Promise<RivalStats> {
     // Count active rivalries
     const active = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM rivals
+      `SELECT COUNT(*) as count FROM rivalries
        WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'active'`,
       [userId]
     );
@@ -306,7 +306,7 @@ export const rivalsService = {
                ELSE 'tie'
              END
          END as result
-       FROM rivals
+       FROM rivalries
        WHERE (challenger_id = $1 OR challenged_id = $1) AND status = 'ended'
        ORDER BY ended_at DESC NULLS LAST`,
       [userId]
@@ -320,7 +320,7 @@ export const rivalsService = {
     const tuData = await queryOne<{ total_tu: string | null }>(
       `SELECT
          SUM(CASE WHEN challenger_id = $1 THEN challenger_tu ELSE challenged_tu END) as total_tu
-       FROM rivals
+       FROM rivalries
        WHERE (challenger_id = $1 OR challenged_id = $1) AND status IN ('active', 'ended')`,
       [userId]
     );
@@ -375,7 +375,7 @@ export const rivalsService = {
   ): Promise<RivalWithUser[]> {
     // Update all active rivalries where user is challenger
     await execute(
-      `UPDATE rivals
+      `UPDATE rivalries
        SET challenger_tu = challenger_tu + $1,
            last_challenger_workout = NOW()
        WHERE challenger_id = $2 AND status = 'active'`,
@@ -384,7 +384,7 @@ export const rivalsService = {
 
     // Update all active rivalries where user is challenged
     await execute(
-      `UPDATE rivals
+      `UPDATE rivalries
        SET challenged_tu = challenged_tu + $1,
            last_challenged_workout = NOW()
        WHERE challenged_id = $2 AND status = 'active'`,
@@ -417,10 +417,10 @@ export const rivalsService = {
        WHERE u.id != $1
          AND u.username ILIKE $2
          AND u.id NOT IN (
-           SELECT challenger_id FROM rivals
+           SELECT challenger_id FROM rivalries
            WHERE challenged_id = $1 AND status IN ('pending', 'active')
            UNION
-           SELECT challenged_id FROM rivals
+           SELECT challenged_id FROM rivalries
            WHERE challenger_id = $1 AND status IN ('pending', 'active')
          )
        LIMIT $3`,
