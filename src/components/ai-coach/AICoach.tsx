@@ -13,12 +13,16 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useAICoach } from './useAICoach';
 import ChatMessage, { TypingIndicator } from './ChatMessage';
 import QuickActions from './QuickActions';
 import CoachAvatar, { AVATAR_STATES } from './CoachAvatar';
+
+// Pages where the AI Coach should be hidden to avoid UI overlap
+const HIDDEN_ON_PATHS = ['/messages'];
 
 /**
  * AICoach - Main AI Training Partner chat widget
@@ -43,6 +47,12 @@ export default function AICoach({
   onToggle,
   zIndex = 50,
 }) {
+  const location = useLocation();
+
+  // Hide on certain pages where the floating widget would overlap with important UI
+  if (HIDDEN_ON_PATHS.includes(location.pathname)) {
+    return null;
+  }
   const {
     messages,
     isTyping,
