@@ -193,7 +193,7 @@ function LimitationCard({ limitation, onEdit, onDelete }) {
 }
 
 // Add Limitation Modal
-function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLimitation }) {
+function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLimitation, saving = false, error = null }) {
   const [formData, setFormData] = useState({
     name: '',
     limitationType: 'injury',
@@ -430,12 +430,25 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
               </div>
             </div>
 
+            {error && (
+              <div className="p-3 rounded-lg bg-[var(--feedback-error)]/10 border border-[var(--feedback-error)]/20 text-[var(--feedback-error)] text-sm">
+                {error}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-4">
-              <GlassButton type="button" variant="ghost" className="flex-1" onClick={onClose}>
+              <GlassButton type="button" variant="ghost" className="flex-1" onClick={onClose} disabled={saving}>
                 Cancel
               </GlassButton>
-              <GlassButton type="submit" variant="primary" className="flex-1">
-                {editingLimitation ? 'Save Changes' : 'Add Limitation'}
+              <GlassButton type="submit" variant="primary" className="flex-1" disabled={saving}>
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </span>
+                ) : (
+                  editingLimitation ? 'Save Changes' : 'Add Limitation'
+                )}
               </GlassButton>
             </div>
           </form>
@@ -465,7 +478,9 @@ export default function Limitations() {
     try {
       const status = filter !== 'all' ? filter : undefined;
       const response = await api.get(`/limitations${status ? `?status=${status}` : ''}`);
-      setLimitations(response.data?.limitations || []);
+      // API returns { data: { data: { limitations: [...] } } } due to double wrapping
+      const limitations = response.data?.data?.limitations || response.data?.limitations || [];
+      setLimitations(limitations);
     } catch (error) {
       console.error('Failed to load limitations:', error);
     } finally {
@@ -476,13 +491,20 @@ export default function Limitations() {
   const loadBodyRegions = async () => {
     try {
       const response = await api.get('/limitations/body-regions');
-      setBodyRegions(response.data?.regions || []);
+      // API returns { data: { data: { regions: [...] } } } due to double wrapping
+      const regions = response.data?.data?.regions || response.data?.regions || [];
+      setBodyRegions(regions);
     } catch (error) {
       console.error('Failed to load body regions:', error);
     }
   };
 
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleAddLimitation = async (data) => {
+    setSaving(true);
+    setError(null);
     try {
       if (editingLimitation) {
         await api.put(`/limitations/${editingLimitation.id}`, data);
@@ -492,8 +514,11 @@ export default function Limitations() {
       setShowModal(false);
       setEditingLimitation(null);
       loadLimitations();
-    } catch (error) {
-      console.error('Failed to save limitation:', error);
+    } catch (err) {
+      console.error('Failed to save limitation:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save limitation. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 

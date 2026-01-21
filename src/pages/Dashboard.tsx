@@ -245,7 +245,7 @@ const getArchetype = (id) => ARCHETYPES[id] || ARCHETYPES.default;
 // ============================================
 // STAT CARD COMPONENT
 // ============================================
-const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'default', helpTerm, animate = false }) => {
+const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'default', helpTerm, animate = false, to = null }) => {
   const variants = {
     default: 'from-[var(--glass-white-5)] to-[var(--glass-white-10)]',
     brand: 'from-[var(--brand-blue-500)]/10 to-[var(--brand-blue-500)]/5',
@@ -257,11 +257,12 @@ const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'defaul
   const isNumericValue = typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value)));
   const numericValue = isNumericValue ? parseFloat(value) : 0;
 
-  return (
+  const cardContent = (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={to ? { scale: 0.98 } : undefined}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={`
         relative overflow-hidden rounded-2xl p-5
@@ -269,6 +270,7 @@ const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'defaul
         backdrop-blur-xl border border-[var(--border-subtle)]
         hover:border-[var(--border-default)]
         transition-colors duration-300
+        ${to ? 'cursor-pointer' : ''}
       `}
     >
       {/* Subtle glow effect */}
@@ -291,6 +293,13 @@ const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'defaul
             `}>
               {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {Math.abs(trend)}%
             </span>
+          )}
+          {to && (
+            <motion.div
+              className="opacity-40 group-hover:opacity-100 transition-opacity"
+            >
+              <Icons.ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />
+            </motion.div>
           )}
         </div>
 
@@ -315,6 +324,12 @@ const StatCard = ({ label, value, sublabel, trend, icon: Icon, variant = 'defaul
       </div>
     </motion.div>
   );
+
+  if (to) {
+    return <Link to={to} className="group">{cardContent}</Link>;
+  }
+
+  return cardContent;
 };
 
 // ============================================
@@ -1250,6 +1265,7 @@ export default function Dashboard() {
                 value={12}
                 sublabel="3 new"
                 animate
+                to="/achievements"
               />
               <StatCard
                 icon={Icons.Target}
