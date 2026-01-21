@@ -207,11 +207,17 @@ const skipCompression = process.env.SKIP_COMPRESSION === 'true'
 // Set LOW_MEMORY=true on 8GB servers to prevent OOM during builds
 const lowMemoryMode = process.env.LOW_MEMORY === 'true'
 
+// Ultra-low memory mode: Maximum memory savings for severely constrained environments
+// Set ULTRA_LOW_MEMORY=true when available RAM < 3GB
+const ultraLowMemoryMode = process.env.ULTRA_LOW_MEMORY === 'true'
+
 // Log build mode for debugging
 if (skipCompression) {
   console.log('[vite] SKIP_COMPRESSION=true - compression deferred to post-build')
 }
-if (lowMemoryMode) {
+if (ultraLowMemoryMode) {
+  console.log('[vite] ULTRA_LOW_MEMORY=true - maximum memory savings enabled')
+} else if (lowMemoryMode) {
   console.log('[vite] LOW_MEMORY=true - reducing parallelism for memory-constrained builds')
 }
 
@@ -306,6 +312,19 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true
       }
+    },
+    // MEMORY OPTIMIZATION: Reduce file watching overhead
+    // Ignoring these directories reduces memory footprint during dev
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/.git/**',
+        '**/.aggressive-cache/**',
+        '**/.intelligent-cache/**',
+        '**/.vendor-cache/**',
+        '**/coverage/**',
+      ]
     }
   },
   test: {
@@ -336,23 +355,33 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    // MEMORY OPTIMIZATION: Disable sourcemaps in production to save ~30% memory
+    // Source maps significantly increase memory usage during builds
+    // Enable only for debugging: sourcemap: 'inline' or true
     sourcemap: false,
     // Target modern browsers for better tree-shaking
     target: 'es2020',
     // Warning limit - we still want to be alerted for large chunks
     chunkSizeWarningLimit: 300,
-    // ALWAYS use esbuild minification (faster, less memory than terser)
+    // MEMORY OPTIMIZATION: ALWAYS use esbuild minification
+    // esbuild is faster and more memory-efficient than terser
     minify: 'esbuild',
-    // Skip compressed size reporting - saves ~30% build time
+    // MEMORY OPTIMIZATION: Skip compressed size reporting
+    // Saves ~30% build time and reduces memory for size calculations
     // We calculate sizes in post-build compression anyway
     reportCompressedSize: false,
     // Inline assets smaller than 2KB (default is 4KB)
     // Reduces HTTP requests for tiny files while keeping bundle size down
     assetsInlineLimit: 2048,
-    // Reduce memory pressure by limiting concurrent file operations
-    // Normal: 20 parallel ops, Low memory: 2 parallel ops
-    ...(lowMemoryMode && {
-      // These options reduce peak memory at cost of build speed
+    // MEMORY OPTIMIZATION: Memory-based build settings
+    ...(ultraLowMemoryMode && {
+      // Ultra-low memory: Maximum savings
+      cssCodeSplit: true,     // Split CSS to reduce memory per chunk
+      assetsInlineLimit: 1024, // Smaller inline threshold
+      chunkSizeWarningLimit: 500, // Higher warning to reduce analysis overhead
+    }),
+    ...(lowMemoryMode && !ultraLowMemoryMode && {
+      // Low memory: Balanced approach
       cssCodeSplit: true,  // Split CSS to reduce memory per chunk
     }),
     // Disable modulepreload for heavy vendor chunks
@@ -384,11 +413,15 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      // CRITICAL: Reduce parallelism based on memory mode
-      ...(lowMemoryMode && {
+      // MEMORY OPTIMIZATION: Reduce parallelism based on memory mode
+      // Lower parallelism = less peak memory, but slower builds
+      ...(ultraLowMemoryMode && {
+        maxParallelFileOps: 1,  // Minimum parallelism for ultra-low memory
+      }),
+      ...(lowMemoryMode && !ultraLowMemoryMode && {
         maxParallelFileOps: 2,  // Default is 20, reduce to 2 for 8GB servers
       }),
-      ...(!lowMemoryMode && {
+      ...(!lowMemoryMode && !ultraLowMemoryMode && {
         maxParallelFileOps: Math.max(numCPUs * 2, 20),  // Use 2x CPU cores
       }),
       output: {

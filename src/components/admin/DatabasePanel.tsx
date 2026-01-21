@@ -601,7 +601,7 @@ export default function DatabasePanel() {
       const data = await res.json();
       setVacuumResult({
         success: res.ok,
-        message: data.message || (res.ok ? 'Vacuum completed' : 'Vacuum failed'),
+        message: data.message || data.error || (res.ok ? 'Vacuum completed successfully' : 'Vacuum failed'),
       });
 
       // Refresh table stats after vacuum

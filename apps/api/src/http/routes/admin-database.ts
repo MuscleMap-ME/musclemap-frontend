@@ -33,7 +33,7 @@ const QuerySchema = z.object({
 });
 
 const VacuumSchema = z.object({
-  table: z.string().min(1).max(128).regex(/^[a-z_][a-z0-9_]*$/i, 'Invalid table name'),
+  table: z.string().min(1).max(128).regex(/^[a-z_][a-z0-9_]*$/i, 'Invalid table name').nullable().optional(),
   analyze: z.boolean().optional().default(true),
   full: z.boolean().optional().default(false),
 });
@@ -600,18 +600,21 @@ export default async function adminDatabaseRoutes(fastify: FastifyInstance) {
   fastify.post('/admin/database/vacuum', async (request, reply) => {
     try {
       const body = VacuumSchema.parse(request.body);
+      const tableName = body.table;
 
-      // Verify table exists
-      const tableExists = await db.queryOne<{ exists: boolean }>(`
-        SELECT EXISTS (
-          SELECT 1 FROM information_schema.tables
-          WHERE table_schema = 'public'
-            AND table_name = $1
-        ) AS exists
-      `, [body.table]);
+      // If a specific table is provided, verify it exists
+      if (tableName) {
+        const tableExists = await db.queryOne<{ exists: boolean }>(`
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = $1
+          ) AS exists
+        `, [tableName]);
 
-      if (!tableExists?.exists) {
-        return reply.status(404).send({ error: `Table '${body.table}' not found` });
+        if (!tableExists?.exists) {
+          return reply.status(404).send({ error: `Table '${tableName}' not found` });
+        }
       }
 
       // Build VACUUM command
@@ -619,9 +622,10 @@ export default async function adminDatabaseRoutes(fastify: FastifyInstance) {
       if (body.full) options.push('FULL');
       if (body.analyze) options.push('ANALYZE');
 
-      const vacuumCmd = options.length > 0
-        ? `VACUUM (${options.join(', ')}) ${body.table}`
-        : `VACUUM ${body.table}`;
+      // If no table specified, vacuum entire database
+      const vacuumCmd = tableName
+        ? (options.length > 0 ? `VACUUM (${options.join(', ')}) ${tableName}` : `VACUUM ${tableName}`)
+        : (options.length > 0 ? `VACUUM (${options.join(', ')})` : 'VACUUM');
 
       const startTime = Date.now();
 
@@ -631,36 +635,47 @@ export default async function adminDatabaseRoutes(fastify: FastifyInstance) {
       const duration = Date.now() - startTime;
 
       log.info({
-        table: body.table,
+        table: tableName || 'ALL',
         full: body.full,
         analyze: body.analyze,
         duration,
         userId: (request as unknown as { user?: { userId: string } }).user?.userId,
       }, 'VACUUM executed');
 
-      // Get updated table stats
-      const stats = await db.queryOne<{
-        n_live_tup: number;
-        n_dead_tup: number;
-        last_vacuum: Date;
-        last_analyze: Date;
-      }>(`
-        SELECT n_live_tup, n_dead_tup, last_vacuum, last_analyze
-        FROM pg_stat_user_tables
-        WHERE relname = $1
-      `, [body.table]);
+      // Get updated table stats (only if specific table was vacuumed)
+      if (tableName) {
+        const stats = await db.queryOne<{
+          n_live_tup: number;
+          n_dead_tup: number;
+          last_vacuum: Date;
+          last_analyze: Date;
+        }>(`
+          SELECT n_live_tup, n_dead_tup, last_vacuum, last_analyze
+          FROM pg_stat_user_tables
+          WHERE relname = $1
+        `, [tableName]);
 
+        return reply.send({
+          success: true,
+          table: tableName,
+          command: vacuumCmd,
+          duration,
+          stats: {
+            liveRows: stats?.n_live_tup || 0,
+            deadRows: stats?.n_dead_tup || 0,
+            lastVacuum: stats?.last_vacuum,
+            lastAnalyze: stats?.last_analyze,
+          },
+        });
+      }
+
+      // For vacuum all, just return success
       return reply.send({
         success: true,
-        table: body.table,
+        table: 'ALL',
         command: vacuumCmd,
         duration,
-        stats: {
-          liveRows: stats?.n_live_tup || 0,
-          deadRows: stats?.n_dead_tup || 0,
-          lastVacuum: stats?.last_vacuum,
-          lastAnalyze: stats?.last_analyze,
-        },
+        message: `Vacuum completed on entire database in ${duration}ms`,
       });
     } catch (err) {
       if (err instanceof z.ZodError) {

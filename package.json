@@ -14,6 +14,8 @@
     "docs:sync-plain": "node scripts/generate-docs.cjs --sync-plain",
     "build": "node scripts/intelligent-cache.mjs",
     "build:vite": "pnpm docs:sync-plain && vite build",
+    "build:vite:lowmem": "cross-env NODE_OPTIONS=--max-old-space-size=3072 LOW_MEMORY=true pnpm build:vite",
+    "build:vite:ultralowmem": "cross-env NODE_OPTIONS=--max-old-space-size=2048 LOW_MEMORY=true ULTRA_LOW_MEMORY=true pnpm build:vite",
     "build:analyze": "ANALYZE=true vite build && echo 'Bundle analysis available at dist/stats.html'",
     "build:api": "pnpm -C apps/api build",
     "build:packages": "pnpm -C packages/shared build && pnpm -C packages/core build && pnpm -C packages/plugin-sdk build && pnpm -C packages/client build && pnpm -C packages/ui build",
@@ -173,6 +175,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "cross-env": "^7.0.3",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
