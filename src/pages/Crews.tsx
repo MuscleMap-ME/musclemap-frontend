@@ -160,7 +160,10 @@ export default function Crews() {
         api.get('/crews/leaderboard?limit=20'),
       ]);
 
-      setMyCrew(crewRes.data);
+      // API response is { data: { data: {...} } }, so extract the inner data
+      const crewData = crewRes.data?.data || crewRes.data || null;
+      setMyCrew(crewData);
+
       // API response is { data: { data: [...] } }, so extract the inner array
       const leaderboardData = leaderboardRes.data?.data || leaderboardRes.data || [];
       setLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
