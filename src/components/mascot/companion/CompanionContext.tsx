@@ -173,6 +173,7 @@ export function CompanionProvider({ children }) {
       const res = await fetch(`${API_BASE}/api/mascot/companion/upgrades/${upgradeId}/purchase`, {
         method: 'POST',
         headers: getHeaders(),
+        body: JSON.stringify({}),
       });
 
       const data = await res.json();
