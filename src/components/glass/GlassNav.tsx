@@ -178,6 +178,11 @@ export const GlassNavLink = ({
  * GlassMobileNav - Bottom navigation for mobile
  */
 export const GlassMobileNav = ({ items, className }) => {
+  // Don't render if no items provided
+  if (!items || items.length === 0) {
+    return null;
+  }
+
   return (
     <nav
       className={clsx(
