@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for wearables - contains DROP/TRUNCATE operations
 /**
  * Migration: Wearables & Health Data Tables
  *

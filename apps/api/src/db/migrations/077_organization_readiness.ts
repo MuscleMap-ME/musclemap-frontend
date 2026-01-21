@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for organization readiness - contains DROP/TRUNCATE operations
 /**
  * Migration 077: Organization Readiness Caching and Historical Snapshots
  *

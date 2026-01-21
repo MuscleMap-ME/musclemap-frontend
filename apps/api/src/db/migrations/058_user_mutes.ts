@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user mutes - contains DROP/TRUNCATE operations
 /**
  * Migration: User Mutes System
  *

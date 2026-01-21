@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for query monitoring - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Query Monitoring and Performance Views
  *

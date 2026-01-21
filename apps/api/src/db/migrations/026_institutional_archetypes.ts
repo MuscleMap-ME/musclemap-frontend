@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for institutional archetypes - contains DROP/TRUNCATE operations
 /**
  * Migration: Institutional & Occupational Archetypes
  *

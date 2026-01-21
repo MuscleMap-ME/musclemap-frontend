@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for data retention policies - contains DROP/TRUNCATE operations
 /**
  * Migration: Data Retention Policies and Cleanup Functions
  *

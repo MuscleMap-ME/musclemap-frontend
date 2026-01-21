@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for injury rehabilitation system - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Injury Rehabilitation System
  *

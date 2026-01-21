@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user analytics system - contains DROP/TRUNCATE operations
 /**
  * Migration 125: User Analytics System
  *

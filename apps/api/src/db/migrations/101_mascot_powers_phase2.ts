@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot powers phase2 - contains DROP/TRUNCATE operations
 /**
  * Migration 101: Mascot Powers Phase 2 - Credit & Economy Assistance
  *

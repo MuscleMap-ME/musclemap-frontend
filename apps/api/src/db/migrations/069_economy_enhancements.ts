@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for economy enhancements - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Economy Enhancements
  *

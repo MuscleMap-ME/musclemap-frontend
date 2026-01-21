@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for ghost mode profile - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Ghost Mode and Profile Enhancements
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for denormalize profile fields - contains DROP/TRUNCATE operations
 /**
  * Migration: Denormalize Profile Fields to Users Table
  *

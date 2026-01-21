@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot credit loans - contains DROP/TRUNCATE operations
 /**
  * Migration 130: Mascot Credit Loans System
  *

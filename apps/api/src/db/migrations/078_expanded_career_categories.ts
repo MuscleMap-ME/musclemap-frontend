@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for expanded career categories - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration 078: Expanded Career Categories
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for security audit system - contains DROP/TRUNCATE operations
 /**
  * Migration 108: Security Audit System
  *

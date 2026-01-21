@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for exercise library expansion - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Exercise Library Expansion
  *

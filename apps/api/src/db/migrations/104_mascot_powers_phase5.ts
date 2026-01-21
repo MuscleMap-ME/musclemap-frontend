@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot powers phase5 - contains DROP/TRUNCATE operations
 /**
  * Migration 104: Mascot Powers Phase 5 - Account & Meta Assistance
  *

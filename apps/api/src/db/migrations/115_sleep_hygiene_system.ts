@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for sleep hygiene system - contains DROP/TRUNCATE operations
 /**
  * Migration: Sleep Hygiene System
  *

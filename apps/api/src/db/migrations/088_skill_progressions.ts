@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for skill progressions - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Skill Progressions System
  *

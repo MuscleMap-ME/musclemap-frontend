@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for credits economy - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Credits Economy System
  *

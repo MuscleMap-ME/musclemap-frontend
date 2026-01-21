@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for dual mascot system - contains DROP/TRUNCATE operations
 /**
  * Migration: Dual Mascot System
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user limitations - contains DROP/TRUNCATE operations
 /**
  * Migration: Disability & Physical Limitation Profiles
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for backup system - contains DROP/TRUNCATE operations
 /**
  * Migration 108: Backup System
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user preferences system - contains DROP/TRUNCATE operations
 /**
  * Migration 131: User Preferences System
  *

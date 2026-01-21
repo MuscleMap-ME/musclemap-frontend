@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for long term analytics - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration 134: Long-Term Analytics System
  *

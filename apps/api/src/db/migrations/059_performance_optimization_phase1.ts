@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for performance optimization phase1 - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Performance Optimization Phase 1
  *

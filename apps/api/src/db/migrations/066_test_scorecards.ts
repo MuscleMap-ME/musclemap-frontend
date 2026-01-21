@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for test scorecards - contains DROP/TRUNCATE operations
 /**
  * Migration: Test Scorecards System
  *

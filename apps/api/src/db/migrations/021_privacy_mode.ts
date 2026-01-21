@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for privacy mode - contains DROP/TRUNCATE operations
 /**
  * Migration: Privacy Mode & Minimalist Experience Settings
  *

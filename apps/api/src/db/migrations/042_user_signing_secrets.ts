@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user signing secrets - contains DROP/TRUNCATE operations
 /**
  * Migration: User Signing Secrets
  *

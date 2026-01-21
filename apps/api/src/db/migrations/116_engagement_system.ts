@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for engagement system - contains DROP/TRUNCATE operations
 /**
  * Migration 116: Engagement System
  *

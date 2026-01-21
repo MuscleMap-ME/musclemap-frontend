@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for progressive overload - contains DROP/TRUNCATE operations
 /**
  * Migration: Progressive Overload Tracking System
  *

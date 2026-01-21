@@ -1,3 +1,4 @@
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Trade and Construction Career Standards
  *

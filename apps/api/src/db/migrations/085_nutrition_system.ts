@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for nutrition system - contains DROP/TRUNCATE operations
 /**
  * Migration: Nutrition System
  *

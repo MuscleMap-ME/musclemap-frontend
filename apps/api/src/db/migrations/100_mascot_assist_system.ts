@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot assist system - contains DROP/TRUNCATE operations
 /**
  * Migration: Mascot Assist System
  *

@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for taxonomy rename - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Taxonomy Rename (Journey System Overhaul - Phase 1)
  *

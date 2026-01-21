@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for spirit animal wardrobe - contains DROP/TRUNCATE operations
 /**
  * Migration 106: Spirit Animal Wardrobe System
  *

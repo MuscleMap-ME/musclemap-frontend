@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot powers phase3 - contains DROP/TRUNCATE operations
 /**
  * Migration 102: Mascot Powers Phase 3 - Journey & Progress Assistance
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for feedback automation - contains DROP/TRUNCATE operations
 /**
  * Migration: Feedback Automation System
  *

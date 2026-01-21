@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for vip beta tester system - contains DROP/TRUNCATE operations
 /**
  * Migration 107: VIP Beta Tester System
  *

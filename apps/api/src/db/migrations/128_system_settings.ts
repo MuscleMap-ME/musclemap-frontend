@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for system settings - contains DROP/TRUNCATE operations
 /**
  * Migration 128: System Settings Table
  *

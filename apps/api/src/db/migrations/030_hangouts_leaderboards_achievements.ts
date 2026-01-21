@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for hangouts leaderboards achievements - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Hangouts Leaderboards & Achievements System
  *

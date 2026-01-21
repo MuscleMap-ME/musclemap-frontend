@@ -183,6 +183,11 @@ INJECTION_FILES=""
 for file in $MIGRATION_FILES; do
     filename=$(basename "$file")
 
+    # Skip if file has SQL-SAFE marker (acknowledged false positive)
+    if grep -q "// SQL-SAFE:" "$file" || grep -q "/\* SQL-SAFE:" "$file"; then
+        continue
+    fi
+
     # Check for string interpolation in raw SQL
     if grep -qE '`[^`]*\$\{[^}]+\}[^`]*`' "$file" 2>/dev/null; then
         INJECTION_FILES="$INJECTION_FILES $filename"
@@ -200,6 +205,7 @@ if [ -n "$INJECTION_FILES" ]; then
     for f in $INJECTION_FILES; do
         echo -e "    ${RED}- $f${NC}"
     done
+    echo -e "  ${YELLOW}Add '// SQL-SAFE: <reason>' comment to acknowledge false positives${NC}"
     ((ERRORS++))
 else
     echo -e "${GREEN}✓${NC}"

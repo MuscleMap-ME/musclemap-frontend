@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for journey progression chains - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration 133: Journey Progression Chains
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for exercise images wger - contains DROP/TRUNCATE operations
 /**
  * Migration: Exercise Images from wger.de
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for wealth tiers - contains DROP/TRUNCATE operations
 /**
  * Migration: Wealth Tier System
  *

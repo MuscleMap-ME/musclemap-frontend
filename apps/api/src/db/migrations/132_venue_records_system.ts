@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for venue records system - contains DROP/TRUNCATE operations
 /**
  * Migration 119: Venue Records System
  *

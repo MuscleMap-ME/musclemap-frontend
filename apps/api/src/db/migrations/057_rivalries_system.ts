@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for rivalries system - contains DROP/TRUNCATE operations
 /**
  * Migration: Rivalries System
  *

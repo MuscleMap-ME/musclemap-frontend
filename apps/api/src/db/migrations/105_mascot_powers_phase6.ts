@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot powers phase6 - contains DROP/TRUNCATE operations
 /**
  * Migration 105: Mascot Powers Phase 6 - Advanced AI Abilities
  *

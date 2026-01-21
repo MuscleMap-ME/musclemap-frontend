@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for journey snapshots - contains DROP/TRUNCATE operations
 /**
  * Migration 124: Journey Snapshots System
  *

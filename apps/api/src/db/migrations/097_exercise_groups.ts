@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for exercise groups - contains DROP/TRUNCATE operations
 /**
  * Migration 097: Exercise Groups (Supersets, Circuits, Giant Sets)
  *

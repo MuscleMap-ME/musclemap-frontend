@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for crews system - contains DROP/TRUNCATE operations
 /**
  * Migration: Crews & Crew Wars System
  *

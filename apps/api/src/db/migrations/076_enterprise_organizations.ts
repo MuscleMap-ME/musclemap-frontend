@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for enterprise organizations - contains DROP/TRUNCATE operations
 /**
  * Migration 076: Enterprise Organizations
  *

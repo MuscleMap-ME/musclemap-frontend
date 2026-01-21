@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for scheduled jobs - contains DROP/TRUNCATE operations
 /**
  * Migration 112: Scheduled Jobs System
  *

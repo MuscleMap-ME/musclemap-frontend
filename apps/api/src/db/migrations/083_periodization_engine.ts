@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for periodization engine - contains DROP/TRUNCATE operations
 /**
  * Migration: Periodization Engine
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot powers phase4 - contains DROP/TRUNCATE operations
 /**
  * Migration 103: Mascot Powers Phase 4 - Social & Community Assistance
  *

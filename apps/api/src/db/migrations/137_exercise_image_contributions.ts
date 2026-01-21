@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for exercise image contributions - contains DROP/TRUNCATE operations
 /**
  * Migration 137: Exercise Image Contributions
  *

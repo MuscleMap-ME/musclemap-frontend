@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for community hangouts - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Community Hangouts & Virtual Spaces
  *

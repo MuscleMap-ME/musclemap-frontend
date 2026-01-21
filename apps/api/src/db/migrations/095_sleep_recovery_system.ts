@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for sleep recovery system - contains DROP/TRUNCATE operations
 /**
  * Migration: Sleep & Recovery Scoring System
  *

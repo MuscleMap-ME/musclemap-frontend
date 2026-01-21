@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for marketplace trading system - contains DROP/TRUNCATE operations
 /**
  * Migration 129: Marketplace Trading System
  *

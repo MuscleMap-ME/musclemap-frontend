@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for workout templates - contains DROP/TRUNCATE operations
 /**
  * Migration: Workout Templates System
  *

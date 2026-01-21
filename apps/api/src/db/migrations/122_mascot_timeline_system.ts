@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for mascot timeline system - contains DROP/TRUNCATE operations
 /**
  * Migration: Mascot Timeline System
  *

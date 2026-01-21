@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for monitoring tables - contains DROP/TRUNCATE operations
 /**
  * Migration 028: Monitoring & Testing Tables
  *

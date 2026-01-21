@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for leaderboard indexes - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Enhanced Leaderboard Indexes and Materialized View
  *

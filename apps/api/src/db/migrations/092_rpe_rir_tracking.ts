@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for rpe rir tracking - contains DROP/TRUNCATE operations
 /**
  * Migration 097: RPE/RIR Tracking Enhancements
  *

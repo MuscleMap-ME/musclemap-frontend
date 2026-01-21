@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for one rep max tracking - contains DROP/TRUNCATE operations
 /**
  * Migration 096: One Rep Max (1RM) Tracking System
  *

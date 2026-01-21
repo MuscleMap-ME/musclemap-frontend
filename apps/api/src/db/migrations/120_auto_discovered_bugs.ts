@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for auto discovered bugs - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Auto-Discovered Bugs System
  *

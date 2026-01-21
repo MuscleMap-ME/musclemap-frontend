@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for deployments table - contains DROP/TRUNCATE operations
 /**
  * Migration 108: Deployments Table
  *

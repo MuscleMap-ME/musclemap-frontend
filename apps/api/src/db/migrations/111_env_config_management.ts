@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for env config management - contains DROP/TRUNCATE operations
 /**
  * Migration 108: Environment Config Management System
  *

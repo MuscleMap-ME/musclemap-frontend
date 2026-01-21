@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for user goals - contains DROP/TRUNCATE operations
 /**
  * Migration: Goal-Based Training System
  *

@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for deployment logs - contains DROP/TRUNCATE operations
 /**
  * Migration 127: Deployment Logs System
  *

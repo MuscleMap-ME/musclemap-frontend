@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for feedback system - contains DROP/TRUNCATE operations
 /**
  * Migration: User Feedback System
  *

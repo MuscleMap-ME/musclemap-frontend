@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for notifications system - contains DROP/TRUNCATE operations
 /**
  * Migration: Notifications System
  *

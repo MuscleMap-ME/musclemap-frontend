@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for live activity system - contains DROP/TRUNCATE operations
 /**
  * Migration: Live Activity System
  *

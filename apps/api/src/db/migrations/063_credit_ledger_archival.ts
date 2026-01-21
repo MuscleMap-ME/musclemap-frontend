@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for credit ledger archival - contains DROP/TRUNCATE operations
 /**
  * Migration: Credit Ledger Archival System
  *

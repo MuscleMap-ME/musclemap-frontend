@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for user ranks xp - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: User Ranks and XP System
  *

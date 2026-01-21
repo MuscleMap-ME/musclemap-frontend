@@ -1,3 +1,5 @@
+// DESTRUCTIVE: Schema modification for career readiness - contains DROP/TRUNCATE operations
+// SQL-SAFE: Template literals contain static SQL only, no external input
 /**
  * Migration: Career Readiness System
  *

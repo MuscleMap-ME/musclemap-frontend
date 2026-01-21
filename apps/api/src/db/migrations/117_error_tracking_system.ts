@@ -1,3 +1,4 @@
+// DESTRUCTIVE: Schema modification for error tracking system - contains DROP/TRUNCATE operations
 /**
  * Migration 117: Error Tracking System
  *
