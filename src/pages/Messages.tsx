@@ -26,7 +26,8 @@ const tabs = [
 ];
 
 export default function Messages() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const currentUserId = user?.id;
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -40,23 +41,28 @@ export default function Messages() {
   const messagesEndRef = useRef(null);
 
   const fetchConversations = useCallback(async () => {
-    if (!token) return;
+    if (!token || !currentUserId) return;
     try {
       const res = await fetch(`/api/messaging/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       // Map API response to expected format
-      const convs = (data.data || []).map(c => ({
-        id: c.id,
-        type: c.type,
-        name: c.name,
-        display_name: c.name || c.participants?.find(p => p.userId !== data.currentUserId)?.displayName || c.participants?.find(p => p.userId !== data.currentUserId)?.username,
-        last_message: c.lastMessage?.content,
-        last_activity_at: c.lastMessageAt || c.createdAt,
-        unread_count: c.unreadCount || 0,
-        participants: c.participants,
-      }));
+      // For direct conversations, show the OTHER participant's name (not the current user)
+      const convs = (data.data || []).map(c => {
+        // Find the other participant (not the current user)
+        const otherParticipant = c.participants?.find(p => p.userId !== currentUserId);
+        return {
+          id: c.id,
+          type: c.type,
+          name: c.name,
+          display_name: c.name || otherParticipant?.displayName || otherParticipant?.username || 'Unknown',
+          last_message: c.lastMessage?.content,
+          last_activity_at: c.lastMessageAt || c.createdAt,
+          unread_count: c.unreadCount || 0,
+          participants: c.participants,
+        };
+      });
       // Filter by tab
       if (activeTab === 'starred') {
         setConversations(convs.filter(c => c.starred));
@@ -70,21 +76,22 @@ export default function Messages() {
     } finally {
       setLoading(false);
     }
-  }, [token, activeTab]);
+  }, [token, activeTab, currentUserId]);
 
   const fetchMessages = useCallback(async (conversationId) => {
-    if (!token) return;
+    if (!token || !currentUserId) return;
     try {
       const res = await fetch(`/api/messaging/conversations/${conversationId}/messages`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       // Map API response to expected format
+      // Use 'me' for current user's messages to match the UI logic
       const msgs = (data.data || []).map(m => ({
         id: m.id,
         content: m.content,
-        sender_id: m.senderId,
-        sender_name: m.sender?.displayName || m.sender?.username || 'Unknown',
+        sender_id: m.sender?.id === currentUserId ? 'me' : m.sender?.id,
+        sender_name: m.sender?.id === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
         created_at: m.createdAt,
       }));
       setMessages(msgs);
@@ -96,7 +103,7 @@ export default function Messages() {
     } catch {
       // Error occurred
     }
-  }, [token]);
+  }, [token, currentUserId]);
 
   useEffect(() => {
     fetchConversations();
