@@ -47,9 +47,8 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
         username: string;
         display_name: string;
         avatar_url: string | null;
-        city: string | null;
       }>(
-        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.city
+        `SELECT u.id, u.username, u.display_name, u.avatar_url
         FROM users u
         WHERE (LOWER(u.username) LIKE $1 OR LOWER(u.display_name) LIKE $1)
           AND u.id != $2
@@ -77,7 +76,6 @@ const socialRoutes: FastifyPluginAsync = async (fastify) => {
           username: u.username,
           displayName: u.display_name,
           avatarUrl: u.avatar_url,
-          city: u.city,
         })),
       });
     } catch (error) {
