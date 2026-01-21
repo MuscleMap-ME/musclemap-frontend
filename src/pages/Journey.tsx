@@ -351,7 +351,7 @@ export default function Journey() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold">{data.totalTU.toLocaleString()}</div>
+              <div className="text-4xl font-bold">{Math.round(data.totalTU).toLocaleString()}</div>
               <div className="text-sm opacity-80">Total TU</div>
             </div>
           </div>
@@ -382,7 +382,7 @@ export default function Journey() {
               <div className="text-xs opacity-80">This Week</div>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold">{data.stats?.weekly?.tu?.toLocaleString() || 0}</div>
+              <div className="text-2xl font-bold">{Math.round(data.stats?.weekly?.tu || 0).toLocaleString()}</div>
               <div className="text-xs opacity-80">Weekly TU</div>
             </div>
           </div>
@@ -410,26 +410,26 @@ export default function Journey() {
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-gray-800 rounded-2xl p-4">
                 <div className="text-sm text-gray-400 mb-2">Weekly</div>
-                <div className="text-2xl font-bold">{data.stats?.weekly?.tu?.toLocaleString() || 0} TU</div>
+                <div className="text-2xl font-bold">{Math.round(data.stats?.weekly?.tu || 0).toLocaleString()} TU</div>
                 <div className="text-sm text-gray-400">{data.stats?.weekly?.workouts || 0} workouts</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Avg {data.stats?.weekly?.avgTuPerWorkout || 0} TU/workout
+                  Avg {Math.round(data.stats?.weekly?.avgTuPerWorkout || 0)} TU/workout
                 </div>
               </div>
               <div className="bg-gray-800 rounded-2xl p-4">
                 <div className="text-sm text-gray-400 mb-2">Monthly</div>
-                <div className="text-2xl font-bold">{data.stats?.monthly?.tu?.toLocaleString() || 0} TU</div>
+                <div className="text-2xl font-bold">{Math.round(data.stats?.monthly?.tu || 0).toLocaleString()} TU</div>
                 <div className="text-sm text-gray-400">{data.stats?.monthly?.workouts || 0} workouts</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Avg {data.stats?.monthly?.avgTuPerWorkout || 0} TU/workout
+                  Avg {Math.round(data.stats?.monthly?.avgTuPerWorkout || 0)} TU/workout
                 </div>
               </div>
               <div className="bg-gray-800 rounded-2xl p-4">
                 <div className="text-sm text-gray-400 mb-2">All Time</div>
-                <div className="text-2xl font-bold">{data.stats?.allTime?.tu?.toLocaleString() || 0} TU</div>
+                <div className="text-2xl font-bold">{Math.round(data.stats?.allTime?.tu || 0).toLocaleString()} TU</div>
                 <div className="text-sm text-gray-400">{data.stats?.allTime?.workouts || 0} workouts</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Avg {data.stats?.allTime?.avgTuPerWorkout || 0} TU/workout
+                  Avg {Math.round(data.stats?.allTime?.avgTuPerWorkout || 0)} TU/workout
                 </div>
               </div>
             </div>
@@ -446,7 +446,7 @@ export default function Journey() {
                       <div
                         className={`w-full rounded-t transition-all ${day.tu > 0 ? 'bg-purple-500' : 'bg-gray-700'}`}
                         style={{ height: `${height}%` }}
-                        title={`${day.date}: ${day.tu} TU (${day.count} workouts)`}
+                        title={`${day.date}: ${Math.round(day.tu)} TU (${day.count} workouts)`}
                       />
                     </div>
                   );

@@ -96,9 +96,15 @@ export default function Rivals() {
         api.get('/rivals/stats'),
       ]);
 
-      setRivals(activeRes.data?.rivals || []);
-      setPendingRivals(pendingRes.data || []);
-      setStats(statsRes.data);
+      // API returns { data: { rivals, stats } } wrapped in { data: response }
+      // So activeRes.data = { data: { rivals, stats } }
+      const activeData = activeRes.data?.data || activeRes.data || {};
+      const pendingData = pendingRes.data?.data || pendingRes.data || [];
+      const statsData = statsRes.data?.data || statsRes.data || {};
+
+      setRivals(activeData.rivals || []);
+      setPendingRivals(Array.isArray(pendingData) ? pendingData : []);
+      setStats(statsData);
     } catch (err) {
       setError(err.message || 'Failed to load rivals data');
     } finally {
@@ -120,7 +126,10 @@ export default function Rivals() {
     setSearching(true);
     try {
       const response = await api.get(`/rivals/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(response.data || []);
+      // API returns { data: users } and api.get wraps in { data: response }
+      // So response.data = { data: users }, need to access response.data.data
+      const users = response.data?.data || response.data || [];
+      setSearchResults(Array.isArray(users) ? users : []);
     } catch (err) {
       console.error('Search failed:', err);
     } finally {
