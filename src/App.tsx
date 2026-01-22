@@ -54,6 +54,8 @@ const Exercises = lazy(() => import('./pages/Exercises'));
 const Stats = lazy(() => import('./pages/Stats'));
 const PersonalRecords = lazy(() => import('./pages/PersonalRecords'));
 const ProgressPhotos = lazy(() => import('./pages/Progress-photos'));
+const WorkoutTemplates = lazy(() => import('./pages/WorkoutTemplates'));
+const BodyMeasurements = lazy(() => import('./pages/BodyMeasurements'));
 
 // Community pages
 const CommunityDashboard = lazy(() => import('./pages/CommunityDashboard'));
@@ -514,6 +516,8 @@ function AppRoutes() {
           <Route path="/stats" element={<ProtectedRoute name="Stats"><Stats /></ProtectedRoute>} />
           <Route path="/personal-records" element={<ProtectedRoute name="PersonalRecords"><PersonalRecords /></ProtectedRoute>} />
           <Route path="/progress-photos" element={<ProtectedRoute name="ProgressPhotos"><ProgressPhotos /></ProtectedRoute>} />
+          <Route path="/templates" element={<ProtectedRoute name="WorkoutTemplates"><WorkoutTemplates /></ProtectedRoute>} />
+          <Route path="/body-measurements" element={<ProtectedRoute name="BodyMeasurements"><BodyMeasurements /></ProtectedRoute>} />
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
           <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
           <Route path="/wellness" element={<ProtectedRoute name="Wellness"><Health /></ProtectedRoute>} />

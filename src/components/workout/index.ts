@@ -49,3 +49,19 @@ export {
   RPETrendsChart,
   RPESummaryCard,
 } from './RPETrendsChart';
+
+// Plate and warmup calculators
+export { PlateCalculator } from './PlateCalculator';
+export { WarmupCalculator } from './WarmupCalculator';
+
+// Stopwatch/timer for timed exercises
+export { Stopwatch } from './Stopwatch';
+
+// Exercise history and progression
+export { ExerciseHistoryGraph } from './ExerciseHistoryGraph';
+
+// Workout notes
+export { WorkoutNotes } from './WorkoutNotes';
+
+// Routine scheduling
+export { RoutineScheduler } from './RoutineScheduler';
