@@ -107,12 +107,40 @@ async function pruneAllStaleData(maxAgeDays) {
 }
 
 /**
+ * Safely open an IndexedDB database
+ * Returns null if the database doesn't exist or can't be opened
+ * This prevents iOS Safari from throwing on non-existent databases
+ */
+async function safeOpenDB(dbName: string, version?: number) {
+  try {
+    // First check if we can access IndexedDB at all
+    if (typeof indexedDB === 'undefined') {
+      return null;
+    }
+
+    // Check if database exists before trying to open with version
+    // This prevents iOS Safari issues with opening non-existent databases
+    const databases = await indexedDB.databases?.() || [];
+    const exists = databases.some(db => db.name === dbName);
+
+    if (!exists) {
+      return null;
+    }
+
+    return await openDB(dbName, version);
+  } catch {
+    // Database doesn't exist or can't be opened
+    return null;
+  }
+}
+
+/**
  * Prune old items from the offline sync queue
  */
 async function pruneOfflineQueue(cutoffDate) {
   try {
-    const db = await openDB('musclemap-offline', 1);
-    if (!db.objectStoreNames.contains('queue')) return;
+    const db = await safeOpenDB('musclemap-offline', 1);
+    if (!db || !db.objectStoreNames.contains('queue')) return;
 
     const tx = db.transaction('queue', 'readwrite');
     const store = tx.objectStore('queue');
@@ -141,8 +169,8 @@ async function pruneWorkoutCache(_maxAgeDays) {
   const MAX_CACHED_WORKOUTS = 100;
 
   try {
-    const db = await openDB('musclemap-cache', 1);
-    if (!db.objectStoreNames.contains('workouts')) return;
+    const db = await safeOpenDB('musclemap-cache', 1);
+    if (!db || !db.objectStoreNames.contains('workouts')) return;
 
     const tx = db.transaction('workouts', 'readwrite');
     const store = tx.objectStore('workouts');
@@ -173,8 +201,8 @@ async function pruneWorkoutCache(_maxAgeDays) {
  */
 async function pruneCacheEntries(cutoffDate) {
   try {
-    const db = await openDB('musclemap-multi-cache', 1);
-    if (!db.objectStoreNames.contains('entries')) return;
+    const db = await safeOpenDB('musclemap-multi-cache', 1);
+    if (!db || !db.objectStoreNames.contains('entries')) return;
 
     const tx = db.transaction('entries', 'readwrite');
     const store = tx.objectStore('entries');
@@ -206,32 +234,36 @@ async function pruneCacheEntries(cutoffDate) {
 export async function clearAllCaches() {
   try {
     // Clear Apollo cache
-    const apolloDb = await openDB('musclemap-apollo-cache', 1);
-    if (apolloDb.objectStoreNames.contains('cache')) {
+    const apolloDb = await safeOpenDB('musclemap-apollo-cache', 1);
+    if (apolloDb?.objectStoreNames.contains('cache')) {
       await apolloDb.clear('cache');
     }
 
     // Clear multi-layer cache
-    const cacheDb = await openDB('musclemap-multi-cache', 1);
-    if (cacheDb.objectStoreNames.contains('entries')) {
+    const cacheDb = await safeOpenDB('musclemap-multi-cache', 1);
+    if (cacheDb?.objectStoreNames.contains('entries')) {
       await cacheDb.clear('entries');
     }
 
     // Clear workout cache
-    const workoutDb = await openDB('musclemap-cache', 1);
-    if (workoutDb.objectStoreNames.contains('workouts')) {
+    const workoutDb = await safeOpenDB('musclemap-cache', 1);
+    if (workoutDb?.objectStoreNames.contains('workouts')) {
       await workoutDb.clear('workouts');
     }
 
     // Clear localStorage cache entries (keep auth)
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('cache:') || key?.startsWith('mm-cache:')) {
-        keysToRemove.push(key);
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('cache:') || key?.startsWith('mm-cache:')) {
+          keysToRemove.push(key);
+        }
       }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // localStorage may not be available
     }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
 
     return true;
   } catch {
@@ -243,7 +275,7 @@ export async function clearAllCaches() {
  * Get detailed storage breakdown by database
  */
 export async function getStorageBreakdown() {
-  const breakdown = {};
+  const breakdown: Record<string, { itemCount: number; sizeBytes: number; sizeMB: string }> = {};
 
   const dbNames = [
     'musclemap-apollo-cache',
@@ -254,7 +286,12 @@ export async function getStorageBreakdown() {
 
   for (const dbName of dbNames) {
     try {
-      const db = await openDB(dbName, 1);
+      const db = await safeOpenDB(dbName, 1);
+      if (!db) {
+        breakdown[dbName] = { itemCount: 0, sizeBytes: 0, sizeMB: '0' };
+        continue;
+      }
+
       let totalSize = 0;
       let itemCount = 0;
 
@@ -282,19 +319,24 @@ export async function getStorageBreakdown() {
   }
 
   // LocalStorage
-  let lsSize = 0;
-  let lsCount = 0;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    const value = localStorage.getItem(key);
-    lsSize += (key?.length || 0) + (value?.length || 0);
-    lsCount++;
+  try {
+    let lsSize = 0;
+    let lsCount = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key!);
+      lsSize += (key?.length || 0) + (value?.length || 0);
+      lsCount++;
+    }
+    breakdown['localStorage'] = {
+      itemCount: lsCount,
+      sizeBytes: lsSize * 2, // UTF-16
+      sizeMB: ((lsSize * 2) / (1024 * 1024)).toFixed(2),
+    };
+  } catch {
+    // localStorage may not be available
+    breakdown['localStorage'] = { itemCount: 0, sizeBytes: 0, sizeMB: '0' };
   }
-  breakdown['localStorage'] = {
-    itemCount: lsCount,
-    sizeBytes: lsSize * 2, // UTF-16
-    sizeMB: ((lsSize * 2) / (1024 * 1024)).toFixed(2),
-  };
 
   return breakdown;
 }
