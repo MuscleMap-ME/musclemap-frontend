@@ -190,31 +190,37 @@ export function ChallengeCard({
 }) {
   const reducedMotion = useReducedMotion();
 
+  // Extract challenge properties with defaults
   const {
-    type,
-    difficulty,
-    description,
-    currentProgress,
-    target,
-    isComplete,
-    isClaimed,
-    percentage,
-    rewards,
-  } = challenge;
+    type = '',
+    difficulty = DIFFICULTY.EASY,
+    description = '',
+    currentProgress = 0,
+    target = 0,
+    isComplete = false,
+    isClaimed = false,
+    percentage = 0,
+    rewards = null,
+  } = challenge || {};
 
-  // Determine progress bar variant
+  // Determine progress bar variant - must be called before any early returns
   const progressVariant = useMemo(() => {
     if (isComplete) return 'success';
     if (difficulty === DIFFICULTY.HARD) return 'pulse';
     return 'brand';
   }, [isComplete, difficulty]);
 
-  // Handle claim click
+  // Handle claim click - must be called before any early returns
   const handleClaim = useCallback(() => {
     if (isComplete && !isClaimed) {
       onClaimReward?.();
     }
   }, [isComplete, isClaimed, onClaimReward]);
+
+  // Early return if challenge is invalid
+  if (!challenge || !type) {
+    return null;
+  }
 
   return (
     <motion.div

@@ -908,9 +908,11 @@ const navSections = [
     items: [
       { to: '/dashboard', icon: Icons.Home, label: 'Overview', active: true },
       { to: '/workout', icon: Icons.Play, label: 'Train' },
+      { to: '/templates', icon: Icons.Clipboard, label: 'Templates', badge: 'New' },
       { to: '/journey', icon: Icons.Journey, label: 'Journey' },
       { to: '/exercises', icon: Icons.Library, label: 'Exercises' },
       { to: '/progression', icon: Icons.Chart, label: 'Progress' },
+      { to: '/body-measurements', icon: Icons.Target, label: 'Body Stats', badge: 'New' },
       { to: '/stats', icon: Icons.Target, label: 'Stats' },
       { to: '/wellness', icon: Icons.Heart, label: 'Wellness' },
       { to: '/goals', icon: Icons.Goal, label: 'Goals' },

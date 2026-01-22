@@ -147,7 +147,7 @@ export default function Rivals() {
   // Challenge user
   const handleChallenge = async (userId) => {
     // Optimistically remove user from search results to prevent duplicate challenges
-    setSearchResults((prev) => prev.filter((u) => u.id !== userId));
+    setSearchResults((prev) => (Array.isArray(prev) ? prev.filter((u) => u.id !== userId) : []));
 
     try {
       await api.post('/rivals/challenge', { opponentId: userId });
@@ -294,7 +294,7 @@ export default function Rivals() {
                 )}
 
                 <div className="space-y-2">
-                  {searchResults.map((result) => (
+                  {(Array.isArray(searchResults) ? searchResults : []).map((result) => (
                     <div key={result.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
@@ -329,7 +329,7 @@ export default function Rivals() {
         </GlassCard>
 
         {/* Pending Requests */}
-        {pendingRivals.length > 0 && (
+        {Array.isArray(pendingRivals) && pendingRivals.length > 0 && (
           <GlassCard className="p-6 border border-yellow-500/30">
             <h3 className="text-xl font-bold text-white mb-4">Pending Requests</h3>
             <div className="space-y-3">
@@ -376,7 +376,7 @@ export default function Rivals() {
         <div className="space-y-3">
           <h3 className="text-xl font-bold text-white">Active Rivalries</h3>
 
-          {rivals.length === 0 ? (
+          {!Array.isArray(rivals) || rivals.length === 0 ? (
             <GlassCard className="p-8 text-center">
               <Icons.Swords className="w-12 h-12 text-white/30 mx-auto mb-4" />
               <p className="text-white/50">

@@ -24,9 +24,33 @@ import {
   DEFAULT_PROGRESS,
   getTimeUntilMidnight,
   isToday,
+  CHALLENGE_TYPES,
 } from './challengeDefinitions';
 
 const STORAGE_KEY = 'musclemap_daily_challenges';
+
+/**
+ * Reconstruct challenge type reference from typeId
+ * When challenges are loaded from localStorage, the `type` property
+ * (which is a reference to CHALLENGE_TYPES) may be missing or incomplete.
+ * This function reconstructs it from the typeId.
+ * @param {Object} challenge - Challenge object from localStorage
+ * @returns {Object} Challenge with reconstructed type reference
+ */
+function reconstructChallengeType(challenge) {
+  if (!challenge || !challenge.typeId) return challenge;
+
+  // Find the matching challenge type by typeId
+  const challengeType = Object.values(CHALLENGE_TYPES).find(
+    (ct) => ct.id === challenge.typeId
+  );
+
+  if (challengeType) {
+    return { ...challenge, type: challengeType };
+  }
+
+  return challenge;
+}
 
 /**
  * Get stored challenge state from localStorage
@@ -42,6 +66,11 @@ function getStoredState() {
     // Check if stored state is from today
     if (!isToday(state.date)) {
       return null; // Expired, will regenerate
+    }
+
+    // Reconstruct type references for challenges loaded from localStorage
+    if (state.challenges && Array.isArray(state.challenges)) {
+      state.challenges = state.challenges.map(reconstructChallengeType);
     }
 
     return state;
@@ -134,15 +163,18 @@ export function useDailyChallenges({
   // Compute challenge completion status
   const challengeStatus = useMemo(() => {
     return state.challenges.map((challenge) => {
-      const currentProgress = state.progress[challenge.type.trackingKey] || 0;
-      const isComplete = currentProgress >= challenge.target;
+      // Safely access trackingKey with fallback
+      const trackingKey = challenge.type?.trackingKey;
+      const currentProgress = trackingKey ? (state.progress[trackingKey] || 0) : 0;
+      const target = challenge.target || 1; // Prevent division by zero
+      const isComplete = currentProgress >= target;
       const isClaimed = state.claimed[challenge.id] || false;
       return {
         ...challenge,
         currentProgress,
         isComplete,
         isClaimed,
-        percentage: Math.min(100, (currentProgress / challenge.target) * 100),
+        percentage: Math.min(100, (currentProgress / target) * 100),
       };
     });
   }, [state.challenges, state.progress, state.claimed]);

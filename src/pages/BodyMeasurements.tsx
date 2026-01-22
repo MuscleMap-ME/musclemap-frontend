@@ -275,6 +275,31 @@ export default function BodyMeasurements() {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Tips Banner */}
+        {measurements.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 rounded-xl p-4"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">📏</span>
+              <div>
+                <h3 className="font-medium text-white mb-1">Track Your Body Transformation</h3>
+                <p className="text-sm text-gray-300">
+                  Measure consistently (weekly or bi-weekly) at the same time of day for accurate progress tracking.
+                  Track more than just weight - circumferences show muscle growth!
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3 text-xs">
+                  <span className="px-2 py-1 bg-white/10 rounded-lg">⏰ Measure in the morning</span>
+                  <span className="px-2 py-1 bg-white/10 rounded-lg">📊 Compare over 30+ days</span>
+                  <span className="px-2 py-1 bg-white/10 rounded-lg">💪 Track arm & leg gains</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3, 4].map((i) => (

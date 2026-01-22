@@ -137,7 +137,7 @@ export function useChallenges({
    */
   const getChallengesByCategory = useCallback(
     (category) => {
-      return challenges.filter((c) => c.type.category === category);
+      return challenges.filter((c) => c.type?.category === category);
     },
     [challenges]
   );

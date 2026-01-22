@@ -392,6 +392,33 @@ export default function WorkoutTemplates() {
           </div>
         </div>
 
+        {/* Tips Banner - First time users */}
+        {myTemplates.length === 0 && activeTab === 'my' && (
+          <div className="max-w-6xl mx-auto px-4 pb-4">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">💡</span>
+                <div>
+                  <h3 className="font-medium text-white mb-1">Welcome to Workout Templates!</h3>
+                  <p className="text-sm text-gray-300">
+                    Create reusable workout routines to save time. Click <strong>Create</strong> to build your first template,
+                    or browse <strong>Discover</strong> to find popular routines from the community.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3 text-xs">
+                    <span className="px-2 py-1 bg-white/10 rounded-lg">✨ Save your favorite workout splits</span>
+                    <span className="px-2 py-1 bg-white/10 rounded-lg">🔄 Reuse with one tap</span>
+                    <span className="px-2 py-1 bg-white/10 rounded-lg">📤 Share with friends</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Search & Filters */}
         <div className="max-w-6xl mx-auto px-4 pb-4">
           <div className="flex gap-2">

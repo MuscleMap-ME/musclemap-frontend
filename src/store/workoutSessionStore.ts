@@ -1029,12 +1029,12 @@ export const useWorkoutMetrics = () => {
   const getSessionDuration = useWorkoutSessionStore((s) => s.getSessionDuration);
 
   return {
-    totalVolume,
-    totalReps,
-    estimatedCalories,
-    musclesWorked: Array.from(musclesWorked),
-    totalSets: sets.length,
-    duration: getSessionDuration(),
+    totalVolume: totalVolume || 0,
+    totalReps: totalReps || 0,
+    estimatedCalories: estimatedCalories || 0,
+    musclesWorked: musclesWorked instanceof Set ? Array.from(musclesWorked) : [],
+    totalSets: Array.isArray(sets) ? sets.length : 0,
+    duration: typeof getSessionDuration === 'function' ? getSessionDuration() : 0,
   };
 };
 
@@ -1046,15 +1046,19 @@ export const useCurrentExercise = () => {
   const previousExercise = useWorkoutSessionStore((s) => s.previousExercise);
   const getCurrentExerciseSets = useWorkoutSessionStore((s) => s.getCurrentExerciseSets);
 
+  // Ensure exercises is always an array (handles corrupted state)
+  const safeExercises = Array.isArray(exercises) ? exercises : [];
+  const safeIndex = typeof currentExerciseIndex === 'number' ? currentExerciseIndex : 0;
+
   return {
     exercise: currentExercise,
-    index: currentExerciseIndex,
-    total: exercises.length,
-    hasNext: currentExerciseIndex < exercises.length - 1,
-    hasPrevious: currentExerciseIndex > 0,
-    next: nextExercise,
-    previous: previousExercise,
-    sets: getCurrentExerciseSets(),
+    index: safeIndex,
+    total: safeExercises.length,
+    hasNext: safeIndex < safeExercises.length - 1,
+    hasPrevious: safeIndex > 0,
+    next: typeof nextExercise === 'function' ? nextExercise : () => {},
+    previous: typeof previousExercise === 'function' ? previousExercise : () => {},
+    sets: typeof getCurrentExerciseSets === 'function' ? getCurrentExerciseSets() : [],
   };
 };
 

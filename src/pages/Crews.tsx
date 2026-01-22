@@ -565,7 +565,7 @@ export default function Crews() {
           </div>
 
           <div className="space-y-2">
-            {leaderboard.slice(0, 10).map((entry) => (
+            {(Array.isArray(leaderboard) ? leaderboard : []).slice(0, 10).map((entry) => (
               <motion.div
                 key={entry.crew?.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"

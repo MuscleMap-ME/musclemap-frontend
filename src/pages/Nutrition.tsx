@@ -246,9 +246,12 @@ export default function Nutrition() {
   const enabled = useNutritionEnabled();
   const goals = useNutritionGoals();
   const summary = useTodaysSummary();
-  const meals = useTodaysMeals();
+  const rawMeals = useTodaysMeals();
   const streaks = useNutritionStreaks();
   const archetypeProfile = useArchetypeProfile();
+
+  // Ensure meals is always an array (handles case when store data is corrupted)
+  const meals = Array.isArray(rawMeals) ? rawMeals : [];
 
   const { load, isLoading: _isLoading } = useNutritionDashboard();
   const { deleteMeal } = useMealLog();

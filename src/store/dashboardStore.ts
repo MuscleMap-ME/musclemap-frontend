@@ -236,13 +236,13 @@ export const useDashboardStore = create<DashboardState>()(
 
         removeWidget: (id) => {
           set((s) => ({
-            widgets: s.widgets.filter((w) => w.id !== id),
+            widgets: (Array.isArray(s.widgets) ? s.widgets : DEFAULT_WIDGETS).filter((w) => w.id !== id),
           }));
         },
 
         updateWidget: (id, updates) => {
           set((s) => ({
-            widgets: s.widgets.map((w) =>
+            widgets: (Array.isArray(s.widgets) ? s.widgets : DEFAULT_WIDGETS).map((w) =>
               w.id === id ? { ...w, ...updates } : w
             ),
           }));
@@ -250,7 +250,7 @@ export const useDashboardStore = create<DashboardState>()(
 
         moveWidget: (id, x, y) => {
           set((s) => ({
-            widgets: s.widgets.map((w) =>
+            widgets: (Array.isArray(s.widgets) ? s.widgets : DEFAULT_WIDGETS).map((w) =>
               w.id === id ? { ...w, x, y } : w
             ),
           }));
@@ -342,7 +342,7 @@ export const useDashboardStore = create<DashboardState>()(
  * Hook for dashboard layout management
  */
 export const useDashboardLayout = () => {
-  const widgets = useDashboardStore((s) => s.widgets);
+  const rawWidgets = useDashboardStore((s) => s.widgets);
   const isEditMode = useDashboardStore((s) => s.isEditMode);
   const columns = useDashboardStore((s) => s.columns);
   const rowHeight = useDashboardStore((s) => s.rowHeight);
@@ -351,6 +351,9 @@ export const useDashboardLayout = () => {
   const updateLayout = useDashboardStore((s) => s.updateLayout);
   const saveLayout = useDashboardStore((s) => s.saveLayout);
   const resetToDefault = useDashboardStore((s) => s.resetToDefault);
+
+  // Ensure widgets is always an array (handles corrupted localStorage)
+  const widgets = Array.isArray(rawWidgets) ? rawWidgets : DEFAULT_WIDGETS;
 
   // Get only visible widgets
   const visibleWidgets = widgets.filter((w) => w.visible);
@@ -382,14 +385,18 @@ export const useDashboardLayout = () => {
  * Hook for managing individual widgets
  */
 export const useWidgetManager = () => {
-  const widgets = useDashboardStore((s) => s.widgets);
-  const availableWidgets = useDashboardStore((s) => s.availableWidgets);
+  const rawWidgets = useDashboardStore((s) => s.widgets);
+  const rawAvailableWidgets = useDashboardStore((s) => s.availableWidgets);
 
   const addWidget = useDashboardStore((s) => s.addWidget);
   const removeWidget = useDashboardStore((s) => s.removeWidget);
   const toggleVisibility = useDashboardStore((s) => s.toggleWidgetVisibility);
   const updateSettings = useDashboardStore((s) => s.updateWidgetSettings);
   const loadAvailable = useDashboardStore((s) => s.loadAvailableWidgets);
+
+  // Ensure arrays are always valid (handles corrupted localStorage)
+  const widgets = Array.isArray(rawWidgets) ? rawWidgets : DEFAULT_WIDGETS;
+  const availableWidgets = Array.isArray(rawAvailableWidgets) ? rawAvailableWidgets : [];
 
   // Get widgets that are not currently in layout
   const unusedWidgets = availableWidgets.filter(

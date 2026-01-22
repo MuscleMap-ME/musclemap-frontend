@@ -11,6 +11,11 @@ import {
   ExerciseSubstitutionPicker,
   SessionRecoveryModal,
   FloatingRestTimer,
+  PlateCalculator,
+  WarmupCalculator,
+  Stopwatch,
+  WorkoutNotes,
+  ExerciseHistoryGraph,
 } from '../components/workout';
 import { useWorkoutSessionGraphQL } from '../hooks/useWorkoutSessionGraphQL';
 import type { RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
@@ -169,6 +174,113 @@ const CATEGORY = {
   machine: { c: 'from-gray-500 to-gray-700' },
   cable: { c: 'from-purple-500 to-pink-500' },
   default: { c: 'from-gray-600 to-gray-700' }
+};
+
+// Workout Tools Panel - Collapsible panel with plate calculator, warmup sets, stopwatch, notes, and history
+interface WorkoutToolsPanelProps {
+  currentExercise?: {
+    id?: string;
+    exerciseId?: string;
+    name?: string;
+    sets?: number;
+    reps?: number | string;
+  } | null;
+  onWeightCalculated?: (weight: number) => void;
+}
+
+type WorkoutTool = 'plates' | 'warmup' | 'timer' | 'notes' | 'history';
+
+const WorkoutToolsPanel: React.FC<WorkoutToolsPanelProps> = ({ currentExercise, onWeightCalculated }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTool, setActiveTool] = useState<WorkoutTool>('plates');
+
+  const tools: { id: WorkoutTool; label: string; icon: string; description: string }[] = [
+    { id: 'plates', label: 'Plates', icon: '🔢', description: 'Calculate plates needed' },
+    { id: 'warmup', label: 'Warmup', icon: '🔥', description: 'Generate warmup sets' },
+    { id: 'timer', label: 'Timer', icon: '⏱️', description: 'Stopwatch & countdown' },
+    { id: 'notes', label: 'Notes', icon: '📝', description: 'Session notes' },
+    { id: 'history', label: 'History', icon: '📊', description: 'Exercise progress' },
+  ];
+
+  return (
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden mb-6 border border-white/5">
+      {/* Header - always visible */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-3 flex items-center justify-between text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="text-2xl">🛠️</div>
+          <div>
+            <div className="text-sm font-medium text-white">Workout Tools</div>
+            <div className="text-xs text-gray-400">
+              Plate calculator, warmup sets, timer & more
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full">New</span>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="p-4 pt-0">
+          {/* Tool tabs */}
+          <div className="flex gap-1 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+            {tools.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => setActiveTool(tool.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm whitespace-nowrap transition-all ${
+                  activeTool === tool.id
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                }`}
+                title={tool.description}
+              >
+                <span>{tool.icon}</span>
+                <span>{tool.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tool content */}
+          <div className="bg-gray-900/50 rounded-xl p-4">
+            {activeTool === 'plates' && (
+              <PlateCalculator onWeightCalculated={onWeightCalculated} />
+            )}
+            {activeTool === 'warmup' && (
+              <WarmupCalculator workingWeight={135} />
+            )}
+            {activeTool === 'timer' && (
+              <Stopwatch />
+            )}
+            {activeTool === 'notes' && (
+              <WorkoutNotes workoutId={`workout-${Date.now()}`} />
+            )}
+            {activeTool === 'history' && currentExercise?.id && (
+              <ExerciseHistoryGraph exerciseId={currentExercise.id} exerciseName={currentExercise.name || 'Exercise'} />
+            )}
+            {activeTool === 'history' && !currentExercise?.id && (
+              <div className="text-center text-gray-400 py-8">
+                <div className="text-4xl mb-2">📊</div>
+                <p>Select an exercise to view history</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function Workout() {
@@ -949,6 +1061,15 @@ export default function Workout() {
             )}
           </div>
 
+          {/* Workout Tools Panel - Collapsible */}
+          <WorkoutToolsPanel
+            currentExercise={currentExercise}
+            onWeightCalculated={(weight) => {
+              // Can be used to pre-fill weight in set logger
+              console.log('Calculated weight:', weight);
+            }}
+          />
+
           {/* Workout Summary */}
           <div className="bg-gray-800 rounded-2xl p-4 mb-6">
             <div className="flex justify-between text-sm text-gray-400 mb-2">
@@ -1273,6 +1394,12 @@ export default function Workout() {
       </header>
 
       <main className="max-w-5xl mx-auto p-4">
+        {/* Workout Tools Panel */}
+        <WorkoutToolsPanel
+          currentExercise={adding}
+          onWeightCalculated={(w) => setWeight(w)}
+        />
+
         {logged.length > 0 && (
           <div className="mb-6">
             <h2 className="text-sm text-gray-400 mb-2 uppercase">Today&apos;s Workout</h2>

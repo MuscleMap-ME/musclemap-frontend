@@ -49,10 +49,7 @@ export default function AICoach({
 }) {
   const location = useLocation();
 
-  // Hide on certain pages where the floating widget would overlap with important UI
-  if (HIDDEN_ON_PATHS.includes(location.pathname)) {
-    return null;
-  }
+  // All hooks MUST be called before any early returns (React rules of hooks)
   const {
     messages,
     isTyping,
@@ -75,6 +72,11 @@ export default function AICoach({
   const isControlled = externalCollapsed !== undefined;
   const isOpen = isControlled ? !externalCollapsed : internalIsOpen;
 
+  const [inputValue, setInputValue] = useState('');
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const chatRef = useRef(null);
+
   // Memoized toggle handler that respects external control
   const handleToggle = useCallback(() => {
     if (onToggle) {
@@ -95,10 +97,19 @@ export default function AICoach({
     }
   }, [onToggle, isControlled, internalCloseChat]);
 
-  const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const chatRef = useRef(null);
+  // Handle message submission
+  const handleSubmit = useCallback((e) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      sendMessage(inputValue.trim());
+      setInputValue('');
+    }
+  }, [inputValue, sendMessage]);
+
+  // Handle quick action click
+  const onQuickActionClick = useCallback((actionId) => {
+    handleQuickAction(actionId);
+  }, [handleQuickAction]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -140,19 +151,11 @@ export default function AICoach({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, handleClose, placement]);
 
-  // Handle message submission
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-    if (inputValue.trim()) {
-      sendMessage(inputValue.trim());
-      setInputValue('');
-    }
-  }, [inputValue, sendMessage]);
-
-  // Handle quick action click
-  const onQuickActionClick = useCallback((actionId) => {
-    handleQuickAction(actionId);
-  }, [handleQuickAction]);
+  // Hide on certain pages where the floating widget would overlap with important UI
+  // This check MUST come after all hook calls
+  if (HIDDEN_ON_PATHS.includes(location.pathname)) {
+    return null;
+  }
 
   // Position classes for floating placement
   const floatingPositionClasses = {
