@@ -147,6 +147,9 @@ import { registerVenuesRoutes } from './routes/venues';
 // Deployment management (for Claude Code remote deploys)
 import { registerDeploymentRoutes } from './routes/deployment';
 
+// Public plain text documentation (for AI assistants and screen readers)
+import { registerDocsPlainRoutes } from './routes/docs-plain';
+
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
 
@@ -445,6 +448,10 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Initialize PubSub for GraphQL subscriptions
   await initializePubSub();
+
+  // Public plain text documentation (for AI assistants and screen readers)
+  // No auth required - accessible at /docs-plain/
+  registerDocsPlainRoutes(app as unknown as FastifyInstance);
 
   // GraphQL endpoint (at /api/graphql)
   await app.register(async (gql) => {
