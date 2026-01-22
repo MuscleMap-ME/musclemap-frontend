@@ -437,8 +437,8 @@ export default function Workout() {
   const currentEquipmentOptions = EQUIPMENT_BY_LOCATION[selectedLocation] || DEFAULT_EQUIPMENT_OPTIONS;
 
   // Get all exercises from prescription (main + warmup + cooldown)
-  // Moved here so it can be used in useMemo
-  const getAllPrescribedExercises = () => {
+  // Wrapped in useCallback so it can be used in other useCallback hooks
+  const getAllPrescribedExercises = useCallback(() => {
     if (!prescription) return [];
     const all: Array<{
       id?: string;
@@ -460,7 +460,7 @@ export default function Workout() {
     if (prescription.exercises) all.push(...prescription.exercises.map((e: unknown) => ({ ...(e as object), phase: 'main' })));
     if (prescription.cooldown) all.push(...prescription.cooldown.map((e: unknown) => ({ ...(e as object), phase: 'cooldown' })));
     return all;
-  };
+  }, [prescription]);
 
   // Compute cumulative muscle activation from logged exercises
   const cumulativeMuscleActivations = useMemo((): MuscleActivation[] => {
@@ -625,6 +625,25 @@ export default function Workout() {
       return [...prev, goal];
     });
   };
+
+  // Start session from current prescription (for when exercises exist but no session)
+  const handleStartSessionNow = useCallback(async () => {
+    if (!prescription) return;
+
+    const allExercises = getAllPrescribedExercises();
+    const exercises = allExercises
+      .filter(e => e.id || e.exerciseId)
+      .map(e => ({
+        exerciseId: e.id || e.exerciseId,
+        name: e.name,
+        plannedSets: e.sets || 3,
+        plannedReps: typeof e.reps === 'number' ? e.reps : 10,
+      }));
+
+    if (exercises.length > 0) {
+      await startSession(exercises);
+    }
+  }, [prescription, getAllPrescribedExercises, startSession]);
 
   // Ref to prevent race conditions during workout completion
   const completingRef = useRef(false);
@@ -1161,6 +1180,7 @@ export default function Workout() {
                 exerciseName={currentExercise.name}
                 suggestedSets={currentExercise.sets || 3}
                 suggestedReps={typeof currentExercise.reps === 'number' ? currentExercise.reps : 10}
+                onStartSession={handleStartSessionNow}
                 onSetLogged={(set) => {
                   // Update logged exercises with TU from server
                   setLogged(prev => {

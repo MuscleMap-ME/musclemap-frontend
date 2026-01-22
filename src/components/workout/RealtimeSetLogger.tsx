@@ -116,6 +116,7 @@ interface RealtimeSetLoggerProps {
   suggestedReps?: number;
   onSetLogged?: (set: LoggedSet) => void;
   onAllSetsComplete?: () => void;
+  onStartSession?: () => void;
   compact?: boolean;
 }
 
@@ -126,6 +127,7 @@ export function RealtimeSetLogger({
   suggestedReps = 10,
   onSetLogged,
   onAllSetsComplete,
+  onStartSession,
   compact = false,
 }: RealtimeSetLoggerProps) {
   // Toast hook for user feedback
@@ -288,11 +290,20 @@ export function RealtimeSetLogger({
       <div className="space-y-3">
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm text-yellow-200 font-medium">No Active Session</p>
             <p className="text-xs text-yellow-400/80 mt-1">
               Please start a new workout to log your sets. Use the &quot;Generate Workout&quot; button or go back and start fresh.
             </p>
+            {onStartSession && (
+              <button
+                onClick={onStartSession}
+                className="mt-3 flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                Start Session Now
+              </button>
+            )}
           </div>
         </div>
       </div>

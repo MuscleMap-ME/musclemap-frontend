@@ -1,1 +1,0 @@
-import{au as o,av as s,aw as r}from"./index-DMkbA-AJ.js";const i=()=>o(),u=()=>{r.getState().logout()},c=()=>s(),d=async(a,t={})=>{const n={...t.headers,...c(),"Content-Type":"application/json"},e=await fetch(a,{...t,headers:n});return e.status===401&&(u(),typeof window<"u"&&(window.location.href="/login")),e};export{d as a,i as g};
