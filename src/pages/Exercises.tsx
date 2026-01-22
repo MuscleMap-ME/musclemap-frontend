@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -622,6 +622,22 @@ export default function Exercises() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' | 'list' | 'muscle'
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]); // For muscle-first discovery
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const shouldFocusSearch = useRef(false);
+
+  // Restore focus to search input after view mode changes
+  useEffect(() => {
+    if (shouldFocusSearch.current && searchInputRef.current) {
+      // Small delay to ensure the new input is mounted and ready
+      requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+        // Move cursor to end of input
+        const len = searchInputRef.current?.value.length || 0;
+        searchInputRef.current?.setSelectionRange(len, len);
+        shouldFocusSearch.current = false;
+      });
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     fetch('/api/exercises')
@@ -936,11 +952,15 @@ export default function Exercises() {
                     <Icons.Search />
                   </div>
                   <input
+                    ref={viewMode === 'categories' ? searchInputRef : undefined}
                     type="text"
                     value={search}
                     onChange={e => {
                       setSearch(e.target.value);
-                      if (e.target.value) setViewMode('list');
+                      if (e.target.value) {
+                        shouldFocusSearch.current = true;
+                        setViewMode('list');
+                      }
                     }}
                     placeholder="Search all exercises..."
                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-all"
@@ -959,6 +979,7 @@ export default function Exercises() {
                   <Icons.Search />
                 </div>
                 <input
+                  ref={viewMode === 'list' ? searchInputRef : undefined}
                   type="text"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
