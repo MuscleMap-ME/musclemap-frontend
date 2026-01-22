@@ -296,13 +296,25 @@ export function useWorkoutSessionGraphQL() {
   const startSession = useCallback(
     async (workoutPlan?: any, clientId?: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
       try {
-        const { data, errors } = await startSessionMutation({
+        console.log('[WorkoutSession] Starting session with workoutPlan:', workoutPlan ? 'provided' : 'none');
+
+        const result = await startSessionMutation({
           variables: {
             input: workoutPlan ? { workoutPlan, clientId } : undefined,
           },
         });
 
+        console.log('[WorkoutSession] Mutation result:', {
+          hasData: !!result.data,
+          hasErrors: !!result.errors?.length,
+          dataKeys: result.data ? Object.keys(result.data) : [],
+          errors: result.errors,
+        });
+
+        const { data, errors } = result;
+
         if (errors?.length) {
+          console.error('[WorkoutSession] GraphQL errors:', errors);
           return {
             success: false,
             error: errors[0]?.message || 'Failed to start session',
@@ -310,6 +322,7 @@ export function useWorkoutSessionGraphQL() {
         }
 
         if (data?.startWorkoutSession?.session) {
+          console.log('[WorkoutSession] Session created:', data.startWorkoutSession.session.id);
           await refetchActiveSession();
           return {
             success: true,
@@ -317,12 +330,20 @@ export function useWorkoutSessionGraphQL() {
           };
         }
 
+        // More detailed error for debugging
+        console.error('[WorkoutSession] No session in response:', {
+          data,
+          startWorkoutSession: data?.startWorkoutSession,
+        });
+
         return {
           success: false,
-          error: 'Failed to start session',
+          error: data?.startWorkoutSession
+            ? 'Session was not created (no session data returned)'
+            : 'Server returned empty response',
         };
       } catch (error) {
-        console.error('Failed to start workout session:', error);
+        console.error('[WorkoutSession] Exception during startSession:', error);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
