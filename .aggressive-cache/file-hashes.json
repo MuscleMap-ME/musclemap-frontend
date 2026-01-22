@@ -573,7 +573,7 @@
   "src/pages/Wallet.tsx": "f685142c4eb7d8c789264be1af01d09e",
   "src/pages/WitnessAttestation.tsx": "677d3086b6a74b27e68b19b4dde8bd15",
   "src/pages/Workout.tsx": "1c40e170aba2dc026f4b5e462d1db96f",
-  "src/pages/WorkoutTemplates.tsx": "eda0a1b48d30607bf9ce96dbebad1d19",
+  "src/pages/WorkoutTemplates.tsx": "177a003b844416312a7473e9798922d9",
   "src/pages/dev/AnatomyViewer.tsx": "8ca652efcd9366ae5a4525e78f24cae1",
   "src/plugins/EventBus.ts": "d83672eb7911185ce61aea6cf587ae76",
   "src/plugins/HookRegistry.ts": "1b7cd64910bcd81c0b5cfb1c15dfed97",

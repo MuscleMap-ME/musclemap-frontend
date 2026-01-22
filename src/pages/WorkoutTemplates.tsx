@@ -37,6 +37,7 @@ import {
 import { useAuth } from '../store/authStore';
 import { useToast } from '../hooks';
 import api from '../utils/api';
+import { clearRequestCache } from '@musclemap/client';
 import { PullToRefresh } from '../components/mobile';
 import { haptic } from '../utils/haptics';
 
@@ -194,6 +195,7 @@ export default function WorkoutTemplates() {
     try {
       await api.post(`/templates/${templateId}/save`);
       toast('Template saved!');
+      clearRequestCache();
       fetchSavedTemplates();
     } catch (_err) {
       showError('Failed to save template');
@@ -204,7 +206,9 @@ export default function WorkoutTemplates() {
     try {
       await api.delete(`/templates/${templateId}/save`);
       toast('Template removed from saved');
-      fetchSavedTemplates();
+      // Optimistically remove from local state
+      setSavedTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      clearRequestCache();
     } catch (_err) {
       showError('Failed to unsave template');
     }
@@ -214,6 +218,7 @@ export default function WorkoutTemplates() {
     try {
       await api.post(`/templates/${templateId}/clone`);
       toast('Template cloned to your templates!');
+      clearRequestCache();
       fetchMyTemplates();
       setActiveTab('my');
     } catch (_err) {
@@ -226,7 +231,10 @@ export default function WorkoutTemplates() {
     try {
       await api.delete(`/templates/${templateId}`);
       toast('Template deleted');
-      fetchMyTemplates();
+      // Optimistically remove from local state immediately
+      setMyTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      // Clear request cache to ensure fresh data on next fetch
+      clearRequestCache();
     } catch (_err) {
       showError('Failed to delete template');
     }
@@ -279,6 +287,7 @@ export default function WorkoutTemplates() {
         tags: [],
         isPublic: false,
       });
+      clearRequestCache();
       fetchMyTemplates();
       setActiveTab('my');
     } catch (_err) {
