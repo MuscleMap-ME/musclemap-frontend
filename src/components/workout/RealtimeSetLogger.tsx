@@ -23,21 +23,81 @@ import {
   RefreshCw,
   Dumbbell,
   AlertCircle,
+  Timer,
+  Play,
+  Info,
 } from 'lucide-react';
 import { useWorkoutSessionGraphQL } from '../../hooks/useWorkoutSessionGraphQL';
-import { useToast } from '../../hooks';
+import { useToast, useRestTimer } from '../../hooks';
 import type { LoggedSet, MuscleActivation, ExerciseHistory } from '../../hooks/useWorkoutSessionGraphQL';
+
+// Simple tooltip component
+function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
+  const [show, setShow] = React.useState(false);
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow(true)}
+      onTouchEnd={() => setTimeout(() => setShow(false), 2000)}
+    >
+      {children}
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-gray-200 bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-nowrap max-w-[200px] text-center"
+            style={{ whiteSpace: 'normal' }}
+          >
+            {content}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // Set tag types
 type SetTag = 'warmup' | 'working' | 'failure' | 'drop' | 'amrap';
 
-// Tag configuration
-const TAG_CONFIG: Record<SetTag, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
-  warmup: { label: 'Warmup', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Flame },
-  working: { label: 'Working', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: Target },
-  failure: { label: 'Failure', color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: Zap },
-  drop: { label: 'Drop', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: ChevronDown },
-  amrap: { label: 'AMRAP', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: TrendingUp },
+// Tag configuration with tooltips
+const TAG_CONFIG: Record<SetTag, { label: string; color: string; icon: React.ComponentType<{ className?: string }>; tooltip: string }> = {
+  warmup: {
+    label: 'Warmup',
+    color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    icon: Flame,
+    tooltip: 'Light weight to prepare muscles and joints before working sets',
+  },
+  working: {
+    label: 'Working',
+    color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    icon: Target,
+    tooltip: 'Main sets at your target weight for building strength/muscle',
+  },
+  failure: {
+    label: 'Failure',
+    color: 'bg-red-500/20 text-red-400 border-red-500/30',
+    icon: Zap,
+    tooltip: 'Pushed until you cannot complete another rep with good form',
+  },
+  drop: {
+    label: 'Drop',
+    color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    icon: ChevronDown,
+    tooltip: 'Reduced weight immediately after a set with no rest',
+  },
+  amrap: {
+    label: 'AMRAP',
+    color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    icon: TrendingUp,
+    tooltip: 'As Many Reps As Possible - max effort set',
+  },
 };
 
 // RIR options
@@ -70,6 +130,9 @@ export function RealtimeSetLogger({
 }: RealtimeSetLoggerProps) {
   // Toast hook for user feedback
   const { error: showError } = useToast();
+
+  // Rest timer hook
+  const restTimer = useRestTimer();
 
   // Local state
   const [weight, setWeight] = useState('');
@@ -384,25 +447,32 @@ export function RealtimeSetLogger({
         </span>
       </div>
 
-      {/* Set Tags */}
-      <div className="flex flex-wrap gap-2">
-        {(Object.entries(TAG_CONFIG) as [SetTag, typeof TAG_CONFIG[SetTag]][]).map(([tagKey, config]) => {
-          const Icon = config.icon;
-          return (
-            <button
-              key={tagKey}
-              onClick={() => setTag(tagKey)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all flex items-center gap-1.5 ${
-                tag === tagKey
-                  ? config.color
-                  : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:border-gray-600'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {config.label}
-            </button>
-          );
-        })}
+      {/* Set Tags with Tooltips */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <Info className="w-3 h-3" />
+          <span>Tap and hold for info</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(Object.entries(TAG_CONFIG) as [SetTag, typeof TAG_CONFIG[SetTag]][]).map(([tagKey, config]) => {
+            const Icon = config.icon;
+            return (
+              <Tooltip key={tagKey} content={config.tooltip}>
+                <button
+                  onClick={() => setTag(tagKey)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all flex items-center gap-1.5 ${
+                    tag === tagKey
+                      ? config.color
+                      : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {config.label}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
       </div>
 
       {/* Weight Input */}
@@ -592,6 +662,97 @@ export function RealtimeSetLogger({
           </div>
         </div>
       )}
+
+      {/* Rest Timer Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-400 flex items-center gap-1.5">
+            <Timer className="w-4 h-4" />
+            Rest Timer
+          </span>
+          {restTimer.isActive && (
+            <button
+              onClick={restTimer.stop}
+              className="text-xs text-red-400 hover:text-red-300"
+            >
+              Stop
+            </button>
+          )}
+        </div>
+
+        {/* Timer Display (when active) */}
+        <AnimatePresence>
+          {restTimer.isActive && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className={`p-4 rounded-xl border ${
+                restTimer.time <= 10
+                  ? 'bg-red-500/10 border-red-500/30'
+                  : restTimer.time <= 30
+                  ? 'bg-yellow-500/10 border-yellow-500/30'
+                  : 'bg-gray-800/50 border-gray-700'
+              }`}>
+                {/* Progress bar */}
+                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden mb-3">
+                  <motion.div
+                    className={`h-full ${
+                      restTimer.time <= 10 ? 'bg-red-500' : restTimer.time <= 30 ? 'bg-yellow-500' : 'bg-blue-500'
+                    }`}
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${restTimer.progress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+
+                {/* Time display */}
+                <div className="text-center mb-3">
+                  <span className={`text-3xl font-mono font-bold ${
+                    restTimer.time <= 10 ? 'text-red-400' : restTimer.time <= 30 ? 'text-yellow-400' : 'text-white'
+                  }`}>
+                    {restTimer.formatted}
+                  </span>
+                </div>
+
+                {/* Quick adjust buttons */}
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => restTimer.adjust(-30)}
+                    className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium"
+                  >
+                    -30s
+                  </button>
+                  <button
+                    onClick={() => restTimer.adjust(30)}
+                    className="px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium"
+                  >
+                    +30s
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Timer Presets (when not active) */}
+        {!restTimer.isActive && (
+          <div className="flex flex-wrap gap-2">
+            {restTimer.presets.slice(0, 4).map((preset) => (
+              <button
+                key={preset.seconds}
+                onClick={() => restTimer.start(preset.seconds)}
+                className="flex-1 min-w-[60px] py-2 px-3 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-gray-600 text-gray-300 text-sm font-medium flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Play className="w-3 h-3" />
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Log Set Button */}
       <motion.button
