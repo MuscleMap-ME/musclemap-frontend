@@ -504,9 +504,16 @@ export default function Workout() {
           sessionIdRef.current = null;
           sessionStartRef.current = null;
         }
+        // Capture exercise stats before clearing logged
+        const exerciseCount = loggedSnapshot.length;
+        const totalSets = loggedSnapshot.reduce((sum, e) => sum + (e.sets || 0), 0);
+
         setRewards({
           tuEarned: data.data.totalTU,
           characterStats: data.data.characterStats,
+          exerciseCount,
+          totalSets,
+          exercises: loggedSnapshot,
         });
         setLogged([]);
       } else {
@@ -1138,10 +1145,10 @@ export default function Workout() {
       <WorkoutComplete
         workout={{
           duration: selectedTime,
-          exerciseCount: logged.length,
-          totalSets: logged.reduce((sum, e) => sum + (e.sets || 0), 0),
+          exerciseCount: rewards.exerciseCount || 0,
+          totalSets: rewards.totalSets || 0,
           totalTU: rewards.tuEarned || 0,
-          exercises: logged,
+          exercises: rewards.exercises || [],
           goals: selectedGoals,
         }}
         onClose={() => {
