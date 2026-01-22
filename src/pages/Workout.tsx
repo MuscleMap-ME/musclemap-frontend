@@ -600,7 +600,13 @@ export default function Workout() {
       }));
 
       if (exercises.length > 0) {
-        await startSession(exercises);
+        const sessionResult = await startSession(exercises);
+        if (!sessionResult.success) {
+          console.error('Failed to start workout session:', sessionResult.error);
+          // Show error to user but still allow them to continue
+          // The "Start Session Now" button will be available in the workout view
+          setError(`Session start issue: ${sessionResult.error || 'Unknown error'}. Click "Start Session Now" to retry.`);
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to generate workout. Try different constraints.');
@@ -1013,6 +1019,19 @@ export default function Workout() {
         </header>
 
         <main className="max-w-lg mx-auto p-4">
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500 rounded-xl p-4 text-red-200 mb-4">
+              {error}
+              <button
+                onClick={() => setError(null)}
+                className="ml-2 text-red-400 hover:text-red-200"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {/* Muscle Activation Panel - Collapsible */}
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl overflow-hidden mb-6 border border-white/5">
             <button
