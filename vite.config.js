@@ -282,7 +282,18 @@ export default defineConfig({
     }),
     // Image optimization - reduces PNG/JPG/GIF sizes by 30-50%
     // Only runs in production builds to speed up dev
+    // IMPORTANT: Excludes logo files to preserve quality for iOS Safari compatibility
     !skipImagemin && viteImagemin({
+      // Exclude logo files from optimization - pngquant converts to 8-bit grayscale
+      // which causes rendering issues on iOS Safari
+      filter: (file) => {
+        const basename = file.split('/').pop() || '';
+        // Skip logo files and icons (preserve original quality)
+        if (basename.startsWith('logo') || basename.startsWith('icon-')) {
+          return false;
+        }
+        return true;
+      },
       gifsicle: {
         optimizationLevel: 7,
         interlaced: false,
