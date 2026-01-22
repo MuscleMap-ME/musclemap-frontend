@@ -128,8 +128,9 @@ export function RealtimeSetLogger({
     const r = parseInt(reps);
 
     // Validate inputs and show feedback
-    if (!w || w <= 0) {
-      showError('Please enter a weight greater than 0');
+    // Allow weight=0 for bodyweight exercises, but not negative
+    if (isNaN(w) || w < 0) {
+      showError('Please enter a valid weight (0 or greater)');
       return;
     }
     if (!r || r <= 0) {
@@ -183,10 +184,20 @@ export function RealtimeSetLogger({
     }
   }, [weight, reps, tag, rpe, rir, notes, exerciseId, activeSession, logSet, suggestedReps, suggestedSets, nextSetNumber, onSetLogged, onAllSetsComplete, showError]);
 
-  // Quick weight adjustments
+  // Quick weight adjustments (prevents negative values)
   const adjustWeight = (delta: number) => {
     const current = parseFloat(weight) || 0;
     setWeight(Math.max(0, current + delta).toString());
+  };
+
+  // Handle weight input change (prevents negative values)
+  const handleWeightChange = (value: string) => {
+    const numValue = parseFloat(value);
+    if (value === '' || value === '-') {
+      setWeight('');
+    } else if (!isNaN(numValue)) {
+      setWeight(Math.max(0, numValue).toString());
+    }
   };
 
   // Quick rep adjustments
@@ -242,8 +253,9 @@ export function RealtimeSetLogger({
               </button>
               <input
                 type="number"
+                min="0"
                 value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                onChange={(e) => handleWeightChange(e.target.value)}
                 placeholder="0"
                 className="flex-1 bg-gray-800/50 border border-gray-700 rounded px-2 py-2 text-center text-lg font-bold focus:border-blue-500 focus:outline-none w-20"
               />
@@ -405,8 +417,9 @@ export function RealtimeSetLogger({
           </button>
           <input
             type="number"
+            min="0"
             value={weight}
-            onChange={(e) => setWeight(e.target.value)}
+            onChange={(e) => handleWeightChange(e.target.value)}
             placeholder="0"
             className="flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-center text-2xl font-bold focus:border-blue-500 focus:outline-none"
           />

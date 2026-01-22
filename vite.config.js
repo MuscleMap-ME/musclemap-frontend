@@ -237,6 +237,9 @@ export default defineConfig({
     mainFields: ['module', 'jsnext:main', 'jsnext', 'main'],
     // Force these conditions for package.json exports resolution
     conditions: ['import', 'module', 'browser', 'default'],
+    // PERFORMANCE: Reduce extension resolution overhead - only list what we use
+    // Fewer extensions = fewer filesystem checks per import
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
   },
   plugins: [
     // CRITICAL: Fix "Dynamic require of 'react' is not supported" error
@@ -325,7 +328,17 @@ export default defineConfig({
         '**/.vendor-cache/**',
         '**/coverage/**',
       ]
-    }
+    },
+    // PERFORMANCE: Pre-transform frequently used files for faster dev server startup
+    // These files are warmed up immediately when the dev server starts
+    warmup: {
+      clientFiles: [
+        './src/main.tsx',
+        './src/App.tsx',
+        './src/pages/**/*.tsx',
+        './src/components/**/*.tsx',
+      ],
+    },
   },
   test: {
     environment: 'jsdom',
@@ -359,8 +372,9 @@ export default defineConfig({
     // Source maps significantly increase memory usage during builds
     // Enable only for debugging: sourcemap: 'inline' or true
     sourcemap: false,
-    // Target modern browsers for better tree-shaking
-    target: 'es2020',
+    // PERFORMANCE: Target esnext for minimal transpilation (faster builds)
+    // All modern browsers support ES2022+, so we skip unnecessary transforms
+    target: 'esnext',
     // Warning limit - we still want to be alerted for large chunks
     chunkSizeWarningLimit: 300,
     // MEMORY OPTIMIZATION: ALWAYS use esbuild minification
@@ -373,6 +387,22 @@ export default defineConfig({
     // Inline assets smaller than 2KB (default is 4KB)
     // Reduces HTTP requests for tiny files while keeping bundle size down
     assetsInlineLimit: 2048,
+    // PERFORMANCE: Tree-shaking optimization with 'recommended' preset
+    // - Protects CSS imports (they have side effects)
+    // - Aggressively shakes JS modules
+    // - External deps use their package.json sideEffects field
+    treeshake: {
+      preset: 'recommended',
+      // Protect CSS and other side-effect-only imports from being removed
+      moduleSideEffects: (id, external) => {
+        // Always keep CSS files - they're pure side effects (add styles)
+        if (id.endsWith('.css')) return true;
+        // External modules: trust their package.json sideEffects field
+        if (external) return 'no-external';
+        // Internal modules: assume no side effects (safe tree-shaking)
+        return false;
+      },
+    },
     // MEMORY OPTIMIZATION: Memory-based build settings
     ...(ultraLowMemoryMode && {
       // Ultra-low memory: Maximum savings
@@ -424,6 +454,16 @@ export default defineConfig({
       ...(!lowMemoryMode && !ultraLowMemoryMode && {
         maxParallelFileOps: Math.max(numCPUs * 2, 20),  // Use 2x CPU cores
       }),
+      // PERFORMANCE: Enable Rollup's internal cache for faster rebuilds
+      cache: true,
+      // Mark server-only dependencies as external (should never be in browser bundle)
+      external: [
+        'sharp',      // Image processing - build-time only
+        'pg',         // PostgreSQL - server only
+        'knex',       // Database - server only
+        'redis',      // Cache - server only
+        'jsonwebtoken', // JWT - server only (we use browser-compatible alternative)
+      ],
       output: {
         // Strategic chunk splitting for optimal caching and loading
         // Chunks are split by usage pattern and load priority
@@ -580,27 +620,31 @@ export default defineConfig({
     // Force optimization of nested dependencies
     esbuildOptions: {
       mainFields: ['module', 'main'],
-      // Keep names for better debugging
-      keepNames: true,
+      // PERFORMANCE: Don't keep names during pre-bundling for faster builds
+      // Stack traces will be less readable but builds are faster
+      keepNames: false,
     },
     // CRITICAL: Hold optimized deps for longer to avoid re-bundling
     // This caches in node_modules/.vite which we preserve with transform-cache.mjs
   },
   // esbuild configuration for faster transforms
   esbuild: {
-    // Use all available CPU cores for transformation
-    // This is the key setting for speeding up the "transforming" phase
-    // Production server has 2 cores, local dev may have more
-    ...(lowMemoryMode ? {} : {
-      // Full speed mode: use all cores
-      // Note: esbuild is already very fast, but we ensure max parallelism
-    }),
     // Skip JSX development annotations in production
     jsx: 'automatic',
     // Drop console.log in production builds
     drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
-    // Faster parsing with loose mode (safe for modern browsers)
+    // PERFORMANCE: Faster minification settings
+    // - legalComments: 'none' removes license comments
+    // - minifyIdentifiers: true shortens variable names
+    // - minifySyntax: true optimizes syntax patterns
+    // - treeShaking: true removes dead code
+    // Note: keepNames is set to false for faster builds (stack traces less readable)
     legalComments: 'none',
+    minifyIdentifiers: true,
+    minifySyntax: true,
+    treeShaking: true,
+    // Note: keepNames intentionally NOT set here (defaults to false for faster builds)
+    // If you need readable stack traces, set keepNames: true
   },
   // CRITICAL: Cache configuration
   cacheDir: 'node_modules/.vite',
