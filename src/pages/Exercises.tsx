@@ -6,6 +6,8 @@ import { hasExerciseIllustration } from '@musclemap/shared';
 import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
 import { ExerciseImageUploadButton } from '../components/ExerciseImageUpload';
+import { PullToRefresh } from '../components/mobile';
+import { haptic } from '../utils/haptics';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -639,42 +641,53 @@ export default function Exercises() {
     }
   }, [viewMode]);
 
-  useEffect(() => {
-    fetch('/api/exercises')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data) {
-          // Normalize primaryMuscles to always be an array
-          // Handles PostgreSQL array format: {"muscle1","muscle2"}
-          const normalized = data.data.map(ex => {
-            let muscles = [];
-            if (Array.isArray(ex.primaryMuscles)) {
-              muscles = ex.primaryMuscles;
-            } else if (typeof ex.primaryMuscles === 'string') {
-              // Parse PostgreSQL array format: {"chest-upper","delt-front"}
-              const pgArrayMatch = ex.primaryMuscles.match(/^\{(.+)\}$/);
-              if (pgArrayMatch) {
-                // Remove quotes and split by comma
-                muscles = pgArrayMatch[1]
-                  .split(',')
-                  .map(m => m.replace(/^"|"$/g, '').trim())
-                  .filter(Boolean);
-              } else {
-                muscles = ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean);
-              }
+  // Fetch exercises function - extracted for pull-to-refresh
+  const fetchExercises = useCallback(async () => {
+    try {
+      const res = await fetch('/api/exercises');
+      const data = await res.json();
+      if (data.data) {
+        // Normalize primaryMuscles to always be an array
+        // Handles PostgreSQL array format: {"muscle1","muscle2"}
+        const normalized = data.data.map(ex => {
+          let muscles = [];
+          if (Array.isArray(ex.primaryMuscles)) {
+            muscles = ex.primaryMuscles;
+          } else if (typeof ex.primaryMuscles === 'string') {
+            // Parse PostgreSQL array format: {"chest-upper","delt-front"}
+            const pgArrayMatch = ex.primaryMuscles.match(/^\{(.+)\}$/);
+            if (pgArrayMatch) {
+              // Remove quotes and split by comma
+              muscles = pgArrayMatch[1]
+                .split(',')
+                .map(m => m.replace(/^"|"$/g, '').trim())
+                .filter(Boolean);
+            } else {
+              muscles = ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean);
             }
-            return {
-              ...ex,
-              primaryMuscles: muscles,
-              category: getExerciseCategory({ ...ex, primaryMuscles: muscles }),
-            };
-          });
-          setExercises(normalized);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+          }
+          return {
+            ...ex,
+            primaryMuscles: muscles,
+            category: getExerciseCategory({ ...ex, primaryMuscles: muscles }),
+          };
+        });
+        setExercises(normalized);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchExercises().finally(() => setLoading(false));
+  }, [fetchExercises]);
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    haptic('light');
+    await fetchExercises();
+  }, [fetchExercises]);
 
   // Count exercises per category
   const exercisesByCategory = exercises.reduce((acc, ex) => {
@@ -816,6 +829,7 @@ export default function Exercises() {
         </div>
       </header>
 
+      <PullToRefresh onRefresh={handleRefresh} className="min-h-screen">
       <main className="pt-20 pb-8 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Muscle Selector View */}
@@ -1048,6 +1062,7 @@ export default function Exercises() {
           )}
         </div>
       </main>
+      </PullToRefresh>
 
       {/* Exercise Detail Modal */}
       <AnimatePresence>

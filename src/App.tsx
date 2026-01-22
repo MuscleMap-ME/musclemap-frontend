@@ -31,6 +31,7 @@ import { TransitionProvider } from './components/transitions';
 const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
 const LootDrop = lazy(() => import('./components/loot/LootDrop'));
 const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
+const OfflineIndicator = lazy(() => import('./components/mobile/OfflineIndicator'));
 
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
@@ -713,6 +714,10 @@ export default function App() {
                             {/* Global Floating Rest Timer - Shows during active workouts */}
                             <Suspense fallback={null}>
                               <FloatingRestTimer enabled />
+                            </Suspense>
+                            {/* Global Offline Connectivity Indicator */}
+                            <Suspense fallback={null}>
+                              <OfflineIndicator position="top" showQuality />
                             </Suspense>
                           </ContextualTipProvider>
                         </CompanionProvider>

@@ -207,7 +207,7 @@ const WorkoutToolsPanel: React.FC<WorkoutToolsPanelProps> = ({ currentExercise, 
       {/* Header - always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-3 flex items-center justify-between text-left"
+        className="w-full p-4 flex items-center justify-between text-left min-h-[56px] touch-action-manipulation"
       >
         <div className="flex items-center gap-3">
           <div className="text-2xl">🛠️</div>
@@ -234,21 +234,21 @@ const WorkoutToolsPanel: React.FC<WorkoutToolsPanelProps> = ({ currentExercise, 
       {/* Expanded content */}
       {isExpanded && (
         <div className="p-4 pt-0">
-          {/* Tool tabs */}
-          <div className="flex gap-1 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+          {/* Tool tabs - touch-optimized with larger targets */}
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
             {tools.map((tool) => (
               <button
                 key={tool.id}
                 onClick={() => setActiveTool(tool.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm whitespace-nowrap transition-all ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm whitespace-nowrap transition-all min-h-[48px] touch-action-manipulation ${
                   activeTool === tool.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700 active:scale-95'
                 }`}
                 title={tool.description}
               >
-                <span>{tool.icon}</span>
-                <span>{tool.label}</span>
+                <span className="text-lg">{tool.icon}</span>
+                <span className="font-medium">{tool.label}</span>
               </button>
             ))}
           </div>
