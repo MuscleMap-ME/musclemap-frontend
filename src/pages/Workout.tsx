@@ -654,20 +654,31 @@ export default function Workout() {
 
     // For warmup/cooldown activities, just mark as done and move on (no API call needed)
     if (isActivityItem) {
-      setLogged([...logged, {
-        id: `activity-${Date.now()}`,
-        name: exercise.name || exercise.description || 'Activity',
-        sets: exercise.sets || 1,
-        reps: exercise.reps || 1,
-        weight: 0,
-        isActivity: true, // Flag to exclude from workout submission
-      }]);
+      // Use exercise index as stable ID to prevent duplicates
+      const activityId = `activity-${currentExerciseIndex}`;
+
+      // Check if this activity was already logged
+      const alreadyLogged = logged.some(e => e.id === activityId);
+
+      if (!alreadyLogged) {
+        setLogged(prev => [...prev, {
+          id: activityId,
+          name: exercise.name || exercise.description || 'Activity',
+          sets: exercise.sets || 1,
+          reps: exercise.reps || 1,
+          weight: 0,
+          isActivity: true, // Flag to exclude from workout submission
+        }]);
+      }
+
       setSuccess(exercise.name || exercise.description);
       setTimeout(() => setSuccess(null), 2000);
+
       const allExercises = getAllPrescribedExercises();
       if (currentExerciseIndex < allExercises.length - 1) {
         setCurrentExerciseIndex(currentExerciseIndex + 1);
       }
+      // If we're at the last exercise, don't do anything - user needs to click "Complete Workout"
       return;
     }
 
