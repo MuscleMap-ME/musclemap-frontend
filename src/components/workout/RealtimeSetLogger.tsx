@@ -116,7 +116,7 @@ interface RealtimeSetLoggerProps {
   suggestedReps?: number;
   onSetLogged?: (set: LoggedSet) => void;
   onAllSetsComplete?: () => void;
-  onStartSession?: () => void;
+  onStartSession?: () => void | Promise<void>;
   compact?: boolean;
 }
 
@@ -284,8 +284,21 @@ export function RealtimeSetLogger({
   // Check if this would be a PR
   const wouldBePR = estimated1RM && history?.best1RM && estimated1RM > history.best1RM;
 
-  // Track if we're starting a session
-  const isStartingSession = loading.startingSession;
+  // Track if we're starting a session - use local state for immediate feedback
+  const [localStarting, setLocalStarting] = useState(false);
+  const isStartingSession = loading.startingSession || localStarting;
+
+  // Handle start session with local state for immediate feedback
+  const handleStartClick = useCallback(async () => {
+    if (!onStartSession || isStartingSession) return;
+    setLocalStarting(true);
+    try {
+      await onStartSession();
+    } finally {
+      // Small delay before clearing local state to allow for refetch
+      setTimeout(() => setLocalStarting(false), 500);
+    }
+  }, [onStartSession, isStartingSession]);
 
   // Show warning if no active session
   if (!activeSession) {
@@ -300,9 +313,11 @@ export function RealtimeSetLogger({
             </p>
             {onStartSession && (
               <button
-                onClick={onStartSession}
+                type="button"
+                onClick={handleStartClick}
                 disabled={isStartingSession}
-                className="mt-3 flex items-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:bg-green-800 disabled:opacity-70 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px] touch-action-manipulation"
+                className="mt-3 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:bg-green-800 disabled:opacity-70 text-white text-sm font-medium rounded-lg transition-colors min-h-[48px] min-w-[160px] touch-action-manipulation select-none cursor-pointer"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {isStartingSession ? (
                   <>
