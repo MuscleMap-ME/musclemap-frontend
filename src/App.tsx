@@ -516,8 +516,8 @@ function AppRoutes() {
           <Route path="/progress-photos" element={<ProtectedRoute name="ProgressPhotos"><ProgressPhotos /></ProtectedRoute>} />
           <Route path="/crews" element={<ProtectedRoute name="Crews"><Crews /></ProtectedRoute>} />
           <Route path="/rivals" element={<ProtectedRoute name="Rivals"><Rivals /></ProtectedRoute>} />
-          <Route path="/health" element={<ProtectedRoute name="Health"><Health /></ProtectedRoute>} />
-          <Route path="/wellness" element={<Navigate to="/health" replace />} /> {/* Legacy alias */}
+          <Route path="/wellness" element={<ProtectedRoute name="Wellness"><Health /></ProtectedRoute>} />
+          <Route path="/health" element={<Navigate to="/wellness" replace />} /> {/* Redirect to wellness - /health is reserved for API health endpoint */}
           <Route path="/recovery" element={<ProtectedRoute name="Recovery"><Recovery /></ProtectedRoute>} />
           <Route path="/goals" element={<ProtectedRoute name="Goals"><Goals /></ProtectedRoute>} />
           <Route path="/limitations" element={<ProtectedRoute name="Limitations"><Limitations /></ProtectedRoute>} />
