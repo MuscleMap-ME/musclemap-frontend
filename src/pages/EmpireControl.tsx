@@ -127,7 +127,7 @@ const NAV_SECTIONS = [
   { id: 'backup', label: 'Backup & Recovery', icon: Archive },
   { id: 'docs', label: 'Documentation', icon: BookOpen },
   { id: 'feedback', label: 'Feedback Queue', icon: MessageSquare },
-  { id: 'bug-tracker', label: 'Bug Tracker', icon: Bug },
+  { id: 'bug-tracker', label: 'Bug Tracker', icon: Bug, link: '/empire/bugs' },
   { id: 'user-analytics', label: 'User Analytics', icon: UserPlus },
   { id: 'analytics', label: 'GA Analytics', icon: TrendingUp },
   { id: 'metrics', label: 'System Metrics', icon: BarChart3 },

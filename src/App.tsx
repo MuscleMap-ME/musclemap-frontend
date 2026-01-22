@@ -32,6 +32,7 @@ const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
 const LootDrop = lazy(() => import('./components/loot/LootDrop'));
 const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
 const OfflineIndicator = lazy(() => import('./components/mobile/OfflineIndicator'));
+const MobileDebugOverlay = lazy(() => import('./components/debug/MobileDebugOverlay'));
 
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
@@ -133,6 +134,7 @@ const EmpireUserDetail = lazy(() => import('./pages/EmpireUserDetail'));
 const TestScorecard = lazy(() => import('./pages/TestScorecard'));
 const DeploymentControl = lazy(() => import('./pages/DeploymentControl'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
+const BugTracker = lazy(() => import('./pages/BugTracker'));
 const AdminExerciseImages = lazy(() => import('./pages/AdminExerciseImages'));
 
 // Dev pages (development tools)
@@ -568,6 +570,7 @@ function AppRoutes() {
           <Route path="/empire/scorecard" element={<AdminRoute name="TestScorecard"><TestScorecard /></AdminRoute>} />
           <Route path="/empire/deploy" element={<AdminRoute name="DeploymentControl"><DeploymentControl /></AdminRoute>} />
           <Route path="/empire/commands" element={<AdminRoute name="CommandCenter"><CommandCenter /></AdminRoute>} />
+          <Route path="/empire/bugs" element={<AdminRoute name="BugTracker"><BugTracker /></AdminRoute>} />
           <Route path="/empire/exercise-images" element={<AdminRoute name="AdminExerciseImages"><AdminExerciseImages /></AdminRoute>} />
 
           {/* Live activity monitoring - public anonymous data */}
@@ -718,6 +721,10 @@ export default function App() {
                             {/* Global Offline Connectivity Indicator */}
                             <Suspense fallback={null}>
                               <OfflineIndicator position="top" showQuality />
+                            </Suspense>
+                            {/* Mobile Debug Overlay - Captures errors on iOS without DevTools */}
+                            <Suspense fallback={null}>
+                              <MobileDebugOverlay />
                             </Suspense>
                           </ContextualTipProvider>
                         </CompanionProvider>
