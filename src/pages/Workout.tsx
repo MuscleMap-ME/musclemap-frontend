@@ -1114,6 +1114,31 @@ export default function Workout() {
               </button>
               <button
                 onClick={() => {
+                  // Mark exercise as done if not already logged, then move to next
+                  const alreadyLogged = logged.some(e => e.id === currentExercise.id);
+                  if (!alreadyLogged) {
+                    setLogged(prev => [...prev, {
+                      id: currentExercise.id,
+                      name: currentExercise.name,
+                      sets: currentExercise.sets || 3,
+                      reps: typeof currentExercise.reps === 'number' ? currentExercise.reps : 10,
+                      weight: 0,
+                      primaryMuscles: currentExercise.primaryMuscles,
+                    }]);
+                  }
+                  setSuccess(`${currentExercise.name} completed!`);
+                  setTimeout(() => setSuccess(null), 2000);
+                  const allExercises = getAllPrescribedExercises();
+                  if (currentExerciseIndex < allExercises.length - 1) {
+                    setCurrentExerciseIndex(currentExerciseIndex + 1);
+                  }
+                }}
+                className="flex-[2] bg-green-600 hover:bg-green-500 py-3 rounded-xl font-bold"
+              >
+                Done
+              </button>
+              <button
+                onClick={() => {
                   const allExercises = getAllPrescribedExercises();
                   if (currentExerciseIndex < allExercises.length - 1) {
                     setCurrentExerciseIndex(currentExerciseIndex + 1);
@@ -1122,7 +1147,7 @@ export default function Workout() {
                 disabled={currentExerciseIndex === allExercises.length - 1}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 py-3 rounded-xl font-medium"
               >
-                Next Exercise
+                Skip
               </button>
             </div>
           )}
