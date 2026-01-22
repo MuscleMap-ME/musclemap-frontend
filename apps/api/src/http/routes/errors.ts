@@ -617,14 +617,16 @@ export async function registerErrorRoutes(app: FastifyInstance) {
           total: string;
           unresolved: string;
           resolved: string;
+          converted: string;
           today: string;
           this_week: string;
           unique_users: string;
         }>(`
           SELECT
             COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status NOT IN ('resolved')) as unresolved,
+            COUNT(*) FILTER (WHERE status NOT IN ('resolved', 'converted')) as unresolved,
             COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+            COUNT(*) FILTER (WHERE status = 'converted') as converted,
             COUNT(*) FILTER (WHERE error_at > NOW() - INTERVAL '1 day') as today,
             COUNT(*) FILTER (WHERE error_at > NOW() - INTERVAL '7 days') as this_week,
             COUNT(DISTINCT user_id) FILTER (WHERE error_at > NOW() - INTERVAL '7 days') as unique_users
@@ -670,6 +672,7 @@ export async function registerErrorRoutes(app: FastifyInstance) {
           total: parseInt(totals?.total || '0'),
           unresolved: parseInt(totals?.unresolved || '0'),
           resolved: parseInt(totals?.resolved || '0'),
+          converted: parseInt(totals?.converted || '0'),
           today: parseInt(totals?.today || '0'),
           thisWeek: parseInt(totals?.this_week || '0'),
           uniqueUsersThisWeek: parseInt(totals?.unique_users || '0'),

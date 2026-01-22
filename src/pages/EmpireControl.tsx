@@ -2007,7 +2007,7 @@ export default function EmpireControl() {
                   {cockatriceTab === 'errors' && (
                     <>
                       {/* Cockatrice Stats Cards */}
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <StatCard
                           title="Total Errors"
                           value={cockatriceStats?.totals?.total || 0}
@@ -2029,6 +2029,13 @@ export default function EmpireControl() {
                           onClick={() => setCockatriceFilter({ ...cockatriceFilter, status: 'resolved' })}
                         />
                         <StatCard
+                          title="Converted"
+                          value={cockatriceStats?.totals?.converted || 0}
+                          icon={RefreshCw}
+                          color="#8b5cf6"
+                          onClick={() => setCockatriceFilter({ ...cockatriceFilter, status: 'converted' })}
+                        />
+                        <StatCard
                           title="Today"
                           value={cockatriceStats?.totals?.today || 0}
                           icon={Clock}
@@ -2038,7 +2045,7 @@ export default function EmpireControl() {
                           title="Affected Users"
                           value={cockatriceStats?.totals?.uniqueUsersThisWeek || 0}
                           icon={Users}
-                          color="#8b5cf6"
+                          color="#3b82f6"
                         />
                       </div>
 
