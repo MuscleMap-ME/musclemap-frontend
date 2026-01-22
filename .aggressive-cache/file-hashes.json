@@ -471,7 +471,7 @@
   "src/lib/storage-manager.ts": "64736aee8b673071ffdeb87338679c99",
   "src/lib/storage.ts": "b317f011179e93dcb35113035ac936be",
   "src/locales/en.json": "8a80554c91d9fca8acb82f023de02f11",
-  "src/main.tsx": "54a5a23f947d5074280a3c3d93a166eb",
+  "src/main.tsx": "eeb35702354a1c12fc8f3b069a88652d",
   "src/mocks/browser.ts": "3f05d28f48f5237fb805e90a176c95f8",
   "src/mocks/handlers.ts": "49f91e4d165bc54d090ecdf323fe8ea6",
   "src/mocks/server.ts": "b348900f402373ce017d8719b784e0f2",

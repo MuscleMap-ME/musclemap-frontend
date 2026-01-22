@@ -121,6 +121,68 @@
     ]
   }
   </script>
+  <!-- Early Error Handler - catches JS errors before React loads -->
+  <script>
+    (function() {
+      var errors = [];
+      var MAX_ERRORS = 5;
+
+      window.onerror = function(message, source, lineno, colno, error) {
+        if (errors.length >= MAX_ERRORS) return;
+        errors.push({
+          type: 'error',
+          message: String(message),
+          source: source || '',
+          lineno: lineno || 0,
+          colno: colno || 0,
+          stack: error && error.stack ? error.stack : '',
+          timestamp: new Date().toISOString()
+        });
+      };
+
+      window.onunhandledrejection = function(event) {
+        if (errors.length >= MAX_ERRORS) return;
+        var reason = event.reason;
+        errors.push({
+          type: 'unhandledrejection',
+          message: reason && reason.message ? reason.message : String(reason),
+          stack: reason && reason.stack ? reason.stack : '',
+          timestamp: new Date().toISOString()
+        });
+      };
+
+      // Send collected errors after a delay (to batch them)
+      setTimeout(function() {
+        if (errors.length === 0) return;
+
+        try {
+          var payload = {
+            entries: errors.map(function(e) {
+              return {
+                level: 'error',
+                type: 'early_boot_error',
+                data: e,
+                sessionId: 'early_' + Date.now().toString(36),
+                url: window.location.pathname,
+                userAgent: navigator.userAgent,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight,
+                timestamp: e.timestamp,
+                userId: null
+              };
+            })
+          };
+
+          fetch('/api/trace/frontend-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true
+          }).catch(function() {});
+        } catch (e) {}
+      }, 3000);
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>
