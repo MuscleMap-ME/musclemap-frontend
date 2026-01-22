@@ -22,8 +22,10 @@ import {
   Loader2,
   RefreshCw,
   Dumbbell,
+  AlertCircle,
 } from 'lucide-react';
 import { useWorkoutSessionGraphQL } from '../../hooks/useWorkoutSessionGraphQL';
+import { useToast } from '../../hooks';
 import type { LoggedSet, MuscleActivation, ExerciseHistory } from '../../hooks/useWorkoutSessionGraphQL';
 
 // Set tag types
@@ -66,6 +68,9 @@ export function RealtimeSetLogger({
   onAllSetsComplete,
   compact = false,
 }: RealtimeSetLoggerProps) {
+  // Toast hook for user feedback
+  const { error: showError } = useToast();
+
   // Local state
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState(suggestedReps.toString());
@@ -124,15 +129,15 @@ export function RealtimeSetLogger({
 
     // Validate inputs and show feedback
     if (!w || w <= 0) {
-      alert('Please enter a weight greater than 0');
+      showError('Please enter a weight greater than 0');
       return;
     }
     if (!r || r <= 0) {
-      alert('Please enter reps greater than 0');
+      showError('Please enter reps greater than 0');
       return;
     }
     if (!activeSession) {
-      alert('No active workout session. Please start a new workout.');
+      showError('No active workout session. Please start a new workout from the beginning.');
       return;
     }
 
@@ -176,7 +181,7 @@ export function RealtimeSetLogger({
         onAllSetsComplete?.();
       }
     }
-  }, [weight, reps, tag, rpe, rir, notes, exerciseId, activeSession, logSet, suggestedReps, suggestedSets, nextSetNumber, onSetLogged, onAllSetsComplete]);
+  }, [weight, reps, tag, rpe, rir, notes, exerciseId, activeSession, logSet, suggestedReps, suggestedSets, nextSetNumber, onSetLogged, onAllSetsComplete, showError]);
 
   // Quick weight adjustments
   const adjustWeight = (delta: number) => {
@@ -202,6 +207,23 @@ export function RealtimeSetLogger({
 
   // Check if this would be a PR
   const wouldBePR = estimated1RM && history?.best1RM && estimated1RM > history.best1RM;
+
+  // Show warning if no active session
+  if (!activeSession) {
+    return (
+      <div className="space-y-3">
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-yellow-200 font-medium">No Active Session</p>
+            <p className="text-xs text-yellow-400/80 mt-1">
+              Please start a new workout to log your sets. Use the &quot;Generate Workout&quot; button or go back and start fresh.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (compact) {
     // Compact mode - just the essentials
