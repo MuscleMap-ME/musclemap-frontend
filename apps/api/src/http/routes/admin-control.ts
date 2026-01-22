@@ -366,7 +366,7 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
       level: number;
     }>(
       `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.roles, u.created_at,
-              u.total_xp, u.wealth_tier, u.current_rank, u.level,
+              u.total_xp, u.wealth_tier, u.current_rank, COALESCE(u.current_level, 1) as level,
               COALESCE(cb.balance, 0) as credit_balance,
               COALESCE(u.moderation_status, 'active') as status
        FROM users u
