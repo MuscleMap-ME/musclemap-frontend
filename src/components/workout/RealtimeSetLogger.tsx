@@ -59,7 +59,7 @@ interface RealtimeSetLoggerProps {
 
 export function RealtimeSetLogger({
   exerciseId,
-  exerciseName,
+  exerciseName: _exerciseName,
   suggestedSets = 3,
   suggestedReps = 10,
   onSetLogged,
@@ -82,9 +82,12 @@ export function RealtimeSetLogger({
     logSet,
     loadExerciseHistory,
     exerciseHistory,
-    currentExerciseSets,
-    isLoggingSet,
+    getSetsForExercise,
+    activeSession,
+    loading,
   } = useWorkoutSessionGraphQL();
+
+  const isLoggingSet = loading.loggingSet;
 
   // Load exercise history on mount
   useEffect(() => {
@@ -95,7 +98,7 @@ export function RealtimeSetLogger({
   const history: ExerciseHistory | undefined = exerciseHistory[exerciseId];
 
   // Calculate set number for this exercise
-  const exerciseSets = currentExerciseSets(exerciseId);
+  const exerciseSets = getSetsForExercise(exerciseId);
   const nextSetNumber = exerciseSets.length + 1;
 
   // Suggest weight based on history
@@ -119,11 +122,12 @@ export function RealtimeSetLogger({
     const w = parseFloat(weight);
     const r = parseInt(reps);
 
-    if (!w || !r) return;
+    if (!w || !r || !activeSession) return;
 
     const result = await logSet({
+      sessionId: activeSession.id,
       exerciseId,
-      exerciseName,
+      setNumber: nextSetNumber,
       reps: r,
       weightKg: w / 2.205, // Convert lbs to kg for server
       rpe: rpe || undefined,
@@ -160,7 +164,7 @@ export function RealtimeSetLogger({
         onAllSetsComplete?.();
       }
     }
-  }, [weight, reps, tag, rpe, rir, notes, exerciseId, exerciseName, logSet, suggestedReps, suggestedSets, nextSetNumber, onSetLogged, onAllSetsComplete]);
+  }, [weight, reps, tag, rpe, rir, notes, exerciseId, activeSession, logSet, suggestedReps, suggestedSets, nextSetNumber, onSetLogged, onAllSetsComplete]);
 
   // Quick weight adjustments
   const adjustWeight = (delta: number) => {

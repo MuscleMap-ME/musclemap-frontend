@@ -772,6 +772,17 @@ export function useWorkoutSessionGraphQL() {
     );
   }, [activeSession]);
 
+  /**
+   * Get sets for a specific exercise (helper function)
+   */
+  const getSetsForExercise = useCallback(
+    (exerciseId: string): LoggedSet[] => {
+      if (!activeSession?.sets) return [];
+      return activeSession.sets.filter((set) => set.exerciseId === exerciseId);
+    },
+    [activeSession]
+  );
+
   const totalSets = activeSession?.sets?.length || 0;
 
   // ============================================
@@ -787,6 +798,7 @@ export function useWorkoutSessionGraphQL() {
     exerciseHistory,
     sessionDuration,
     currentExerciseSets,
+    getSetsForExercise,
     totalSets,
 
     // Errors
