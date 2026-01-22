@@ -284,6 +284,9 @@ export function RealtimeSetLogger({
   // Check if this would be a PR
   const wouldBePR = estimated1RM && history?.best1RM && estimated1RM > history.best1RM;
 
+  // Track if we're starting a session
+  const isStartingSession = loading.startingSession;
+
   // Show warning if no active session
   if (!activeSession) {
     return (
@@ -298,10 +301,20 @@ export function RealtimeSetLogger({
             {onStartSession && (
               <button
                 onClick={onStartSession}
-                className="mt-3 flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                disabled={isStartingSession}
+                className="mt-3 flex items-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:bg-green-800 disabled:opacity-70 text-white text-sm font-medium rounded-lg transition-colors min-h-[44px] touch-action-manipulation"
               >
-                <Play className="w-4 h-4" />
-                Start Session Now
+                {isStartingSession ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Start Session Now
+                  </>
+                )}
               </button>
             )}
           </div>

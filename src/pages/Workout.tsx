@@ -628,20 +628,31 @@ export default function Workout() {
 
   // Start session from current prescription (for when exercises exist but no session)
   const handleStartSessionNow = useCallback(async () => {
-    if (!prescription) return;
+    // If we have a prescription, start with the exercise list
+    if (prescription) {
+      const allExercises = getAllPrescribedExercises();
+      const exercises = allExercises
+        .filter(e => e.id || e.exerciseId)
+        .map(e => ({
+          exerciseId: e.id || e.exerciseId,
+          name: e.name,
+          plannedSets: e.sets || 3,
+          plannedReps: typeof e.reps === 'number' ? e.reps : 10,
+        }));
 
-    const allExercises = getAllPrescribedExercises();
-    const exercises = allExercises
-      .filter(e => e.id || e.exerciseId)
-      .map(e => ({
-        exerciseId: e.id || e.exerciseId,
-        name: e.name,
-        plannedSets: e.sets || 3,
-        plannedReps: typeof e.reps === 'number' ? e.reps : 10,
-      }));
+      if (exercises.length > 0) {
+        const result = await startSession(exercises);
+        if (!result.success) {
+          setError(result.error || 'Failed to start workout session. Please try again.');
+        }
+        return;
+      }
+    }
 
-    if (exercises.length > 0) {
-      await startSession(exercises);
+    // No prescription or no exercises - start an empty session
+    const result = await startSession();
+    if (!result.success) {
+      setError(result.error || 'Failed to start workout session. Please try again.');
     }
   }, [prescription, getAllPrescribedExercises, startSession]);
 
