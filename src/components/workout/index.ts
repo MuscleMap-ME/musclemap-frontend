@@ -24,6 +24,9 @@ export { FloatingRestTimer } from './FloatingRestTimer';
 export { RestTimerSettings } from './RestTimerSettings';
 export { RestTimerControl } from './RestTimerControl';
 export { SetLogger } from './SetLogger';
+export { RealtimeSetLogger } from './RealtimeSetLogger';
+export { ExerciseSubstitutionPicker } from './ExerciseSubstitutionPicker';
+export { SessionRecoveryModal } from './SessionRecoveryModal';
 
 // RPE/RIR components
 export {

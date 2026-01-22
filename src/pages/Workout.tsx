@@ -6,6 +6,14 @@ import { hasExerciseIllustration } from '@musclemap/shared';
 import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
 import { syncSessionToServer, clearAllSessionPersistence } from '../lib/sessionPersistence';
+import {
+  RealtimeSetLogger,
+  ExerciseSubstitutionPicker,
+  SessionRecoveryModal,
+  FloatingRestTimer,
+} from '../components/workout';
+import { useWorkoutSessionGraphQL } from '../hooks/useWorkoutSessionGraphQL';
+import type { LoggedSet, RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -203,6 +211,53 @@ export default function Workout() {
   // Session tracking for real-time sync
   const sessionIdRef = useRef<string | null>(null);
   const sessionStartRef = useRef<number | null>(null);
+
+  // Real-time session state
+  const [showSetLogger, setShowSetLogger] = useState(false);
+  const [showSubstitutionPicker, setShowSubstitutionPicker] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoverableSessions, setRecoverableSessions] = useState<RecoverableSession[]>([]);
+
+  // GraphQL session hook
+  const {
+    activeSession,
+    isSessionActive,
+    startSession,
+    logSet,
+    completeSession,
+    recoverSession,
+    abandonSession,
+    recoverableSessions: graphqlRecoverableSessions,
+    currentExerciseSets,
+    totalSets,
+    isStartingSession,
+    isCompletingSession,
+    registerCallbacks,
+  } = useWorkoutSessionGraphQL();
+
+  // Register callbacks for PR achievements and level ups
+  useEffect(() => {
+    registerCallbacks({
+      onPR: (pr) => {
+        // Show celebration for PR
+        setSuccess(`NEW ${pr.prType.toUpperCase()} PR! ${pr.exerciseName}`);
+        setTimeout(() => setSuccess(null), 3000);
+      },
+      onLevelUp: (newLevel) => {
+        // Show level up notification
+        setSuccess(`LEVEL UP! You're now level ${newLevel}!`);
+        setTimeout(() => setSuccess(null), 4000);
+      },
+    });
+  }, [registerCallbacks]);
+
+  // Check for recoverable sessions on mount
+  useEffect(() => {
+    if (graphqlRecoverableSessions && graphqlRecoverableSessions.length > 0) {
+      setRecoverableSessions(graphqlRecoverableSessions);
+      setShowRecoveryModal(true);
+    }
+  }, [graphqlRecoverableSessions]);
 
   // Initialize session when workout mode starts
   useEffect(() => {
@@ -424,6 +479,22 @@ export default function Workout() {
       setPrescription(prescriptionData);
       setCurrentExerciseIndex(0);
       setMode('workout');
+
+      // Start a GraphQL workout session
+      const exercises = [
+        ...(prescriptionData.warmup || []),
+        ...(prescriptionData.exercises || []),
+        ...(prescriptionData.cooldown || []),
+      ].filter(e => e.id || e.exerciseId).map(e => ({
+        exerciseId: e.id || e.exerciseId,
+        name: e.name,
+        plannedSets: e.sets || 3,
+        plannedReps: typeof e.reps === 'number' ? e.reps : 10,
+      }));
+
+      if (exercises.length > 0) {
+        await startSession(exercises);
+      }
     } catch (err) {
       setError(err.message || 'Failed to generate workout. Try different constraints.');
     } finally {

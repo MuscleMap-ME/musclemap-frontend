@@ -12,7 +12,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client/react';
 import { haptic } from '../../utils/haptics';
 import {
   useWorkoutSessionStore,

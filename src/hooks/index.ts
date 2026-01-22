@@ -76,6 +76,23 @@ export {
   useSessionRecoveryCheck,
 } from './useWorkoutSessionPersistence';
 
+// Workout session GraphQL (real-time logging with server sync)
+export {
+  useWorkoutSessionGraphQL,
+} from './useWorkoutSessionGraphQL';
+export type {
+  LoggedSet,
+  MuscleActivation,
+  MuscleActivationSummary,
+  SessionPR,
+  WorkoutSession as GraphQLWorkoutSession,
+  RecoverableSession,
+  ExerciseSubstitution,
+  ExerciseHistory,
+  LogSetInput,
+  SessionCompletionResult,
+} from './useWorkoutSessionGraphQL';
+
 // Muscle visualization hooks
 export {
   useMuscleVisualizationStore,

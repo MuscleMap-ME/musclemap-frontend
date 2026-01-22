@@ -221,3 +221,260 @@ export const LOG_FRONTEND_ERROR_MUTATION = gql`
     logFrontendError(input: $input)
   }
 `;
+
+// ============================================
+// WORKOUT SESSIONS (Real-Time Logging)
+// ============================================
+
+export const START_WORKOUT_SESSION_MUTATION = gql`
+  mutation StartWorkoutSession($input: StartWorkoutSessionInput!) {
+    startWorkoutSession(input: $input) {
+      success
+      session {
+        id
+        userId
+        startedAt
+        sets {
+          id
+          exerciseId
+          exerciseName
+          setNumber
+          reps
+          weightKg
+          rpe
+          tu
+        }
+        totalVolume
+        totalTU
+        musclesWorked {
+          muscleId
+          muscleName
+          totalTU
+          setCount
+        }
+      }
+      error
+    }
+  }
+`;
+
+export const LOG_SET_MUTATION = gql`
+  mutation LogSet($input: LogSetInput!) {
+    logSet(input: $input) {
+      success
+      set {
+        id
+        exerciseId
+        exerciseName
+        setNumber
+        reps
+        weightKg
+        rpe
+        rir
+        durationSeconds
+        tu
+        muscleActivations {
+          muscleId
+          muscleName
+          activationPercent
+          tu
+        }
+        isPRWeight
+        isPR1RM
+        isPRVolume
+        notes
+        performedAt
+      }
+      sessionUpdate {
+        totalVolume
+        totalTU
+        musclesWorked {
+          muscleId
+          muscleName
+          totalTU
+          setCount
+        }
+        sessionPRs {
+          exerciseId
+          exerciseName
+          prType
+          value
+          previousValue
+        }
+      }
+      error
+    }
+  }
+`;
+
+export const UPDATE_SET_MUTATION = gql`
+  mutation UpdateSet($input: UpdateSetInput!) {
+    updateSet(input: $input) {
+      success
+      set {
+        id
+        exerciseId
+        exerciseName
+        setNumber
+        reps
+        weightKg
+        rpe
+        tu
+        muscleActivations {
+          muscleId
+          muscleName
+          activationPercent
+          tu
+        }
+        isPRWeight
+        isPR1RM
+        performedAt
+      }
+      error
+    }
+  }
+`;
+
+export const DELETE_SET_MUTATION = gql`
+  mutation DeleteSet($sessionId: ID!, $setId: ID!) {
+    deleteSet(sessionId: $sessionId, setId: $setId) {
+      success
+      error
+    }
+  }
+`;
+
+export const PAUSE_WORKOUT_SESSION_MUTATION = gql`
+  mutation PauseWorkoutSession($sessionId: ID!) {
+    pauseWorkoutSession(sessionId: $sessionId) {
+      success
+      pausedAt
+      error
+    }
+  }
+`;
+
+export const RESUME_WORKOUT_SESSION_MUTATION = gql`
+  mutation ResumeWorkoutSession($sessionId: ID!) {
+    resumeWorkoutSession(sessionId: $sessionId) {
+      success
+      totalPausedTime
+      error
+    }
+  }
+`;
+
+export const COMPLETE_WORKOUT_SESSION_MUTATION = gql`
+  mutation CompleteWorkoutSession($input: CompleteWorkoutSessionInput!) {
+    completeWorkoutSession(input: $input) {
+      success
+      workout {
+        id
+        userId
+        exercises {
+          exerciseId
+          name
+          sets
+          reps
+          weight
+          notes
+        }
+        duration
+        notes
+        totalTU
+        createdAt
+      }
+      tuEarned
+      xpEarned
+      characterStats {
+        userId
+        level
+        xp
+        xpToNextLevel
+        strength
+        endurance
+        agility
+        flexibility
+        balance
+        mentalFocus
+        totalWorkouts
+        currentStreak
+      }
+      levelUp
+      newLevel
+      achievements {
+        id
+        name
+        description
+        icon
+        rarity
+        unlockedAt
+      }
+      sessionSummary {
+        duration
+        totalSets
+        totalVolume
+        totalTU
+        exerciseCount
+        musclesWorked {
+          muscleId
+          muscleName
+          totalTU
+          setCount
+        }
+        prs {
+          exerciseId
+          exerciseName
+          prType
+          value
+          previousValue
+        }
+      }
+      error
+    }
+  }
+`;
+
+export const ABANDON_WORKOUT_SESSION_MUTATION = gql`
+  mutation AbandonWorkoutSession($sessionId: ID!) {
+    abandonWorkoutSession(sessionId: $sessionId) {
+      success
+      error
+    }
+  }
+`;
+
+export const RECOVER_WORKOUT_SESSION_MUTATION = gql`
+  mutation RecoverWorkoutSession($sessionId: ID!) {
+    recoverWorkoutSession(sessionId: $sessionId) {
+      success
+      session {
+        id
+        userId
+        startedAt
+        pausedAt
+        totalPausedTime
+        sets {
+          id
+          exerciseId
+          exerciseName
+          setNumber
+          reps
+          weightKg
+          rpe
+          tu
+          performedAt
+        }
+        totalVolume
+        totalTU
+        musclesWorked {
+          muscleId
+          muscleName
+          totalTU
+          setCount
+        }
+      }
+      error
+    }
+  }
+`;

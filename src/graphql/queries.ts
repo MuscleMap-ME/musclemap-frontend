@@ -408,3 +408,157 @@ export const HEALTH_DETAILED_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// WORKOUT SESSIONS (Real-Time Logging)
+// ============================================
+
+export const ACTIVE_WORKOUT_SESSION_QUERY = gql`
+  query ActiveWorkoutSession {
+    activeWorkoutSession {
+      id
+      userId
+      startedAt
+      pausedAt
+      totalPausedTime
+      currentExerciseId
+      restTimerEndsAt
+      sets {
+        id
+        exerciseId
+        exerciseName
+        setNumber
+        reps
+        weightKg
+        rpe
+        rir
+        durationSeconds
+        tu
+        muscleActivations {
+          muscleId
+          muscleName
+          activationPercent
+          tu
+        }
+        isPRWeight
+        isPR1RM
+        isPRVolume
+        notes
+        performedAt
+      }
+      totalVolume
+      totalTU
+      musclesWorked {
+        muscleId
+        muscleName
+        totalTU
+        setCount
+      }
+      sessionPRs {
+        exerciseId
+        exerciseName
+        prType
+        value
+        previousValue
+      }
+      estimatedCalories
+      exerciseCount
+    }
+  }
+`;
+
+export const WORKOUT_SESSION_QUERY = gql`
+  query WorkoutSession($id: ID!) {
+    workoutSession(id: $id) {
+      id
+      userId
+      startedAt
+      pausedAt
+      totalPausedTime
+      sets {
+        id
+        exerciseId
+        exerciseName
+        setNumber
+        reps
+        weightKg
+        rpe
+        tu
+        muscleActivations {
+          muscleId
+          muscleName
+          activationPercent
+          tu
+        }
+        isPRWeight
+        isPR1RM
+        performedAt
+      }
+      totalVolume
+      totalTU
+      musclesWorked {
+        muscleId
+        muscleName
+        totalTU
+        setCount
+      }
+      sessionPRs {
+        exerciseId
+        exerciseName
+        prType
+        value
+        previousValue
+      }
+    }
+  }
+`;
+
+export const RECOVERABLE_SESSIONS_QUERY = gql`
+  query RecoverableSessions {
+    recoverableSessions {
+      id
+      startedAt
+      lastActivityAt
+      exerciseCount
+      setCount
+      totalVolume
+    }
+  }
+`;
+
+export const WORKOUT_MUSCLE_BREAKDOWN_QUERY = gql`
+  query WorkoutMuscleBreakdown($workoutId: ID!) {
+    workoutMuscleBreakdown(workoutId: $workoutId) {
+      muscleId
+      muscleName
+      totalTU
+      setCount
+      exercises {
+        exerciseId
+        exerciseName
+        tu
+        setCount
+      }
+    }
+  }
+`;
+
+export const EXERCISE_SUBSTITUTIONS_QUERY = gql`
+  query ExerciseSubstitutions($exerciseId: ID!, $equipment: [String!], $maxResults: Int) {
+    exerciseSubstitutions(exerciseId: $exerciseId, equipment: $equipment, maxResults: $maxResults) {
+      exercise {
+        id
+        name
+        description
+        primaryMuscles
+        secondaryMuscles
+        equipment
+        difficulty
+        imageUrl
+      }
+      similarityScore
+      matchedMuscles
+      missingMuscles
+    }
+  }
+`;

@@ -1619,9 +1619,13 @@ export interface Profile {
 }
 
 export interface Stats {
-  workoutsCompleted?: number;
-  streak?: number;
-  achievements?: unknown[];
+  xp: number;
+  level: number;
+  levelName: string;
+  rank: string;
+  streak: number;
+  workouts: number;
+  lastWorkoutDate: string | null;
 }
 
 const ProfileSchema = Type.Object(
@@ -1636,9 +1640,13 @@ const ProfileSchema = Type.Object(
 
 const StatsSchema = Type.Object(
   {
-    workoutsCompleted: Type.Optional(Type.Number()),
-    streak: Type.Optional(Type.Number()),
-    achievements: Type.Optional(Type.Array(Type.Any())),
+    xp: Type.Number(),
+    level: Type.Number(),
+    levelName: Type.String(),
+    rank: Type.String(),
+    streak: Type.Number(),
+    workouts: Type.Number(),
+    lastWorkoutDate: Type.Union([Type.String(), Type.Null()]),
   },
   { additionalProperties: true }
 );
@@ -1991,7 +1999,7 @@ export const apiClient = {
 
   // Progress (legacy stats)
   progress: {
-    stats: () => request<Stats>('/progress/stats', { schema: StatsSchema }),
+    stats: () => request<DataResponse<Stats>>('/progress/stats', { schema: wrapInData(StatsSchema) }),
   },
 
   // Wallet / Economy

@@ -1085,7 +1085,8 @@ export default function Dashboard() {
       api.progress.stats().catch(() => null),
       api.wallet.balance().catch(() => null),
     ]).then(([statsData, walletData]) => {
-      setStats(statsData);
+      // Extract data from wrapper (api returns {data: Stats})
+      setStats(statsData?.data || null);
       setWallet(walletData);
       setLoading(false);
     });

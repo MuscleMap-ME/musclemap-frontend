@@ -15,7 +15,8 @@ import React, { useMemo } from 'react';
 // motion import reserved for future animation features
 // import { motion } from 'framer-motion';
 import { Activity, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useQuery, gql } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
+import { gql } from '@apollo/client';
 import { getRPEColor } from './RPESelector';
 
 // GraphQL query for RPE trends
