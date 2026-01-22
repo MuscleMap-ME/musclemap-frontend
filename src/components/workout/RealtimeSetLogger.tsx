@@ -128,6 +128,7 @@ export function RealtimeSetLogger({
       weightKg: w / 2.205, // Convert lbs to kg for server
       rpe: rpe || undefined,
       rir: rir || undefined,
+      tag: tag || undefined,
       notes: notes.trim() || undefined,
     });
 
@@ -136,8 +137,8 @@ export function RealtimeSetLogger({
       setLastMuscleActivations(result.set.muscleActivations || []);
 
       // Check for PRs
-      if (result.set.isPRWeight || result.set.isPR1RM || result.set.isPRVolume) {
-        const prType = result.set.isPR1RM ? '1rm' : result.set.isPRWeight ? 'weight' : 'volume';
+      if (result.set.isPRWeight || result.set.isPR1RM || result.set.isPRReps) {
+        const prType = result.set.isPR1RM ? '1rm' : result.set.isPRWeight ? 'weight' : 'reps';
         setRecentPR({
           type: prType,
           value: prType === '1rm' ? Math.round(result.set.weightKg * 2.205 / (1.0278 - 0.0278 * r)) : Math.round(result.set.weightKg * 2.205),
@@ -439,7 +440,7 @@ export function RealtimeSetLogger({
                 key={m.muscleId}
                 className="bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded text-xs"
               >
-                {m.muscleName} ({m.activationPercent}%)
+                {m.muscleName} ({Math.round(m.activation * 100)}%)
               </span>
             ))}
           </div>
