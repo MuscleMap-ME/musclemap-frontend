@@ -671,6 +671,41 @@ export const useMusicSettings = () => {
 };
 
 /**
+ * Hook for units/measurement preferences (metric vs imperial)
+ */
+export const useUnitsPreferences = () => {
+  const units = usePreferencesStore((s) => s.preferences.units);
+  const updatePreferences = usePreferencesStore((s) => s.updatePreferences);
+
+  return {
+    ...units,
+    // Setters for individual units
+    setWeightUnit: (weightUnit: 'lbs' | 'kg') =>
+      updatePreferences({ units: { ...units, weight: weightUnit } }),
+    setDistanceUnit: (distanceUnit: 'mi' | 'km') =>
+      updatePreferences({ units: { ...units, distance: distanceUnit } }),
+    setHeightUnit: (heightUnit: 'ft_in' | 'cm') =>
+      updatePreferences({ units: { ...units, height: heightUnit } }),
+    setTemperatureUnit: (temperatureUnit: 'f' | 'c') =>
+      updatePreferences({ units: { ...units, temperature: temperatureUnit } }),
+    // Convenience: Toggle between metric and imperial
+    setMetric: () =>
+      updatePreferences({
+        units: { weight: 'kg', distance: 'km', height: 'cm', temperature: 'c' },
+      }),
+    setImperial: () =>
+      updatePreferences({
+        units: { weight: 'lbs', distance: 'mi', height: 'ft_in', temperature: 'f' },
+      }),
+    // Check if using metric or imperial
+    isMetric: units.weight === 'kg' && units.height === 'cm',
+    isImperial: units.weight === 'lbs' && units.height === 'ft_in',
+    // Get the length unit derived from height preference
+    lengthUnit: units.height === 'cm' ? 'cm' as const : 'in' as const,
+  };
+};
+
+/**
  * Hook for configuration profiles
  */
 export const usePreferenceProfiles = () => {

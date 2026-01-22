@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { RestTimerSettings } from '../components/workout/RestTimerSettings';
 import { EquipmentSelector, UnitToggle } from '../components/settings';
 import JourneyManagement from '../components/settings/JourneyManagement';
+import { useUnitsPreferences } from '../store/preferencesStore';
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -28,6 +29,20 @@ export default function Settings() {
   const [userLevel, setUserLevel] = useState(1);
   const [saving, setSaving] = useState(false);
   const [messagingEnabled, setMessagingEnabled] = useState(true);
+
+  // Unit preferences from the store (persisted)
+  const {
+    weight: weightUnit,
+    height: heightUnit,
+    distance: distanceUnit,
+    setWeightUnit,
+    setHeightUnit,
+    setDistanceUnit,
+    setMetric,
+    setImperial,
+    isMetric,
+    isImperial,
+  } = useUnitsPreferences();
 
   useEffect(() => {
     Promise.all([
@@ -163,25 +178,63 @@ export default function Settings() {
 
         {/* Units */}
         <section className="bg-gray-800 rounded-2xl p-4">
-          <h2 className="font-bold mb-4">Units</h2>
+          <h2 className="font-bold mb-4">📏 Units</h2>
+
+          {/* Quick presets */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setMetric()}
+              className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                isMetric
+                  ? 'border-purple-500 bg-purple-500/20'
+                  : 'border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <div className="font-medium">Metric</div>
+              <div className="text-xs text-gray-400">kg, cm, km</div>
+            </button>
+            <button
+              onClick={() => setImperial()}
+              className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                isImperial
+                  ? 'border-purple-500 bg-purple-500/20'
+                  : 'border-gray-700 hover:border-gray-600'
+              }`}
+            >
+              <div className="font-medium">Imperial</div>
+              <div className="text-xs text-gray-400">lbs, in, mi</div>
+            </button>
+          </div>
+
+          <div className="text-xs text-gray-500 mb-4">Or customize individual units:</div>
+
           <div className="space-y-4">
             <UnitToggle
-              label="Weight Units"
-              value={settings.weight_unit || 'lbs'}
+              label="Weight"
+              value={weightUnit}
               options={[
-                { value: 'lbs', label: 'lbs' },
-                { value: 'kg', label: 'kg' },
+                { value: 'lbs', label: 'Pounds (lbs)' },
+                { value: 'kg', label: 'Kilograms (kg)' },
               ]}
-              onChange={(value) => save({ weight_unit: value })}
+              onChange={(value) => setWeightUnit(value as 'lbs' | 'kg')}
             />
             <UnitToggle
-              label="Distance Units"
-              value={settings.distance_unit || 'mi'}
+              label="Height & Circumferences"
+              value={heightUnit}
               options={[
-                { value: 'mi', label: 'mi' },
-                { value: 'km', label: 'km' },
+                { value: 'cm', label: 'Centimeters (cm)' },
+                { value: 'ft_in', label: 'Feet & Inches' },
               ]}
-              onChange={(value) => save({ distance_unit: value })}
+              onChange={(value) => setHeightUnit(value as 'cm' | 'ft_in')}
+            />
+            <UnitToggle
+              label="Distance"
+              value={distanceUnit}
+              options={[
+                { value: 'km', label: 'Kilometers (km)' },
+                { value: 'mi', label: 'Miles (mi)' },
+              ]}
+              onChange={(value) => setDistanceUnit(value as 'km' | 'mi')}
             />
           </div>
         </section>

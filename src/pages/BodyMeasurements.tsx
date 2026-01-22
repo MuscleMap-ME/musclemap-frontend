@@ -7,6 +7,7 @@
  * - Circumference measurements (arms, chest, waist, etc.)
  * - Progress charts and comparisons
  * - History view
+ * - Supports both metric (kg/cm) and imperial (lbs/in) units
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -27,10 +28,21 @@ import {
   X,
   ChevronDown,
   Activity,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '../store/authStore';
+import { useUnitsPreferences } from '../store/preferencesStore';
 import { useToast } from '../hooks';
 import api from '../utils/api';
+import {
+  convertWeight,
+  weightToKg,
+  convertLength,
+  lengthToCm,
+  getLengthUnitFromHeightPref,
+  type WeightUnit,
+  type LengthUnit,
+} from '@musclemap/shared';
 
 // Types
 interface Measurement {
@@ -61,30 +73,86 @@ interface Measurement {
 interface MeasurementField {
   key: keyof Measurement;
   label: string;
-  unit: string;
+  baseUnit: 'kg' | 'cm' | 'percent'; // Storage unit
   category: 'weight' | 'composition' | 'upper' | 'lower';
   icon: React.ComponentType<{ className?: string }>;
 }
 
-// Measurement field configuration
+// Measurement field configuration - uses base storage units
 const MEASUREMENT_FIELDS: MeasurementField[] = [
-  { key: 'weight_kg', label: 'Weight', unit: 'kg', category: 'weight', icon: Scale },
-  { key: 'body_fat_percentage', label: 'Body Fat', unit: '%', category: 'composition', icon: Activity },
-  { key: 'lean_mass_kg', label: 'Lean Mass', unit: 'kg', category: 'composition', icon: Target },
-  { key: 'neck_cm', label: 'Neck', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'shoulders_cm', label: 'Shoulders', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'chest_cm', label: 'Chest', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'left_bicep_cm', label: 'Left Bicep', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'right_bicep_cm', label: 'Right Bicep', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'left_forearm_cm', label: 'Left Forearm', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'right_forearm_cm', label: 'Right Forearm', unit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'waist_cm', label: 'Waist', unit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'hips_cm', label: 'Hips', unit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'left_thigh_cm', label: 'Left Thigh', unit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'right_thigh_cm', label: 'Right Thigh', unit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'left_calf_cm', label: 'Left Calf', unit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'right_calf_cm', label: 'Right Calf', unit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'weight_kg', label: 'Weight', baseUnit: 'kg', category: 'weight', icon: Scale },
+  { key: 'body_fat_percentage', label: 'Body Fat', baseUnit: 'percent', category: 'composition', icon: Activity },
+  { key: 'lean_mass_kg', label: 'Lean Mass', baseUnit: 'kg', category: 'composition', icon: Target },
+  { key: 'neck_cm', label: 'Neck', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'shoulders_cm', label: 'Shoulders', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'chest_cm', label: 'Chest', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'left_bicep_cm', label: 'Left Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'right_bicep_cm', label: 'Right Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'left_forearm_cm', label: 'Left Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'right_forearm_cm', label: 'Right Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'waist_cm', label: 'Waist', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'hips_cm', label: 'Hips', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'left_thigh_cm', label: 'Left Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'right_thigh_cm', label: 'Right Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'left_calf_cm', label: 'Left Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'right_calf_cm', label: 'Right Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
 ];
+
+// Helper to get display unit for a field
+function getDisplayUnit(
+  field: MeasurementField,
+  weightUnit: WeightUnit,
+  lengthUnit: LengthUnit
+): string {
+  switch (field.baseUnit) {
+    case 'kg':
+      return weightUnit;
+    case 'cm':
+      return lengthUnit;
+    case 'percent':
+      return '%';
+    default:
+      return '';
+  }
+}
+
+// Helper to convert storage value to display value
+function toDisplayValue(
+  value: number,
+  baseUnit: 'kg' | 'cm' | 'percent',
+  weightUnit: WeightUnit,
+  lengthUnit: LengthUnit
+): number {
+  switch (baseUnit) {
+    case 'kg':
+      return convertWeight(value, weightUnit);
+    case 'cm':
+      return convertLength(value, lengthUnit);
+    case 'percent':
+      return value;
+    default:
+      return value;
+  }
+}
+
+// Helper to convert display value to storage value
+function toStorageValue(
+  value: number,
+  baseUnit: 'kg' | 'cm' | 'percent',
+  weightUnit: WeightUnit,
+  lengthUnit: LengthUnit
+): number {
+  switch (baseUnit) {
+    case 'kg':
+      return weightToKg(value, weightUnit);
+    case 'cm':
+      return lengthToCm(value, lengthUnit);
+    case 'percent':
+      return value;
+    default:
+      return value;
+  }
+}
 
 const CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -97,6 +165,10 @@ const CATEGORIES = [
 export default function BodyMeasurements() {
   const { isAuthenticated } = useAuth();
   const { toast, error: showError } = useToast();
+  const { weight: weightUnit, height: heightPref, setWeightUnit, setHeightUnit } = useUnitsPreferences();
+
+  // Derive length unit from height preference
+  const lengthUnit: LengthUnit = getLengthUnitFromHeightPref(heightPref);
 
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [latestMeasurement, setLatestMeasurement] = useState<Measurement | null>(null);
@@ -107,10 +179,17 @@ export default function BodyMeasurements() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showUnitSettings, setShowUnitSettings] = useState(false);
 
-  // New measurement form
+  // New measurement form - stores values in DISPLAY units (user's preference)
+  // Converts to storage units (kg/cm) on save
   const [newMeasurement, setNewMeasurement] = useState<Partial<Measurement>>({
     measurement_date: new Date().toISOString().split('T')[0],
+  });
+  // Track which unit was used when the form was opened (for editing)
+  const [formUnits, setFormUnits] = useState<{ weight: WeightUnit; length: LengthUnit }>({
+    weight: weightUnit,
+    length: lengthUnit,
   });
 
   // Fetch data
@@ -155,12 +234,31 @@ export default function BodyMeasurements() {
       return;
     }
 
+    // Convert display values to storage units (kg/cm)
+    const storageData: Partial<Measurement> = {
+      measurement_date: newMeasurement.measurement_date,
+      notes: newMeasurement.notes,
+    };
+
+    // Convert each field from display units to storage units
+    for (const field of MEASUREMENT_FIELDS) {
+      const displayValue = newMeasurement[field.key] as number | undefined;
+      if (displayValue !== undefined && displayValue !== null) {
+        storageData[field.key] = toStorageValue(
+          displayValue,
+          field.baseUnit,
+          formUnits.weight,
+          formUnits.length
+        ) as never;
+      }
+    }
+
     try {
       if (editingMeasurement) {
-        await api.put(`/body-measurements/${editingMeasurement.id}`, newMeasurement);
+        await api.put(`/body-measurements/${editingMeasurement.id}`, storageData);
         toast('Measurement updated!');
       } else {
-        await api.post('/body-measurements', newMeasurement);
+        await api.post('/body-measurements', storageData);
         toast('Measurement added!');
       }
 
@@ -187,10 +285,28 @@ export default function BodyMeasurements() {
 
   const handleEditMeasurement = (measurement: Measurement) => {
     setEditingMeasurement(measurement);
-    setNewMeasurement({
-      ...measurement,
+    // Store current units when opening the form
+    setFormUnits({ weight: weightUnit, length: lengthUnit });
+
+    // Convert storage values to display values
+    const displayData: Partial<Measurement> = {
       measurement_date: measurement.measurement_date.split('T')[0],
-    });
+      notes: measurement.notes,
+    };
+
+    for (const field of MEASUREMENT_FIELDS) {
+      const storageValue = measurement[field.key] as number | undefined;
+      if (storageValue !== undefined && storageValue !== null) {
+        displayData[field.key] = toDisplayValue(
+          storageValue,
+          field.baseUnit,
+          weightUnit,
+          lengthUnit
+        ) as never;
+      }
+    }
+
+    setNewMeasurement(displayData);
     setShowAddModal(true);
   };
 
@@ -238,20 +354,35 @@ export default function BodyMeasurements() {
               </Link>
               <div>
                 <h1 className="text-xl font-bold">Body Measurements</h1>
-                <p className="text-sm text-gray-400">Track your progress over time</p>
+                <p className="text-sm text-gray-400">
+                  Track your progress over time
+                  <span className="ml-2 px-2 py-0.5 bg-gray-800 rounded text-xs">
+                    {weightUnit === 'kg' ? 'Metric' : 'Imperial'}
+                  </span>
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setEditingMeasurement(null);
-                setNewMeasurement({ measurement_date: new Date().toISOString().split('T')[0] });
-                setShowAddModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Add
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowUnitSettings(true)}
+                className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white"
+                title="Unit settings"
+              >
+                <Settings2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => {
+                  setEditingMeasurement(null);
+                  setFormUnits({ weight: weightUnit, length: lengthUnit });
+                  setNewMeasurement({ measurement_date: new Date().toISOString().split('T')[0] });
+                  setShowAddModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            </div>
           </div>
 
           {/* Category tabs */}
@@ -341,7 +472,7 @@ export default function BodyMeasurements() {
             {/* Measurement cards */}
             <div className="grid gap-3 sm:grid-cols-2">
               {filteredFields.map((field) => {
-                const value = latestMeasurement[field.key];
+                const storageValue = latestMeasurement[field.key] as number | undefined;
                 const compData = comparison?.[field.key];
                 const change = compData?.change;
                 const changePercent = compData?.changePercent;
@@ -350,7 +481,18 @@ export default function BodyMeasurements() {
                 const TrendIcon = trend.icon;
                 const FieldIcon = field.icon;
 
-                if (value === null || value === undefined) return null;
+                if (storageValue === null || storageValue === undefined) return null;
+
+                // Convert to display units
+                const displayValue = toDisplayValue(storageValue, field.baseUnit, weightUnit, lengthUnit);
+                const displayUnit = getDisplayUnit(field, weightUnit, lengthUnit);
+
+                // Convert change to display units too
+                let displayChange: number | null = null;
+                if (change !== null && change !== undefined) {
+                  displayChange = toDisplayValue(Math.abs(change), field.baseUnit, weightUnit, lengthUnit);
+                  if (change < 0) displayChange = -displayChange;
+                }
 
                 return (
                   <motion.div
@@ -366,18 +508,18 @@ export default function BodyMeasurements() {
                         </div>
                         <span className="text-sm text-gray-400">{field.label}</span>
                       </div>
-                      {change !== null && change !== undefined && (
+                      {displayChange !== null && (
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${trend.bg}`}>
                           <TrendIcon className={`w-3.5 h-3.5 ${trend.color}`} />
                           <span className={`text-xs font-medium ${trend.color}`}>
-                            {change > 0 ? '+' : ''}{change.toFixed(1)} ({changePercent}%)
+                            {displayChange > 0 ? '+' : ''}{displayChange.toFixed(1)} ({changePercent}%)
                           </span>
                         </div>
                       )}
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold">{(value as number).toFixed(1)}</span>
-                      <span className="text-gray-500">{field.unit}</span>
+                      <span className="text-2xl font-bold">{displayValue.toFixed(1)}</span>
+                      <span className="text-gray-500">{displayUnit}</span>
                     </div>
                   </motion.div>
                 );
@@ -421,10 +563,22 @@ export default function BodyMeasurements() {
                               })}
                             </p>
                             <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
-                              {m.weight_kg && <span>Weight: {m.weight_kg}kg</span>}
+                              {m.weight_kg && (
+                                <span>
+                                  Weight: {convertWeight(m.weight_kg, weightUnit).toFixed(1)}{weightUnit}
+                                </span>
+                              )}
                               {m.body_fat_percentage && <span>BF: {m.body_fat_percentage}%</span>}
-                              {m.chest_cm && <span>Chest: {m.chest_cm}cm</span>}
-                              {m.waist_cm && <span>Waist: {m.waist_cm}cm</span>}
+                              {m.chest_cm && (
+                                <span>
+                                  Chest: {convertLength(m.chest_cm, lengthUnit).toFixed(1)}{lengthUnit}
+                                </span>
+                              )}
+                              {m.waist_cm && (
+                                <span>
+                                  Waist: {convertLength(m.waist_cm, lengthUnit).toFixed(1)}{lengthUnit}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
@@ -502,26 +656,29 @@ export default function BodyMeasurements() {
                     <div key={cat.id}>
                       <h3 className="text-sm font-medium text-gray-400 mb-2">{cat.label}</h3>
                       <div className="grid grid-cols-2 gap-2">
-                        {MEASUREMENT_FIELDS.filter((f) => f.category === cat.id).map((field) => (
-                          <div key={field.key}>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              {field.label} ({field.unit})
-                            </label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={(newMeasurement[field.key] as number | undefined) ?? ''}
-                              onChange={(e) =>
-                                setNewMeasurement({
-                                  ...newMeasurement,
-                                  [field.key]: e.target.value ? parseFloat(e.target.value) : undefined,
-                                })
-                              }
-                              placeholder="—"
-                              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm"
-                            />
-                          </div>
-                        ))}
+                        {MEASUREMENT_FIELDS.filter((f) => f.category === cat.id).map((field) => {
+                          const displayUnit = getDisplayUnit(field, formUnits.weight, formUnits.length);
+                          return (
+                            <div key={field.key}>
+                              <label className="block text-xs text-gray-500 mb-1">
+                                {field.label} ({displayUnit})
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={(newMeasurement[field.key] as number | undefined) ?? ''}
+                                onChange={(e) =>
+                                  setNewMeasurement({
+                                    ...newMeasurement,
+                                    [field.key]: e.target.value ? parseFloat(e.target.value) : undefined,
+                                  })
+                                }
+                                placeholder="—"
+                                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm"
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -559,6 +716,116 @@ export default function BodyMeasurements() {
                 </div>
               </motion.div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Unit Settings Modal */}
+      <AnimatePresence>
+        {showUnitSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowUnitSettings(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden"
+            >
+              <div className="p-4 border-b border-gray-800">
+                <h2 className="text-lg font-bold">Unit Preferences</h2>
+                <p className="text-sm text-gray-400">Choose your preferred measurement units</p>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {/* Weight Unit */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Weight</label>
+                  <div className="flex bg-gray-800 rounded-xl p-1">
+                    {(['kg', 'lbs'] as const).map((u) => (
+                      <button
+                        key={u}
+                        onClick={() => setWeightUnit(u)}
+                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          weightUnit === u
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {u === 'kg' ? 'Kilograms (kg)' : 'Pounds (lbs)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Length/Height Unit */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Height & Circumferences</label>
+                  <div className="flex bg-gray-800 rounded-xl p-1">
+                    {(['cm', 'ft_in'] as const).map((u) => (
+                      <button
+                        key={u}
+                        onClick={() => setHeightUnit(u)}
+                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          heightPref === u
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {u === 'cm' ? 'Centimeters (cm)' : 'Inches (in)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quick presets */}
+                <div className="pt-2 border-t border-gray-800">
+                  <p className="text-xs text-gray-500 mb-2">Quick presets</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setWeightUnit('kg');
+                        setHeightUnit('cm');
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                        weightUnit === 'kg' && heightPref === 'cm'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      Metric (kg/cm)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setWeightUnit('lbs');
+                        setHeightUnit('ft_in');
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                        weightUnit === 'lbs' && heightPref === 'ft_in'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      Imperial (lbs/in)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-800">
+                <button
+                  onClick={() => setShowUnitSettings(false)}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
