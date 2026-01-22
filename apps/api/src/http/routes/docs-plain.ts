@@ -18,6 +18,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fs from 'fs/promises';
 import path from 'path';
+import { execSync } from 'child_process';
 import { loggers } from '../../lib/logger';
 
 const log = loggers.http;
@@ -28,6 +29,44 @@ const log = loggers.http;
 
 const PROJECT_ROOT = process.env.PROJECT_ROOT || '/var/www/musclemap.me';
 const DOCS_PUBLIC_DIR = path.join(PROJECT_ROOT, 'docs', 'public');
+
+// Cache git info at startup (doesn't change during runtime)
+let cachedGitInfo: { commitHash: string; commitDate: string } | null = null;
+
+/**
+ * Get git commit info for traceability
+ */
+function getGitInfo(): { commitHash: string; commitDate: string } {
+  if (cachedGitInfo) return cachedGitInfo;
+
+  try {
+    const commitHash = execSync('git rev-parse --short HEAD', {
+      cwd: PROJECT_ROOT,
+      encoding: 'utf-8',
+    }).trim();
+
+    const commitDate = execSync('git log -1 --format=%ci', {
+      cwd: PROJECT_ROOT,
+      encoding: 'utf-8',
+    }).trim();
+
+    cachedGitInfo = { commitHash, commitDate };
+    return cachedGitInfo;
+  } catch {
+    return { commitHash: 'unknown', commitDate: 'unknown' };
+  }
+}
+
+/**
+ * Format date with both UTC and a friendly timezone indicator
+ */
+function formatTimestamp(): string {
+  const now = new Date();
+  const utc = now.toISOString();
+  // Also show Unix timestamp for unambiguous reference
+  const unix = Math.floor(now.getTime() / 1000);
+  return `${utc} (Unix: ${unix})`;
+}
 const DOCS_DIR = path.join(PROJECT_ROOT, 'docs');
 
 // Documents to include in the combined output, in order
@@ -76,6 +115,8 @@ interface DocFile {
 interface TableOfContents {
   title: string;
   generatedAt: string;
+  gitCommit: string;
+  gitCommitDate: string;
   totalDocs: number;
   sections: {
     name: string;
@@ -175,12 +216,15 @@ async function buildCombinedDocs(): Promise<string> {
   const sections: string[] = [];
 
   // Header
+  const gitInfo = getGitInfo();
+
   sections.push('=' .repeat(60));
   sections.push('MUSCLEMAP DOCUMENTATION');
   sections.push('Plain Text Version for AI Assistants & Screen Readers');
   sections.push('=' .repeat(60));
   sections.push('');
-  sections.push(`Generated: ${new Date().toISOString()}`);
+  sections.push(`Generated: ${formatTimestamp()}`);
+  sections.push(`Git Commit: ${gitInfo.commitHash} (${gitInfo.commitDate})`);
   sections.push(`Website: https://musclemap.me`);
   sections.push(`GitHub: https://github.com/jeanpaulniko/musclemap`);
   sections.push('');
@@ -252,9 +296,13 @@ async function buildTableOfContents(): Promise<TableOfContents> {
         })),
     }));
 
+  const gitInfo = getGitInfo();
+
   return {
     title: 'MuscleMap Documentation Index',
-    generatedAt: new Date().toISOString(),
+    generatedAt: formatTimestamp(),
+    gitCommit: gitInfo.commitHash,
+    gitCommitDate: gitInfo.commitDate,
     totalDocs: allFiles.length,
     sections,
   };
@@ -319,6 +367,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
       lines.push('');
       lines.push(`Total documents: ${toc.totalDocs}`);
       lines.push(`Generated: ${toc.generatedAt}`);
+      lines.push(`Git Commit: ${toc.gitCommit} (${toc.gitCommitDate})`);
       lines.push('');
 
       for (const section of toc.sections) {
