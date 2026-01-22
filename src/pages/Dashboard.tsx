@@ -984,10 +984,23 @@ export default function Dashboard() {
   const { hasCompletedTour } = useTour();
 
   // Check if user needs onboarding tour
+  // Uses multiple sources to determine completion:
+  // 1. Server-side: user.onboardingCompletedAt (persists across devices/sessions)
+  // 2. localStorage: ONBOARDING_COMPLETE_KEY (fast check, may be cleared on iOS)
+  // 3. Zustand store: hasCompletedTour (session state)
   useEffect(() => {
-    const hasCompleted = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
+    // Server-side check is the authoritative source (fixes iOS localStorage issues)
+    const serverCompleted = !!(user?.onboardingCompletedAt);
+    const localCompleted = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
     const tourCompleted = hasCompletedTour('onboarding');
-    if (!hasCompleted && !tourCompleted && user) {
+
+    // If server says completed but localStorage doesn't, sync it
+    if (serverCompleted && !localCompleted) {
+      localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
+    }
+
+    // Only show tour if ALL sources say it's incomplete
+    if (!serverCompleted && !localCompleted && !tourCompleted && user) {
       // Delay the tour start to let the dashboard render first
       const timer = setTimeout(() => {
         setShowOnboardingTour(true);
@@ -996,10 +1009,20 @@ export default function Dashboard() {
     }
   }, [user, hasCompletedTour]);
 
-  // Handle tour completion
-  const handleTourComplete = useCallback(() => {
+  // Handle tour completion - sync to both localStorage and server
+  const handleTourComplete = useCallback(async () => {
+    // Set localStorage immediately for fast UI response
     localStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
     setShowOnboardingTour(false);
+
+    // Sync to server so completion persists across devices/sessions (fixes iOS issues)
+    try {
+      await api.post('/onboarding/complete', {});
+      logger.info('Tour completion synced to server');
+    } catch (error) {
+      // Non-blocking - localStorage already set, server sync is best-effort
+      logger.warn('Failed to sync tour completion to server', { error });
+    }
   }, []);
 
   // ============================================
