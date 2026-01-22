@@ -227,13 +227,17 @@ export const LOG_FRONTEND_ERROR_MUTATION = gql`
 // ============================================
 
 export const START_WORKOUT_SESSION_MUTATION = gql`
-  mutation StartWorkoutSession($input: StartWorkoutSessionInput!) {
+  mutation StartWorkoutSession($input: StartWorkoutSessionInput) {
     startWorkoutSession(input: $input) {
-      success
       session {
         id
         userId
         startedAt
+        pausedAt
+        totalPausedTime
+        lastActivityAt
+        currentExerciseIndex
+        currentSetIndex
         sets {
           id
           exerciseId
@@ -242,18 +246,56 @@ export const START_WORKOUT_SESSION_MUTATION = gql`
           reps
           weightKg
           rpe
+          rir
+          durationSeconds
+          restSeconds
+          tag
           tu
+          muscleActivations {
+            muscleId
+            muscleName
+            activation
+            tu
+          }
+          isPRWeight
+          isPRReps
+          isPR1RM
+          notes
+          performedAt
         }
         totalVolume
-        totalTU
+        totalReps
         musclesWorked {
           muscleId
           muscleName
           totalTU
           setCount
+          percentageOfMax
         }
+        sessionPRs {
+          exerciseId
+          exerciseName
+          prType
+          newValue
+          previousValue
+          improvementPercent
+          achievedAt
+        }
+        estimatedCalories
       }
-      error
+      setLogged {
+        id
+        exerciseId
+        exerciseName
+        tu
+      }
+      prsAchieved {
+        exerciseId
+        exerciseName
+        prType
+        newValue
+        previousValue
+      }
     }
   }
 `;
@@ -261,8 +303,54 @@ export const START_WORKOUT_SESSION_MUTATION = gql`
 export const LOG_SET_MUTATION = gql`
   mutation LogSet($input: LogSetInput!) {
     logSet(input: $input) {
-      success
-      set {
+      session {
+        id
+        totalVolume
+        totalReps
+        estimatedCalories
+        musclesWorked {
+          muscleId
+          muscleName
+          totalTU
+          setCount
+          percentageOfMax
+        }
+        sessionPRs {
+          exerciseId
+          exerciseName
+          prType
+          newValue
+          previousValue
+          improvementPercent
+          achievedAt
+        }
+        sets {
+          id
+          exerciseId
+          exerciseName
+          setNumber
+          reps
+          weightKg
+          rpe
+          rir
+          durationSeconds
+          restSeconds
+          tag
+          tu
+          muscleActivations {
+            muscleId
+            muscleName
+            activation
+            tu
+          }
+          isPRWeight
+          isPRReps
+          isPR1RM
+          notes
+          performedAt
+        }
+      }
+      setLogged {
         id
         exerciseId
         exerciseName
@@ -272,37 +360,30 @@ export const LOG_SET_MUTATION = gql`
         rpe
         rir
         durationSeconds
+        restSeconds
+        tag
         tu
         muscleActivations {
           muscleId
           muscleName
-          activationPercent
+          activation
           tu
         }
         isPRWeight
+        isPRReps
         isPR1RM
-        isPRVolume
         notes
         performedAt
       }
-      sessionUpdate {
-        totalVolume
-        totalTU
-        musclesWorked {
-          muscleId
-          muscleName
-          totalTU
-          setCount
-        }
-        sessionPRs {
-          exerciseId
-          exerciseName
-          prType
-          value
-          previousValue
-        }
+      prsAchieved {
+        exerciseId
+        exerciseName
+        prType
+        newValue
+        previousValue
+        improvementPercent
+        achievedAt
       }
-      error
     }
   }
 `;
@@ -310,46 +391,45 @@ export const LOG_SET_MUTATION = gql`
 export const UPDATE_SET_MUTATION = gql`
   mutation UpdateSet($input: UpdateSetInput!) {
     updateSet(input: $input) {
-      success
-      set {
-        id
-        exerciseId
-        exerciseName
-        setNumber
-        reps
-        weightKg
-        rpe
+      id
+      exerciseId
+      exerciseName
+      setNumber
+      reps
+      weightKg
+      rpe
+      rir
+      durationSeconds
+      restSeconds
+      tag
+      tu
+      muscleActivations {
+        muscleId
+        muscleName
+        activation
         tu
-        muscleActivations {
-          muscleId
-          muscleName
-          activationPercent
-          tu
-        }
-        isPRWeight
-        isPR1RM
-        performedAt
       }
-      error
+      isPRWeight
+      isPRReps
+      isPR1RM
+      notes
+      performedAt
     }
   }
 `;
 
 export const DELETE_SET_MUTATION = gql`
-  mutation DeleteSet($sessionId: ID!, $setId: ID!) {
-    deleteSet(sessionId: $sessionId, setId: $setId) {
-      success
-      error
-    }
+  mutation DeleteSet($setId: ID!) {
+    deleteSet(setId: $setId)
   }
 `;
 
 export const PAUSE_WORKOUT_SESSION_MUTATION = gql`
   mutation PauseWorkoutSession($sessionId: ID!) {
     pauseWorkoutSession(sessionId: $sessionId) {
-      success
+      id
       pausedAt
-      error
+      totalPausedTime
     }
   }
 `;
@@ -357,9 +437,9 @@ export const PAUSE_WORKOUT_SESSION_MUTATION = gql`
 export const RESUME_WORKOUT_SESSION_MUTATION = gql`
   mutation ResumeWorkoutSession($sessionId: ID!) {
     resumeWorkoutSession(sessionId: $sessionId) {
-      success
+      id
+      pausedAt
       totalPausedTime
-      error
     }
   }
 `;
@@ -367,41 +447,46 @@ export const RESUME_WORKOUT_SESSION_MUTATION = gql`
 export const COMPLETE_WORKOUT_SESSION_MUTATION = gql`
   mutation CompleteWorkoutSession($input: CompleteWorkoutSessionInput!) {
     completeWorkoutSession(input: $input) {
-      success
       workout {
         id
         userId
-        exercises {
+      }
+      session {
+        id
+        sets {
+          id
           exerciseId
-          name
-          sets
+          exerciseName
+          setNumber
           reps
-          weight
-          notes
+          weightKg
+          tu
         }
-        duration
-        notes
+      }
+      totalTU
+      totalVolume
+      totalSets
+      totalReps
+      duration
+      muscleBreakdown {
+        muscleId
+        muscleName
         totalTU
-        createdAt
+        setCount
+        percentageOfMax
       }
-      tuEarned
+      prsAchieved {
+        exerciseId
+        exerciseName
+        prType
+        newValue
+        previousValue
+        improvementPercent
+        achievedAt
+      }
+      creditsCharged
       xpEarned
-      characterStats {
-        userId
-        level
-        xp
-        xpToNextLevel
-        strength
-        endurance
-        agility
-        flexibility
-        balance
-        mentalFocus
-        totalWorkouts
-        currentStreak
-      }
       levelUp
-      newLevel
       achievements {
         id
         name
@@ -410,71 +495,71 @@ export const COMPLETE_WORKOUT_SESSION_MUTATION = gql`
         rarity
         unlockedAt
       }
-      sessionSummary {
-        duration
-        totalSets
-        totalVolume
-        totalTU
-        exerciseCount
-        musclesWorked {
-          muscleId
-          muscleName
-          totalTU
-          setCount
-        }
-        prs {
-          exerciseId
-          exerciseName
-          prType
-          value
-          previousValue
-        }
-      }
-      error
     }
   }
 `;
 
 export const ABANDON_WORKOUT_SESSION_MUTATION = gql`
-  mutation AbandonWorkoutSession($sessionId: ID!) {
-    abandonWorkoutSession(sessionId: $sessionId) {
-      success
-      error
-    }
+  mutation AbandonWorkoutSession($sessionId: ID!, $reason: String) {
+    abandonWorkoutSession(sessionId: $sessionId, reason: $reason)
   }
 `;
 
 export const RECOVER_WORKOUT_SESSION_MUTATION = gql`
-  mutation RecoverWorkoutSession($sessionId: ID!) {
-    recoverWorkoutSession(sessionId: $sessionId) {
-      success
-      session {
+  mutation RecoverWorkoutSession($archivedSessionId: ID!) {
+    recoverWorkoutSession(archivedSessionId: $archivedSessionId) {
+      id
+      userId
+      startedAt
+      pausedAt
+      totalPausedTime
+      lastActivityAt
+      currentExerciseIndex
+      currentSetIndex
+      sets {
         id
-        userId
-        startedAt
-        pausedAt
-        totalPausedTime
-        sets {
-          id
-          exerciseId
-          exerciseName
-          setNumber
-          reps
-          weightKg
-          rpe
-          tu
-          performedAt
-        }
-        totalVolume
-        totalTU
-        musclesWorked {
+        exerciseId
+        exerciseName
+        setNumber
+        reps
+        weightKg
+        rpe
+        rir
+        durationSeconds
+        restSeconds
+        tag
+        tu
+        muscleActivations {
           muscleId
           muscleName
-          totalTU
-          setCount
+          activation
+          tu
         }
+        isPRWeight
+        isPRReps
+        isPR1RM
+        notes
+        performedAt
       }
-      error
+      totalVolume
+      totalReps
+      musclesWorked {
+        muscleId
+        muscleName
+        totalTU
+        setCount
+        percentageOfMax
+      }
+      sessionPRs {
+        exerciseId
+        exerciseName
+        prType
+        newValue
+        previousValue
+        improvementPercent
+        achievedAt
+      }
+      estimatedCalories
     }
   }
 `;

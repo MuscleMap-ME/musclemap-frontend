@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Clock,
   Dumbbell,
@@ -36,7 +36,7 @@ export function SessionRecoveryModal({
   const [isRecovering, setIsRecovering] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
 
-  const { recoverSession, abandonSession } = useWorkoutSessionGraphQL();
+  const { recoverSession } = useWorkoutSessionGraphQL();
 
   // Format relative time
   const formatRelativeTime = (timestamp: string) => {
@@ -65,9 +65,9 @@ export function SessionRecoveryModal({
     setSelectedId(sessionId);
     setIsRecovering(true);
 
-    const success = await recoverSession(sessionId);
+    const result = await recoverSession(sessionId);
 
-    if (success) {
+    if (result.success) {
       onRecover(sessionId);
     } else {
       setIsRecovering(false);
@@ -75,16 +75,15 @@ export function SessionRecoveryModal({
     }
   };
 
-  // Handle discard
+  // Handle discard - for archived sessions, we just dismiss them
+  // The user can choose to start fresh which effectively discards them
   const handleDiscard = async (sessionId: string) => {
     setSelectedId(sessionId);
     setIsDiscarding(true);
 
-    const success = await abandonSession(sessionId);
-
-    if (success) {
-      onDiscard(sessionId);
-    }
+    // For now, just call onDiscard to remove from the UI
+    // The archived session will remain in the database but user can ignore it
+    onDiscard(sessionId);
 
     setIsDiscarding(false);
     setSelectedId(null);
@@ -136,15 +135,15 @@ export function SessionRecoveryModal({
                 <div>
                   <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
                     <Clock className="w-4 h-4" />
-                    <span>{formatRelativeTime(session.lastActivityAt)}</span>
+                    <span>{formatRelativeTime(session.archivedAt || session.startedAt)}</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className="flex items-center gap-1">
                       <Dumbbell className="w-4 h-4 text-blue-400" />
-                      <span className="font-medium">{session.exerciseCount} exercises</span>
+                      <span className="font-medium">{session.musclesWorked?.length || 0} muscles</span>
                     </span>
-                    <span className="text-gray-400">{session.setCount} sets</span>
-                    <span className="text-purple-400">{formatVolume(session.totalVolume)}</span>
+                    <span className="text-gray-400">{session.setsLogged || 0} sets</span>
+                    <span className="text-purple-400">{formatVolume(session.totalVolume || 0)}</span>
                   </div>
                 </div>
               </div>

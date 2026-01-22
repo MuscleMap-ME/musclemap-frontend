@@ -421,8 +421,12 @@ export const ACTIVE_WORKOUT_SESSION_QUERY = gql`
       startedAt
       pausedAt
       totalPausedTime
-      currentExerciseId
-      restTimerEndsAt
+      lastActivityAt
+      currentExerciseIndex
+      currentSetIndex
+      restTimerRemaining
+      restTimerTotalDuration
+      restTimerStartedAt
       sets {
         id
         exerciseId
@@ -433,36 +437,42 @@ export const ACTIVE_WORKOUT_SESSION_QUERY = gql`
         rpe
         rir
         durationSeconds
+        restSeconds
+        tag
         tu
         muscleActivations {
           muscleId
           muscleName
-          activationPercent
+          activation
           tu
         }
         isPRWeight
+        isPRReps
         isPR1RM
-        isPRVolume
         notes
         performedAt
       }
       totalVolume
-      totalTU
+      totalReps
       musclesWorked {
         muscleId
         muscleName
         totalTU
         setCount
+        percentageOfMax
       }
       sessionPRs {
         exerciseId
         exerciseName
         prType
-        value
+        newValue
         previousValue
+        improvementPercent
+        achievedAt
       }
       estimatedCalories
-      exerciseCount
+      clientVersion
+      serverVersion
     }
   }
 `;
@@ -475,6 +485,9 @@ export const WORKOUT_SESSION_QUERY = gql`
       startedAt
       pausedAt
       totalPausedTime
+      lastActivityAt
+      currentExerciseIndex
+      currentSetIndex
       sets {
         id
         exerciseId
@@ -483,45 +496,57 @@ export const WORKOUT_SESSION_QUERY = gql`
         reps
         weightKg
         rpe
+        rir
+        durationSeconds
+        restSeconds
+        tag
         tu
         muscleActivations {
           muscleId
           muscleName
-          activationPercent
+          activation
           tu
         }
         isPRWeight
+        isPRReps
         isPR1RM
+        notes
         performedAt
       }
       totalVolume
-      totalTU
+      totalReps
       musclesWorked {
         muscleId
         muscleName
         totalTU
         setCount
+        percentageOfMax
       }
       sessionPRs {
         exerciseId
         exerciseName
         prType
-        value
+        newValue
         previousValue
+        improvementPercent
+        achievedAt
       }
+      estimatedCalories
     }
   }
 `;
 
 export const RECOVERABLE_SESSIONS_QUERY = gql`
-  query RecoverableSessions {
-    recoverableSessions {
+  query RecoverableSessions($limit: Int) {
+    recoverableSessions(limit: $limit) {
       id
       startedAt
-      lastActivityAt
-      exerciseCount
-      setCount
+      archivedAt
+      archiveReason
+      setsLogged
       totalVolume
+      musclesWorked
+      canRecover
     }
   }
 `;

@@ -6,7 +6,7 @@
  * for local state management.
  */
 
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useLazyQuery } from '@apollo/client/react';
 import {
   ACTIVE_WORKOUT_SESSION_QUERY,
@@ -38,11 +38,13 @@ export interface LoggedSet {
   rpe: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  restSeconds: number | null;
+  tag: string | null;
   tu: number;
   muscleActivations: MuscleActivation[];
   isPRWeight: boolean;
+  isPRReps: boolean;
   isPR1RM: boolean;
-  isPRVolume: boolean;
   notes: string | null;
   performedAt: string;
 }
@@ -50,7 +52,7 @@ export interface LoggedSet {
 export interface MuscleActivation {
   muscleId: string;
   muscleName: string;
-  activationPercent: number;
+  activation: number;
   tu: number;
 }
 
@@ -59,14 +61,17 @@ export interface MuscleActivationSummary {
   muscleName: string;
   totalTU: number;
   setCount: number;
+  percentageOfMax: number | null;
 }
 
 export interface SessionPR {
   exerciseId: string;
   exerciseName: string;
-  prType: 'weight' | '1rm' | 'volume';
-  value: number;
+  prType: string;
+  newValue: number;
   previousValue: number | null;
+  improvementPercent: number | null;
+  achievedAt: string;
 }
 
 export interface WorkoutSession {
@@ -75,24 +80,35 @@ export interface WorkoutSession {
   startedAt: string;
   pausedAt: string | null;
   totalPausedTime: number;
-  currentExerciseId: string | null;
-  restTimerEndsAt: string | null;
+  lastActivityAt: string;
+  currentExerciseIndex: number;
+  currentSetIndex: number;
+  restTimerRemaining: number | null;
+  restTimerTotalDuration: number | null;
+  restTimerStartedAt: string | null;
   sets: LoggedSet[];
   totalVolume: number;
-  totalTU: number;
+  totalReps: number;
   musclesWorked: MuscleActivationSummary[];
   sessionPRs: SessionPR[];
   estimatedCalories: number;
-  exerciseCount: number;
+  clientVersion: number;
+  serverVersion: number;
 }
 
 export interface RecoverableSession {
   id: string;
   startedAt: string;
-  lastActivityAt: string;
-  exerciseCount: number;
-  setCount: number;
+  archivedAt: string;
+  archiveReason: string;
+  setsLogged: number;
   totalVolume: number;
+  musclesWorked: string[];
+  canRecover: boolean;
+  // Computed fields for UI compatibility
+  exerciseCount?: number;
+  setCount?: number;
+  lastActivityAt?: string;
 }
 
 export interface ExerciseSubstitution {
@@ -130,44 +146,36 @@ export interface LogSetInput {
   rpe?: number;
   rir?: number;
   durationSeconds?: number;
+  restSeconds?: number;
+  tag?: string;
   notes?: string;
   clientSetId?: string;
 }
 
 export interface SessionCompletionResult {
-  success: boolean;
   workout: {
     id: string;
-    totalTU: number;
-  } | null;
-  tuEarned: number;
+    userId: string;
+  };
+  session: WorkoutSession;
+  totalTU: number;
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  duration: number;
+  muscleBreakdown: MuscleActivationSummary[];
+  prsAchieved: SessionPR[];
+  creditsCharged: number;
   xpEarned: number;
-  characterStats: {
-    level: number;
-    xp: number;
-    xpToNextLevel: number;
-    strength: number;
-    endurance: number;
-  } | null;
   levelUp: boolean;
-  newLevel: number | null;
   achievements: Array<{
     id: string;
     name: string;
     description: string;
     icon: string;
     rarity: string;
+    unlockedAt: string;
   }>;
-  sessionSummary: {
-    duration: number;
-    totalSets: number;
-    totalVolume: number;
-    totalTU: number;
-    exerciseCount: number;
-    musclesWorked: MuscleActivationSummary[];
-    prs: SessionPR[];
-  } | null;
-  error: string | null;
 }
 
 // ============================================
@@ -188,9 +196,12 @@ export function useWorkoutSessionGraphQL() {
     data: activeSessionData,
     loading: loadingActiveSession,
     refetch: refetchActiveSession,
+    error: activeSessionError,
   } = useQuery(ACTIVE_WORKOUT_SESSION_QUERY, {
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true,
+    // Don't crash if query fails - just return null
+    errorPolicy: 'all',
   });
 
   const {
@@ -199,13 +210,14 @@ export function useWorkoutSessionGraphQL() {
     refetch: refetchRecoverableSessions,
   } = useQuery(RECOVERABLE_SESSIONS_QUERY, {
     fetchPolicy: 'network-only',
+    errorPolicy: 'all',
   });
 
   const [fetchExerciseHistory, { data: exerciseHistoryData, loading: loadingExerciseHistory }] =
-    useLazyQuery(EXERCISE_HISTORY_QUERY);
+    useLazyQuery(EXERCISE_HISTORY_QUERY, { errorPolicy: 'all' });
 
-  const [fetchSubstitutions, { data: substitutionsData, loading: loadingSubstitutions }] =
-    useLazyQuery(EXERCISE_SUBSTITUTIONS_QUERY);
+  const [fetchSubstitutions, { loading: loadingSubstitutions }] =
+    useLazyQuery(EXERCISE_SUBSTITUTIONS_QUERY, { errorPolicy: 'all' });
 
   // ============================================
   // MUTATIONS
@@ -250,10 +262,16 @@ export function useWorkoutSessionGraphQL() {
     [activeSessionData]
   );
 
-  const recoverableSessions: RecoverableSession[] = useMemo(
-    () => recoverableSessionsData?.recoverableSessions || [],
-    [recoverableSessionsData]
-  );
+  const recoverableSessions: RecoverableSession[] = useMemo(() => {
+    const sessions = recoverableSessionsData?.recoverableSessions || [];
+    // Map to add UI-compatible fields
+    return sessions.map((s: any) => ({
+      ...s,
+      exerciseCount: s.musclesWorked?.length || 0,
+      setCount: s.setsLogged,
+      lastActivityAt: s.archivedAt,
+    }));
+  }, [recoverableSessionsData]);
 
   const exerciseHistory: Record<string, ExerciseHistory> = useMemo(() => {
     const history: Record<string, ExerciseHistory> = {};
@@ -276,25 +294,32 @@ export function useWorkoutSessionGraphQL() {
    * Start a new workout session
    */
   const startSession = useCallback(
-    async (prescriptionId?: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+    async (workoutPlan?: any, clientId?: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
       try {
-        const { data } = await startSessionMutation({
+        const { data, errors } = await startSessionMutation({
           variables: {
-            input: { prescriptionId },
+            input: workoutPlan ? { workoutPlan, clientId } : undefined,
           },
         });
 
-        if (data?.startWorkoutSession?.success) {
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to start session',
+          };
+        }
+
+        if (data?.startWorkoutSession?.session) {
           await refetchActiveSession();
           return {
             success: true,
-            sessionId: data.startWorkoutSession.session?.id,
+            sessionId: data.startWorkoutSession.session.id,
           };
         }
 
         return {
           success: false,
-          error: data?.startWorkoutSession?.error || 'Failed to start session',
+          error: 'Failed to start session',
         };
       } catch (error) {
         console.error('Failed to start workout session:', error);
@@ -313,56 +338,41 @@ export function useWorkoutSessionGraphQL() {
   const logSet = useCallback(
     async (input: LogSetInput): Promise<{ success: boolean; set?: LoggedSet; prs?: SessionPR[]; error?: string }> => {
       try {
-        const { data } = await logSetMutation({
+        const { data, errors } = await logSetMutation({
           variables: { input },
-          optimisticResponse: {
-            logSet: {
-              __typename: 'LogSetResult',
-              success: true,
-              set: {
-                __typename: 'LoggedSet',
-                id: input.clientSetId || `temp-${Date.now()}`,
-                exerciseId: input.exerciseId,
-                exerciseName: '',
-                setNumber: input.setNumber,
-                reps: input.reps || null,
-                weightKg: input.weightKg || null,
-                rpe: input.rpe || null,
-                rir: input.rir || null,
-                durationSeconds: input.durationSeconds || null,
-                tu: 0,
-                muscleActivations: [],
-                isPRWeight: false,
-                isPR1RM: false,
-                isPRVolume: false,
-                notes: input.notes || null,
-                performedAt: new Date().toISOString(),
-              },
-              sessionUpdate: null,
-              error: null,
-            },
-          },
         });
 
-        if (data?.logSet?.success) {
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to log set',
+          };
+        }
+
+        if (data?.logSet) {
+          const result = data.logSet;
+
           // Check for PRs and trigger callbacks
-          const newPRs = data.logSet.sessionUpdate?.sessionPRs || [];
+          const newPRs = result.prsAchieved || [];
           for (const pr of newPRs) {
             if (onPRAchievedRef.current) {
               onPRAchievedRef.current(pr);
             }
           }
 
+          // Refetch to get updated session
+          await refetchActiveSession();
+
           return {
             success: true,
-            set: data.logSet.set,
+            set: result.setLogged,
             prs: newPRs,
           };
         }
 
         return {
           success: false,
-          error: data?.logSet?.error || 'Failed to log set',
+          error: 'Failed to log set',
         };
       } catch (error) {
         console.error('Failed to log set:', error);
@@ -372,7 +382,7 @@ export function useWorkoutSessionGraphQL() {
         };
       }
     },
-    [logSetMutation]
+    [logSetMutation, refetchActiveSession]
   );
 
   /**
@@ -380,31 +390,37 @@ export function useWorkoutSessionGraphQL() {
    */
   const updateSet = useCallback(
     async (
-      sessionId: string,
       setId: string,
       updates: Partial<LogSetInput>
     ): Promise<{ success: boolean; set?: LoggedSet; error?: string }> => {
       try {
-        const { data } = await updateSetMutation({
+        const { data, errors } = await updateSetMutation({
           variables: {
             input: {
-              sessionId,
               setId,
               ...updates,
             },
           },
         });
 
-        if (data?.updateSet?.success) {
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to update set',
+          };
+        }
+
+        if (data?.updateSet) {
+          await refetchActiveSession();
           return {
             success: true,
-            set: data.updateSet.set,
+            set: data.updateSet,
           };
         }
 
         return {
           success: false,
-          error: data?.updateSet?.error || 'Failed to update set',
+          error: 'Failed to update set',
         };
       } catch (error) {
         console.error('Failed to update set:', error);
@@ -414,27 +430,34 @@ export function useWorkoutSessionGraphQL() {
         };
       }
     },
-    [updateSetMutation]
+    [updateSetMutation, refetchActiveSession]
   );
 
   /**
    * Delete a set
    */
   const deleteSet = useCallback(
-    async (sessionId: string, setId: string): Promise<{ success: boolean; error?: string }> => {
+    async (setId: string): Promise<{ success: boolean; error?: string }> => {
       try {
-        const { data } = await deleteSetMutation({
-          variables: { sessionId, setId },
+        const { data, errors } = await deleteSetMutation({
+          variables: { setId },
         });
 
-        if (data?.deleteSet?.success) {
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to delete set',
+          };
+        }
+
+        if (data?.deleteSet !== undefined) {
           await refetchActiveSession();
           return { success: true };
         }
 
         return {
           success: false,
-          error: data?.deleteSet?.error || 'Failed to delete set',
+          error: 'Failed to delete set',
         };
       } catch (error) {
         console.error('Failed to delete set:', error);
@@ -456,18 +479,25 @@ export function useWorkoutSessionGraphQL() {
     }
 
     try {
-      const { data } = await pauseSessionMutation({
+      const { data, errors } = await pauseSessionMutation({
         variables: { sessionId: activeSession.id },
       });
 
-      if (data?.pauseWorkoutSession?.success) {
+      if (errors?.length) {
+        return {
+          success: false,
+          error: errors[0]?.message || 'Failed to pause session',
+        };
+      }
+
+      if (data?.pauseWorkoutSession) {
         await refetchActiveSession();
         return { success: true };
       }
 
       return {
         success: false,
-        error: data?.pauseWorkoutSession?.error || 'Failed to pause session',
+        error: 'Failed to pause session',
       };
     } catch (error) {
       console.error('Failed to pause session:', error);
@@ -487,18 +517,25 @@ export function useWorkoutSessionGraphQL() {
     }
 
     try {
-      const { data } = await resumeSessionMutation({
+      const { data, errors } = await resumeSessionMutation({
         variables: { sessionId: activeSession.id },
       });
 
-      if (data?.resumeWorkoutSession?.success) {
+      if (errors?.length) {
+        return {
+          success: false,
+          error: errors[0]?.message || 'Failed to resume session',
+        };
+      }
+
+      if (data?.resumeWorkoutSession) {
         await refetchActiveSession();
         return { success: true };
       }
 
       return {
         success: false,
-        error: data?.resumeWorkoutSession?.error || 'Failed to resume session',
+        error: 'Failed to resume session',
       };
     } catch (error) {
       console.error('Failed to resume session:', error);
@@ -513,38 +550,39 @@ export function useWorkoutSessionGraphQL() {
    * Complete the workout session
    */
   const completeSession = useCallback(
-    async (notes?: string): Promise<SessionCompletionResult> => {
+    async (notes?: string, isPublic?: boolean): Promise<{ success: boolean; result?: SessionCompletionResult; error?: string }> => {
       if (!activeSession) {
         return {
           success: false,
-          workout: null,
-          tuEarned: 0,
-          xpEarned: 0,
-          characterStats: null,
-          levelUp: false,
-          newLevel: null,
-          achievements: [],
-          sessionSummary: null,
           error: 'No active session',
         };
       }
 
       try {
-        const { data } = await completeSessionMutation({
+        const { data, errors } = await completeSessionMutation({
           variables: {
             input: {
               sessionId: activeSession.id,
               notes,
+              isPublic,
             },
           },
         });
 
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to complete session',
+          };
+        }
+
         const result = data?.completeWorkoutSession;
 
-        if (result?.success) {
+        if (result) {
           // Trigger level up callback
-          if (result.levelUp && result.newLevel && onLevelUpRef.current) {
-            onLevelUpRef.current(result.newLevel);
+          if (result.levelUp && onLevelUpRef.current) {
+            // Calculate new level from XP (simplified)
+            onLevelUpRef.current(Math.floor(result.xpEarned / 1000) + 1);
           }
 
           // Trigger completion callback
@@ -555,33 +593,20 @@ export function useWorkoutSessionGraphQL() {
           // Clear active session
           await refetchActiveSession();
 
-          return result;
+          return {
+            success: true,
+            result,
+          };
         }
 
         return {
           success: false,
-          workout: null,
-          tuEarned: 0,
-          xpEarned: 0,
-          characterStats: null,
-          levelUp: false,
-          newLevel: null,
-          achievements: [],
-          sessionSummary: null,
-          error: result?.error || 'Failed to complete session',
+          error: 'Failed to complete session',
         };
       } catch (error) {
         console.error('Failed to complete session:', error);
         return {
           success: false,
-          workout: null,
-          tuEarned: 0,
-          xpEarned: 0,
-          characterStats: null,
-          levelUp: false,
-          newLevel: null,
-          achievements: [],
-          sessionSummary: null,
           error: error instanceof Error ? error.message : 'Unknown error',
         };
       }
@@ -592,24 +617,31 @@ export function useWorkoutSessionGraphQL() {
   /**
    * Abandon the session without saving
    */
-  const abandonSession = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  const abandonSession = useCallback(async (reason?: string): Promise<{ success: boolean; error?: string }> => {
     if (!activeSession) {
       return { success: false, error: 'No active session' };
     }
 
     try {
-      const { data } = await abandonSessionMutation({
-        variables: { sessionId: activeSession.id },
+      const { data, errors } = await abandonSessionMutation({
+        variables: { sessionId: activeSession.id, reason },
       });
 
-      if (data?.abandonWorkoutSession?.success) {
+      if (errors?.length) {
+        return {
+          success: false,
+          error: errors[0]?.message || 'Failed to abandon session',
+        };
+      }
+
+      if (data?.abandonWorkoutSession !== undefined) {
         await refetchActiveSession();
         return { success: true };
       }
 
       return {
         success: false,
-        error: data?.abandonWorkoutSession?.error || 'Failed to abandon session',
+        error: 'Failed to abandon session',
       };
     } catch (error) {
       console.error('Failed to abandon session:', error);
@@ -624,23 +656,31 @@ export function useWorkoutSessionGraphQL() {
    * Recover a previous session
    */
   const recoverSession = useCallback(
-    async (sessionId: string): Promise<{ success: boolean; session?: WorkoutSession; error?: string }> => {
+    async (archivedSessionId: string): Promise<{ success: boolean; session?: WorkoutSession; error?: string }> => {
       try {
-        const { data } = await recoverSessionMutation({
-          variables: { sessionId },
+        const { data, errors } = await recoverSessionMutation({
+          variables: { archivedSessionId },
         });
 
-        if (data?.recoverWorkoutSession?.success) {
+        if (errors?.length) {
+          return {
+            success: false,
+            error: errors[0]?.message || 'Failed to recover session',
+          };
+        }
+
+        if (data?.recoverWorkoutSession) {
           await refetchActiveSession();
+          await refetchRecoverableSessions();
           return {
             success: true,
-            session: data.recoverWorkoutSession.session,
+            session: data.recoverWorkoutSession,
           };
         }
 
         return {
           success: false,
-          error: data?.recoverWorkoutSession?.error || 'Failed to recover session',
+          error: 'Failed to recover session',
         };
       } catch (error) {
         console.error('Failed to recover session:', error);
@@ -650,7 +690,7 @@ export function useWorkoutSessionGraphQL() {
         };
       }
     },
-    [recoverSessionMutation, refetchActiveSession]
+    [recoverSessionMutation, refetchActiveSession, refetchRecoverableSessions]
   );
 
   /**
@@ -676,15 +716,20 @@ export function useWorkoutSessionGraphQL() {
       equipment?: string[],
       maxResults?: number
     ): Promise<ExerciseSubstitution[]> => {
-      const { data } = await fetchSubstitutions({
-        variables: {
-          exerciseId,
-          equipment,
-          maxResults: maxResults || 5,
-        },
-      });
+      try {
+        const { data } = await fetchSubstitutions({
+          variables: {
+            exerciseId,
+            equipment,
+            maxResults: maxResults || 5,
+          },
+        });
 
-      return data?.exerciseSubstitutions || [];
+        return data?.exerciseSubstitutions || [];
+      } catch (error) {
+        console.error('Failed to find substitutes:', error);
+        return [];
+      }
     },
     [fetchSubstitutions]
   );
@@ -714,17 +759,20 @@ export function useWorkoutSessionGraphQL() {
     const startTime = new Date(activeSession.startedAt).getTime();
     const now = Date.now();
     const elapsed = now - startTime;
-    return Math.floor((elapsed - activeSession.totalPausedTime) / 1000);
+    return Math.floor((elapsed - (activeSession.totalPausedTime * 1000)) / 1000);
   }, [activeSession]);
 
   const currentExerciseSets = useMemo(() => {
-    if (!activeSession?.currentExerciseId) return [];
+    if (!activeSession?.sets || activeSession.sets.length === 0) return [];
+    // Get the last exercise that was logged
+    const lastSet = activeSession.sets[activeSession.sets.length - 1];
+    if (!lastSet) return [];
     return activeSession.sets.filter(
-      (set) => set.exerciseId === activeSession.currentExerciseId
+      (set) => set.exerciseId === lastSet.exerciseId
     );
   }, [activeSession]);
 
-  const totalSets = activeSession?.sets.length || 0;
+  const totalSets = activeSession?.sets?.length || 0;
 
   // ============================================
   // RETURN
@@ -740,6 +788,11 @@ export function useWorkoutSessionGraphQL() {
     sessionDuration,
     currentExerciseSets,
     totalSets,
+
+    // Errors
+    errors: {
+      activeSession: activeSessionError,
+    },
 
     // Loading states
     loading: {
