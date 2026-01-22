@@ -2,9 +2,10 @@
  * Public Plain Text Documentation Routes
  *
  * Provides public endpoints for serving documentation as plain text:
- * - /docs-plain/ - Combined documentation as plain text (for AI chatbots and screen readers)
- * - /docs-plain/index - Table of contents
- * - /docs-plain/:file - Individual document as plain text
+ * - /api/docs/plain - Combined documentation as plain text (for AI chatbots and screen readers)
+ * - /api/docs/plain/index - Table of contents (JSON)
+ * - /api/docs/plain/index.txt - Table of contents (plain text)
+ * - /api/docs/plain/:file - Individual document as plain text
  *
  * NO AUTHENTICATION REQUIRED - these are public endpoints
  * Designed to be accessible by:
@@ -213,8 +214,8 @@ async function buildCombinedDocs(): Promise<string> {
   sections.push('END OF DOCUMENTATION');
   sections.push('='.repeat(60));
   sections.push('');
-  sections.push('For the latest documentation, visit: https://musclemap.me/docs-plain/');
-  sections.push('For individual documents, use: https://musclemap.me/docs-plain/<filename>');
+  sections.push('For the latest documentation, visit: https://musclemap.me/api/docs/plain');
+  sections.push('For individual documents, use: https://musclemap.me/api/docs/plain<filename>');
   sections.push('');
 
   return sections.join('\n');
@@ -247,7 +248,7 @@ async function buildTableOfContents(): Promise<TableOfContents> {
         .sort((a, b) => a.title.localeCompare(b.title))
         .map((d) => ({
           title: d.title,
-          path: `/docs-plain/${d.relativePath.replace(/\.md$/, '')}`,
+          path: `/api/docs/plain/${d.relativePath.replace(/\.md$/, '')}`,
         })),
     }));
 
@@ -265,11 +266,13 @@ async function buildTableOfContents(): Promise<TableOfContents> {
 
 export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
   /**
-   * GET /docs-plain/
+   * GET /api/docs/plain
    * Combined documentation as plain text
    * This is the main endpoint for AI assistants
+   *
+   * Also available at: https://musclemap.me/api/docs/plain (static HTML version)
    */
-  fastify.get('/docs-plain/', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/docs/plain', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const combinedDocs = await buildCombinedDocs();
 
@@ -288,10 +291,10 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
   });
 
   /**
-   * GET /docs-plain/index
+   * GET /api/docs/plain/index
    * Table of contents as JSON (for programmatic access)
    */
-  fastify.get('/docs-plain/index', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/docs/plain/index', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const toc = await buildTableOfContents();
       return reply.send(toc);
@@ -302,10 +305,10 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
   });
 
   /**
-   * GET /docs-plain/index.txt
+   * GET /api/docs/plain/index.txt
    * Table of contents as plain text
    */
-  fastify.get('/docs-plain/index.txt', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/docs/plain/index.txt', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const toc = await buildTableOfContents();
 
@@ -329,7 +332,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
 
       lines.push('');
       lines.push('='.repeat(60));
-      lines.push('For combined docs: https://musclemap.me/docs-plain/');
+      lines.push('For combined docs: https://musclemap.me/api/docs/plain');
       lines.push('='.repeat(60));
 
       return reply
@@ -346,10 +349,10 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
   });
 
   /**
-   * GET /docs-plain/:path
+   * GET /api/docs/plain/:path
    * Individual document as plain text
    */
-  fastify.get('/docs-plain/*', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/docs/plain/*', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const params = request.params as { '*': string };
       const requestedPath = params['*'];
@@ -387,8 +390,8 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
       lines.push(`DOCUMENT: ${title}`);
       lines.push('='.repeat(60));
       lines.push('');
-      lines.push(`Source: https://musclemap.me/docs-plain/${sanitized}`);
-      lines.push(`Full docs: https://musclemap.me/docs-plain/`);
+      lines.push(`Source: https://musclemap.me/api/docs/plain${sanitized}`);
+      lines.push(`Full docs: https://musclemap.me/api/docs/plain`);
       lines.push('');
       lines.push('-'.repeat(60));
       lines.push('');

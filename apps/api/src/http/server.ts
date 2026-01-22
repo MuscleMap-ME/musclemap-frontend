@@ -450,7 +450,8 @@ export async function createServer(): Promise<FastifyInstance> {
   await initializePubSub();
 
   // Public plain text documentation (for AI assistants and screen readers)
-  // No auth required - accessible at /docs-plain/
+  // No auth required - accessible at /api/docs/plain
+  // Routes: /api/docs/plain, /api/docs/plain/index, /api/docs/plain/index.txt, /api/docs/plain/*
   registerDocsPlainRoutes(app as unknown as FastifyInstance);
 
   // GraphQL endpoint (at /api/graphql)
