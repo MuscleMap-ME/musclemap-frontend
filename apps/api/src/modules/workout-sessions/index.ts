@@ -17,6 +17,7 @@
 import { query, queryOne, queryAll } from '../../db/client';
 import { loggers } from '../../lib/logger';
 import crypto from 'crypto';
+import { challengeProgressMiddleware } from '../engagement/challenge-progress.middleware';
 
 const log = loggers.api;
 
@@ -582,6 +583,34 @@ class WorkoutSessionService {
 
     // Delete active session
     await query('DELETE FROM active_workout_sessions WHERE id = $1 AND user_id = $2', [input.sessionId, userId]);
+
+    // Update challenge progress for workout completion
+    try {
+      // Track workout completion for challenges
+      await challengeProgressMiddleware.updateProgress(userId, 'workoutsCompleted', 1);
+
+      // Track sets logged
+      await challengeProgressMiddleware.updateProgress(userId, 'setsLogged', session.sets.length);
+
+      // Track total volume
+      if (session.totalVolume > 0) {
+        await challengeProgressMiddleware.trackVolume(userId, session.totalVolume);
+      }
+
+      // Track muscle groups worked
+      if (session.musclesWorked.length > 0) {
+        await challengeProgressMiddleware.trackMuscleGroups(userId, session.musclesWorked.length);
+      }
+
+      // Track PRs achieved
+      for (const _pr of session.sessionPRs) {
+        await challengeProgressMiddleware.trackPrSet(userId);
+      }
+
+      log.info({ userId, challengesUpdated: true }, 'Challenge progress updated for workout completion');
+    } catch (challengeError) {
+      log.warn({ error: challengeError, userId }, 'Failed to update challenge progress');
+    }
 
     log.info({
       userId,
