@@ -50,6 +50,7 @@ import {
   STAGE_THRESHOLDS as _STAGE_THRESHOLDS,
 } from '../modules/mascot';
 import { prescriptionEngine } from '../modules/prescription';
+import { workoutSessionService } from '../modules/workout-sessions';
 import { privacyService } from '../modules/community';
 import { virtualHangoutsService } from '../modules/community/virtual-hangouts.service';
 import { tipsService } from '../modules/tips';
@@ -216,6 +217,29 @@ interface WorkoutExercise {
   sets: number;
   reps?: number;
   weight?: number;
+}
+
+/**
+ * Calculate cosine similarity between two muscle activation vectors
+ */
+function cosineSimilarity(a: Record<string, number>, b: Record<string, number>): number {
+  const allMuscles = new Set([...Object.keys(a), ...Object.keys(b)]);
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (const muscle of allMuscles) {
+    const valA = a[muscle] || 0;
+    const valB = b[muscle] || 0;
+    dotProduct += valA * valB;
+    normA += valA * valA;
+    normB += valB * valB;
+  }
+
+  if (normA === 0 || normB === 0) return 0;
+
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 async function calculateTU(exercises: WorkoutExercise[]): Promise<{
@@ -533,6 +557,27 @@ export const resolvers = {
         totalTU: workout.total_tu,
         createdAt: workout.created_at,
       };
+    },
+
+    // Workout Sessions (real-time logging)
+    activeWorkoutSession: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.getActiveSession(userId);
+    },
+
+    workoutSession: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.getSession(userId, args.id);
+    },
+
+    recoverableSessions: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.getRecoverableSessions(userId, args.limit || 5);
+    },
+
+    workoutMuscleBreakdown: async (_: unknown, args: { sessionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.getMuscleBreakdown(userId, args.sessionId);
     },
 
     // Exercise History (PRs and best lifts for workout mode)
@@ -3647,6 +3692,120 @@ export const resolvers = {
       }));
     },
 
+    // Exercise Substitutions
+    exerciseSubstitutions: async (_: unknown, args: { exerciseId: string }, context: Context) => {
+      const { exerciseId } = args;
+
+      // Get the original exercise and its muscle activations
+      const original = await queryOne<{
+        id: string;
+        name: string;
+        type: string;
+        equipment_required: string[];
+        locations: string[];
+      }>('SELECT id, name, type, equipment_required, locations FROM exercises WHERE id = $1', [exerciseId]);
+
+      if (!original) {
+        return [];
+      }
+
+      // Get muscle activations for original exercise
+      const originalActivations = await queryAll<{ muscle_id: string; activation: number }>(
+        'SELECT muscle_id, activation FROM exercise_activations WHERE exercise_id = $1',
+        [exerciseId]
+      );
+
+      if (originalActivations.length === 0) {
+        return [];
+      }
+
+      // Build muscle activation vector
+      const muscleVector: Record<string, number> = {};
+      for (const act of originalActivations) {
+        muscleVector[act.muscle_id] = act.activation;
+      }
+
+      // Get user's equipment if authenticated
+      let userEquipment: string[] = [];
+      if (context.user?.userId) {
+        const equipment = await queryAll<{ equipment_id: string }>(
+          'SELECT equipment_id FROM user_home_equipment WHERE user_id = $1',
+          [context.user.userId]
+        );
+        userEquipment = equipment.map(e => e.equipment_id);
+      }
+
+      // Find similar exercises with cosine similarity on muscle activations
+      const candidates = await queryAll<{
+        exercise_id: string;
+        name: string;
+        type: string;
+        equipment_required: string[];
+        locations: string[];
+      }>(`
+        SELECT DISTINCT e.id as exercise_id, e.name, e.type, e.equipment_required, e.locations
+        FROM exercises e
+        JOIN exercise_activations ea ON ea.exercise_id = e.id
+        WHERE e.id != $1
+        AND ea.muscle_id = ANY($2::text[])
+      `, [exerciseId, Object.keys(muscleVector)]);
+
+      // Calculate similarity scores
+      const substitutions = [];
+      for (const candidate of candidates) {
+        // Get candidate's muscle activations
+        const candidateActivations = await queryAll<{ muscle_id: string; activation: number }>(
+          'SELECT muscle_id, activation FROM exercise_activations WHERE exercise_id = $1',
+          [candidate.exercise_id]
+        );
+
+        const candidateVector: Record<string, number> = {};
+        for (const act of candidateActivations) {
+          candidateVector[act.muscle_id] = act.activation;
+        }
+
+        // Calculate cosine similarity
+        const similarity = cosineSimilarity(muscleVector, candidateVector);
+
+        // Skip low similarity exercises
+        if (similarity < 0.5) continue;
+
+        // Determine reason based on equipment/type
+        let reason = 'Similar muscle activation pattern';
+        if (candidate.type === original.type) {
+          reason = 'Same movement type with similar muscle activation';
+        } else if (userEquipment.length > 0) {
+          const hasEquipment = !candidate.equipment_required?.length ||
+            candidate.equipment_required.every(eq => userEquipment.includes(eq));
+          if (hasEquipment) {
+            reason = 'Available with your equipment';
+          }
+        }
+
+        substitutions.push({
+          originalExerciseId: exerciseId,
+          substituteExerciseId: candidate.exercise_id,
+          substitute: {
+            id: candidate.exercise_id,
+            name: candidate.name,
+            type: candidate.type,
+            difficulty: 2, // Default
+            description: null,
+            primaryMuscles: Object.keys(candidateVector).join(','),
+            equipmentRequired: candidate.equipment_required || [],
+            locations: candidate.locations || [],
+          },
+          reason,
+          effectiveness: Math.round(similarity * 100) / 100,
+        });
+      }
+
+      // Sort by effectiveness and limit to top 5
+      return substitutions
+        .sort((a, b) => b.effectiveness - a.effectiveness)
+        .slice(0, 5);
+    },
+
     // ============================================
     // Onboarding Status Query
     // ============================================
@@ -3894,6 +4053,68 @@ export const resolvers = {
         levelUp: false,
         achievements: [],
       };
+    },
+
+    // Workout Sessions (real-time logging)
+    startWorkoutSession: async (_: unknown, args: { input?: { workoutPlan?: any; clientId?: string } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const session = await workoutSessionService.startSession(
+        userId,
+        args.input?.workoutPlan,
+        args.input?.clientId
+      );
+      return { session, setLogged: null, prsAchieved: [], muscleUpdate: session.musclesWorked };
+    },
+
+    logSet: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await workoutSessionService.logSet(userId, args.input);
+      return {
+        session: result.session,
+        setLogged: result.setLogged,
+        prsAchieved: result.prsAchieved,
+        muscleUpdate: result.session.musclesWorked,
+      };
+    },
+
+    updateSet: async (_: unknown, args: { input: { setId: string; reps?: number; weightKg?: number; rpe?: number; rir?: number; durationSeconds?: number; notes?: string; tag?: string } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.updateSet(userId, args.input.setId, args.input);
+    },
+
+    deleteSet: async (_: unknown, args: { setId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.deleteSet(userId, args.setId);
+    },
+
+    pauseWorkoutSession: async (_: unknown, args: { sessionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.pauseSession(userId, args.sessionId);
+    },
+
+    resumeWorkoutSession: async (_: unknown, args: { sessionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.resumeSession(userId, args.sessionId);
+    },
+
+    updateRestTimer: async (_: unknown, args: { sessionId: string; remaining: number; total: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.updateRestTimer(userId, args.sessionId, args.remaining, args.total);
+    },
+
+    completeWorkoutSession: async (_: unknown, args: { input: { sessionId: string; notes?: string; isPublic?: boolean } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.completeSession(userId, args.input);
+    },
+
+    abandonWorkoutSession: async (_: unknown, args: { sessionId: string; reason?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.abandonSession(userId, args.sessionId, args.reason);
+    },
+
+    recoverWorkoutSession: async (_: unknown, args: { archivedSessionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return workoutSessionService.recoverSession(userId, args.archivedSessionId);
     },
 
     // Goals

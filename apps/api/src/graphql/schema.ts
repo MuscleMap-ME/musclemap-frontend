@@ -33,6 +33,12 @@ export const typeDefs = `#graphql
     myMuscleStats: MuscleStats
     workout(id: ID!): Workout
 
+    # Workout Sessions (Real-time logging)
+    activeWorkoutSession: WorkoutSession
+    workoutSession(id: ID!): WorkoutSession
+    recoverableSessions(limit: Int): [RecoverableSession!]!
+    workoutMuscleBreakdown(sessionId: ID!): [MuscleActivationSummary!]!
+
     # Exercise History (PRs and best lifts)
     exerciseHistory(exerciseIds: [ID!]!): [ExerciseHistoryEntry!]!
 
@@ -256,9 +262,21 @@ export const typeDefs = `#graphql
     # Profile
     updateProfile(input: ProfileInput!): Profile!
 
-    # Workouts
+    # Workouts (batch creation)
     createWorkout(input: WorkoutInput!): WorkoutResult!
     previewWorkout(input: WorkoutInput!): WorkoutPreview!
+
+    # Workout Sessions (real-time logging)
+    startWorkoutSession(input: StartWorkoutSessionInput): WorkoutSessionResult!
+    logSet(input: LogSetInput!): WorkoutSessionResult!
+    updateSet(input: UpdateSetInput!): LoggedSet!
+    deleteSet(setId: ID!): Boolean!
+    pauseWorkoutSession(sessionId: ID!): WorkoutSession!
+    resumeWorkoutSession(sessionId: ID!): WorkoutSession!
+    updateRestTimer(sessionId: ID!, remaining: Int!, total: Int!): WorkoutSession!
+    completeWorkoutSession(input: CompleteWorkoutSessionInput!): WorkoutCompletionResult!
+    abandonWorkoutSession(sessionId: ID!, reason: String): Boolean!
+    recoverWorkoutSession(archivedSessionId: ID!): WorkoutSession!
 
     # Goals
     createGoal(input: GoalInput!): Goal!
@@ -668,6 +686,151 @@ export const typeDefs = `#graphql
     reps: Int!
     weight: Float
     notes: String
+  }
+
+  # ============================================
+  # WORKOUT SESSION TYPES (Real-time logging)
+  # ============================================
+  type WorkoutSession {
+    id: ID!
+    userId: ID!
+    startedAt: DateTime!
+    pausedAt: DateTime
+    totalPausedTime: Int!
+    lastActivityAt: DateTime!
+    workoutPlan: JSON
+    currentExerciseIndex: Int!
+    currentSetIndex: Int!
+    sets: [LoggedSet!]!
+    totalVolume: Float!
+    totalReps: Int!
+    estimatedCalories: Int!
+    musclesWorked: [MuscleActivationSummary!]!
+    sessionPRs: [SessionPR!]!
+    restTimerRemaining: Int
+    restTimerTotalDuration: Int
+    restTimerStartedAt: DateTime
+    clientVersion: Int!
+    serverVersion: Int!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type LoggedSet {
+    id: ID!
+    exerciseId: ID!
+    exerciseName: String!
+    setNumber: Int!
+    reps: Int
+    weightKg: Float
+    rpe: Float
+    rir: Int
+    durationSeconds: Int
+    restSeconds: Int
+    tag: String
+    notes: String
+    tu: Float
+    muscleActivations: [MuscleActivation!]!
+    isPRWeight: Boolean!
+    isPRReps: Boolean!
+    isPR1RM: Boolean!
+    performedAt: DateTime!
+  }
+
+  type MuscleActivationSummary {
+    muscleId: ID!
+    muscleName: String!
+    totalTU: Float!
+    setCount: Int!
+    percentageOfMax: Float
+  }
+
+  type MuscleActivation {
+    muscleId: ID!
+    muscleName: String!
+    activation: Float!
+    tu: Float!
+  }
+
+  type SessionPR {
+    exerciseId: ID!
+    exerciseName: String!
+    prType: String!
+    previousValue: Float
+    newValue: Float!
+    improvementPercent: Float
+    achievedAt: DateTime!
+  }
+
+  type WorkoutSessionResult {
+    session: WorkoutSession!
+    setLogged: LoggedSet
+    prsAchieved: [SessionPR!]
+    muscleUpdate: [MuscleActivationSummary!]
+  }
+
+  type WorkoutCompletionResult {
+    workout: Workout!
+    session: WorkoutSession!
+    totalTU: Float!
+    totalVolume: Float!
+    totalSets: Int!
+    totalReps: Int!
+    duration: Int!
+    muscleBreakdown: [MuscleActivationSummary!]!
+    prsAchieved: [SessionPR!]!
+    creditsCharged: Int!
+    xpEarned: Int!
+    levelUp: Boolean!
+    achievements: [Achievement!]
+  }
+
+  type RecoverableSession {
+    id: ID!
+    startedAt: DateTime!
+    archivedAt: DateTime!
+    archiveReason: String!
+    setsLogged: Int!
+    totalVolume: Float!
+    musclesWorked: [String!]!
+    canRecover: Boolean!
+  }
+
+  input StartWorkoutSessionInput {
+    workoutPlan: JSON
+    clientId: String
+  }
+
+  input LogSetInput {
+    sessionId: ID!
+    exerciseId: ID!
+    setNumber: Int!
+    reps: Int
+    weightKg: Float
+    rpe: Float
+    rir: Int
+    durationSeconds: Int
+    restSeconds: Int
+    tag: String
+    notes: String
+    clientSetId: String
+  }
+
+  input UpdateSetInput {
+    setId: ID!
+    reps: Int
+    weightKg: Float
+    rpe: Float
+    rir: Int
+    durationSeconds: Int
+    notes: String
+    tag: String
+  }
+
+  input CompleteWorkoutSessionInput {
+    sessionId: ID!
+    notes: String
+    isPublic: Boolean
   }
 
   # ============================================
