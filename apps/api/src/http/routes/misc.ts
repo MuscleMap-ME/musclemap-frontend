@@ -333,7 +333,129 @@ export async function registerMiscRoutes(app: FastifyInstance) {
   });
 
   app.get('/progress/stats', { preHandler: authenticate }, async (request, reply) => {
-    return reply.send({ data: {} });
+    const userId = request.user!.userId;
+
+    try {
+      // Get user's XP, level, and rank data
+      const user = await queryOne<{
+        total_xp: number;
+        current_level: number;
+        current_rank: string;
+      }>(
+        `SELECT COALESCE(total_xp, 0) as total_xp,
+                COALESCE(current_level, 1) as current_level,
+                COALESCE(current_rank, 'novice') as current_rank
+         FROM users WHERE id = $1`,
+        [userId]
+      );
+
+      // Get workout count
+      const workoutCount = await queryOne<{ count: string }>(
+        `SELECT COUNT(*) as count FROM workouts WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Get streak data
+      const streakData = await queryOne<{ streak: number; last_workout: string | null }>(
+        `SELECT
+           COALESCE(
+             (SELECT COUNT(DISTINCT date)::int
+              FROM (
+                SELECT date, date - (ROW_NUMBER() OVER (ORDER BY date DESC))::int * INTERVAL '1 day' as grp
+                FROM workouts
+                WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '365 days'
+                GROUP BY date
+              ) t
+              WHERE grp = (
+                SELECT date - (ROW_NUMBER() OVER (ORDER BY date DESC))::int * INTERVAL '1 day'
+                FROM workouts
+                WHERE user_id = $1
+                GROUP BY date
+                ORDER BY date DESC
+                LIMIT 1
+              )
+             ), 0
+           ) as streak,
+           (SELECT MAX(date)::text FROM workouts WHERE user_id = $1) as last_workout`,
+        [userId]
+      );
+
+      // Calculate simple streak (consecutive days from today/yesterday)
+      let streak = 0;
+      if (streakData?.last_workout) {
+        const lastWorkoutDate = new Date(streakData.last_workout);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        lastWorkoutDate.setHours(0, 0, 0, 0);
+
+        // Check if last workout was today or yesterday (streak not broken)
+        if (lastWorkoutDate >= yesterday) {
+          // Count consecutive days backwards
+          const workoutDates = await queryAll<{ date: string }>(
+            `SELECT DISTINCT date::text as date
+             FROM workouts
+             WHERE user_id = $1
+             ORDER BY date DESC
+             LIMIT 365`,
+            [userId]
+          );
+
+          if (workoutDates.length > 0) {
+            let checkDate = new Date(workoutDates[0].date);
+            checkDate.setHours(0, 0, 0, 0);
+
+            // If last workout was today, start counting from today
+            // If it was yesterday, still count it as part of streak
+            for (const row of workoutDates) {
+              const workoutDate = new Date(row.date);
+              workoutDate.setHours(0, 0, 0, 0);
+
+              if (workoutDate.getTime() === checkDate.getTime()) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+              } else if (workoutDate < checkDate) {
+                break; // Gap in streak
+              }
+            }
+          }
+        }
+      }
+
+      // Level names based on current level
+      const levelNames = [
+        'Beginner', 'Novice', 'Apprentice', 'Journeyman', 'Adept',
+        'Expert', 'Master', 'Grandmaster', 'Legend', 'Champion'
+      ];
+      const level = user?.current_level || 1;
+      const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)] || 'Beginner';
+
+      return reply.send({
+        data: {
+          xp: user?.total_xp || 0,
+          level: level,
+          levelName: levelName,
+          rank: user?.current_rank || 'novice',
+          streak: streak,
+          workouts: parseInt(workoutCount?.count || '0'),
+          lastWorkoutDate: streakData?.last_workout || null,
+        },
+      });
+    } catch (error) {
+      log.error({ error, userId }, 'Failed to fetch progress stats');
+      return reply.send({
+        data: {
+          xp: 0,
+          level: 1,
+          levelName: 'Beginner',
+          rank: 'novice',
+          streak: 0,
+          workouts: 0,
+          lastWorkoutDate: null,
+        },
+      });
+    }
   });
 
   // High fives
