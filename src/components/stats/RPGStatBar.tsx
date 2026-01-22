@@ -283,24 +283,20 @@ export function RPGStatBar({
           <div className={`flex items-center ${config.labelGap}`}>
             {/* Stat abbreviation badge */}
             <div
-              className={`px-2 py-0.5 rounded font-bold ${config.text} tracking-wider`}
+              className={`px-2 py-0.5 rounded font-bold ${config.text} tracking-wider cursor-help`}
               style={{
                 background: `linear-gradient(135deg, ${color} 0%, ${colorShades.darker} 100%)`,
                 boxShadow: `0 2px 4px ${colorShades.softGlow}, inset 0 1px 0 ${colorShades.lighter}40`,
                 color: 'white',
                 textShadow: '0 1px 2px rgba(0,0,0,0.5)',
               }}
+              title={description}
             >
               {abbreviation}
             </div>
             {/* Stat name */}
             <span className={`text-white/70 ${config.text}`}>{label}</span>
-            {/* Description tooltip indicator */}
-            {description && (
-              <span className="text-white/30 text-xs cursor-help" title={description}>
-                ?
-              </span>
-            )}
+            {/* Description tooltip indicator - hidden, info shown on hover via title attribute on badge */}
           </div>
         )}
         {showValue && (
