@@ -37,6 +37,8 @@ import {
 import { useAuth } from '../store/authStore';
 import { useToast } from '../hooks';
 import api from '../utils/api';
+import { PullToRefresh } from '../components/mobile';
+import { haptic } from '../utils/haptics';
 
 // Types
 interface TemplateExercise {
@@ -110,6 +112,7 @@ export default function WorkoutTemplates() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Create mode state
   const [isCreating, setIsCreating] = useState(false);
@@ -172,6 +175,19 @@ export default function WorkoutTemplates() {
     };
     loadData();
   }, [fetchMyTemplates, fetchSavedTemplates, fetchPublicTemplates]);
+
+  // Pull to refresh handler
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    haptic('medium');
+    await Promise.all([
+      fetchMyTemplates(),
+      fetchSavedTemplates(),
+      fetchPublicTemplates(),
+    ]);
+    setIsRefreshing(false);
+    toast('Templates refreshed');
+  }, [fetchMyTemplates, fetchSavedTemplates, fetchPublicTemplates, toast]);
 
   // Handlers
   const handleSaveTemplate = async (templateId: string) => {
@@ -329,7 +345,14 @@ export default function WorkoutTemplates() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-24">
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      refreshText="Refreshing templates..."
+      pullText="Pull to refresh templates"
+      releaseText="Release to refresh"
+      className="min-h-screen bg-gray-950 text-white pb-24"
+    >
       {/* Header */}
       <div className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur-lg border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -549,7 +572,7 @@ export default function WorkoutTemplates() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </PullToRefresh>
   );
 }
 

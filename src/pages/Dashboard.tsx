@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Play, Dumbbell, ClipboardList, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
@@ -47,6 +48,10 @@ import { RPGStatBar } from '../components/stats';
 
 // Celebration hooks
 import { useCelebrationCallbacks } from '../store';
+
+// Mobile UX components
+import { FloatingActionButton, PullToRefresh } from '../components/mobile';
+import { haptic } from '../utils/haptics';
 
 // Lazy load heavy Atlas component (3D visualization)
 const DashboardAtlas = lazy(() =>
@@ -970,6 +975,7 @@ export default function Dashboard() {
   const [_loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // ============================================
   // ONBOARDING TOUR STATE
@@ -1141,8 +1147,34 @@ export default function Dashboard() {
       });
   }, []);
 
+  // Pull to refresh handler
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    haptic('medium');
+
+    await Promise.all([
+      api.progress.stats().catch(() => null),
+      api.wallet.balance().catch(() => null),
+      api.characterStats.me().catch(() => null),
+      loadNutrition().catch(() => null),
+    ]).then(([statsData, walletData, characterData]) => {
+      setStats(statsData?.data || null);
+      setWallet(walletData);
+      setCharacterStats(characterData?.data || null);
+    });
+
+    setIsRefreshing(false);
+  }, [loadNutrition]);
+
   return (
-    <div className="min-h-screen relative">
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      refreshText="Refreshing dashboard..."
+      pullText="Pull to refresh"
+      releaseText="Release to refresh"
+      className="min-h-screen relative"
+    >
       {/* Animated mesh background */}
       <MeshBackground intensity="subtle" />
 
@@ -1508,6 +1540,42 @@ export default function Dashboard() {
         </main>
       </div>
 
+      {/* Floating Action Button for Quick Workout */}
+      <FloatingActionButton
+        position="bottom-right"
+        ariaLabel="Start workout"
+        actions={[
+          {
+            id: 'start-workout',
+            icon: <Play className="w-5 h-5" />,
+            label: 'Start Workout',
+            onClick: () => navigate('/workout'),
+            color: 'bg-green-500',
+          },
+          {
+            id: 'exercises',
+            icon: <Dumbbell className="w-5 h-5" />,
+            label: 'Exercises',
+            onClick: () => navigate('/exercises'),
+            color: 'bg-blue-500',
+          },
+          {
+            id: 'templates',
+            icon: <ClipboardList className="w-5 h-5" />,
+            label: 'Templates',
+            onClick: () => navigate('/templates'),
+            color: 'bg-purple-500',
+          },
+          {
+            id: 'schedule',
+            icon: <Calendar className="w-5 h-5" />,
+            label: 'Schedule',
+            onClick: () => navigate('/schedule'),
+            color: 'bg-orange-500',
+          },
+        ]}
+      />
+
       {/* Mobile Bottom Navigation */}
       <GlassMobileNav items={mobileNavItems} />
 
@@ -1530,6 +1598,6 @@ export default function Dashboard() {
 
       {/* Active Contextual Tips */}
       <ActiveContextualTip />
-    </div>
+    </PullToRefresh>
   );
 }

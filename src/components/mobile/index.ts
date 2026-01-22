@@ -24,3 +24,32 @@ export type { default as HapticButtonProps } from './HapticButton';
 // Swipeable exercise card for workout navigation
 export { SwipeableExerciseCard } from './SwipeableExerciseCard';
 export type { default as SwipeableExerciseCardProps } from './SwipeableExerciseCard';
+
+// Skeleton loading components
+export {
+  SkeletonLine,
+  SkeletonCircle,
+  SkeletonCard,
+  SkeletonExerciseCard,
+  SkeletonTemplateCard,
+  SkeletonStatCard,
+  SkeletonListItem,
+  SkeletonDashboardWidget,
+  SkeletonProfileHeader,
+  SkeletonFeedPost,
+  SkeletonGrid,
+  SkeletonList,
+  SkeletonPage,
+} from './SkeletonLoader';
+
+// Floating action button
+export { FloatingActionButton } from './FloatingActionButton';
+
+// Animated counters
+export {
+  AnimatedCounter,
+  SpringCounter,
+  SlotCounter,
+  CountdownDisplay,
+  ProgressCounter,
+} from './AnimatedCounter';
