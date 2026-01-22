@@ -13,7 +13,7 @@ import {
   FloatingRestTimer,
 } from '../components/workout';
 import { useWorkoutSessionGraphQL } from '../hooks/useWorkoutSessionGraphQL';
-import type { LoggedSet, RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
+import type { RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -213,7 +213,6 @@ export default function Workout() {
   const sessionStartRef = useRef<number | null>(null);
 
   // Real-time session state
-  const [showSetLogger, setShowSetLogger] = useState(false);
   const [showSubstitutionPicker, setShowSubstitutionPicker] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [recoverableSessions, setRecoverableSessions] = useState<RecoverableSession[]>([]);
@@ -223,15 +222,11 @@ export default function Workout() {
     activeSession,
     isSessionActive,
     startSession,
-    logSet,
     completeSession,
     recoverSession,
     abandonSession,
     recoverableSessions: graphqlRecoverableSessions,
-    currentExerciseSets,
     totalSets,
-    isStartingSession,
-    isCompletingSession,
     registerCallbacks,
   } = useWorkoutSessionGraphQL();
 
@@ -532,63 +527,88 @@ export default function Workout() {
     const loggedSnapshot = [...logged];
 
     try {
-      // Format exercises for the workouts API
-      // Filter out warmup/cooldown activities that don't have real exercise IDs
-      const exercises = loggedSnapshot
-        .filter(e => {
-          // Keep items that have a valid exercise ID (not activity placeholders)
-          const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
-          const isNotActivity = !e.isActivity;
-          return hasValidId && isNotActivity;
-        })
-        .map(e => ({
-          exerciseId: e.id,
-          sets: e.sets || 3,
-          reps: typeof e.reps === 'number' ? e.reps : 10,
-          weight: e.weight || undefined,
-        }));
+      // If we have an active GraphQL session, use that to complete
+      if (isSessionActive && activeSession) {
+        const result = await completeSession();
 
-      // If no actual exercises (only activities), show message
-      if (exercises.length === 0) {
-        alert('No exercises to log. Complete at least one exercise (not just warmup/cooldown) to save your workout.');
-        completingRef.current = false;
-        setCompleting(false);
-        return;
-      }
+        if (result) {
+          // Clear the active session from server
+          if (sessionIdRef.current) {
+            await clearAllSessionPersistence('completed', result.workout?.id);
+            sessionIdRef.current = null;
+            sessionStartRef.current = null;
+          }
 
-      const idempotencyKey = `workout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-      const res = await fetch('/api/workouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({
-          exercises,
-          idempotencyKey,
-          notes: `${logged.length} exercises completed`,
-        })
-      });
-      const data = await res.json();
-      if (res.ok && data.data) {
-        // Clear the active session from server
-        if (sessionIdRef.current) {
-          await clearAllSessionPersistence('completed', data.data.id);
-          sessionIdRef.current = null;
-          sessionStartRef.current = null;
+          setRewards({
+            tuEarned: result.tuEarned || 0,
+            xpEarned: result.xpEarned || 0,
+            characterStats: result.characterStats,
+            exerciseCount: result.sessionSummary?.exerciseCount || loggedSnapshot.length,
+            totalSets: result.sessionSummary?.totalSets || totalSets,
+            exercises: loggedSnapshot,
+            levelUp: result.levelUp,
+            newLevel: result.newLevel,
+            achievements: result.achievements,
+            sessionSummary: result.sessionSummary,
+          });
+          setLogged([]);
+        } else {
+          alert('Failed to complete workout. Please try again.');
         }
-        // Capture exercise stats before clearing logged
-        const exerciseCount = loggedSnapshot.length;
-        const totalSets = loggedSnapshot.reduce((sum, e) => sum + (e.sets || 0), 0);
-
-        setRewards({
-          tuEarned: data.data.totalTU,
-          characterStats: data.data.characterStats,
-          exerciseCount,
-          totalSets,
-          exercises: loggedSnapshot,
-        });
-        setLogged([]);
       } else {
-        alert(data.error?.message || data.error || 'Failed to complete workout');
+        // Fallback to REST API if no GraphQL session
+        const exercises = loggedSnapshot
+          .filter(e => {
+            const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
+            const isNotActivity = !e.isActivity;
+            return hasValidId && isNotActivity;
+          })
+          .map(e => ({
+            exerciseId: e.id,
+            sets: e.sets || 3,
+            reps: typeof e.reps === 'number' ? e.reps : 10,
+            weight: e.weight || undefined,
+          }));
+
+        if (exercises.length === 0) {
+          alert('No exercises to log. Complete at least one exercise (not just warmup/cooldown) to save your workout.');
+          completingRef.current = false;
+          setCompleting(false);
+          return;
+        }
+
+        const idempotencyKey = `workout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        const res = await fetch('/api/workouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({
+            exercises,
+            idempotencyKey,
+            notes: `${logged.length} exercises completed`,
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.data) {
+          if (sessionIdRef.current) {
+            await clearAllSessionPersistence('completed', data.data.id);
+            sessionIdRef.current = null;
+            sessionStartRef.current = null;
+          }
+          const exerciseCount = loggedSnapshot.length;
+          const totalSetsCount = loggedSnapshot.reduce((sum, e) => sum + (e.sets || 0), 0);
+
+          setRewards({
+            tuEarned: data.data.totalTU,
+            characterStats: data.data.characterStats,
+            exerciseCount,
+            totalSets: totalSetsCount,
+            exercises: loggedSnapshot,
+          });
+          setLogged([]);
+        } else {
+          alert(data.error?.message || data.error || 'Failed to complete workout');
+        }
       }
     } catch {
       alert('Error completing workout. Please try again.');
@@ -992,8 +1012,61 @@ export default function Workout() {
             </div>
           )}
 
-          {/* Action Buttons */}
-          {currentExercise && (
+          {/* Real-time Set Logger */}
+          {currentExercise && currentExercise.id && !currentExercise.isActivity && (
+            <div className="mb-6 bg-gray-800/50 rounded-2xl p-4 border border-gray-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-300">Log Your Sets</h3>
+                <button
+                  onClick={() => setShowSubstitutionPicker(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300"
+                >
+                  Swap Exercise
+                </button>
+              </div>
+              <RealtimeSetLogger
+                exerciseId={currentExercise.id}
+                exerciseName={currentExercise.name}
+                suggestedSets={currentExercise.sets || 3}
+                suggestedReps={typeof currentExercise.reps === 'number' ? currentExercise.reps : 10}
+                onSetLogged={(set) => {
+                  // Update logged exercises with TU from server
+                  setLogged(prev => {
+                    const existing = prev.find(e => e.id === currentExercise.id);
+                    if (existing) {
+                      return prev.map(e =>
+                        e.id === currentExercise.id
+                          ? { ...e, sets: (e.sets || 0) + 1, tu: (e.tu || 0) + (set.tu || 0) }
+                          : e
+                      );
+                    }
+                    return [...prev, {
+                      id: currentExercise.id,
+                      name: currentExercise.name,
+                      sets: 1,
+                      reps: set.reps,
+                      weight: Math.round((set.weightKg || 0) * 2.205),
+                      tu: set.tu || 0,
+                      primaryMuscles: currentExercise.primaryMuscles,
+                    }];
+                  });
+                }}
+                onAllSetsComplete={() => {
+                  // Move to next exercise after all sets
+                  const allExercises = getAllPrescribedExercises();
+                  if (currentExerciseIndex < allExercises.length - 1) {
+                    setCurrentExerciseIndex(currentExerciseIndex + 1);
+                  }
+                  setSuccess(`${currentExercise.name} completed!`);
+                  setTimeout(() => setSuccess(null), 2000);
+                }}
+                compact={false}
+              />
+            </div>
+          )}
+
+          {/* Action Buttons for activities (warmup/cooldown) */}
+          {currentExercise && (currentExercise.isActivity || !currentExercise.id) && (
             <div className="flex gap-3 mb-6">
               <button
                 onClick={() => currentExerciseIndex > 0 && setCurrentExerciseIndex(currentExerciseIndex - 1)}
@@ -1014,6 +1087,31 @@ export default function Workout() {
                 className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 py-4 rounded-xl font-bold"
               >
                 Skip
+              </button>
+            </div>
+          )}
+
+          {/* Navigation buttons for exercises with SetLogger */}
+          {currentExercise && currentExercise.id && !currentExercise.isActivity && (
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={() => currentExerciseIndex > 0 && setCurrentExerciseIndex(currentExerciseIndex - 1)}
+                disabled={currentExerciseIndex === 0}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 py-3 rounded-xl font-medium"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  const allExercises = getAllPrescribedExercises();
+                  if (currentExerciseIndex < allExercises.length - 1) {
+                    setCurrentExerciseIndex(currentExerciseIndex + 1);
+                  }
+                }}
+                disabled={currentExerciseIndex === allExercises.length - 1}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 py-3 rounded-xl font-medium"
+              >
+                Next Exercise
               </button>
             </div>
           )}
@@ -1234,12 +1332,84 @@ export default function Workout() {
     )
   );
 
+  // Handle session recovery
+  const handleSessionRecovery = async (sessionId: string) => {
+    const success = await recoverSession(sessionId);
+    if (success && activeSession) {
+      // Restore the workout from the recovered session
+      setMode('workout');
+      setShowRecoveryModal(false);
+    }
+  };
+
+  // Handle session discard
+  const handleSessionDiscard = async (sessionId: string) => {
+    await abandonSession(sessionId);
+    setRecoverableSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (recoverableSessions.length <= 1) {
+      setShowRecoveryModal(false);
+    }
+  };
+
+  // Handle exercise substitution
+  const handleExerciseSubstitution = (exercise: { id: string; name: string; primaryMuscles?: string[] }) => {
+    const allExercises = getAllPrescribedExercises();
+    const currentExercise = allExercises[currentExerciseIndex];
+
+    // Update the prescription with the new exercise
+    if (prescription && currentExercise) {
+      const updateExerciseInList = (list: typeof allExercises) =>
+        list.map(e =>
+          e.id === currentExercise.id || e.exerciseId === currentExercise.exerciseId
+            ? { ...e, id: exercise.id, exerciseId: exercise.id, name: exercise.name, primaryMuscles: exercise.primaryMuscles }
+            : e
+        );
+
+      setPrescription({
+        ...prescription,
+        warmup: prescription.warmup ? updateExerciseInList(prescription.warmup) : undefined,
+        exercises: prescription.exercises ? updateExerciseInList(prescription.exercises) : undefined,
+        cooldown: prescription.cooldown ? updateExerciseInList(prescription.cooldown) : undefined,
+      });
+    }
+
+    setShowSubstitutionPicker(false);
+    setSuccess(`Switched to ${exercise.name}`);
+    setTimeout(() => setSuccess(null), 2000);
+  };
+
   return (
     <>
       {renderRewardsModal()}
       {mode === 'select' && renderConstraintSelection()}
       {mode === 'workout' && renderWorkoutMode()}
       {mode === 'manual' && renderManualMode()}
+
+      {/* Floating Rest Timer - visible during workout */}
+      {(mode === 'workout' || mode === 'manual') && isSessionActive && (
+        <FloatingRestTimer />
+      )}
+
+      {/* Exercise Substitution Picker Modal */}
+      {showSubstitutionPicker && currentExerciseIndex >= 0 && (
+        <ExerciseSubstitutionPicker
+          exerciseId={getAllPrescribedExercises()[currentExerciseIndex]?.id || ''}
+          exerciseName={getAllPrescribedExercises()[currentExerciseIndex]?.name || ''}
+          availableEquipment={selectedEquipment}
+          onSelect={handleExerciseSubstitution}
+          onCancel={() => setShowSubstitutionPicker(false)}
+        />
+      )}
+
+      {/* Session Recovery Modal */}
+      {showRecoveryModal && recoverableSessions.length > 0 && (
+        <SessionRecoveryModal
+          sessions={recoverableSessions}
+          onRecover={handleSessionRecovery}
+          onDiscard={handleSessionDiscard}
+          onDismiss={() => setShowRecoveryModal(false)}
+        />
+      )}
     </>
   );
 }
