@@ -21,7 +21,7 @@ import {
   Send,
   CheckCircle,
 } from 'lucide-react';
-import { apiClient } from '../../api/client';
+import { apiClient } from '@musclemap/client';
 
 // ============================================
 // TYPES
