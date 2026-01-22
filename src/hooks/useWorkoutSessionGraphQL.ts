@@ -224,7 +224,8 @@ export function useWorkoutSessionGraphQL() {
   // ============================================
 
   const [startSessionMutation, { loading: startingSession }] = useMutation(
-    START_WORKOUT_SESSION_MUTATION
+    START_WORKOUT_SESSION_MUTATION,
+    { errorPolicy: 'all' } // Don't throw on errors, return them instead
   );
 
   const [logSetMutation, { loading: loggingSet }] = useMutation(LOG_SET_MUTATION);
@@ -315,9 +316,20 @@ export function useWorkoutSessionGraphQL() {
 
         if (errors?.length) {
           console.error('[WorkoutSession] GraphQL errors:', errors);
+          const firstError = errors[0];
+          const errorCode = firstError?.extensions?.code;
+
+          // Provide user-friendly error messages
+          let userMessage = firstError?.message || 'Failed to start session';
+          if (errorCode === 'UNAUTHENTICATED') {
+            userMessage = 'Session expired. Please log in again.';
+          } else if (errorCode === 'FORBIDDEN') {
+            userMessage = 'Permission denied. Please try again.';
+          }
+
           return {
             success: false,
-            error: errors[0]?.message || 'Failed to start session',
+            error: userMessage,
           };
         }
 
