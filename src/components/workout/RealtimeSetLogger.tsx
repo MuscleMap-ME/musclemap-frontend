@@ -122,7 +122,19 @@ export function RealtimeSetLogger({
     const w = parseFloat(weight);
     const r = parseInt(reps);
 
-    if (!w || !r || !activeSession) return;
+    // Validate inputs and show feedback
+    if (!w || w <= 0) {
+      alert('Please enter a weight greater than 0');
+      return;
+    }
+    if (!r || r <= 0) {
+      alert('Please enter reps greater than 0');
+      return;
+    }
+    if (!activeSession) {
+      alert('No active workout session. Please start a new workout.');
+      return;
+    }
 
     const result = await logSet({
       sessionId: activeSession.id,
