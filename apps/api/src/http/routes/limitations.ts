@@ -24,26 +24,28 @@ const SEVERITY_LEVELS = ['mild', 'moderate', 'severe', 'complete'] as const;
 const STATUS_TYPES = ['active', 'recovering', 'resolved', 'permanent'] as const;
 
 // Create limitation schema
+// Note: Using .nullish() to accept both null and undefined for optional fields
+// Frontend may send null for empty optional fields
 const createLimitationSchema = z.object({
-  bodyRegionId: z.string().optional(),
+  bodyRegionId: z.string().nullish(),
   limitationType: z.enum(LIMITATION_TYPES),
-  severity: z.enum(SEVERITY_LEVELS).optional(),
-  status: z.enum(STATUS_TYPES).optional(),
+  severity: z.enum(SEVERITY_LEVELS).nullish(),
+  status: z.enum(STATUS_TYPES).nullish(),
   name: z.string().min(1),
-  description: z.string().optional(),
-  medicalNotes: z.string().optional(),
-  avoidMovements: z.array(z.string()).optional(),
-  avoidImpact: z.boolean().optional(),
-  avoidWeightBearing: z.boolean().optional(),
-  maxWeightLbs: z.number().optional(),
-  maxReps: z.number().optional(),
-  romFlexionPercent: z.number().min(0).max(100).optional(),
-  romExtensionPercent: z.number().min(0).max(100).optional(),
-  romRotationPercent: z.number().min(0).max(100).optional(),
-  onsetDate: z.string().optional(),
-  expectedRecoveryDate: z.string().optional(),
-  diagnosedBy: z.string().optional(),
-  ptApproved: z.boolean().optional(),
+  description: z.string().nullish(),
+  medicalNotes: z.string().nullish(),
+  avoidMovements: z.array(z.string()).nullish(),
+  avoidImpact: z.boolean().nullish(),
+  avoidWeightBearing: z.boolean().nullish(),
+  maxWeightLbs: z.number().nullish(),
+  maxReps: z.number().nullish(),
+  romFlexionPercent: z.number().min(0).max(100).nullish(),
+  romExtensionPercent: z.number().min(0).max(100).nullish(),
+  romRotationPercent: z.number().min(0).max(100).nullish(),
+  onsetDate: z.string().nullish(),
+  expectedRecoveryDate: z.string().nullish(),
+  diagnosedBy: z.string().nullish(),
+  ptApproved: z.boolean().nullish(),
 });
 
 // Update limitation schema
