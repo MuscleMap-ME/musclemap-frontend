@@ -16,8 +16,9 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
 import { DashboardWidget, WidgetDefinition, Platform } from '@musclemap/shared';
+import { resilientStorage, getToken } from '../lib/zustand-storage';
 
 // ============================================
 // TYPES
@@ -93,8 +94,6 @@ const DEFAULT_WIDGETS: DashboardWidget[] = [
 // ============================================
 // API HELPERS
 // ============================================
-
-const getToken = () => localStorage.getItem('musclemap_token');
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
@@ -324,6 +323,7 @@ export const useDashboardStore = create<DashboardState>()(
       }),
       {
         name: 'musclemap-dashboard',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           widgets: state.widgets,
           columns: state.columns,

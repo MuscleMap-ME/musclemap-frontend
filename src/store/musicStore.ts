@@ -12,7 +12,8 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage, getToken } from '../lib/zustand-storage';
 
 // ============================================
 // TYPES
@@ -129,8 +130,6 @@ interface MusicState {
 // ============================================
 // HELPERS
 // ============================================
-
-const getToken = () => localStorage.getItem('musclemap_token');
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
@@ -590,6 +589,7 @@ export const useMusicStore = create<MusicState>()(
       }),
       {
         name: 'musclemap-music',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           activeProvider: state.activeProvider,
           volume: state.volume,

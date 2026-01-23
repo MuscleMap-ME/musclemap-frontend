@@ -14,7 +14,8 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage, getToken } from '../lib/zustand-storage';
 
 // ============================================
 // TYPES
@@ -96,8 +97,6 @@ const QUICK_LOG_AMOUNTS = [8, 12, 16, 20, 32]; // Common cup sizes in oz
 // ============================================
 // HELPERS
 // ============================================
-
-const getToken = () => localStorage.getItem('musclemap_token');
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
@@ -414,6 +413,7 @@ export const useHydrationStore = create<HydrationState>()(
       }),
       {
         name: 'musclemap-hydration',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           todayLogs: state.todayLogs,
           currentIntake: state.currentIntake,

@@ -6,8 +6,9 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { MapMenuState, MapViewType, MapMode, QualityLevel } from '../components/map-menu/types';
+import { resilientStorage } from '../lib/zustand-storage';
 
 // Default state values
 const DEFAULT_STATE = {
@@ -58,6 +59,7 @@ export const useMapMenuStore = create<MapMenuState>()(
     }),
     {
       name: 'musclemap-map-menu',
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         // Only persist user preferences, not transient state
         currentView: state.currentView,

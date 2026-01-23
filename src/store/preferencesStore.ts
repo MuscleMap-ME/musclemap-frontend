@@ -24,7 +24,7 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
 import {
   UserPreferences,
   PreferenceProfile,
@@ -33,6 +33,7 @@ import {
   applyProfileOverrides,
   GuidanceLevel,
 } from '@musclemap/shared';
+import { resilientStorage, getToken } from '../lib/zustand-storage';
 
 // ============================================
 // TYPES
@@ -89,8 +90,6 @@ interface PreferencesState {
 // ============================================
 // API HELPERS
 // ============================================
-
-const getToken = () => localStorage.getItem('musclemap_token');
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
@@ -437,6 +436,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       }),
       {
         name: 'musclemap-preferences',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           // Only persist preferences locally for offline support
           preferences: state.preferences,

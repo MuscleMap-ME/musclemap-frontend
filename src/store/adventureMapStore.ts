@@ -13,8 +13,9 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
 import type { Position, LocationId, RegionId, CharacterState } from '../components/adventure-map/types';
+import { resilientStorage } from '../lib/zustand-storage';
 import { getStartingLocation, getLocation, getClosestLocation } from '../components/adventure-map/data/mapLayout';
 import { getRegionAtPosition } from '../components/adventure-map/data/regions';
 import { findPathPositions } from '../components/adventure-map/data/pathConnections';
@@ -318,6 +319,7 @@ export const useAdventureMapStore = create<AdventureMapState>()(
       }),
       {
         name: 'musclemap-adventure-map',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           // Only persist essential state
           characterPosition: state.characterPosition,

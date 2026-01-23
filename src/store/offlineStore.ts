@@ -20,7 +20,8 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 // ============================================
 // SYNC STATUS TYPES

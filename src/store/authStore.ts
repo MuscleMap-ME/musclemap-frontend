@@ -3,38 +3,20 @@
  *
  * Single source of truth for authentication state.
  * Uses Zustand with persist middleware for localStorage persistence.
+ * Uses resilient storage that works with Brave Shields and other blockers.
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { clearApolloCache } from '../graphql/client';
-
-/**
- * Safe localStorage wrapper that handles Safari private mode and other edge cases
- */
-const safeStorage = {
-  getItem: (name) => {
-    try {
-      return localStorage.getItem(name);
-    } catch {
-      return null;
-    }
-  },
-  setItem: (name, value) => {
-    try {
-      localStorage.setItem(name, value);
-    } catch {
-      // Safari private mode or quota exceeded - silently fail
-    }
-  },
-  removeItem: (name) => {
-    try {
-      localStorage.removeItem(name);
-    } catch {
-      // Ignore errors
-    }
-  },
-};
+import {
+  resilientStorage,
+  getToken as getStoredToken,
+  setToken as setStoredToken,
+  removeToken as removeStoredToken,
+  setUser as setStoredUser,
+  removeUser as removeStoredUser,
+} from '../lib/zustand-storage';
 
 /**
  * Auth store with persistent state
@@ -55,8 +37,8 @@ export const useAuthStore = create(
       // Actions
       setAuth: (user, token) => {
         // Also save to legacy keys for @musclemap/client compatibility
-        localStorage.setItem('musclemap_token', token);
-        localStorage.setItem('musclemap_user', JSON.stringify(user));
+        setStoredToken(token);
+        setStoredUser(user);
         set({ user, token, isAuthenticated: true, loading: false });
       },
 
@@ -67,8 +49,8 @@ export const useAuthStore = create(
 
       logout: async () => {
         // Also clear legacy keys
-        localStorage.removeItem('musclemap_token');
-        localStorage.removeItem('musclemap_user');
+        removeStoredToken();
+        removeStoredUser();
         // Clear Apollo cache (in-memory and persisted)
         await clearApolloCache();
         set({ user: null, token: null, isAuthenticated: false, loading: false });
@@ -88,7 +70,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'musclemap-auth',
-      storage: createJSONStorage(() => safeStorage),
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
@@ -97,12 +79,12 @@ export const useAuthStore = create(
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           // Clear corrupted state
-          safeStorage.removeItem('musclemap-auth');
+          resilientStorage.removeItem('musclemap-auth');
         } else if (state?.token) {
           // Sync to legacy keys for @musclemap/client compatibility
-          localStorage.setItem('musclemap_token', state.token);
+          setStoredToken(state.token);
           if (state.user) {
-            localStorage.setItem('musclemap_user', JSON.stringify(state.user));
+            setStoredUser(state.user);
           }
         }
         // Schedule hydration completion for next tick to ensure store is ready

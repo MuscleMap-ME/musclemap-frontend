@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 // ============================================
 // TYPES
@@ -471,7 +472,7 @@ export const useEngagementStore = create<EngagementStore>()(
     }),
     {
       name: 'musclemap-engagement',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         loginCalendar: state.loginCalendar,
         currentMultipliers: state.currentMultipliers,

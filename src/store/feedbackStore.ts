@@ -16,7 +16,8 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 /**
  * Feedback type definitions
@@ -224,6 +225,7 @@ export const useFeedbackStore = create(
       }),
       {
         name: 'musclemap-feedback',
+        storage: createJSONStorage(() => resilientStorage),
         // Only persist user votes and FAQ cache
         partialize: (state) => ({
           userVotes: Array.from(state.userVotes),
