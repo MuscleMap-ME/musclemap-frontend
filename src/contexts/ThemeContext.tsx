@@ -191,8 +191,18 @@ export function ThemeProvider({ children }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
 
+  // Provide a safe fallback if context is not available
+  // This prevents crashes when ThemeProvider is missing or hasn't mounted yet
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    const fallbackTheme = THEMES.DARK;
+    return {
+      theme: fallbackTheme,
+      setTheme: () => {},
+      toggleTheme: () => {},
+      isDark: true,
+      isLight: false,
+      colors: THEME_COLORS[fallbackTheme],
+    };
   }
 
   return context;

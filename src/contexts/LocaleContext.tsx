@@ -311,8 +311,18 @@ export function LocaleProvider({ children }) {
 export function useLocale() {
   const context = useContext(LocaleContext);
 
+  // Provide a safe fallback if context is not available
+  // This prevents crashes when LocaleProvider is missing or hasn't mounted yet
   if (!context) {
-    throw new Error('useLocale must be used within a LocaleProvider');
+    const fallbackLocale = LOCALES.EN;
+    return {
+      locale: fallbackLocale,
+      setLocale: () => {},
+      t: (key: string) => key, // Return the key as fallback
+      localeInfo: LOCALE_INFO[fallbackLocale],
+      supportedLocales: Object.keys(LOCALES),
+      isRTL: false,
+    };
   }
 
   return context;

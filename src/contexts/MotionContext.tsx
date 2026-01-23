@@ -104,12 +104,29 @@ export function MotionProvider({ children }) {
  */
 export function useMotion() {
   const context = useContext(MotionContext);
+  // Always call the hook unconditionally to comply with Rules of Hooks
+  const fallback = useReducedMotion();
 
-  if (!context) {
-    throw new Error('useMotion must be used within a MotionProvider');
+  // If context is available, use it
+  if (context) {
+    return context;
   }
 
-  return context;
+  // Fallback: Return a compatible object using the standalone hook
+  // This prevents crashes when MotionProvider is missing or hasn't mounted yet
+  return {
+    prefersReducedMotion: fallback.prefersReducedMotion,
+    motionAllowed: fallback.motionAllowed,
+    shouldAnimate: fallback.motionAllowed,
+    reducedMotion: !fallback.motionAllowed,
+    userMotionPref: fallback.userMotionPref,
+    setUserMotionPref: fallback.setUserMotionPref,
+    setReducedMotion: (reduce: boolean) => {
+      fallback.setUserMotionPref(reduce ? MOTION_PREFERENCES.REDUCED : MOTION_PREFERENCES.FULL);
+    },
+    shouldReduceMotion: !fallback.motionAllowed,
+    motionOptions: MOTION_PREFERENCES,
+  };
 }
 
 /**
