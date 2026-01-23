@@ -19,6 +19,16 @@ import {
   MeshBackground,
 } from '../components/glass';
 
+// Helper function to convert ISO date string to YYYY-MM-DD format for date inputs
+const formatDateForInput = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  // Handle both ISO format (2026-01-22T00:00:00.000Z) and YYYY-MM-DD format
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  // Format as YYYY-MM-DD
+  return date.toISOString().split('T')[0];
+};
+
 // Icons
 const Icons = {
   Body: ({ className = 'w-5 h-5' }) => (
@@ -185,7 +195,10 @@ function LimitationCard({ limitation, onEdit, onDelete }) {
 
       {limitation.expectedRecoveryDate && (
         <div className="mt-3 text-xs text-[var(--text-quaternary)]">
-          Expected recovery: {new Date(limitation.expectedRecoveryDate).toLocaleDateString()}
+          Expected recovery: {(() => {
+            const date = new Date(limitation.expectedRecoveryDate);
+            return isNaN(date.getTime()) ? limitation.expectedRecoveryDate : date.toLocaleDateString();
+          })()}
         </div>
       )}
     </motion.div>
@@ -220,8 +233,9 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
         avoidImpact: editingLimitation.avoidImpact || false,
         avoidWeightBearing: editingLimitation.avoidWeightBearing || false,
         maxWeightLbs: editingLimitation.maxWeightLbs || '',
-        onsetDate: editingLimitation.onsetDate || '',
-        expectedRecoveryDate: editingLimitation.expectedRecoveryDate || '',
+        // Convert ISO dates to YYYY-MM-DD format for date inputs
+        onsetDate: formatDateForInput(editingLimitation.onsetDate),
+        expectedRecoveryDate: formatDateForInput(editingLimitation.expectedRecoveryDate),
       });
     } else {
       setFormData({
@@ -539,17 +553,20 @@ export default function Limitations() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this limitation?')) return;
 
+    // Store current limitations for rollback
+    const previousLimitations = [...limitations];
+
     // Optimistically remove from UI immediately
     setLimitations(prev => prev.filter(l => l.id !== id));
 
     try {
       await api.delete(`/limitations/${id}`);
-      // Reload to ensure sync with server
-      loadLimitations();
+      // Delete succeeded - UI is already updated, no need to reload
+      console.log('[Limitations] Deleted successfully:', id);
     } catch (error) {
       console.error('Failed to delete limitation:', error);
-      // On error, reload to restore the item
-      loadLimitations();
+      // On error, restore the previous state
+      setLimitations(previousLimitations);
     }
   };
 
