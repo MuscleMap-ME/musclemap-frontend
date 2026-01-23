@@ -222,7 +222,7 @@ NODE
 
 restart_pm2() {
   say "==> restarting pm2 app: $PM2_APP"
-  pm2 restart "$PM2_APP" >/dev/null 2>&1 || pm2 restart all
+  pm2 restart "$PM2_APP" --silent >/dev/null 2>&1 || pm2 restart all --silent
   pm2 save >/dev/null 2>&1 || true
   pm2 ls || true
 }

@@ -329,7 +329,7 @@ fi
 
 if [ "$RUN_RESTART" -eq 1 ]; then
   say "==> pm2 restart: $PM2_APP"
-  pm2 restart "$PM2_APP" || pm2 restart all
+  pm2 restart "$PM2_APP" --silent || pm2 restart all --silent
   pm2 save >/dev/null 2>&1 || true
   say
 fi

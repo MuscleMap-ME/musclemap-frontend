@@ -174,7 +174,7 @@ if ! ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
   git reset --hard origin/main && \
   pnpm install && \
   node scripts/aggressive-cache.mjs --staged && \
-  pm2 restart musclemap"; then
+  pm2 restart musclemap --silent"; then
     echo -e "${RED}❌ Deployment failed!${NC}"
     if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
         npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "failed" 2>/dev/null || true

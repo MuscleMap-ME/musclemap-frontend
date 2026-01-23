@@ -94,7 +94,7 @@ run_deploy() {
 
     # Restart PM2
     log "Restarting PM2..."
-    pm2 restart musclemap 2>&1 | tee -a "$LOG_FILE" || pm2 start ecosystem.config.cjs --env production 2>&1 | tee -a "$LOG_FILE"
+    pm2 restart musclemap --silent 2>&1 | tee -a "$LOG_FILE" || pm2 start ecosystem.config.cjs --env production 2>&1 | tee -a "$LOG_FILE"
 
     log "Deploy complete!"
 }

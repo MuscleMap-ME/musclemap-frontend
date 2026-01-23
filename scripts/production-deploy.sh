@@ -154,7 +154,7 @@ if [ "$PULL_ONLY" = false ]; then
   log_step "Restarting Services"
 
   if command -v pm2 &> /dev/null; then
-    pm2 restart all --update-env 2>/dev/null || pm2 start ecosystem.config.js 2>/dev/null || log_error "PM2 restart failed"
+    pm2 restart all --update-env --silent 2>/dev/null || pm2 start ecosystem.config.js 2>/dev/null || log_error "PM2 restart failed"
     log_success "Services restarted via PM2"
 
     # Show PM2 status
