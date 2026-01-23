@@ -594,7 +594,7 @@
   "src/services/metronome.ts": "b3eb1f071673fd887a141286f5fdc625",
   "src/services/soundManager.ts": "40b81e285e21a88ca42b20ef44704ff0",
   "src/store/adventureMapStore.ts": "f05f2414229dfdfb3b96522684f99359",
-  "src/store/authStore.ts": "cb583fceb961a91c6f5a435444de061a",
+  "src/store/authStore.ts": "947304507c4b40b806a11f0ab8ce213d",
   "src/store/dashboardStore.ts": "058c96f2289400eb425c7bfb1dd4617b",
   "src/store/engagementStore.ts": "d75071703a1c4a614d481d8fe8f593f3",
   "src/store/feedbackStore.ts": "4f830dcd34f7702a8e29feb6dbdeeb18",

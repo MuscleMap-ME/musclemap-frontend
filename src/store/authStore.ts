@@ -7,16 +7,36 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { clearApolloCache } from '../graphql/client';
 import {
   resilientStorage,
-  getToken as getStoredToken,
   setToken as setStoredToken,
   removeToken as removeStoredToken,
   setUser as setStoredUser,
   removeUser as removeStoredUser,
 } from '../lib/zustand-storage';
+
+/**
+ * Create a safe JSON storage that catches all errors during creation.
+ * This handles Brave Shields making storage APIs throw during initialization.
+ */
+function createSafeStorage(): ReturnType<typeof createJSONStorage> {
+  try {
+    return createJSONStorage(() => resilientStorage);
+  } catch (e) {
+    console.warn('[authStore] Failed to create JSON storage, using in-memory fallback:', e);
+    // Return a no-op storage that stores nothing
+    // The app will work but won't persist auth state
+    const memoryStore: Record<string, string> = {};
+    const memoryStorage: StateStorage = {
+      getItem: (name: string) => memoryStore[name] ?? null,
+      setItem: (name: string, value: string) => { memoryStore[name] = value; },
+      removeItem: (name: string) => { delete memoryStore[name]; },
+    };
+    return createJSONStorage(() => memoryStorage);
+  }
+}
 
 /**
  * Auth store with persistent state
@@ -70,7 +90,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'musclemap-auth',
-      storage: createJSONStorage(() => resilientStorage),
+      storage: createSafeStorage(),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
@@ -97,14 +117,57 @@ export const useAuthStore = create(
 );
 
 // Fallback: ensure hydration completes even if onRehydrateStorage doesn't fire
-// This handles edge cases in Safari private mode where persist may not call the callback
+// This handles edge cases where:
+// - Safari private mode doesn't call the callback
+// - Brave Shields blocks storage operations
+// - Any other storage-related failure
 if (typeof window !== 'undefined') {
+  // Primary fallback: 100ms should be enough for normal rehydration
   setTimeout(() => {
-    const state = useAuthStore.getState();
-    if (!state._hasHydrated) {
-      state.setHasHydrated(true);
+    try {
+      const state = useAuthStore.getState();
+      if (!state._hasHydrated) {
+        console.warn('[authStore] Primary hydration fallback triggered at 100ms');
+        state.setHasHydrated(true);
+      }
+    } catch (e) {
+      console.error('[authStore] Error in primary hydration fallback:', e);
     }
   }, 100);
+
+  // Secondary fallback: 500ms - in case something is slow
+  setTimeout(() => {
+    try {
+      const state = useAuthStore.getState();
+      if (!state._hasHydrated) {
+        console.warn('[authStore] Secondary hydration fallback triggered at 500ms');
+        state.setHasHydrated(true);
+      }
+    } catch (e) {
+      console.error('[authStore] Error in secondary hydration fallback:', e);
+    }
+  }, 500);
+
+  // Emergency fallback: 2000ms - something is very wrong but app should still work
+  setTimeout(() => {
+    try {
+      const state = useAuthStore.getState();
+      if (!state._hasHydrated) {
+        console.error('[authStore] Emergency hydration fallback triggered at 2000ms - storage may be completely blocked');
+        state.setHasHydrated(true);
+      }
+    } catch (e) {
+      console.error('[authStore] Error in emergency hydration fallback:', e);
+      // Last resort: directly mutate the store state
+      // This bypasses Zustand's normal flow but ensures the app doesn't hang forever
+      try {
+        useAuthStore.setState({ _hasHydrated: true, loading: false });
+      } catch {
+        // At this point, something is catastrophically wrong
+        // The app will show a spinner forever, but at least we tried
+      }
+    }
+  }, 2000);
 }
 
 /**
