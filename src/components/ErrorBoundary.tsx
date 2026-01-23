@@ -25,6 +25,8 @@ interface ErrorBoundaryProps {
   inline?: boolean;
   /** Fallback to render instead of default error UI */
   fallback?: React.ReactNode;
+  /** Callback when an error is caught - useful for custom error tracking */
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 interface ErrorBoundaryState {
@@ -66,6 +68,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       componentStack: errorInfo.componentStack,
       errorType: this.state.errorType,
     });
+
+    // Call onError callback if provided (for custom error tracking)
+    if (this.props.onError) {
+      try {
+        this.props.onError(error, errorInfo);
+      } catch {
+        // Don't let callback errors propagate
+      }
+    }
   }
 
   handleRetry = () => {

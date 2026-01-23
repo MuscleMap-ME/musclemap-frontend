@@ -17,6 +17,56 @@ import { usePrefetchRoutes } from './components/PrefetchLink';
 import logger from './utils/logger';
 import { trackPageView } from './lib/analytics';
 
+// ============================================
+// ULTRA-EARLY ERROR TRACKING FOR iOS DEBUGGING
+// ============================================
+
+// Global error tracker that sends to server immediately
+const trackAppError = (phase: string, error: unknown, extra?: Record<string, unknown>) => {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : 'No stack';
+  console.error(`[App:${phase}]`, errorMsg, extra);
+
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/client-error', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({
+      type: 'app_error',
+      message: `[App:${phase}] ${errorMsg}`,
+      source: 'App.tsx',
+      stack: stack,
+      time: new Date().toISOString(),
+      extra: { phase, ...extra }
+    }));
+  } catch { /* ignore */ }
+};
+
+// Log provider initialization
+const logProviderInit = (name: string) => {
+  console.log(`[Provider] ${name} initializing`);
+};
+
+// Safe lazy loader that catches and reports errors
+const safeLazy = <T extends React.ComponentType<unknown>>(
+  name: string,
+  importFn: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> => {
+  return lazy(() =>
+    importFn().catch((err) => {
+      trackAppError(`lazy:${name}`, err);
+      // Return a fallback component that shows the error
+      return {
+        default: (() => {
+          return React.createElement('div', {
+            style: { padding: '20px', color: 'red', background: '#1a1a1a' }
+          }, `Failed to load ${name}: ${err?.message || 'Unknown error'}`);
+        }) as unknown as T
+      };
+    })
+  );
+};
+
 // Plugin System
 import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins';
 
@@ -27,14 +77,14 @@ const SpotlightTourRenderer = lazy(() => import('./components/tour/SpotlightTour
 // Transition System
 import { TransitionProvider } from './components/transitions';
 
-// Global Components - Lazy loaded for performance
-const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
+// Global Components - Lazy loaded for performance with error tracking
+const AICoach = safeLazy('AICoach', () => import('./components/ai-coach/AICoach'));
 import { useCoachingSettings } from './store/preferencesStore';
-const LootDrop = lazy(() => import('./components/loot/LootDrop'));
-const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
-const OfflineIndicator = lazy(() => import('./components/mobile/OfflineIndicator'));
-const MobileDebugOverlay = lazy(() => import('./components/debug/MobileDebugOverlay'));
-const MemoryWarningBanner = lazy(() => import('./components/system/MemoryWarningBanner'));
+const LootDrop = safeLazy('LootDrop', () => import('./components/loot/LootDrop'));
+const FloatingRestTimer = safeLazy('FloatingRestTimer', () => import('./components/workout/FloatingRestTimer'));
+const OfflineIndicator = safeLazy('OfflineIndicator', () => import('./components/mobile/OfflineIndicator'));
+const MobileDebugOverlay = safeLazy('MobileDebugOverlay', () => import('./components/debug/MobileDebugOverlay'));
+const MemoryWarningBanner = safeLazy('MemoryWarningBanner', () => import('./components/system/MemoryWarningBanner'));
 
 // Import memory debug tools (attaches to window.__MUSCLEMAP_DEBUG__)
 import './lib/memory-debug';
@@ -681,6 +731,20 @@ function ConditionalAICoach() {
 
 export default function App() {
   useEffect(() => {
+    // Track that App component mounted successfully
+    console.log('[App] Component mounting');
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/client-error', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({
+        type: 'app_mount',
+        message: '[App] Component mounted successfully',
+        source: 'App.tsx',
+        time: new Date().toISOString()
+      }));
+    } catch { /* ignore */ }
+
     logger.info('app_initialized', {
       version: '1.0.0',
       env: process.env.NODE_ENV
@@ -712,27 +776,48 @@ export default function App() {
     };
   }, []);
 
+  // Each provider is wrapped in try-catch via ErrorBoundary
+  // Log provider initialization for debugging iOS Brave issues
+  logProviderInit('App');
+
   return (
-    <ErrorBoundary name="App">
+    <ErrorBoundary name="App" onError={(err) => trackAppError('ErrorBoundary:App', err)}>
       <ApolloProvider client={apolloClient}>
+        <ErrorBoundary name="ThemeProvider" onError={(err) => trackAppError('ErrorBoundary:ThemeProvider', err)}>
         <ThemeProvider>
+          <ErrorBoundary name="LocaleProvider" onError={(err) => trackAppError('ErrorBoundary:LocaleProvider', err)}>
           <LocaleProvider>
+            <ErrorBoundary name="MotionProvider" onError={(err) => trackAppError('ErrorBoundary:MotionProvider', err)}>
             <MotionProvider>
+              <ErrorBoundary name="BrowserRouter" onError={(err) => trackAppError('ErrorBoundary:BrowserRouter', err)}>
               <BrowserRouter>
+                <ErrorBoundary name="TransitionProvider" onError={(err) => trackAppError('ErrorBoundary:TransitionProvider', err)}>
                 <TransitionProvider showProgressBar>
+                <ErrorBoundary name="UserProvider" onError={(err) => trackAppError('ErrorBoundary:UserProvider', err)}>
                 <UserProvider>
+                  <ErrorBoundary name="PluginProvider" onError={(err) => trackAppError('ErrorBoundary:PluginProvider', err)}>
                   <PluginProvider>
+                    <ErrorBoundary name="PluginThemeProvider" onError={(err) => trackAppError('ErrorBoundary:PluginThemeProvider', err)}>
                     <PluginThemeProvider>
+                      <ErrorBoundary name="CommandPaletteProvider" onError={(err) => trackAppError('ErrorBoundary:CommandPaletteProvider', err)}>
                       <CommandPaletteProvider>
+                        <ErrorBoundary name="CompanionProvider" onError={(err) => trackAppError('ErrorBoundary:CompanionProvider', err)}>
                         <CompanionProvider>
+                          <ErrorBoundary name="ContextualTipProvider" onError={(err) => trackAppError('ErrorBoundary:ContextualTipProvider', err)}>
                           <ContextualTipProvider>
                             <div id="main-content" role="main">
                               <AppRoutes />
                             </div>
-                            <CompanionDock />
-                            <GlobalCommandPalette />
+                            <Suspense fallback={null}>
+                              <CompanionDock />
+                            </Suspense>
+                            <Suspense fallback={null}>
+                              <GlobalCommandPalette />
+                            </Suspense>
                             {/* Global Spotlight Tour Renderer */}
-                            <SpotlightTourRenderer />
+                            <Suspense fallback={null}>
+                              <SpotlightTourRenderer />
+                            </Suspense>
                             {/* Global AI Coach - Floating widget (bottom-right), respects maxCoachVisible preference */}
                             <ConditionalAICoach />
                             {/* Global Loot Drop System */}
@@ -756,16 +841,27 @@ export default function App() {
                               <MemoryWarningBanner position="top" />
                             </Suspense>
                           </ContextualTipProvider>
+                          </ErrorBoundary>
                         </CompanionProvider>
+                        </ErrorBoundary>
                       </CommandPaletteProvider>
+                      </ErrorBoundary>
                     </PluginThemeProvider>
+                    </ErrorBoundary>
                   </PluginProvider>
+                  </ErrorBoundary>
                 </UserProvider>
+                </ErrorBoundary>
                 </TransitionProvider>
+                </ErrorBoundary>
               </BrowserRouter>
+              </ErrorBoundary>
             </MotionProvider>
+            </ErrorBoundary>
           </LocaleProvider>
+          </ErrorBoundary>
         </ThemeProvider>
+        </ErrorBoundary>
       </ApolloProvider>
     </ErrorBoundary>
   );
