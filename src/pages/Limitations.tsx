@@ -244,7 +244,7 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({
+    const submitData = {
       ...formData,
       maxWeightLbs: formData.maxWeightLbs ? parseInt(formData.maxWeightLbs, 10) : null,
       // Convert empty strings to null for date fields (PostgreSQL requires null, not empty string)
@@ -252,7 +252,10 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
       expectedRecoveryDate: formData.expectedRecoveryDate || null,
       // Convert empty bodyRegionId to null
       bodyRegionId: formData.bodyRegionId || null,
-    });
+    };
+    console.log('[Limitations] handleSubmit called with formData:', formData);
+    console.log('[Limitations] handleSubmit submitData:', submitData);
+    onSubmit(submitData);
   };
 
   return (
@@ -508,12 +511,18 @@ export default function Limitations() {
   const [error, setError] = useState<string | null>(null);
 
   const handleAddLimitation = async (data) => {
+    console.log('[Limitations] handleAddLimitation called with data:', data);
+    console.log('[Limitations] data type:', typeof data);
+    console.log('[Limitations] data keys:', data ? Object.keys(data) : 'null/undefined');
+
     setSaving(true);
     setError(null);
     try {
       if (editingLimitation) {
+        console.log('[Limitations] Updating existing limitation:', editingLimitation.id);
         await api.put(`/limitations/${editingLimitation.id}`, data);
       } else {
+        console.log('[Limitations] Creating new limitation');
         await api.post('/limitations', data);
       }
       setShowModal(false);

@@ -32,6 +32,11 @@ export const api = {
    * @returns {Promise<{data: any}>} Response with data property
    */
   async post(path, body) {
+    console.log('[api.post] path:', path);
+    console.log('[api.post] body:', body);
+    console.log('[api.post] body type:', typeof body);
+    console.log('[api.post] body is null:', body === null);
+    console.log('[api.post] body is undefined:', body === undefined);
     const response = await request(path, { method: 'POST', body });
     return { data: response };
   },
