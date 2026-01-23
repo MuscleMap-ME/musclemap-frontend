@@ -236,45 +236,10 @@
 
     // Log that early capture is active
     console.log('[MM-Error-Capture] Early error capture initialized. Add ?debug=1 to URL to see overlay.');
-
-    // DYNAMIC MODULE LOADING - This gives us FULL stack traces for import errors
-    // because the error happens in THIS script's context, not a cross-origin one
-    window.__MM_BOOT_START__ = Date.now();
-
-    import('/src/main.tsx')
-      .then(function() {
-        console.log('[MM-Error-Capture] App loaded successfully in ' + (Date.now() - window.__MM_BOOT_START__) + 'ms');
-      })
-      .catch(function(error) {
-        // This catch block runs in OUR script's context, so we get FULL error details!
-        var message = error instanceof Error ? error.message : String(error);
-        var stack = error instanceof Error ? error.stack : 'No stack trace';
-
-        logError('module-import', message, '/src/main.tsx', 0, 0, error, {
-          name: error.name,
-          fileName: error.fileName,
-          lineNumber: error.lineNumber,
-          columnNumber: error.columnNumber,
-          cause: error.cause ? String(error.cause) : undefined
-        });
-
-        // Show a fallback UI
-        var root = document.getElementById('root');
-        if (root) {
-          root.innerHTML =
-            '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0f;color:white;padding:20px;text-align:center;font-family:system-ui,sans-serif;">' +
-              '<h1 style="font-size:24px;margin-bottom:16px;">Failed to Load App</h1>' +
-              '<p style="color:#999;margin-bottom:20px;">There was an error loading MuscleMap.</p>' +
-              '<pre style="background:#1a1a2e;padding:16px;border-radius:8px;text-align:left;font-size:12px;max-width:90vw;overflow-x:auto;color:#ff6b6b;margin-bottom:20px;">' +
-                message + '\\n\\n' + stack.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-              '</pre>' +
-              '<button onclick="window.location.reload()" style="background:#6366f1;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:16px;cursor:pointer;">' +
-                'Reload Page' +
-              '</button>' +
-            '</div>';
-        }
-      });
   })();
   </script>
+
+  <!-- Vite will transform this in dev, and build will replace with hashed .js file -->
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

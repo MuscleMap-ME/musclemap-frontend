@@ -476,6 +476,11 @@ export default defineConfig({
         'jsonwebtoken', // JWT - server only (we use browser-compatible alternative)
       ],
       output: {
+        // CRITICAL: Force .js extension for all output files
+        // Without this, Vite might preserve .tsx extension which browsers don't recognize
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
         // Strategic chunk splitting for optimal caching and loading
         // Chunks are split by usage pattern and load priority
         manualChunks(id) {
