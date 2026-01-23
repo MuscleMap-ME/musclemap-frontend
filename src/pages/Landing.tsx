@@ -1,9 +1,76 @@
-import React, { lazy, useState, useEffect, useRef } from 'react';
+import React, { lazy, useState, useEffect, useRef, ComponentProps } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
 import { MuscleHeroAnimation } from '../components/landing';
+
+// Log that Landing page is rendering (for iOS Brave debugging)
+console.log('[Landing] Component rendering');
+
+/**
+ * Safe Motion Components - Wrappers that ensure content is visible
+ * even if Framer Motion fails to initialize (iOS Brave with Shields).
+ *
+ * Always renders with opacity: 1 and transform: none via inline CSS as a fallback.
+ * If Framer Motion works, it will override with its animations.
+ * If it fails, content stays visible via the CSS fallback.
+ */
+const SafeMotionDiv: React.FC<ComponentProps<typeof motion.div>> = ({
+  style,
+  children,
+  ...props
+}) => (
+  <SafeMotionDiv
+    {...props}
+    style={{
+      opacity: 1,
+      transform: 'none',
+      ...style,
+    }}
+  >
+    {children}
+  </SafeMotionDiv>
+);
+
+const SafeMotionH1: React.FC<ComponentProps<typeof motion.h1>> = ({
+  style,
+  children,
+  ...props
+}) => (
+  <SafeMotionH1
+    {...props}
+    style={{
+      opacity: 1,
+      transform: 'none',
+      ...style,
+    }}
+  >
+    {children}
+  </SafeMotionH1>
+);
+
+const SafeMotionA: React.FC<ComponentProps<typeof motion.a>> = ({
+  style,
+  children,
+  ...props
+}) => (
+  <SafeMotionA
+    {...props}
+    style={{
+      opacity: 1,
+      transform: 'none',
+      ...style,
+    }}
+  >
+    {children}
+  </SafeMotionA>
+);
+
+// SafeMotionSpan available if needed:
+// const SafeMotionSpan: React.FC<ComponentProps<typeof motion.span>> = ({ style, children, ...props }) => (
+//   <motion.span {...props} style={{ opacity: 1, transform: 'none', ...style }}>{children}</motion.span>
+// );
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
@@ -74,6 +141,23 @@ function MuscleMapStaticFallback() {
 }
 
 export default function Landing() {
+  // Track that Landing actually mounted
+  useEffect(() => {
+    console.log('[Landing] Component mounted');
+    // Send to server for iOS debugging
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/client-error', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({
+        type: 'component_mount',
+        message: '[Landing] Component mounted',
+        source: 'Landing.tsx',
+        time: new Date().toISOString()
+      }));
+    } catch { /* ignore */ }
+  }, []);
+
   // Only load the heavy D3 visualization when it's in view
   const [muscleMapRef, isMuscleMapInView] = useInView();
 
@@ -156,11 +240,12 @@ export default function Landing() {
       </header>
 
       {/* Development Notice Banner */}
-      <motion.div
+      {/* Note: Using SafeMotionDiv with CSS fallback in case Framer Motion fails on iOS Brave */}
+      <SafeMotionDiv
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative z-10 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10"
+        className="relative z-10 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 animate-fadeIn"
       >
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 text-center">
@@ -183,11 +268,11 @@ export default function Landing() {
             </RouterLink>
           </div>
         </div>
-      </motion.div>
+      </SafeMotionDiv>
 
       <main className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center md:py-24">
         {/* CTA Button at top */}
-        <motion.div
+        <SafeMotionDiv
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -206,10 +291,10 @@ export default function Landing() {
             {/* Glow effect */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-50" />
           </RouterLink>
-        </motion.div>
+        </SafeMotionDiv>
 
         {/* Main headline with 3D embossed effect */}
-        <motion.h1
+        <SafeMotionH1
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -245,10 +330,10 @@ export default function Landing() {
           >
             Your Tribe.
           </span>
-        </motion.h1>
+        </SafeMotionH1>
 
         {/* Subtext with glass card effect */}
-        <motion.div
+        <SafeMotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
@@ -272,11 +357,11 @@ export default function Landing() {
           <p className="mt-4 text-lg text-gray-300 md:text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
             See every muscle <span className="text-cyan-400 font-semibold">fire</span>. Find your people along the way.
           </p>
-        </motion.div>
+        </SafeMotionDiv>
 
         {/* Hero Muscle Animation - Small interactive preview */}
         {shouldLoadHeavyContent && (
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.6 }}
@@ -291,7 +376,7 @@ export default function Landing() {
               highlightSequence={['chest', 'shoulders', 'arms']}
               speed="slow"
             />
-          </motion.div>
+          </SafeMotionDiv>
         )}
       </main>
 
@@ -301,7 +386,7 @@ export default function Landing() {
       {/* Feature Compass - Visual Navigation */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -321,12 +406,12 @@ export default function Landing() {
             <p className="text-gray-400 max-w-2xl mx-auto">
               Everything you need for your fitness journey. Click any card to explore.
             </p>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Feature Compass Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Train */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
@@ -345,10 +430,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Progress */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
@@ -367,10 +452,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Exercises */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.45 }}
@@ -389,10 +474,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Achievements */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
@@ -411,10 +496,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Goals */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.55 }}
@@ -433,10 +518,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Skills */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
@@ -455,10 +540,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Community */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.65 }}
@@ -477,10 +562,10 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Plugins */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
@@ -499,11 +584,11 @@ export default function Landing() {
                   </svg>
                 </div>
               </RouterLink>
-            </motion.div>
+            </SafeMotionDiv>
           </div>
 
           {/* Secondary Features Row */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.75 }}
@@ -524,14 +609,14 @@ export default function Landing() {
                 <span className="font-medium text-white text-sm">{item.label}</span>
               </RouterLink>
             ))}
-          </motion.div>
+          </SafeMotionDiv>
         </div>
       </section>
 
       {/* Interactive Muscle Map Demo */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -551,9 +636,9 @@ export default function Landing() {
             <p className="text-gray-400 max-w-2xl mx-auto">
               Real-time muscle activation visualization. Every rep, every set — watch your body work.
             </p>
-          </motion.div>
+          </SafeMotionDiv>
 
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4 }}
@@ -627,14 +712,14 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </SafeMotionDiv>
         </div>
       </section>
 
       {/* How It Works - Visual Architecture */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -654,10 +739,10 @@ export default function Landing() {
             <p className="text-gray-400 max-w-2xl mx-auto">
               One platform, any device. Your data flows securely through our GraphQL API.
             </p>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Architecture Diagram */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4 }}
@@ -671,7 +756,7 @@ export default function Landing() {
                 { icon: '⌚', label: 'Apple Watch', desc: 'Wearables' },
                 { icon: '🥽', label: 'Vision Pro', desc: 'Spatial Computing' },
               ].map((device, i) => (
-                <motion.div
+                <SafeMotionDiv
                   key={device.label}
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -681,7 +766,7 @@ export default function Landing() {
                   <span className="text-2xl mb-1">{device.icon}</span>
                   <span className="text-xs font-medium text-white">{device.label}</span>
                   <span className="text-[10px] text-gray-500">{device.desc}</span>
-                </motion.div>
+                </SafeMotionDiv>
               ))}
             </div>
 
@@ -697,7 +782,7 @@ export default function Landing() {
             </div>
 
             {/* API Layer */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
@@ -716,7 +801,7 @@ export default function Landing() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Connection to DB */}
             <div className="flex justify-center mb-4">
@@ -724,7 +809,7 @@ export default function Landing() {
             </div>
 
             {/* Database Layer */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
@@ -742,7 +827,7 @@ export default function Landing() {
                   <span className="text-[10px] text-gray-500">Cache & Real-time</span>
                 </div>
               </div>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Tech Stack Pills */}
             <div className="mt-8 pt-6 border-t border-white/5">
@@ -763,12 +848,12 @@ export default function Landing() {
                 No Docker. No SQLite. No Express. No Nginx. Just clean, modern infrastructure.
               </p>
             </div>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Feature Examples Grid */}
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             {/* Real-time Muscle Tracking */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
@@ -786,10 +871,10 @@ export default function Landing() {
                   </span>
                 ))}
               </div>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* AI Workout Generation */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
@@ -806,10 +891,10 @@ export default function Landing() {
                 </div>
                 <span className="text-xs text-purple-400">75%</span>
               </div>
-            </motion.div>
+            </SafeMotionDiv>
 
             {/* Cross-Platform Sync */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
@@ -825,7 +910,7 @@ export default function Landing() {
                 <span className="text-blue-400">Synced</span>
                 <span>Mobile</span>
               </div>
-            </motion.div>
+            </SafeMotionDiv>
           </div>
         </div>
       </section>
@@ -833,7 +918,7 @@ export default function Landing() {
       {/* Open Source & Community Section */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -862,10 +947,10 @@ export default function Landing() {
               MuscleMap&apos;s frontend is open source. Build plugins, create themes, add features —
               the platform grows with every contribution.
             </p>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Stats Row */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -887,10 +972,10 @@ export default function Landing() {
               <div className="text-2xl font-bold text-yellow-400">🧩</div>
               <div className="text-sm text-gray-400">Extensible</div>
             </div>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Plugin System Highlight */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5 }}
@@ -925,7 +1010,7 @@ export default function Landing() {
                     { icon: '📱', label: 'New Pages', desc: 'Build entire features' },
                     { icon: '🔗', label: 'Integrations', desc: 'Connect external apps' },
                   ].map((item, i) => (
-                    <motion.div
+                    <SafeMotionDiv
                       key={item.label}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -937,7 +1022,7 @@ export default function Landing() {
                         <div className="text-sm font-semibold text-white">{item.label}</div>
                         <div className="text-xs text-gray-500">{item.desc}</div>
                       </div>
-                    </motion.div>
+                    </SafeMotionDiv>
                   ))}
                 </div>
 
@@ -996,10 +1081,10 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Contribute CTA */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
@@ -1060,7 +1145,7 @@ export default function Landing() {
                 </svg>
               </RouterLink>
             </div>
-          </motion.div>
+          </SafeMotionDiv>
         </div>
       </section>
 
@@ -1068,7 +1153,7 @@ export default function Landing() {
       <section className="relative z-10 pb-20 px-6">
         <div className="max-w-4xl mx-auto">
           {/* Navigation Icons */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -1137,10 +1222,10 @@ export default function Landing() {
                 <p className="text-xs text-gray-400">Visual system</p>
               </div>
             </RouterLink>
-          </motion.div>
+          </SafeMotionDiv>
 
           {/* Learn MuscleMap - Your Journey Section */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55 }}
@@ -1166,7 +1251,7 @@ export default function Landing() {
             {/* Journey Steps */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {/* Step 1: Getting Started */}
-              <motion.div
+              <SafeMotionDiv
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
@@ -1192,10 +1277,10 @@ export default function Landing() {
                     </div>
                   </div>
                 </RouterLink>
-              </motion.div>
+              </SafeMotionDiv>
 
               {/* Step 2: Explore Features */}
-              <motion.div
+              <SafeMotionDiv
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.65 }}
@@ -1221,10 +1306,10 @@ export default function Landing() {
                     </div>
                   </div>
                 </RouterLink>
-              </motion.div>
+              </SafeMotionDiv>
 
               {/* Step 3: Join Community */}
-              <motion.div
+              <SafeMotionDiv
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
@@ -1250,11 +1335,11 @@ export default function Landing() {
                     </div>
                   </div>
                 </RouterLink>
-              </motion.div>
+              </SafeMotionDiv>
             </div>
 
             {/* Quick Links Row */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.75 }}
@@ -1287,11 +1372,11 @@ export default function Landing() {
                 </svg>
                 All Documentation
               </RouterLink>
-            </motion.div>
-          </motion.div>
+            </SafeMotionDiv>
+          </SafeMotionDiv>
 
           {/* Visual Documentation - Front and Center */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
@@ -1317,7 +1402,7 @@ export default function Landing() {
             {/* PDF Document Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               {/* Architecture PDF */}
-              <motion.a
+              <SafeMotionA
                 href="/docs/pdf/musclemap-architecture.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1344,10 +1429,10 @@ export default function Landing() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </div>
-              </motion.a>
+              </SafeMotionA>
 
               {/* Features PDF */}
-              <motion.a
+              <SafeMotionA
                 href="/docs/pdf/musclemap-features.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1374,10 +1459,10 @@ export default function Landing() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </div>
-              </motion.a>
+              </SafeMotionA>
 
               {/* API Reference PDF */}
-              <motion.a
+              <SafeMotionA
                 href="/docs/pdf/musclemap-api-reference.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1404,11 +1489,11 @@ export default function Landing() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </div>
-              </motion.a>
+              </SafeMotionA>
             </div>
 
             {/* Text docs fallback link */}
-            <motion.div
+            <SafeMotionDiv
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9 }}
@@ -1426,11 +1511,11 @@ export default function Landing() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </RouterLink>
-            </motion.div>
-          </motion.div>
+            </SafeMotionDiv>
+          </SafeMotionDiv>
 
           {/* Subtle footer links */}
-          <motion.div
+          <SafeMotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
@@ -1441,7 +1526,7 @@ export default function Landing() {
             <RouterLink to="/science" className="hover:text-gray-300 transition">Science</RouterLink>
             <RouterLink to="/design" className="hover:text-gray-300 transition">Design</RouterLink>
             <RouterLink to="/docs" className="hover:text-violet-400 transition font-medium">Documentation</RouterLink>
-          </motion.div>
+          </SafeMotionDiv>
         </div>
       </section>
     </div>
