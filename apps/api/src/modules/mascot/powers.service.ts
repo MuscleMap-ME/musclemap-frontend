@@ -1076,10 +1076,10 @@ export const mascotPowersService = {
       return [];
     }
 
-    // Get user's archetype
+    // Get user's archetype (stored as current_identity_id)
     const userProfile = await queryOne<{
-      current_archetype: string;
-    }>(`SELECT current_archetype FROM users WHERE id = $1`, [userId]);
+      current_identity_id: string;
+    }>(`SELECT current_identity_id FROM users WHERE id = $1`, [userId]);
 
     // Find matching crews
     const suggestions = await queryAll<{
@@ -1109,14 +1109,14 @@ export const mascotPowersService = {
         CASE WHEN c.archetype_focus = $1 THEN 0 ELSE 1 END,
         COUNT(cm.user_id) DESC
       LIMIT 5
-    `, [userProfile?.current_archetype || '']);
+    `, [userProfile?.current_identity_id || '']);
 
     // Calculate match scores and reasons
     const results: CrewSuggestion[] = suggestions.map(s => {
       const matchReasons: string[] = [];
       let matchScore = 50; // Base score
 
-      if (s.archetype_focus === userProfile?.current_archetype) {
+      if (s.archetype_focus === userProfile?.current_identity_id) {
         matchReasons.push(`Focuses on ${s.archetype_focus} archetype like you`);
         matchScore += 30;
       }

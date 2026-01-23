@@ -203,13 +203,13 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
   app.get('/pt-tests/my-archetype', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
 
-    // Get user's archetype and associated PT test
-    const user = await db.queryOne<{ archetype: string | null }>(
-      `SELECT archetype FROM users WHERE id = $1`,
+    // Get user's archetype (stored as current_identity_id) and associated PT test
+    const user = await db.queryOne<{ current_identity_id: string | null }>(
+      `SELECT current_identity_id FROM users WHERE id = $1`,
       [userId]
     );
 
-    if (!user?.archetype) {
+    if (!user?.current_identity_id) {
       return reply.send({
         data: {
           test: null,
@@ -223,7 +223,7 @@ export async function registerPTTestsRoutes(app: FastifyInstance) {
       institution: string | null;
     }>(
       `SELECT pt_test_id, institution FROM archetypes WHERE id = $1`,
-      [user.archetype]
+      [user.current_identity_id]
     );
 
     if (!archetype?.pt_test_id) {

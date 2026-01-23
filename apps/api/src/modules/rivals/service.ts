@@ -58,9 +58,9 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
     id: string;
     username: string | null;
     avatar_url: string | null;
-    archetype: string | null;
+    current_identity_id: string | null;
   }>(
-    `SELECT id, username, avatar_url, archetype FROM users WHERE id = $1`,
+    `SELECT id, username, avatar_url, current_identity_id FROM users WHERE id = $1`,
     [opponentId]
   );
 
@@ -79,7 +79,7 @@ async function enrichRival(rival: Rival, userId: string): Promise<RivalWithUser>
       id: opponent?.id || opponentId,
       username: opponent?.username || 'Unknown',
       avatar: opponent?.avatar_url ?? undefined,
-      archetype: opponent?.archetype ?? undefined,
+      archetype: opponent?.current_identity_id ?? undefined,
       level: levelData?.current_level || 1,
     },
     isChallenger,

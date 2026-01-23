@@ -317,8 +317,8 @@ export async function acceptInvite(inviteId: string, userId: string): Promise<Cr
     await client.query('UPDATE crew_invites SET status = $1 WHERE id = $2', ['accepted', inviteId]);
     await client.query('UPDATE crews SET member_count = member_count + 1 WHERE id = $1', [invite.crew_id]);
 
-    const userResult = await client.query<{ username: string | null; avatar_url: string | null; archetype: string | null }>(
-      'SELECT username, avatar_url, archetype FROM users WHERE id = $1',
+    const userResult = await client.query<{ username: string | null; avatar_url: string | null; current_identity_id: string | null }>(
+      'SELECT username, avatar_url, current_identity_id FROM users WHERE id = $1',
       [userId]
     );
     const user = userResult.rows[0];
@@ -333,7 +333,7 @@ export async function acceptInvite(inviteId: string, userId: string): Promise<Cr
       totalTU: 0,
       username: user?.username ?? '',
       avatar: user?.avatar_url ?? null,
-      archetype: user?.archetype ?? null,
+      archetype: user?.current_identity_id ?? null,
     };
   });
 }

@@ -337,8 +337,8 @@ export const appearanceGeneratorService = {
   async getFullAppearance(userId: string): Promise<MascotAppearance> {
     // Get user's archetype and companion state
     const userData = await queryOne<{
-      current_archetype_id: string | null;
-    }>(`SELECT current_archetype_id FROM users WHERE id = $1`, [userId]);
+      current_identity_id: string | null;
+    }>(`SELECT current_identity_id FROM users WHERE id = $1`, [userId]);
 
     const companionState = await queryOne<{
       stage: number;
@@ -366,7 +366,7 @@ export const appearanceGeneratorService = {
     }>(`SELECT * FROM user_spirit_loadout WHERE user_id = $1`, [userId]);
 
     // Generate base traits
-    const base = this.generateBaseTraits(userId, userData?.current_archetype_id);
+    const base = this.generateBaseTraits(userId, userData?.current_identity_id);
 
     // Get stage features
     const stage = companionState?.stage || 1;

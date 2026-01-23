@@ -458,8 +458,8 @@ export async function registerWatchRoutes(app: FastifyInstance) {
 
     try {
       // Get user's archetype for personalized recommendations
-      const _archetype = await queryOne<{ archetype_id: string }>(
-        `SELECT archetype_id FROM users WHERE id = $1`,
+      const _archetype = await queryOne<{ current_identity_id: string }>(
+        `SELECT current_identity_id FROM users WHERE id = $1`,
         [userId]
       );
 

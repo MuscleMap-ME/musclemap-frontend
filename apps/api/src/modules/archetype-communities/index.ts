@@ -211,10 +211,10 @@ export const archetypeCommunitiesService = {
    * Excludes communities they're already a member of
    */
   async getSuggestedCommunities(userId: string): Promise<LinkedCommunity[]> {
-    // Get user's archetype
-    const user = await queryOne<{ archetype: string | null }>('SELECT archetype FROM users WHERE id = $1', [userId]);
+    // Get user's archetype (stored as current_identity_id)
+    const user = await queryOne<{ current_identity_id: string | null }>('SELECT current_identity_id FROM users WHERE id = $1', [userId]);
 
-    if (!user?.archetype) {
+    if (!user?.current_identity_id) {
       return [];
     }
 
@@ -238,7 +238,7 @@ export const archetypeCommunitiesService = {
            WHERE cm.user_id = $2 AND cm.community_id = c.id AND cm.status = 'active'
          )
        ORDER BY acl.priority ASC, c.name ASC`,
-      [user.archetype, userId]
+      [user.current_identity_id, userId]
     );
 
     return rows.map((r) => ({
