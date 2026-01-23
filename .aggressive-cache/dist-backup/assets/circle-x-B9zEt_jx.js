@@ -1,1 +1,0 @@
-import{i as c}from"./index-DMo71FHX.js";const e=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"m9 9 6 6",key:"z0biqf"}]],i=c("circle-x",e);export{i as C};

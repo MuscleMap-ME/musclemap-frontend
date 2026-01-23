@@ -33,6 +33,10 @@ const LootDrop = lazy(() => import('./components/loot/LootDrop'));
 const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
 const OfflineIndicator = lazy(() => import('./components/mobile/OfflineIndicator'));
 const MobileDebugOverlay = lazy(() => import('./components/debug/MobileDebugOverlay'));
+const MemoryWarningBanner = lazy(() => import('./components/system/MemoryWarningBanner'));
+
+// Import memory debug tools (attaches to window.__MUSCLEMAP_DEBUG__)
+import './lib/memory-debug';
 
 // ============================================
 // LAZY LOADED PAGES - Code Splitting
@@ -725,6 +729,10 @@ export default function App() {
                             {/* Mobile Debug Overlay - Captures errors on iOS without DevTools */}
                             <Suspense fallback={null}>
                               <MobileDebugOverlay />
+                            </Suspense>
+                            {/* Memory Warning Banner - Shows when memory is critically high */}
+                            <Suspense fallback={null}>
+                              <MemoryWarningBanner position="top" />
                             </Suspense>
                           </ContextualTipProvider>
                         </CompanionProvider>

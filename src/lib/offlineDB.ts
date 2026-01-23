@@ -39,6 +39,7 @@ let dbInstance = null;
 /**
  * Open the IndexedDB database
  * Creates stores if they don't exist
+ * Returns null if IndexedDB is not available (Brave Shields, private browsing)
  */
 export async function openDB() {
   if (dbInstance) {
@@ -46,6 +47,18 @@ export async function openDB() {
   }
 
   return new Promise((resolve, reject) => {
+    // Check if IndexedDB is available (Brave Shields blocks it entirely)
+    try {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+    } catch {
+      // Brave Shields throws ReferenceError on indexedDB access
+      resolve(null);
+      return;
+    }
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {

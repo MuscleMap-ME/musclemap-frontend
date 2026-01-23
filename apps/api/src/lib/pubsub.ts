@@ -18,6 +18,12 @@ export const PUBSUB_CHANNELS = {
   MESSAGE_RECEIVED: 'pubsub:message:received',
   CONVERSATION_UPDATED: 'pubsub:conversation:updated',
   LIVE_ACTIVITY: 'pubsub:live:activity',  // Anonymous real-time activity events
+  // Enhanced messaging channels
+  TYPING: 'pubsub:typing',
+  PRESENCE: 'pubsub:presence',
+  DELIVERY: 'pubsub:delivery',
+  READ: 'pubsub:read',
+  REACTION: 'pubsub:reaction',
 } as const;
 
 // Event types
@@ -60,6 +66,40 @@ export interface ConversationEvent {
   participantIds: string[];
   lastMessageId?: string;
   updatedAt: string;
+}
+
+export interface TypingEvent {
+  conversationId: string;
+  userId: string;
+  isTyping: boolean;
+}
+
+export interface PresenceEvent {
+  userId: string;
+  status: 'online' | 'away' | 'offline';
+  lastSeen: string;
+}
+
+export interface DeliveryEvent {
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  userId: string;
+  deliveredAt: string;
+}
+
+export interface ReadEvent {
+  conversationId: string;
+  userId: string;
+  readAt: string;
+}
+
+export interface ReactionEvent {
+  messageId: string;
+  conversationId: string;
+  userId: string;
+  emoji: string;
+  action: 'add' | 'remove';
 }
 
 export interface LiveActivityEvent {

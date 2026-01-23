@@ -23,11 +23,24 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 /**
  * Open IndexedDB connection
+ * Returns null if IndexedDB is not available (Brave Shields, private browsing)
  */
-function openDB(): Promise<IDBDatabase> {
+function openDB(): Promise<IDBDatabase | null> {
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
+    // Check if IndexedDB is available (Brave Shields blocks it entirely)
+    try {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+    } catch {
+      // Brave Shields throws ReferenceError on indexedDB access
+      resolve(null);
+      return;
+    }
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {
@@ -58,6 +71,8 @@ function openDB(): Promise<IDBDatabase> {
 export async function saveSessionToIndexedDB(session: WorkoutSession): Promise<void> {
   try {
     const db = await openDB();
+    if (!db) return; // IndexedDB not available
+
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
@@ -78,6 +93,8 @@ export async function saveSessionToIndexedDB(session: WorkoutSession): Promise<v
 export async function loadSessionFromIndexedDB(): Promise<WorkoutSession | null> {
   try {
     const db = await openDB();
+    if (!db) return null; // IndexedDB not available
+
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
 
@@ -108,6 +125,8 @@ export async function loadSessionFromIndexedDB(): Promise<WorkoutSession | null>
 export async function clearSessionFromIndexedDB(): Promise<void> {
   try {
     const db = await openDB();
+    if (!db) return; // IndexedDB not available
+
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 

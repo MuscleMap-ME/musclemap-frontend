@@ -21,13 +21,16 @@ const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5MB limit
 /**
  * Check if IndexedDB is available and working
  * iOS Safari in private mode throws on IDB operations
+ * Brave Shields throws ReferenceError when accessing indexedDB
  */
 async function isIndexedDBAvailable(): Promise<boolean> {
-  if (typeof indexedDB === 'undefined') {
-    return false;
-  }
-
   try {
+    // Brave Shields throws ReferenceError when accessing indexedDB at all
+    // This check must be in a try-catch to handle that case
+    if (typeof indexedDB === 'undefined') {
+      return false;
+    }
+
     // Test if we can actually use IndexedDB
     const testDb = await openDB('__idb_test__', 1, {
       upgrade(db) {
@@ -39,6 +42,7 @@ async function isIndexedDBAvailable(): Promise<boolean> {
     await indexedDB.deleteDatabase('__idb_test__');
     return true;
   } catch {
+    // IndexedDB not available (Brave Shields, private browsing, etc.)
     return false;
   }
 }

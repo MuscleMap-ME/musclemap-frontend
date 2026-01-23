@@ -274,6 +274,18 @@ class IndexedDBCache {
     if (this.db) return this.db;
 
     return new Promise((resolve, reject) => {
+      // Check if IndexedDB is available (Brave Shields blocks it entirely)
+      try {
+        if (typeof indexedDB === 'undefined') {
+          resolve(null);
+          return;
+        }
+      } catch {
+        // Brave Shields throws ReferenceError on indexedDB access
+        resolve(null);
+        return;
+      }
+
       const request = indexedDB.open(this.dbName, 1);
 
       request.onerror = () => reject(request.error);
@@ -294,6 +306,7 @@ class IndexedDBCache {
   async get(key) {
     try {
       const db = await this.open();
+      if (!db) return null; // IndexedDB not available
 
       return new Promise((resolve) => {
         const transaction = db.transaction(this.storeName, 'readonly');
@@ -327,6 +340,7 @@ class IndexedDBCache {
   async set(key, value, ttl) {
     try {
       const db = await this.open();
+      if (!db) return false; // IndexedDB not available
 
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(this.storeName, 'readwrite');
@@ -352,6 +366,7 @@ class IndexedDBCache {
   async delete(key) {
     try {
       const db = await this.open();
+      if (!db) return false; // IndexedDB not available
 
       return new Promise((resolve) => {
         const transaction = db.transaction(this.storeName, 'readwrite');
@@ -369,6 +384,7 @@ class IndexedDBCache {
   async clear() {
     try {
       const db = await this.open();
+      if (!db) return false; // IndexedDB not available
 
       return new Promise((resolve) => {
         const transaction = db.transaction(this.storeName, 'readwrite');

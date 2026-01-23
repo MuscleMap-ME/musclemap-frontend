@@ -110,10 +110,12 @@ async function pruneAllStaleData(maxAgeDays) {
  * Safely open an IndexedDB database
  * Returns null if the database doesn't exist or can't be opened
  * This prevents iOS Safari from throwing on non-existent databases
+ * Also handles Brave Shields which throws ReferenceError on indexedDB access
  */
 async function safeOpenDB(dbName: string, version?: number) {
   try {
-    // First check if we can access IndexedDB at all
+    // Brave Shields throws ReferenceError when accessing indexedDB at all
+    // The typeof check must be in a try-catch to handle that case
     if (typeof indexedDB === 'undefined') {
       return null;
     }
@@ -129,7 +131,7 @@ async function safeOpenDB(dbName: string, version?: number) {
 
     return await openDB(dbName, version);
   } catch {
-    // Database doesn't exist or can't be opened
+    // Database doesn't exist, can't be opened, or IndexedDB is blocked (Brave Shields)
     return null;
   }
 }

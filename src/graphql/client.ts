@@ -8,6 +8,11 @@
  * - Resilient storage (works with Brave Shields, private mode, etc.)
  * - Configurable timeouts (prevents hangs on slow connections)
  * - Adaptive batch intervals based on connection quality
+ *
+ * Memory Management Features:
+ * - Cache size limits on paginated queries to prevent unbounded growth
+ * - Automatic cache garbage collection
+ * - Memory monitoring and warnings
  */
 
 import { ApolloClient, InMemoryCache, from } from '@apollo/client/core';
@@ -17,6 +22,29 @@ import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 import { initializeCachePersistence, clearPersistedCache } from '../lib/apollo-persist';
 import { storage } from '../lib/storage';
+
+// ============================================
+// CACHE SIZE LIMITS
+// Prevents unbounded memory growth from paginated queries
+// ============================================
+const CACHE_LIMITS = {
+  workouts: 200,      // Max 200 workouts in cache
+  exercises: 500,     // Max 500 exercises in cache
+  goals: 100,         // Max 100 goals in cache
+  messages: 500,      // Max 500 messages per conversation
+  notifications: 200, // Max 200 notifications in cache
+  feed: 100,          // Max 100 feed items
+};
+
+/**
+ * Helper to limit array size in merge functions
+ * Prevents unbounded cache growth that causes memory leaks
+ */
+function limitArraySize<T>(arr: T[], maxSize: number): T[] {
+  if (arr.length <= maxSize) return arr;
+  // Keep the most recent items (assuming newest are at end for append, start for prepend)
+  return arr.slice(-maxSize);
+}
 
 // Network configuration
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
@@ -157,26 +185,28 @@ const cache = new InMemoryCache({
   typePolicies: {
     Query: {
       fields: {
-        // Merge paginated workout lists
+        // Merge paginated workout lists with size limit
         myWorkouts: {
           keyArgs: ['filter', 'sortBy'],
           merge(existing = [], incoming, { args }) {
             // Reset on new search/filter
             if (args?.offset === 0 || !args?.offset) {
-              return incoming;
+              return limitArraySize(incoming, CACHE_LIMITS.workouts);
             }
-            // Append for pagination
-            return [...existing, ...incoming];
+            // Append for pagination with size limit
+            const merged = [...existing, ...incoming];
+            return limitArraySize(merged, CACHE_LIMITS.workouts);
           },
         },
-        // Cache exercises by filter
+        // Cache exercises by filter with size limit
         exercises: {
           keyArgs: ['filter', 'muscleGroup', 'category'],
           merge(existing = [], incoming, { args }) {
             if (args?.offset === 0 || !args?.offset) {
-              return incoming;
+              return limitArraySize(incoming, CACHE_LIMITS.exercises);
             }
-            return [...existing, ...incoming];
+            const merged = [...existing, ...incoming];
+            return limitArraySize(merged, CACHE_LIMITS.exercises);
           },
         },
         // Leaderboard caching with time-based key
@@ -202,23 +232,30 @@ const cache = new InMemoryCache({
         user: {
           keyArgs: ['id'],
         },
-        // Goals listing
+        // Goals listing with size limit
         goals: {
           keyArgs: ['userId', 'status'],
           merge(existing = [], incoming, { args }) {
             if (args?.offset === 0 || !args?.offset) {
-              return incoming;
+              return limitArraySize(incoming, CACHE_LIMITS.goals);
             }
-            return [...existing, ...incoming];
+            const merged = [...existing, ...incoming];
+            return limitArraySize(merged, CACHE_LIMITS.goals);
           },
         },
-        // Messages with cursor pagination
+        // Messages with cursor pagination and size limit
         // CACHE-001 FIX: Handle message merge properly to avoid stale/duplicate messages
         messages: {
           keyArgs: ['conversationId'],
           merge(existing, incoming, { args }) {
             // If no existing cache or refreshing (no cursor), replace entirely
             if (!existing || (!args?.before && !args?.after)) {
+              if (incoming?.messages) {
+                return {
+                  ...incoming,
+                  messages: limitArraySize(incoming.messages, CACHE_LIMITS.messages),
+                };
+              }
               return incoming;
             }
 
@@ -231,27 +268,41 @@ const cache = new InMemoryCache({
 
             // Prepend new messages (when loading newer via 'before' cursor)
             if (args?.before) {
+              const merged = [...uniqueIncoming, ...(existing.messages || [])];
               return {
                 ...incoming,
-                messages: [...uniqueIncoming, ...(existing.messages || [])],
+                messages: limitArraySize(merged, CACHE_LIMITS.messages),
               };
             }
 
             // Append old messages (when paginating via 'after' cursor)
+            const merged = [...(existing.messages || []), ...uniqueIncoming];
             return {
               ...existing,
-              messages: [...(existing.messages || []), ...uniqueIncoming],
+              messages: limitArraySize(merged, CACHE_LIMITS.messages),
             };
           },
         },
-        // Notifications
+        // Notifications with size limit
         notifications: {
           keyArgs: ['unreadOnly'],
           merge(existing = [], incoming, { args }) {
             if (args?.offset === 0 || !args?.offset) {
-              return incoming;
+              return limitArraySize(incoming, CACHE_LIMITS.notifications);
             }
-            return [...existing, ...incoming];
+            const merged = [...existing, ...incoming];
+            return limitArraySize(merged, CACHE_LIMITS.notifications);
+          },
+        },
+        // Activity feed with size limit
+        activityFeed: {
+          keyArgs: ['type'],
+          merge(existing = [], incoming, { args }) {
+            if (args?.offset === 0 || !args?.offset) {
+              return limitArraySize(incoming, CACHE_LIMITS.feed);
+            }
+            const merged = [...existing, ...incoming];
+            return limitArraySize(merged, CACHE_LIMITS.feed);
           },
         },
       },
@@ -363,7 +414,85 @@ export async function clearApolloCache() {
   }
 }
 
+/**
+ * Garbage collect the Apollo cache
+ * Removes unreachable objects from the cache to free memory
+ * Call this periodically or when memory pressure is detected
+ */
+export function garbageCollectCache(): { collected: number } {
+  try {
+    // Apollo's gc() returns the number of unreachable objects removed
+    const result = cache.gc();
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Apollo GC] Collected ${result.length} unreachable cache entries`);
+    }
+    return { collected: result.length };
+  } catch (error) {
+    console.warn('[Apollo GC] Failed to garbage collect:', error);
+    return { collected: 0 };
+  }
+}
+
+/**
+ * Get Apollo cache statistics for debugging
+ */
+export function getCacheStats(): {
+  rootQueryCount: number;
+  totalEntries: number;
+  estimatedSizeKB: number;
+} {
+  try {
+    const cacheData = cache.extract();
+    const entries = Object.keys(cacheData);
+    const rootQueryFields = cacheData['ROOT_QUERY'] ? Object.keys(cacheData['ROOT_QUERY']) : [];
+
+    // Estimate size by serializing (rough approximation)
+    const serialized = JSON.stringify(cacheData);
+    const sizeKB = Math.round(serialized.length / 1024);
+
+    return {
+      rootQueryCount: rootQueryFields.length,
+      totalEntries: entries.length,
+      estimatedSizeKB: sizeKB,
+    };
+  } catch (error) {
+    console.warn('[Apollo] Failed to get cache stats:', error);
+    return {
+      rootQueryCount: 0,
+      totalEntries: 0,
+      estimatedSizeKB: 0,
+    };
+  }
+}
+
+/**
+ * Evict specific query from cache
+ * Useful for forcing fresh data on specific queries
+ */
+export function evictQuery(queryName: string): boolean {
+  try {
+    return cache.evict({ id: 'ROOT_QUERY', fieldName: queryName });
+  } catch (error) {
+    console.warn(`[Apollo] Failed to evict query ${queryName}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Reset cache to initial state
+ * More aggressive than clearStore - also resets all reactive variables
+ */
+export async function resetCache(): Promise<void> {
+  try {
+    await apolloClient.resetStore();
+    await clearPersistedCache();
+    garbageCollectCache();
+  } catch (error) {
+    console.warn('[Apollo] Failed to reset cache:', error);
+  }
+}
+
 // Export cache for direct access if needed
-export { cache };
+export { cache, CACHE_LIMITS };
 
 export default apolloClient;

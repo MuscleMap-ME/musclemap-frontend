@@ -117,9 +117,22 @@ async function loadLocalPhotos(): Promise<ProgressPhoto[]> {
 
 /**
  * Open IndexedDB for photo storage
+ * Returns null if IndexedDB is not available (Brave Shields, private browsing)
  */
-function openPhotoDB(): Promise<IDBDatabase> {
+function openPhotoDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve, reject) => {
+    // Check if IndexedDB is available (Brave Shields blocks it entirely)
+    try {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+    } catch {
+      // Brave Shields throws ReferenceError on indexedDB access
+      resolve(null);
+      return;
+    }
+
     const request = indexedDB.open('MuscleMapPhotos', 1);
 
     request.onerror = () => reject(request.error);
