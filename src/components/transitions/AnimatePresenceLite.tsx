@@ -17,7 +17,8 @@ export function AnimatePresenceLite({ children, mode = 'sync', initial = true })
   const [displayedChildren, setDisplayedChildren] = useState(
     initial ? Children.toArray(children) : []
   );
-  const [_isAnimating, _setIsAnimating] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isAnimating, setIsAnimating] = useState(false);
   const previousChildrenRef = useRef(Children.toArray(children));
 
   useEffect(() => {

@@ -95,7 +95,8 @@ import './lib/memory-debug';
 // ============================================
 
 // Critical path pages (loaded with slightly higher priority)
-const Landing = lazy(() => import('./pages/Landing'));
+// Use safeLazy for Landing to catch and report any import failures on iOS Brave
+const Landing = safeLazy('Landing', () => import('./pages/Landing'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -507,6 +508,22 @@ function AppRoutes() {
   const isNavigating = useNavigationState();
   const pluginRoutes = usePluginRoutes();
   const location = useLocation();
+
+  // Track that AppRoutes is rendering (iOS Brave debugging)
+  useEffect(() => {
+    console.log('[AppRoutes] Component mounted, location:', location.pathname);
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/client-error', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({
+        type: 'component_mount',
+        message: `[AppRoutes] Mounted at ${location.pathname}`,
+        source: 'App.tsx',
+        time: new Date().toISOString()
+      }));
+    } catch { /* ignore */ }
+  }, [location.pathname]);
 
   return (
     <>
