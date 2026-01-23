@@ -116,10 +116,36 @@ const STORES = {
 };
 
 /**
+ * Check if IndexedDB is available
+ * Brave Shields makes indexedDB undefined (not a ReferenceError)
+ */
+function isIndexedDBAvailable() {
+  try {
+    if (typeof indexedDB === 'undefined' || indexedDB === null) {
+      return false;
+    }
+    // Also check if IDBFactory exists (Brave makes this undefined too)
+    if (typeof IDBFactory === 'undefined') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Open the IndexedDB database with all stores
+ * Returns null if IndexedDB is not available (Brave Shields, private browsing)
  */
 function openDB() {
   return new Promise((resolve, reject) => {
+    // Check if IndexedDB is available (Brave Shields blocks it entirely)
+    if (!isIndexedDBAvailable()) {
+      resolve(null);
+      return;
+    }
+
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
@@ -207,6 +233,7 @@ function openDB() {
  */
 async function addToSyncQueue(operation) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_QUEUE, 'readwrite');
     const store = transaction.objectStore(STORES.SYNC_QUEUE);
@@ -231,6 +258,7 @@ async function addToSyncQueue(operation) {
  */
 async function getSyncQueue(status = 'pending') {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_QUEUE, 'readonly');
     const store = transaction.objectStore(STORES.SYNC_QUEUE);
@@ -247,6 +275,7 @@ async function getSyncQueue(status = 'pending') {
  */
 async function updateSyncQueueItem(id, updates) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_QUEUE, 'readwrite');
     const store = transaction.objectStore(STORES.SYNC_QUEUE);
@@ -272,6 +301,7 @@ async function updateSyncQueueItem(id, updates) {
  */
 async function removeFromSyncQueue(id) {
   const db = await openDB();
+  if (!db) return; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_QUEUE, 'readwrite');
     const store = transaction.objectStore(STORES.SYNC_QUEUE);
@@ -299,6 +329,7 @@ function calculateBackoffDelay(retryCount) {
  */
 async function cacheExercises(exercises) {
   const db = await openDB();
+  if (!db) return 0; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.EXERCISES, 'readwrite');
     const store = transaction.objectStore(STORES.EXERCISES);
@@ -340,6 +371,7 @@ async function cacheExercises(exercises) {
  */
 async function getCachedExercises() {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.EXERCISES, 'readonly');
     const store = transaction.objectStore(STORES.EXERCISES);
@@ -373,6 +405,7 @@ async function searchCachedExercises(query) {
  */
 async function savePendingWorkout(workout) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_WORKOUTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_WORKOUTS);
@@ -395,6 +428,7 @@ async function savePendingWorkout(workout) {
  */
 async function getPendingWorkouts() {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_WORKOUTS, 'readonly');
     const store = transaction.objectStore(STORES.PENDING_WORKOUTS);
@@ -411,6 +445,7 @@ async function getPendingWorkouts() {
  */
 async function updatePendingWorkoutStatus(localId, status, serverId = null) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_WORKOUTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_WORKOUTS);
@@ -442,6 +477,7 @@ async function updatePendingWorkoutStatus(localId, status, serverId = null) {
  */
 async function savePendingSet(set) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_SETS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_SETS);
@@ -464,6 +500,7 @@ async function savePendingSet(set) {
  */
 async function getPendingSetsForWorkout(workoutLocalId) {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_SETS, 'readonly');
     const store = transaction.objectStore(STORES.PENDING_SETS);
@@ -484,6 +521,7 @@ async function getPendingSetsForWorkout(workoutLocalId) {
  */
 async function addConflict(conflict) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.CONFLICTS, 'readwrite');
     const store = transaction.objectStore(STORES.CONFLICTS);
@@ -505,6 +543,7 @@ async function addConflict(conflict) {
  */
 async function getUnresolvedConflicts() {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.CONFLICTS, 'readonly');
     const store = transaction.objectStore(STORES.CONFLICTS);
@@ -521,6 +560,7 @@ async function getUnresolvedConflicts() {
  */
 async function resolveConflict(id, resolution) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.CONFLICTS, 'readwrite');
     const store = transaction.objectStore(STORES.CONFLICTS);
@@ -552,6 +592,7 @@ async function resolveConflict(id, resolution) {
  */
 async function getSyncMetadata(key) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_METADATA, 'readonly');
     const store = transaction.objectStore(STORES.SYNC_METADATA);
@@ -567,6 +608,7 @@ async function getSyncMetadata(key) {
  */
 async function setSyncMetadata(key, value) {
   const db = await openDB();
+  if (!db) return; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.SYNC_METADATA, 'readwrite');
     const store = transaction.objectStore(STORES.SYNC_METADATA);
@@ -583,6 +625,7 @@ async function setSyncMetadata(key, value) {
 
 async function addToQueue(requestData) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_REQUESTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_REQUESTS);
@@ -600,6 +643,7 @@ async function addToQueue(requestData) {
 
 async function getQueuedRequests() {
   const db = await openDB();
+  if (!db) return []; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_REQUESTS, 'readonly');
     const store = transaction.objectStore(STORES.PENDING_REQUESTS);
@@ -612,6 +656,7 @@ async function getQueuedRequests() {
 
 async function removeFromQueue(id) {
   const db = await openDB();
+  if (!db) return; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_REQUESTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_REQUESTS);
@@ -624,6 +669,7 @@ async function removeFromQueue(id) {
 
 async function updateQueueItem(id, updates) {
   const db = await openDB();
+  if (!db) return null; // IndexedDB not available
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORES.PENDING_REQUESTS, 'readwrite');
     const store = transaction.objectStore(STORES.PENDING_REQUESTS);

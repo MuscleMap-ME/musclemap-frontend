@@ -339,11 +339,202 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   // Profile endpoints
   app.get('/profile', { preHandler: authenticate }, async (request, reply) => {
-    return reply.send({ data: { userId: request.user!.userId } });
+    const userId = request.user!.userId;
+
+    // Fetch user data from users table
+    const user = await queryOne<{
+      id: string;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      total_xp: number;
+      current_rank: string;
+      wealth_tier: number;
+      current_level: number;
+    }>(
+      `SELECT id, username, display_name, avatar_url, total_xp, current_rank, wealth_tier, current_level
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (!user) {
+      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
+    }
+
+    // Fetch extended profile data
+    const extended = await queryOne<{
+      gender: string | null;
+      date_of_birth: string | null;
+      height_cm: number | null;
+      weight_kg: number | null;
+      preferred_units: string;
+      ghost_mode: boolean;
+      leaderboard_opt_in: boolean;
+      about_me: string | null;
+    }>(
+      `SELECT gender, date_of_birth, height_cm, weight_kg, preferred_units, ghost_mode, leaderboard_opt_in, about_me
+       FROM user_profile_extended WHERE user_id = $1`,
+      [userId]
+    );
+
+    // Fetch user limitations
+    const limitationsResult = await query<{ name: string }>(
+      `SELECT name FROM user_limitations WHERE user_id = $1 AND status = 'active'`,
+      [userId]
+    );
+    const limitations = limitationsResult?.rows || [];
+
+    // Fetch user equipment
+    const equipmentResult = await query<{ equipment_type_id: string }>(
+      `SELECT equipment_type_id FROM user_home_equipment WHERE user_id = $1`,
+      [userId]
+    );
+    const equipment = equipmentResult?.rows || [];
+
+    // Calculate age from date_of_birth
+    let age: number | null = null;
+    if (extended?.date_of_birth) {
+      const dob = new Date(extended.date_of_birth);
+      const today = new Date();
+      age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+    }
+
+    // Calculate level from XP (simplified - 1000 XP per level)
+    const level = Math.floor((user.total_xp || 0) / 1000) + 1;
+
+    return reply.send({
+      id: user.id,
+      username: user.username,
+      display_name: user.display_name,
+      avatar_url: user.avatar_url,
+      avatar_id: null, // Legacy field
+      xp: user.total_xp || 0,
+      level: Math.max(level, user.current_level || 1),
+      rank: user.current_rank,
+      wealth_tier: user.wealth_tier || 0,
+      age,
+      gender: extended?.gender || null,
+      height_cm: extended?.height_cm || null,
+      weight_kg: extended?.weight_kg || null,
+      preferred_units: extended?.preferred_units || 'metric',
+      ghost_mode: extended?.ghost_mode || false,
+      leaderboard_opt_in: extended?.leaderboard_opt_in !== false,
+      about_me: extended?.about_me || null,
+      limitations: JSON.stringify(limitations?.map(l => l.name) || []),
+      equipment_inventory: JSON.stringify(equipment?.map(e => e.equipment_type_id) || []),
+      weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Fetch from activity logs
+    });
   });
 
   app.put('/profile', { preHandler: authenticate }, async (request, reply) => {
-    return reply.send({ data: request.body || {} });
+    const userId = request.user!.userId;
+    const body = request.body as Record<string, unknown>;
+
+    // Validate and sanitize inputs
+    const age = typeof body.age === 'number' ? body.age : null;
+    const gender = typeof body.gender === 'string' ? body.gender : null;
+
+    // Calculate date_of_birth from age
+    let dateOfBirth: string | null = null;
+    if (age !== null && age > 0 && age < 150) {
+      const today = new Date();
+      const birthYear = today.getFullYear() - age;
+      dateOfBirth = `${birthYear}-01-01`;
+    }
+
+    // Upsert user_profile_extended
+    await query(
+      `INSERT INTO user_profile_extended (user_id, gender, date_of_birth, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         gender = COALESCE($2, user_profile_extended.gender),
+         date_of_birth = COALESCE($3, user_profile_extended.date_of_birth),
+         updated_at = NOW()`,
+      [userId, gender, dateOfBirth]
+    );
+
+    // Handle limitations if provided
+    if (typeof body.limitations === 'string') {
+      try {
+        const limitationNames = JSON.parse(body.limitations) as string[];
+        if (Array.isArray(limitationNames)) {
+          // Clear existing simple limitations and re-add
+          await query(
+            `DELETE FROM user_limitations WHERE user_id = $1 AND limitation_type = 'other'`,
+            [userId]
+          );
+
+          for (const name of limitationNames) {
+            if (typeof name === 'string' && name.length > 0) {
+              await query(
+                `INSERT INTO user_limitations (user_id, name, limitation_type, status)
+                 VALUES ($1, $2, 'other', 'active')
+                 ON CONFLICT DO NOTHING`,
+                [userId, name]
+              );
+            }
+          }
+        }
+      } catch {
+        // Invalid JSON, skip
+      }
+    }
+
+    // Handle equipment if provided
+    if (typeof body.equipment_inventory === 'string') {
+      try {
+        const equipmentIds = JSON.parse(body.equipment_inventory) as string[];
+        if (Array.isArray(equipmentIds)) {
+          // Clear existing equipment and re-add
+          await query(`DELETE FROM user_home_equipment WHERE user_id = $1`, [userId]);
+
+          for (const equipmentId of equipmentIds) {
+            if (typeof equipmentId === 'string' && equipmentId.length > 0) {
+              // First check if equipment type exists, if not create it
+              const exists = await queryOne<{ id: string }>(
+                `SELECT id FROM equipment_types WHERE id = $1`,
+                [equipmentId]
+              );
+
+              if (!exists) {
+                await query(
+                  `INSERT INTO equipment_types (id, name, category, created_at)
+                   VALUES ($1, $2, 'home', NOW())
+                   ON CONFLICT DO NOTHING`,
+                  [equipmentId, equipmentId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())]
+                );
+              }
+
+              await query(
+                `INSERT INTO user_home_equipment (user_id, equipment_type_id, location_type)
+                 VALUES ($1, $2, 'home')
+                 ON CONFLICT DO NOTHING`,
+                [userId, equipmentId]
+              );
+            }
+          }
+        }
+      } catch {
+        // Invalid JSON, skip
+      }
+    }
+
+    log.info({ userId }, 'Profile updated');
+
+    return reply.send({ success: true, message: 'Profile updated' });
+  });
+
+  // Avatar and theme endpoints (return empty arrays for now - cosmetics not yet implemented)
+  app.get('/profile/avatars', { preHandler: authenticate }, async (_request, reply) => {
+    return reply.send({ avatars: [] });
+  });
+
+  app.get('/profile/themes', { preHandler: authenticate }, async (_request, reply) => {
+    return reply.send({ themes: [] });
   });
 }
 
