@@ -76,6 +76,22 @@ export interface BodyRegion {
 }
 
 export async function registerLimitationsRoutes(app: FastifyInstance) {
+  // Debug hook to log all incoming limitation requests
+  app.addHook('preHandler', async (request, _reply) => {
+    if (request.url.startsWith('/limitations') && request.method === 'POST') {
+      log.info({
+        url: request.url,
+        method: request.method,
+        contentType: request.headers['content-type'],
+        contentLength: request.headers['content-length'],
+        hasBody: !!request.body,
+        bodyType: typeof request.body,
+        bodyKeys: request.body && typeof request.body === 'object' ? Object.keys(request.body as object) : [],
+        rawBody: request.body,
+      }, '[LIMITATION DEBUG] Incoming POST request');
+    }
+  });
+
   /**
    * GET /limitations/body-regions
    * Get all body regions for selection
