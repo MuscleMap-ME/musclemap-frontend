@@ -441,11 +441,32 @@ export async function getExerciseAlternatives(
   }
 
   // Filter out contraindicated exercises for user's injuries
-  const safeAlternatives = alternatives.filter(_alt => {
+  // Get injury risk areas for each alternative
+  const alternativeIds = alternatives.map(a => a.exerciseId);
+  const alternativeDetails = alternativeIds.length > 0
+    ? await db.queryAll<{ id: string; injury_risk_areas: string[] | null; contraindications: string[] | null }>(
+        `SELECT id, injury_risk_areas, contraindications FROM exercises WHERE id = ANY($1)`,
+        [alternativeIds]
+      )
+    : [];
+
+  const safeAlternatives = alternatives.filter(alt => {
+    const details = alternativeDetails.find(d => d.id === alt.exerciseId);
+    if (!details) return true;
+
     // Check each alternative against user limitations
-    for (const _limitation of userLimitations) {
-      // Would need to check exercise's injury_risk_areas/contraindications
-      // This is simplified - full implementation would query the exercise details
+    for (const limitation of userLimitations) {
+      // Exclude if exercise affects injured body region (severe)
+      if (limitation.severity === 'severe' &&
+          limitation.body_region_id &&
+          details.injury_risk_areas?.includes(limitation.body_region_id)) {
+        return false;
+      }
+
+      // Exclude if contraindicated for this limitation type
+      if (details.contraindications?.includes(limitation.limitation_type)) {
+        return false;
+      }
     }
     return true;
   });

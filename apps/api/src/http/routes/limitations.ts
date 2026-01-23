@@ -279,9 +279,13 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
   app.put('/limitations/:id', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
     const { id } = request.params as { id: string };
+
+    log.info({ userId, limitationId: id, body: request.body }, 'Attempting to update limitation');
+
     const parsed = updateLimitationSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      log.warn({ userId, limitationId: id, errors: parsed.error.errors }, 'Limitation update validation failed');
       return reply.status(400).send({
         error: {
           code: 'VALIDATION',
@@ -299,6 +303,7 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
     );
 
     if (!existing) {
+      log.warn({ userId, limitationId: id }, 'Limitation not found for update');
       return reply.status(404).send({
         error: { code: 'NOT_FOUND', message: 'Limitation not found', statusCode: 404 },
       });
@@ -344,15 +349,16 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
 
     updates.push('updated_at = NOW()');
 
-    if (updates.length > 0) {
+    if (updates.length > 1) { // More than just updated_at
       values.push(id, userId);
-      await db.query(
-        `UPDATE user_limitations SET ${updates.join(', ')} WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}`,
-        values
-      );
+      const updateQuery = `UPDATE user_limitations SET ${updates.join(', ')} WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}`;
+      log.info({ userId, limitationId: id, updateCount: updates.length, query: updateQuery }, 'Executing limitation update');
+      await db.query(updateQuery, values);
+    } else {
+      log.warn({ userId, limitationId: id }, 'No fields to update');
     }
 
-    log.info({ userId, limitationId: id }, 'Limitation updated');
+    log.info({ userId, limitationId: id }, 'Limitation updated successfully');
 
     return reply.send({ message: 'Limitation updated successfully' });
   });
@@ -365,12 +371,27 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
     const { id } = request.params as { id: string };
 
+    log.info({ userId, limitationId: id }, 'Attempting to delete limitation');
+
+    // Verify ownership first
+    const existing = await db.queryOne<{ id: string }>(
+      `SELECT id FROM user_limitations WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (!existing) {
+      log.warn({ userId, limitationId: id }, 'Limitation not found for deletion');
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Limitation not found', statusCode: 404 },
+      });
+    }
+
     await db.query(
       `DELETE FROM user_limitations WHERE id = $1 AND user_id = $2`,
       [id, userId]
     );
 
-    log.info({ userId, limitationId: id }, 'Limitation deleted');
+    log.info({ userId, limitationId: id }, 'Limitation deleted successfully');
 
     return reply.send({ message: 'Limitation deleted successfully' });
   });
