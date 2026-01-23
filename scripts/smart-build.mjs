@@ -516,7 +516,7 @@ async function buildFrontend(manifest, force = false, turboMode = false) {
   // Run compression (unless turbo mode)
   if (!turboMode && existsSync('./scripts/compress-assets.sh')) {
     log('Compressing assets...');
-    execSync('./scripts/compress-assets.sh', { stdio: 'inherit' });
+    execSync('bash ./scripts/compress-assets.sh', { stdio: 'inherit' });
   }
 
   // Backup dist for future cache hits

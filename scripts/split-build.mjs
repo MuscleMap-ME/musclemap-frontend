@@ -338,7 +338,7 @@ async function splitBuild(options = {}) {
       forceGC()
       log('Compressing assets...')
       try {
-        execSync('sh ./scripts/compress-assets.sh', {
+        execSync('bash ./scripts/compress-assets.sh', {
           cwd: PROJECT_ROOT,
           stdio: 'inherit',
         })
