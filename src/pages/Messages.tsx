@@ -7,6 +7,21 @@ import { useAuth } from '../store/authStore';
 import { sanitizeText } from '../utils/sanitize';
 
 // ============================================
+// HTML ENTITY DECODING UTILITY
+// ============================================
+
+/**
+ * Decode HTML entities for display (e.g., &#x27; -> ')
+ * DOMPurify encodes special characters for safety, but we need to decode for display
+ */
+function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+}
+
+// ============================================
 // ICONS
 // ============================================
 
@@ -33,6 +48,7 @@ const Icons = {
   Timer: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
   Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>,
   Emoji: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  Sticker: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v6a1 1 0 001 1h6"/></svg>,
   X: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12"/></svg>,
   Unarchive: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4l3 3m0 0l3-3m-3 3V8"/></svg>,
 };
@@ -119,6 +135,26 @@ const tabs = [
 ];
 
 const COMMON_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+
+// Built-in stickers (emoji-based for universal compatibility)
+const DEFAULT_STICKERS = [
+  { id: 'flex', emoji: '💪', label: 'Flex' },
+  { id: 'fire', emoji: '🔥', label: 'On Fire' },
+  { id: 'trophy', emoji: '🏆', label: 'Winner' },
+  { id: 'target', emoji: '🎯', label: 'Goal' },
+  { id: 'rocket', emoji: '🚀', label: 'Gains' },
+  { id: 'heart', emoji: '❤️', label: 'Love' },
+  { id: 'star', emoji: '⭐', label: 'Star' },
+  { id: 'medal', emoji: '🥇', label: 'Champion' },
+  { id: 'dumbbell', emoji: '🏋️', label: 'Workout' },
+  { id: 'running', emoji: '🏃', label: 'Cardio' },
+  { id: 'thumbsup', emoji: '👍', label: 'Nice' },
+  { id: 'clap', emoji: '👏', label: 'Congrats' },
+  { id: 'party', emoji: '🎉', label: 'Party' },
+  { id: 'cool', emoji: '😎', label: 'Cool' },
+  { id: 'strong', emoji: '🦾', label: 'Strong' },
+  { id: 'lightning', emoji: '⚡', label: 'Power' },
+];
 
 const DISAPPEARING_OPTIONS = [
   { value: 0, label: 'Off' },
@@ -248,11 +284,46 @@ function ReactionPicker({ onSelect, onClose }: { onSelect: (emoji: string) => vo
 }
 
 // ============================================
+// STICKER PICKER COMPONENT
+// ============================================
+
+function StickerPicker({ onSelect, onClose }: { onSelect: (sticker: string) => void; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      className="absolute bottom-full mb-2 left-0 bg-[#1a1a24] border border-white/10 rounded-xl p-3 shadow-xl z-50 w-64"
+    >
+      <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+        <span className="text-sm font-medium text-gray-300">Stickers</span>
+        <button onClick={onClose} className="p-1 hover:bg-white/10 rounded">
+          <Icons.X />
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {DEFAULT_STICKERS.map(sticker => (
+          <button
+            key={sticker.id}
+            onClick={() => { onSelect(sticker.emoji); onClose(); }}
+            className="w-12 h-12 flex flex-col items-center justify-center hover:bg-white/10 rounded-xl text-2xl transition-colors group"
+            title={sticker.label}
+          >
+            <span>{sticker.emoji}</span>
+            <span className="text-[8px] text-gray-500 group-hover:text-gray-300 mt-0.5 truncate w-full text-center">{sticker.label}</span>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
 // MESSAGE ACTIONS MENU
 // ============================================
 
 function MessageActions({
-  message,
+  message: _message,
   isOwnMessage,
   onReply,
   onEdit,
@@ -425,9 +496,9 @@ function MessageBubble({
           isPinned && 'ring-2 ring-violet-400/50'
         )}>
           {!isOwnMessage && (
-            <div className="text-xs text-violet-400 mb-1">{message.sender_name}</div>
+            <div className="text-xs text-violet-400 mb-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{message.sender_name}</div>
           )}
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap" style={{ overflowWrap: 'break-word', wordBreak: 'normal' }}>{decodeHtmlEntities(message.content)}</p>
 
           {/* Reactions */}
           {message.reactions && message.reactions.length > 0 && (
@@ -1206,6 +1277,7 @@ export default function Messages() {
   const [showSettings, setShowSettings] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
 
   // Refs
@@ -1337,7 +1409,39 @@ export default function Messages() {
 
   // Polling for typing indicators and new messages
   useEffect(() => {
-    if (!activeConversation || !token) return;
+    if (!activeConversation || !token || !currentUserId) return;
+
+    const pollMessages = async () => {
+      try {
+        const res = await fetch(`/api/messaging/conversations/${activeConversation.id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const msgs: Message[] = (data.data || []).map((m: any) => ({
+          id: m.id,
+          content: m.content,
+          sender_id: m.sender?.id === currentUserId ? 'me' : m.sender?.id,
+          sender_name: m.sender?.id === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
+          created_at: m.createdAt,
+          edited_at: m.editedAt,
+          edit_count: m.editCount,
+          reactions: m.reactions,
+          pinned_at: m.pinnedAt,
+          reply_to: m.replyTo,
+          status: m.readAt ? 'read' : m.deliveredAt ? 'delivered' : 'sent',
+        }));
+
+        // Only update if there are new messages (compare by length and last message id)
+        setMessages(prev => {
+          if (msgs.length !== prev.length || (msgs.length > 0 && prev.length > 0 && msgs[msgs.length - 1].id !== prev[prev.length - 1].id)) {
+            return msgs;
+          }
+          return prev;
+        });
+      } catch {
+        // Ignore polling errors
+      }
+    };
 
     const interval = setInterval(() => {
       // Fetch typing users
@@ -1348,11 +1452,12 @@ export default function Messages() {
         .then(data => setTypingUsers(data.data || []))
         .catch(() => {});
 
-      // Could also poll for new messages here if not using WebSocket
+      // Poll for new messages
+      pollMessages();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [activeConversation, token]);
+  }, [activeConversation, token, currentUserId]);
 
   // ============================================
   // ACTIONS
@@ -2049,6 +2154,27 @@ export default function Messages() {
                   >
                     <Icons.Template />
                   </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowStickerPicker(!showStickerPicker)}
+                      className="p-3 bg-white/5 hover:bg-white/10 rounded-xl"
+                      title="Stickers"
+                    >
+                      <Icons.Sticker />
+                    </button>
+                    <AnimatePresence>
+                      {showStickerPicker && (
+                        <StickerPicker
+                          onSelect={(sticker) => {
+                            setNewMessage(prev => prev + sticker);
+                            inputRef.current?.focus();
+                          }}
+                          onClose={() => setShowStickerPicker(false)}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
                   <div className="flex-1">
                     <input
                       ref={inputRef}
