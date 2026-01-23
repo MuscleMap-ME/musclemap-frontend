@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { dateSchema } from '../../lib/validation';
 
 const log = loggers.core;
 
@@ -20,13 +21,14 @@ const GOAL_TYPES = [
   'athletic_performance', 'rehabilitation', 'maintenance'
 ] as const;
 
-// Create goal schema
+// Create goal schema with date validation
+// targetDate must be a valid date format (YYYY-MM-DD) and not more than 5 years in the future
 const createGoalSchema = z.object({
   goalType: z.enum(GOAL_TYPES),
   targetValue: z.number().optional(),
   targetUnit: z.enum(['lbs', 'kg', 'percent', 'reps', 'minutes', 'days']).optional(),
   startingValue: z.number().optional(),
-  targetDate: z.string().optional(), // ISO date string
+  targetDate: dateSchema, // Validated date format, empty strings become null
   priority: z.number().min(1).max(5).optional(),
   isPrimary: z.boolean().optional(),
   weeklyTarget: z.number().optional(),

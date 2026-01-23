@@ -538,11 +538,18 @@ export default function Limitations() {
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this limitation?')) return;
+
+    // Optimistically remove from UI immediately
+    setLimitations(prev => prev.filter(l => l.id !== id));
+
     try {
       await api.delete(`/limitations/${id}`);
+      // Reload to ensure sync with server
       loadLimitations();
     } catch (error) {
       console.error('Failed to delete limitation:', error);
+      // On error, reload to restore the item
+      loadLimitations();
     }
   };
 

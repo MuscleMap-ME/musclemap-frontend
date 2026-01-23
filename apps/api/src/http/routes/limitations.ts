@@ -23,17 +23,29 @@ const LIMITATION_TYPES = [
 const SEVERITY_LEVELS = ['mild', 'moderate', 'severe', 'complete'] as const;
 const STATUS_TYPES = ['active', 'recovering', 'resolved', 'permanent'] as const;
 
+// Helper function to validate and transform date strings
+// Accepts YYYY-MM-DD format or null/undefined/empty string
+const dateSchema = z.string().nullish().transform((val) => {
+  if (!val || val.trim() === '') return null;
+  // Validate date format and that it's a valid date
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(val)) return null;
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return null;
+  return val;
+});
+
 // Create limitation schema
 // Note: Using .nullish() to accept both null and undefined for optional fields
 // Frontend may send null for empty optional fields
 const createLimitationSchema = z.object({
-  bodyRegionId: z.string().nullish(),
+  bodyRegionId: z.string().nullish().transform(val => val || null),
   limitationType: z.enum(LIMITATION_TYPES),
   severity: z.enum(SEVERITY_LEVELS).nullish(),
   status: z.enum(STATUS_TYPES).nullish(),
   name: z.string().min(1),
-  description: z.string().nullish(),
-  medicalNotes: z.string().nullish(),
+  description: z.string().nullish().transform(val => val || null),
+  medicalNotes: z.string().nullish().transform(val => val || null),
   avoidMovements: z.array(z.string()).nullish(),
   avoidImpact: z.boolean().nullish(),
   avoidWeightBearing: z.boolean().nullish(),
@@ -42,14 +54,81 @@ const createLimitationSchema = z.object({
   romFlexionPercent: z.number().min(0).max(100).nullish(),
   romExtensionPercent: z.number().min(0).max(100).nullish(),
   romRotationPercent: z.number().min(0).max(100).nullish(),
-  onsetDate: z.string().nullish(),
-  expectedRecoveryDate: z.string().nullish(),
-  diagnosedBy: z.string().nullish(),
+  onsetDate: dateSchema,
+  expectedRecoveryDate: dateSchema,
+  diagnosedBy: z.string().nullish().transform(val => val || null),
+  ptApproved: z.boolean().nullish(),
+}).refine(
+  (data) => {
+    // Validate: onset date should be before or equal to expected recovery date
+    if (data.onsetDate && data.expectedRecoveryDate) {
+      const onset = new Date(data.onsetDate);
+      const recovery = new Date(data.expectedRecoveryDate);
+      return onset <= recovery;
+    }
+    return true;
+  },
+  {
+    message: 'Expected recovery date must be after onset date',
+    path: ['expectedRecoveryDate'],
+  }
+).refine(
+  (data) => {
+    // Validate: onset date for injuries shouldn't be more than 1 year in the future
+    if (data.onsetDate) {
+      const onset = new Date(data.onsetDate);
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      return onset <= oneYearFromNow;
+    }
+    return true;
+  },
+  {
+    message: 'Onset date cannot be more than 1 year in the future',
+    path: ['onsetDate'],
+  }
+).refine(
+  (data) => {
+    // Validate: recovery date for resolved status should be in the past or today
+    if (data.status === 'resolved' && data.expectedRecoveryDate) {
+      const recovery = new Date(data.expectedRecoveryDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      return recovery <= today;
+    }
+    return true;
+  },
+  {
+    message: 'Recovery date for resolved limitations should be in the past',
+    path: ['expectedRecoveryDate'],
+  }
+);
+
+// Base schema without refinements for partial usage
+const baseLimitationSchema = z.object({
+  bodyRegionId: z.string().nullish().transform(val => val || null),
+  limitationType: z.enum(LIMITATION_TYPES),
+  severity: z.enum(SEVERITY_LEVELS).nullish(),
+  status: z.enum(STATUS_TYPES).nullish(),
+  name: z.string().min(1),
+  description: z.string().nullish().transform(val => val || null),
+  medicalNotes: z.string().nullish().transform(val => val || null),
+  avoidMovements: z.array(z.string()).nullish(),
+  avoidImpact: z.boolean().nullish(),
+  avoidWeightBearing: z.boolean().nullish(),
+  maxWeightLbs: z.number().nullish(),
+  maxReps: z.number().nullish(),
+  romFlexionPercent: z.number().min(0).max(100).nullish(),
+  romExtensionPercent: z.number().min(0).max(100).nullish(),
+  romRotationPercent: z.number().min(0).max(100).nullish(),
+  onsetDate: dateSchema,
+  expectedRecoveryDate: dateSchema,
+  diagnosedBy: z.string().nullish().transform(val => val || null),
   ptApproved: z.boolean().nullish(),
 });
 
 // Update limitation schema
-const updateLimitationSchema = createLimitationSchema.partial();
+const updateLimitationSchema = baseLimitationSchema.partial();
 
 export interface Limitation {
   id: string;
@@ -311,6 +390,8 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
 
     const data = parsed.data;
 
+    log.info({ userId, limitationId: id, parsedData: data }, 'Parsed limitation update data');
+
     // Build dynamic update
     const updates: string[] = [];
     const values: unknown[] = [];
@@ -339,11 +420,18 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
     };
 
     for (const [key, dbColumn] of Object.entries(fieldMappings)) {
-      const value = (data as Record<string, unknown>)[key];
-      if (value !== undefined) {
+      // Check if the key exists in the request body (including null values)
+      if (key in (request.body as Record<string, unknown>)) {
+        const value = (data as Record<string, unknown>)[key];
         updates.push(`${dbColumn} = $${paramIndex}`);
-        values.push(value);
+        // For date fields, ensure empty strings become null
+        if ((key === 'onsetDate' || key === 'expectedRecoveryDate') && value === '') {
+          values.push(null);
+        } else {
+          values.push(value ?? null);
+        }
         paramIndex++;
+        log.debug({ field: key, dbColumn, value }, 'Adding field to update');
       }
     }
 

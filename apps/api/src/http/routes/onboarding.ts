@@ -17,10 +17,33 @@ import { setUserHomeEquipment } from '../../services/equipment.service';
 
 const log = loggers.core;
 
+// Date of birth schema - must be a valid date in the past, user must be 13+ years old
+const dateOfBirthSchema = z.string().optional().transform((val) => {
+  if (!val || val.trim() === '') return undefined;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(val)) return undefined;
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return undefined;
+  // Must be in the past
+  const today = new Date();
+  if (date >= today) return undefined;
+  // Must be at least 13 years old
+  const minAge = 13;
+  const minBirthDate = new Date();
+  minBirthDate.setFullYear(minBirthDate.getFullYear() - minAge);
+  if (date > minBirthDate) return undefined;
+  // Must not be more than 120 years ago (reasonable upper bound)
+  const maxAge = 120;
+  const maxBirthDate = new Date();
+  maxBirthDate.setFullYear(maxBirthDate.getFullYear() - maxAge);
+  if (date < maxBirthDate) return undefined;
+  return val;
+});
+
 // Validation schemas
 const physicalProfileSchema = z.object({
   gender: z.enum(['male', 'female', 'non_binary', 'prefer_not_to_say']).optional(),
-  dateOfBirth: z.string().optional(), // ISO date string
+  dateOfBirth: dateOfBirthSchema,
   heightCm: z.number().positive().optional(),
   heightFt: z.number().int().min(0).max(9).optional(),
   heightIn: z.number().min(0).max(11.9).optional(),

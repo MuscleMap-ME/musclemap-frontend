@@ -30,9 +30,28 @@ const workoutExerciseSchema = z.object({
   mascotAssisted: z.boolean().optional(), // If true, mascot completed this exercise
 });
 
+// Workout date schema - must be today or in the past (can't log future workouts)
+// Also not more than 30 days in the past to prevent historical data manipulation
+const workoutDateSchema = z.string().optional().transform((val) => {
+  if (!val || val.trim() === '') return undefined;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(val)) return undefined;
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return undefined;
+  // Must be today or in the past
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (date > today) return undefined;
+  // Not more than 30 days in the past
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  if (date < thirtyDaysAgo) return undefined;
+  return val;
+});
+
 const createWorkoutSchema = z.object({
   exercises: z.array(workoutExerciseSchema).min(1).max(50),
-  date: z.string().optional(),
+  date: workoutDateSchema,
   notes: z.string().max(2000).optional(),
   isPublic: z.boolean().optional(),
   idempotencyKey: z.string(),

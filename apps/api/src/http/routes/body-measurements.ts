@@ -8,8 +8,10 @@
  */
 
 import { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { authenticate } from './auth';
 import { db } from '../../db/client';
+import { pastDateSchema } from '../../lib/validation';
 
 // Types
 interface Measurement {
@@ -33,6 +35,40 @@ interface Measurement {
   notes?: string;
   measurement_date: string;
 }
+
+// Zod schema for measurement validation
+const measurementSchema = z.object({
+  weight_kg: z.number().positive().max(1000).optional(),
+  body_fat_percentage: z.number().min(0).max(100).optional(),
+  lean_mass_kg: z.number().positive().max(500).optional(),
+  neck_cm: z.number().positive().max(100).optional(),
+  shoulders_cm: z.number().positive().max(300).optional(),
+  chest_cm: z.number().positive().max(300).optional(),
+  waist_cm: z.number().positive().max(300).optional(),
+  hips_cm: z.number().positive().max(300).optional(),
+  left_bicep_cm: z.number().positive().max(100).optional(),
+  right_bicep_cm: z.number().positive().max(100).optional(),
+  left_forearm_cm: z.number().positive().max(100).optional(),
+  right_forearm_cm: z.number().positive().max(100).optional(),
+  left_thigh_cm: z.number().positive().max(150).optional(),
+  right_thigh_cm: z.number().positive().max(150).optional(),
+  left_calf_cm: z.number().positive().max(100).optional(),
+  right_calf_cm: z.number().positive().max(100).optional(),
+  measurement_source: z.enum(['manual', 'scale', 'app', 'trainer']).optional(),
+  notes: z.string().max(1000).optional(),
+  // measurement_date must be today or in the past (can't record future measurements)
+  measurement_date: z.string().refine((val) => {
+    if (!val || val.trim() === '') return false;
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(val)) return false;
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return false;
+    // Date must be today or in the past
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return date <= today;
+  }, { message: 'measurement_date must be a valid date (YYYY-MM-DD) not in the future' }),
+});
 
 // Valid measurement fields for validation
 const MEASUREMENT_FIELDS = [
@@ -154,16 +190,21 @@ const bodyMeasurementsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: authenticate },
     async (request, reply) => {
       const userId = (request as any).userId;
-      const body = request.body as Measurement;
 
-      // Validate required fields
-      if (!body.measurement_date) {
-        return reply.status(400).send({ error: 'measurement_date is required' });
+      // Validate with Zod schema
+      const parsed = measurementSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: parsed.error.errors,
+        });
       }
+
+      const body = parsed.data;
 
       // Check if at least one measurement is provided
       const hasAtLeastOne = MEASUREMENT_FIELDS.some(
-        field => body[field as keyof Measurement] !== undefined
+        field => body[field as keyof typeof body] !== undefined
       );
 
       if (!hasAtLeastOne) {

@@ -13,6 +13,19 @@ import { loggers } from '../../lib/logger';
 
 const log = loggers.core;
 
+// Date schema for PT test dates (must be today or in the past)
+const testDateSchema = z.string().refine((val) => {
+  if (!val || val.trim() === '') return false;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(val)) return false;
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return false;
+  // Test date must be today or in the past
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return date <= today;
+}, { message: 'Test date must be a valid date (YYYY-MM-DD) not in the future' });
+
 // PT test result component schema
 const componentResultSchema = z.object({
   componentId: z.string(),
@@ -20,10 +33,10 @@ const componentResultSchema = z.object({
   unit: z.string().optional(),
 });
 
-// Record PT test result schema
+// Record PT test result schema with date validation
 const recordResultSchema = z.object({
   ptTestId: z.string(),
-  testDate: z.string(),
+  testDate: testDateSchema,
   componentResults: z.array(componentResultSchema),
   official: z.boolean().optional(),
   location: z.string().optional(),

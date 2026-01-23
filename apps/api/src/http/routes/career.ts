@@ -14,6 +14,7 @@ import {
   careerService,
   PTTestWithCareer,
 } from '../../modules/career';
+// Note: Using local targetDateSchema instead of dateSchema for career-specific date validation
 
 // Role levels from hangout.service.ts
 const HangoutRole = {
@@ -25,17 +26,35 @@ const HangoutRole = {
 
 const log = loggers.core;
 
-// Validation schemas
+// Target date schema - future date within 5 years
+const targetDateSchema = z.string().optional().transform((val) => {
+  if (!val || val.trim() === '') return undefined;
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(val)) return undefined;
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return undefined;
+  // Target dates should be in the future or recent past (within 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  if (date < thirtyDaysAgo) return undefined;
+  // Not more than 5 years in future
+  const fiveYearsFromNow = new Date();
+  fiveYearsFromNow.setFullYear(fiveYearsFromNow.getFullYear() + 5);
+  if (date > fiveYearsFromNow) return undefined;
+  return val;
+});
+
+// Validation schemas with date validation
 const createGoalSchema = z.object({
   ptTestId: z.string().min(1),
-  targetDate: z.string().optional(),
+  targetDate: targetDateSchema,
   priority: z.enum(['primary', 'secondary']).optional(),
   agencyName: z.string().optional(),
   notes: z.string().optional(),
 });
 
 const updateGoalSchema = z.object({
-  targetDate: z.string().nullable().optional(),
+  targetDate: targetDateSchema,
   priority: z.enum(['primary', 'secondary']).optional(),
   status: z.enum(['active', 'achieved', 'abandoned']).optional(),
   agencyName: z.string().nullable().optional(),

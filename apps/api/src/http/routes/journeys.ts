@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { authenticate } from './auth';
 import { db } from '../../db/client';
 import { loggers } from '../../lib/logger';
+import { dateSchema } from '../../lib/validation';
 
 const log = loggers.core;
 
@@ -54,7 +55,7 @@ const createJourneySchema = z.object({
   targetValue: z.number().optional(),
   targetUnit: z.enum(['lbs', 'kg', 'percent', 'reps', 'minutes', 'days', 'seconds']).optional(),
   startingValue: z.number().optional(),
-  targetDate: z.string().optional(), // ISO date string
+  targetDate: dateSchema, // Validated date format (YYYY-MM-DD), empty strings become null
   priority: z.number().min(1).max(5).optional(),
   isPrimary: z.boolean().optional(),
   weeklyTarget: z.number().optional(),
