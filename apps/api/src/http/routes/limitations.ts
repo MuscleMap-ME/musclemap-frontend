@@ -209,9 +209,14 @@ export async function registerLimitationsRoutes(app: FastifyInstance) {
    */
   app.post('/limitations', { preHandler: authenticate }, async (request, reply) => {
     const userId = request.user!.userId;
+
+    // Debug logging for troubleshooting
+    log.info({ userId, body: request.body }, 'Received limitation creation request');
+
     const parsed = createLimitationSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      log.warn({ userId, errors: parsed.error.errors, body: request.body }, 'Limitation validation failed');
       return reply.status(400).send({
         error: {
           code: 'VALIDATION',
