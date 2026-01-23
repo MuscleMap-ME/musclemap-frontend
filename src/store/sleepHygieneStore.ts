@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 /**
  * @typedef {Object} SleepHygienePreferences
@@ -347,7 +348,7 @@ export const useSleepHygieneStore = create(
     }),
     {
       name: 'sleep-hygiene-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         // Only persist these fields
         enabled: state.enabled,

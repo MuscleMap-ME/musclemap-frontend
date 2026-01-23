@@ -20,7 +20,8 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
+import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 // ============================================
 // 1RM ESTIMATION FORMULAS
@@ -945,6 +946,7 @@ export const useWorkoutSessionStore = create(
   }),
   {
     name: 'musclemap-workout-session',
+    storage: createJSONStorage(() => resilientStorage),
     partialize: (state) => ({
       // Only persist user preferences, not session state
       defaultRestDuration: state.defaultRestDuration,

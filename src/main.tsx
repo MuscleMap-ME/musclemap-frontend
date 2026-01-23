@@ -7,6 +7,7 @@ import { reportWebVitals, logWebVitals } from './utils/webVitals'
 import { registerServiceWorker, setupControllerChangeHandler } from './utils/registerSW'
 import { initializeApolloCache } from './graphql/client'
 import { checkAndPruneStorage, requestPersistentStorage } from './lib/storage-manager'
+import { storage } from './lib/storage'
 
 /**
  * iOS Safari Compatibility Logging
@@ -53,11 +54,12 @@ function logBootError(phase: string, error: unknown) {
 /**
  * Storage adapter that syncs with Zustand auth store
  * Reads token/user from the 'musclemap-auth' localStorage key used by Zustand
+ * Uses resilient storage that works with Brave Shields and other blockers
  */
 const zustandSyncStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      const authData = localStorage.getItem('musclemap-auth')
+      const authData = storage.getItem('musclemap-auth')
       if (!authData) return null
 
       const parsed = JSON.parse(authData)
@@ -98,7 +100,7 @@ configureHttpClient({
   baseUrl: '/api',
   onUnauthorized: () => {
     // Clear Zustand auth state and redirect
-    localStorage.removeItem('musclemap-auth')
+    storage.removeItem('musclemap-auth')
     window.location.href = '/login'
   },
 })

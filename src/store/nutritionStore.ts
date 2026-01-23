@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { resilientStorage } from '../lib/zustand-storage';
 
 /**
  * @typedef {Object} NutritionPreferences
@@ -276,7 +277,7 @@ export const useNutritionStore = create(
     }),
     {
       name: 'nutrition-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => resilientStorage),
       partialize: (state) => ({
         // Only persist these fields
         enabled: state.enabled,

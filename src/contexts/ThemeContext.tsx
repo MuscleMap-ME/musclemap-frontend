@@ -20,6 +20,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { storage } from '../lib/storage';
 
 // Theme options
 export const THEMES = {
@@ -84,12 +85,12 @@ function getSystemTheme() {
 function getStoredTheme() {
   if (typeof window === 'undefined') return THEMES.DARK;
   try {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    const stored = storage.getItem(THEME_STORAGE_KEY);
     if (stored && Object.values(THEMES).includes(stored)) {
       return stored;
     }
   } catch {
-    // localStorage not available
+    // storage not available
   }
   return THEMES.DARK; // Default to dark (MuscleMap brand)
 }
@@ -140,9 +141,9 @@ export function ThemeProvider({ children }) {
   // Persist theme setting
   useEffect(() => {
     try {
-      localStorage.setItem(THEME_STORAGE_KEY, themeSetting);
+      storage.setItem(THEME_STORAGE_KEY, themeSetting);
     } catch {
-      // localStorage not available
+      // storage not available
     }
   }, [themeSetting]);
 

@@ -21,6 +21,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { storage } from '../lib/storage';
 
 // Supported locales
 export const LOCALES = {
@@ -141,12 +142,12 @@ function getInitialLocale() {
   if (typeof window === 'undefined') return LOCALES.EN;
 
   try {
-    const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+    const stored = storage.getItem(LOCALE_STORAGE_KEY);
     if (stored && Object.values(LOCALES).includes(stored)) {
       return stored;
     }
   } catch {
-    // localStorage not available
+    // storage not available
   }
 
   return getBrowserLocale();
@@ -193,9 +194,9 @@ export function LocaleProvider({ children }) {
   // Persist locale
   useEffect(() => {
     try {
-      localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+      storage.setItem(LOCALE_STORAGE_KEY, locale);
     } catch {
-      // localStorage not available
+      // storage not available
     }
 
     // Set HTML lang attribute

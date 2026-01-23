@@ -512,6 +512,7 @@ export const useOfflineStore = create(
       }),
       {
         name: 'musclemap-offline',
+        storage: createJSONStorage(() => resilientStorage),
         partialize: (state) => ({
           // Only persist preferences, not runtime state
           defaultResolutionStrategy: state.defaultResolutionStrategy,
