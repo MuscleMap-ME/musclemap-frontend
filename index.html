@@ -124,6 +124,119 @@
 </head>
 <body>
   <div id="root"></div>
+
+  <!-- Early Error Capture - Runs BEFORE any modules load -->
+  <!-- This captures errors even when localStorage is blocked (Brave Shields) -->
+  <script>
+  (function() {
+    // Check if debug mode via URL parameter
+    var isDebug = window.location.search.indexOf('debug=1') !== -1;
+
+    // Store for captured errors
+    var capturedErrors = [];
+    var errorOverlay = null;
+
+    function createErrorOverlay() {
+      if (errorOverlay) return errorOverlay;
+
+      errorOverlay = document.createElement('div');
+      errorOverlay.id = 'mm-error-overlay';
+      errorOverlay.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:50vh;overflow-y:auto;' +
+        'background:rgba(0,0,0,0.95);color:#ff6b6b;font-family:monospace;font-size:11px;' +
+        'padding:12px;z-index:999999;border-top:2px solid #ff6b6b;';
+
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+      header.innerHTML = '<strong style="color:#ff6b6b;">JS Errors Captured (add ?debug=1 to URL to enable)</strong>' +
+        '<button onclick="this.parentElement.parentElement.remove()" style="background:#ff6b6b;color:#000;border:none;padding:4px 8px;cursor:pointer;border-radius:4px;">Close</button>';
+      errorOverlay.appendChild(header);
+
+      var content = document.createElement('div');
+      content.id = 'mm-error-content';
+      errorOverlay.appendChild(content);
+
+      document.body.appendChild(errorOverlay);
+      return errorOverlay;
+    }
+
+    function logError(type, message, source, lineno, colno, error) {
+      var errorInfo = {
+        type: type,
+        message: message || 'Unknown error',
+        source: source || 'unknown',
+        line: lineno || 0,
+        col: colno || 0,
+        stack: error && error.stack ? error.stack : 'No stack trace',
+        time: new Date().toISOString()
+      };
+
+      capturedErrors.push(errorInfo);
+
+      // Always log to console
+      console.error('[MM-Error-Capture]', errorInfo);
+
+      // Show overlay if debug mode OR if error looks critical
+      var isCritical = message && (
+        message.indexOf('undefined is not an object') !== -1 ||
+        message.indexOf('null is not an object') !== -1 ||
+        message.indexOf('Cannot read prop') !== -1 ||
+        message.indexOf('is not defined') !== -1
+      );
+
+      if (isDebug || isCritical) {
+        var overlay = createErrorOverlay();
+        var content = document.getElementById('mm-error-content');
+        if (content) {
+          var entry = document.createElement('div');
+          entry.style.cssText = 'border-bottom:1px solid #333;padding:8px 0;margin-bottom:8px;';
+          entry.innerHTML = '<div style="color:#ff9f43;margin-bottom:4px;">[' + type + '] ' + errorInfo.message + '</div>' +
+            '<div style="color:#888;font-size:10px;">Source: ' + errorInfo.source + ':' + errorInfo.line + ':' + errorInfo.col + '</div>' +
+            '<pre style="color:#aaa;font-size:10px;white-space:pre-wrap;margin:4px 0 0 0;max-height:150px;overflow-y:auto;">' +
+            errorInfo.stack.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+          content.appendChild(entry);
+        }
+      }
+
+      // Send to server for debugging (fire and forget)
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/client-error', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(errorInfo));
+      } catch (e) {
+        // Silently fail - we don't want error reporting to cause more errors
+      }
+    }
+
+    // Global error handler
+    window.onerror = function(message, source, lineno, colno, error) {
+      logError('error', message, source, lineno, colno, error);
+      return false; // Don't suppress the error
+    };
+
+    // Promise rejection handler
+    window.onunhandledrejection = function(event) {
+      var reason = event.reason;
+      var message = reason instanceof Error ? reason.message : String(reason);
+      var stack = reason instanceof Error ? reason.stack : 'No stack trace';
+      logError('unhandledrejection', message, 'promise', 0, 0, { stack: stack });
+    };
+
+    // Expose for debugging
+    window.__MM_CAPTURED_ERRORS__ = capturedErrors;
+    window.__MM_SHOW_ERRORS__ = function() {
+      createErrorOverlay();
+      var content = document.getElementById('mm-error-content');
+      if (content && capturedErrors.length === 0) {
+        content.innerHTML = '<div style="color:#6bff6b;">No errors captured yet.</div>';
+      }
+    };
+
+    // Log that early capture is active
+    console.log('[MM-Error-Capture] Early error capture initialized. Add ?debug=1 to URL to see overlay.');
+  })();
+  </script>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
