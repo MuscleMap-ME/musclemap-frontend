@@ -442,13 +442,22 @@ export async function createServer(): Promise<FastifyInstance> {
       col?: number;
       stack?: string;
       time?: string;
+      extra?: Record<string, unknown>;
+      // Legacy field names (from older bootLog format)
+      phase?: string;
+      msg?: string;
+      error?: string;
     };
+
+    // Build message from available fields
+    const message = errorData.message ||
+      (errorData.phase && errorData.msg ? `[${errorData.phase}] ${errorData.msg}` : 'No message');
 
     // Log the error with full details for debugging
     log.error({
       clientError: true,
       type: errorData.type || 'unknown',
-      message: errorData.message || 'No message',
+      message: message,
       source: errorData.source || 'unknown',
       line: errorData.line || 0,
       col: errorData.col || 0,
@@ -456,7 +465,8 @@ export async function createServer(): Promise<FastifyInstance> {
       clientTime: errorData.time,
       userAgent: request.headers['user-agent'],
       ip: request.ip,
-    }, `[Client Error] ${errorData.message}`);
+      extra: errorData.extra,
+    }, `[Client Error] ${message}`);
 
     // Always return 200 to prevent error loops
     return reply.status(200).send({ received: true });

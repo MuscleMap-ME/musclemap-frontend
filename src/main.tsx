@@ -17,8 +17,9 @@ import { storage } from './lib/storage'
 
 // Ultra-early bootstrap logging
 const bootLog = (phase: string, msg: string, error?: unknown) => {
-  const info = { phase, msg, error: error instanceof Error ? error.message : error };
-  console.log('[MM-Boot]', phase, msg, error || '');
+  const errorMsg = error instanceof Error ? error.message : (error ? String(error) : '');
+  const fullMessage = `[${phase}] ${msg}${errorMsg ? ': ' + errorMsg : ''}`;
+  console.log('[MM-Boot]', fullMessage);
   // Send to server (fire and forget)
   try {
     const xhr = new XMLHttpRequest();
@@ -26,10 +27,13 @@ const bootLog = (phase: string, msg: string, error?: unknown) => {
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
       type: 'boot_log',
-      ...info,
-      stack: error instanceof Error ? error.stack : undefined,
-      userAgent: navigator.userAgent,
+      message: fullMessage,
+      source: 'main.tsx',
+      line: 0,
+      col: 0,
+      stack: error instanceof Error ? error.stack : 'No stack trace',
       time: new Date().toISOString(),
+      extra: { phase, msg, error: errorMsg }
     }));
   } catch { /* ignore */ }
 };
