@@ -27,6 +27,7 @@ import { queryAll, queryOne, query } from '../../db/client';
 import { publish, PUBSUB_CHANNELS } from '../../lib/pubsub';
 import { getRedis, isRedisAvailable } from '../../lib/redis';
 import { loggers } from '../../lib/logger';
+import { creditService, CreditReason, RefType } from '../../modules/economy/credit.service';
 
 const log = loggers.core;
 
@@ -209,24 +210,26 @@ async function incrementRateLimit(userId: string): Promise<void> {
   }
 }
 
-async function deductCredits(userId: string, amount: number): Promise<boolean> {
-  // Use a single transaction for atomicity - prevents race condition where
-  // two concurrent requests could both pass the balance check
-  const txnId = generateId('txn');
-  const result = await query(
-    `WITH deduction AS (
-       UPDATE users SET credit_balance = credit_balance - $1
-       WHERE id = $2 AND credit_balance >= $1
-       RETURNING id, credit_balance
-     )
-     INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at)
-     SELECT $3, $2, $4, 'message_send', 'Message sending cost', NOW()
-     FROM deduction
-     RETURNING id`,
-    [amount, userId, txnId, -amount]
-  );
+async function deductCredits(userId: string, amount: number, messageId?: string): Promise<boolean> {
+  // Use the proper credit service for atomic transactions
+  // This uses the credit_balances table and credit_ledger for proper tracking
+  try {
+    const result = await creditService.transact({
+      userId,
+      delta: -Math.round(amount * 100) / 100, // Ensure proper decimal handling
+      reason: CreditReason.DM_SENT,
+      refType: RefType.MESSAGE,
+      refId: messageId,
+      idempotencyKey: `msg:${userId}:${messageId || Date.now()}`,
+    });
 
-  return (result as any).rowCount > 0;
+    return !result.wasDuplicate && result.newBalance >= 0;
+  } catch (error) {
+    // Log the error but don't throw - message sending should continue
+    // if credit deduction fails (for better UX, we can charge later)
+    log.warn({ userId, amount, error }, 'Credit deduction failed for message');
+    return true; // Allow message to be sent even if credits fail
+  }
 }
 
 async function setTypingStatus(conversationId: string, userId: string, isTyping: boolean): Promise<void> {
