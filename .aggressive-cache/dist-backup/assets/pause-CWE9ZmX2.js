@@ -1,0 +1,1 @@
+import{i as e}from"./index-DMo71FHX.js";const t=[["rect",{x:"14",y:"3",width:"5",height:"18",rx:"1",key:"kaeet6"}],["rect",{x:"5",y:"3",width:"5",height:"18",rx:"1",key:"1wsw3u"}]],i=e("pause",t);export{i as P};
