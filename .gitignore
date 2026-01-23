@@ -63,6 +63,9 @@ scripts/bug-hunter/data/
 # Smart build cache (dist backup + manifests)
 .smart-cache/
 
+# Aggressive cache dist backup (environment-specific compressed assets)
+.aggressive-cache/dist-backup/
+
 # Transform cache (Vite cache backup for persistence)
 .transform-cache/
 
