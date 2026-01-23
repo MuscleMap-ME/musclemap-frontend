@@ -8,10 +8,16 @@
  * - Handles IndexedDB restrictions in private browsing
  * - Gracefully degrades when IndexedDB is unavailable
  * - Works around iOS storage pressure issues
+ *
+ * Brave Shields Compatibility:
+ * - Uses dynamic imports to avoid loading idb library when IndexedDB is blocked
+ * - Checks for IndexedDB availability before any operations
  */
 
-import { persistCache } from 'apollo3-cache-persist';
-import { openDB, IDBPDatabase } from 'idb';
+// NOTE: We do NOT import 'idb' at the top level because Brave Shields
+// makes IDBDatabase/IDBFactory undefined, which causes the idb library
+// to fail during module evaluation. Instead, we dynamically import it
+// only after confirming IndexedDB is available.
 
 // Database name and store
 const DB_NAME = 'musclemap-apollo-cache';
@@ -20,82 +26,22 @@ const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5MB limit
 
 /**
  * Check if IndexedDB is available and working
- * iOS Safari in private mode throws on IDB operations
- * Brave Shields throws ReferenceError when accessing indexedDB
+ * Must be called BEFORE any idb library imports
  */
-async function isIndexedDBAvailable(): Promise<boolean> {
+function isIndexedDBAvailable(): boolean {
   try {
-    // Brave Shields throws ReferenceError when accessing indexedDB at all
-    // This check must be in a try-catch to handle that case
-    if (typeof indexedDB === 'undefined') {
+    // Check if the global indexedDB exists
+    if (typeof indexedDB === 'undefined' || indexedDB === null) {
       return false;
     }
-
-    // Test if we can actually use IndexedDB
-    const testDb = await openDB('__idb_test__', 1, {
-      upgrade(db) {
-        db.createObjectStore('test');
-      },
-    });
-    testDb.close();
-    // Clean up test database
-    await indexedDB.deleteDatabase('__idb_test__');
+    // Also check if IDBFactory exists (Brave makes this undefined)
+    if (typeof IDBFactory === 'undefined') {
+      return false;
+    }
     return true;
   } catch {
-    // IndexedDB not available (Brave Shields, private browsing, etc.)
+    // Any error means IndexedDB is not available
     return false;
-  }
-}
-
-/**
- * IndexedDB storage adapter for Apollo cache persistence
- * Implements the AsyncStorageWrapper interface
- */
-class IndexedDBStorage {
-  private db: IDBPDatabase;
-
-  constructor(db: IDBPDatabase) {
-    this.db = db;
-  }
-
-  async getItem(key: string): Promise<string | null> {
-    try {
-      return await this.db.get(STORE_NAME, key);
-    } catch {
-      return null;
-    }
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    try {
-      await this.db.put(STORE_NAME, value, key);
-    } catch (error: unknown) {
-      // If storage is full, try to clear and retry
-      if ((error as {name: string})?.name === 'QuotaExceededError') {
-        await this.clearOldData();
-        try {
-          await this.db.put(STORE_NAME, value, key);
-        } catch {
-          // Give up if still failing
-        }
-      }
-    }
-  }
-
-  async removeItem(key: string): Promise<void> {
-    try {
-      await this.db.delete(STORE_NAME, key);
-    } catch {
-      // Failed to remove cache
-    }
-  }
-
-  async clearOldData(): Promise<void> {
-    try {
-      await this.db.clear(STORE_NAME);
-    } catch {
-      // Failed to clear old data
-    }
   }
 }
 
@@ -107,10 +53,27 @@ class IndexedDBStorage {
  */
 export async function initializeCachePersistence(cache: unknown): Promise<boolean> {
   try {
-    // Check if IndexedDB is available (fails in iOS private browsing)
-    const idbAvailable = await isIndexedDBAvailable();
-    if (!idbAvailable) {
+    // Check if IndexedDB is available BEFORE importing idb
+    if (!isIndexedDBAvailable()) {
       // IndexedDB not available - app will work without cache persistence
+      return false;
+    }
+
+    // Dynamically import idb library only when we know IndexedDB is available
+    const { openDB } = await import('idb');
+    const { persistCache } = await import('apollo3-cache-persist');
+
+    // Test that we can actually open a database
+    try {
+      const testDb = await openDB('__idb_test__', 1, {
+        upgrade(db) {
+          db.createObjectStore('test');
+        },
+      });
+      testDb.close();
+      await indexedDB.deleteDatabase('__idb_test__');
+    } catch {
+      // Can't actually use IndexedDB
       return false;
     }
 
@@ -124,7 +87,40 @@ export async function initializeCachePersistence(cache: unknown): Promise<boolea
       },
     });
 
-    const storage = new IndexedDBStorage(db);
+    // Create storage adapter
+    const storage = {
+      async getItem(key: string): Promise<string | null> {
+        try {
+          return await db.get(STORE_NAME, key);
+        } catch {
+          return null;
+        }
+      },
+
+      async setItem(key: string, value: string): Promise<void> {
+        try {
+          await db.put(STORE_NAME, value, key);
+        } catch (error: unknown) {
+          // If storage is full, try to clear and retry
+          if ((error as { name: string })?.name === 'QuotaExceededError') {
+            try {
+              await db.clear(STORE_NAME);
+              await db.put(STORE_NAME, value, key);
+            } catch {
+              // Give up if still failing
+            }
+          }
+        }
+      },
+
+      async removeItem(key: string): Promise<void> {
+        try {
+          await db.delete(STORE_NAME, key);
+        } catch {
+          // Failed to remove cache
+        }
+      },
+    };
 
     // Initialize persistence
     await persistCache({
@@ -133,7 +129,7 @@ export async function initializeCachePersistence(cache: unknown): Promise<boolea
       maxSize: MAX_CACHE_SIZE,
       trigger: 'write', // Persist on every write
       debounce: 1000, // Debounce writes by 1 second
-      debug: process.env.NODE_ENV !== 'production',
+      debug: false,
     });
 
     return true;
@@ -149,9 +145,9 @@ export async function initializeCachePersistence(cache: unknown): Promise<boolea
  */
 export async function clearPersistedCache(): Promise<void> {
   try {
-    const idbAvailable = await isIndexedDBAvailable();
-    if (!idbAvailable) return;
+    if (!isIndexedDBAvailable()) return;
 
+    const { openDB } = await import('idb');
     const db = await openDB(DB_NAME, 1);
     if (db.objectStoreNames.contains(STORE_NAME)) {
       await db.clear(STORE_NAME);
@@ -172,9 +168,9 @@ export async function getCacheStats(): Promise<{
   percentUsed: string;
 } | null> {
   try {
-    const idbAvailable = await isIndexedDBAvailable();
-    if (!idbAvailable) return null;
+    if (!isIndexedDBAvailable()) return null;
 
+    const { openDB } = await import('idb');
     const db = await openDB(DB_NAME, 1);
     if (!db.objectStoreNames.contains(STORE_NAME)) {
       return null;
