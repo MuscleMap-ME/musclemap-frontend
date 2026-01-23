@@ -45,7 +45,7 @@ const RATE_LIMITS = {
   PRESENCE_TTL_SECONDS: 60,
   PRESENCE_AWAY_THRESHOLD_MS: 5 * 60 * 1000, // 5 minutes
   MAX_PINNED_MESSAGES: 10,
-  MESSAGE_COST_CREDITS: 0.1,
+  MESSAGE_COST_CREDITS: 0, // Free messaging for now
 };
 
 // ============================================

@@ -2076,7 +2076,7 @@ export default function Messages() {
                     <Icons.Send />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">0.1 credits per recipient</p>
+                {/* Messaging is free */}
               </form>
             )}
 
