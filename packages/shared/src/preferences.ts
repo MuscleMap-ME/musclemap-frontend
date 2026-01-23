@@ -288,7 +288,7 @@ export interface UserPreferences {
 // ============================================
 export const DEFAULT_PREFERENCES: UserPreferences = {
   coaching: {
-    maxCoachVisible: true,
+    maxCoachVisible: false,
     mascotVisible: true,
     coachTipsEnabled: true,
     motivationalQuotes: true,

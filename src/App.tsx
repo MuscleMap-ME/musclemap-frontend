@@ -29,6 +29,7 @@ import { TransitionProvider } from './components/transitions';
 
 // Global Components - Lazy loaded for performance
 const AICoach = lazy(() => import('./components/ai-coach/AICoach'));
+import { useCoachingSettings } from './store/preferencesStore';
 const LootDrop = lazy(() => import('./components/loot/LootDrop'));
 const FloatingRestTimer = lazy(() => import('./components/workout/FloatingRestTimer'));
 const OfflineIndicator = lazy(() => import('./components/mobile/OfflineIndicator'));
@@ -653,6 +654,28 @@ function GlobalCommandPalette() {
 }
 
 // ============================================
+// CONDITIONAL AI COACH WRAPPER
+// ============================================
+
+/**
+ * Wrapper that conditionally renders AICoach based on user preferences.
+ * Uses the maxCoachVisible preference from the preferences store.
+ */
+function ConditionalAICoach() {
+  const { maxCoachVisible } = useCoachingSettings();
+
+  if (!maxCoachVisible) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <AICoach position="bottom-right" />
+    </Suspense>
+  );
+}
+
+// ============================================
 // ROOT APP COMPONENT
 // ============================================
 
@@ -710,10 +733,8 @@ export default function App() {
                             <GlobalCommandPalette />
                             {/* Global Spotlight Tour Renderer */}
                             <SpotlightTourRenderer />
-                            {/* Global AI Coach - Floating widget (bottom-right) */}
-                            <Suspense fallback={null}>
-                              <AICoach position="bottom-right" />
-                            </Suspense>
+                            {/* Global AI Coach - Floating widget (bottom-right), respects maxCoachVisible preference */}
+                            <ConditionalAICoach />
                             {/* Global Loot Drop System */}
                             <Suspense fallback={null}>
                               <LootDrop />
