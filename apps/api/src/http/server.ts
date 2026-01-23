@@ -31,7 +31,6 @@ import { registerWorkoutRoutes } from './routes/workouts';
 import { registerPrescriptionRoutes } from './routes/prescription';
 import { registerCommunityRoutes } from './routes/community';
 import { registerMessagingRoutes } from './routes/messaging';
-import { registerEnhancedMessagingRoutes } from '../modules/messaging';
 import { registerJourneyRoutes } from './routes/journey';
 import { registerTipsRoutes } from './routes/tips';
 import { registerMiscRoutes } from './routes/misc';
@@ -469,7 +468,6 @@ export async function createServer(): Promise<FastifyInstance> {
     await registerPrescriptionRoutes(api);
     await registerCommunityRoutes(api);
     await registerMessagingRoutes(api);
-    await registerEnhancedMessagingRoutes(api);
     await registerJourneyRoutes(api);
     await registerTipsRoutes(api);
     await registerMiscRoutes(api);
