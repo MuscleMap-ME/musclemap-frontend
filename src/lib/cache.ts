@@ -138,16 +138,35 @@ class MemoryCache {
 // L2: LOCALSTORAGE CACHE
 // ============================================
 
+/**
+ * Check if localStorage is available (Brave Shields blocks it)
+ */
+function isLocalStorageAvailable(): boolean {
+  try {
+    const testKey = '__mm_ls_test__';
+    localStorage.setItem(testKey, 'test');
+    localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 class LocalStorageCache {
+  private prefix: string;
+  private available: boolean;
+
   constructor(prefix = CACHE_CONFIG.localStorage.prefix) {
     this.prefix = prefix;
+    this.available = isLocalStorageAvailable();
   }
 
-  _key(key) {
+  _key(key: string): string {
     return `${this.prefix}${key}`;
   }
 
-  get(key) {
+  get(key: string): unknown {
+    if (!this.available) return null;
     try {
       const raw = localStorage.getItem(this._key(key));
       if (!raw) return null;
@@ -166,7 +185,8 @@ class LocalStorageCache {
     }
   }
 
-  set(key, value, ttl) {
+  set(key: string, value: unknown, ttl?: number): boolean {
+    if (!this.available) return false;
     try {
       const entry = {
         value,
@@ -178,7 +198,7 @@ class LocalStorageCache {
       return true;
     } catch (e) {
       // Quota exceeded - try to make room
-      if (e.name === 'QuotaExceededError') {
+      if ((e as { name?: string })?.name === 'QuotaExceededError') {
         this.evictOldest(10);
         try {
           const entry = {
@@ -196,66 +216,82 @@ class LocalStorageCache {
     }
   }
 
-  delete(key) {
+  delete(key: string): boolean {
+    if (!this.available) return false;
     try {
       localStorage.removeItem(this._key(key));
       return true;
-    } catch (_e) {
+    } catch {
       return false;
     }
   }
 
-  clear() {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(this.prefix)) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-  }
-
-  evictOldest(count = 5) {
-    const entries = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(this.prefix)) {
-        try {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const entry = JSON.parse(raw);
-            entries.push({ key, createdAt: entry.createdAt || 0 });
-          }
-        } catch {
-          entries.push({ key, createdAt: 0 });
+  clear(): void {
+    if (!this.available) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(this.prefix)) {
+          keysToRemove.push(key);
         }
       }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // localStorage not available
     }
-
-    // Sort by age (oldest first)
-    entries.sort((a, b) => a.createdAt - b.createdAt);
-
-    // Remove oldest entries
-    entries.slice(0, count).forEach(({ key }) => {
-      localStorage.removeItem(key);
-    });
   }
 
-  has(key) {
+  evictOldest(count = 5): void {
+    if (!this.available) return;
+    try {
+      const entries: Array<{ key: string; createdAt: number }> = [];
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(this.prefix)) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const entry = JSON.parse(raw);
+              entries.push({ key, createdAt: entry.createdAt || 0 });
+            }
+          } catch {
+            entries.push({ key, createdAt: 0 });
+          }
+        }
+      }
+
+      // Sort by age (oldest first)
+      entries.sort((a, b) => a.createdAt - b.createdAt);
+
+      // Remove oldest entries
+      entries.slice(0, count).forEach(({ key }) => {
+        localStorage.removeItem(key);
+      });
+    } catch {
+      // localStorage not available
+    }
+  }
+
+  has(key: string): boolean {
     return this.get(key) !== null;
   }
 
-  keys() {
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(this.prefix)) {
-        keys.push(key.slice(this.prefix.length));
+  keys(): string[] {
+    if (!this.available) return [];
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(this.prefix)) {
+          keys.push(key.slice(this.prefix.length));
+        }
       }
+      return keys;
+    } catch {
+      return [];
     }
-    return keys;
   }
 }
 

@@ -67,18 +67,29 @@ async function getMemoryReport(): Promise<MemoryReport> {
   const apolloPersistStats = await getApolloPersistStats();
   const appCacheStats = appCache.getStats();
 
-  // Analyze localStorage
+  // Analyze localStorage (with fallback if unavailable - Brave Shields)
   let localStorageCacheKeys = 0;
   let localStorageSize = 0;
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key) {
-      const value = localStorage.getItem(key) || '';
-      localStorageSize += key.length + value.length;
-      if (key.startsWith('mm_cache_') || key.startsWith('cache:') || key.startsWith('musclemap')) {
-        localStorageCacheKeys++;
+  try {
+    // Test if localStorage is available first
+    const testKey = '__mm_ls_test__';
+    localStorage.setItem(testKey, 'test');
+    localStorage.removeItem(testKey);
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        const value = localStorage.getItem(key) || '';
+        localStorageSize += key.length + value.length;
+        if (key.startsWith('mm_cache_') || key.startsWith('cache:') || key.startsWith('musclemap')) {
+          localStorageCacheKeys++;
+        }
       }
     }
+  } catch {
+    // localStorage not available (Brave Shields, private mode, etc.)
+    localStorageCacheKeys = -1; // Indicate unavailable
+    localStorageSize = -1;
   }
 
   // Generate recommendations
@@ -98,6 +109,8 @@ async function getMemoryReport(): Promise<MemoryReport> {
 
   if (localStorageCacheKeys > 50) {
     recommendations.push('Many localStorage cache entries. Consider clearing old entries.');
+  } else if (localStorageCacheKeys === -1) {
+    recommendations.push('localStorage unavailable (Brave Shields or private mode).');
   }
 
   if (summary.trend === 'increasing') {
@@ -211,17 +224,26 @@ async function clearAll(): Promise<void> {
   console.log('Clearing app cache...');
   await appCache.clear();
 
-  // 3. Clear localStorage cache entries
+  // 3. Clear localStorage cache entries (with fallback if unavailable)
   console.log('Clearing localStorage cache entries...');
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith('mm_cache_') || key?.startsWith('cache:')) {
-      keysToRemove.push(key);
+  try {
+    // Test if localStorage is available first
+    const testKey = '__mm_ls_test__';
+    localStorage.setItem(testKey, 'test');
+    localStorage.removeItem(testKey);
+
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('mm_cache_') || key?.startsWith('cache:')) {
+        keysToRemove.push(key);
+      }
     }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+    console.log(`Removed ${keysToRemove.length} localStorage entries`);
+  } catch {
+    console.log('localStorage unavailable - skipping');
   }
-  keysToRemove.forEach((key) => localStorage.removeItem(key));
-  console.log(`Removed ${keysToRemove.length} localStorage entries`);
 
   // 4. Run GC
   console.log('Running garbage collection...');
