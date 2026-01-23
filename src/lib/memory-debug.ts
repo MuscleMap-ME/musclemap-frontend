@@ -121,6 +121,16 @@ async function getMemoryReport(): Promise<MemoryReport> {
     recommendations.push('IndexedDB cache is nearly full. Clear with clearPersistedCache().');
   }
 
+  // Safe localStorage length access
+  let localStorageLength = 0;
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage !== null) {
+      localStorageLength = localStorage.length;
+    }
+  } catch {
+    // localStorage not available
+  }
+
   return {
     timestamp: new Date().toISOString(),
     browser: {
@@ -133,7 +143,7 @@ async function getMemoryReport(): Promise<MemoryReport> {
       cacheLimits: CACHE_LIMITS,
     },
     localStorage: {
-      totalKeys: localStorage.length,
+      totalKeys: localStorageLength,
       cacheKeys: localStorageCacheKeys,
       estimatedSizeKB: Math.round(localStorageSize / 1024),
     },

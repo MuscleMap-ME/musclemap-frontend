@@ -140,13 +140,21 @@ class MemoryCache {
 
 /**
  * Check if localStorage is available (Brave Shields blocks it)
+ * Must check existence first since Brave can make localStorage undefined
  */
 function isLocalStorageAvailable(): boolean {
   try {
+    // First check if localStorage exists at all
+    if (typeof localStorage === 'undefined' || localStorage === null) {
+      return false;
+    }
+    // Then test actual functionality
     const testKey = '__mm_ls_test__';
     localStorage.setItem(testKey, 'test');
+    const result = localStorage.getItem(testKey);
     localStorage.removeItem(testKey);
-    return true;
+    // Verify value was actually stored
+    return result === 'test';
   } catch {
     return false;
   }

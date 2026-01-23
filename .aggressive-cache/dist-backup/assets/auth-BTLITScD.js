@@ -1,1 +1,0 @@
-import{ay as o,az as s,aA as r}from"./index-DJKXoZu6.js";const i=()=>o(),c=()=>{r.getState().logout()},u=()=>s(),d=async(a,t={})=>{const n={...t.headers,...u(),"Content-Type":"application/json"},e=await fetch(a,{...t,headers:n});return e.status===401&&(c(),typeof window<"u"&&(window.location.href="/login")),e};export{d as a,i as g};

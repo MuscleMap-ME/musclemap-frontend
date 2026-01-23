@@ -24,12 +24,23 @@ class ResilientStorage {
 
   /**
    * Test if localStorage is available
+   * Must check both existence AND functionality since:
+   * - Brave Shields can make localStorage undefined
+   * - Safari private mode throws on setItem
+   * - Some proxies/extensions block storage APIs
    */
   private testLocalStorage(): boolean {
     try {
+      // First check if localStorage exists at all
+      if (typeof localStorage === 'undefined' || localStorage === null) {
+        return false;
+      }
+      // Then test actual functionality
       localStorage.setItem(this.TEST_KEY, 'test');
+      const result = localStorage.getItem(this.TEST_KEY);
       localStorage.removeItem(this.TEST_KEY);
-      return true;
+      // Verify the value was actually stored (not just silently ignored)
+      return result === 'test';
     } catch {
       return false;
     }
@@ -40,9 +51,16 @@ class ResilientStorage {
    */
   private testSessionStorage(): boolean {
     try {
+      // First check if sessionStorage exists at all
+      if (typeof sessionStorage === 'undefined' || sessionStorage === null) {
+        return false;
+      }
+      // Then test actual functionality
       sessionStorage.setItem(this.TEST_KEY, 'test');
+      const result = sessionStorage.getItem(this.TEST_KEY);
       sessionStorage.removeItem(this.TEST_KEY);
-      return true;
+      // Verify the value was actually stored
+      return result === 'test';
     } catch {
       return false;
     }
@@ -78,17 +96,28 @@ class ResilientStorage {
 
   /**
    * Get the native storage object if available
+   * Wrapped in try-catch because Brave Shields can make storage access throw
    */
   private getNativeStorage(): Storage | null {
     const state = this.detectStorageType();
-    switch (state.type) {
-      case 'localStorage':
-        return localStorage;
-      case 'sessionStorage':
-        return sessionStorage;
-      default:
-        return null;
+    try {
+      switch (state.type) {
+        case 'localStorage':
+          // Re-verify localStorage exists (Brave can make it undefined dynamically)
+          if (typeof localStorage !== 'undefined' && localStorage !== null) {
+            return localStorage;
+          }
+          break;
+        case 'sessionStorage':
+          if (typeof sessionStorage !== 'undefined' && sessionStorage !== null) {
+            return sessionStorage;
+          }
+          break;
+      }
+    } catch {
+      // If accessing storage throws, fall back to memory
     }
+    return null;
   }
 
   /**
