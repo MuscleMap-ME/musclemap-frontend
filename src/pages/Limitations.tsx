@@ -484,9 +484,12 @@ export default function Limitations() {
     try {
       const status = filter !== 'all' ? filter : undefined;
       const response = await api.get(`/limitations${status ? `?status=${status}` : ''}`);
+      console.log('[Limitations] API response:', response);
       // API returns { data: { data: { limitations: [...] } } } due to double wrapping
-      const limitations = response.data?.data?.limitations || response.data?.limitations || [];
-      setLimitations(limitations);
+      const loadedLimitations = response.data?.data?.limitations || response.data?.limitations || [];
+      console.log('[Limitations] Loaded limitations:', loadedLimitations);
+      console.log('[Limitations] Limitation count:', loadedLimitations.length);
+      setLimitations(loadedLimitations);
     } catch (error) {
       console.error('Failed to load limitations:', error);
     } finally {
