@@ -371,39 +371,4 @@ export function registerHealthRoutes(fastify: FastifyInstance): void {
 
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-  /**
-   * POST /api/client-error
-   * Receive client-side JavaScript errors from the early error capture script.
-   * This endpoint is unauthenticated intentionally - errors can happen before auth loads.
-   * Rate limited by IP to prevent abuse.
-   */
-  fastify.post('/api/client-error', async (request: FastifyRequest, reply: FastifyReply) => {
-    const errorData = request.body as {
-      type?: string;
-      message?: string;
-      source?: string;
-      line?: number;
-      col?: number;
-      stack?: string;
-      time?: string;
-    };
-
-    // Log the error with full details for debugging
-    log.error({
-      clientError: true,
-      type: errorData.type || 'unknown',
-      message: errorData.message || 'No message',
-      source: errorData.source || 'unknown',
-      line: errorData.line || 0,
-      col: errorData.col || 0,
-      stack: errorData.stack || 'No stack trace',
-      clientTime: errorData.time,
-      userAgent: request.headers['user-agent'],
-      ip: request.ip,
-    }, `[Client Error] ${errorData.message}`);
-
-    // Always return 200 to prevent error loops
-    return reply.status(200).send({ received: true });
-  });
 }

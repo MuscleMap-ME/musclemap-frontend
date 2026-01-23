@@ -430,6 +430,38 @@ export async function createServer(): Promise<FastifyInstance> {
     return reply.status(204).send();
   });
 
+  // Client Error endpoint - receives JavaScript errors from early error capture
+  // This is unauthenticated intentionally - errors can happen before auth loads
+  // Used for debugging iOS/Brave Shields issues where localStorage is blocked
+  app.post('/api/client-error', async (request, reply) => {
+    const errorData = request.body as {
+      type?: string;
+      message?: string;
+      source?: string;
+      line?: number;
+      col?: number;
+      stack?: string;
+      time?: string;
+    };
+
+    // Log the error with full details for debugging
+    log.error({
+      clientError: true,
+      type: errorData.type || 'unknown',
+      message: errorData.message || 'No message',
+      source: errorData.source || 'unknown',
+      line: errorData.line || 0,
+      col: errorData.col || 0,
+      stack: errorData.stack || 'No stack trace',
+      clientTime: errorData.time,
+      userAgent: request.headers['user-agent'],
+      ip: request.ip,
+    }, `[Client Error] ${errorData.message}`);
+
+    // Always return 200 to prevent error loops
+    return reply.status(200).send({ received: true });
+  });
+
   // Register security middleware
   registerSecurityMiddleware(app as unknown as FastifyInstance);
 
