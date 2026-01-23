@@ -438,7 +438,7 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
       created_at: Date;
     }>(
       `SELECT c.id, c.name, c.description,
-              (SELECT COUNT(*) FROM community_members WHERE community_id = c.id) as member_count,
+              (SELECT COUNT(*) FROM community_memberships WHERE community_id = c.id) as member_count,
               c.created_at
        FROM communities c
        ORDER BY member_count DESC
@@ -732,16 +732,16 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     try {
       switch (action) {
         case 'ban':
-          await query(`UPDATE users SET status = 'banned', updated_at = NOW() WHERE id = $1`, [userId]);
+          await query(`UPDATE users SET moderation_status = 'banned', updated_at = NOW() WHERE id = $1`, [userId]);
           break;
         case 'unban':
-          await query(`UPDATE users SET status = 'active', updated_at = NOW() WHERE id = $1`, [userId]);
+          await query(`UPDATE users SET moderation_status = 'good', updated_at = NOW() WHERE id = $1`, [userId]);
           break;
         case 'reset-password':
           // Would trigger password reset email - placeholder
           break;
         case 'verify':
-          await query(`UPDATE users SET email_verified = TRUE, updated_at = NOW() WHERE id = $1`, [userId]);
+          await query(`UPDATE users SET email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`, [userId]);
           break;
         default:
           return reply.status(400).send({
