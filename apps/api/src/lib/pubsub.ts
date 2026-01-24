@@ -24,6 +24,11 @@ export const PUBSUB_CHANNELS = {
   DELIVERY: 'pubsub:delivery',
   READ: 'pubsub:read',
   REACTION: 'pubsub:reaction',
+  // Community presence channels
+  VENUE_PRESENCE: 'pubsub:presence:venue',         // Updates for a specific venue
+  NEARBY_PRESENCE: 'pubsub:presence:nearby',       // Updates for nearby users
+  TRAINING_INVITE: 'pubsub:training:invite',       // Training invite notifications
+  TRAINING_SESSION: 'pubsub:training:session',     // Training session updates
 } as const;
 
 // Event types
@@ -111,6 +116,65 @@ export interface LiveActivityEvent {
   geoBucket?: string;
   city?: string;
   country?: string;
+}
+
+// ============================================
+// COMMUNITY PRESENCE EVENT TYPES
+// ============================================
+
+export type PresenceState = 'invisible' | 'location_only' | 'visible' | 'training_now' | 'open_to_train';
+
+export interface VenuePresenceEvent {
+  venueId: string;
+  userId: string;
+  state: PresenceState;
+  latitude?: number;
+  longitude?: number;
+  sessionOpenToJoin?: boolean;
+  sessionWorkoutType?: string;
+  sessionTargetMuscles?: string[];
+  action: 'joined' | 'left' | 'updated';
+  timestamp: string;
+}
+
+export interface NearbyPresenceEvent {
+  userId: string;
+  state: PresenceState;
+  venueId?: string;
+  venueName?: string;
+  latitude?: number;
+  longitude?: number;
+  locationPrecision?: 'exact' | 'approximate' | 'venue_only';
+  sessionOpenToJoin?: boolean;
+  sessionWorkoutType?: string;
+  distanceMeters?: number;
+  timestamp: string;
+}
+
+export interface TrainingInviteEvent {
+  inviteId: string;
+  fromUserId: string;
+  fromUsername?: string;
+  toUserId: string;
+  venueId: string;
+  venueName?: string;
+  proposedTime?: string;
+  workoutType?: string;
+  message?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  timestamp: string;
+}
+
+export interface TrainingSessionEvent {
+  sessionId: string;
+  venueId: string;
+  venueName?: string;
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  participantCount: number;
+  maxParticipants: number;
+  workoutType?: string;
+  action: 'created' | 'participant_joined' | 'participant_left' | 'started' | 'ended';
+  timestamp: string;
 }
 
 // In-memory fallback emitter
@@ -306,6 +370,66 @@ export async function publishConversationUpdate(conversation: ConversationEvent)
  */
 export async function publishLiveActivity(event: LiveActivityEvent): Promise<void> {
   await publish(PUBSUB_CHANNELS.LIVE_ACTIVITY, event);
+}
+
+// ============================================
+// COMMUNITY PRESENCE PUBLISH HELPERS
+// ============================================
+
+/**
+ * Publish venue presence update
+ */
+export async function publishVenuePresence(event: VenuePresenceEvent): Promise<void> {
+  await publish(PUBSUB_CHANNELS.VENUE_PRESENCE, event);
+}
+
+/**
+ * Publish nearby presence update
+ */
+export async function publishNearbyPresence(event: NearbyPresenceEvent): Promise<void> {
+  await publish(PUBSUB_CHANNELS.NEARBY_PRESENCE, event);
+}
+
+/**
+ * Publish training invite notification
+ */
+export async function publishTrainingInvite(event: TrainingInviteEvent): Promise<void> {
+  await publish(PUBSUB_CHANNELS.TRAINING_INVITE, event);
+}
+
+/**
+ * Publish training session update
+ */
+export async function publishTrainingSession(event: TrainingSessionEvent): Promise<void> {
+  await publish(PUBSUB_CHANNELS.TRAINING_SESSION, event);
+}
+
+// ============================================
+// COMMUNITY PRESENCE SUBSCRIPTION HELPERS
+// ============================================
+
+/**
+ * Subscribe to venue-specific presence updates
+ */
+export function subscribeForVenue<T extends { venueId?: string }>(
+  channel: string,
+  venueId: string
+): AsyncIterableIterator<T> {
+  return subscribe<T>(channel, (data) => {
+    return data.venueId === venueId;
+  });
+}
+
+/**
+ * Subscribe to training invites for a specific user
+ */
+export function subscribeForTrainingInvites<T extends { toUserId?: string }>(
+  channel: string,
+  userId: string
+): AsyncIterableIterator<T> {
+  return subscribe<T>(channel, (data) => {
+    return data.toUserId === userId;
+  });
 }
 
 /**

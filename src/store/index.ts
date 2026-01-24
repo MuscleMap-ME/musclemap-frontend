@@ -192,6 +192,33 @@ export {
 } from './adventureMapStore';
 
 // ============================================
+// PRESENCE STORE
+// ============================================
+export {
+  usePresenceStore,
+  useVenueCheckIn,
+  useTrainingInvites,
+  usePresenceSettings,
+  useNearbyVenues,
+  useUsersAtVenue,
+  useMyPresence,
+  useLocation,
+  default as presenceStore,
+} from './presenceStore';
+
+export type {
+  PresenceState,
+  PrivacyPreset,
+  LocationPrecision,
+  UserPresence,
+  PresenceSettings,
+  VenueCheckIn,
+  TrainingInvite,
+  UserAtVenue,
+  NearbyVenue,
+} from './presenceStore';
+
+// ============================================
 // PREFERENCES STORE
 // ============================================
 export {

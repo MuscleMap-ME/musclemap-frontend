@@ -15,6 +15,7 @@ import depthLimit from 'graphql-depth-limit';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
+import { presenceTypeDefs } from './presence.resolvers';
 import { createLoaders, createExtendedLoaders, type Loaders, type ExtendedLoaders } from './loaders';
 import { createComplexityLimitRule } from './complexity';
 import { loggers } from '../lib/logger';
@@ -107,7 +108,7 @@ export async function createGraphQLServer(
 
   // Create executable schema
   const schema = makeExecutableSchema({
-    typeDefs,
+    typeDefs: [typeDefs, presenceTypeDefs],
     resolvers,
   });
 

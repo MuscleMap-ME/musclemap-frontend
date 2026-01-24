@@ -96,6 +96,12 @@ import {
   venueRecordsMutations,
   venueRecordsTypeResolvers,
 } from './venue-records.resolvers';
+import {
+  presenceQueries,
+  presenceMutations,
+  presenceSubscriptions,
+  presenceTypeResolvers,
+} from './presence.resolvers';
 
 const log = loggers.core;
 
@@ -13967,3 +13973,9 @@ Object.assign(resolvers.Mutation, outdoorEquipmentMutations);
 Object.assign(resolvers.Query, venueRecordsQueries);
 Object.assign(resolvers.Mutation, venueRecordsMutations);
 Object.assign(resolvers, venueRecordsTypeResolvers);
+
+// Merge presence resolvers into Query, Mutation, and Subscription
+Object.assign(resolvers.Query, presenceQueries);
+Object.assign(resolvers.Mutation, presenceMutations);
+Object.assign(resolvers.Subscription, presenceSubscriptions);
+Object.assign(resolvers, presenceTypeResolvers);
