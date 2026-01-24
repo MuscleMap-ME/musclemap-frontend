@@ -1,4 +1,4 @@
-import React, { lazy, useState, useEffect, useRef, ComponentProps } from 'react';
+import React, { lazy, useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
@@ -8,69 +8,14 @@ import { MuscleHeroAnimation } from '../components/landing';
 // Log that Landing page is rendering (for iOS Brave debugging)
 console.log('[Landing] Component rendering');
 
-/**
- * Safe Motion Components - Wrappers that ensure content is visible
- * even if Framer Motion fails to initialize (iOS Brave with Shields).
- *
- * Always renders with opacity: 1 and transform: none via inline CSS as a fallback.
- * If Framer Motion works, it will override with its animations.
- * If it fails, content stays visible via the CSS fallback.
- */
-const SafeMotionDiv: React.FC<ComponentProps<typeof motion.div>> = ({
-  style,
-  children,
-  ...props
-}) => (
-  <SafeMotionDiv
-    {...props}
-    style={{
-      opacity: 1,
-      transform: 'none',
-      ...style,
-    }}
-  >
-    {children}
-  </SafeMotionDiv>
-);
+// Import reusable SafeMotion utilities for iOS Lockdown Mode / Brave compatibility
+import { SafeMotion } from '../utils/safeMotion';
 
-const SafeMotionH1: React.FC<ComponentProps<typeof motion.h1>> = ({
-  style,
-  children,
-  ...props
-}) => (
-  <SafeMotionH1
-    {...props}
-    style={{
-      opacity: 1,
-      transform: 'none',
-      ...style,
-    }}
-  >
-    {children}
-  </SafeMotionH1>
-);
-
-const SafeMotionA: React.FC<ComponentProps<typeof motion.a>> = ({
-  style,
-  children,
-  ...props
-}) => (
-  <SafeMotionA
-    {...props}
-    style={{
-      opacity: 1,
-      transform: 'none',
-      ...style,
-    }}
-  >
-    {children}
-  </SafeMotionA>
-);
-
-// SafeMotionSpan available if needed:
-// const SafeMotionSpan: React.FC<ComponentProps<typeof motion.span>> = ({ style, children, ...props }) => (
-//   <motion.span {...props} style={{ opacity: 1, transform: 'none', ...style }}>{children}</motion.span>
-// );
+// Use SafeMotion components - these automatically detect restrictive environments
+// and fall back to static elements with CSS transitions
+const SafeMotionDiv = SafeMotion.div;
+const SafeMotionH1 = SafeMotion.h1;
+const SafeMotionA = SafeMotion.a;
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));

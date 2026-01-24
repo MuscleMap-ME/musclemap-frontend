@@ -6,10 +6,10 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { useMotion } from '../../contexts/MotionContext';
+import { SafeMotion, SafeAnimatePresence, getIsRestrictive } from '../../utils/safeMotion';
 
 interface FABAction {
   /** Unique identifier */
@@ -81,12 +81,100 @@ export function FloatingActionButton({
     setIsExpanded(false);
   }, []);
 
+  // In restrictive environments (iOS Lockdown Mode + Brave), use static rendering
+  const isRestrictive = getIsRestrictive();
+
+  // Static fallback for restrictive environments
+  if (isRestrictive) {
+    return (
+      <>
+        {/* Static Backdrop */}
+        {showBackdrop && isExpanded && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-200"
+            style={{ opacity: 1 }}
+            onClick={handleBackdropClick}
+          />
+        )}
+
+        {/* FAB Container */}
+        <div
+          className={`
+            fixed z-50
+            ${positionClasses[position]}
+            ${className}
+          `}
+          style={{
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)',
+          }}
+        >
+          {/* Static Action buttons */}
+          {isExpanded && hasActions && (
+            <div
+              className="absolute bottom-16 right-0 flex flex-col-reverse gap-3 items-end mb-4"
+              style={{ opacity: 1 }}
+            >
+              {actions.map((action) => (
+                <div key={action.id} className="flex items-center gap-3" style={{ opacity: 1 }}>
+                  <span className="bg-gray-800 text-white text-sm font-medium px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                    {action.label}
+                  </span>
+                  <button
+                    onClick={() => handleActionClick(action)}
+                    className={`
+                      w-12 h-12 rounded-full flex items-center justify-center
+                      shadow-lg shadow-black/25
+                      ${action.color || 'bg-gray-700'}
+                      text-white
+                      transition-all duration-200 active:scale-90
+                      touch-action-manipulation
+                    `}
+                    aria-label={action.label}
+                  >
+                    {action.icon}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Static Main FAB */}
+          <button
+            onClick={handleMainClick}
+            className={`
+              w-14 h-14 rounded-full flex items-center justify-center
+              bg-gradient-to-br from-blue-500 to-purple-600
+              shadow-lg shadow-blue-500/30
+              text-white
+              transition-all duration-200 active:scale-90
+              touch-action-manipulation
+              -webkit-tap-highlight-color-transparent
+            `}
+            style={{
+              opacity: 1,
+              transform: isExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+            }}
+            aria-label={ariaLabel}
+            aria-expanded={hasActions ? isExpanded : undefined}
+          >
+            {isExpanded && hasActions ? (
+              <X className="w-6 h-6" />
+            ) : (
+              icon || <Plus className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  // Normal animated rendering
   return (
     <>
       {/* Backdrop */}
-      <AnimatePresence>
+      <SafeAnimatePresence>
         {showBackdrop && isExpanded && (
-          <motion.div
+          <SafeMotion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -95,7 +183,7 @@ export function FloatingActionButton({
             onClick={handleBackdropClick}
           />
         )}
-      </AnimatePresence>
+      </SafeAnimatePresence>
 
       {/* FAB Container */}
       <div
@@ -109,16 +197,16 @@ export function FloatingActionButton({
         }}
       >
         {/* Action buttons (expanded) */}
-        <AnimatePresence>
+        <SafeAnimatePresence>
           {isExpanded && hasActions && (
-            <motion.div
+            <SafeMotion.div
               className="absolute bottom-16 right-0 flex flex-col-reverse gap-3 items-end mb-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
               {actions.map((action, index) => (
-                <motion.div
+                <SafeMotion.div
                   key={action.id}
                   initial={{ opacity: 0, y: 20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -132,7 +220,7 @@ export function FloatingActionButton({
                   className="flex items-center gap-3"
                 >
                   {/* Label */}
-                  <motion.span
+                  <SafeMotion.span
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
@@ -142,10 +230,10 @@ export function FloatingActionButton({
                     className="bg-gray-800 text-white text-sm font-medium px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap"
                   >
                     {action.label}
-                  </motion.span>
+                  </SafeMotion.span>
 
                   {/* Action button */}
-                  <motion.button
+                  <SafeMotion.button
                     onClick={() => handleActionClick(action)}
                     whileTap={{ scale: 0.9 }}
                     className={`
@@ -159,15 +247,15 @@ export function FloatingActionButton({
                     aria-label={action.label}
                   >
                     {action.icon}
-                  </motion.button>
-                </motion.div>
+                  </SafeMotion.button>
+                </SafeMotion.div>
               ))}
-            </motion.div>
+            </SafeMotion.div>
           )}
-        </AnimatePresence>
+        </SafeAnimatePresence>
 
         {/* Main FAB */}
-        <motion.button
+        <SafeMotion.button
           onClick={handleMainClick}
           whileTap={{ scale: 0.9 }}
           animate={{
@@ -194,7 +282,7 @@ export function FloatingActionButton({
           ) : (
             icon || <Plus className="w-6 h-6" />
           )}
-        </motion.button>
+        </SafeMotion.button>
       </div>
     </>
   );

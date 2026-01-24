@@ -3,6 +3,9 @@
  *
  * A mobile-optimized modal that slides up from the bottom of the screen.
  * Supports drag-to-dismiss, snap points, and safe area insets.
+ *
+ * CRITICAL: Uses getIsRestrictive() to detect iOS Lockdown Mode + Brave,
+ * falling back to static rendering when framer-motion might fail.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,6 +13,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { useMotion } from '../../contexts/MotionContext';
+import { getIsRestrictive } from '../../utils/safeMotion';
 
 interface BottomSheetProps {
   /** Whether the sheet is open */
@@ -112,6 +116,79 @@ export function BottomSheet({
     onClose();
   }, [onClose]);
 
+  // In restrictive environments (iOS Lockdown Mode + Brave), use static rendering
+  // to prevent blank content when framer-motion fails silently
+  if (getIsRestrictive()) {
+    if (!isOpen) return null;
+
+    return (
+      <>
+        {/* Static Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-200"
+          style={{ opacity: 1 }}
+          onClick={closeOnBackdrop ? handleClose : undefined}
+        />
+
+        {/* Static Sheet */}
+        <div
+          ref={sheetRef}
+          className={`
+            fixed bottom-0 left-0 right-0 z-50
+            bg-slate-900/95 backdrop-blur-xl
+            rounded-t-3xl shadow-2xl
+            border-t border-white/10
+            flex flex-col
+            transition-transform duration-300 ease-out
+            ${className}
+          `}
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            height: currentHeight,
+            transform: 'translateY(0)',
+            opacity: 1,
+          }}
+        >
+          {/* Drag Handle */}
+          {showHandle && (
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 bg-white/30 rounded-full" />
+            </div>
+          )}
+
+          {/* Header */}
+          {(title || showCloseButton) && (
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-white/10">
+              <div>
+                {title && (
+                  <h2 className="text-lg font-semibold text-white">{title}</h2>
+                )}
+                {subtitle && (
+                  <p className="text-sm text-gray-400">{subtitle}</p>
+                )}
+              </div>
+              {showCloseButton && (
+                <button
+                  onClick={handleClose}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors touch-target-md"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+            {children}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Normal animated rendering with full framer-motion support (including drag)
   return (
     <AnimatePresence>
       {isOpen && (
@@ -123,10 +200,11 @@ export function BottomSheet({
             exit={{ opacity: 0 }}
             transition={{ duration: reducedMotion ? 0 : 0.2 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            style={{ opacity: 1 }} // CSS fallback
             onClick={closeOnBackdrop ? handleClose : undefined}
           />
 
-          {/* Sheet */}
+          {/* Sheet with drag support */}
           <motion.div
             ref={sheetRef}
             initial={{ y: '100%' }}
@@ -153,6 +231,7 @@ export function BottomSheet({
             `}
             style={{
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              opacity: 1, // CSS fallback
             }}
           >
             {/* Drag Handle */}
