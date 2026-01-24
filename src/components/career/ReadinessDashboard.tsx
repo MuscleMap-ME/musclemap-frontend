@@ -9,18 +9,56 @@
  * - "Log Assessment" and "Get Workout" buttons
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { api } from '../../utils/api';
+import { MY_CAREER_READINESS_QUERY, CAREER_EXERCISE_RECOMMENDATIONS_QUERY } from '../../graphql';
 import { GlassSurface, GlassButton } from '../glass';
 import { CATEGORY_META } from './CareerStandardCard';
 import EventBreakdown from './EventBreakdown';
 
+interface CareerGoal {
+  id: string;
+  testName?: string;
+  institution?: string;
+  agencyName?: string;
+  category?: string;
+  icon?: string;
+  targetDate?: string;
+  notes?: string;
+}
+
+interface EventBreakdownItem {
+  eventId: string;
+  eventName: string;
+  passed: boolean;
+  value?: string;
+  status: string;
+}
+
+interface CareerReadiness {
+  score: number | null;
+  status: string;
+  trend?: string;
+  trendDelta?: number;
+  eventBreakdown?: EventBreakdownItem[];
+  weakEvents?: string[];
+  lastAssessmentAt?: string;
+  eventsPassed?: number;
+  eventsTotal?: number;
+}
+
+interface ExerciseRecommendation {
+  exerciseId: string;
+  exerciseName: string;
+  targetEvents?: string[];
+}
+
 /**
  * Status configuration for readiness levels
  */
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { bg: string; text: string; border: string; label: string; icon: string }> = {
   ready: {
     bg: 'bg-emerald-500/20',
     text: 'text-emerald-400',
@@ -51,59 +89,63 @@ const STATUS_CONFIG = {
   },
 };
 
+interface ReadinessDashboardProps {
+  goal: CareerGoal | null;
+  onRefresh?: (goalId: string) => void;
+  onLogAssessment?: () => void;
+  onGetWorkout?: () => void;
+}
+
 /**
  * ReadinessDashboard Component
  *
  * @param {Object} goal - The career goal object
- * @param {Object} readiness - Readiness data for this goal
- * @param {Array} exercises - Recommended exercises
  * @param {Function} onRefresh - Callback to refresh readiness
  * @param {Function} onLogAssessment - Callback to open assessment logger
  * @param {Function} onGetWorkout - Callback to get workout prescription
  */
 export default function ReadinessDashboard({
   goal,
-  readiness: initialReadiness,
-  exercises: initialExercises,
   onRefresh,
   onLogAssessment,
   onGetWorkout,
-}) {
-  const [readiness, setReadiness] = useState(initialReadiness);
-  const [exercises, setExercises] = useState(initialExercises || []);
-  const [loading, setLoading] = useState(false);
-  const [_showTrendChart, _setShowTrendChart] = useState(false);
+}: ReadinessDashboardProps) {
+  // Fetch readiness data via GraphQL
+  const { data: readinessData, loading, refetch } = useQuery(MY_CAREER_READINESS_QUERY, {
+    variables: { goalId: goal?.id },
+    skip: !goal?.id,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Update state when props change
-  useEffect(() => {
-    setReadiness(initialReadiness);
-  }, [initialReadiness]);
+  // Fetch exercise recommendations
+  const { data: exercisesData } = useQuery(CAREER_EXERCISE_RECOMMENDATIONS_QUERY, {
+    variables: { goalId: goal?.id },
+    skip: !goal?.id,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    setExercises(initialExercises || []);
-  }, [initialExercises]);
+  const readiness: CareerReadiness | null = useMemo(
+    () => readinessData?.myCareerReadiness || null,
+    [readinessData]
+  );
 
-  const categoryMeta = CATEGORY_META[goal?.category] || CATEGORY_META.general;
-  const _statusConfig = STATUS_CONFIG[readiness?.status] || STATUS_CONFIG.no_data;
+  const exercises: ExerciseRecommendation[] = useMemo(
+    () => exercisesData?.careerExerciseRecommendations || [],
+    [exercisesData]
+  );
+
+  const categoryMeta = CATEGORY_META[goal?.category || 'general'] || CATEGORY_META.general;
+  const statusConfig = STATUS_CONFIG[readiness?.status || 'no_data'] || STATUS_CONFIG.no_data;
 
   // Calculate days remaining
   const daysRemaining = goal?.targetDate
-    ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
   const handleRefresh = async () => {
     if (!goal?.id) return;
-    setLoading(true);
-    try {
-      await onRefresh?.(goal.id);
-      // Fetch updated readiness
-      const response = await api.get(`/career/readiness/${goal.id}`);
-      setReadiness(response.data?.readiness);
-    } catch (err) {
-      console.error('Failed to refresh readiness:', err);
-    } finally {
-      setLoading(false);
-    }
+    await refetch();
+    onRefresh?.(goal.id);
   };
 
   if (!goal) {
@@ -169,8 +211,8 @@ export default function ReadinessDashboard({
         {/* Large Circular Progress */}
         <div className="relative mb-4">
           <ReadinessGauge
-            score={readiness?.readinessScore}
-            status={readiness?.status}
+            score={readiness?.score ?? null}
+            status={readiness?.status || 'no_data'}
             size={180}
           />
           {/* Status Badge */}
@@ -240,9 +282,9 @@ export default function ReadinessDashboard({
       </div>
 
       {/* Event Breakdown */}
-      {readiness?.eventResults && readiness.eventResults.length > 0 && (
+      {readiness?.eventBreakdown && readiness.eventBreakdown.length > 0 && (
         <div className="mb-6">
-          <EventBreakdown events={readiness.eventResults} />
+          <EventBreakdown events={readiness.eventBreakdown} />
         </div>
       )}
 
@@ -314,14 +356,19 @@ export default function ReadinessDashboard({
   );
 }
 
+interface ReadinessGaugeProps {
+  score: number | null;
+  status: string;
+  size?: number;
+}
+
 /**
  * ReadinessGauge - Large circular progress component
  */
-function ReadinessGauge({ score, status, size = 160 }) {
+function ReadinessGauge({ score, status: _status, size = 160 }: ReadinessGaugeProps) {
   const radius = (size - 16) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score !== null ? (score / 100) * circumference : 0;
-  const _statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.no_data;
 
   // Determine color based on score
   const getColor = () => {
@@ -376,11 +423,19 @@ function ReadinessGauge({ score, status, size = 160 }) {
   );
 }
 
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color?: 'blue' | 'emerald' | 'amber' | 'purple' | 'red';
+  subtitle?: string;
+}
+
 /**
  * StatCard - Individual stat display
  */
-function StatCard({ label, value, icon, color = 'blue', subtitle }) {
-  const colorClasses = {
+function StatCard({ label, value, icon, color = 'blue', subtitle }: StatCardProps) {
+  const colorClasses: Record<string, string> = {
     blue: 'bg-blue-500/20 text-blue-400',
     emerald: 'bg-emerald-500/20 text-emerald-400',
     amber: 'bg-amber-500/20 text-amber-400',
@@ -408,7 +463,7 @@ function StatCard({ label, value, icon, color = 'blue', subtitle }) {
 }
 
 // Icon components
-function TargetIcon({ className }) {
+function TargetIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -416,7 +471,7 @@ function TargetIcon({ className }) {
   );
 }
 
-function RefreshIcon({ className }) {
+function RefreshIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -424,7 +479,7 @@ function RefreshIcon({ className }) {
   );
 }
 
-function CheckIcon({ className }) {
+function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -432,7 +487,7 @@ function CheckIcon({ className }) {
   );
 }
 
-function CalendarIcon({ className }) {
+function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -440,7 +495,7 @@ function CalendarIcon({ className }) {
   );
 }
 
-function ClipboardIcon({ className }) {
+function ClipboardIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -448,7 +503,7 @@ function ClipboardIcon({ className }) {
   );
 }
 
-function PlusIcon({ className }) {
+function PlusIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -456,7 +511,7 @@ function PlusIcon({ className }) {
   );
 }
 
-function DumbbellIcon({ className }) {
+function DumbbellIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7h16M4 17h16M6 12h12M7 7v10m10-10v10" />
@@ -464,7 +519,7 @@ function DumbbellIcon({ className }) {
   );
 }
 
-function AlertIcon({ className }) {
+function AlertIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -472,7 +527,7 @@ function AlertIcon({ className }) {
   );
 }
 
-function ChevronRightIcon({ className }) {
+function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

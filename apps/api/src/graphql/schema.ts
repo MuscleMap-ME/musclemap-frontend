@@ -331,6 +331,24 @@ export const typeDefs = `#graphql
     venueSyncStats: VenueSyncStats
     pendingVenueSubmissions(limit: Int): [VenueSubmission!]!
 
+    # Venue Exercise Records & Community Analytics
+    """Get records at a specific venue"""
+    venueRecords(venueId: ID!, exerciseId: ID, recordType: RecordType, limit: Int, cursor: String): VenueRecordConnection!
+    """Get leaderboard for a venue/exercise/record type"""
+    venueLeaderboard(venueId: ID!, exerciseId: ID!, recordType: RecordType!, limit: Int): VenueLeaderboard!
+    """Get current user's records at venues"""
+    myVenueRecords(venueId: ID, limit: Int, cursor: String): VenueRecordConnection!
+    """Get daily activity for a venue"""
+    venueActivityDaily(venueId: ID!, date: DateTime!): VenueActivityDaily
+    """Get activity summary for a venue over a date range"""
+    venueActivitySummary(venueId: ID!, startDate: DateTime!, endDate: DateTime!): VenueActivitySummary!
+    """Get regional activity summary across multiple venues"""
+    regionalActivitySummary(input: RegionalActivityInput!): RegionalActivitySummary!
+    """Get top records across all venues for an exercise"""
+    globalVenueRecords(exerciseId: ID, recordType: RecordType, limit: Int): [VenueExerciseRecord!]!
+    """Get nearby venue activity summaries"""
+    nearbyVenueActivity(latitude: Float!, longitude: Float!, radiusMeters: Int, limit: Int): [VenueActivitySummary!]!
+
     # Workout Templates
     workoutTemplates(input: WorkoutTemplateSearchInput): WorkoutTemplatesResult!
     workoutTemplate(id: ID!): WorkoutTemplate
@@ -425,6 +443,28 @@ export const typeDefs = `#graphql
     achievementDefinitions(category: String): [AchievementDefinition!]!
     myAchievements(category: String, limit: Int, offset: Int): AchievementResult!
     myAchievementSummary: AchievementSummary!
+
+    # Wearables & Health Data
+    wearablesSummary: WearablesSummary
+    wearablesStatus: WearablesStatus!
+    wearableConnections: [WearableConnection!]!
+
+    # Progression (Mastery, Achievements, Leaderboards)
+    progressionMastery: [ProgressionMastery!]!
+    progressionAchievements: [ProgressionAchievement!]!
+    progressionNutrition: ProgressionNutrition!
+    progressionLeaderboard(limit: Int): [ProgressionLeaderboardEntry!]!
+    progressionRecords(limit: Int, recordType: String): [ProgressionRecord!]!
+    progressionExerciseRecords(exerciseId: ID!): [ProgressionRecord!]!
+    progressionExerciseStats(exerciseId: ID!): ProgressionExerciseStats
+    progressionRecommendations(limit: Int): [ProgressionRecommendation!]!
+    progressionExerciseRecommendation(exerciseId: ID!): ProgressionRecommendation
+    progressionTargets(exerciseId: ID, includeCompleted: Boolean): [ProgressionTarget!]!
+
+    # Locations
+    nearbyLocations(lat: Float!, lng: Float!, type: String, limit: Int): [Location!]!
+    searchLocations(query: String!, type: String, limit: Int): [Location!]!
+    location(id: ID!): LocationDetails
   }
 
   type Mutation {
@@ -757,11 +797,35 @@ export const typeDefs = `#graphql
     uploadVenuePhoto(venueId: ID!, input: VenuePhotoInput!): VenuePhotoResult!
     reportVenueIssue(venueId: ID!, input: VenueReportInput!): VenueReportResult!
 
+    # Venue Exercise Records
+    """Claim a record at a venue"""
+    claimVenueRecord(input: ClaimVenueRecordInput!): VenueRecordClaimResult!
+    """Submit video verification for a record"""
+    submitRecordVerification(recordId: ID!, videoUrl: String!): VenueExerciseRecord!
+    """Witness someone else's record"""
+    witnessRecord(recordId: ID!, latitude: Float, longitude: Float, attestation: String): VenueExerciseRecord!
+    """Dispute a venue record"""
+    disputeVenueRecord(recordId: ID!, reason: String!): Boolean!
+    """Update privacy settings for location records"""
+    updateLocationRecordPrivacy(input: LocationRecordPrivacyInput!): PrivacySettings!
+
     # Admin: Outdoor Equipment
     syncNycData: AdminSyncResult!
     syncOsmData: AdminSyncResult!
     approveVenueSubmission(submissionId: ID!, notes: String): AdminSubmissionResult!
     rejectVenueSubmission(submissionId: ID!, reason: String!): AdminSubmissionResult!
+
+    # Wearables
+    syncWearables: WearablesSyncResult!
+
+    # Progression Targets
+    createProgressionTarget(input: ProgressionTargetInput!): ProgressionTarget!
+    updateProgressionTarget(id: ID!, currentValue: Float!): ProgressionTarget!
+
+    # Locations
+    createLocation(input: LocationInput!): Location!
+    rateLocation(locationId: ID!, input: LocationRatingInput!): LocationRating!
+    voteLocationComment(commentId: ID!, vote: Int!): LocationComment!
   }
 
   type Subscription {
@@ -5934,6 +5998,293 @@ export const typeDefs = `#graphql
   }
 
   # ============================================
+  # VENUE EXERCISE RECORDS & COMMUNITY ANALYTICS
+  # ============================================
+
+  """Types of records that can be set at venues"""
+  enum RecordType {
+    MAX_WEIGHT
+    MAX_REPS
+    FASTEST_TIME
+    MAX_DISTANCE
+    MAX_1RM
+  }
+
+  """Verification status for venue records"""
+  enum VerificationStatus {
+    UNVERIFIED
+    SELF_VERIFIED
+    WITNESS_VERIFIED
+    VIDEO_VERIFIED
+    PENDING_VERIFICATION
+  }
+
+  """An exercise record set at a specific venue"""
+  type VenueExerciseRecord {
+    id: ID!
+    venueId: ID!
+    venue: OutdoorVenue
+    exerciseId: ID!
+    exercise: Exercise
+    userId: ID!
+    user: User
+
+    recordType: RecordType!
+    recordValue: Float!
+    recordUnit: String!
+
+    repsAtWeight: Int
+    weightAtReps: Float
+
+    verificationStatus: VerificationStatus!
+    videoUrl: String
+    witnessCount: Int!
+
+    achievedAt: DateTime!
+    verifiedAt: DateTime
+    conditions: JSON
+    notes: String
+
+    "Rank at this specific venue"
+    rank: Int!
+    "Rank across all venues for this exercise"
+    globalRank: Int
+    "Whether this user needs to submit verification (top 3)"
+    requiresVerification: Boolean!
+  }
+
+  """Leaderboard for a specific exercise at a venue"""
+  type VenueLeaderboard {
+    venueId: ID!
+    venue: OutdoorVenue
+    exerciseId: ID!
+    exercise: Exercise
+    recordType: RecordType!
+
+    entries: [VenueLeaderboardEntry!]!
+    totalParticipants: Int!
+    myRank: Int
+    myRecord: VenueExerciseRecord
+    lastUpdatedAt: DateTime!
+  }
+
+  """Entry in a venue leaderboard"""
+  type VenueLeaderboardEntry {
+    rank: Int!
+    userId: ID!
+    username: String!
+    avatarUrl: String
+    value: Float!
+    unit: String!
+    achievedAt: DateTime!
+    verificationStatus: VerificationStatus!
+    isCurrentUser: Boolean!
+  }
+
+  """Daily activity aggregate for a venue (for visualizations)"""
+  type VenueActivityDaily {
+    venueId: ID!
+    activityDate: DateTime!
+
+    totalUsers: Int!
+    publicUsers: Int!
+    totalWorkouts: Int!
+    totalSets: Int!
+    totalReps: Int!
+    totalVolumeKg: Float!
+    totalTu: Float!
+
+    exercisesBreakdown: [ExerciseBreakdownItem!]!
+    muscleActivations: [MuscleActivationItem!]!
+    "Hourly activity counts (24 values, index 0-23)"
+    hourlyActivity: [Int!]!
+
+    recordsSet: Int!
+    peakConcurrentUsers: Int!
+    busiestHour: Int
+  }
+
+  """Exercise distribution item for pie charts"""
+  type ExerciseBreakdownItem {
+    exerciseId: ID!
+    exerciseName: String!
+    count: Int!
+    percentage: Float!
+  }
+
+  """Muscle activation item for heatmaps"""
+  type MuscleActivationItem {
+    muscleId: ID!
+    muscleName: String!
+    totalTu: Float!
+    percentage: Float!
+  }
+
+  """Summary of venue activity over a date range"""
+  type VenueActivitySummary {
+    venueId: ID!
+    venue: OutdoorVenue
+
+    startDate: DateTime!
+    endDate: DateTime!
+
+    totalWorkouts: Int!
+    uniqueUsers: Int!
+    totalRecordsSet: Int!
+    totalVolumeKg: Float!
+    totalTu: Float!
+
+    "For line charts"
+    dailyWorkouts: [DailyDataPoint!]!
+    dailyUsers: [DailyDataPoint!]!
+    dailyRecords: [DailyDataPoint!]!
+    dailyVolume: [DailyDataPoint!]!
+
+    "For pie charts"
+    exerciseDistribution: [ExerciseBreakdownItem!]!
+    muscleDistribution: [MuscleActivationItem!]!
+
+    "For bar charts"
+    hourlyPattern: [HourlyDataPoint!]!
+    weekdayPattern: [WeekdayDataPoint!]!
+
+    "Top public contributors"
+    topContributors: [VenueActivityContributor!]!
+    recentRecords: [VenueExerciseRecord!]!
+  }
+
+  """Data point for time series charts"""
+  type DailyDataPoint {
+    date: DateTime!
+    value: Float!
+  }
+
+  """Hourly pattern data point"""
+  type HourlyDataPoint {
+    hour: Int!
+    averageUsers: Float!
+    averageWorkouts: Float!
+  }
+
+  """Weekday pattern data point"""
+  type WeekdayDataPoint {
+    dayOfWeek: Int!
+    dayName: String!
+    averageUsers: Float!
+    averageWorkouts: Float!
+  }
+
+  """Contributor to venue activity"""
+  type VenueActivityContributor {
+    userId: ID!
+    username: String!
+    avatarUrl: String
+    totalWorkouts: Int!
+    totalVolumeKg: Float!
+    recordsHeld: Int!
+  }
+
+  """Regional activity summary across multiple venues"""
+  type RegionalActivitySummary {
+    venues: [OutdoorVenue!]!
+    venueCount: Int!
+
+    totalWorkouts: Int!
+    uniqueUsers: Int!
+    totalRecordsSet: Int!
+
+    venueComparison: [VenueComparisonItem!]!
+    heatmapData: [VenueHeatmapPoint!]!
+  }
+
+  """Venue comparison item for charts"""
+  type VenueComparisonItem {
+    venueId: ID!
+    venueName: String!
+    workouts: Int!
+    users: Int!
+    records: Int!
+  }
+
+  """Heatmap data point for geographic visualization"""
+  type VenueHeatmapPoint {
+    venueId: ID!
+    latitude: Float!
+    longitude: Float!
+    "Activity intensity 0-1"
+    intensity: Float!
+    workouts: Int!
+  }
+
+  """Connection type for paginated venue records"""
+  type VenueRecordConnection {
+    edges: [VenueExerciseRecord!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+  }
+
+  """Result of claiming a venue record"""
+  type VenueRecordClaimResult {
+    record: VenueExerciseRecord!
+    isNewRecord: Boolean!
+    isVenueBest: Boolean!
+    previousValue: Float
+    previousHolderId: ID
+    rank: Int!
+    requiresVerification: Boolean!
+    achievements: [Achievement!]
+  }
+
+  """Records claimed during workout completion"""
+  type WorkoutVenueRecordsClaimed {
+    records: [VenueRecordClaimResult!]!
+    totalNewRecords: Int!
+  }
+
+  # ============================================
+  # VENUE RECORDS INPUTS
+  # ============================================
+
+  """Input for claiming a venue record"""
+  input ClaimVenueRecordInput {
+    venueId: ID!
+    exerciseId: ID!
+    recordType: RecordType!
+    recordValue: Float!
+    recordUnit: String!
+    repsAtWeight: Int
+    weightAtReps: Float
+    workoutSessionId: ID
+    setId: String
+    conditions: JSON
+    notes: String
+  }
+
+  """Input for venue activity summary query"""
+  input VenueActivityInput {
+    venueId: ID!
+    startDate: DateTime!
+    endDate: DateTime!
+  }
+
+  """Input for regional activity summary query"""
+  input RegionalActivityInput {
+    venueIds: [ID!]
+    borough: String
+    latitude: Float
+    longitude: Float
+    radiusMeters: Int
+    startDate: DateTime!
+    endDate: DateTime!
+  }
+
+  """Input for updating location record privacy"""
+  input LocationRecordPrivacyInput {
+    shareLocationRecords: Boolean!
+    shareVenueActivity: Boolean!
+  }
+
+  # ============================================
   # SKINS (COSMETIC STORE) TYPES
   # ============================================
 
@@ -6292,5 +6643,233 @@ export const typeDefs = `#graphql
     success: Boolean!
     trade: Trade
     message: String
+  }
+
+  # ============================================
+  # WEARABLES TYPES
+  # ============================================
+  type WearablesSummary {
+    today: WearablesDailySummary
+    thisWeek: WearablesWeeklySummary
+  }
+
+  type WearablesDailySummary {
+    steps: Int
+    activeCalories: Int
+    avgHeartRate: Int
+    workoutMinutes: Int
+    sleepHours: Float
+  }
+
+  type WearablesWeeklySummary {
+    totalSteps: Int
+    avgDailySteps: Int
+    totalWorkoutMinutes: Int
+    avgSleepHours: Float
+    avgRestingHeartRate: Int
+  }
+
+  type WearablesStatus {
+    syncStatus: [WearableSyncStatus!]!
+  }
+
+  type WearableSyncStatus {
+    provider: String!
+    lastSyncAt: DateTime
+    isConnected: Boolean!
+  }
+
+  type WearableConnection {
+    provider: String!
+    lastSyncAt: DateTime
+    isConnected: Boolean!
+  }
+
+  type WearablesSyncResult {
+    success: Boolean!
+    message: String
+    lastSyncAt: DateTime
+  }
+
+  # ============================================
+  # PROGRESSION TYPES
+  # ============================================
+  type ProgressionMastery {
+    archetypeId: String!
+    archetypeName: String
+    totalTu: Float!
+    tier: String!
+  }
+
+  type ProgressionAchievement {
+    id: ID!
+    name: String!
+    description: String
+    earned: Boolean!
+    earnedAt: DateTime
+    iconUrl: String
+  }
+
+  type ProgressionNutrition {
+    tips: [NutritionTip!]!
+  }
+
+  type NutritionTip {
+    id: ID!
+    title: String!
+    content: String!
+  }
+
+  type ProgressionLeaderboardEntry {
+    rank: Int!
+    userId: ID!
+    username: String!
+    avatar: String
+    level: Int!
+    xp: Int!
+    totalTu: Float!
+  }
+
+  type ProgressionRecord {
+    id: ID!
+    exerciseId: ID!
+    exerciseName: String
+    recordType: String!
+    value: Float!
+    previousValue: Float
+    unit: String
+    achievedAt: DateTime!
+  }
+
+  type ProgressionExerciseStats {
+    exerciseId: ID!
+    exerciseName: String!
+    totalSets: Int!
+    totalReps: Int!
+    totalVolume: Float!
+    maxWeight: Float
+    avgWeight: Float
+    lastWorkoutAt: DateTime
+    history: [ProgressionHistoryEntry!]!
+  }
+
+  type ProgressionHistoryEntry {
+    date: DateTime!
+    sets: Int!
+    reps: Int!
+    weight: Float
+    volume: Float!
+  }
+
+  type ProgressionRecommendation {
+    exerciseId: ID!
+    exerciseName: String!
+    recommendationType: String!
+    currentValue: Float
+    recommendedValue: Float!
+    unit: String
+    message: String!
+    confidence: Float!
+  }
+
+  type ProgressionTarget {
+    id: ID!
+    exerciseId: ID
+    exerciseName: String
+    targetType: String!
+    currentValue: Float!
+    targetValue: Float!
+    incrementValue: Float
+    incrementFrequency: String
+    targetDate: DateTime
+    status: String!
+    progress: Float!
+    createdAt: DateTime!
+    completedAt: DateTime
+  }
+
+  input ProgressionTargetInput {
+    exerciseId: ID
+    targetType: String!
+    currentValue: Float!
+    targetValue: Float!
+    incrementValue: Float
+    incrementFrequency: String
+    targetDate: DateTime
+  }
+
+  # ============================================
+  # LOCATIONS TYPES
+  # ============================================
+  type Location {
+    id: ID!
+    name: String!
+    type: String!
+    city: String
+    description: String
+    lat: Float
+    lng: Float
+    avgRating: Float
+    ratingCount: Int
+    distance: Float
+    createdAt: DateTime!
+  }
+
+  type LocationDetails {
+    location: Location
+    ratings: LocationRatings
+    amenities: [LocationAmenity!]!
+    comments: [LocationComment!]!
+  }
+
+  type LocationRatings {
+    avgRating: Float
+    avgSafety: Float
+    avgCrowd: Float
+    avgClean: Float
+    totalRatings: Int!
+  }
+
+  type LocationAmenity {
+    amenity: String!
+    count: Int!
+  }
+
+  type LocationComment {
+    id: ID!
+    userId: ID!
+    username: String
+    comment: String!
+    upvotes: Int!
+    createdAt: DateTime!
+  }
+
+  type LocationRating {
+    id: ID!
+    locationId: ID!
+    rating: Int!
+    safetyRating: Int
+    crowdLevel: Int
+    cleanliness: Int
+    comment: String
+    createdAt: DateTime!
+  }
+
+  input LocationInput {
+    name: String!
+    type: String!
+    city: String
+    description: String
+    lat: Float
+    lng: Float
+    amenities: [String!]
+  }
+
+  input LocationRatingInput {
+    rating: Int!
+    safetyRating: Int
+    crowdLevel: Int
+    cleanliness: Int
+    comment: String
   }
 `;

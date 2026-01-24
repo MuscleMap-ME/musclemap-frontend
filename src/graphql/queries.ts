@@ -3997,3 +3997,269 @@ export const PROGRESS_PHOTO_STATS_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// WEARABLES
+// ============================================
+
+export const WEARABLES_SUMMARY_QUERY = gql`
+  query WearablesSummary {
+    wearablesSummary {
+      today {
+        steps
+        activeCalories
+        avgHeartRate
+        workoutMinutes
+        sleepHours
+      }
+      thisWeek {
+        totalSteps
+        avgDailySteps
+        totalWorkoutMinutes
+        avgSleepHours
+        avgRestingHeartRate
+      }
+    }
+  }
+`;
+
+export const WEARABLES_STATUS_QUERY = gql`
+  query WearablesStatus {
+    wearablesStatus {
+      syncStatus {
+        provider
+        lastSyncAt
+        isConnected
+      }
+    }
+  }
+`;
+
+export const WEARABLE_CONNECTIONS_QUERY = gql`
+  query WearableConnections {
+    wearableConnections {
+      provider
+      lastSyncAt
+      isConnected
+    }
+  }
+`;
+
+// ============================================
+// PROGRESSION
+// ============================================
+
+export const PROGRESSION_MASTERY_QUERY = gql`
+  query ProgressionMastery {
+    progressionMastery {
+      archetypeId
+      archetypeName
+      totalTu
+      tier
+    }
+  }
+`;
+
+export const PROGRESSION_ACHIEVEMENTS_QUERY = gql`
+  query ProgressionAchievements {
+    progressionAchievements {
+      id
+      name
+      description
+      earned
+      earnedAt
+      iconUrl
+    }
+  }
+`;
+
+export const PROGRESSION_NUTRITION_QUERY = gql`
+  query ProgressionNutrition {
+    progressionNutrition {
+      tips {
+        id
+        title
+        content
+      }
+    }
+  }
+`;
+
+export const PROGRESSION_LEADERBOARD_QUERY = gql`
+  query ProgressionLeaderboard($limit: Int) {
+    progressionLeaderboard(limit: $limit) {
+      rank
+      userId
+      username
+      avatar
+      level
+      xp
+      totalTu
+    }
+  }
+`;
+
+export const PROGRESSION_RECORDS_QUERY = gql`
+  query ProgressionRecords($limit: Int, $recordType: String) {
+    progressionRecords(limit: $limit, recordType: $recordType) {
+      id
+      exerciseId
+      exerciseName
+      recordType
+      value
+      previousValue
+      unit
+      achievedAt
+    }
+  }
+`;
+
+export const PROGRESSION_EXERCISE_RECORDS_QUERY = gql`
+  query ProgressionExerciseRecords($exerciseId: ID!) {
+    progressionExerciseRecords(exerciseId: $exerciseId) {
+      id
+      exerciseId
+      exerciseName
+      recordType
+      value
+      previousValue
+      unit
+      achievedAt
+    }
+  }
+`;
+
+export const PROGRESSION_EXERCISE_STATS_QUERY = gql`
+  query ProgressionExerciseStats($exerciseId: ID!) {
+    progressionExerciseStats(exerciseId: $exerciseId) {
+      exerciseId
+      exerciseName
+      totalSets
+      totalReps
+      totalVolume
+      maxWeight
+      avgWeight
+      lastWorkoutAt
+      history {
+        date
+        sets
+        reps
+        weight
+        volume
+      }
+    }
+  }
+`;
+
+export const PROGRESSION_RECOMMENDATIONS_QUERY = gql`
+  query ProgressionRecommendations($limit: Int) {
+    progressionRecommendations(limit: $limit) {
+      exerciseId
+      exerciseName
+      recommendationType
+      currentValue
+      recommendedValue
+      unit
+      message
+      confidence
+    }
+  }
+`;
+
+export const PROGRESSION_TARGETS_QUERY = gql`
+  query ProgressionTargets($exerciseId: ID, $includeCompleted: Boolean) {
+    progressionTargets(exerciseId: $exerciseId, includeCompleted: $includeCompleted) {
+      id
+      exerciseId
+      exerciseName
+      targetType
+      currentValue
+      targetValue
+      incrementValue
+      incrementFrequency
+      targetDate
+      status
+      progress
+      createdAt
+      completedAt
+    }
+  }
+`;
+
+// ============================================
+// LOCATIONS
+// ============================================
+
+export const NEARBY_LOCATIONS_QUERY = gql`
+  query NearbyLocations($lat: Float!, $lng: Float!, $type: String, $limit: Int) {
+    nearbyLocations(lat: $lat, lng: $lng, type: $type, limit: $limit) {
+      id
+      name
+      type
+      city
+      description
+      lat
+      lng
+      avgRating
+      ratingCount
+      distance
+      createdAt
+    }
+  }
+`;
+
+export const SEARCH_LOCATIONS_QUERY = gql`
+  query SearchLocations($query: String!, $type: String, $limit: Int) {
+    searchLocations(query: $query, type: $type, limit: $limit) {
+      id
+      name
+      type
+      city
+      description
+      lat
+      lng
+      avgRating
+      ratingCount
+      distance
+      createdAt
+    }
+  }
+`;
+
+export const LOCATION_DETAILS_QUERY = gql`
+  query LocationDetails($id: ID!) {
+    location(id: $id) {
+      location {
+        id
+        name
+        type
+        city
+        description
+        lat
+        lng
+        avgRating
+        ratingCount
+        createdAt
+      }
+      ratings {
+        avgRating
+        avgSafety
+        avgCrowd
+        avgClean
+        totalRatings
+      }
+      amenities {
+        amenity
+        count
+      }
+      comments {
+        id
+        userId
+        username
+        comment
+        upvotes
+        createdAt
+      }
+    }
+  }
+`;

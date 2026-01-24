@@ -1435,6 +1435,22 @@ export const DELETE_CAREER_GOAL_MUTATION = gql`
   }
 `;
 
+export const LOG_CAREER_ASSESSMENT_MUTATION = gql`
+  mutation LogCareerAssessment($input: CareerAssessmentInput!) {
+    logCareerAssessment(input: $input) {
+      id
+      goalId
+      standardId
+      assessmentType
+      results
+      totalScore
+      passed
+      assessedAt
+      createdAt
+    }
+  }
+`;
+
 // ============================================
 // TRAINERS
 // ============================================
@@ -2216,5 +2232,105 @@ export const UPDATE_PROGRESS_PHOTO_MUTATION = gql`
 export const DELETE_PROGRESS_PHOTO_MUTATION = gql`
   mutation DeleteProgressPhoto($id: ID!) {
     deleteProgressPhoto(id: $id)
+  }
+`;
+
+// ============================================
+// WEARABLES
+// ============================================
+
+export const SYNC_WEARABLES_MUTATION = gql`
+  mutation SyncWearables {
+    syncWearables {
+      success
+      message
+      lastSyncAt
+    }
+  }
+`;
+
+// ============================================
+// PROGRESSION
+// ============================================
+
+export const CREATE_PROGRESSION_TARGET_MUTATION = gql`
+  mutation CreateProgressionTarget($input: ProgressionTargetInput!) {
+    createProgressionTarget(input: $input) {
+      id
+      exerciseId
+      exerciseName
+      targetType
+      currentValue
+      targetValue
+      incrementValue
+      incrementFrequency
+      targetDate
+      status
+      progress
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_PROGRESSION_TARGET_MUTATION = gql`
+  mutation UpdateProgressionTarget($id: ID!, $currentValue: Float!) {
+    updateProgressionTarget(id: $id, currentValue: $currentValue) {
+      id
+      exerciseId
+      exerciseName
+      targetType
+      currentValue
+      targetValue
+      status
+      progress
+      completedAt
+    }
+  }
+`;
+
+// ============================================
+// LOCATIONS
+// ============================================
+
+export const CREATE_LOCATION_MUTATION = gql`
+  mutation CreateLocation($input: LocationInput!) {
+    createLocation(input: $input) {
+      id
+      name
+      type
+      city
+      description
+      lat
+      lng
+      createdAt
+    }
+  }
+`;
+
+export const RATE_LOCATION_MUTATION = gql`
+  mutation RateLocation($locationId: ID!, $input: LocationRatingInput!) {
+    rateLocation(locationId: $locationId, input: $input) {
+      id
+      locationId
+      rating
+      safetyRating
+      crowdLevel
+      cleanliness
+      comment
+      createdAt
+    }
+  }
+`;
+
+export const VOTE_LOCATION_COMMENT_MUTATION = gql`
+  mutation VoteLocationComment($commentId: ID!, $vote: Int!) {
+    voteLocationComment(commentId: $commentId, vote: $vote) {
+      id
+      userId
+      username
+      comment
+      upvotes
+      createdAt
+    }
   }
 `;

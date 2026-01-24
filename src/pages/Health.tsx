@@ -6,67 +6,94 @@
  * connected via the mobile app.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import {
+  WEARABLES_SUMMARY_QUERY,
+  WEARABLES_STATUS_QUERY,
+  SYNC_WEARABLES_MUTATION,
+} from '../graphql';
 import {
   GlassSurface,
   GlassCard,
   GlassButton,
 } from '../components/glass';
 
+interface WearablesSummary {
+  today?: {
+    steps?: number;
+    activeCalories?: number;
+    avgHeartRate?: number;
+    workoutMinutes?: number;
+    sleepHours?: number;
+  };
+  thisWeek?: {
+    totalSteps?: number;
+    avgDailySteps?: number;
+    totalWorkoutMinutes?: number;
+    avgSleepHours?: number;
+    avgRestingHeartRate?: number;
+  };
+}
+
+interface WearablesStatus {
+  isConnected: boolean;
+  lastSyncAt?: string;
+  provider?: string;
+  syncStatus?: Array<{
+    provider: string;
+    lastSyncAt?: string;
+    isConnected?: boolean;
+  }>;
+}
+
 // ============================================
 // ICONS
 // ============================================
 const Icons = {
-  Heart: ({ className = 'w-5 h-5' }) => (
+  Heart: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
     </svg>
   ),
-  Footprints: ({ className = 'w-5 h-5' }) => (
+  Footprints: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 5.5C13 3.567 11.433 2 9.5 2S6 3.567 6 5.5 7.567 9 9.5 9 13 7.433 13 5.5zm-6 8c0-1.657-1.343-3-3-3s-3 1.343-3 3 1.343 3 3 3 3-1.343 3-3zm14 0c0-1.657-1.343-3-3-3s-3 1.343-3 3 1.343 3 3 3 3-1.343 3-3zm-6-8C15 3.567 13.433 2 11.5 2m7.5 16.5C19 16.567 17.433 15 15.5 15S12 16.567 12 18.5 13.567 22 15.5 22 19 20.433 19 18.5z" />
     </svg>
   ),
-  Flame: ({ className = 'w-5 h-5' }) => (
+  Flame: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
     </svg>
   ),
-  Moon: ({ className = 'w-5 h-5' }) => (
+  Moon: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
     </svg>
   ),
-  Watch: ({ className = 'w-5 h-5' }) => (
+  Watch: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Activity: ({ className = 'w-5 h-5' }) => (
+  Activity: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 12h4l1.5-6 3 12 1.5-6h4.5" />
     </svg>
   ),
-  Link: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-    </svg>
-  ),
-  Refresh: ({ className = 'w-5 h-5' }) => (
+  Refresh: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   ),
-  Clock: ({ className = 'w-5 h-5' }) => (
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Smartphone: ({ className = 'w-5 h-5' }) => (
+  Smartphone: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
     </svg>
@@ -76,7 +103,15 @@ const Icons = {
 // ============================================
 // STAT CARD COMPONENT
 // ============================================
-function StatCard({ icon: Icon, iconColor, value, label, delay = 0 }) {
+interface StatCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor: string;
+  value: string | number;
+  label: string;
+  delay?: number;
+}
+
+function StatCard({ icon: Icon, iconColor, value, label, delay = 0 }: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -96,57 +131,54 @@ function StatCard({ icon: Icon, iconColor, value, label, delay = 0 }) {
 // MAIN HEALTH PAGE
 // ============================================
 export default function Health() {
-  const { user: _user } = useUser();
-  const [summary, setSummary] = useState(null);
-  const [connections, setConnections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState(null);
+  // Fetch wearables summary via GraphQL
+  const { data: summaryData, loading: summaryLoading, error: summaryError, refetch: refetchSummary } = useQuery(
+    WEARABLES_SUMMARY_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      // Use correct API endpoints:
-      // - /wearables returns health summary
-      // - /wearables/status returns sync status with provider connections
-      const [summaryRes, statusRes] = await Promise.all([
-        api.get('/wearables').catch(() => ({ data: null })),
-        api.get('/wearables/status').catch(() => ({ data: { syncStatus: [] } })),
-      ]);
+  // Fetch wearables status via GraphQL
+  const { data: statusData, loading: statusLoading, refetch: refetchStatus } = useQuery(
+    WEARABLES_STATUS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-      setSummary(summaryRes.data);
-      // Transform syncStatus into connections format expected by the component
-      const syncStatus = statusRes.data?.syncStatus || [];
-      const connections = syncStatus.map((status: { provider: string; lastSyncAt?: string; isConnected?: boolean }) => ({
-        provider: status.provider,
-        lastSyncAt: status.lastSyncAt,
-        isConnected: status.isConnected ?? true,
-      }));
-      setConnections(connections);
-    } catch (err) {
-      setError(err.message || 'Failed to load health data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Sync mutation
+  const [syncWearables, { loading: syncing }] = useMutation(SYNC_WEARABLES_MUTATION, {
+    onCompleted: () => {
+      refetchSummary();
+      refetchStatus();
+    },
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const summary: WearablesSummary | null = useMemo(
+    () => summaryData?.wearablesSummary || null,
+    [summaryData]
+  );
+
+  const status: WearablesStatus | null = useMemo(
+    () => statusData?.wearablesStatus || null,
+    [statusData]
+  );
+
+  const loading = summaryLoading || statusLoading;
+  const error = summaryError?.message;
+
+  // Transform syncStatus into connections format
+  const connections = useMemo(() => {
+    const syncStatus = status?.syncStatus || [];
+    return syncStatus.map((s) => ({
+      provider: s.provider,
+      lastSyncAt: s.lastSyncAt,
+      isConnected: s.isConnected ?? true,
+    }));
+  }, [status]);
 
   const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await api.post('/wearables/sync');
-      await loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to sync');
-    } finally {
-      setSyncing(false);
-    }
+    await syncWearables();
   };
 
-  const formatLastSync = (dateStr) => {
+  const formatLastSync = (dateStr?: string) => {
     if (!dateStr) return 'Never';
     const date = new Date(dateStr);
     const now = new Date();
@@ -162,7 +194,7 @@ export default function Health() {
   const hasConnection = connections.length > 0 && connections.some(c => c.isConnected);
   const activeConnection = connections.find(c => c.isConnected);
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <GlassSurface className="min-h-screen flex items-center justify-center">
         <div className="text-center">

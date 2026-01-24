@@ -8,12 +8,41 @@
  * 4. Optional agency name and notes
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { api } from '../../utils/api';
+import {
+  CAREER_STANDARD_CATEGORIES_QUERY,
+  CAREER_STANDARDS_QUERY,
+  CREATE_CAREER_GOAL_MUTATION,
+} from '../../graphql';
 import { CATEGORY_META } from './CareerStandardCard';
 import { GlassButton } from '../glass';
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  category?: string;
+  agency?: string;
+  icon?: string;
+  events?: Array<{ id?: string; name: string }>;
+}
+
+interface CareerCategory {
+  category: string;
+  count: number;
+  label?: string;
+}
+
+interface FormData {
+  category: string | null;
+  standard: CareerStandard | null;
+  targetDate: string;
+  priority: string;
+  agencyName: string;
+  notes: string;
+}
 
 const STEPS = [
   { id: 'category', title: 'Select Category', subtitle: 'Choose your career path' },
@@ -21,6 +50,13 @@ const STEPS = [
   { id: 'date', title: 'Set Target Date', subtitle: 'When do you need to pass?' },
   { id: 'details', title: 'Additional Details', subtitle: 'Optional information' },
 ];
+
+interface CareerGoalWizardProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onComplete?: () => void;
+  preselectedStandard?: CareerStandard | null;
+}
 
 /**
  * CareerGoalWizard Component
@@ -35,16 +71,12 @@ export default function CareerGoalWizard({
   onClose,
   onComplete,
   preselectedStandard = null,
-}) {
+}: CareerGoalWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [categories, setCategories] = useState([]);
-  const [standards, setStandards] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     category: null,
     standard: null,
     targetDate: '',
@@ -53,15 +85,48 @@ export default function CareerGoalWizard({
     notes: '',
   });
 
-  // Load categories on mount
+  // Fetch categories
+  const { data: categoriesData } = useQuery(CAREER_STANDARD_CATEGORIES_QUERY, {
+    skip: !isOpen,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Fetch standards for selected category
+  const { data: standardsData, loading: standardsLoading } = useQuery(CAREER_STANDARDS_QUERY, {
+    variables: { category: formData.category },
+    skip: !isOpen || !formData.category || !!preselectedStandard,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Create goal mutation
+  const [createGoal, { loading: submitting }] = useMutation(CREATE_CAREER_GOAL_MUTATION, {
+    onCompleted: () => {
+      onComplete?.();
+      onClose();
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to create goal. Please try again.');
+    },
+  });
+
+  const categories: CareerCategory[] = useMemo(
+    () => categoriesData?.careerStandardCategories || [],
+    [categoriesData]
+  );
+
+  const standards: CareerStandard[] = useMemo(
+    () => standardsData?.careerStandards || [],
+    [standardsData]
+  );
+
+  // Reset form when opened
   useEffect(() => {
     if (isOpen) {
-      loadCategories();
       // If preselected standard, skip to date step
       if (preselectedStandard) {
         setFormData((prev) => ({
           ...prev,
-          category: preselectedStandard.category,
+          category: preselectedStandard.category || null,
           standard: preselectedStandard,
         }));
         setCurrentStep(2);
@@ -76,43 +141,16 @@ export default function CareerGoalWizard({
           notes: '',
         });
       }
+      setError(null);
     }
   }, [isOpen, preselectedStandard]);
 
-  // Load standards when category is selected
-  useEffect(() => {
-    if (formData.category && !preselectedStandard) {
-      loadStandards(formData.category);
-    }
-  }, [formData.category, preselectedStandard]);
-
-  const loadCategories = async () => {
-    try {
-      const response = await api.get('/career/standards/categories');
-      setCategories(response.data?.categories || []);
-    } catch (err) {
-      console.error('Failed to load categories:', err);
-    }
-  };
-
-  const loadStandards = async (category) => {
-    setLoading(true);
-    try {
-      const response = await api.get(`/career/standards?category=${category}`);
-      setStandards(response.data?.standards || []);
-    } catch (err) {
-      console.error('Failed to load standards:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCategorySelect = (category) => {
+  const handleCategorySelect = (category: string) => {
     setFormData((prev) => ({ ...prev, category, standard: null }));
     setCurrentStep(1);
   };
 
-  const handleStandardSelect = (standard) => {
+  const handleStandardSelect = (standard: CareerStandard) => {
     setFormData((prev) => ({ ...prev, standard }));
     setCurrentStep(2);
   };
@@ -124,26 +162,19 @@ export default function CareerGoalWizard({
   const handleSubmit = async () => {
     if (!formData.standard) return;
 
-    setSubmitting(true);
     setError(null);
 
-    try {
-      await api.post('/career/goals', {
-        ptTestId: formData.standard.id,
-        targetDate: formData.targetDate || undefined,
-        priority: formData.priority,
-        agencyName: formData.agencyName || undefined,
-        notes: formData.notes || undefined,
-      });
-
-      onComplete?.();
-      onClose();
-    } catch (err) {
-      console.error('Failed to create goal:', err);
-      setError(err.message || 'Failed to create goal. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+    createGoal({
+      variables: {
+        input: {
+          standardId: formData.standard.id,
+          targetDate: formData.targetDate || null,
+          priority: formData.priority,
+          agencyName: formData.agencyName || null,
+          notes: formData.notes || null,
+        },
+      },
+    });
   };
 
   const handleBack = () => {
@@ -248,7 +279,7 @@ export default function CareerGoalWizard({
               {currentStep === 1 && (
                 <StandardStep
                   standards={standards}
-                  loading={loading}
+                  loading={standardsLoading}
                   onSelect={handleStandardSelect}
                   selectedCategory={formData.category}
                 />
@@ -257,7 +288,7 @@ export default function CareerGoalWizard({
                 <DateStep
                   value={formData.targetDate}
                   priority={formData.priority}
-                  onChange={(field, value) =>
+                  onChange={(field: string, value: string) =>
                     setFormData((prev) => ({ ...prev, [field]: value }))
                   }
                   onSubmit={handleDateSubmit}
@@ -266,7 +297,7 @@ export default function CareerGoalWizard({
               {currentStep === 3 && (
                 <DetailsStep
                   formData={formData}
-                  onChange={(field, value) =>
+                  onChange={(field: string, value: string) =>
                     setFormData((prev) => ({ ...prev, [field]: value }))
                   }
                   error={error}
@@ -309,7 +340,13 @@ export default function CareerGoalWizard({
 /**
  * Step 1: Category Selection
  */
-function CategoryStep({ categories, onSelect }) {
+function CategoryStep({
+  categories,
+  onSelect,
+}: {
+  categories: CareerCategory[];
+  onSelect: (category: string) => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -353,8 +390,18 @@ function CategoryStep({ categories, onSelect }) {
 /**
  * Step 2: Standard Selection
  */
-function StandardStep({ standards, loading, onSelect, selectedCategory }) {
-  const categoryMeta = CATEGORY_META[selectedCategory] || CATEGORY_META.general;
+function StandardStep({
+  standards,
+  loading,
+  onSelect,
+  selectedCategory,
+}: {
+  standards: CareerStandard[];
+  loading: boolean;
+  onSelect: (standard: CareerStandard) => void;
+  selectedCategory: string | null;
+}) {
+  const categoryMeta = CATEGORY_META[selectedCategory || ''] || CATEGORY_META.general;
 
   if (loading) {
     return (
@@ -412,24 +459,24 @@ function StandardStep({ standards, loading, onSelect, selectedCategory }) {
                 {standard.name}
               </h4>
               <p className="text-sm text-[var(--text-tertiary)] truncate">
-                {standard.institution}
+                {standard.agency}
               </p>
             </div>
             <ChevronRightIcon className="w-5 h-5 text-[var(--text-quaternary)]" />
           </div>
-          {standard.components && standard.components.length > 0 && (
+          {standard.events && standard.events.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {standard.components.slice(0, 3).map((comp) => (
+              {standard.events.slice(0, 3).map((event, idx) => (
                 <span
-                  key={comp.id || comp.name}
+                  key={event.id || idx}
                   className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]"
                 >
-                  {comp.name}
+                  {event.name}
                 </span>
               ))}
-              {standard.components.length > 3 && (
+              {standard.events.length > 3 && (
                 <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]">
-                  +{standard.components.length - 3}
+                  +{standard.events.length - 3}
                 </span>
               )}
             </div>
@@ -443,7 +490,17 @@ function StandardStep({ standards, loading, onSelect, selectedCategory }) {
 /**
  * Step 3: Target Date
  */
-function DateStep({ value, priority, onChange, onSubmit }) {
+function DateStep({
+  value,
+  priority,
+  onChange,
+  onSubmit,
+}: {
+  value: string;
+  priority: string;
+  onChange: (field: string, value: string) => void;
+  onSubmit: () => void;
+}) {
   // Calculate suggested dates
   const today = new Date();
   const suggestions = [
@@ -453,7 +510,7 @@ function DateStep({ value, priority, onChange, onSubmit }) {
     { label: '6 months', date: new Date(today.getTime() + 180 * 24 * 60 * 60 * 1000) },
   ];
 
-  const formatDate = (date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
   return (
     <motion.div
@@ -556,8 +613,16 @@ function DateStep({ value, priority, onChange, onSubmit }) {
 /**
  * Step 4: Additional Details
  */
-function DetailsStep({ formData, onChange, error }) {
-  const categoryMeta = CATEGORY_META[formData.category] || CATEGORY_META.general;
+function DetailsStep({
+  formData,
+  onChange,
+  error,
+}: {
+  formData: FormData;
+  onChange: (field: string, value: string) => void;
+  error: string | null;
+}) {
+  const categoryMeta = CATEGORY_META[formData.category || ''] || CATEGORY_META.general;
 
   return (
     <motion.div
@@ -580,7 +645,7 @@ function DetailsStep({ formData, onChange, error }) {
               {formData.standard?.name}
             </h4>
             <p className="text-sm text-[var(--text-tertiary)]">
-              {formData.standard?.institution}
+              {formData.standard?.agency}
             </p>
           </div>
         </div>
@@ -641,7 +706,7 @@ function DetailsStep({ formData, onChange, error }) {
 }
 
 // Icon components
-function XIcon({ className }) {
+function XIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -649,7 +714,7 @@ function XIcon({ className }) {
   );
 }
 
-function CheckIcon({ className }) {
+function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -657,7 +722,7 @@ function CheckIcon({ className }) {
   );
 }
 
-function ChevronLeftIcon({ className }) {
+function ChevronLeftIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -665,7 +730,7 @@ function ChevronLeftIcon({ className }) {
   );
 }
 
-function ChevronRightIcon({ className }) {
+function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -673,7 +738,7 @@ function ChevronRightIcon({ className }) {
   );
 }
 
-function CalendarIcon({ className }) {
+function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

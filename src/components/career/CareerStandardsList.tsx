@@ -5,11 +5,38 @@
  * Supports search, category filtering, and loading states.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import CareerStandardCard, { CATEGORY_META } from './CareerStandardCard';
-import { api } from '../../utils/api';
+import {
+  CAREER_STANDARDS_QUERY,
+  CAREER_STANDARD_CATEGORIES_QUERY,
+} from '../../graphql';
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  category?: string;
+  agency?: string;
+  description?: string;
+  eventCount?: number;
+}
+
+interface CareerStandardCategory {
+  category: string;
+  count: number;
+  icon?: string;
+}
+
+interface CareerStandardsListProps {
+  onSelectStandard?: (standard: CareerStandard) => void;
+  existingGoalIds?: Set<string> | string[];
+  initialCategory?: string;
+  showSearch?: boolean;
+  gridCols?: string;
+}
 
 /**
  * CareerStandardsList Component
@@ -26,43 +53,44 @@ export default function CareerStandardsList({
   initialCategory = 'all',
   showSearch = true,
   gridCols = 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-}) {
-  const [standards, setStandards] = useState([]);
-  const [categories, setCategories] = useState([]);
+}: CareerStandardsListProps) {
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  // Fetch standards
+  const { data: standardsData, loading: standardsLoading, error: standardsError, refetch } = useQuery(
+    CAREER_STANDARDS_QUERY,
+    {
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  // Fetch categories
+  const { data: categoriesData, loading: categoriesLoading } = useQuery(
+    CAREER_STANDARD_CATEGORIES_QUERY,
+    {
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  const standards: CareerStandard[] = useMemo(
+    () => standardsData?.careerStandards || [],
+    [standardsData]
+  );
+
+  const categories: CareerStandardCategory[] = useMemo(
+    () => categoriesData?.careerStandardCategories || [],
+    [categoriesData]
+  );
+
+  const loading = standardsLoading || categoriesLoading;
+  const error = standardsError?.message;
 
   // Convert existingGoalIds to Set for O(1) lookup
   const goalIdSet = useMemo(() => {
     if (existingGoalIds instanceof Set) return existingGoalIds;
     return new Set(Array.isArray(existingGoalIds) ? existingGoalIds : []);
   }, [existingGoalIds]);
-
-  // Fetch standards and categories
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [standardsRes, categoriesRes] = await Promise.all([
-        api.get('/career/standards'),
-        api.get('/career/standards/categories'),
-      ]);
-
-      setStandards(standardsRes.data?.standards || []);
-      setCategories(categoriesRes.data?.categories || []);
-    } catch (err) {
-      console.error('Failed to load career standards:', err);
-      setError('Failed to load career standards. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   // Filter standards by category and search
   const filteredStandards = useMemo(() => {
@@ -79,7 +107,7 @@ export default function CareerStandardsList({
       filtered = filtered.filter(
         (s) =>
           s.name.toLowerCase().includes(query) ||
-          s.institution?.toLowerCase().includes(query) ||
+          s.agency?.toLowerCase().includes(query) ||
           s.category?.toLowerCase().includes(query)
       );
     }
@@ -114,7 +142,7 @@ export default function CareerStandardsList({
         </h3>
         <p className="text-[var(--text-tertiary)] mb-4">{error}</p>
         <button
-          onClick={loadData}
+          onClick={() => refetch()}
           className="px-4 py-2 rounded-lg bg-[var(--brand-blue-500)] text-white font-medium hover:bg-[var(--brand-blue-600)] transition-colors"
         >
           Try Again
@@ -174,7 +202,7 @@ export default function CareerStandardsList({
                 icon={meta.icon}
                 count={cat.count}
               >
-                {cat.label || meta.label}
+                {meta.label}
               </CategoryButton>
             );
           })}
@@ -238,7 +266,19 @@ export default function CareerStandardsList({
 /**
  * CategoryButton - Filter button component
  */
-function CategoryButton({ children, active, onClick, icon, count }) {
+function CategoryButton({
+  children,
+  active,
+  onClick,
+  icon,
+  count,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  icon?: string;
+  count?: number;
+}) {
   return (
     <motion.button
       onClick={onClick}
@@ -291,7 +331,7 @@ function SkeletonCard() {
 }
 
 // Icon components
-function SearchIcon({ className }) {
+function SearchIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -299,7 +339,7 @@ function SearchIcon({ className }) {
   );
 }
 
-function XIcon({ className }) {
+function XIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -307,7 +347,7 @@ function XIcon({ className }) {
   );
 }
 
-function TrophyIcon({ className }) {
+function TrophyIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -315,7 +355,7 @@ function TrophyIcon({ className }) {
   );
 }
 
-function AlertIcon({ className }) {
+function AlertIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

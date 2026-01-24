@@ -10,11 +10,40 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { api } from '../../utils/api';
+import { LOG_CAREER_ASSESSMENT_MUTATION } from '../../graphql';
 import { GlassButton } from '../glass';
 import { CATEGORY_META } from './CareerStandardCard';
+
+interface CareerGoal {
+  id: string;
+  standardId?: string;
+  testName?: string;
+  category?: string;
+  icon?: string;
+}
+
+interface TestEvent {
+  id?: string;
+  name: string;
+  standard?: string;
+}
+
+interface EventResult {
+  passed: boolean | null;
+  score: string;
+  notes: string;
+}
+
+interface FormData {
+  assessmentType: string;
+  assessmentDate: string;
+  eventResults: Record<string, EventResult>;
+  totalTime: string;
+  notes: string;
+}
 
 /**
  * Assessment types with metadata
@@ -43,6 +72,14 @@ const ASSESSMENT_TYPES = [
   },
 ];
 
+interface AssessmentLoggerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  goal: CareerGoal | null;
+  events?: TestEvent[];
+  onSubmit?: () => void;
+}
+
 /**
  * AssessmentLogger Component
  *
@@ -58,21 +95,32 @@ export default function AssessmentLogger({
   goal,
   events = [],
   onSubmit,
-}) {
-  const [formData, setFormData] = useState({
+}: AssessmentLoggerProps) {
+  const [formData, setFormData] = useState<FormData>({
     assessmentType: 'practice',
     assessmentDate: new Date().toISOString().split('T')[0],
     eventResults: {},
     totalTime: '',
     notes: '',
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // GraphQL mutation for logging assessment
+  const [logAssessment, { loading: submitting }] = useMutation(LOG_CAREER_ASSESSMENT_MUTATION, {
+    onCompleted: () => {
+      onSubmit?.();
+      onClose();
+    },
+    onError: (err) => {
+      console.error('Failed to log assessment:', err);
+      setError(err.message || 'Failed to log assessment. Please try again.');
+    },
+  });
 
   // Initialize event results when events change
   useEffect(() => {
     if (events && events.length > 0) {
-      const initialResults = {};
+      const initialResults: Record<string, EventResult> = {};
       events.forEach((event) => {
         initialResults[event.id || event.name] = {
           passed: null,
@@ -97,7 +145,7 @@ export default function AssessmentLogger({
       setError(null);
       // Re-initialize event results
       if (events && events.length > 0) {
-        const initialResults = {};
+        const initialResults: Record<string, EventResult> = {};
         events.forEach((event) => {
           initialResults[event.id || event.name] = {
             passed: null,
@@ -110,7 +158,7 @@ export default function AssessmentLogger({
     }
   }, [isOpen, events]);
 
-  const categoryMeta = CATEGORY_META[goal?.category] || CATEGORY_META.general;
+  const categoryMeta = CATEGORY_META[goal?.category || 'general'] || CATEGORY_META.general;
 
   // Calculate summary stats
   const summary = useMemo(() => {
@@ -124,7 +172,7 @@ export default function AssessmentLogger({
     return { total, passed, failed, pending, allMarked };
   }, [formData.eventResults]);
 
-  const handleEventToggle = (eventId, passed) => {
+  const handleEventToggle = (eventId: string, passed: boolean | null) => {
     setFormData((prev) => ({
       ...prev,
       eventResults: {
@@ -137,7 +185,7 @@ export default function AssessmentLogger({
     }));
   };
 
-  const handleEventScore = (eventId, score) => {
+  const handleEventScore = (eventId: string, score: string) => {
     setFormData((prev) => ({
       ...prev,
       eventResults: {
@@ -153,38 +201,40 @@ export default function AssessmentLogger({
   const handleSubmit = async () => {
     if (!goal?.id) return;
 
-    setSubmitting(true);
     setError(null);
 
-    try {
-      // Format event results for API
-      const eventResults = Object.entries(formData.eventResults).map(([eventId, result]) => ({
-        eventId,
+    // Format event results for API
+    const results: Record<string, unknown> = {};
+    Object.entries(formData.eventResults).forEach(([eventId, result]) => {
+      results[eventId] = {
         passed: result.passed,
         score: result.score || undefined,
         notes: result.notes || undefined,
-      }));
+      };
+    });
 
-      await api.post(`/career/goals/${goal.id}/assessments`, {
-        type: formData.assessmentType,
-        date: formData.assessmentDate,
-        eventResults,
-        totalTime: formData.totalTime || undefined,
-        notes: formData.notes || undefined,
-      });
-
-      onSubmit?.();
-      onClose();
-    } catch (err) {
-      console.error('Failed to log assessment:', err);
-      setError(err.message || 'Failed to log assessment. Please try again.');
-    } finally {
-      setSubmitting(false);
+    // Add total time and notes to results if provided
+    if (formData.totalTime) {
+      results.totalTime = formData.totalTime;
     }
+    if (formData.notes) {
+      results.notes = formData.notes;
+    }
+
+    await logAssessment({
+      variables: {
+        input: {
+          standardId: goal.standardId || goal.id,
+          assessmentType: formData.assessmentType,
+          results,
+          assessedAt: formData.assessmentDate,
+        },
+      },
+    });
   };
 
-  const handleMarkAll = (passed) => {
-    const newResults = {};
+  const handleMarkAll = (passed: boolean | null) => {
+    const newResults: Record<string, EventResult> = {};
     events.forEach((event) => {
       const eventId = event.id || event.name;
       newResults[eventId] = {
@@ -326,7 +376,7 @@ export default function AssessmentLogger({
                 <div className="space-y-2">
                   {events.map((event) => {
                     const eventId = event.id || event.name;
-                    const result = formData.eventResults[eventId] || {};
+                    const result = formData.eventResults[eventId] || { passed: null, score: '', notes: '' };
 
                     return (
                       <EventResultRow
@@ -428,10 +478,18 @@ export default function AssessmentLogger({
   );
 }
 
+interface EventResultRowProps {
+  event: TestEvent;
+  passed: boolean | null;
+  score: string;
+  onToggle: (passed: boolean | null) => void;
+  onScoreChange: (score: string) => void;
+}
+
 /**
  * EventResultRow - Single event pass/fail toggle row
  */
-function EventResultRow({ event, passed, score, onToggle, onScoreChange }) {
+function EventResultRow({ event, passed, score, onToggle, onScoreChange }: EventResultRowProps) {
   const [showScore, setShowScore] = useState(false);
 
   return (
@@ -530,7 +588,7 @@ function EventResultRow({ event, passed, score, onToggle, onScoreChange }) {
 }
 
 // Icon components
-function XIcon({ className }) {
+function XIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -538,7 +596,7 @@ function XIcon({ className }) {
   );
 }
 
-function HashIcon({ className }) {
+function HashIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />

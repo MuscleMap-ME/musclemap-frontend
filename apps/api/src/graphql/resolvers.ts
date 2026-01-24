@@ -88,6 +88,11 @@ import {
   outdoorEquipmentMutations,
   outdoorEquipmentTypeResolvers,
 } from './outdoor-equipment.resolvers';
+import {
+  venueRecordsQueries,
+  venueRecordsMutations,
+  venueRecordsTypeResolvers,
+} from './venue-records.resolvers';
 
 const log = loggers.core;
 
@@ -2156,6 +2161,624 @@ export const resolvers = {
         firstPhoto: dateRange?.first_photo || null,
         lastPhoto: dateRange?.last_photo || null,
         totalPhotos: parseInt(dateRange?.total_photos || '0', 10),
+      };
+    },
+
+    // ==========================================
+    // WEARABLES QUERIES
+    // ==========================================
+    wearablesSummary: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get today's data
+      const today = await queryOne<any>(
+        `SELECT
+          COALESCE(SUM(steps), 0) as steps,
+          COALESCE(SUM(active_calories), 0) as active_calories,
+          COALESCE(AVG(heart_rate), 0) as avg_heart_rate,
+          COALESCE(SUM(workout_minutes), 0) as workout_minutes
+         FROM wearable_data
+         WHERE user_id = $1 AND DATE(recorded_at) = CURRENT_DATE`,
+        [userId]
+      );
+
+      // Get sleep data
+      const sleepData = await queryOne<any>(
+        `SELECT COALESCE(duration_hours, 0) as sleep_hours
+         FROM sleep_logs
+         WHERE user_id = $1 AND DATE(sleep_end) = CURRENT_DATE
+         ORDER BY sleep_end DESC LIMIT 1`,
+        [userId]
+      );
+
+      // Get weekly summary
+      const weekly = await queryOne<any>(
+        `SELECT
+          COALESCE(SUM(steps), 0) as total_steps,
+          COALESCE(AVG(steps), 0) as avg_daily_steps,
+          COALESCE(SUM(workout_minutes), 0) as total_workout_minutes,
+          COALESCE(AVG(resting_heart_rate), 0) as avg_resting_heart_rate
+         FROM wearable_data
+         WHERE user_id = $1 AND recorded_at >= CURRENT_DATE - INTERVAL '7 days'`,
+        [userId]
+      );
+
+      const weeklySleep = await queryOne<any>(
+        `SELECT COALESCE(AVG(duration_hours), 0) as avg_sleep_hours
+         FROM sleep_logs
+         WHERE user_id = $1 AND sleep_end >= CURRENT_DATE - INTERVAL '7 days'`,
+        [userId]
+      );
+
+      return {
+        today: {
+          steps: parseInt(today?.steps || '0', 10),
+          activeCalories: parseInt(today?.active_calories || '0', 10),
+          avgHeartRate: parseInt(today?.avg_heart_rate || '0', 10),
+          workoutMinutes: parseInt(today?.workout_minutes || '0', 10),
+          sleepHours: parseFloat(sleepData?.sleep_hours || '0'),
+        },
+        thisWeek: {
+          totalSteps: parseInt(weekly?.total_steps || '0', 10),
+          avgDailySteps: parseInt(weekly?.avg_daily_steps || '0', 10),
+          totalWorkoutMinutes: parseInt(weekly?.total_workout_minutes || '0', 10),
+          avgSleepHours: parseFloat(weeklySleep?.avg_sleep_hours || '0'),
+          avgRestingHeartRate: parseInt(weekly?.avg_resting_heart_rate || '0', 10),
+        },
+      };
+    },
+
+    wearablesStatus: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const connections = await queryAll<any>(
+        `SELECT provider, last_sync_at, is_connected
+         FROM wearable_connections
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        syncStatus: connections.map((c: any) => ({
+          provider: c.provider,
+          lastSyncAt: c.last_sync_at,
+          isConnected: c.is_connected,
+        })),
+      };
+    },
+
+    wearableConnections: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const connections = await queryAll<any>(
+        `SELECT provider, last_sync_at, is_connected
+         FROM wearable_connections
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      return connections.map((c: any) => ({
+        provider: c.provider,
+        lastSyncAt: c.last_sync_at,
+        isConnected: c.is_connected,
+      }));
+    },
+
+    // ==========================================
+    // PROGRESSION QUERIES
+    // ==========================================
+    progressionMastery: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const mastery = await queryAll<any>(
+        `SELECT archetype_id, COALESCE(SUM(tu_earned), 0) as total_tu
+         FROM workout_logs wl
+         JOIN workouts w ON w.id = wl.workout_id
+         WHERE w.user_id = $1
+         GROUP BY archetype_id`,
+        [userId]
+      );
+
+      const getTier = (tu: number): string => {
+        if (tu >= 10000) return 'Grandmaster';
+        if (tu >= 5000) return 'Master';
+        if (tu >= 2000) return 'Advanced';
+        if (tu >= 1000) return 'Journeyman';
+        return 'Novice';
+      };
+
+      return mastery.map((m: any) => ({
+        archetypeId: m.archetype_id || 'general',
+        archetypeName: m.archetype_id || 'General',
+        totalTu: parseFloat(m.total_tu || '0'),
+        tier: getTier(parseFloat(m.total_tu || '0')),
+      }));
+    },
+
+    progressionAchievements: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const achievements = await queryAll<any>(
+        `SELECT ad.id, ad.name, ad.description, ad.icon_url,
+                ua.earned_at
+         FROM achievement_definitions ad
+         LEFT JOIN user_achievements ua ON ua.achievement_id = ad.id AND ua.user_id = $1
+         ORDER BY ua.earned_at DESC NULLS LAST, ad.name`,
+        [userId]
+      );
+
+      return achievements.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        earned: !!a.earned_at,
+        earnedAt: a.earned_at,
+        iconUrl: a.icon_url,
+      }));
+    },
+
+    progressionNutrition: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+
+      // Return nutrition tips - could be from a tips table or static content
+      const tips = await queryAll<any>(
+        `SELECT id, title, content FROM nutrition_tips ORDER BY RANDOM() LIMIT 5`
+      ).catch(() => []);
+
+      return {
+        tips: tips.length > 0 ? tips.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          content: t.content,
+        })) : [
+          { id: '1', title: 'Protein Timing', content: 'Consume protein within 2 hours post-workout for optimal muscle recovery.' },
+          { id: '2', title: 'Hydration', content: 'Aim for at least 8 glasses of water daily, more on workout days.' },
+          { id: '3', title: 'Pre-Workout Fuel', content: 'Eat complex carbs 1-2 hours before training for sustained energy.' },
+        ],
+      };
+    },
+
+    progressionLeaderboard: async (_: unknown, args: { limit?: number }, context: Context) => {
+      requireAuth(context);
+      const limit = Math.min(args.limit || 10, 100);
+
+      const leaderboard = await queryAll<any>(
+        `SELECT u.id, u.username, u.avatar_url, u.current_level as level,
+                COALESCE(u.total_xp, 0) as xp,
+                COALESCE(SUM(wl.tu_earned), 0) as total_tu
+         FROM users u
+         LEFT JOIN workouts w ON w.user_id = u.id
+         LEFT JOIN workout_logs wl ON wl.workout_id = w.id
+         GROUP BY u.id
+         ORDER BY total_tu DESC
+         LIMIT $1`,
+        [limit]
+      );
+
+      return leaderboard.map((entry: any, index: number) => ({
+        rank: index + 1,
+        userId: entry.id,
+        username: entry.username,
+        avatar: entry.avatar_url,
+        level: entry.level || 1,
+        xp: parseInt(entry.xp || '0', 10),
+        totalTu: parseFloat(entry.total_tu || '0'),
+      }));
+    },
+
+    progressionRecords: async (
+      _: unknown,
+      args: { limit?: number; recordType?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 20, 100);
+
+      let query = `
+        SELECT pr.id, pr.exercise_id, e.name as exercise_name, pr.record_type,
+               pr.value, pr.previous_value, pr.unit, pr.achieved_at
+        FROM personal_records pr
+        LEFT JOIN exercises e ON e.id = pr.exercise_id
+        WHERE pr.user_id = $1
+      `;
+      const params: any[] = [userId];
+
+      if (args.recordType) {
+        query += ` AND pr.record_type = $2`;
+        params.push(args.recordType);
+      }
+
+      query += ` ORDER BY pr.achieved_at DESC LIMIT $${params.length + 1}`;
+      params.push(limit);
+
+      const records = await queryAll<any>(query, params);
+
+      return records.map((r: any) => ({
+        id: r.id,
+        exerciseId: r.exercise_id,
+        exerciseName: r.exercise_name,
+        recordType: r.record_type,
+        value: parseFloat(r.value),
+        previousValue: r.previous_value ? parseFloat(r.previous_value) : null,
+        unit: r.unit,
+        achievedAt: r.achieved_at,
+      }));
+    },
+
+    progressionExerciseRecords: async (
+      _: unknown,
+      args: { exerciseId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const records = await queryAll<any>(
+        `SELECT pr.id, pr.exercise_id, e.name as exercise_name, pr.record_type,
+                pr.value, pr.previous_value, pr.unit, pr.achieved_at
+         FROM personal_records pr
+         LEFT JOIN exercises e ON e.id = pr.exercise_id
+         WHERE pr.user_id = $1 AND pr.exercise_id = $2
+         ORDER BY pr.achieved_at DESC`,
+        [userId, args.exerciseId]
+      );
+
+      return records.map((r: any) => ({
+        id: r.id,
+        exerciseId: r.exercise_id,
+        exerciseName: r.exercise_name,
+        recordType: r.record_type,
+        value: parseFloat(r.value),
+        previousValue: r.previous_value ? parseFloat(r.previous_value) : null,
+        unit: r.unit,
+        achievedAt: r.achieved_at,
+      }));
+    },
+
+    progressionExerciseStats: async (
+      _: unknown,
+      args: { exerciseId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const stats = await queryOne<any>(
+        `SELECT
+          e.id as exercise_id, e.name as exercise_name,
+          COUNT(DISTINCT wl.id) as total_sets,
+          COALESCE(SUM(wl.reps), 0) as total_reps,
+          COALESCE(SUM(wl.weight * wl.reps), 0) as total_volume,
+          MAX(wl.weight) as max_weight,
+          AVG(wl.weight) as avg_weight,
+          MAX(wl.created_at) as last_workout_at
+         FROM exercises e
+         LEFT JOIN workout_logs wl ON wl.exercise_id = e.id
+         LEFT JOIN workouts w ON w.id = wl.workout_id AND w.user_id = $1
+         WHERE e.id = $2
+         GROUP BY e.id`,
+        [userId, args.exerciseId]
+      );
+
+      if (!stats) return null;
+
+      const history = await queryAll<any>(
+        `SELECT DATE(wl.created_at) as date,
+                COUNT(*) as sets, SUM(wl.reps) as reps,
+                MAX(wl.weight) as weight, SUM(wl.weight * wl.reps) as volume
+         FROM workout_logs wl
+         JOIN workouts w ON w.id = wl.workout_id
+         WHERE w.user_id = $1 AND wl.exercise_id = $2
+         GROUP BY DATE(wl.created_at)
+         ORDER BY date DESC
+         LIMIT 30`,
+        [userId, args.exerciseId]
+      );
+
+      return {
+        exerciseId: stats.exercise_id,
+        exerciseName: stats.exercise_name,
+        totalSets: parseInt(stats.total_sets || '0', 10),
+        totalReps: parseInt(stats.total_reps || '0', 10),
+        totalVolume: parseFloat(stats.total_volume || '0'),
+        maxWeight: stats.max_weight ? parseFloat(stats.max_weight) : null,
+        avgWeight: stats.avg_weight ? parseFloat(stats.avg_weight) : null,
+        lastWorkoutAt: stats.last_workout_at,
+        history: history.map((h: any) => ({
+          date: h.date,
+          sets: parseInt(h.sets, 10),
+          reps: parseInt(h.reps, 10),
+          weight: h.weight ? parseFloat(h.weight) : null,
+          volume: parseFloat(h.volume || '0'),
+        })),
+      };
+    },
+
+    progressionRecommendations: async (
+      _: unknown,
+      args: { limit?: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 5, 20);
+
+      // Get exercises the user has done and recommend progression
+      const exercises = await queryAll<any>(
+        `SELECT e.id as exercise_id, e.name as exercise_name,
+                MAX(wl.weight) as max_weight, AVG(wl.weight) as avg_weight,
+                COUNT(*) as total_sets
+         FROM workout_logs wl
+         JOIN workouts w ON w.id = wl.workout_id
+         JOIN exercises e ON e.id = wl.exercise_id
+         WHERE w.user_id = $1 AND wl.weight > 0
+         GROUP BY e.id
+         ORDER BY total_sets DESC
+         LIMIT $2`,
+        [userId, limit]
+      );
+
+      return exercises.map((ex: any) => {
+        const currentMax = parseFloat(ex.max_weight);
+        const recommended = Math.ceil(currentMax * 1.05 / 2.5) * 2.5; // 5% increase, rounded to 2.5
+        return {
+          exerciseId: ex.exercise_id,
+          exerciseName: ex.exercise_name,
+          recommendationType: 'weight_increase',
+          currentValue: currentMax,
+          recommendedValue: recommended,
+          unit: 'kg',
+          message: `Try increasing to ${recommended}kg on your next session`,
+          confidence: 0.8,
+        };
+      });
+    },
+
+    progressionExerciseRecommendation: async (
+      _: unknown,
+      args: { exerciseId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const stats = await queryOne<any>(
+        `SELECT e.id as exercise_id, e.name as exercise_name,
+                MAX(wl.weight) as max_weight, AVG(wl.weight) as avg_weight
+         FROM workout_logs wl
+         JOIN workouts w ON w.id = wl.workout_id
+         JOIN exercises e ON e.id = wl.exercise_id
+         WHERE w.user_id = $1 AND wl.exercise_id = $2 AND wl.weight > 0
+         GROUP BY e.id`,
+        [userId, args.exerciseId]
+      );
+
+      if (!stats) return null;
+
+      const currentMax = parseFloat(stats.max_weight);
+      const recommended = Math.ceil(currentMax * 1.05 / 2.5) * 2.5;
+
+      return {
+        exerciseId: stats.exercise_id,
+        exerciseName: stats.exercise_name,
+        recommendationType: 'weight_increase',
+        currentValue: currentMax,
+        recommendedValue: recommended,
+        unit: 'kg',
+        message: `Based on your history, try ${recommended}kg`,
+        confidence: 0.75,
+      };
+    },
+
+    progressionTargets: async (
+      _: unknown,
+      args: { exerciseId?: string; includeCompleted?: boolean },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      let query = `
+        SELECT pt.id, pt.exercise_id, e.name as exercise_name, pt.target_type,
+               pt.current_value, pt.target_value, pt.increment_value, pt.increment_frequency,
+               pt.target_date, pt.status, pt.created_at, pt.completed_at
+        FROM progression_targets pt
+        LEFT JOIN exercises e ON e.id = pt.exercise_id
+        WHERE pt.user_id = $1
+      `;
+      const params: any[] = [userId];
+
+      if (args.exerciseId) {
+        query += ` AND pt.exercise_id = $${params.length + 1}`;
+        params.push(args.exerciseId);
+      }
+
+      if (!args.includeCompleted) {
+        query += ` AND pt.status != 'completed'`;
+      }
+
+      query += ` ORDER BY pt.created_at DESC`;
+
+      const targets = await queryAll<any>(query, params);
+
+      return targets.map((t: any) => ({
+        id: t.id,
+        exerciseId: t.exercise_id,
+        exerciseName: t.exercise_name,
+        targetType: t.target_type,
+        currentValue: parseFloat(t.current_value),
+        targetValue: parseFloat(t.target_value),
+        incrementValue: t.increment_value ? parseFloat(t.increment_value) : null,
+        incrementFrequency: t.increment_frequency,
+        targetDate: t.target_date,
+        status: t.status,
+        progress: (parseFloat(t.current_value) / parseFloat(t.target_value)) * 100,
+        createdAt: t.created_at,
+        completedAt: t.completed_at,
+      }));
+    },
+
+    // ==========================================
+    // LOCATIONS QUERIES
+    // ==========================================
+    nearbyLocations: async (
+      _: unknown,
+      args: { lat: number; lng: number; type?: string; limit?: number },
+      context: Context
+    ) => {
+      requireAuth(context);
+      const limit = Math.min(args.limit || 20, 100);
+
+      let query = `
+        SELECT l.id, l.name, l.type, l.city, l.description, l.lat, l.lng,
+               l.created_at,
+               AVG(lr.rating) as avg_rating, COUNT(lr.id) as rating_count,
+               (
+                 6371 * acos(
+                   cos(radians($1)) * cos(radians(l.lat)) *
+                   cos(radians(l.lng) - radians($2)) +
+                   sin(radians($1)) * sin(radians(l.lat))
+                 )
+               ) as distance
+        FROM locations l
+        LEFT JOIN location_ratings lr ON lr.location_id = l.id
+        WHERE l.lat IS NOT NULL AND l.lng IS NOT NULL
+      `;
+      const params: any[] = [args.lat, args.lng];
+
+      if (args.type) {
+        query += ` AND l.type = $${params.length + 1}`;
+        params.push(args.type);
+      }
+
+      query += ` GROUP BY l.id ORDER BY distance ASC LIMIT $${params.length + 1}`;
+      params.push(limit);
+
+      const locations = await queryAll<any>(query, params);
+
+      return locations.map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        type: l.type,
+        city: l.city,
+        description: l.description,
+        lat: l.lat ? parseFloat(l.lat) : null,
+        lng: l.lng ? parseFloat(l.lng) : null,
+        avgRating: l.avg_rating ? parseFloat(l.avg_rating) : null,
+        ratingCount: parseInt(l.rating_count || '0', 10),
+        distance: l.distance ? parseFloat(l.distance) : null,
+        createdAt: l.created_at,
+      }));
+    },
+
+    searchLocations: async (
+      _: unknown,
+      args: { query: string; type?: string; limit?: number },
+      context: Context
+    ) => {
+      requireAuth(context);
+      const limit = Math.min(args.limit || 20, 100);
+      const searchPattern = `%${args.query}%`;
+
+      let query = `
+        SELECT l.id, l.name, l.type, l.city, l.description, l.lat, l.lng,
+               l.created_at,
+               AVG(lr.rating) as avg_rating, COUNT(lr.id) as rating_count
+        FROM locations l
+        LEFT JOIN location_ratings lr ON lr.location_id = l.id
+        WHERE (l.name ILIKE $1 OR l.city ILIKE $1 OR l.description ILIKE $1)
+      `;
+      const params: any[] = [searchPattern];
+
+      if (args.type) {
+        query += ` AND l.type = $${params.length + 1}`;
+        params.push(args.type);
+      }
+
+      query += ` GROUP BY l.id ORDER BY l.name LIMIT $${params.length + 1}`;
+      params.push(limit);
+
+      const locations = await queryAll<any>(query, params);
+
+      return locations.map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        type: l.type,
+        city: l.city,
+        description: l.description,
+        lat: l.lat ? parseFloat(l.lat) : null,
+        lng: l.lng ? parseFloat(l.lng) : null,
+        avgRating: l.avg_rating ? parseFloat(l.avg_rating) : null,
+        ratingCount: parseInt(l.rating_count || '0', 10),
+        distance: null,
+        createdAt: l.created_at,
+      }));
+    },
+
+    location: async (_: unknown, args: { id: string }, context: Context) => {
+      requireAuth(context);
+
+      const location = await queryOne<any>(
+        `SELECT l.id, l.name, l.type, l.city, l.description, l.lat, l.lng, l.created_at
+         FROM locations l WHERE l.id = $1`,
+        [args.id]
+      );
+
+      if (!location) return null;
+
+      const ratings = await queryOne<any>(
+        `SELECT AVG(rating) as avg_rating, AVG(safety_rating) as avg_safety,
+                AVG(crowd_level) as avg_crowd, AVG(cleanliness) as avg_clean,
+                COUNT(*) as total_ratings
+         FROM location_ratings WHERE location_id = $1`,
+        [args.id]
+      );
+
+      const amenities = await queryAll<any>(
+        `SELECT amenity, COUNT(*) as count
+         FROM location_amenities WHERE location_id = $1
+         GROUP BY amenity ORDER BY count DESC`,
+        [args.id]
+      );
+
+      const comments = await queryAll<any>(
+        `SELECT lr.id, lr.user_id, u.username, lr.comment, lr.upvotes, lr.created_at
+         FROM location_ratings lr
+         LEFT JOIN users u ON u.id = lr.user_id
+         WHERE lr.location_id = $1 AND lr.comment IS NOT NULL AND lr.comment != ''
+         ORDER BY lr.upvotes DESC, lr.created_at DESC
+         LIMIT 20`,
+        [args.id]
+      );
+
+      return {
+        location: {
+          id: location.id,
+          name: location.name,
+          type: location.type,
+          city: location.city,
+          description: location.description,
+          lat: location.lat ? parseFloat(location.lat) : null,
+          lng: location.lng ? parseFloat(location.lng) : null,
+          avgRating: ratings?.avg_rating ? parseFloat(ratings.avg_rating) : null,
+          ratingCount: parseInt(ratings?.total_ratings || '0', 10),
+          distance: null,
+          createdAt: location.created_at,
+        },
+        ratings: {
+          avgRating: ratings?.avg_rating ? parseFloat(ratings.avg_rating) : null,
+          avgSafety: ratings?.avg_safety ? parseFloat(ratings.avg_safety) : null,
+          avgCrowd: ratings?.avg_crowd ? parseFloat(ratings.avg_crowd) : null,
+          avgClean: ratings?.avg_clean ? parseFloat(ratings.avg_clean) : null,
+          totalRatings: parseInt(ratings?.total_ratings || '0', 10),
+        },
+        amenities: amenities.map((a: any) => ({
+          amenity: a.amenity,
+          count: parseInt(a.count, 10),
+        })),
+        comments: comments.map((c: any) => ({
+          id: c.id,
+          userId: c.user_id,
+          username: c.username,
+          comment: c.comment,
+          upvotes: parseInt(c.upvotes || '0', 10),
+          createdAt: c.created_at,
+        })),
       };
     },
 
@@ -12432,6 +13055,277 @@ export const resolvers = {
       return true;
     },
 
+    // ==========================================
+    // WEARABLES MUTATIONS
+    // ==========================================
+    syncWearables: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Update last sync timestamp
+      await query(
+        `UPDATE wearable_connections SET last_sync_at = NOW() WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        success: true,
+        message: 'Sync initiated',
+        lastSyncAt: new Date(),
+      };
+    },
+
+    // ==========================================
+    // PROGRESSION MUTATIONS
+    // ==========================================
+    createProgressionTarget: async (
+      _: unknown,
+      args: {
+        input: {
+          exerciseId?: string;
+          targetType: string;
+          currentValue: number;
+          targetValue: number;
+          incrementValue?: number;
+          incrementFrequency?: string;
+          targetDate?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      const result = await queryOne<any>(
+        `INSERT INTO progression_targets
+         (user_id, exercise_id, target_type, current_value, target_value,
+          increment_value, increment_frequency, target_date, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active')
+         RETURNING *`,
+        [
+          userId,
+          input.exerciseId || null,
+          input.targetType,
+          input.currentValue,
+          input.targetValue,
+          input.incrementValue || null,
+          input.incrementFrequency || null,
+          input.targetDate || null,
+        ]
+      );
+
+      return {
+        id: result.id,
+        exerciseId: result.exercise_id,
+        exerciseName: null,
+        targetType: result.target_type,
+        currentValue: parseFloat(result.current_value),
+        targetValue: parseFloat(result.target_value),
+        incrementValue: result.increment_value ? parseFloat(result.increment_value) : null,
+        incrementFrequency: result.increment_frequency,
+        targetDate: result.target_date,
+        status: result.status,
+        progress: (parseFloat(result.current_value) / parseFloat(result.target_value)) * 100,
+        createdAt: result.created_at,
+        completedAt: null,
+      };
+    },
+
+    updateProgressionTarget: async (
+      _: unknown,
+      args: { id: string; currentValue: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      const existing = await queryOne<any>(
+        `SELECT * FROM progression_targets WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      if (!existing) {
+        throw new GraphQLError('Target not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      const targetValue = parseFloat(existing.target_value);
+      const newStatus = args.currentValue >= targetValue ? 'completed' : 'active';
+      const completedAt = newStatus === 'completed' ? new Date() : null;
+
+      const result = await queryOne<any>(
+        `UPDATE progression_targets
+         SET current_value = $1, status = $2, completed_at = $3, updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [args.currentValue, newStatus, completedAt, args.id]
+      );
+
+      return {
+        id: result.id,
+        exerciseId: result.exercise_id,
+        exerciseName: null,
+        targetType: result.target_type,
+        currentValue: parseFloat(result.current_value),
+        targetValue: parseFloat(result.target_value),
+        incrementValue: result.increment_value ? parseFloat(result.increment_value) : null,
+        incrementFrequency: result.increment_frequency,
+        targetDate: result.target_date,
+        status: result.status,
+        progress: (parseFloat(result.current_value) / parseFloat(result.target_value)) * 100,
+        createdAt: result.created_at,
+        completedAt: result.completed_at,
+      };
+    },
+
+    // ==========================================
+    // LOCATIONS MUTATIONS
+    // ==========================================
+    createLocation: async (
+      _: unknown,
+      args: {
+        input: {
+          name: string;
+          type: string;
+          city?: string;
+          description?: string;
+          lat?: number;
+          lng?: number;
+          amenities?: string[];
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      const result = await queryOne<any>(
+        `INSERT INTO locations (name, type, city, description, lat, lng, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [input.name, input.type, input.city, input.description, input.lat, input.lng, userId]
+      );
+
+      // Add amenities if provided
+      if (input.amenities && input.amenities.length > 0) {
+        for (const amenity of input.amenities) {
+          await query(
+            `INSERT INTO location_amenities (location_id, amenity) VALUES ($1, $2)`,
+            [result.id, amenity]
+          );
+        }
+      }
+
+      return {
+        id: result.id,
+        name: result.name,
+        type: result.type,
+        city: result.city,
+        description: result.description,
+        lat: result.lat ? parseFloat(result.lat) : null,
+        lng: result.lng ? parseFloat(result.lng) : null,
+        avgRating: null,
+        ratingCount: 0,
+        distance: null,
+        createdAt: result.created_at,
+      };
+    },
+
+    rateLocation: async (
+      _: unknown,
+      args: {
+        locationId: string;
+        input: {
+          rating: number;
+          safetyRating?: number;
+          crowdLevel?: number;
+          cleanliness?: number;
+          comment?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { locationId, input } = args;
+
+      // Check if user already rated this location
+      const existing = await queryOne(
+        `SELECT id FROM location_ratings WHERE location_id = $1 AND user_id = $2`,
+        [locationId, userId]
+      );
+
+      let result;
+      if (existing) {
+        result = await queryOne<any>(
+          `UPDATE location_ratings
+           SET rating = $1, safety_rating = $2, crowd_level = $3, cleanliness = $4, comment = $5, updated_at = NOW()
+           WHERE location_id = $6 AND user_id = $7
+           RETURNING *`,
+          [input.rating, input.safetyRating, input.crowdLevel, input.cleanliness, input.comment, locationId, userId]
+        );
+      } else {
+        result = await queryOne<any>(
+          `INSERT INTO location_ratings (location_id, user_id, rating, safety_rating, crowd_level, cleanliness, comment)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *`,
+          [locationId, userId, input.rating, input.safetyRating, input.crowdLevel, input.cleanliness, input.comment]
+        );
+      }
+
+      return {
+        id: result.id,
+        locationId: result.location_id,
+        rating: result.rating,
+        safetyRating: result.safety_rating,
+        crowdLevel: result.crowd_level,
+        cleanliness: result.cleanliness,
+        comment: result.comment,
+        createdAt: result.created_at,
+      };
+    },
+
+    voteLocationComment: async (
+      _: unknown,
+      args: { commentId: string; vote: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const vote = args.vote > 0 ? 1 : -1;
+
+      // Upsert vote
+      await query(
+        `INSERT INTO location_comment_votes (rating_id, user_id, vote)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (rating_id, user_id) DO UPDATE SET vote = EXCLUDED.vote`,
+        [args.commentId, userId, vote]
+      );
+
+      // Recalculate upvotes
+      const upvotes = await queryOne<{ sum: string }>(
+        `SELECT COALESCE(SUM(vote), 0) as sum FROM location_comment_votes WHERE rating_id = $1`,
+        [args.commentId]
+      );
+
+      await query(
+        `UPDATE location_ratings SET upvotes = $1 WHERE id = $2`,
+        [parseInt(upvotes?.sum || '0', 10), args.commentId]
+      );
+
+      const result = await queryOne<any>(
+        `SELECT lr.id, lr.user_id, u.username, lr.comment, lr.upvotes, lr.created_at
+         FROM location_ratings lr
+         LEFT JOIN users u ON u.id = lr.user_id
+         WHERE lr.id = $1`,
+        [args.commentId]
+      );
+
+      return {
+        id: result.id,
+        userId: result.user_id,
+        username: result.username,
+        comment: result.comment,
+        upvotes: parseInt(result.upvotes || '0', 10),
+        createdAt: result.created_at,
+      };
+    },
+
     // Community - Update Presence
     updatePresence: async (_: unknown, args: { status: string }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -12889,3 +13783,8 @@ export const resolvers = {
 // Merge outdoor equipment resolvers into Query and Mutation
 Object.assign(resolvers.Query, outdoorEquipmentQueries);
 Object.assign(resolvers.Mutation, outdoorEquipmentMutations);
+
+// Merge venue records resolvers into Query and Mutation
+Object.assign(resolvers.Query, venueRecordsQueries);
+Object.assign(resolvers.Mutation, venueRecordsMutations);
+Object.assign(resolvers, venueRecordsTypeResolvers);
