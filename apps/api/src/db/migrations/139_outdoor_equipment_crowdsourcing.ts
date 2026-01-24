@@ -368,9 +368,10 @@ export async function up(): Promise<void> {
     await db.query(`CREATE INDEX IF NOT EXISTS idx_contributions_review ON venue_contributions(is_flagged, review_status) WHERE is_flagged = TRUE`);
 
     // Daily contribution limit per user per venue
+    // Use date_trunc instead of DATE() for index compatibility
     await db.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_contributions_daily_verify
-      ON venue_contributions(venue_id, user_id, DATE(contributed_at), contribution_type)
+      ON venue_contributions(venue_id, user_id, (contributed_at::date), contribution_type)
       WHERE contribution_type IN ('verify_exists', 'verify_equipment')
     `);
   }

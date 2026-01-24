@@ -217,7 +217,7 @@ const categoryStyles = {
   test: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Test' },
 };
 
-function _CategoryCard({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: React.ElementType }) {
+function CategoryCard({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: React.ElementType }) {
   return (
     <div className="text-center p-3 bg-white/5 rounded-lg">
       <Icon className="w-5 h-5 mx-auto mb-2" style={{ color }} />
@@ -1366,10 +1366,11 @@ export default function EmpireControl() {
                       color="#06b6d4"
                     />
                     <StatCard
-                      title="Total Users"
-                      value={totalUsers}
+                      title="Real Users"
+                      value={userStats.realUsers}
                       icon={Users}
                       color="#8b5cf6"
+                      onClick={() => setActiveSection('users')}
                     />
                     <StatCard
                       title="Requests"
@@ -1378,6 +1379,22 @@ export default function EmpireControl() {
                       color="#f59e0b"
                     />
                   </div>
+
+                  {/* User Categories Breakdown */}
+                  <GlassSurface className="p-4">
+                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-violet-400" />
+                      User Categories
+                    </h3>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                      <CategoryCard label="Owner" count={userStats.byCategory.owner} color="#fbbf24" icon={Crown} />
+                      <CategoryCard label="Team" count={userStats.byCategory.team} color="#8b5cf6" icon={Shield} />
+                      <CategoryCard label="Beta Testers" count={userStats.byCategory.beta_tester} color="#06b6d4" icon={Zap} />
+                      <CategoryCard label="Friends & Family" count={userStats.byCategory.friends_family} color="#f472b6" icon={Heart} />
+                      <CategoryCard label="Public" count={userStats.byCategory.public} color="#10b981" icon={Globe} />
+                      <CategoryCard label="Test" count={userStats.byCategory.test} color="#6b7280" icon={Bug} />
+                    </div>
+                  </GlassSurface>
 
                   {/* Quick Actions */}
                   <GlassSurface className="p-4">
