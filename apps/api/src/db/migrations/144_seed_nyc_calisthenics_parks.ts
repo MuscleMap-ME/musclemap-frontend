@@ -431,8 +431,7 @@ export async function migrate(): Promise<void> {
              is_verified, created_at, updated_at
            ) VALUES (
              $1, $2, $3, $4, $5, $6, NOW(), NOW()
-           )
-           ON CONFLICT (venue_id, equipment_type) DO NOTHING`,
+           )`,
           [
             equipmentId,
             venueId,
