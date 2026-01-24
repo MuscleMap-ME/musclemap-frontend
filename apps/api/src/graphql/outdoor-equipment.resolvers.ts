@@ -977,14 +977,15 @@ export const outdoorEquipmentQueries = {
       let paramIndex = 1;
 
       let sql = `
-        SELECT id, name, muscle_groups, equipment_required, instructions, difficulty
+        SELECT id, name, primary_muscles, equipment_required, description, difficulty
         FROM exercises
         WHERE (equipment_required IS NULL OR equipment_required = '[]'::jsonb)
         AND is_active = true
       `;
 
       if (muscleGroup) {
-        sql += ` AND $${paramIndex} = ANY(SELECT jsonb_array_elements_text(muscle_groups))`;
+        // primary_muscles is a comma-separated text field
+        sql += ` AND primary_muscles ILIKE '%' || $${paramIndex} || '%'`;
         params.push(muscleGroup);
         paramIndex++;
       }
@@ -1028,7 +1029,7 @@ export const outdoorEquipmentQueries = {
     let paramIndex = 1;
 
     let sql = `
-      SELECT id, name, muscle_groups, equipment_required, instructions, difficulty
+      SELECT id, name, primary_muscles, equipment_required, description, difficulty
       FROM exercises
       WHERE is_active = true
       AND (
@@ -1044,7 +1045,8 @@ export const outdoorEquipmentQueries = {
     paramIndex++;
 
     if (muscleGroup) {
-      sql += ` AND $${paramIndex} = ANY(SELECT jsonb_array_elements_text(muscle_groups))`;
+      // primary_muscles is a comma-separated text field
+      sql += ` AND primary_muscles ILIKE '%' || $${paramIndex} || '%'`;
       params.push(muscleGroup);
       paramIndex++;
     }
