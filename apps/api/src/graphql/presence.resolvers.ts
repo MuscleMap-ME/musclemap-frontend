@@ -877,6 +877,13 @@ export const presenceTypeDefs = `
     error: String
   }
 
+  # Generic mutation result for simple success/error responses
+  type PresenceMutationResult {
+    success: Boolean!
+    message: String
+    error: String
+  }
+
   # Inputs
   input PresenceSettingsInput {
     sharePresence: Boolean
@@ -979,7 +986,7 @@ export const presenceTypeDefs = `
 
     # Presence
     updateMyPresence(input: PresenceUpdateInput!): UserPresence!
-    goInvisible: MutationResult!
+    goInvisible: PresenceMutationResult!
 
     # Check-in
     venueCheckIn(input: VenueCheckInInput!): CheckInResult!
@@ -991,7 +998,7 @@ export const presenceTypeDefs = `
     declineTrainingInvite(inviteId: ID!, message: String): TrainingInviteResult!
 
     # Admin
-    expireStalePresence: MutationResult!
+    expireStalePresence: PresenceMutationResult!
   }
 
   # Extend Subscription
