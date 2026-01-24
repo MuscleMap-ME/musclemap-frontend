@@ -400,7 +400,7 @@ export async function migrate(): Promise<void> {
           location.neighborhood || null,
           'New York',
           'United States',
-          'seed_data',
+          'manual',
           JSON.stringify(location.amenities || []),
           location.isFree,
           true, // has_calisthenics_equipment
@@ -459,16 +459,20 @@ export async function rollback(): Promise<void> {
   await ensurePoolReady();
   log.info('Rolling back migration: 144_seed_nyc_calisthenics_parks');
 
-  // Delete equipment items for seed data venues
+  // Generate slugs for all seeded locations
+  const slugs = NYC_CALISTHENICS_PARKS.map((loc) => generateSlug(loc.name));
+
+  // Delete equipment items for seeded venues
   await db.query(
     `DELETE FROM venue_equipment_items
      WHERE venue_id IN (
-       SELECT id FROM fitness_venues WHERE data_source = 'seed_data'
-     )`
+       SELECT id FROM fitness_venues WHERE slug = ANY($1)
+     )`,
+    [slugs]
   );
 
-  // Delete seed data venues
-  await db.query(`DELETE FROM fitness_venues WHERE data_source = 'seed_data'`);
+  // Delete seeded venues by slug
+  await db.query(`DELETE FROM fitness_venues WHERE slug = ANY($1)`, [slugs]);
 
-  log.info('Rollback complete: seed data venues and equipment removed');
+  log.info('Rollback complete: seeded NYC calisthenics parks removed');
 }
