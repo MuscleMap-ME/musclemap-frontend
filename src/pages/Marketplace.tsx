@@ -1,8 +1,62 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  MARKETPLACE_LISTINGS_QUERY,
+  MARKETPLACE_WATCHLIST_QUERY,
+  MARKETPLACE_STATS_QUERY,
+  ECONOMY_WALLET_QUERY,
+  PURCHASE_LISTING_MUTATION,
+  MAKE_OFFER_MUTATION,
+  ADD_TO_WATCHLIST_MUTATION,
+  REMOVE_FROM_WATCHLIST_MUTATION,
+} from '../graphql';
+
+// =====================================================
+// TYPES
+// =====================================================
+
+interface MarketplaceListing {
+  id: string;
+  sellerId: string;
+  listingType: string;
+  price: number | null;
+  currentBid: number | null;
+  bidCount: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+  cosmeticName: string;
+  cosmeticIcon: string | null;
+  rarity: string;
+  category: string | null;
+  sellerUsername: string;
+  allowOffers: boolean | null;
+  minOffer: number | null;
+}
+
+interface WatchlistItem {
+  id: string;
+  listingId: string;
+  price: number | null;
+  listingType: string | null;
+  expiresAt: string | null;
+  status: string | null;
+  cosmeticName: string | null;
+  cosmeticIcon: string | null;
+  rarity: string | null;
+  createdAt: string | null;
+}
+
+interface MarketplaceStats {
+  totalSales: number;
+  totalPurchases: number;
+  totalRevenue: number;
+  avgRating: number | null;
+  sellerLevel: number;
+  feeDiscount: number;
+}
 
 // =====================================================
 // ICONS
@@ -31,7 +85,7 @@ const Icons = {
 // CONSTANTS
 // =====================================================
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; border: string; bg: string; textColor: string }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', border: 'border-gray-500/30', bg: 'bg-gray-500/10', textColor: 'text-gray-400' },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', border: 'border-green-500/30', bg: 'bg-green-500/10', textColor: 'text-green-400' },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', border: 'border-blue-500/30', bg: 'bg-blue-500/10', textColor: 'text-blue-400' },
@@ -72,20 +126,13 @@ const CATEGORY_OPTIONS = [
 // =====================================================
 
 export default function Marketplace() {
-  const { token } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // State
-  const [listings, setListings] = useState([]);
-  const [wallet, setWallet] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
-  const [myStats, setMyStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedListing, setSelectedListing] = useState(null);
+  const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
   // Filters
@@ -97,77 +144,49 @@ export default function Marketplace() {
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
 
-  const [cursor, setCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-
-  // =====================================================
-  // DATA FETCHING
-  // =====================================================
-
-  const fetchListings = useCallback(async (resetCursor = true) => {
-    if (resetCursor) {
-      setLoading(true);
-      setCursor(null);
+  // GraphQL queries
+  const { data: listingsData, loading: listingsLoading, refetch: refetchListings, fetchMore } = useQuery(
+    MARKETPLACE_LISTINGS_QUERY,
+    {
+      variables: {
+        search: search || undefined,
+        listingType: listingType !== 'all' ? listingType : undefined,
+        category: category !== 'all' ? category : undefined,
+        rarity: rarity !== 'all' ? rarity : undefined,
+        sortBy: sortBy || 'newest',
+        minPrice: minPrice ? parseInt(minPrice) : undefined,
+        maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+        limit: 24,
+      },
+      fetchPolicy: 'cache-and-network',
     }
+  );
 
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (listingType !== 'all') params.set('listingType', listingType);
-      if (category !== 'all') params.set('category', category);
-      if (rarity !== 'all') params.set('rarity', rarity);
-      if (sortBy) params.set('sortBy', sortBy);
-      if (minPrice) params.set('minPrice', minPrice);
-      if (maxPrice) params.set('maxPrice', maxPrice);
-      if (!resetCursor && cursor) params.set('cursor', cursor);
-      params.set('limit', '24');
+  const { data: walletData, refetch: refetchWallet } = useQuery(ECONOMY_WALLET_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-      const res = await fetch(`/api/marketplace?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+  const { data: watchlistData, refetch: refetchWatchlist } = useQuery(MARKETPLACE_WATCHLIST_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-      if (resetCursor) {
-        setListings(data.data?.listings || []);
-      } else {
-        setListings(prev => [...prev, ...(data.data?.listings || [])]);
-      }
+  const { data: statsData } = useQuery(MARKETPLACE_STATS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-      setCursor(data.data?.nextCursor || null);
-      setHasMore(!!data.data?.nextCursor);
-    } catch (err) {
-      console.error('Failed to fetch listings:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, search, listingType, category, rarity, sortBy, minPrice, maxPrice, cursor]);
+  // Mutations
+  const [purchaseListingMutation, { loading: purchaseLoading }] = useMutation(PURCHASE_LISTING_MUTATION);
+  const [makeOfferMutation, { loading: offerLoading }] = useMutation(MAKE_OFFER_MUTATION);
+  const [addToWatchlistMutation] = useMutation(ADD_TO_WATCHLIST_MUTATION);
+  const [removeFromWatchlistMutation] = useMutation(REMOVE_FROM_WATCHLIST_MUTATION);
 
-  const fetchInitialData = useCallback(async () => {
-    try {
-      const [walletRes, watchlistRes, statsRes] = await Promise.all([
-        fetch('/api/wallet', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/marketplace/watchlist', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/marketplace/my-stats', { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-
-      const [walletData, watchlistData, statsData] = await Promise.all([
-        walletRes.json(),
-        watchlistRes.json(),
-        statsRes.json(),
-      ]);
-
-      setWallet(walletData.data);
-      setWatchlist(watchlistData.data || []);
-      setMyStats(statsData.data);
-    } catch (err) {
-      console.error('Failed to fetch initial data:', err);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchInitialData();
-    fetchListings(true);
-  }, [fetchInitialData, fetchListings]);
+  // Derived data
+  const listings: MarketplaceListing[] = listingsData?.marketplaceListings?.listings || [];
+  const hasMore = listingsData?.marketplaceListings?.hasMore || false;
+  const nextCursor = listingsData?.marketplaceListings?.nextCursor;
+  const wallet = walletData?.economyWallet;
+  const watchlist: WatchlistItem[] = watchlistData?.marketplaceWatchlist || [];
+  const myStats: MarketplaceStats | null = statsData?.marketplaceStats || null;
 
   // Update URL params when filters change
   useEffect(() => {
@@ -182,112 +201,116 @@ export default function Marketplace() {
     setSearchParams(params);
   }, [search, listingType, category, rarity, sortBy, minPrice, maxPrice, setSearchParams]);
 
+  // Refetch when filters change
+  useEffect(() => {
+    refetchListings();
+  }, [search, listingType, category, rarity, sortBy, minPrice, maxPrice, refetchListings]);
+
   // =====================================================
   // ACTIONS
   // =====================================================
 
-  const showSnackbar = (message, type = 'success') => {
+  const showSnackbar = (message: string, type = 'success') => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const buyNow = async (listingId) => {
-    setSubmitting(true);
+  const buyNow = async (listingId: string) => {
     try {
-      const res = await fetch(`/api/marketplace/listings/${listingId}/buy`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+      const { data } = await purchaseListingMutation({
+        variables: { listingId },
       });
-      const data = await res.json();
 
-      if (data.data?.success) {
+      if (data?.purchaseListing?.success) {
         showSnackbar('Purchase successful!', 'success');
         setSelectedListing(null);
-        fetchListings(true);
-        fetchInitialData();
+        refetchListings();
+        refetchWallet();
       } else {
-        showSnackbar(data.error?.message || 'Purchase failed', 'error');
+        showSnackbar(data?.purchaseListing?.message || 'Purchase failed', 'error');
       }
-    } catch (_err) {
-      showSnackbar('Purchase failed', 'error');
-    } finally {
-      setSubmitting(false);
+    } catch (err: any) {
+      showSnackbar(err.message || 'Purchase failed', 'error');
     }
   };
 
-  const makeOffer = async (listingId) => {
+  const makeOffer = async (listingId: string) => {
     if (!offerAmount || parseInt(offerAmount) <= 0) {
       showSnackbar('Please enter a valid offer amount', 'error');
       return;
     }
 
-    setSubmitting(true);
     try {
-      const res = await fetch(`/api/marketplace/listings/${listingId}/offer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const { data } = await makeOfferMutation({
+        variables: {
+          listingId,
           amount: parseInt(offerAmount),
           message: offerMessage || undefined,
-        }),
+        },
       });
-      const data = await res.json();
 
-      if (data.data) {
+      if (data?.makeOffer?.success) {
         showSnackbar('Offer submitted!', 'success');
         setOfferAmount('');
         setOfferMessage('');
         setSelectedListing(null);
       } else {
-        showSnackbar(data.error?.message || 'Failed to submit offer', 'error');
+        showSnackbar(data?.makeOffer?.message || 'Failed to submit offer', 'error');
       }
-    } catch (_err) {
-      showSnackbar('Failed to submit offer', 'error');
-    } finally {
-      setSubmitting(false);
+    } catch (err: any) {
+      showSnackbar(err.message || 'Failed to submit offer', 'error');
     }
   };
 
-  const toggleWatchlist = async (listingId) => {
-    const isWatched = watchlist.some(w => w.listing_id === listingId);
+  const toggleWatchlist = async (listingId: string) => {
+    const isWatched = watchlist.some(w => w.listingId === listingId);
 
     try {
       if (isWatched) {
-        await fetch(`/api/marketplace/watchlist/${listingId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+        await removeFromWatchlistMutation({
+          variables: { listingId },
         });
-        setWatchlist(prev => prev.filter(w => w.listing_id !== listingId));
       } else {
-        await fetch('/api/marketplace/watchlist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ listingId }),
+        await addToWatchlistMutation({
+          variables: { listingId },
         });
-        setWatchlist(prev => [...prev, { listing_id: listingId }]);
       }
+      refetchWatchlist();
     } catch (err) {
       console.error('Failed to update watchlist:', err);
     }
   };
 
-  const isWatched = (listingId) => watchlist.some(w => w.listing_id === listingId);
-  const canAfford = (price) => (wallet?.balance || 0) >= price;
+  const loadMore = async () => {
+    if (!nextCursor || listingsLoading) return;
+
+    await fetchMore({
+      variables: { cursor: nextCursor },
+      updateQuery: (prev, { fetchMoreResult }) => {
+        if (!fetchMoreResult) return prev;
+        return {
+          marketplaceListings: {
+            ...fetchMoreResult.marketplaceListings,
+            listings: [
+              ...prev.marketplaceListings.listings,
+              ...fetchMoreResult.marketplaceListings.listings,
+            ],
+          },
+        };
+      },
+    });
+  };
+
+  const isWatched = (listingId: string) => watchlist.some(w => w.listingId === listingId);
+  const canAfford = (price: number | null) => (wallet?.balance || 0) >= (price || 0);
+
+  const submitting = purchaseLoading || offerLoading;
 
   // =====================================================
   // RENDER
   // =====================================================
 
-  if (loading && listings.length === 0) {
+  if (listingsLoading && listings.length === 0) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -351,7 +374,9 @@ export default function Marketplace() {
         {/* Search Bar */}
         <div className="flex gap-2 mb-6">
           <div className="relative flex-1">
-            <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <Icons.Search />
+            </span>
             <input
               type="text"
               placeholder="Search marketplace..."
@@ -489,9 +514,11 @@ export default function Marketplace() {
           ))}
         </div>
 
-        {listings.length === 0 && !loading && (
+        {listings.length === 0 && !listingsLoading && (
           <div className="text-center py-16">
-            <Icons.ShoppingBag className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+            <span className="w-12 h-12 mx-auto text-gray-600 mb-4 block">
+              <Icons.ShoppingBag />
+            </span>
             <p className="text-gray-400">No listings found</p>
             <p className="text-sm text-gray-500 mt-1">Try adjusting your filters</p>
           </div>
@@ -501,11 +528,11 @@ export default function Marketplace() {
         {hasMore && listings.length > 0 && (
           <div className="text-center mt-8">
             <button
-              onClick={() => fetchListings(false)}
-              disabled={loading}
+              onClick={loadMore}
+              disabled={listingsLoading}
               className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors disabled:opacity-50"
             >
-              {loading ? 'Loading...' : 'Load More'}
+              {listingsLoading ? 'Loading...' : 'Load More'}
             </button>
           </div>
         )}
@@ -513,22 +540,30 @@ export default function Marketplace() {
         {/* Quick Links */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
           <Link to="/trades" className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-center">
-            <Icons.Exchange className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+            <span className="w-8 h-8 mx-auto mb-2 text-blue-400 block">
+              <Icons.Exchange />
+            </span>
             <p className="font-medium">Trading</p>
             <p className="text-sm text-gray-400">P2P Trades</p>
           </Link>
           <Link to="/collection" className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-center">
-            <Icons.Eye className="w-8 h-8 mx-auto mb-2 text-green-400" />
+            <span className="w-8 h-8 mx-auto mb-2 text-green-400 block">
+              <Icons.Eye />
+            </span>
             <p className="font-medium">Collection</p>
             <p className="text-sm text-gray-400">Your Items</p>
           </Link>
           <Link to="/mystery-boxes" className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-center">
-            <Icons.Gift className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+            <span className="w-8 h-8 mx-auto mb-2 text-purple-400 block">
+              <Icons.Gift />
+            </span>
             <p className="font-medium">Mystery Boxes</p>
             <p className="text-sm text-gray-400">Open Boxes</p>
           </Link>
           <Link to="/marketplace/watchlist" className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-center">
-            <Icons.Heart className="w-8 h-8 mx-auto mb-2 text-pink-400" />
+            <span className="w-8 h-8 mx-auto mb-2 text-pink-400 block">
+              <Icons.Heart />
+            </span>
             <p className="font-medium">Watchlist</p>
             <p className="text-sm text-gray-400">{watchlist.length} items</p>
           </Link>
@@ -596,9 +631,18 @@ export default function Marketplace() {
 // LISTING CARD COMPONENT
 // =====================================================
 
-function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick }) {
-  const rarity = RARITY_CONFIG[listing.rarity] || RARITY_CONFIG.common;
-  const timeLeft = getTimeLeft(listing.expires_at);
+interface ListingCardProps {
+  listing: MarketplaceListing;
+  isWatched: boolean;
+  canAfford: boolean;
+  onWatchlistToggle: () => void;
+  onClick: () => void;
+}
+
+function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick }: ListingCardProps) {
+  const rarityKey = listing.rarity?.toLowerCase() || 'common';
+  const rarityConfig = RARITY_CONFIG[rarityKey] || RARITY_CONFIG.common;
+  const timeLeft = getTimeLeft(listing.expiresAt);
 
   return (
     <motion.div
@@ -608,7 +652,7 @@ function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick
       onClick={onClick}
       className={clsx(
         'relative overflow-hidden rounded-2xl border cursor-pointer transition-all',
-        rarity.border, rarity.bg
+        rarityConfig.border, rarityConfig.bg
       )}
     >
       {/* Watchlist Button */}
@@ -623,18 +667,18 @@ function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick
       <div className="absolute top-2 left-2 z-10">
         <span className={clsx(
           'px-2 py-0.5 text-xs font-medium rounded-full',
-          listing.listing_type === 'auction' ? 'bg-amber-500 text-black' :
-          listing.listing_type === 'offer_only' ? 'bg-blue-500 text-white' :
+          listing.listingType === 'auction' ? 'bg-amber-500 text-black' :
+          listing.listingType === 'offer_only' ? 'bg-blue-500 text-white' :
           'bg-green-500 text-black'
         )}>
-          {listing.listing_type === 'auction' ? 'Auction' :
-           listing.listing_type === 'offer_only' ? 'Offers' : 'Buy Now'}
+          {listing.listingType === 'auction' ? 'Auction' :
+           listing.listingType === 'offer_only' ? 'Offers' : 'Buy Now'}
         </span>
       </div>
 
       {/* Item Preview */}
-      <div className={clsx('h-24 bg-gradient-to-br flex items-center justify-center', rarity.color, 'opacity-30')}>
-        <span className="text-5xl">{listing.cosmetic_icon || '🎨'}</span>
+      <div className={clsx('h-24 bg-gradient-to-br flex items-center justify-center', rarityConfig.color, 'opacity-30')}>
+        <span className="text-5xl">{listing.cosmeticIcon || '🎨'}</span>
       </div>
 
       <div className="p-4">
@@ -642,16 +686,16 @@ function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick
         <div className="flex items-center gap-2 mb-2">
           <span className={clsx(
             'px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-r text-white',
-            rarity.color
+            rarityConfig.color
           )}>
-            {rarity.label}
+            {rarityConfig.label}
           </span>
         </div>
 
-        <h3 className="font-semibold mb-1 line-clamp-1">{listing.cosmetic_name || listing.name}</h3>
+        <h3 className="font-semibold mb-1 line-clamp-1">{listing.cosmeticName}</h3>
 
         {/* Time Left (for auctions) */}
-        {listing.listing_type === 'auction' && timeLeft && (
+        {listing.listingType === 'auction' && timeLeft && (
           <div className="flex items-center gap-1 text-sm text-amber-400 mb-2">
             <Icons.Clock className="w-4 h-4" />
             <span>{timeLeft}</span>
@@ -661,13 +705,15 @@ function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick
         {/* Price */}
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-1">
-            <Icons.Sparkle className={clsx('w-4 h-4', canAfford ? 'text-violet-400' : 'text-red-400')} />
+            <span className={clsx('w-4 h-4', canAfford ? 'text-violet-400' : 'text-red-400')}>
+              <Icons.Sparkle />
+            </span>
             <span className={clsx('font-bold', canAfford ? 'text-white' : 'text-red-400')}>
               {(listing.price || 0).toLocaleString()}
             </span>
           </div>
-          {listing.bid_count > 0 && (
-            <span className="text-xs text-gray-400">{listing.bid_count} bids</span>
+          {(listing.bidCount ?? 0) > 0 && (
+            <span className="text-xs text-gray-400">{listing.bidCount} bids</span>
           )}
         </div>
       </div>
@@ -678,6 +724,22 @@ function ListingCard({ listing, isWatched, canAfford, onWatchlistToggle, onClick
 // =====================================================
 // LISTING DETAIL MODAL
 // =====================================================
+
+interface ListingDetailModalProps {
+  listing: MarketplaceListing;
+  wallet: { balance: number } | null | undefined;
+  canAfford: boolean;
+  isWatched: boolean;
+  onWatchlistToggle: () => void;
+  onBuyNow: () => void;
+  onMakeOffer: () => void;
+  offerAmount: string;
+  setOfferAmount: (value: string) => void;
+  offerMessage: string;
+  setOfferMessage: (value: string) => void;
+  submitting: boolean;
+  onClose: () => void;
+}
 
 function ListingDetailModal({
   listing,
@@ -693,8 +755,9 @@ function ListingDetailModal({
   setOfferMessage,
   submitting,
   onClose,
-}) {
-  const rarity = RARITY_CONFIG[listing.rarity] || RARITY_CONFIG.common;
+}: ListingDetailModalProps) {
+  const rarityKey = listing.rarity?.toLowerCase() || 'common';
+  const rarityConfig = RARITY_CONFIG[rarityKey] || RARITY_CONFIG.common;
   const [showOfferForm, setShowOfferForm] = useState(false);
 
   return (
@@ -702,10 +765,10 @@ function ListingDetailModal({
       {/* Header gradient */}
       <div className={clsx(
         'h-40 bg-gradient-to-br relative',
-        rarity.color
+        rarityConfig.color
       )}>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-8xl opacity-50">{listing.cosmetic_icon || '🎨'}</span>
+          <span className="text-8xl opacity-50">{listing.cosmeticIcon || '🎨'}</span>
         </div>
         <button
           onClick={onClose}
@@ -720,18 +783,18 @@ function ListingDetailModal({
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className={clsx(
             'px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-r text-white',
-            rarity.color
+            rarityConfig.color
           )}>
-            {rarity.label}
+            {rarityConfig.label}
           </span>
           <span className={clsx(
             'px-2 py-0.5 text-xs font-medium rounded-full',
-            listing.listing_type === 'auction' ? 'bg-amber-500/20 text-amber-400' :
-            listing.listing_type === 'offer_only' ? 'bg-blue-500/20 text-blue-400' :
+            listing.listingType === 'auction' ? 'bg-amber-500/20 text-amber-400' :
+            listing.listingType === 'offer_only' ? 'bg-blue-500/20 text-blue-400' :
             'bg-green-500/20 text-green-400'
           )}>
-            {listing.listing_type === 'auction' ? 'Auction' :
-             listing.listing_type === 'offer_only' ? 'Offers Only' : 'Buy Now'}
+            {listing.listingType === 'auction' ? 'Auction' :
+             listing.listingType === 'offer_only' ? 'Offers Only' : 'Buy Now'}
           </span>
           <button
             onClick={onWatchlistToggle}
@@ -740,24 +803,21 @@ function ListingDetailModal({
               isWatched ? 'bg-pink-500/20 text-pink-400' : 'bg-white/10 text-gray-400'
             )}
           >
-            {isWatched ? <Icons.HeartFilled className="w-3 h-3" /> : <Icons.Heart className="w-3 h-3" />}
+            {isWatched ? <span className="w-3 h-3"><Icons.HeartFilled /></span> : <span className="w-3 h-3"><Icons.Heart /></span>}
             {isWatched ? 'Watching' : 'Watch'}
           </button>
         </div>
 
-        <h2 className="text-2xl font-bold mb-2">{listing.cosmetic_name || listing.name}</h2>
-        <p className="text-gray-400 mb-4">{listing.cosmetic_description || listing.description}</p>
+        <h2 className="text-2xl font-bold mb-2">{listing.cosmeticName}</h2>
 
         {/* Seller Info */}
         <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl mb-4">
           <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-lg font-bold">
-            {(listing.seller_username || 'S')[0].toUpperCase()}
+            {(listing.sellerUsername || 'S')[0].toUpperCase()}
           </div>
           <div>
-            <p className="font-medium">{listing.seller_username || 'Seller'}</p>
-            <p className="text-sm text-gray-400">
-              {listing.seller_rating ? `${listing.seller_rating}% positive` : 'New seller'}
-            </p>
+            <p className="font-medium">{listing.sellerUsername || 'Seller'}</p>
+            <p className="text-sm text-gray-400">Seller</p>
           </div>
         </div>
 
@@ -765,17 +825,16 @@ function ListingDetailModal({
         <div className="p-4 bg-white/5 rounded-xl mb-4">
           <div className="flex items-center justify-between">
             <span className="text-gray-400">
-              {listing.listing_type === 'auction' ? 'Current Bid' : 'Price'}
+              {listing.listingType === 'auction' ? 'Current Bid' : 'Price'}
             </span>
             <div className="flex items-center gap-2">
-              <Icons.Sparkle className="text-violet-400" />
+              <span className="text-violet-400"><Icons.Sparkle /></span>
               <span className="text-2xl font-bold">{(listing.price || 0).toLocaleString()}</span>
             </div>
           </div>
-          {listing.listing_type === 'auction' && (
+          {listing.listingType === 'auction' && (
             <div className="flex items-center justify-between mt-2 text-sm text-gray-400">
-              <span>Min bid increment: {listing.bid_increment}</span>
-              <span>{listing.bid_count || 0} bids</span>
+              <span>Bids: {listing.bidCount || 0}</span>
             </div>
           )}
         </div>
@@ -784,19 +843,19 @@ function ListingDetailModal({
         <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl mb-4">
           <span className="text-gray-400">Your Balance</span>
           <div className="flex items-center gap-2">
-            <Icons.Sparkle className="text-violet-400 w-4 h-4" />
+            <span className="text-violet-400 w-4 h-4"><Icons.Sparkle /></span>
             <span className="font-bold">{(wallet?.balance || 0).toLocaleString()}</span>
           </div>
         </div>
 
         {/* Actions */}
-        {listing.listing_type === 'buy_now' && (
+        {listing.listingType === 'buy_now' && (
           <div className="space-y-3">
             {!canAfford ? (
               <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-center">
                 <p className="text-red-400 font-medium">Insufficient credits</p>
                 <p className="text-sm text-gray-400">
-                  You need {(listing.price - (wallet?.balance || 0)).toLocaleString()} more credits
+                  You need {((listing.price || 0) - (wallet?.balance || 0)).toLocaleString()} more credits
                 </p>
               </div>
             ) : (
@@ -805,11 +864,11 @@ function ListingDetailModal({
                 disabled={submitting}
                 className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-xl font-semibold transition-all"
               >
-                {submitting ? 'Processing...' : `Buy Now for ${listing.price.toLocaleString()}`}
+                {submitting ? 'Processing...' : `Buy Now for ${(listing.price || 0).toLocaleString()}`}
               </button>
             )}
 
-            {listing.allow_offers && (
+            {listing.allowOffers && (
               <>
                 <button
                   onClick={() => setShowOfferForm(!showOfferForm)}
@@ -848,18 +907,18 @@ function ListingDetailModal({
           </div>
         )}
 
-        {listing.listing_type === 'offer_only' && (
+        {listing.listingType === 'offer_only' && (
           <div className="space-y-3">
             <div className="space-y-3 p-4 bg-white/5 rounded-xl">
               <p className="text-sm text-gray-400 mb-2">
-                This item is only available via offers. Min offer: {listing.min_offer?.toLocaleString() || 0}
+                This item is only available via offers. Min offer: {(listing.minOffer || 0).toLocaleString()}
               </p>
               <input
                 type="number"
                 placeholder="Offer amount"
                 value={offerAmount}
                 onChange={(e) => setOfferAmount(e.target.value)}
-                min={listing.min_offer || 0}
+                min={listing.minOffer || 0}
                 className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-violet-500"
               />
               <textarea
@@ -871,7 +930,7 @@ function ListingDetailModal({
               />
               <button
                 onClick={onMakeOffer}
-                disabled={submitting || !offerAmount || parseInt(offerAmount) < (listing.min_offer || 0)}
+                disabled={submitting || !offerAmount || parseInt(offerAmount) < (listing.minOffer || 0)}
                 className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 rounded-xl font-semibold transition-all"
               >
                 {submitting ? 'Submitting...' : 'Submit Offer'}
@@ -880,10 +939,10 @@ function ListingDetailModal({
           </div>
         )}
 
-        {listing.listing_type === 'auction' && (
+        {listing.listingType === 'auction' && (
           <div className="space-y-3">
             <p className="text-sm text-gray-400">
-              Auction ends in {getTimeLeft(listing.expires_at)}
+              Auction ends in {getTimeLeft(listing.expiresAt)}
             </p>
             <Link
               to={`/marketplace/auction/${listing.id}`}
@@ -902,12 +961,12 @@ function ListingDetailModal({
 // HELPERS
 // =====================================================
 
-function getTimeLeft(expiresAt) {
+function getTimeLeft(expiresAt: string | null): string | null {
   if (!expiresAt) return null;
 
   const now = new Date();
   const expires = new Date(expiresAt);
-  const diff = expires - now;
+  const diff = expires.getTime() - now.getTime();
 
   if (diff <= 0) return 'Ended';
 

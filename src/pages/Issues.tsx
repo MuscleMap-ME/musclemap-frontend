@@ -8,12 +8,18 @@
  * - Status badges
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
+import {
+  ISSUES_QUERY,
+  ISSUE_LABELS_QUERY,
+  ISSUE_STATS_QUERY,
+  VOTE_ON_ISSUE_MUTATION,
+} from '../graphql';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -267,23 +273,46 @@ function FilterSidebar({ filters, setFilters, labels, stats }) {
   );
 }
 
+// TypeScript interfaces
+interface IssueLabel {
+  id: string;
+  name: string;
+  slug?: string;
+  color: string;
+  icon?: string;
+}
+
+interface Issue {
+  id: string;
+  issueNumber: number;
+  title: string;
+  description: string;
+  type: number;
+  status: number;
+  priority: number;
+  labels: IssueLabel[];
+  authorUsername?: string;
+  authorAvatarUrl?: string;
+  voteCount: number;
+  hasVoted?: boolean;
+  commentCount: number;
+  isPinned?: boolean;
+  isLocked?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Issues() {
-  const { token } = useAuth();
   const { user } = useUser();
   const navigate = useNavigate();
   const [searchParams, _setSearchParams] = useSearchParams();
 
-  const [issues, setIssues] = useState([]);
-  const [labels, setLabels] = useState([]);
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [votingId, setVotingId] = useState(null);
+  const [votingId, setVotingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   const [filters, setFilters] = useState({
-    status: searchParams.get('status') ? parseInt(searchParams.get('status')) : undefined,
-    type: searchParams.get('type') ? parseInt(searchParams.get('type')) : undefined,
+    status: searchParams.get('status') ? parseInt(searchParams.get('status')!) : undefined,
+    type: searchParams.get('type') ? parseInt(searchParams.get('type')!) : undefined,
     labelSlug: searchParams.get('label') || undefined,
     search: searchParams.get('q') || '',
     sortBy: searchParams.get('sort') || 'newest',
@@ -291,69 +320,60 @@ export default function Issues() {
     limit: 20,
   });
 
-  // Fetch labels and stats on mount
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/issues/labels').then(r => r.json()),
-      fetch('/api/issues/stats').then(r => r.json()),
-    ]).then(([labelsRes, statsRes]) => {
-      setLabels(labelsRes.data || []);
-      setStats(statsRes.data || {});
-    }).catch(console.error);
-  }, []);
+  // GraphQL queries
+  const { data: labelsData } = useQuery(ISSUE_LABELS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Fetch issues when filters change
-  useEffect(() => {
-    fetchIssues();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.status, filters.type, filters.labelSlug, filters.search, filters.sortBy, filters.offset]);
+  const { data: statsData } = useQuery(ISSUE_STATS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchIssues = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters.status !== undefined) params.set('status', filters.status.toString());
-      if (filters.type !== undefined) params.set('type', filters.type.toString());
-      if (filters.labelSlug) params.set('labelSlug', filters.labelSlug);
-      if (filters.search) params.set('search', filters.search);
-      if (filters.sortBy) params.set('sortBy', filters.sortBy);
-      params.set('limit', filters.limit.toString());
-      params.set('offset', filters.offset.toString());
+  const { data: issuesData, loading } = useQuery(ISSUES_QUERY, {
+    variables: {
+      status: filters.status,
+      type: filters.type,
+      labelSlug: filters.labelSlug,
+      search: filters.search || undefined,
+      sortBy: filters.sortBy,
+      limit: filters.limit,
+      offset: filters.offset,
+    },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(`/api/issues?${params}`, { headers });
-      const data = await res.json();
+  const [voteOnIssue] = useMutation(VOTE_ON_ISSUE_MUTATION);
 
-      setIssues(data.data || []);
-      setTotal(data.pagination?.total || 0);
-    } catch (err) {
-      console.error('Failed to fetch issues:', err);
-    } finally {
-      setLoading(false);
-    }
+  const labels = labelsData?.issueLabels || [];
+  const stats = {
+    totalIssues: statsData?.issueStats?.totalIssues || 0,
+    openIssues: statsData?.issueStats?.openIssues || 0,
+    resolvedIssues: statsData?.issueStats?.resolvedIssues || 0,
+    totalVotes: statsData?.issueStats?.totalVotes || 0,
   };
+  const issues: Issue[] = issuesData?.issues?.issues || [];
+  const total = issuesData?.issues?.total || 0;
 
-  const handleVote = async (issueId) => {
-    if (!token) {
+  const handleVote = async (issueId: string) => {
+    if (!user) {
       navigate('/login');
       return;
     }
 
     setVotingId(issueId);
     try {
-      const res = await fetch(`/api/issues/${issueId}/vote`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      await voteOnIssue({
+        variables: { issueId, vote: 1 },
+        refetchQueries: [{ query: ISSUES_QUERY, variables: {
+          status: filters.status,
+          type: filters.type,
+          labelSlug: filters.labelSlug,
+          search: filters.search || undefined,
+          sortBy: filters.sortBy,
+          limit: filters.limit,
+          offset: filters.offset,
+        }}],
       });
-      const data = await res.json();
-
-      if (data.data) {
-        setIssues(issues.map(issue =>
-          issue.id === issueId
-            ? { ...issue, hasVoted: data.data.voted, voteCount: data.data.voteCount }
-            : issue
-        ));
-      }
     } catch (err) {
       console.error('Vote failed:', err);
     } finally {
@@ -361,7 +381,7 @@ export default function Issues() {
     }
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setFilters({ ...filters, offset: 0 });
   };

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery } from '@apollo/client/react';
 import { ChallengeCard, LevelUpModal } from '../components/gamification';
+import { ACHIEVEMENT_DEFINITIONS_QUERY, MY_ACHIEVEMENTS_QUERY } from '../graphql/queries';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -47,49 +48,60 @@ const formatDate = (dateStr) => {
   }
 };
 
+interface AchievementDefinition {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  category: string;
+  points: number;
+  rarity: string;
+  tier?: number;
+  creditsReward?: number;
+  xpReward?: number;
+  requiresVerification?: boolean;
+  unlockHint?: string;
+}
+
+interface UserAchievement {
+  id: string;
+  achievementKey: string;
+  achievementName: string;
+  achievementDescription?: string;
+  achievementIcon?: string;
+  category: string;
+  points: number;
+  rarity: string;
+  creditsEarned?: number;
+  xpEarned?: number;
+  isVerified?: boolean;
+  witnessUsername?: string;
+  earnedAt: string;
+}
+
 export default function Achievements() {
-  const { token } = useAuth();
   const navigate = useNavigate();
-  const [definitions, setDefinitions] = useState([]);
-  const [userAchievements, setUserAchievements] = useState([]);
-  const [_summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedAchievement, setSelectedAchievement] = useState(null);
+  const [selectedAchievement, setSelectedAchievement] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
-  const [levelUpData, setLevelUpData] = useState(null);
+  const [levelUpData, setLevelUpData] = useState<any>(null);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // GraphQL queries
+  const { data: defsData, loading: defsLoading } = useQuery<{ achievementDefinitions: AchievementDefinition[] }>(
+    ACHIEVEMENT_DEFINITIONS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-  const fetchData = async () => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
+  const { data: userAchData, loading: userAchLoading } = useQuery<{ myAchievements: { achievements: UserAchievement[]; total: number } }>(
+    MY_ACHIEVEMENTS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-      const [defsRes, userRes, summaryRes] = await Promise.all([
-        fetch('/api/achievements/definitions', { headers }),
-        fetch('/api/me/achievements', { headers }),
-        fetch('/api/me/achievements/summary', { headers }),
-      ]);
-
-      const [defsData, userData, summaryData] = await Promise.all([
-        defsRes.json(),
-        userRes.json(),
-        summaryRes.json(),
-      ]);
-
-      setDefinitions(defsData.data || []);
-      setUserAchievements(userData.data || []);
-      setSummary(summaryData.data);
-    } catch {
-      // Error occurred
-    } finally {
-      setLoading(false);
-    }
-  };
+  const definitions = defsData?.achievementDefinitions || [];
+  const userAchievements = userAchData?.myAchievements?.achievements || [];
+  const loading = defsLoading || userAchLoading;
 
   const earnedSet = new Set(userAchievements.map(a => a.achievementKey || a.achievement_key));
   const earnedMap = userAchievements.reduce((acc, a) => {

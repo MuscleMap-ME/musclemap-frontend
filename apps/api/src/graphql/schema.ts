@@ -132,11 +132,19 @@ export const typeDefs = `#graphql
     milestones: [Milestone!]!
 
     # Messaging
-    conversations: [Conversation!]!
+    conversations(tab: String): [Conversation!]!
     conversationMessages(conversationId: ID!, limit: Int, before: ID): [Message!]!
+    pinnedMessages(conversationId: ID!): [PinnedMessage!]!
+    typingUsers(conversationId: ID!): [TypingUser!]!
+    userPresence(userIds: [ID!]!): [UserPresence!]!
+    blockStatus(userId: ID!): BlockStatus!
+    messageTemplates: [MessageTemplate!]!
+    scheduledMessages: [ScheduledMessage!]!
+    searchMessages(query: String!, conversationId: ID, limit: Int, offset: Int): SearchMessagesResponse!
+    searchUsers(query: String!, limit: Int): [SearchUserResult!]!
 
     # Issues & Roadmap
-    issues(status: String, label: String, limit: Int, offset: Int): [Issue!]!
+    issues(status: Int, type: Int, labelSlug: String, search: String, sortBy: String, limit: Int, offset: Int): IssuesResult!
     issue(id: ID!): Issue
     issueLabels: [IssueLabel!]!
     issueStats: IssueStats
@@ -297,6 +305,59 @@ export const typeDefs = `#graphql
     buddyInventory(category: String): [BuddyInventoryItem!]!
     buddyEvolutionPath(species: String!): [BuddyEvolutionStage!]!
     buddyLeaderboard(species: String, limit: Int, offset: Int): BuddyLeaderboardResult!
+
+    # Mystery Boxes
+    mysteryBoxes: [MysteryBox!]!
+    mysteryBox(id: ID!): MysteryBoxDetails
+    mysteryBoxHistory(limit: Int): [MysteryBoxOpening!]!
+    mysteryBoxPity: [PityCounter!]!
+
+    # Skins (Cosmetic Store)
+    skins: [Skin!]!
+    ownedSkins: [Skin!]!
+    equippedSkins: [Skin!]!
+    unlockableSkins: [Skin!]!
+
+    # Marketplace
+    marketplaceListings(
+      search: String
+      listingType: String
+      category: String
+      rarity: String
+      sortBy: String
+      minPrice: Int
+      maxPrice: Int
+      cursor: String
+      limit: Int
+    ): MarketplaceListingsResult!
+    marketplaceWatchlist: [MarketplaceWatchlistItem!]!
+    marketplaceStats: MarketplaceStats!
+
+    # Collection
+    collectionStats: CollectionStats!
+    collectionItems(
+      category: String
+      rarity: String
+      sortBy: String
+      limit: Int
+      offset: Int
+    ): CollectionItemsResult!
+    collectionFavorites: [CollectionItem!]!
+    collectionSets: [CollectionSet!]!
+    collectionSetDetail(setId: ID!): CollectionSetDetail
+    collectionShowcase(userId: ID): [CollectionItem!]!
+    collectionNewCount: Int!
+
+    # Trades
+    tradesIncoming: [Trade!]!
+    tradesOutgoing: [Trade!]!
+    tradesHistory(limit: Int): [TradeHistory!]!
+    trade(id: ID!): Trade
+
+    # Achievements
+    achievementDefinitions(category: String): [AchievementDefinition!]!
+    myAchievements(category: String, limit: Int, offset: Int): AchievementResult!
+    myAchievementSummary: AchievementSummary!
   }
 
   type Mutation {
@@ -378,10 +439,25 @@ export const typeDefs = `#graphql
     updateMilestoneProgress(milestoneId: ID!, progress: Int!): Milestone!
 
     # Messaging
-    createConversation(participantIds: [ID!]!): Conversation!
-    sendMessage(conversationId: ID!, content: String!): Message!
+    createConversation(type: String!, participantIds: [ID!]!): Conversation!
+    sendMessage(conversationId: ID!, content: String!, replyToId: ID): Message!
+    editMessage(messageId: ID!, content: String!): EditedMessage!
     markConversationRead(conversationId: ID!): Boolean!
     deleteMessage(messageId: ID!): Boolean!
+    pinMessage(messageId: ID!): PinnedMessageResult!
+    unpinMessage(messageId: ID!): Boolean!
+    addReaction(messageId: ID!, emoji: String!): ReactionResult!
+    removeReaction(messageId: ID!, emoji: String!): Boolean!
+    setTypingStatus(conversationId: ID!, isTyping: Boolean!): Boolean!
+    starConversation(conversationId: ID!): Boolean!
+    unstarConversation(conversationId: ID!): Boolean!
+    archiveConversation(conversationId: ID!): Boolean!
+    unarchiveConversation(conversationId: ID!): Boolean!
+    forwardMessage(messageId: ID!, toConversationIds: [ID!]!, addComment: String): [ForwardedMessage!]!
+    setDisappearingMessages(conversationId: ID!, ttl: Int): Boolean!
+    scheduleMessage(conversationId: ID!, content: String!, scheduledFor: String!): ScheduledMessage!
+    cancelScheduledMessage(scheduledId: ID!): Boolean!
+    createMessageTemplate(name: String!, content: String!, shortcut: String): MessageTemplate!
     blockUser(userId: ID!): Boolean!
     unblockUser(userId: ID!): Boolean!
 
@@ -520,6 +596,32 @@ export const typeDefs = `#graphql
     equipBuddyCosmetic(sku: String!, slot: String!): Boolean!
     unequipBuddyCosmetic(slot: String!): Boolean!
     feedBuddy(xpAmount: Int!): BuddyXpResult!
+
+    # Mystery Boxes
+    openMysteryBox(boxId: ID!, quantity: Int): MysteryBoxOpenResult!
+
+    # Skins (Cosmetic Store)
+    purchaseSkin(skinId: ID!): SkinPurchaseResult!
+    equipSkin(skinId: ID!): SkinEquipResult!
+    unequipSkin(skinId: ID!): SkinEquipResult!
+
+    # Marketplace
+    purchaseListing(listingId: ID!): PurchaseResult!
+    makeOffer(listingId: ID!, amount: Int!, message: String): OfferResult!
+    addToWatchlist(listingId: ID!): WatchlistResult!
+    removeFromWatchlist(listingId: ID!): WatchlistResult!
+
+    # Collection
+    toggleFavorite(itemId: ID!): CollectionFavoriteResult!
+    markItemSeen(itemId: ID!): CollectionSeenResult!
+    markAllSeen: CollectionSeenResult!
+    claimSetReward(setId: ID!, threshold: Float!): ClaimSetRewardResult!
+
+    # Trades
+    createTrade(input: CreateTradeInput!): CreateTradeResult!
+    acceptTrade(tradeId: ID!): TradeActionResult!
+    rejectTrade(tradeId: ID!): TradeActionResult!
+    cancelTrade(tradeId: ID!): TradeActionResult!
 
     # Journey Health
     calculateJourneyHealth(journeyId: ID!): JourneyHealthScore!
@@ -1815,25 +1917,207 @@ export const typeDefs = `#graphql
   }
 
   # ============================================
+  # ACHIEVEMENT TYPES (Extended)
+  # ============================================
+  type AchievementDefinition {
+    id: ID!
+    key: String!
+    name: String!
+    description: String
+    icon: String
+    category: String!
+    points: Int!
+    rarity: String!
+    tier: Int
+    creditsReward: Int
+    xpReward: Int
+    requiresVerification: Boolean
+    unlockHint: String
+  }
+
+  type UserAchievement {
+    id: ID!
+    achievementKey: String!
+    achievementName: String!
+    achievementDescription: String
+    achievementIcon: String
+    category: String!
+    points: Int!
+    rarity: String!
+    creditsEarned: Int
+    xpEarned: Int
+    isVerified: Boolean
+    witnessUsername: String
+    earnedAt: DateTime!
+  }
+
+  type AchievementResult {
+    achievements: [UserAchievement!]!
+    total: Int!
+  }
+
+  type AchievementSummary {
+    totalPoints: Int!
+    totalAchievements: Int!
+    totalCredits: Int!
+    totalXp: Int!
+    byCategory: JSON!
+    byRarity: JSON!
+    recentAchievements: [UserAchievement!]!
+  }
+
+  # ============================================
   # MESSAGING TYPES
   # ============================================
+  type ConversationParticipant {
+    userId: ID!
+    username: String!
+    displayName: String
+    avatarUrl: String
+    lastActiveAt: String
+    role: String
+  }
+
+  type TypingUser {
+    userId: ID!
+    username: String!
+    avatarUrl: String
+  }
+
+  type MessageReplyTo {
+    id: ID!
+    content: String!
+    senderName: String!
+  }
+
+  type MessageReaction {
+    emoji: String!
+    count: Int!
+    users: [ID!]!
+    userReacted: Boolean!
+  }
+
+  type ConversationLastMessage {
+    id: ID!
+    content: String!
+    senderId: ID!
+    createdAt: String!
+  }
+
   type Conversation {
     id: ID!
-    participants: [User!]!
-    lastMessage: Message
+    type: String!
+    name: String
+    participants: [ConversationParticipant!]!
+    lastMessage: ConversationLastMessage
+    lastMessageAt: String
     unreadCount: Int!
-    createdAt: DateTime!
-    updatedAt: DateTime!
+    starred: Boolean
+    archivedAt: String
+    disappearingTtl: Int
+    typingUsers: [TypingUser!]
+    createdAt: String!
+    updatedAt: String!
   }
 
   type Message {
     id: ID!
     conversationId: ID!
     senderId: ID!
-    sender: User!
+    senderUsername: String
+    senderDisplayName: String
+    sender: User
     content: String!
-    read: Boolean!
-    createdAt: DateTime!
+    contentType: String
+    replyTo: MessageReplyTo
+    reactions: [MessageReaction!]
+    pinnedAt: String
+    editedAt: String
+    editCount: Int
+    deliveredAt: String
+    readAt: String
+    read: Boolean
+    createdAt: String!
+  }
+
+  type PinnedMessage {
+    id: ID!
+    content: String!
+    senderName: String!
+    createdAt: String!
+  }
+
+  type UserPresence {
+    userId: ID!
+    status: String!
+    lastSeen: String
+  }
+
+  type BlockStatus {
+    isBlocked: Boolean!
+    blockedBy: Boolean!
+  }
+
+  type MessageTemplate {
+    id: ID!
+    name: String!
+    content: String!
+    shortcut: String
+    category: String
+    useCount: Int!
+  }
+
+  type ScheduledMessage {
+    id: ID!
+    conversationId: ID!
+    content: String!
+    scheduledFor: String!
+    status: String!
+  }
+
+  type SearchMessageResult {
+    id: ID!
+    content: String!
+    senderName: String!
+    conversationId: ID!
+    createdAt: String!
+    highlight: String
+  }
+
+  type SearchMessagesResponse {
+    messages: [SearchMessageResult!]!
+    total: Int!
+  }
+
+  type SearchUserResult {
+    id: ID!
+    username: String!
+    displayName: String
+    avatarUrl: String
+    canMessage: Boolean!
+  }
+
+  type EditedMessage {
+    id: ID!
+    content: String!
+    editedAt: String!
+    editCount: Int!
+  }
+
+  type PinnedMessageResult {
+    id: ID!
+    pinnedAt: String!
+  }
+
+  type ReactionResult {
+    id: ID!
+    emoji: String!
+  }
+
+  type ForwardedMessage {
+    id: ID!
+    content: String!
+    createdAt: String!
   }
 
   # ============================================
@@ -1841,16 +2125,25 @@ export const typeDefs = `#graphql
   # ============================================
   type Issue {
     id: ID!
+    issueNumber: Int!
     title: String!
     description: String!
-    status: String!
-    priority: String!
+    type: Int!
+    status: Int!
+    priority: Int!
     labels: [IssueLabel!]!
-    authorId: ID!
-    author: User!
-    votes: Int!
-    userVote: Int
-    subscribed: Boolean!
+    authorId: ID
+    authorUsername: String
+    authorDisplayName: String
+    authorAvatarUrl: String
+    author: User
+    voteCount: Int!
+    hasVoted: Boolean
+    commentCount: Int!
+    subscriberCount: Int
+    viewCount: Int
+    isPinned: Boolean
+    isLocked: Boolean
     comments: [IssueComment!]
     solutionCommentId: ID
     createdAt: DateTime!
@@ -1860,7 +2153,9 @@ export const typeDefs = `#graphql
   type IssueLabel {
     id: ID!
     name: String!
+    slug: String
     color: String!
+    icon: String
     description: String
   }
 
@@ -1874,12 +2169,19 @@ export const typeDefs = `#graphql
     createdAt: DateTime!
   }
 
-  type IssueStats {
+  type IssuesResult {
+    issues: [Issue!]!
     total: Int!
-    open: Int!
-    inProgress: Int!
-    resolved: Int!
-    closed: Int!
+    hasMore: Boolean!
+  }
+
+  type IssueStats {
+    totalIssues: Int!
+    openIssues: Int!
+    resolvedIssues: Int!
+    totalVotes: Int!
+    issuesByType: JSON
+    issuesByStatus: JSON
   }
 
   type Update {
@@ -2068,6 +2370,80 @@ export const typeDefs = `#graphql
     maxParticipants: Int
     entryFee: Int
     isPublic: Boolean
+  }
+
+  # ============================================
+  # MYSTERY BOX TYPES
+  # ============================================
+  type MysteryBox {
+    id: ID!
+    name: String!
+    description: String
+    boxType: String!
+    price: Int!
+    dropRates: JSON
+    availableFrom: DateTime
+    availableUntil: DateTime
+    maxPurchasesPerDay: Int
+    createdAt: DateTime!
+  }
+
+  type MysteryBoxDetails {
+    box: MysteryBox!
+    recentDrops: [MysteryBoxDrop!]!
+    dropStats: [MysteryBoxDropStat!]!
+  }
+
+  type MysteryBoxDrop {
+    rarity: String!
+    openedAt: DateTime!
+    name: String!
+    previewUrl: String
+    username: String!
+  }
+
+  type MysteryBoxDropStat {
+    rarity: String!
+    count: Int!
+  }
+
+  type MysteryBoxOpening {
+    id: ID!
+    boxId: ID!
+    boxName: String!
+    cosmeticId: ID!
+    cosmeticName: String!
+    rarity: String!
+    previewUrl: String
+    creditsSpent: Int!
+    wasPityReward: Boolean!
+    openedAt: DateTime!
+  }
+
+  type PityCounter {
+    boxType: String!
+    epicCounter: Int!
+    legendaryCounter: Int!
+    epicThreshold: Int!
+    legendaryThreshold: Int!
+    lastEpicAt: DateTime
+    lastLegendaryAt: DateTime
+  }
+
+  type MysteryBoxOpenResult {
+    success: Boolean!
+    results: [MysteryBoxReward!]!
+    newBalance: Int
+  }
+
+  type MysteryBoxReward {
+    cosmeticId: ID!
+    cosmeticName: String!
+    rarity: String!
+    previewUrl: String
+    wasPityReward: Boolean!
+    isDuplicate: Boolean
+    refundAmount: Int
   }
 
   # ============================================
@@ -4605,6 +4981,268 @@ export const typeDefs = `#graphql
     success: Boolean!
     submission: VenueSubmission
     venue: OutdoorVenue
+    message: String
+  }
+
+  # ============================================
+  # SKINS (COSMETIC STORE) TYPES
+  # ============================================
+
+  type Skin {
+    id: ID!
+    name: String!
+    description: String
+    category: String!
+    price: Int!
+    rarity: String!
+    unlockRequirement: String
+    creditsRequired: Int
+    imageUrl: String
+  }
+
+  type SkinPurchaseResult {
+    success: Boolean!
+    skin: Skin
+    newBalance: Int
+    message: String
+  }
+
+  type SkinEquipResult {
+    success: Boolean!
+    message: String
+  }
+
+  # ============================================
+  # MARKETPLACE TYPES
+  # ============================================
+
+  type MarketplaceListing {
+    id: ID!
+    sellerId: ID!
+    listingType: String!
+    price: Int
+    currentBid: Int
+    bidCount: Int
+    expiresAt: String
+    createdAt: String!
+    cosmeticName: String!
+    cosmeticIcon: String
+    rarity: String!
+    category: String
+    sellerUsername: String!
+    allowOffers: Boolean
+    minOffer: Int
+  }
+
+  type MarketplaceListingsResult {
+    listings: [MarketplaceListing!]!
+    nextCursor: String
+    hasMore: Boolean!
+  }
+
+  type MarketplaceWatchlistItem {
+    id: ID!
+    listingId: ID!
+    price: Int
+    listingType: String
+    expiresAt: String
+    status: String
+    cosmeticName: String
+    cosmeticIcon: String
+    rarity: String
+    createdAt: String
+  }
+
+  type MarketplaceStats {
+    totalSales: Int!
+    totalPurchases: Int!
+    totalRevenue: Int!
+    avgRating: Float
+    sellerLevel: Int!
+    feeDiscount: Float!
+  }
+
+  type PurchaseResult {
+    success: Boolean!
+    newBalance: Int
+    message: String
+  }
+
+  type OfferResult {
+    success: Boolean!
+    offerId: ID
+    message: String
+  }
+
+  type WatchlistResult {
+    success: Boolean!
+  }
+
+  # ============================================
+  # COLLECTION TYPES
+  # ============================================
+
+  type CollectionStats {
+    totalOwned: Int!
+    totalValue: Int!
+    rarityBreakdown: [RarityCount!]!
+    categoryBreakdown: [CategoryCount!]!
+    completedSets: Int!
+  }
+
+  type RarityCount {
+    rarity: String!
+    count: Int!
+  }
+
+  type CategoryCount {
+    category: String!
+    count: Int!
+  }
+
+  type CollectionItem {
+    id: ID!
+    cosmeticId: ID!
+    name: String!
+    description: String
+    category: String
+    rarity: String!
+    icon: String
+    previewUrl: String
+    acquiredAt: String!
+    isFavorite: Boolean!
+    isNew: Boolean!
+    estimatedValue: Int
+    isTradeable: Boolean
+    isGiftable: Boolean
+  }
+
+  type CollectionItemsResult {
+    items: [CollectionItem!]!
+    total: Int!
+    hasMore: Boolean!
+  }
+
+  type CollectionSet {
+    id: ID!
+    name: String!
+    description: String
+    icon: String
+    theme: String
+    isLimited: Boolean!
+    expirationDate: String
+    ownedCount: Int!
+    totalCount: Int!
+    rewards: [SetRewardInfo!]!
+  }
+
+  type SetRewardInfo {
+    threshold: Float!
+    icon: String
+    description: String!
+    claimed: Boolean!
+  }
+
+  type CollectionSetDetail {
+    set: CollectionSet!
+    progress: SetProgress!
+    items: [SetItem!]!
+    claimableRewards: [SetRewardInfo!]!
+  }
+
+  type SetProgress {
+    ownedCount: Int!
+    totalCount: Int!
+    completionPercent: Float!
+    rewardsClaimed: [Float!]!
+  }
+
+  type SetItem {
+    id: ID!
+    name: String!
+    icon: String
+    rarity: String!
+    owned: Boolean!
+  }
+
+  type CollectionFavoriteResult {
+    id: ID!
+    isFavorite: Boolean!
+  }
+
+  type CollectionSeenResult {
+    success: Boolean!
+  }
+
+  type ClaimSetRewardResult {
+    success: Boolean!
+    reward: ClaimedReward
+  }
+
+  type ClaimedReward {
+    type: String!
+    value: String!
+    description: String
+  }
+
+  # ============================================
+  # TRADES TYPES
+  # ============================================
+
+  type Trade {
+    id: ID!
+    initiatorId: ID!
+    initiatorUsername: String!
+    receiverId: ID!
+    receiverUsername: String!
+    initiatorItems: [TradeItem!]!
+    initiatorCredits: Int!
+    receiverItems: [TradeItem!]!
+    receiverCredits: Int!
+    status: String!
+    message: String
+    valueWarning: Boolean
+    expiresAt: DateTime!
+    createdAt: DateTime!
+  }
+
+  type TradeItem {
+    id: ID!
+    name: String!
+    rarity: String!
+    icon: String
+    previewUrl: String
+  }
+
+  type TradeHistory {
+    id: ID!
+    user1Id: ID!
+    user1Username: String!
+    user2Id: ID!
+    user2Username: String!
+    status: String!
+    completedAt: DateTime!
+  }
+
+  input CreateTradeInput {
+    receiverId: ID!
+    initiatorItems: [ID!]
+    initiatorCredits: Int
+    receiverItems: [ID!]
+    receiverCredits: Int
+    message: String
+  }
+
+  type CreateTradeResult {
+    success: Boolean!
+    trade: Trade
+    valueWarning: String
+    message: String
+  }
+
+  type TradeActionResult {
+    success: Boolean!
+    trade: Trade
     message: String
   }
 `;

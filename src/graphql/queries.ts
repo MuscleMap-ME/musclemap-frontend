@@ -705,21 +705,34 @@ export const PROFILE_QUERY = gql`
 // ============================================
 
 export const CONVERSATIONS_QUERY = gql`
-  query Conversations {
-    conversations {
+  query Conversations($tab: String) {
+    conversations(tab: $tab) {
       id
       type
+      name
       participants {
-        id
+        userId
         username
-        avatar
+        displayName
+        avatarUrl
+        lastActiveAt
       }
       lastMessage {
         id
         content
         createdAt
+        senderId
       }
+      lastMessageAt
       unreadCount
+      starred
+      archivedAt
+      disappearingTtl
+      typingUsers {
+        userId
+        username
+        avatarUrl
+      }
       createdAt
       updatedAt
     }
@@ -732,9 +745,120 @@ export const CONVERSATION_MESSAGES_QUERY = gql`
       id
       conversationId
       senderId
+      senderUsername
+      senderDisplayName
       content
+      contentType
+      replyTo {
+        id
+        content
+        senderName
+      }
+      reactions {
+        emoji
+        count
+        users
+        userReacted
+      }
+      pinnedAt
+      editedAt
+      editCount
+      deliveredAt
       readAt
       createdAt
+    }
+  }
+`;
+
+export const PINNED_MESSAGES_QUERY = gql`
+  query PinnedMessages($conversationId: ID!) {
+    pinnedMessages(conversationId: $conversationId) {
+      id
+      content
+      senderName
+      createdAt
+    }
+  }
+`;
+
+export const TYPING_USERS_QUERY = gql`
+  query TypingUsers($conversationId: ID!) {
+    typingUsers(conversationId: $conversationId) {
+      userId
+      username
+      avatarUrl
+    }
+  }
+`;
+
+export const USER_PRESENCE_QUERY = gql`
+  query UserPresence($userIds: [ID!]!) {
+    userPresence(userIds: $userIds) {
+      userId
+      status
+      lastSeen
+    }
+  }
+`;
+
+export const BLOCK_STATUS_QUERY = gql`
+  query BlockStatus($userId: ID!) {
+    blockStatus(userId: $userId) {
+      isBlocked
+      blockedBy
+    }
+  }
+`;
+
+export const MESSAGE_TEMPLATES_QUERY = gql`
+  query MessageTemplates {
+    messageTemplates {
+      id
+      name
+      content
+      shortcut
+      category
+      useCount
+    }
+  }
+`;
+
+export const SCHEDULED_MESSAGES_QUERY = gql`
+  query ScheduledMessages {
+    scheduledMessages {
+      id
+      conversationId
+      content
+      scheduledFor
+      status
+    }
+  }
+`;
+
+export const SEARCH_MESSAGES_QUERY = gql`
+  query SearchMessages($query: String!, $conversationId: ID, $limit: Int, $offset: Int) {
+    searchMessages(query: $query, conversationId: $conversationId, limit: $limit, offset: $offset) {
+      messages {
+        id
+        content
+        senderName
+        conversationId
+        createdAt
+        highlight
+      }
+      total
+    }
+  }
+`;
+
+export const SEARCH_USERS_QUERY = gql`
+  query SearchUsers($query: String!, $limit: Int) {
+    searchUsers(query: $query, limit: $limit) {
+      id
+      username
+      displayName
+      avatarUrl
+      canMessage
     }
   }
 `;
@@ -744,24 +868,35 @@ export const CONVERSATION_MESSAGES_QUERY = gql`
 // ============================================
 
 export const ISSUES_QUERY = gql`
-  query Issues($status: String, $label: String, $limit: Int, $offset: Int) {
-    issues(status: $status, label: $label, limit: $limit, offset: $offset) {
-      id
-      title
-      description
-      status
-      priority
-      labels
-      author {
+  query Issues($status: Int, $type: Int, $labelSlug: String, $search: String, $sortBy: String, $limit: Int, $offset: Int) {
+    issues(status: $status, type: $type, labelSlug: $labelSlug, search: $search, sortBy: $sortBy, limit: $limit, offset: $offset) {
+      issues {
         id
-        username
-        avatar
+        issueNumber
+        title
+        description
+        type
+        status
+        priority
+        labels {
+          id
+          name
+          slug
+          color
+          icon
+        }
+        authorUsername
+        authorAvatarUrl
+        voteCount
+        hasVoted
+        commentCount
+        isPinned
+        isLocked
+        createdAt
+        updatedAt
       }
-      voteCount
-      hasVoted
-      commentCount
-      createdAt
-      updatedAt
+      total
+      hasMore
     }
   }
 `;
@@ -805,7 +940,9 @@ export const ISSUE_LABELS_QUERY = gql`
     issueLabels {
       id
       name
+      slug
       color
+      icon
       description
     }
   }
@@ -814,11 +951,12 @@ export const ISSUE_LABELS_QUERY = gql`
 export const ISSUE_STATS_QUERY = gql`
   query IssueStats {
     issueStats {
-      total
-      open
-      inProgress
-      closed
-      byLabel
+      totalIssues
+      openIssues
+      resolvedIssues
+      totalVotes
+      issuesByType
+      issuesByStatus
     }
   }
 `;
@@ -880,6 +1018,75 @@ export const ACHIEVEMENTS_QUERY = gql`
       requirement
       progress
       unlockedAt
+    }
+  }
+`;
+
+export const ACHIEVEMENT_DEFINITIONS_QUERY = gql`
+  query AchievementDefinitions($category: String) {
+    achievementDefinitions(category: $category) {
+      id
+      key
+      name
+      description
+      icon
+      category
+      points
+      rarity
+      tier
+      creditsReward
+      xpReward
+      requiresVerification
+      unlockHint
+    }
+  }
+`;
+
+export const MY_ACHIEVEMENTS_QUERY = gql`
+  query MyAchievements($category: String, $limit: Int, $offset: Int) {
+    myAchievements(category: $category, limit: $limit, offset: $offset) {
+      achievements {
+        id
+        achievementKey
+        achievementName
+        achievementDescription
+        achievementIcon
+        category
+        points
+        rarity
+        creditsEarned
+        xpEarned
+        isVerified
+        witnessUsername
+        earnedAt
+      }
+      total
+    }
+  }
+`;
+
+export const MY_ACHIEVEMENT_SUMMARY_QUERY = gql`
+  query MyAchievementSummary {
+    myAchievementSummary {
+      totalPoints
+      totalAchievements
+      totalCredits
+      totalXp
+      byCategory
+      byRarity
+      recentAchievements {
+        id
+        achievementKey
+        achievementName
+        achievementDescription
+        achievementIcon
+        category
+        points
+        rarity
+        creditsEarned
+        xpEarned
+        earnedAt
+      }
     }
   }
 `;
@@ -1500,27 +1707,149 @@ export const BUDDY_LEADERBOARD_QUERY = gql`
 export const COLLECTION_STATS_QUERY = gql`
   query CollectionStats {
     collectionStats {
-      totalItems
-      uniqueItems
-      rareItems
-      legendaryItems
-      completionRate
+      totalOwned
+      totalValue
+      rarityBreakdown {
+        rarity
+        count
+      }
+      categoryBreakdown {
+        category
+        count
+      }
+      completedSets
     }
   }
 `;
 
 export const COLLECTION_ITEMS_QUERY = gql`
-  query CollectionItems($category: String, $rarity: String) {
-    collectionItems(category: $category, rarity: $rarity) {
+  query CollectionItems(
+    $category: String
+    $rarity: String
+    $sortBy: String
+    $limit: Int
+    $offset: Int
+  ) {
+    collectionItems(
+      category: $category
+      rarity: $rarity
+      sortBy: $sortBy
+      limit: $limit
+      offset: $offset
+    ) {
+      items {
+        id
+        cosmeticId
+        name
+        description
+        category
+        rarity
+        icon
+        previewUrl
+        acquiredAt
+        isFavorite
+        isNew
+        estimatedValue
+        isTradeable
+        isGiftable
+      }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const COLLECTION_FAVORITES_QUERY = gql`
+  query CollectionFavorites {
+    collectionFavorites {
       id
+      cosmeticId
       name
       description
       category
       rarity
-      imageUrl
-      obtainedAt
+      icon
+      previewUrl
+      acquiredAt
       isFavorite
+      isNew
+      estimatedValue
     }
+  }
+`;
+
+export const COLLECTION_SETS_QUERY = gql`
+  query CollectionSets {
+    collectionSets {
+      id
+      name
+      description
+      icon
+      theme
+      isLimited
+      expirationDate
+      ownedCount
+      totalCount
+      rewards {
+        threshold
+        icon
+        description
+        claimed
+      }
+    }
+  }
+`;
+
+export const COLLECTION_SET_DETAIL_QUERY = gql`
+  query CollectionSetDetail($setId: ID!) {
+    collectionSetDetail(setId: $setId) {
+      set {
+        id
+        name
+        description
+        icon
+        theme
+        isLimited
+        expirationDate
+      }
+      progress {
+        ownedCount
+        totalCount
+        completionPercent
+        rewardsClaimed
+      }
+      items {
+        id
+        name
+        icon
+        rarity
+        owned
+      }
+      claimableRewards {
+        threshold
+        icon
+        description
+      }
+    }
+  }
+`;
+
+export const COLLECTION_SHOWCASE_QUERY = gql`
+  query CollectionShowcase($userId: ID) {
+    collectionShowcase(userId: $userId) {
+      id
+      cosmeticId
+      name
+      rarity
+      icon
+      previewUrl
+    }
+  }
+`;
+
+export const COLLECTION_NEW_COUNT_QUERY = gql`
+  query CollectionNewCount {
+    collectionNewCount
   }
 `;
 
@@ -1529,23 +1858,47 @@ export const COLLECTION_ITEMS_QUERY = gql`
 // ============================================
 
 export const MARKETPLACE_LISTINGS_QUERY = gql`
-  query MarketplaceListings($category: String, $sort: String, $limit: Int) {
-    marketplaceListings(category: $category, sort: $sort, limit: $limit) {
-      id
-      item {
+  query MarketplaceListings(
+    $search: String
+    $listingType: String
+    $category: String
+    $rarity: String
+    $sortBy: String
+    $minPrice: Int
+    $maxPrice: Int
+    $cursor: String
+    $limit: Int
+  ) {
+    marketplaceListings(
+      search: $search
+      listingType: $listingType
+      category: $category
+      rarity: $rarity
+      sortBy: $sortBy
+      minPrice: $minPrice
+      maxPrice: $maxPrice
+      cursor: $cursor
+      limit: $limit
+    ) {
+      listings {
         id
-        name
+        sellerId
+        listingType
+        price
+        currentBid
+        bidCount
+        expiresAt
+        createdAt
+        cosmeticName
+        cosmeticIcon
         rarity
-        imageUrl
+        category
+        sellerUsername
+        allowOffers
+        minOffer
       }
-      seller {
-        id
-        username
-        avatar
-      }
-      price
-      status
-      createdAt
+      nextCursor
+      hasMore
     }
   }
 `;
@@ -1554,16 +1907,28 @@ export const MARKETPLACE_WATCHLIST_QUERY = gql`
   query MarketplaceWatchlist {
     marketplaceWatchlist {
       id
-      listing {
-        id
-        item {
-          id
-          name
-        }
-        price
-        status
-      }
-      addedAt
+      listingId
+      price
+      listingType
+      expiresAt
+      status
+      cosmeticName
+      cosmeticIcon
+      rarity
+      createdAt
+    }
+  }
+`;
+
+export const MARKETPLACE_STATS_QUERY = gql`
+  query MarketplaceStats {
+    marketplaceStats {
+      totalSales
+      totalPurchases
+      totalRevenue
+      avgRating
+      sellerLevel
+      feeDiscount
     }
   }
 `;
@@ -1576,22 +1941,30 @@ export const TRADES_INCOMING_QUERY = gql`
   query TradesIncoming {
     tradesIncoming {
       id
-      from {
-        id
-        username
-        avatar
-      }
-      offeredItems {
-        id
-        name
-        rarity
-      }
-      requestedItems {
+      initiatorId
+      initiatorUsername
+      receiverId
+      receiverUsername
+      initiatorItems {
         id
         name
         rarity
+        icon
+        previewUrl
       }
+      initiatorCredits
+      receiverItems {
+        id
+        name
+        rarity
+        icon
+        previewUrl
+      }
+      receiverCredits
       status
+      message
+      valueWarning
+      expiresAt
       createdAt
     }
   }
@@ -1601,22 +1974,77 @@ export const TRADES_OUTGOING_QUERY = gql`
   query TradesOutgoing {
     tradesOutgoing {
       id
-      to {
-        id
-        username
-        avatar
-      }
-      offeredItems {
-        id
-        name
-        rarity
-      }
-      requestedItems {
+      initiatorId
+      initiatorUsername
+      receiverId
+      receiverUsername
+      initiatorItems {
         id
         name
         rarity
+        icon
+        previewUrl
       }
+      initiatorCredits
+      receiverItems {
+        id
+        name
+        rarity
+        icon
+        previewUrl
+      }
+      receiverCredits
       status
+      message
+      valueWarning
+      expiresAt
+      createdAt
+    }
+  }
+`;
+
+export const TRADES_HISTORY_QUERY = gql`
+  query TradesHistory($limit: Int) {
+    tradesHistory(limit: $limit) {
+      id
+      user1Id
+      user1Username
+      user2Id
+      user2Username
+      status
+      completedAt
+    }
+  }
+`;
+
+export const TRADE_QUERY = gql`
+  query Trade($id: ID!) {
+    trade(id: $id) {
+      id
+      initiatorId
+      initiatorUsername
+      receiverId
+      receiverUsername
+      initiatorItems {
+        id
+        name
+        rarity
+        icon
+        previewUrl
+      }
+      initiatorCredits
+      receiverItems {
+        id
+        name
+        rarity
+        icon
+        previewUrl
+      }
+      receiverCredits
+      status
+      message
+      valueWarning
+      expiresAt
       createdAt
     }
   }
@@ -1632,25 +2060,70 @@ export const MYSTERY_BOXES_QUERY = gql`
       id
       name
       description
-      rarity
+      boxType
       price
-      available
+      dropRates
+      availableFrom
+      availableUntil
+      maxPurchasesPerDay
+      createdAt
+    }
+  }
+`;
+
+export const MYSTERY_BOX_QUERY = gql`
+  query MysteryBox($id: ID!) {
+    mysteryBox(id: $id) {
+      box {
+        id
+        name
+        description
+        boxType
+        price
+        dropRates
+      }
+      recentDrops {
+        rarity
+        openedAt
+        name
+        previewUrl
+        username
+      }
+      dropStats {
+        rarity
+        count
+      }
     }
   }
 `;
 
 export const MYSTERY_BOX_HISTORY_QUERY = gql`
-  query MysteryBoxHistory {
-    mysteryBoxHistory {
+  query MysteryBoxHistory($limit: Int) {
+    mysteryBoxHistory(limit: $limit) {
       id
       boxId
       boxName
-      rewards {
-        id
-        name
-        rarity
-      }
+      cosmeticId
+      cosmeticName
+      rarity
+      previewUrl
+      creditsSpent
+      wasPityReward
       openedAt
+    }
+  }
+`;
+
+export const MYSTERY_BOX_PITY_QUERY = gql`
+  query MysteryBoxPity {
+    mysteryBoxPity {
+      boxType
+      epicCounter
+      legendaryCounter
+      epicThreshold
+      legendaryThreshold
+      lastEpicAt
+      lastLegendaryAt
     }
   }
 `;
@@ -1668,6 +2141,8 @@ export const SKINS_QUERY = gql`
       category
       rarity
       price
+      unlockRequirement
+      creditsRequired
       imageUrl
     }
   }
@@ -1677,9 +2152,42 @@ export const OWNED_SKINS_QUERY = gql`
   query OwnedSkins {
     ownedSkins {
       id
-      skinId
-      purchasedAt
-      equipped
+      name
+      description
+      category
+      rarity
+      price
+      imageUrl
+    }
+  }
+`;
+
+export const EQUIPPED_SKINS_QUERY = gql`
+  query EquippedSkins {
+    equippedSkins {
+      id
+      name
+      description
+      category
+      rarity
+      price
+      imageUrl
+    }
+  }
+`;
+
+export const UNLOCKABLE_SKINS_QUERY = gql`
+  query UnlockableSkins {
+    unlockableSkins {
+      id
+      name
+      description
+      category
+      rarity
+      price
+      unlockRequirement
+      creditsRequired
+      imageUrl
     }
   }
 `;

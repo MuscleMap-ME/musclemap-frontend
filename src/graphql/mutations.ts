@@ -569,14 +569,16 @@ export const RECOVER_WORKOUT_SESSION_MUTATION = gql`
 // ============================================
 
 export const CREATE_CONVERSATION_MUTATION = gql`
-  mutation CreateConversation($participantIds: [ID!]!) {
-    createConversation(participantIds: $participantIds) {
+  mutation CreateConversation($type: String!, $participantIds: [ID!]!) {
+    createConversation(type: $type, participantIds: $participantIds) {
       id
       type
+      name
       participants {
-        id
+        userId
         username
-        avatar
+        displayName
+        avatarUrl
       }
       createdAt
     }
@@ -584,13 +586,29 @@ export const CREATE_CONVERSATION_MUTATION = gql`
 `;
 
 export const SEND_MESSAGE_MUTATION = gql`
-  mutation SendMessage($conversationId: ID!, $content: String!) {
-    sendMessage(conversationId: $conversationId, content: $content) {
+  mutation SendMessage($conversationId: ID!, $content: String!, $replyToId: ID) {
+    sendMessage(conversationId: $conversationId, content: $content, replyToId: $replyToId) {
       id
       conversationId
       senderId
       content
+      replyTo {
+        id
+        content
+        senderName
+      }
       createdAt
+    }
+  }
+`;
+
+export const EDIT_MESSAGE_MUTATION = gql`
+  mutation EditMessage($messageId: ID!, $content: String!) {
+    editMessage(messageId: $messageId, content: $content) {
+      id
+      content
+      editedAt
+      editCount
     }
   }
 `;
@@ -604,6 +622,110 @@ export const MARK_CONVERSATION_READ_MUTATION = gql`
 export const DELETE_MESSAGE_MUTATION = gql`
   mutation DeleteMessage($messageId: ID!) {
     deleteMessage(messageId: $messageId)
+  }
+`;
+
+export const PIN_MESSAGE_MUTATION = gql`
+  mutation PinMessage($messageId: ID!) {
+    pinMessage(messageId: $messageId) {
+      id
+      pinnedAt
+    }
+  }
+`;
+
+export const UNPIN_MESSAGE_MUTATION = gql`
+  mutation UnpinMessage($messageId: ID!) {
+    unpinMessage(messageId: $messageId)
+  }
+`;
+
+export const ADD_REACTION_MUTATION = gql`
+  mutation AddReaction($messageId: ID!, $emoji: String!) {
+    addReaction(messageId: $messageId, emoji: $emoji) {
+      id
+      emoji
+    }
+  }
+`;
+
+export const REMOVE_REACTION_MUTATION = gql`
+  mutation RemoveReaction($messageId: ID!, $emoji: String!) {
+    removeReaction(messageId: $messageId, emoji: $emoji)
+  }
+`;
+
+export const SET_TYPING_STATUS_MUTATION = gql`
+  mutation SetTypingStatus($conversationId: ID!, $isTyping: Boolean!) {
+    setTypingStatus(conversationId: $conversationId, isTyping: $isTyping)
+  }
+`;
+
+export const STAR_CONVERSATION_MUTATION = gql`
+  mutation StarConversation($conversationId: ID!) {
+    starConversation(conversationId: $conversationId)
+  }
+`;
+
+export const UNSTAR_CONVERSATION_MUTATION = gql`
+  mutation UnstarConversation($conversationId: ID!) {
+    unstarConversation(conversationId: $conversationId)
+  }
+`;
+
+export const ARCHIVE_CONVERSATION_MUTATION = gql`
+  mutation ArchiveConversation($conversationId: ID!) {
+    archiveConversation(conversationId: $conversationId)
+  }
+`;
+
+export const UNARCHIVE_CONVERSATION_MUTATION = gql`
+  mutation UnarchiveConversation($conversationId: ID!) {
+    unarchiveConversation(conversationId: $conversationId)
+  }
+`;
+
+export const FORWARD_MESSAGE_MUTATION = gql`
+  mutation ForwardMessage($messageId: ID!, $toConversationIds: [ID!]!, $addComment: String) {
+    forwardMessage(messageId: $messageId, toConversationIds: $toConversationIds, addComment: $addComment) {
+      id
+      content
+      createdAt
+    }
+  }
+`;
+
+export const SET_DISAPPEARING_MESSAGES_MUTATION = gql`
+  mutation SetDisappearingMessages($conversationId: ID!, $ttl: Int) {
+    setDisappearingMessages(conversationId: $conversationId, ttl: $ttl)
+  }
+`;
+
+export const SCHEDULE_MESSAGE_MUTATION = gql`
+  mutation ScheduleMessage($conversationId: ID!, $content: String!, $scheduledFor: String!) {
+    scheduleMessage(conversationId: $conversationId, content: $content, scheduledFor: $scheduledFor) {
+      id
+      content
+      scheduledFor
+      status
+    }
+  }
+`;
+
+export const CANCEL_SCHEDULED_MESSAGE_MUTATION = gql`
+  mutation CancelScheduledMessage($scheduledId: ID!) {
+    cancelScheduledMessage(scheduledId: $scheduledId)
+  }
+`;
+
+export const CREATE_MESSAGE_TEMPLATE_MUTATION = gql`
+  mutation CreateMessageTemplate($name: String!, $content: String!, $shortcut: String) {
+    createMessageTemplate(name: $name, content: $content, shortcut: $shortcut) {
+      id
+      name
+      content
+      shortcut
+    }
   }
 `;
 
@@ -968,6 +1090,35 @@ export const TOGGLE_FAVORITE_MUTATION = gql`
   }
 `;
 
+export const MARK_ITEM_SEEN_MUTATION = gql`
+  mutation MarkItemSeen($itemId: ID!) {
+    markItemSeen(itemId: $itemId) {
+      success
+    }
+  }
+`;
+
+export const MARK_ALL_SEEN_MUTATION = gql`
+  mutation MarkAllSeen {
+    markAllSeen {
+      success
+    }
+  }
+`;
+
+export const CLAIM_SET_REWARD_MUTATION = gql`
+  mutation ClaimSetReward($setId: ID!, $threshold: Float!) {
+    claimSetReward(setId: $setId, threshold: $threshold) {
+      success
+      reward {
+        type
+        value
+        description
+      }
+    }
+  }
+`;
+
 // ============================================
 // MARKETPLACE
 // ============================================
@@ -991,11 +1142,18 @@ export const PURCHASE_LISTING_MUTATION = gql`
   mutation PurchaseListing($listingId: ID!) {
     purchaseListing(listingId: $listingId) {
       success
-      item {
-        id
-        name
-      }
       newBalance
+      message
+    }
+  }
+`;
+
+export const MAKE_OFFER_MUTATION = gql`
+  mutation MakeOffer($listingId: ID!, $amount: Int!, $message: String) {
+    makeOffer(listingId: $listingId, amount: $amount, message: $message) {
+      success
+      offerId
+      message
     }
   }
 `;
@@ -1008,28 +1166,48 @@ export const ADD_TO_WATCHLIST_MUTATION = gql`
   }
 `;
 
+export const REMOVE_FROM_WATCHLIST_MUTATION = gql`
+  mutation RemoveFromWatchlist($listingId: ID!) {
+    removeFromWatchlist(listingId: $listingId) {
+      success
+    }
+  }
+`;
+
 // ============================================
 // TRADES
 // ============================================
 
 export const CREATE_TRADE_MUTATION = gql`
-  mutation CreateTrade($input: TradeInput!) {
+  mutation CreateTrade($input: CreateTradeInput!) {
     createTrade(input: $input) {
-      id
-      to {
+      success
+      trade {
         id
-        username
+        initiatorId
+        initiatorUsername
+        receiverId
+        receiverUsername
+        initiatorItems {
+          id
+          name
+          rarity
+          icon
+        }
+        initiatorCredits
+        receiverItems {
+          id
+          name
+          rarity
+          icon
+        }
+        receiverCredits
+        status
+        message
+        createdAt
       }
-      offeredItems {
-        id
-        name
-      }
-      requestedItems {
-        id
-        name
-      }
-      status
-      createdAt
+      valueWarning
+      message
     }
   }
 `;
@@ -1042,6 +1220,7 @@ export const ACCEPT_TRADE_MUTATION = gql`
         id
         status
       }
+      message
     }
   }
 `;
@@ -1050,6 +1229,24 @@ export const REJECT_TRADE_MUTATION = gql`
   mutation RejectTrade($tradeId: ID!) {
     rejectTrade(tradeId: $tradeId) {
       success
+      trade {
+        id
+        status
+      }
+      message
+    }
+  }
+`;
+
+export const CANCEL_TRADE_MUTATION = gql`
+  mutation CancelTrade($tradeId: ID!) {
+    cancelTrade(tradeId: $tradeId) {
+      success
+      trade {
+        id
+        status
+      }
+      message
     }
   }
 `;
@@ -1059,14 +1256,17 @@ export const REJECT_TRADE_MUTATION = gql`
 // ============================================
 
 export const OPEN_MYSTERY_BOX_MUTATION = gql`
-  mutation OpenMysteryBox($boxId: ID!) {
-    openMysteryBox(boxId: $boxId) {
+  mutation OpenMysteryBox($boxId: ID!, $quantity: Int) {
+    openMysteryBox(boxId: $boxId, quantity: $quantity) {
       success
-      rewards {
-        id
-        name
+      results {
+        cosmeticId
+        cosmeticName
         rarity
-        imageUrl
+        previewUrl
+        wasPityReward
+        isDuplicate
+        refundAmount
       }
       newBalance
     }
@@ -1086,6 +1286,7 @@ export const PURCHASE_SKIN_MUTATION = gql`
         name
       }
       newBalance
+      message
     }
   }
 `;
@@ -1094,6 +1295,16 @@ export const EQUIP_SKIN_MUTATION = gql`
   mutation EquipSkin($skinId: ID!) {
     equipSkin(skinId: $skinId) {
       success
+      message
+    }
+  }
+`;
+
+export const UNEQUIP_SKIN_MUTATION = gql`
+  mutation UnequipSkin($skinId: ID!) {
+    unequipSkin(skinId: $skinId) {
+      success
+      message
     }
   }
 `;

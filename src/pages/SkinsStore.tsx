@@ -1,8 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  SKINS_QUERY,
+  OWNED_SKINS_QUERY,
+  EQUIPPED_SKINS_QUERY,
+  UNLOCKABLE_SKINS_QUERY,
+  ECONOMY_WALLET_QUERY,
+  PURCHASE_SKIN_MUTATION,
+  EQUIP_SKIN_MUTATION,
+  UNEQUIP_SKIN_MUTATION,
+} from '../graphql';
+
+interface Skin {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  rarity: string;
+  unlockRequirement: string | null;
+  creditsRequired: number | null;
+  imageUrl: string | null;
+}
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -12,7 +34,7 @@ const Icons = {
   Close: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12"/></svg>,
 };
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; border: string; bg: string }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', border: 'border-gray-500/30', bg: 'bg-gray-500/10' },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', border: 'border-green-500/30', bg: 'bg-green-500/10' },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', border: 'border-blue-500/30', bg: 'bg-blue-500/10' },
@@ -29,93 +51,85 @@ const tabs = [
 ];
 
 export default function SkinsStore() {
-  const { token } = useAuth();
-  const [skins, setSkins] = useState([]);
-  const [ownedSkins, setOwnedSkins] = useState([]);
-  const [equippedSkins, setEquippedSkins] = useState([]);
-  const [unlockableSkins, setUnlockableSkins] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('store');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedRarity, setSelectedRarity] = useState('all');
-  const [selectedSkin, setSelectedSkin] = useState(null);
-  const [wallet, setWallet] = useState(null);
+  const [selectedSkin, setSelectedSkin] = useState<Skin | null>(null);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // GraphQL queries
+  const { data: skinsData, loading: skinsLoading, refetch: refetchSkins } = useQuery(SKINS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: ownedData, refetch: refetchOwned } = useQuery(OWNED_SKINS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: equippedData, refetch: refetchEquipped } = useQuery(EQUIPPED_SKINS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: unlockableData, refetch: refetchUnlockable } = useQuery(UNLOCKABLE_SKINS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: walletData, refetch: refetchWallet } = useQuery(ECONOMY_WALLET_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchData = async () => {
-    try {
-      const [skinsRes, ownedRes, equippedRes, unlockableRes, walletRes] = await Promise.all([
-        fetch('/api/skins', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/skins/owned', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/skins/equipped', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/skins/unlockable', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/economy/wallet', { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      
-      const [skinsData, ownedData, equippedData, unlockableData, walletData] = await Promise.all([
-        skinsRes.json(), ownedRes.json(), equippedRes.json(), unlockableRes.json(), walletRes.json()
-      ]);
+  // GraphQL mutations
+  const [purchaseSkinMutation] = useMutation(PURCHASE_SKIN_MUTATION);
+  const [equipSkinMutation] = useMutation(EQUIP_SKIN_MUTATION);
+  const [unequipSkinMutation] = useMutation(UNEQUIP_SKIN_MUTATION);
 
-      setSkins(skinsData.skins || []);
-      setOwnedSkins(ownedData.skins || []);
-      setEquippedSkins(equippedData.skins || []);
-      setUnlockableSkins(unlockableData.skins || []);
-      setWallet(walletData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const skins: Skin[] = skinsData?.skins || [];
+  const ownedSkins: Skin[] = ownedData?.ownedSkins || [];
+  const equippedSkins: Skin[] = equippedData?.equippedSkins || [];
+  const unlockableSkins: Skin[] = unlockableData?.unlockableSkins || [];
+  const wallet = walletData?.economyWallet;
+
+  const refetchAll = async () => {
+    await Promise.all([
+      refetchSkins(),
+      refetchOwned(),
+      refetchEquipped(),
+      refetchUnlockable(),
+      refetchWallet(),
+    ]);
   };
 
-  const purchaseSkin = async (skinId) => {
+  const purchaseSkin = async (skinId: string) => {
     try {
-      const res = await fetch(`/api/skins/${skinId}/purchase`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
+      const { data } = await purchaseSkinMutation({ variables: { skinId } });
+      if (data?.purchaseSkin?.success) {
         setSelectedSkin(null);
-        fetchData();
+        await refetchAll();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const equipSkin = async (skinId) => {
+  const equipSkin = async (skinId: string) => {
     try {
-      const res = await fetch(`/api/skins/${skinId}/equip`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) fetchData();
+      const { data } = await equipSkinMutation({ variables: { skinId } });
+      if (data?.equipSkin?.success) {
+        await refetchAll();
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const unequipSkin = async (skinId) => {
+  const unequipSkin = async (skinId: string) => {
     try {
-      const res = await fetch(`/api/skins/${skinId}/unequip`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) fetchData();
+      const { data } = await unequipSkinMutation({ variables: { skinId } });
+      if (data?.unequipSkin?.success) {
+        await refetchAll();
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const getDisplaySkins = () => {
-    let items = [];
+  const getDisplaySkins = (): Skin[] => {
+    let items: Skin[] = [];
     switch (activeTab) {
       case 'store': items = skins; break;
       case 'owned': items = ownedSkins; break;
@@ -131,10 +145,10 @@ export default function SkinsStore() {
     return items;
   };
 
-  const isOwned = (skinId) => ownedSkins.some(s => s.id === skinId);
-  const isEquipped = (skinId) => equippedSkins.some(s => s.id === skinId);
+  const isOwned = (skinId: string) => ownedSkins.some(s => s.id === skinId);
+  const isEquipped = (skinId: string) => equippedSkins.some(s => s.id === skinId);
 
-  const SkinCard = ({ skin }) => {
+  const SkinCard = ({ skin }: { skin: Skin }) => {
     const rarity = RARITY_CONFIG[skin.rarity] || RARITY_CONFIG.common;
     const owned = isOwned(skin.id);
     const equipped = isEquipped(skin.id);
@@ -155,9 +169,9 @@ export default function SkinsStore() {
             <Icons.Check />
           </div>
         )}
-        
+
         <div className={clsx('h-24 bg-gradient-to-br', rarity.color, 'opacity-20')} />
-        
+
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className={clsx(
@@ -168,17 +182,17 @@ export default function SkinsStore() {
             </span>
             {owned && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-white/10">Owned</span>}
           </div>
-          
+
           <h3 className="font-semibold mb-1">{skin.name}</h3>
           <p className="text-sm text-gray-400 line-clamp-2">{skin.description}</p>
-          
+
           {!owned && (
             <div className="mt-3 flex items-center justify-between">
               <span className="font-bold">{skin.price} credits</span>
-              {skin.unlock_requirement && (
+              {skin.unlockRequirement && (
                 <span className="text-xs text-gray-500 flex items-center gap-1">
                   <Icons.Lock />
-                  {skin.credits_required} generated
+                  {skin.creditsRequired} generated
                 </span>
               )}
             </div>
@@ -188,7 +202,7 @@ export default function SkinsStore() {
     );
   };
 
-  if (loading) {
+  if (skinsLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
@@ -260,8 +274,8 @@ export default function SkinsStore() {
               onClick={() => setSelectedCategory(cat)}
               className={clsx(
                 'px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-all capitalize',
-                selectedCategory === cat 
-                  ? 'bg-violet-600 text-white' 
+                selectedCategory === cat
+                  ? 'bg-violet-600 text-white'
                   : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
               )}
             >
@@ -348,15 +362,15 @@ export default function SkinsStore() {
                       <span className="text-gray-400">Price</span>
                       <span className="text-xl font-bold">{selectedSkin.price} credits</span>
                     </div>
-                    
-                    {selectedSkin.unlock_requirement ? (
+
+                    {selectedSkin.unlockRequirement ? (
                       <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
                         <div className="flex items-center gap-2 text-amber-400 mb-2">
                           <Icons.Lock />
                           <span className="font-medium">Unlock Required</span>
                         </div>
                         <p className="text-sm text-gray-400">
-                          Generate {selectedSkin.credits_required} credits to unlock this item
+                          Generate {selectedSkin.creditsRequired} credits to unlock this item
                         </p>
                       </div>
                     ) : (

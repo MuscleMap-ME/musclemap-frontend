@@ -20,7 +20,7 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
-import { MY_MUSCLE_ACTIVATIONS_QUERY } from '../graphql/queries';
+import { MY_MUSCLE_ACTIVATIONS_QUERY, CONVERSATIONS_QUERY } from '../graphql/queries';
 import logger from '../utils/logger';
 import { DailyTip, MilestoneProgress, useContextualTips, useTipOnCondition, ActiveContextualTip } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -982,6 +982,23 @@ export default function Dashboard() {
     { fetchPolicy: 'cache-and-network' }
   );
 
+  // GraphQL query for conversations (to get unread count)
+  const { data: conversationsData } = useQuery(
+    CONVERSATIONS_QUERY,
+    { variables: { tab: 'inbox' }, fetchPolicy: 'cache-and-network' }
+  );
+
+  // Update unread count from conversations data
+  useEffect(() => {
+    if (conversationsData?.conversations) {
+      const totalUnread = conversationsData.conversations.reduce(
+        (sum: number, conv: { unreadCount?: number }) => sum + (conv.unreadCount || 0),
+        0
+      );
+      setUnreadMessageCount(totalUnread);
+    }
+  }, [conversationsData]);
+
   // Update muscle activations when GraphQL data changes
   useEffect(() => {
     if (muscleData?.myMuscleActivations && muscleData.myMuscleActivations.length > 0) {
@@ -1146,22 +1163,7 @@ export default function Dashboard() {
       setLoading(false);
     });
 
-    // Fetch unread message count
-    const token = localStorage.getItem('musclemap_token');
-    if (token) {
-      fetch('/api/messaging/unread-count', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data?.data?.unreadCount !== undefined) {
-            setUnreadMessageCount(data.data.unreadCount);
-          }
-        })
-        .catch(() => {
-          // Silently fail - badge just won't show
-        });
-    }
+    // Note: Unread message count is now fetched via GraphQL (CONVERSATIONS_QUERY)
 
     // Fetch character stats separately
     api.characterStats.me()

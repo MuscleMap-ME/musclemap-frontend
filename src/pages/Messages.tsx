@@ -3,8 +3,44 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
 import { sanitizeText } from '../utils/sanitize';
+import {
+  CONVERSATIONS_QUERY,
+  CONVERSATION_MESSAGES_QUERY,
+  PINNED_MESSAGES_QUERY,
+  TYPING_USERS_QUERY,
+  USER_PRESENCE_QUERY,
+  BLOCK_STATUS_QUERY,
+  MESSAGE_TEMPLATES_QUERY,
+  SCHEDULED_MESSAGES_QUERY,
+  SEARCH_MESSAGES_QUERY,
+  SEARCH_USERS_QUERY,
+} from '../graphql/queries';
+import {
+  CREATE_CONVERSATION_MUTATION,
+  SEND_MESSAGE_MUTATION,
+  EDIT_MESSAGE_MUTATION,
+  DELETE_MESSAGE_MUTATION,
+  MARK_CONVERSATION_READ_MUTATION,
+  PIN_MESSAGE_MUTATION,
+  UNPIN_MESSAGE_MUTATION,
+  ADD_REACTION_MUTATION,
+  REMOVE_REACTION_MUTATION,
+  SET_TYPING_STATUS_MUTATION,
+  STAR_CONVERSATION_MUTATION,
+  UNSTAR_CONVERSATION_MUTATION,
+  ARCHIVE_CONVERSATION_MUTATION,
+  UNARCHIVE_CONVERSATION_MUTATION,
+  FORWARD_MESSAGE_MUTATION,
+  SET_DISAPPEARING_MESSAGES_MUTATION,
+  SCHEDULE_MESSAGE_MUTATION,
+  CANCEL_SCHEDULED_MESSAGE_MUTATION,
+  CREATE_MESSAGE_TEMPLATE_MUTATION,
+  BLOCK_USER_MUTATION,
+  UNBLOCK_USER_MUTATION,
+} from '../graphql/mutations';
 
 // ============================================
 // HTML ENTITY DECODING UTILITY
@@ -559,42 +595,29 @@ function MessageBubble({
 function SearchModal({
   isOpen,
   onClose,
-  token,
   conversationId,
   onSelectMessage,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  token: string;
   conversationId?: string;
   onSelectMessage: (msgId: string) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const search = useCallback(async () => {
-    if (query.length < 2) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ query });
-      if (conversationId) params.set('conversationId', conversationId);
-      const res = await fetch(`/api/messaging/search?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setResults(data.data || []);
-    } catch {
-      // Error
-    } finally {
-      setLoading(false);
-    }
-  }, [query, conversationId, token]);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   useEffect(() => {
-    const timeout = setTimeout(search, 300);
+    const timeout = setTimeout(() => setDebouncedQuery(query), 300);
     return () => clearTimeout(timeout);
-  }, [search]);
+  }, [query]);
+
+  const { data, loading } = useQuery(SEARCH_MESSAGES_QUERY, {
+    variables: { query: debouncedQuery, conversationId, limit: 50 },
+    skip: debouncedQuery.length < 2 || !isOpen,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const results = data?.searchMessages?.results || [];
 
   if (!isOpen) return null;
 
@@ -664,39 +687,36 @@ function SearchModal({
 function TemplatesModal({
   isOpen,
   onClose,
-  token,
   onUseTemplate,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  token: string;
   onUseTemplate: (content: string) => void;
 }) {
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [newTemplate, setNewTemplate] = useState({ name: '', content: '', shortcut: '' });
   const [showNew, setShowNew] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch('/api/messaging/templates', { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => setTemplates(data.data || []))
-      .catch(() => {});
-  }, [isOpen, token]);
+  const { data, refetch } = useQuery(MESSAGE_TEMPLATES_QUERY, {
+    skip: !isOpen,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const templates: Template[] = data?.messageTemplates || [];
+
+  const [createTemplateMutation] = useMutation(CREATE_MESSAGE_TEMPLATE_MUTATION);
 
   const createTemplate = async () => {
     try {
-      const res = await fetch('/api/messaging/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(newTemplate)
+      await createTemplateMutation({
+        variables: {
+          name: newTemplate.name,
+          content: newTemplate.content,
+          shortcut: newTemplate.shortcut || null,
+        },
       });
-      const data = await res.json();
-      if (data.data) {
-        setTemplates([...templates, data.data]);
-        setNewTemplate({ name: '', content: '', shortcut: '' });
-        setShowNew(false);
-      }
+      refetch();
+      setNewTemplate({ name: '', content: '', shortcut: '' });
+      setShowNew(false);
     } catch {
       // Error
     }
@@ -813,29 +833,22 @@ function TemplatesModal({
 function ScheduledMessagesModal({
   isOpen,
   onClose,
-  token,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  token: string;
 }) {
-  const [scheduled, setScheduled] = useState<ScheduledMessage[]>([]);
+  const { data, refetch } = useQuery(SCHEDULED_MESSAGES_QUERY, {
+    skip: !isOpen,
+    fetchPolicy: 'cache-and-network',
+  });
+  const scheduled: ScheduledMessage[] = data?.scheduledMessages || [];
 
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch('/api/messaging/scheduled', { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(data => setScheduled(data.data || []))
-      .catch(() => {});
-  }, [isOpen, token]);
+  const [cancelScheduledMutation] = useMutation(CANCEL_SCHEDULED_MESSAGE_MUTATION);
 
   const cancelScheduled = async (id: string) => {
     try {
-      await fetch(`/api/messaging/scheduled/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setScheduled(scheduled.filter(s => s.id !== id));
+      await cancelScheduledMutation({ variables: { messageId: id } });
+      refetch();
     } catch {
       // Error
     }
@@ -904,23 +917,20 @@ function ConversationSettingsModal({
   isOpen,
   onClose,
   conversation,
-  token,
   onUpdate,
 }: {
   isOpen: boolean;
   onClose: () => void;
   conversation: Conversation;
-  token: string;
   onUpdate: (conv: Partial<Conversation>) => void;
 }) {
   const [disappearingTtl, setDisappearingTtl] = useState(conversation.disappearing_ttl || 0);
+  const [setDisappearingMutation] = useMutation(SET_DISAPPEARING_MESSAGES_MUTATION);
 
   const updateDisappearing = async () => {
     try {
-      await fetch(`/api/messaging/conversations/${conversation.id}/disappearing`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ttl: disappearingTtl })
+      await setDisappearingMutation({
+        variables: { conversationId: conversation.id, ttlSeconds: disappearingTtl }
       });
       onUpdate({ disappearing_ttl: disappearingTtl });
       onClose();
@@ -990,25 +1000,26 @@ function ForwardModal({
   isOpen,
   onClose,
   message,
-  token,
   conversations,
 }: {
   isOpen: boolean;
   onClose: () => void;
   message: Message | null;
-  token: string;
   conversations: Conversation[];
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+  const [forwardMutation] = useMutation(FORWARD_MESSAGE_MUTATION);
 
   const forwardMessage = async () => {
     if (!message || selected.length === 0) return;
     try {
-      await fetch(`/api/messaging/messages/${message.id}/forward`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ toConversationIds: selected, addComment: comment || undefined })
+      await forwardMutation({
+        variables: {
+          messageId: message.id,
+          toConversationIds: selected,
+          addComment: comment || undefined
+        }
       });
       onClose();
       setSelected([]);
@@ -1180,26 +1191,19 @@ function PinnedMessagesPanel({
   isOpen,
   onClose,
   conversationId,
-  token,
   onJumpToMessage,
 }: {
   isOpen: boolean;
   onClose: () => void;
   conversationId: string;
-  token: string;
   onJumpToMessage: (msgId: string) => void;
 }) {
-  const [pinned, setPinned] = useState<Message[]>([]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    fetch(`/api/messaging/conversations/${conversationId}/pinned`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setPinned(data.data || []))
-      .catch(() => {});
-  }, [isOpen, conversationId, token]);
+  const { data } = useQuery(PINNED_MESSAGES_QUERY, {
+    variables: { conversationId },
+    skip: !isOpen || !conversationId,
+    fetchPolicy: 'cache-and-network',
+  });
+  const pinned: Message[] = data?.pinnedMessages || [];
 
   if (!isOpen) return null;
 
@@ -1243,32 +1247,24 @@ function PinnedMessagesPanel({
 // ============================================
 
 export default function Messages() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const currentUserId = user?.id;
 
   // Core state
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('inbox');
 
   // UI state
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchUsers, setSearchUsers] = useState('');
-  const [userResults, setUserResults] = useState<any[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
   const [sendError, setSendError] = useState('');
 
   // Enhanced features state
-  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-  const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
-  const [presenceMap, setPresenceMap] = useState<Record<string, 'online' | 'away' | 'offline'>>({});
 
   // Modals
   const [showSearch, setShowSearch] = useState(false);
@@ -1287,194 +1283,170 @@ export default function Messages() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ============================================
-  // DATA FETCHING
+  // GRAPHQL QUERIES
   // ============================================
 
-  const fetchConversations = useCallback(async () => {
-    if (!token || !currentUserId) return;
-    try {
-      const res = await fetch(`/api/messaging/conversations?tab=${activeTab}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      const convs = (data.data || []).map((c: any) => {
-        const otherParticipant = c.participants?.find((p: any) => p.userId !== currentUserId);
-        return {
-          id: c.id,
-          type: c.type,
-          name: c.name,
-          display_name: c.name || otherParticipant?.displayName || otherParticipant?.username || 'Unknown',
-          last_message: c.lastMessage?.content,
-          last_activity_at: c.lastMessageAt || c.createdAt,
-          unread_count: c.unreadCount || 0,
-          participants: c.participants,
-          starred: c.starred,
-          archived: c.archivedAt !== null,
-          disappearing_ttl: c.disappearingTtl,
-          typing_users: c.typingUsers || [],
-        };
-      });
-      setConversations(convs);
-    } catch {
-      // Error
-    } finally {
-      setLoading(false);
+  // Conversations query
+  const { data: conversationsData, loading: conversationsLoading, refetch: refetchConversations } = useQuery(
+    CONVERSATIONS_QUERY,
+    {
+      variables: { tab: activeTab },
+      fetchPolicy: 'cache-and-network',
+      skip: !currentUserId,
     }
-  }, [token, activeTab, currentUserId]);
+  );
 
-  const fetchMessages = useCallback(async (conversationId: string) => {
-    if (!token || !currentUserId) return;
-    try {
-      const res = await fetch(`/api/messaging/conversations/${conversationId}/messages`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      const msgs: Message[] = (data.data || []).map((m: any) => ({
-        id: m.id,
-        content: m.content,
-        sender_id: m.sender?.id === currentUserId ? 'me' : m.sender?.id,
-        sender_name: m.sender?.id === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
-        created_at: m.createdAt,
-        edited_at: m.editedAt,
-        edit_count: m.editCount,
-        reactions: m.reactions,
-        pinned_at: m.pinnedAt,
-        reply_to: m.replyTo,
-        status: m.readAt ? 'read' : m.deliveredAt ? 'delivered' : 'sent',
-      }));
-      setMessages(msgs);
-      setPinnedMessages(msgs.filter(m => m.pinned_at).map(m => m.id));
+  const conversations: Conversation[] = (conversationsData?.conversations || []).map((c: any) => {
+    const otherParticipant = c.participants?.find((p: any) => p.userId !== currentUserId);
+    return {
+      id: c.id,
+      type: c.type,
+      name: c.name,
+      display_name: c.name || otherParticipant?.displayName || otherParticipant?.username || 'Unknown',
+      last_message: c.lastMessage?.content,
+      last_activity_at: c.lastMessageAt || c.createdAt,
+      unread_count: c.unreadCount || 0,
+      participants: c.participants,
+      starred: c.starred,
+      archived: c.archivedAt !== null,
+      disappearing_ttl: c.disappearingTtl,
+      typing_users: c.typingUsers || [],
+    };
+  });
 
-      // Mark as read
-      fetch(`/api/messaging/conversations/${conversationId}/read`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      }).catch(() => {});
-
-      // Fetch typing users
-      fetch(`/api/messaging/conversations/${conversationId}/typing`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => setTypingUsers(data.data || []))
-        .catch(() => {});
-    } catch {
-      // Error
+  // Messages query for active conversation
+  const { data: messagesData, refetch: refetchMessages } = useQuery(
+    CONVERSATION_MESSAGES_QUERY,
+    {
+      variables: { conversationId: activeConversation?.id },
+      fetchPolicy: 'cache-and-network',
+      skip: !activeConversation?.id,
+      pollInterval: 3000, // Poll for new messages
     }
-  }, [token, currentUserId]);
+  );
 
-  const fetchPresence = useCallback(async (userIds: string[]) => {
-    if (!token || userIds.length === 0) return;
-    try {
-      const res = await fetch('/api/messaging/presence/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userIds })
-      });
-      const data = await res.json();
-      const newPresence: Record<string, 'online' | 'away' | 'offline'> = {};
-      (data.data || []).forEach((p: any) => {
-        newPresence[p.userId] = p.status;
-      });
-      setPresenceMap(prev => ({ ...prev, ...newPresence }));
-    } catch {
-      // Error
+  const messages: Message[] = (messagesData?.conversationMessages || []).map((m: any) => ({
+    id: m.id,
+    content: m.content,
+    sender_id: m.senderId === currentUserId ? 'me' : m.senderId,
+    sender_name: m.senderId === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
+    created_at: m.createdAt,
+    edited_at: m.editedAt,
+    edit_count: m.editCount,
+    reactions: m.reactions,
+    pinned_at: m.pinnedAt,
+    reply_to: m.replyTo ? { id: m.replyTo.id, content: m.replyTo.content, sender_name: m.replyTo.senderName } : undefined,
+    status: m.readAt ? 'read' : m.deliveredAt ? 'delivered' : 'sent',
+  }));
+
+  const pinnedMessages = messages.filter(m => m.pinned_at).map(m => m.id);
+
+  // Typing users query
+  const { data: typingData } = useQuery(
+    TYPING_USERS_QUERY,
+    {
+      variables: { conversationId: activeConversation?.id },
+      skip: !activeConversation?.id,
+      pollInterval: 2000,
     }
-  }, [token]);
+  );
+  const typingUsers: TypingUser[] = typingData?.typingUsers || [];
+
+  // Presence query for active conversation participants
+  const participantIds = activeConversation?.participants
+    ?.filter(p => p.userId !== currentUserId)
+    .map(p => p.userId) || [];
+
+  const { data: presenceData } = useQuery(
+    USER_PRESENCE_QUERY,
+    {
+      variables: { userIds: participantIds },
+      skip: participantIds.length === 0,
+      pollInterval: 30000, // Poll less frequently
+    }
+  );
+
+  const presenceMap: Record<string, 'online' | 'away' | 'offline'> = {};
+  (presenceData?.userPresence || []).forEach((p: any) => {
+    presenceMap[p.userId] = p.status;
+  });
+
+  // Block status for 1:1 conversations
+  const otherUserId = activeConversation?.type === 'direct'
+    ? activeConversation.participants?.find(p => p.userId !== currentUserId)?.userId
+    : null;
+
+  const { data: blockData } = useQuery(
+    BLOCK_STATUS_QUERY,
+    {
+      variables: { userId: otherUserId },
+      skip: !otherUserId,
+    }
+  );
+  const isBlocked = blockData?.blockStatus?.isBlocked || false;
+
+  // User search for new chat
+  const { data: userSearchData } = useQuery(
+    SEARCH_USERS_QUERY,
+    {
+      variables: { query: searchUsers, limit: 10 },
+      skip: searchUsers.length < 2,
+    }
+  );
+  const userResults = userSearchData?.searchUsers || [];
+
+  // ============================================
+  // GRAPHQL MUTATIONS
+  // ============================================
+
+  const [createConversation] = useMutation(CREATE_CONVERSATION_MUTATION);
+  const [sendMessageMutation] = useMutation(SEND_MESSAGE_MUTATION);
+  const [editMessageMutation] = useMutation(EDIT_MESSAGE_MUTATION);
+  const [deleteMessageMutation] = useMutation(DELETE_MESSAGE_MUTATION);
+  const [markConversationRead] = useMutation(MARK_CONVERSATION_READ_MUTATION);
+  const [pinMessageMutation] = useMutation(PIN_MESSAGE_MUTATION);
+  const [unpinMessageMutation] = useMutation(UNPIN_MESSAGE_MUTATION);
+  const [addReactionMutation] = useMutation(ADD_REACTION_MUTATION);
+  const [removeReactionMutation] = useMutation(REMOVE_REACTION_MUTATION);
+  const [setTypingStatusMutation] = useMutation(SET_TYPING_STATUS_MUTATION);
+  const [starConversationMutation] = useMutation(STAR_CONVERSATION_MUTATION);
+  const [unstarConversationMutation] = useMutation(UNSTAR_CONVERSATION_MUTATION);
+  const [archiveConversationMutation] = useMutation(ARCHIVE_CONVERSATION_MUTATION);
+  const [unarchiveConversationMutation] = useMutation(UNARCHIVE_CONVERSATION_MUTATION);
+  const [_forwardMessageMutation] = useMutation(FORWARD_MESSAGE_MUTATION);
+  const [scheduleMessageMutation] = useMutation(SCHEDULE_MESSAGE_MUTATION);
+  const [blockUserMutation] = useMutation(BLOCK_USER_MUTATION);
+  const [unblockUserMutation] = useMutation(UNBLOCK_USER_MUTATION);
 
   // ============================================
   // EFFECTS
   // ============================================
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
-
-  useEffect(() => {
     if (activeConversation) {
-      fetchMessages(activeConversation.id);
-      // Fetch presence for participants
-      const userIds = activeConversation.participants
-        ?.filter(p => p.userId !== currentUserId)
-        .map(p => p.userId) || [];
-      if (userIds.length > 0) {
-        fetchPresence(userIds);
-      }
+      // Mark as read when opening conversation
+      markConversationRead({ variables: { conversationId: activeConversation.id } }).catch(() => {});
     }
-  }, [activeConversation, fetchMessages, fetchPresence, currentUserId]);
+  }, [activeConversation, markConversationRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Polling for typing indicators and new messages
-  useEffect(() => {
-    if (!activeConversation || !token || !currentUserId) return;
-
-    const pollMessages = async () => {
-      try {
-        const res = await fetch(`/api/messaging/conversations/${activeConversation.id}/messages`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        const msgs: Message[] = (data.data || []).map((m: any) => ({
-          id: m.id,
-          content: m.content,
-          sender_id: m.sender?.id === currentUserId ? 'me' : m.sender?.id,
-          sender_name: m.sender?.id === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
-          created_at: m.createdAt,
-          edited_at: m.editedAt,
-          edit_count: m.editCount,
-          reactions: m.reactions,
-          pinned_at: m.pinnedAt,
-          reply_to: m.replyTo,
-          status: m.readAt ? 'read' : m.deliveredAt ? 'delivered' : 'sent',
-        }));
-
-        // Only update if there are new messages (compare by length and last message id)
-        setMessages(prev => {
-          if (msgs.length !== prev.length || (msgs.length > 0 && prev.length > 0 && msgs[msgs.length - 1].id !== prev[prev.length - 1].id)) {
-            return msgs;
-          }
-          return prev;
-        });
-      } catch {
-        // Ignore polling errors
-      }
-    };
-
-    const interval = setInterval(() => {
-      // Fetch typing users
-      fetch(`/api/messaging/conversations/${activeConversation.id}/typing`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => setTypingUsers(data.data || []))
-        .catch(() => {});
-
-      // Poll for new messages
-      pollMessages();
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [activeConversation, token, currentUserId]);
 
   // ============================================
   // ACTIONS
   // ============================================
 
   const sendTypingIndicator = useCallback(async (isTyping: boolean) => {
-    if (!activeConversation || !token) return;
+    if (!activeConversation) return;
     try {
-      await fetch(`/api/messaging/conversations/${activeConversation.id}/typing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isTyping })
+      await setTypingStatusMutation({
+        variables: { conversationId: activeConversation.id, isTyping }
       });
     } catch {
-      // Error
+      // Ignore errors
     }
-  }, [activeConversation, token]);
+  }, [activeConversation, setTypingStatusMutation]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
@@ -1507,84 +1479,48 @@ export default function Messages() {
     }
 
     try {
-      const body: any = { content: messageContent };
-      if (replyingTo) body.replyToId = replyingTo.id;
-
       if (scheduledFor) {
         // Schedule message
-        const res = await fetch('/api/messaging/scheduled', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
+        await scheduleMessageMutation({
+          variables: {
             conversationId: activeConversation.id,
             content: messageContent,
             scheduledFor: scheduledFor.toISOString(),
-          })
+          }
         });
-        const data = await res.json();
-        if (data.error) {
-          setSendError(data.error.message);
-          return;
-        }
         setNewMessage('');
         setReplyingTo(null);
         return;
       }
 
-      const res = await fetch(`/api/messaging/conversations/${activeConversation.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body)
+      await sendMessageMutation({
+        variables: {
+          conversationId: activeConversation.id,
+          content: messageContent,
+          replyToId: replyingTo?.id,
+        },
+        refetchQueries: [
+          { query: CONVERSATION_MESSAGES_QUERY, variables: { conversationId: activeConversation.id } },
+          { query: CONVERSATIONS_QUERY, variables: { tab: activeTab } },
+        ],
       });
-      const data = await res.json();
 
-      if (data.error) {
-        setSendError(data.error.message || 'Failed to send message');
-        setTimeout(() => setSendError(''), 5000);
-        return;
-      }
-
-      if (data.data) {
-        const msg = data.data;
-        setMessages(prev => [...prev, {
-          id: msg.id,
-          content: msg.content,
-          sender_id: 'me',
-          sender_name: 'You',
-          created_at: msg.createdAt,
-          status: 'sent',
-          reply_to: replyingTo ? { id: replyingTo.id, content: replyingTo.content, sender_name: replyingTo.sender_name } : undefined,
-        }]);
-        setNewMessage('');
-        setReplyingTo(null);
-
-        setConversations(prev => prev.map(conv =>
-          conv.id === activeConversation.id
-            ? { ...conv, last_message: messageContent, last_activity_at: msg.createdAt }
-            : conv
-        ));
-      }
-    } catch {
-      setSendError('Failed to send message');
+      setNewMessage('');
+      setReplyingTo(null);
+    } catch (err: any) {
+      setSendError(err.message || 'Failed to send message');
       setTimeout(() => setSendError(''), 5000);
     }
   };
 
   const editMessage = async (messageId: string, newContent: string) => {
     try {
-      const res = await fetch(`/api/messaging/messages/${messageId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: newContent })
+      await editMessageMutation({
+        variables: { messageId, content: newContent },
+        refetchQueries: [
+          { query: CONVERSATION_MESSAGES_QUERY, variables: { conversationId: activeConversation?.id } },
+        ],
       });
-      const data = await res.json();
-      if (data.data) {
-        setMessages(prev => prev.map(m =>
-          m.id === messageId
-            ? { ...m, content: newContent, edited_at: new Date().toISOString() }
-            : m
-        ));
-      }
       setEditingMessage(null);
     } catch {
       // Error
@@ -1593,11 +1529,12 @@ export default function Messages() {
 
   const deleteMessage = async (messageId: string) => {
     try {
-      await fetch(`/api/messaging/messages/${messageId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      await deleteMessageMutation({
+        variables: { messageId },
+        refetchQueries: [
+          { query: CONVERSATION_MESSAGES_QUERY, variables: { conversationId: activeConversation?.id } },
+        ],
       });
-      setMessages(prev => prev.filter(m => m.id !== messageId));
     } catch {
       // Error
     }
@@ -1606,15 +1543,12 @@ export default function Messages() {
   const togglePin = async (messageId: string) => {
     const isPinned = pinnedMessages.includes(messageId);
     try {
-      await fetch(`/api/messaging/messages/${messageId}/pin`, {
-        method: isPinned ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
       if (isPinned) {
-        setPinnedMessages(prev => prev.filter(id => id !== messageId));
+        await unpinMessageMutation({ variables: { messageId } });
       } else {
-        setPinnedMessages(prev => [...prev, messageId]);
+        await pinMessageMutation({ variables: { messageId } });
       }
+      refetchMessages();
     } catch {
       // Error
     }
@@ -1626,24 +1560,11 @@ export default function Messages() {
       const existingReaction = message?.reactions?.find(r => r.emoji === emoji);
 
       if (existingReaction?.userReacted) {
-        // Remove reaction
-        await fetch(`/api/messaging/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await removeReactionMutation({ variables: { messageId, emoji } });
       } else {
-        // Add reaction
-        await fetch(`/api/messaging/messages/${messageId}/reactions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ emoji })
-        });
+        await addReactionMutation({ variables: { messageId, emoji } });
       }
-
-      // Refresh messages to get updated reactions
-      if (activeConversation) {
-        fetchMessages(activeConversation.id);
-      }
+      refetchMessages();
     } catch {
       // Error
     }
@@ -1653,14 +1574,13 @@ export default function Messages() {
     if (!activeConversation) return;
     const isStarred = activeConversation.starred;
     try {
-      await fetch(`/api/messaging/conversations/${activeConversation.id}/star`, {
-        method: isStarred ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (isStarred) {
+        await unstarConversationMutation({ variables: { conversationId: activeConversation.id } });
+      } else {
+        await starConversationMutation({ variables: { conversationId: activeConversation.id } });
+      }
       setActiveConversation(prev => prev ? { ...prev, starred: !isStarred } : null);
-      setConversations(prev => prev.map(c =>
-        c.id === activeConversation.id ? { ...c, starred: !isStarred } : c
-      ));
+      refetchConversations();
     } catch {
       // Error
     }
@@ -1670,25 +1590,13 @@ export default function Messages() {
     if (!activeConversation) return;
     const isArchived = activeConversation.archived;
     try {
-      await fetch(`/api/messaging/conversations/${activeConversation.id}/archive`, {
-        method: isArchived ? 'DELETE' : 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (isArchived) {
+        await unarchiveConversationMutation({ variables: { conversationId: activeConversation.id } });
+      } else {
+        await archiveConversationMutation({ variables: { conversationId: activeConversation.id } });
+      }
       setActiveConversation(null);
-      fetchConversations();
-    } catch {
-      // Error
-    }
-  };
-
-  const searchForUsers = async (query: string) => {
-    if (query.length < 2) return setUserResults([]);
-    try {
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setUserResults(data.users || []);
+      refetchConversations();
     } catch {
       // Error
     }
@@ -1696,65 +1604,32 @@ export default function Messages() {
 
   const startConversation = async (userId: string) => {
     try {
-      const res = await fetch('/api/messaging/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type: 'direct', participantIds: [userId] })
+      const { data } = await createConversation({
+        variables: { participantIds: [userId], type: 'direct' },
       });
-      const data = await res.json();
-      if (data.error) {
-        setSendError(data.error.message || 'Cannot start conversation');
-        setTimeout(() => setSendError(''), 3000);
-        return;
-      }
-      if (data.data?.id) {
+      if (data?.createConversation?.id) {
         setShowNewChat(false);
-        fetchConversations();
-        setActiveConversation({ id: data.data.id, ...data.data } as any);
+        refetchConversations();
+        // Set the new conversation as active
+        setActiveConversation({
+          id: data.createConversation.id,
+          type: data.createConversation.type || 'direct',
+          name: data.createConversation.name,
+          display_name: data.createConversation.name || 'Unknown',
+          unread_count: 0,
+          participants: [],
+        } as Conversation);
       }
-    } catch {
-      // Error
+    } catch (err: any) {
+      setSendError(err.message || 'Cannot start conversation');
+      setTimeout(() => setSendError(''), 3000);
     }
   };
 
-  const getOtherUserId = useCallback(() => {
-    if (!activeConversation || activeConversation.type === 'group') return null;
-    const otherParticipant = activeConversation.participants?.find(p => p.userId !== currentUserId);
-    return otherParticipant?.userId;
-  }, [activeConversation, currentUserId]);
-
-  const checkBlockStatus = useCallback(async () => {
-    const otherUserId = getOtherUserId();
-    if (!otherUserId || !token) {
-      setIsBlocked(false);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/messaging/block/${otherUserId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setIsBlocked(data.data?.isBlocked || false);
-    } catch {
-      setIsBlocked(false);
-    }
-  }, [getOtherUserId, token]);
-
-  useEffect(() => {
-    if (activeConversation) {
-      checkBlockStatus();
-    }
-  }, [activeConversation, checkBlockStatus]);
-
   const blockUser = async () => {
-    const otherUserId = getOtherUserId();
     if (!otherUserId) return;
     try {
-      await fetch(`/api/messaging/block/${otherUserId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setIsBlocked(true);
+      await blockUserMutation({ variables: { userId: otherUserId } });
       setShowMoreMenu(false);
     } catch {
       // Error
@@ -1762,14 +1637,9 @@ export default function Messages() {
   };
 
   const unblockUser = async () => {
-    const otherUserId = getOtherUserId();
     if (!otherUserId) return;
     try {
-      await fetch(`/api/messaging/block/${otherUserId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setIsBlocked(false);
+      await unblockUserMutation({ variables: { userId: otherUserId } });
       setShowMoreMenu(false);
     } catch {
       // Error
@@ -1798,6 +1668,15 @@ export default function Messages() {
   const getPresenceStatus = (userId: string): 'online' | 'away' | 'offline' => {
     return presenceMap[userId] || 'offline';
   };
+
+  const loading = conversationsLoading;
+
+  // Helper to refetch messages (available for subcomponents if needed)
+  const _fetchMessages = useCallback((conversationId: string) => {
+    if (conversationId === activeConversation?.id) {
+      refetchMessages();
+    }
+  }, [activeConversation?.id, refetchMessages]);
 
   // ============================================
   // RENDER
@@ -2213,7 +2092,6 @@ export default function Messages() {
                   isOpen={showPinned}
                   onClose={() => setShowPinned(false)}
                   conversationId={activeConversation.id}
-                  token={token!}
                   onJumpToMessage={(msgId) => {
                     const el = document.getElementById(`msg-${msgId}`);
                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2297,7 +2175,6 @@ export default function Messages() {
           <SearchModal
             isOpen={showSearch}
             onClose={() => setShowSearch(false)}
-            token={token!}
             conversationId={activeConversation?.id}
             onSelectMessage={(msgId) => {
               const el = document.getElementById(`msg-${msgId}`);
@@ -2312,7 +2189,6 @@ export default function Messages() {
           <TemplatesModal
             isOpen={showTemplates}
             onClose={() => setShowTemplates(false)}
-            token={token!}
             onUseTemplate={(content) => setNewMessage(content)}
           />
         )}
@@ -2323,7 +2199,6 @@ export default function Messages() {
           <ScheduledMessagesModal
             isOpen={showScheduled}
             onClose={() => setShowScheduled(false)}
-            token={token!}
           />
         )}
       </AnimatePresence>
@@ -2334,7 +2209,6 @@ export default function Messages() {
             isOpen={showSettings}
             onClose={() => setShowSettings(false)}
             conversation={activeConversation}
-            token={token!}
             onUpdate={(updates) => {
               setActiveConversation(prev => prev ? { ...prev, ...updates } : null);
             }}
@@ -2361,7 +2235,6 @@ export default function Messages() {
             isOpen={!!forwardingMessage}
             onClose={() => setForwardingMessage(null)}
             message={forwardingMessage}
-            token={token!}
             conversations={conversations}
           />
         )}

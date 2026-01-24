@@ -23,6 +23,7 @@ import {
 import { statsService } from '../modules/stats';
 import { skillService } from '../modules/skills';
 import { martialArtsService } from '../modules/martial-arts';
+import { achievementService } from '../modules/achievements';
 import { longTermAnalyticsService } from '../modules/analytics';
 import { careerService } from '../modules/career';
 import {
@@ -60,6 +61,7 @@ import { virtualHangoutsService } from '../modules/community/virtual-hangouts.se
 import { tipsService } from '../modules/tips';
 import { journeyHealthService } from '../modules/journey';
 import { issuesService } from '../services/issues.service';
+import { mysteryBoxService } from '../modules/marketplace/mystery-box.service';
 import * as equipmentService from '../services/equipment.service';
 import { loggers } from '../lib/logger';
 import {
@@ -3150,80 +3152,94 @@ export const resolvers = {
     },
 
     // 7. Message conversations
-    conversations: async (_: unknown, __: unknown, context: Context) => {
+    conversations: async (_: unknown, args: { tab?: string }, context: Context) => {
       const { userId } = requireAuth(context);
+      const tab = args.tab || 'inbox';
 
-      const convos = await queryAll<{
-        id: string;
-        participant_ids: string[];
-        last_message_at: Date | null;
-        created_at: Date;
-        updated_at: Date;
-      }>(
-        `SELECT c.id, c.participant_ids, c.last_message_at, c.created_at, c.updated_at
+      // Build query based on tab
+      let filterCondition = '';
+      if (tab === 'starred') {
+        filterCondition = 'AND cp.starred = TRUE';
+      } else if (tab === 'archived') {
+        filterCondition = 'AND c.archived_at IS NOT NULL';
+      } else {
+        // inbox - exclude archived
+        filterCondition = 'AND c.archived_at IS NULL';
+      }
+
+      const convos = await queryAll<any>(
+        `SELECT c.id, c.type, c.name, c.last_message_at, c.created_at, c.updated_at,
+                c.disappearing_ttl, c.archived_at, cp.starred
          FROM conversations c
-         WHERE $1 = ANY(c.participant_ids)
+         JOIN conversation_participants cp ON c.id = cp.conversation_id AND cp.user_id = $1
+         WHERE 1=1 ${filterCondition}
          ORDER BY c.last_message_at DESC NULLS LAST
          LIMIT 50`,
         [userId]
       );
 
-      // Get participants and last messages
+      // Get participants, last messages, and typing users for each conversation
       const result = await Promise.all(
-        convos.map(async (c) => {
+        convos.map(async (c: any) => {
           // Get participant details
-          const participants = await queryAll<{
-            id: string;
-            username: string;
-            display_name: string | null;
-            avatar: string | null;
-          }>(
-            `SELECT id, username, display_name, avatar
-             FROM users WHERE id = ANY($1)`,
-            [c.participant_ids]
+          const participants = await queryAll<any>(
+            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_active_at, cp.role
+             FROM conversation_participants cp
+             JOIN users u ON cp.user_id = u.id
+             WHERE cp.conversation_id = $1`,
+            [c.id]
           );
 
           // Get last message
-          const lastMessage = await queryOne<{
-            id: string;
-            conversation_id: string;
-            sender_id: string;
-            content: string;
-            is_read: boolean;
-            created_at: Date;
-          }>(
-            `SELECT id, conversation_id, sender_id, content, is_read, created_at
-             FROM messages WHERE conversation_id = $1
+          const lastMessage = await queryOne<any>(
+            `SELECT id, sender_id, content, created_at
+             FROM messages WHERE conversation_id = $1 AND deleted_at IS NULL
              ORDER BY created_at DESC LIMIT 1`,
             [c.id]
           );
 
           // Get unread count
           const unreadResult = await queryOne<{ count: string }>(
-            `SELECT COUNT(*) as count FROM messages
-             WHERE conversation_id = $1 AND sender_id != $2 AND is_read = FALSE`,
+            `SELECT COUNT(*) as count FROM messages m
+             LEFT JOIN message_receipts mr ON m.id = mr.message_id AND mr.user_id = $2
+             WHERE m.conversation_id = $1 AND m.sender_id != $2 AND mr.read_at IS NULL AND m.deleted_at IS NULL`,
             [c.id, userId]
           );
 
+          // Get typing users
+          const { getTypingUsers } = await import('../modules/messaging/messaging.service');
+          const typingUsers = await getTypingUsers(c.id);
+
           return {
             id: c.id,
-            participants: participants.map(p => ({
-              id: p.id,
+            type: c.type || 'direct',
+            name: c.name || null,
+            participants: participants.map((p: any) => ({
+              userId: p.id,
               username: p.username,
-              displayName: p.display_name,
-              avatar: p.avatar,
+              displayName: p.display_name || null,
+              avatarUrl: p.avatar_url || null,
+              lastActiveAt: p.last_active_at?.toISOString() || null,
+              role: p.role || 'member',
             })),
             lastMessage: lastMessage ? {
               id: lastMessage.id,
-              conversationId: lastMessage.conversation_id,
               senderId: lastMessage.sender_id,
               content: lastMessage.content,
-              read: lastMessage.is_read,
-              createdAt: lastMessage.created_at,
+              createdAt: lastMessage.created_at?.toISOString(),
             } : null,
+            lastMessageAt: c.last_message_at?.toISOString() || null,
             unreadCount: parseInt(unreadResult?.count || '0', 10),
-            createdAt: c.created_at,
-            updatedAt: c.updated_at,
+            starred: c.starred || false,
+            archivedAt: c.archived_at?.toISOString() || null,
+            disappearingTtl: c.disappearing_ttl || null,
+            typingUsers: typingUsers.map(t => ({
+              userId: t.userId,
+              username: t.username,
+              avatarUrl: t.avatarUrl || null,
+            })),
+            createdAt: c.created_at?.toISOString(),
+            updatedAt: c.updated_at?.toISOString(),
           };
         })
       );
@@ -3451,18 +3467,216 @@ export const resolvers = {
         );
       }
 
+      // Get reactions for each message
+      const messageIds = messages.map((m: any) => m.id);
+      let reactionsMap = new Map<string, any[]>();
+      if (messageIds.length > 0) {
+        const reactions = await queryAll<any>(
+          `SELECT message_id, emoji, array_agg(user_id) as user_ids
+           FROM message_reactions
+           WHERE message_id = ANY($1)
+           GROUP BY message_id, emoji`,
+          [messageIds]
+        );
+        reactions.forEach((r: any) => {
+          const arr = reactionsMap.get(r.message_id) || [];
+          arr.push({
+            emoji: r.emoji,
+            count: r.user_ids?.length || 0,
+            users: r.user_ids || [],
+            userReacted: r.user_ids?.includes(userId) || false,
+          });
+          reactionsMap.set(r.message_id, arr);
+        });
+      }
+
       return messages.map((m: any) => ({
         id: m.id,
         conversationId: m.conversation_id,
         senderId: m.sender_id,
+        senderUsername: m.sender_username,
+        senderDisplayName: m.display_name || m.sender_username,
         sender: {
           id: m.sender_id,
           username: m.sender_username,
           avatar: m.sender_avatar,
         },
         content: m.content,
-        createdAt: m.created_at,
+        contentType: m.content_type || 'text',
+        replyTo: m.reply_to_id ? {
+          id: m.reply_to_id,
+          content: m.reply_content || '',
+          senderName: m.reply_sender_name || '',
+        } : null,
+        reactions: reactionsMap.get(m.id) || [],
+        pinnedAt: m.pinned_at,
+        editedAt: m.edited_at,
+        editCount: m.edit_count || 0,
+        deliveredAt: m.delivered_at,
         readAt: m.read_at,
+        createdAt: m.created_at,
+      }));
+    },
+
+    // Pinned messages in a conversation
+    pinnedMessages: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { getPinnedMessages } = await import('../modules/messaging/messaging.service');
+      const pinned = await getPinnedMessages(args.conversationId);
+
+      // Get sender names
+      const senderIds = [...new Set(pinned.map(m => m.senderId))];
+      const senders = senderIds.length > 0 ? await queryAll<any>(
+        `SELECT id, username, display_name FROM users WHERE id = ANY($1)`,
+        [senderIds]
+      ) : [];
+      const senderMap = new Map(senders.map(s => [s.id, s.display_name || s.username]));
+
+      return pinned.map(m => ({
+        id: m.id,
+        content: m.content,
+        senderName: senderMap.get(m.senderId) || 'Unknown',
+        createdAt: m.createdAt.toISOString(),
+      }));
+    },
+
+    // Typing users in a conversation
+    typingUsers: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      requireAuth(context);
+      const { getTypingUsers } = await import('../modules/messaging/messaging.service');
+      const users = await getTypingUsers(args.conversationId);
+      return users.map(u => ({
+        userId: u.userId,
+        username: u.username,
+        avatarUrl: u.avatarUrl || null,
+      }));
+    },
+
+    // User presence (online/offline status)
+    userPresence: async (_: unknown, args: { userIds: string[] }, context: Context) => {
+      requireAuth(context);
+      const { getBulkPresence } = await import('../modules/messaging/messaging.service');
+      const presenceMap = await getBulkPresence(args.userIds);
+      return args.userIds.map(id => {
+        const presence = presenceMap.get(id);
+        return {
+          userId: id,
+          status: presence?.status || 'offline',
+          lastSeen: presence?.lastSeen?.toISOString() || null,
+        };
+      });
+    },
+
+    // Block status check
+    blockStatus: async (_: unknown, args: { userId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Check if current user has blocked the target
+      const blocked = await queryOne<{ id: string }>(
+        `SELECT id FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+        [userId, args.userId]
+      );
+
+      // Check if target has blocked current user
+      const blockedBy = await queryOne<{ id: string }>(
+        `SELECT id FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+        [args.userId, userId]
+      );
+
+      return {
+        isBlocked: !!blocked,
+        blockedBy: !!blockedBy,
+      };
+    },
+
+    // Message templates
+    messageTemplates: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { getTemplates } = await import('../modules/messaging/messaging.service');
+      const templates = await getTemplates(userId);
+      return templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        content: t.content,
+        shortcut: t.shortcut || null,
+        category: t.category || null,
+        useCount: t.useCount,
+      }));
+    },
+
+    // Scheduled messages
+    scheduledMessages: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { getScheduledMessages } = await import('../modules/messaging/messaging.service');
+      const scheduled = await getScheduledMessages(userId);
+      return scheduled.map(s => ({
+        id: s.id,
+        conversationId: s.conversationId,
+        content: s.content,
+        scheduledFor: s.scheduledFor.toISOString(),
+        status: s.status,
+      }));
+    },
+
+    // Search messages
+    searchMessages: async (_: unknown, args: { query: string; conversationId?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { searchMessages } = await import('../modules/messaging/messaging.service');
+      const result = await searchMessages(userId, args.query, {
+        conversationId: args.conversationId,
+        limit: args.limit || 20,
+        offset: args.offset || 0,
+      });
+
+      // Get sender names
+      const senderIds = [...new Set(result.messages.map(m => m.senderId))];
+      const senders = senderIds.length > 0 ? await queryAll<any>(
+        `SELECT id, username, display_name FROM users WHERE id = ANY($1)`,
+        [senderIds]
+      ) : [];
+      const senderMap = new Map(senders.map(s => [s.id, s.display_name || s.username]));
+
+      return {
+        messages: result.messages.map(m => ({
+          id: m.id,
+          content: m.content,
+          senderName: senderMap.get(m.senderId) || 'Unknown',
+          conversationId: m.conversationId,
+          createdAt: m.createdAt.toISOString(),
+          highlight: (m.metadata as any)?.highlight || null,
+        })),
+        total: result.total,
+      };
+    },
+
+    // Search users for starting conversations
+    searchUsers: async (_: unknown, args: { query: string; limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 20, 50);
+
+      const users = await queryAll<any>(
+        `SELECT id, username, display_name, avatar_url
+         FROM users
+         WHERE id != $1
+         AND (username ILIKE $2 OR display_name ILIKE $2)
+         ORDER BY username ASC
+         LIMIT $3`,
+        [userId, `%${args.query}%`, limit]
+      );
+
+      // Check if user can message each result (not blocked)
+      const blockedIds = await queryAll<{ blocked_id: string }>(
+        `SELECT blocked_id FROM user_blocks WHERE blocker_id = $1`,
+        [userId]
+      );
+      const blockedSet = new Set(blockedIds.map(b => b.blocked_id));
+
+      return users.map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.display_name || null,
+        avatarUrl: u.avatar_url || null,
+        canMessage: !blockedSet.has(u.id),
       }));
     },
 
@@ -3689,41 +3903,82 @@ export const resolvers = {
       }));
     },
 
+    // Issues list
+    issues: async (
+      _: unknown,
+      args: { status?: number; type?: number; labelSlug?: string; search?: string; sortBy?: string; limit?: number; offset?: number },
+      context: Context
+    ) => {
+      const result = await issuesService.listIssues({
+        status: args.status,
+        type: args.type,
+        labelSlug: args.labelSlug,
+        search: args.search,
+        sortBy: args.sortBy as any,
+        limit: args.limit || 20,
+        offset: args.offset || 0,
+        userId: context.user?.userId,
+      });
+
+      return {
+        issues: result.issues.map((i: any) => ({
+          id: i.id,
+          issueNumber: i.issueNumber,
+          title: i.title,
+          description: i.description,
+          type: i.type,
+          status: i.status,
+          priority: i.priority,
+          authorId: i.authorId,
+          authorUsername: i.authorUsername,
+          authorDisplayName: i.authorDisplayName,
+          authorAvatarUrl: i.authorAvatarUrl,
+          labels: (i.labels || []).map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            slug: l.slug,
+            color: l.color,
+            icon: l.icon,
+            description: l.description,
+          })),
+          voteCount: i.voteCount,
+          hasVoted: i.hasVoted,
+          commentCount: i.commentCount,
+          subscriberCount: i.subscriberCount,
+          viewCount: i.viewCount,
+          isPinned: i.isPinned,
+          isLocked: i.isLocked,
+          createdAt: i.createdAt,
+          updatedAt: i.updatedAt,
+        })),
+        total: result.total,
+        hasMore: (args.offset || 0) + result.issues.length < result.total,
+      };
+    },
+
     // Issue labels
     issueLabels: async () => {
-      const labels = await queryAll<any>('SELECT * FROM issue_labels ORDER BY name ASC');
+      const labels = await issuesService.getLabels();
       return labels.map((l: any) => ({
         id: l.id,
         name: l.name,
+        slug: l.slug,
         color: l.color,
+        icon: l.icon,
         description: l.description,
       }));
     },
 
-    // Issue stats
-    issueStats: async (_: unknown, __: unknown, context: Context) => {
-      const { userId } = requireAuth(context);
-      const user = await queryOne<{ roles: string[] }>('SELECT roles FROM users WHERE id = $1', [userId]);
-      if (!user?.roles?.includes('admin')) {
-        throw new GraphQLError('Admin access required', { extensions: { code: 'FORBIDDEN' } });
-      }
-
-      const stats = await queryOne<any>(`
-        SELECT
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'open') as open,
-          COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-          COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
-          COUNT(*) FILTER (WHERE status = 'closed') as closed
-        FROM issues
-      `);
-
+    // Issue stats (public)
+    issueStats: async () => {
+      const stats = await issuesService.getStats();
       return {
-        total: Number(stats?.total) || 0,
-        open: Number(stats?.open) || 0,
-        inProgress: Number(stats?.in_progress) || 0,
-        resolved: Number(stats?.resolved) || 0,
-        closed: Number(stats?.closed) || 0,
+        totalIssues: stats.totalIssues,
+        openIssues: stats.openIssues,
+        resolvedIssues: stats.resolvedIssues,
+        totalVotes: stats.totalVotes,
+        issuesByType: stats.issuesByType,
+        issuesByStatus: stats.issuesByStatus,
       };
     },
 
@@ -4617,6 +4872,727 @@ export const resolvers = {
         limit: args.limit ?? 50,
         offset: args.offset ?? 0,
       });
+    },
+
+    // ============================================
+    // MYSTERY BOX QUERIES
+    // ============================================
+    mysteryBoxes: async () => {
+      const boxes = await mysteryBoxService.getAvailableBoxes();
+      return boxes.map((box: any) => ({
+        id: box.id,
+        name: box.name,
+        description: box.description,
+        boxType: box.box_type,
+        price: box.price,
+        dropRates: box.drop_rates,
+        availableFrom: box.available_from,
+        availableUntil: box.available_until,
+        maxPurchasesPerDay: box.max_purchases_per_day,
+        createdAt: box.created_at,
+      }));
+    },
+
+    mysteryBox: async (_: unknown, args: { id: string }) => {
+      const details = await mysteryBoxService.getBoxDetails(args.id);
+      if (!details) return null;
+      return {
+        box: {
+          id: details.box.id,
+          name: details.box.name,
+          description: details.box.description,
+          boxType: details.box.box_type,
+          price: details.box.price,
+          dropRates: details.box.drop_rates,
+          availableFrom: details.box.available_from,
+          availableUntil: details.box.available_until,
+          maxPurchasesPerDay: details.box.max_purchases_per_day,
+          createdAt: details.box.created_at,
+        },
+        recentDrops: details.recentDrops.map((drop: any) => ({
+          rarity: drop.rarity_received,
+          openedAt: drop.opened_at,
+          name: drop.name,
+          previewUrl: drop.preview_url,
+          username: drop.username,
+        })),
+        dropStats: details.dropStats.map((stat: any) => ({
+          rarity: stat.rarity_received,
+          count: parseInt(stat.count, 10),
+        })),
+      };
+    },
+
+    mysteryBoxHistory: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const history = await mysteryBoxService.getUserOpeningHistory(userId, args.limit ?? 50);
+      return history.map((h: any) => ({
+        id: h.id,
+        boxId: h.box_id,
+        boxName: h.box_name,
+        cosmeticId: h.cosmetic_received_id,
+        cosmeticName: h.cosmetic_name,
+        rarity: h.rarity,
+        previewUrl: h.preview_url,
+        creditsSpent: h.credits_spent,
+        wasPityReward: h.was_pity_reward,
+        openedAt: h.opened_at,
+      }));
+    },
+
+    mysteryBoxPity: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const counters = await mysteryBoxService.getUserPityCounters(userId);
+      return counters;
+    },
+
+    // SKINS (COSMETIC STORE) QUERIES
+    skins: async () => {
+      const SKIN_CATEGORIES = [
+        'buddy_skin', 'dashboard_theme', 'avatar_frame', 'badge',
+        'effect', 'aura', 'armor', 'wings', 'tool', 'emote_pack', 'voice_pack',
+      ];
+      const items = await queryAll<{
+        sku: string;
+        name: string;
+        description: string | null;
+        category: string;
+        price_credits: number;
+        rarity: string;
+        requires_level: number;
+      }>(
+        `SELECT sku, name, description, category, price_credits, rarity, requires_level
+         FROM store_items
+         WHERE enabled = TRUE AND category = ANY($1)
+         ORDER BY sort_order ASC, sku ASC`,
+        [SKIN_CATEGORIES]
+      );
+      return items.map((r) => ({
+        id: r.sku,
+        name: r.name,
+        description: r.description ?? null,
+        category: r.category,
+        price: r.price_credits,
+        rarity: r.rarity,
+        unlockRequirement: r.requires_level > 1 ? `Level ${r.requires_level}` : null,
+        creditsRequired: r.requires_level > 1 ? r.requires_level * 100 : null,
+        imageUrl: null,
+      }));
+    },
+
+    ownedSkins: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const SKIN_CATEGORIES = [
+        'buddy_skin', 'dashboard_theme', 'avatar_frame', 'badge',
+        'effect', 'aura', 'armor', 'wings', 'tool', 'emote_pack', 'voice_pack',
+      ];
+      const items = await queryAll<{
+        sku: string;
+        name: string;
+        description: string | null;
+        category: string;
+        price_credits: number;
+        rarity: string;
+      }>(
+        `SELECT si.sku, si.name, si.description, si.category, si.price_credits, si.rarity
+         FROM user_inventory ui
+         JOIN store_items si ON ui.sku = si.sku
+         WHERE ui.user_id = $1 AND si.category = ANY($2) AND si.enabled = TRUE
+         ORDER BY ui.acquired_at DESC`,
+        [userId, SKIN_CATEGORIES]
+      );
+      return items.map((r) => ({
+        id: r.sku,
+        name: r.name,
+        description: r.description ?? null,
+        category: r.category,
+        price: r.price_credits,
+        rarity: r.rarity,
+        unlockRequirement: null,
+        creditsRequired: null,
+        imageUrl: null,
+      }));
+    },
+
+    equippedSkins: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const buddy = await queryOne<{
+        equipped_aura: string | null;
+        equipped_armor: string | null;
+        equipped_wings: string | null;
+        equipped_tool: string | null;
+        equipped_skin: string | null;
+        equipped_emote_pack: string | null;
+        equipped_voice_pack: string | null;
+      }>(
+        `SELECT equipped_aura, equipped_armor, equipped_wings, equipped_tool,
+                equipped_skin, equipped_emote_pack, equipped_voice_pack
+         FROM user_buddies WHERE user_id = $1`,
+        [userId]
+      );
+      if (!buddy) return [];
+      const equippedSkus = [
+        buddy.equipped_aura, buddy.equipped_armor, buddy.equipped_wings,
+        buddy.equipped_tool, buddy.equipped_skin, buddy.equipped_emote_pack,
+        buddy.equipped_voice_pack,
+      ].filter(Boolean) as string[];
+      if (equippedSkus.length === 0) return [];
+      const items = await queryAll<{
+        sku: string;
+        name: string;
+        description: string | null;
+        category: string;
+        price_credits: number;
+        rarity: string;
+      }>(
+        `SELECT sku, name, description, category, price_credits, rarity
+         FROM store_items WHERE sku = ANY($1) AND enabled = TRUE`,
+        [equippedSkus]
+      );
+      return items.map((r) => ({
+        id: r.sku,
+        name: r.name,
+        description: r.description ?? null,
+        category: r.category,
+        price: r.price_credits,
+        rarity: r.rarity,
+        unlockRequirement: null,
+        creditsRequired: null,
+        imageUrl: null,
+      }));
+    },
+
+    unlockableSkins: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const SKIN_CATEGORIES = [
+        'buddy_skin', 'dashboard_theme', 'avatar_frame', 'badge',
+        'effect', 'aura', 'armor', 'wings', 'tool', 'emote_pack', 'voice_pack',
+      ];
+      const items = await queryAll<{
+        sku: string;
+        name: string;
+        description: string | null;
+        category: string;
+        price_credits: number;
+        rarity: string;
+        requires_level: number;
+      }>(
+        `SELECT si.sku, si.name, si.description, si.category, si.price_credits, si.rarity, si.requires_level
+         FROM store_items si
+         WHERE si.enabled = TRUE
+           AND si.category = ANY($1)
+           AND si.sku NOT IN (SELECT sku FROM user_inventory WHERE user_id = $2)
+         ORDER BY si.requires_level ASC, si.sort_order ASC`,
+        [SKIN_CATEGORIES, userId]
+      );
+      return items.map((r) => ({
+        id: r.sku,
+        name: r.name,
+        description: r.description ?? null,
+        category: r.category,
+        price: r.price_credits,
+        rarity: r.rarity,
+        unlockRequirement: r.requires_level > 1 ? `Level ${r.requires_level}` : null,
+        creditsRequired: r.requires_level > 1 ? r.requires_level * 100 : null,
+        imageUrl: null,
+      }));
+    },
+
+    // MARKETPLACE QUERIES
+    marketplaceListings: async (
+      _: unknown,
+      args: {
+        search?: string;
+        listingType?: string;
+        category?: string;
+        rarity?: string;
+        sortBy?: string;
+        minPrice?: number;
+        maxPrice?: number;
+        cursor?: string;
+        limit?: number;
+      },
+      context: Context
+    ) => {
+      // Optional auth - can browse without login
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      const result = await marketplaceService.browseListings({
+        search: args.search,
+        listingType: args.listingType as any,
+        category: args.category,
+        rarity: args.rarity,
+        sortBy: args.sortBy as any,
+        minPrice: args.minPrice,
+        maxPrice: args.maxPrice,
+        cursor: args.cursor,
+        limit: args.limit || 24,
+      });
+
+      return {
+        listings: result.listings.map((l: any) => ({
+          id: l.id,
+          sellerId: l.seller_id,
+          listingType: l.listing_type,
+          price: l.price,
+          currentBid: l.current_bid,
+          bidCount: l.bid_count,
+          expiresAt: l.expires_at,
+          createdAt: l.created_at,
+          cosmeticName: l.cosmetic_name,
+          cosmeticIcon: l.cosmetic_icon,
+          rarity: l.rarity,
+          category: l.category,
+          sellerUsername: l.seller_username,
+          allowOffers: l.allow_offers,
+          minOffer: l.min_offer,
+        })),
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+      };
+    },
+
+    marketplaceWatchlist: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      const watchlist = await marketplaceService.getUserWatchlist(userId);
+      return watchlist.map((w: any) => ({
+        id: w.id,
+        listingId: w.listing_id,
+        price: w.price,
+        listingType: w.listing_type,
+        expiresAt: w.expires_at,
+        status: w.status,
+        cosmeticName: w.cosmetic_name,
+        cosmeticIcon: w.cosmetic_icon,
+        rarity: w.rarity,
+        createdAt: w.created_at,
+      }));
+    },
+
+    marketplaceStats: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      const stats = await marketplaceService.getUserStats(userId);
+      return {
+        totalSales: stats.totalSales,
+        totalPurchases: stats.totalPurchases,
+        totalRevenue: stats.totalRevenue,
+        avgRating: stats.avgRating,
+        sellerLevel: stats.sellerLevel,
+        feeDiscount: stats.feeDiscount,
+      };
+    },
+
+    // COLLECTION QUERIES
+    collectionStats: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const stats = await collectionService.getUserCollectionStats(userId);
+
+      // Count completed sets
+      const setsProgress = await collectionService.getUserSetsProgress(userId);
+      const completedSets = setsProgress.filter((s: any) => s.progress?.completionPercent >= 100).length;
+
+      // Transform rarity breakdown to object for frontend
+      const rarityObj: Record<string, number> = {};
+      stats.rarityBreakdown.forEach((r) => {
+        rarityObj[r.rarity] = r.count;
+      });
+
+      return {
+        totalOwned: stats.totalOwned,
+        totalValue: stats.totalValue,
+        rarityBreakdown: stats.rarityBreakdown,
+        categoryBreakdown: stats.categoryBreakdown,
+        completedSets,
+      };
+    },
+
+    collectionItems: async (
+      _: unknown,
+      args: {
+        category?: string;
+        rarity?: string;
+        sortBy?: string;
+        limit?: number;
+        offset?: number;
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const result = await collectionService.getUserCollection(userId, {
+        category: args.category,
+        rarity: args.rarity,
+        sortBy: args.sortBy as any,
+        limit: args.limit || 50,
+        offset: args.offset || 0,
+      });
+
+      return {
+        items: result.items.map((item: any) => ({
+          id: item.id,
+          cosmeticId: item.cosmetic_id,
+          name: item.name,
+          description: item.description,
+          category: item.category,
+          rarity: item.rarity,
+          icon: item.preview_url || null,
+          previewUrl: item.preview_url,
+          acquiredAt: item.acquired_at,
+          isFavorite: item.is_favorite || false,
+          isNew: item.is_new || false,
+          estimatedValue: item.base_price,
+          isTradeable: item.is_tradeable,
+          isGiftable: item.is_giftable,
+        })),
+        total: result.total,
+        hasMore: result.hasMore,
+      };
+    },
+
+    collectionFavorites: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const favorites = await collectionService.getUserFavorites(userId);
+      return favorites.map((item: any) => ({
+        id: item.id,
+        cosmeticId: item.cosmetic_id,
+        name: item.name,
+        description: item.description,
+        category: item.category,
+        rarity: item.rarity,
+        icon: item.preview_url || null,
+        previewUrl: item.preview_url,
+        acquiredAt: item.acquired_at,
+        isFavorite: true,
+        isNew: item.is_new || false,
+        estimatedValue: item.base_price,
+      }));
+    },
+
+    collectionSets: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const setsProgress = await collectionService.getUserSetsProgress(userId);
+
+      // Get full set details for each
+      const sets = await Promise.all(
+        setsProgress.map(async (sp: any) => {
+          const detail = await collectionService.getSetWithProgress(sp.id, userId);
+          if (!detail) return null;
+
+          return {
+            id: sp.id,
+            name: sp.name,
+            description: detail.set.description,
+            icon: detail.set.theme ? `📦` : '🎁',
+            theme: detail.set.theme,
+            isLimited: sp.isLimited,
+            expirationDate: sp.expirationDate,
+            ownedCount: detail.progress.ownedCount,
+            totalCount: detail.progress.totalCount,
+            rewards: (detail.set.rewards || []).map((r: any) => ({
+              threshold: r.threshold,
+              icon: '🎁',
+              description: r.reward?.type ? `${r.reward.type}: ${r.reward.value}` : 'Reward',
+              claimed: (detail.progress.rewardsClaimed || []).includes(r.threshold),
+            })),
+          };
+        })
+      );
+
+      return sets.filter(Boolean);
+    },
+
+    collectionSetDetail: async (_: unknown, args: { setId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const detail = await collectionService.getSetWithProgress(args.setId, userId);
+
+      if (!detail) return null;
+
+      return {
+        set: {
+          id: detail.set.id,
+          name: detail.set.name,
+          description: detail.set.description,
+          icon: detail.set.theme ? `📦` : '🎁',
+          theme: detail.set.theme,
+          isLimited: detail.set.is_limited,
+          expirationDate: detail.set.expiration_date,
+          ownedCount: detail.progress.ownedCount,
+          totalCount: detail.progress.totalCount,
+          rewards: (detail.set.rewards || []).map((r: any) => ({
+            threshold: r.threshold,
+            icon: '🎁',
+            description: r.reward?.type ? `${r.reward.type}: ${r.reward.value}` : 'Reward',
+            claimed: (detail.progress.rewardsClaimed || []).includes(r.threshold),
+          })),
+        },
+        progress: {
+          ownedCount: detail.progress.ownedCount,
+          totalCount: detail.progress.totalCount,
+          completionPercent: detail.progress.completionPercent,
+          rewardsClaimed: detail.progress.rewardsClaimed || [],
+        },
+        items: detail.items.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          icon: item.preview_url || '🎨',
+          rarity: item.rarity,
+          owned: item.owned,
+        })),
+        claimableRewards: detail.claimableRewards.map((r: any) => ({
+          threshold: r.threshold,
+          icon: '🎁',
+          description: r.reward?.type ? `${r.reward.type}: ${r.reward.value}` : 'Reward',
+        })),
+      };
+    },
+
+    collectionShowcase: async (_: unknown, args: { userId?: string }, context: Context) => {
+      // Use provided userId or current user
+      let targetUserId = args.userId;
+      if (!targetUserId) {
+        const auth = requireAuth(context);
+        targetUserId = auth.userId;
+      }
+
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const showcase = await collectionService.getUserShowcase(targetUserId);
+
+      return (showcase.featuredItems || []).map((item: any) => ({
+        id: item.id,
+        cosmeticId: item.cosmetic_id,
+        name: item.name,
+        rarity: item.rarity,
+        icon: item.preview_url || null,
+        previewUrl: item.preview_url,
+      }));
+    },
+
+    collectionNewCount: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      return await collectionService.getNewItemsCount(userId);
+    },
+
+    // TRADES QUERIES
+    tradesIncoming: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      const trades = await tradingService.getIncomingTrades(userId);
+      return trades.map((t: any) => ({
+        id: t.id,
+        initiatorId: t.initiator_id,
+        initiatorUsername: t.initiator?.username || null,
+        receiverId: t.receiver_id,
+        receiverUsername: t.receiver?.username || null,
+        initiatorItems: (t.initiatorItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        initiatorCredits: t.initiator_credits || 0,
+        receiverItems: (t.receiverItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        receiverCredits: t.receiver_credits || 0,
+        status: t.status,
+        message: t.message,
+        valueWarning: t.initiator_estimated_value && t.receiver_estimated_value
+          ? Math.abs(t.initiator_estimated_value - t.receiver_estimated_value) / Math.max(t.initiator_estimated_value, t.receiver_estimated_value) > 0.5
+          : false,
+        expiresAt: t.expires_at,
+        createdAt: t.created_at,
+      }));
+    },
+
+    tradesOutgoing: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      const trades = await tradingService.getOutgoingTrades(userId);
+      return trades.map((t: any) => ({
+        id: t.id,
+        initiatorId: t.initiator_id,
+        initiatorUsername: t.initiator?.username || null,
+        receiverId: t.receiver_id,
+        receiverUsername: t.receiver?.username || null,
+        initiatorItems: (t.initiatorItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        initiatorCredits: t.initiator_credits || 0,
+        receiverItems: (t.receiverItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        receiverCredits: t.receiver_credits || 0,
+        status: t.status,
+        message: t.message,
+        valueWarning: t.initiator_estimated_value && t.receiver_estimated_value
+          ? Math.abs(t.initiator_estimated_value - t.receiver_estimated_value) / Math.max(t.initiator_estimated_value, t.receiver_estimated_value) > 0.5
+          : false,
+        expiresAt: t.expires_at,
+        createdAt: t.created_at,
+      }));
+    },
+
+    tradesHistory: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      const trades = await tradingService.getTradeHistory(userId, args.limit ?? 50);
+      return trades.map((t: any) => ({
+        id: t.id,
+        user1Id: t.user1_id,
+        user1Username: t.user1_username,
+        user2Id: t.user2_id,
+        user2Username: t.user2_username,
+        status: t.status,
+        completedAt: t.completed_at,
+      }));
+    },
+
+    trade: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      const t = await tradingService.getTradeRequest(args.id, userId);
+      if (!t) return null;
+      return {
+        id: t.id,
+        initiatorId: t.initiator_id,
+        initiatorUsername: (t as any).initiator?.username || null,
+        receiverId: t.receiver_id,
+        receiverUsername: (t as any).receiver?.username || null,
+        initiatorItems: ((t as any).initiatorItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        initiatorCredits: t.initiator_credits || 0,
+        receiverItems: ((t as any).receiverItemDetails || []).map((item: any) => ({
+          id: item.user_cosmetic_id || item.id,
+          name: item.name,
+          rarity: item.rarity,
+          icon: item.icon || null,
+          previewUrl: item.preview_url || null,
+        })),
+        receiverCredits: t.receiver_credits || 0,
+        status: t.status,
+        message: t.message,
+        valueWarning: t.initiator_estimated_value && t.receiver_estimated_value
+          ? Math.abs(t.initiator_estimated_value - t.receiver_estimated_value) / Math.max(t.initiator_estimated_value, t.receiver_estimated_value) > 0.5
+          : false,
+        expiresAt: t.expires_at,
+        createdAt: t.created_at,
+      };
+    },
+
+    // Achievements
+    achievementDefinitions: async (_: unknown, args: { category?: string }) => {
+      const definitions = await achievementService.getDefinitions({
+        category: args.category as any,
+        enabledOnly: true,
+      });
+      return definitions.map(d => ({
+        id: d.id,
+        key: d.key,
+        name: d.name,
+        description: d.description,
+        icon: d.icon,
+        category: d.category,
+        points: d.points,
+        rarity: d.rarity,
+        tier: 1, // Default tier
+        creditsReward: d.points * 10, // Credits based on points
+        xpReward: d.points * 5, // XP based on points
+        requiresVerification: false,
+        unlockHint: d.description,
+      }));
+    },
+
+    myAchievements: async (_: unknown, args: { category?: string; limit?: number; offset?: number }, context: Context) => {
+      const userId = context.user?.userId;
+      if (!userId) {
+        return { achievements: [], total: 0 };
+      }
+      const result = await achievementService.getUserAchievements(userId, {
+        category: args.category as any,
+        limit: args.limit ?? 50,
+        offset: args.offset ?? 0,
+      });
+      return {
+        achievements: result.achievements.map(a => ({
+          id: a.id,
+          achievementKey: a.achievementKey,
+          achievementName: a.achievementName,
+          achievementDescription: a.achievementDescription,
+          achievementIcon: a.achievementIcon,
+          category: a.category,
+          points: a.points,
+          rarity: a.rarity,
+          creditsEarned: a.points * 10,
+          xpEarned: a.points * 5,
+          isVerified: false,
+          witnessUsername: null,
+          earnedAt: a.earnedAt,
+        })),
+        total: result.total,
+      };
+    },
+
+    myAchievementSummary: async (_: unknown, __: unknown, context: Context) => {
+      const userId = context.user?.userId;
+      if (!userId) {
+        return {
+          totalPoints: 0,
+          totalAchievements: 0,
+          totalCredits: 0,
+          totalXp: 0,
+          byCategory: {},
+          byRarity: {},
+          recentAchievements: [],
+        };
+      }
+      const summary = await achievementService.getUserSummary(userId);
+      return {
+        totalPoints: summary.totalPoints,
+        totalAchievements: summary.totalAchievements,
+        totalCredits: summary.totalPoints * 10,
+        totalXp: summary.totalPoints * 5,
+        byCategory: summary.byCategory,
+        byRarity: summary.byRarity,
+        recentAchievements: summary.recentAchievements.map(a => ({
+          id: a.id,
+          achievementKey: a.achievementKey,
+          achievementName: a.achievementName,
+          achievementDescription: a.achievementDescription,
+          achievementIcon: a.achievementIcon,
+          category: a.category,
+          points: a.points,
+          rarity: a.rarity,
+          creditsEarned: a.points * 10,
+          xpEarned: a.points * 5,
+          isVerified: false,
+          witnessUsername: null,
+          earnedAt: a.earnedAt,
+        })),
+      };
     },
   },
 
@@ -6265,6 +7241,405 @@ export const resolvers = {
     },
 
     // ============================================
+    // MYSTERY BOX MUTATIONS
+    // ============================================
+    openMysteryBox: async (_: unknown, args: { boxId: string; quantity?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      try {
+        const results = await mysteryBoxService.openBox(userId, args.boxId, args.quantity ?? 1);
+
+        // Get new balance
+        const balance = await queryOne<{ balance: number }>(
+          'SELECT balance FROM credit_balances WHERE user_id = $1',
+          [userId]
+        );
+
+        return {
+          success: true,
+          results: results.map((r: any) => ({
+            cosmeticId: r.cosmetic.id,
+            cosmeticName: r.cosmetic.name,
+            rarity: r.rarity,
+            previewUrl: r.cosmetic.preview_url || null,
+            wasPityReward: r.wasPityReward,
+            isDuplicate: false,
+            refundAmount: null,
+          })),
+          newBalance: balance?.balance ?? null,
+        };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    // ============================================
+    // SKINS (COSMETIC STORE) MUTATIONS
+    // ============================================
+
+    purchaseSkin: async (_: unknown, args: { skinId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { storeService } = await import('../modules/economy/store.service');
+      try {
+        const result = await storeService.purchase(userId, args.skinId);
+        const balance = await queryOne<{ balance: number }>(
+          'SELECT balance FROM credit_balances WHERE user_id = $1',
+          [userId]
+        );
+        const item = await queryOne<{ sku: string; name: string }>(
+          'SELECT sku, name FROM store_items WHERE sku = $1',
+          [args.skinId]
+        );
+        return {
+          success: true,
+          skin: item ? { id: item.sku, name: item.name } : null,
+          newBalance: balance?.balance ?? null,
+          message: null,
+        };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    equipSkin: async (_: unknown, args: { skinId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const item = await queryOne<{ category: string }>(
+        'SELECT category FROM store_items WHERE sku = $1 AND enabled = TRUE',
+        [args.skinId]
+      );
+      if (!item) {
+        throw new GraphQLError('Skin not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+      const owned = await queryOne<{ sku: string }>(
+        'SELECT sku FROM user_inventory WHERE user_id = $1 AND sku = $2',
+        [userId, args.skinId]
+      );
+      if (!owned) {
+        throw new GraphQLError('You do not own this skin', { extensions: { code: 'FORBIDDEN' } });
+      }
+      const categoryToColumn: Record<string, string> = {
+        'buddy_skin': 'equipped_skin',
+        'aura': 'equipped_aura',
+        'armor': 'equipped_armor',
+        'wings': 'equipped_wings',
+        'tool': 'equipped_tool',
+        'emote_pack': 'equipped_emote_pack',
+        'voice_pack': 'equipped_voice_pack',
+      };
+      const column = categoryToColumn[item.category];
+      if (column) {
+        await queryOne(
+          `UPDATE user_buddies SET ${column} = $1, updated_at = NOW() WHERE user_id = $2`,
+          [args.skinId, userId]
+        );
+      }
+      return { success: true, message: column ? null : 'Skin activated' };
+    },
+
+    unequipSkin: async (_: unknown, args: { skinId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const item = await queryOne<{ category: string }>(
+        'SELECT category FROM store_items WHERE sku = $1',
+        [args.skinId]
+      );
+      if (!item) {
+        throw new GraphQLError('Skin not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+      const categoryToColumn: Record<string, string> = {
+        'buddy_skin': 'equipped_skin',
+        'aura': 'equipped_aura',
+        'armor': 'equipped_armor',
+        'wings': 'equipped_wings',
+        'tool': 'equipped_tool',
+        'emote_pack': 'equipped_emote_pack',
+        'voice_pack': 'equipped_voice_pack',
+      };
+      const column = categoryToColumn[item.category];
+      if (column) {
+        await queryOne(
+          `UPDATE user_buddies SET ${column} = NULL, updated_at = NOW() WHERE user_id = $1 AND ${column} = $2`,
+          [userId, args.skinId]
+        );
+      }
+      return { success: true, message: column ? null : 'Skin deactivated' };
+    },
+
+    // ============================================
+    // MARKETPLACE MUTATIONS
+    // ============================================
+
+    purchaseListing: async (
+      _: unknown,
+      args: { listingId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      try {
+        const result = await marketplaceService.buyNow(args.listingId, userId);
+        // Get updated balance
+        const user = await import('../db/client').then(m =>
+          m.queryOne<{ credit_balance: number }>(
+            'SELECT credit_balance FROM users WHERE id = $1',
+            [userId]
+          )
+        );
+        return {
+          success: result.success,
+          newBalance: user?.credit_balance || 0,
+          message: null,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          newBalance: null,
+          message: error.message,
+        };
+      }
+    },
+
+    makeOffer: async (
+      _: unknown,
+      args: { listingId: string; amount: number; message?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      try {
+        const offer = await marketplaceService.makeOffer({
+          listingId: args.listingId,
+          offererId: userId,
+          amount: args.amount,
+          message: args.message,
+        });
+        return {
+          success: true,
+          offerId: (offer as any)?.id || null,
+          message: null,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          offerId: null,
+          message: error.message,
+        };
+      }
+    },
+
+    addToWatchlist: async (
+      _: unknown,
+      args: { listingId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      try {
+        await marketplaceService.addToWatchlist(userId, args.listingId);
+        return { success: true };
+      } catch (error: any) {
+        return { success: false };
+      }
+    },
+
+    removeFromWatchlist: async (
+      _: unknown,
+      args: { listingId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { marketplaceService } = await import('../modules/marketplace/marketplace.service');
+      try {
+        await marketplaceService.removeFromWatchlist(userId, args.listingId);
+        return { success: true };
+      } catch (error: any) {
+        return { success: false };
+      }
+    },
+
+    // ============================================
+    // COLLECTION MUTATIONS
+    // ============================================
+
+    toggleFavorite: async (
+      _: unknown,
+      args: { itemId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      const result = await collectionService.toggleFavorite(userId, args.itemId);
+      return {
+        id: args.itemId,
+        isFavorite: result.isFavorite,
+      };
+    },
+
+    markItemSeen: async (
+      _: unknown,
+      args: { itemId: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      await collectionService.markItemAsSeen(userId, args.itemId);
+      return { success: true };
+    },
+
+    markAllSeen: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      await collectionService.markAllAsSeen(userId);
+      return { success: true };
+    },
+
+    claimSetReward: async (
+      _: unknown,
+      args: { setId: string; threshold: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { collectionService } = await import('../modules/marketplace/collection.service');
+      try {
+        const result = await collectionService.claimSetReward(userId, args.setId, args.threshold);
+        return {
+          success: true,
+          reward: result.reward ? {
+            type: result.reward.reward.type,
+            value: String(result.reward.reward.value),
+            description: `${result.reward.reward.type}: ${result.reward.reward.value}`,
+          } : null,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          reward: null,
+        };
+      }
+    },
+
+    // ============================================
+    // TRADES MUTATIONS
+    // ============================================
+
+    createTrade: async (
+      _: unknown,
+      args: {
+        input: {
+          receiverId: string;
+          initiatorItems?: string[];
+          initiatorCredits?: number;
+          receiverItems?: string[];
+          receiverCredits?: number;
+          message?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      try {
+        const result = await tradingService.createTradeRequest({
+          initiatorId: userId,
+          receiverId: args.input.receiverId,
+          initiatorItems: args.input.initiatorItems,
+          initiatorCredits: args.input.initiatorCredits,
+          receiverItems: args.input.receiverItems,
+          receiverCredits: args.input.receiverCredits,
+          message: args.input.message,
+        });
+        const t = result.trade as any;
+        return {
+          success: true,
+          trade: {
+            id: t.id,
+            initiatorId: t.initiator_id,
+            initiatorUsername: t.initiator?.username || null,
+            receiverId: t.receiver_id,
+            receiverUsername: t.receiver?.username || null,
+            initiatorItems: (t.initiatorItemDetails || []).map((item: any) => ({
+              id: item.user_cosmetic_id || item.id,
+              name: item.name,
+              rarity: item.rarity,
+              icon: item.icon || null,
+              previewUrl: item.preview_url || null,
+            })),
+            initiatorCredits: t.initiator_credits || 0,
+            receiverItems: (t.receiverItemDetails || []).map((item: any) => ({
+              id: item.user_cosmetic_id || item.id,
+              name: item.name,
+              rarity: item.rarity,
+              icon: item.icon || null,
+              previewUrl: item.preview_url || null,
+            })),
+            receiverCredits: t.receiver_credits || 0,
+            status: t.status,
+            message: t.message,
+            valueWarning: t.initiator_estimated_value && t.receiver_estimated_value
+              ? Math.abs(t.initiator_estimated_value - t.receiver_estimated_value) / Math.max(t.initiator_estimated_value, t.receiver_estimated_value) > 0.5
+              : false,
+            expiresAt: t.expires_at,
+            createdAt: t.created_at,
+          },
+          valueWarning: result.valueWarning,
+          message: null,
+        };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    acceptTrade: async (_: unknown, args: { tradeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      try {
+        const result = await tradingService.acceptTrade(args.tradeId, userId);
+        return {
+          success: true,
+          trade: result.trade ? {
+            id: result.trade.id,
+            status: result.trade.status,
+          } : null,
+          message: null,
+        };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    rejectTrade: async (_: unknown, args: { tradeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      try {
+        await tradingService.declineTrade(args.tradeId, userId);
+        return { success: true, trade: null, message: null };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    cancelTrade: async (_: unknown, args: { tradeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { tradingService } = await import('../modules/marketplace/trading.service');
+      try {
+        await tradingService.cancelTrade(args.tradeId, userId);
+        return { success: true, trade: null, message: null };
+      } catch (error) {
+        throw new GraphQLError((error as Error).message, {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+    },
+
+    // ============================================
     // JOURNEY HEALTH MUTATIONS
     // ============================================
 
@@ -6605,14 +7980,15 @@ export const resolvers = {
     // ============================================
 
     // Messaging System
-    createConversation: async (_: unknown, args: { participantIds: string[] }, context: Context) => {
+    createConversation: async (_: unknown, args: { participantIds: string[]; type?: string; name?: string }, context: Context) => {
       const { userId } = requireAuth(context);
 
       // Create unique conversation ID
       const conversationId = `conv_${crypto.randomBytes(12).toString('hex')}`;
+      const convType = args.type || (args.participantIds.length === 1 ? 'direct' : 'group');
 
       // Check for existing 1:1 conversation
-      if (args.participantIds.length === 1) {
+      if (convType === 'direct' && args.participantIds.length === 1) {
         const existing = await queryOne<{ id: string }>(`
           SELECT c.id FROM conversations c
           JOIN conversation_participants cp1 ON c.id = cp1.conversation_id AND cp1.user_id = $1
@@ -6622,14 +7998,14 @@ export const resolvers = {
 
         if (existing) {
           const conv = await queryOne<any>('SELECT * FROM conversations WHERE id = $1', [existing.id]);
-          return { id: conv.id, type: conv.type, createdAt: conv.created_at };
+          return { id: conv.id, type: conv.type, name: conv.name, createdAt: conv.created_at };
         }
       }
 
       // Create new conversation
       await query(
-        `INSERT INTO conversations (id, type, created_by) VALUES ($1, $2, $3)`,
-        [conversationId, args.participantIds.length === 1 ? 'direct' : 'group', userId]
+        `INSERT INTO conversations (id, type, name, created_by) VALUES ($1, $2, $3, $4)`,
+        [conversationId, convType, args.name || null, userId]
       );
 
       // Add participants
@@ -6641,10 +8017,10 @@ export const resolvers = {
         );
       }
 
-      return { id: conversationId, type: args.participantIds.length === 1 ? 'direct' : 'group', createdAt: new Date() };
+      return { id: conversationId, type: convType, name: args.name || null, createdAt: new Date() };
     },
 
-    sendMessage: async (_: unknown, args: { conversationId: string; content: string }, context: Context) => {
+    sendMessage: async (_: unknown, args: { conversationId: string; content: string; replyToId?: string }, context: Context) => {
       const { userId } = requireAuth(context);
 
       // Verify user is participant
@@ -6661,8 +8037,8 @@ export const resolvers = {
       const messageId = `msg_${crypto.randomBytes(12).toString('hex')}`;
 
       await query(
-        `INSERT INTO messages (id, conversation_id, sender_id, content) VALUES ($1, $2, $3, $4)`,
-        [messageId, args.conversationId, userId, args.content]
+        `INSERT INTO messages (id, conversation_id, sender_id, content, reply_to_id) VALUES ($1, $2, $3, $4, $5)`,
+        [messageId, args.conversationId, userId, args.content, args.replyToId || null]
       );
 
       // Update conversation last_message_at
@@ -6676,12 +8052,33 @@ export const resolvers = {
         [userId]
       );
 
+      // Get reply info if replying
+      let replyTo = null;
+      if (args.replyToId) {
+        const replyMsg = await queryOne<{ id: string; content: string; sender_id: string }>(
+          'SELECT id, content, sender_id FROM messages WHERE id = $1',
+          [args.replyToId]
+        );
+        if (replyMsg) {
+          const replySender = await queryOne<{ username: string }>(
+            'SELECT username FROM users WHERE id = $1',
+            [replyMsg.sender_id]
+          );
+          replyTo = {
+            id: replyMsg.id,
+            content: replyMsg.content,
+            senderName: replySender?.username || 'Unknown',
+          };
+        }
+      }
+
       return {
         id: messageId,
         conversationId: args.conversationId,
         senderId: userId,
         sender: { id: userId, username: sender?.username, avatar: sender?.avatar_url },
         content: args.content,
+        replyTo,
         createdAt: new Date(),
       };
     },
@@ -6723,6 +8120,399 @@ export const resolvers = {
       await query('DELETE FROM messages WHERE id = $1', [args.messageId]);
 
       return { success: true };
+    },
+
+    editMessage: async (_: unknown, args: { messageId: string; content: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ sender_id: string; conversation_id: string }>(
+        'SELECT sender_id, conversation_id FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (message.sender_id !== userId) {
+        throw new GraphQLError('Can only edit your own messages', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        'UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2',
+        [args.content, args.messageId]
+      );
+
+      return {
+        id: args.messageId,
+        conversationId: message.conversation_id,
+        content: args.content,
+        editedAt: new Date(),
+      };
+    },
+
+    pinMessage: async (_: unknown, args: { messageId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ id: string; conversation_id: string; content: string }>(
+        'SELECT id, conversation_id, content FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+        [message.conversation_id, userId]
+      );
+
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        'UPDATE messages SET pinned = true, pinned_at = NOW(), pinned_by = $1 WHERE id = $2',
+        [userId, args.messageId]
+      );
+
+      return {
+        id: args.messageId,
+        conversationId: message.conversation_id,
+        content: message.content,
+        pinnedAt: new Date(),
+        pinnedBy: userId,
+      };
+    },
+
+    unpinMessage: async (_: unknown, args: { messageId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ conversation_id: string }>(
+        'SELECT conversation_id FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+        [message.conversation_id, userId]
+      );
+
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        'UPDATE messages SET pinned = false, pinned_at = NULL, pinned_by = NULL WHERE id = $1',
+        [args.messageId]
+      );
+
+      return true;
+    },
+
+    addReaction: async (_: unknown, args: { messageId: string; emoji: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ id: string; conversation_id: string; reactions: any }>(
+        'SELECT id, conversation_id, reactions FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+        [message.conversation_id, userId]
+      );
+
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      // Update reactions JSONB
+      const reactions = message.reactions || {};
+      if (!reactions[args.emoji]) {
+        reactions[args.emoji] = [];
+      }
+      if (!reactions[args.emoji].includes(userId)) {
+        reactions[args.emoji].push(userId);
+      }
+
+      await query(
+        'UPDATE messages SET reactions = $1 WHERE id = $2',
+        [JSON.stringify(reactions), args.messageId]
+      );
+
+      return {
+        messageId: args.messageId,
+        emoji: args.emoji,
+        count: reactions[args.emoji].length,
+        users: reactions[args.emoji],
+      };
+    },
+
+    removeReaction: async (_: unknown, args: { messageId: string; emoji: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ id: string; conversation_id: string; reactions: any }>(
+        'SELECT id, conversation_id, reactions FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      // Update reactions JSONB
+      const reactions = message.reactions || {};
+      if (reactions[args.emoji]) {
+        reactions[args.emoji] = reactions[args.emoji].filter((id: string) => id !== userId);
+        if (reactions[args.emoji].length === 0) {
+          delete reactions[args.emoji];
+        }
+      }
+
+      await query(
+        'UPDATE messages SET reactions = $1 WHERE id = $2',
+        [JSON.stringify(reactions), args.messageId]
+      );
+
+      return true;
+    },
+
+    setTypingStatus: async (_: unknown, args: { conversationId: string; isTyping: boolean }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { setTypingStatus } = await import('../modules/messaging/messaging.service');
+      await setTypingStatus(args.conversationId, userId, args.isTyping);
+      return true;
+    },
+
+    starConversation: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'UPDATE conversation_participants SET starred = true WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      return true;
+    },
+
+    unstarConversation: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'UPDATE conversation_participants SET starred = false WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      return true;
+    },
+
+    archiveConversation: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'UPDATE conversation_participants SET archived_at = NOW() WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      return true;
+    },
+
+    unarchiveConversation: async (_: unknown, args: { conversationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'UPDATE conversation_participants SET archived_at = NULL WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      return true;
+    },
+
+    forwardMessage: async (_: unknown, args: { messageId: string; toConversationIds: string[]; addComment?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const message = await queryOne<{ content: string }>(
+        'SELECT content FROM messages WHERE id = $1',
+        [args.messageId]
+      );
+
+      if (!message) {
+        throw new GraphQLError('Message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      const results = [];
+      for (const convId of args.toConversationIds) {
+        // Verify user is participant in target conversation
+        const participant = await queryOne<{ id: string }>(
+          'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+          [convId, userId]
+        );
+
+        if (!participant) {
+          continue; // Skip conversations user is not part of
+        }
+
+        const newMessageId = `msg_${crypto.randomBytes(12).toString('hex')}`;
+        const forwardedContent = args.addComment
+          ? `${args.addComment}\n\n[Forwarded]: ${message.content}`
+          : `[Forwarded]: ${message.content}`;
+
+        await query(
+          `INSERT INTO messages (id, conversation_id, sender_id, content, forwarded_from) VALUES ($1, $2, $3, $4, $5)`,
+          [newMessageId, convId, userId, forwardedContent, args.messageId]
+        );
+
+        await query(
+          'UPDATE conversations SET last_message_at = NOW() WHERE id = $1',
+          [convId]
+        );
+
+        results.push({
+          id: newMessageId,
+          conversationId: convId,
+          content: forwardedContent,
+          createdAt: new Date(),
+        });
+      }
+
+      return results;
+    },
+
+    setDisappearingMessages: async (_: unknown, args: { conversationId: string; ttl?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        'UPDATE conversations SET disappearing_ttl = $1 WHERE id = $2',
+        [args.ttl || null, args.conversationId]
+      );
+
+      return true;
+    },
+
+    scheduleMessage: async (_: unknown, args: { conversationId: string; content: string; scheduledFor: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Verify user is participant
+      const participant = await queryOne<{ id: string }>(
+        'SELECT id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+        [args.conversationId, userId]
+      );
+
+      if (!participant) {
+        throw new GraphQLError('Not a participant in this conversation', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      const scheduledId = `sched_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO scheduled_messages (id, conversation_id, sender_id, content, scheduled_for, status)
+         VALUES ($1, $2, $3, $4, $5, 'pending')`,
+        [scheduledId, args.conversationId, userId, args.content, args.scheduledFor]
+      );
+
+      return {
+        id: scheduledId,
+        conversationId: args.conversationId,
+        content: args.content,
+        scheduledFor: args.scheduledFor,
+        status: 'pending',
+        createdAt: new Date(),
+      };
+    },
+
+    cancelScheduledMessage: async (_: unknown, args: { scheduledId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const scheduled = await queryOne<{ sender_id: string }>(
+        'SELECT sender_id FROM scheduled_messages WHERE id = $1',
+        [args.scheduledId]
+      );
+
+      if (!scheduled) {
+        throw new GraphQLError('Scheduled message not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (scheduled.sender_id !== userId) {
+        throw new GraphQLError('Can only cancel your own scheduled messages', { extensions: { code: 'FORBIDDEN' } });
+      }
+
+      await query(
+        'UPDATE scheduled_messages SET status = $1 WHERE id = $2',
+        ['cancelled', args.scheduledId]
+      );
+
+      return true;
+    },
+
+    createMessageTemplate: async (_: unknown, args: { name: string; content: string; shortcut?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const templateId = `tmpl_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(
+        `INSERT INTO message_templates (id, user_id, name, content, shortcut)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [templateId, userId, args.name, args.content, args.shortcut || null]
+      );
+
+      return {
+        id: templateId,
+        name: args.name,
+        content: args.content,
+        shortcut: args.shortcut || null,
+        createdAt: new Date(),
+      };
+    },
+
+    blockUser: async (_: unknown, args: { userId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      if (args.userId === userId) {
+        throw new GraphQLError('Cannot block yourself', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      await query(
+        `INSERT INTO blocked_users (blocker_id, blocked_id)
+         VALUES ($1, $2)
+         ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+        [userId, args.userId]
+      );
+
+      return true;
+    },
+
+    unblockUser: async (_: unknown, args: { userId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        'DELETE FROM blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+        [userId, args.userId]
+      );
+
+      return true;
     },
 
     // Hangout System
@@ -7259,38 +9049,6 @@ export const resolvers = {
           activation: activation as number,
         })),
       };
-    },
-
-    // Block/Unblock Users
-    blockUser: async (_: unknown, args: { userId: string }, context: Context) => {
-      const { userId } = requireAuth(context);
-
-      if (args.userId === userId) {
-        throw new GraphQLError('Cannot block yourself', { extensions: { code: 'BAD_USER_INPUT' } });
-      }
-
-      await query(
-        `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2)
-         ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
-        [userId, args.userId]
-      );
-
-      // Remove any follows
-      await query('DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2', [userId, args.userId]);
-      await query('DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2', [args.userId, userId]);
-
-      return { success: true };
-    },
-
-    unblockUser: async (_: unknown, args: { userId: string }, context: Context) => {
-      const { userId } = requireAuth(context);
-
-      await query(
-        'DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
-        [userId, args.userId]
-      );
-
-      return { success: true };
     },
 
     // Update Privacy Settings

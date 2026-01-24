@@ -1,8 +1,77 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  COLLECTION_STATS_QUERY,
+  COLLECTION_ITEMS_QUERY,
+  COLLECTION_FAVORITES_QUERY,
+  COLLECTION_SETS_QUERY,
+  COLLECTION_SHOWCASE_QUERY,
+  COLLECTION_NEW_COUNT_QUERY,
+  TOGGLE_FAVORITE_MUTATION,
+  MARK_ITEM_SEEN_MUTATION,
+  MARK_ALL_SEEN_MUTATION,
+  CLAIM_SET_REWARD_MUTATION,
+} from '../graphql';
+
+// =====================================================
+// TYPES
+// =====================================================
+
+interface CollectionItem {
+  id: string;
+  cosmeticId: string;
+  name: string;
+  description?: string;
+  category?: string;
+  rarity: string;
+  icon?: string;
+  previewUrl?: string;
+  acquiredAt: string;
+  isFavorite: boolean;
+  isNew: boolean;
+  estimatedValue?: number;
+  isTradeable?: boolean;
+  isGiftable?: boolean;
+}
+
+interface CollectionStats {
+  totalOwned: number;
+  totalValue: number;
+  rarityBreakdown: { rarity: string; count: number }[];
+  categoryBreakdown: { category: string; count: number }[];
+  completedSets: number;
+}
+
+interface CollectionSet {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  theme?: string;
+  isLimited: boolean;
+  expirationDate?: string;
+  ownedCount: number;
+  totalCount: number;
+  rewards: SetRewardInfo[];
+}
+
+interface SetRewardInfo {
+  threshold: number;
+  icon?: string;
+  description: string;
+  claimed: boolean;
+}
+
+interface _SetItem {
+  id: string;
+  name: string;
+  icon?: string;
+  rarity: string;
+  owned: boolean;
+}
 
 // =====================================================
 // ICONS
@@ -28,7 +97,7 @@ const Icons = {
 // CONSTANTS
 // =====================================================
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; border: string; bg: string; textColor: string }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', border: 'border-gray-500/30', bg: 'bg-gray-500/10', textColor: 'text-gray-400' },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', border: 'border-green-500/30', bg: 'bg-green-500/10', textColor: 'text-green-400' },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', border: 'border-blue-500/30', bg: 'bg-blue-500/10', textColor: 'text-blue-400' },
@@ -61,155 +130,139 @@ const CATEGORY_OPTIONS = [
 // =====================================================
 
 export default function Collection() {
-  const { token } = useAuth();
-
-  // State
+  // UI State
   const [activeTab, setActiveTab] = useState('all');
-  const [stats, setStats] = useState(null);
-  const [items, setItems] = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [sets, setSets] = useState([]);
-  const [showcase, setShowcase] = useState([]);
-  const [newCount, setNewCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedSet, setSelectedSet] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
+  const [selectedSet, setSelectedSet] = useState<CollectionSet | null>(null);
   const [viewMode, setViewMode] = useState('grid');
   const [category, setCategory] = useState('all');
   const [rarity, setRarity] = useState('all');
-  const [sortBy, _setSortBy] = useState('acquired');
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
-  // =====================================================
-  // DATA FETCHING
-  // =====================================================
+  // GraphQL Queries
+  const { data: statsData } = useQuery(COLLECTION_STATS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchCollection = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
+  const { data: itemsData, loading } = useQuery(COLLECTION_ITEMS_QUERY, {
+    variables: {
+      category: category !== 'all' ? category : undefined,
+      rarity: rarity !== 'all' ? rarity : undefined,
+      sortBy: 'acquired',
+      limit: 100,
+    },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      const [statsRes, itemsRes, favRes, setsRes, showcaseRes, newRes] = await Promise.all([
-        fetch('/api/collection/stats', { headers }),
-        fetch(`/api/collection?category=${category !== 'all' ? category : ''}&rarity=${rarity !== 'all' ? rarity : ''}&sortBy=${sortBy}`, { headers }),
-        fetch('/api/collection/favorites', { headers }),
-        fetch('/api/collection/sets', { headers }),
-        fetch('/api/collection/showcase/me', { headers }).catch(() => ({ json: () => ({ data: [] }) })),
-        fetch('/api/collection/new-count', { headers }),
-      ]);
+  const { data: favoritesData } = useQuery(COLLECTION_FAVORITES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-      const [statsData, itemsData, favData, setsData, showcaseData, newData] = await Promise.all([
-        statsRes.json(),
-        itemsRes.json(),
-        favRes.json(),
-        setsRes.json(),
-        showcaseRes.json(),
-        newRes.json(),
-      ]);
+  const { data: setsData } = useQuery(COLLECTION_SETS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-      setStats(statsData.data);
-      setItems(itemsData.data?.items || []);
-      setFavorites(favData.data || []);
-      setSets(setsData.data || []);
-      setShowcase(showcaseData.data || []);
-      setNewCount(newData.data?.count || 0);
-    } catch {
-      // Failed to fetch collection
-    } finally {
-      setLoading(false);
-    }
-  }, [token, category, rarity, sortBy]);
+  const { data: showcaseData } = useQuery(COLLECTION_SHOWCASE_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    fetchCollection();
-  }, [fetchCollection]);
+  const { data: newCountData, refetch: refetchNewCount } = useQuery(COLLECTION_NEW_COUNT_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL Mutations
+  const [toggleFavoriteMutation] = useMutation(TOGGLE_FAVORITE_MUTATION);
+  const [markItemSeenMutation] = useMutation(MARK_ITEM_SEEN_MUTATION);
+  const [markAllSeenMutation] = useMutation(MARK_ALL_SEEN_MUTATION);
+  const [claimSetRewardMutation] = useMutation(CLAIM_SET_REWARD_MUTATION);
+
+  // Derived Data
+  const stats: CollectionStats | null = statsData?.collectionStats || null;
+  const items: CollectionItem[] = itemsData?.collectionItems?.items || [];
+  const favorites: CollectionItem[] = favoritesData?.collectionFavorites || [];
+  const sets: CollectionSet[] = setsData?.collectionSets || [];
+  const showcase: CollectionItem[] = showcaseData?.collectionShowcase || [];
+  const newCount: number = newCountData?.collectionNewCount || 0;
+
+  // Build rarity breakdown object for display
+  const rarityBreakdown: Record<string, number> = {};
+  if (stats?.rarityBreakdown) {
+    stats.rarityBreakdown.forEach((r) => {
+      rarityBreakdown[r.rarity] = r.count;
+    });
+  }
 
   // =====================================================
   // ACTIONS
   // =====================================================
 
-  const showSnackbar = (message, type = 'success') => {
+  const showSnackbar = useCallback((message: string, type = 'success') => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
-  };
+  }, []);
 
-  const toggleFavorite = async (itemId) => {
+  const toggleFavorite = async (itemId: string) => {
     try {
-      const res = await fetch(`/api/collection/items/${itemId}/favorite`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      const { data } = await toggleFavoriteMutation({
+        variables: { itemId },
+        refetchQueries: [
+          { query: COLLECTION_ITEMS_QUERY, variables: { category: category !== 'all' ? category : undefined, rarity: rarity !== 'all' ? rarity : undefined, sortBy: 'acquired', limit: 100 } },
+          { query: COLLECTION_FAVORITES_QUERY },
+        ],
       });
-      const data = await res.json();
 
-      if (data.data) {
-        if (data.data.isFavorite) {
-          setFavorites(prev => [...prev, items.find(i => i.id === itemId)]);
-        } else {
-          setFavorites(prev => prev.filter(i => i.id !== itemId));
-        }
-        showSnackbar(data.data.isFavorite ? 'Added to favorites' : 'Removed from favorites');
+      if (data?.toggleFavorite) {
+        showSnackbar(data.toggleFavorite.isFavorite ? 'Added to favorites' : 'Removed from favorites');
       }
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to update favorite', 'error');
     }
   };
 
-  const markAsSeen = async (itemId) => {
+  const markAsSeen = async (itemId: string) => {
     try {
-      await fetch(`/api/collection/items/${itemId}/seen`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNewCount(prev => Math.max(0, prev - 1));
+      await markItemSeenMutation({ variables: { itemId } });
+      refetchNewCount();
     } catch {
-      // Failed to mark as seen
+      // Silent fail
     }
   };
 
   const markAllSeen = async () => {
     try {
-      await fetch('/api/collection/seen-all', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNewCount(0);
+      await markAllSeenMutation();
+      refetchNewCount();
       showSnackbar('All items marked as seen');
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to mark all as seen', 'error');
     }
   };
 
-  const claimSetReward = async (setId, threshold) => {
+  const claimSetReward = async (setId: string, threshold: number) => {
     try {
-      const res = await fetch(`/api/collection/sets/${setId}/claim`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ threshold }),
+      const { data } = await claimSetRewardMutation({
+        variables: { setId, threshold },
+        refetchQueries: [{ query: COLLECTION_SETS_QUERY }],
       });
-      const data = await res.json();
 
-      if (data.data) {
-        showSnackbar(`Reward claimed: ${data.data.reward?.description || 'Success!'}`, 'success');
-        fetchCollection();
+      if (data?.claimSetReward?.success) {
+        showSnackbar(`Reward claimed: ${data.claimSetReward.reward?.description || 'Success!'}`, 'success');
         setSelectedSet(null);
       } else {
-        showSnackbar(data.error?.message || 'Failed to claim reward', 'error');
+        showSnackbar('Failed to claim reward', 'error');
       }
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to claim reward', 'error');
     }
   };
 
-  const isFavorite = (itemId) => favorites.some(f => f.id === itemId);
+  const isFavorite = (itemId: string) => favorites.some(f => f.id === itemId);
 
   // =====================================================
   // RENDER
   // =====================================================
 
-  const getDisplayItems = () => {
+  const getDisplayItems = (): CollectionItem[] => {
     switch (activeTab) {
       case 'favorites':
         return favorites;
@@ -281,7 +334,7 @@ export default function Collection() {
             </div>
             <div className="p-4 bg-white/5 rounded-xl">
               <p className="text-3xl font-bold text-amber-400">
-                {stats.rarityBreakdown?.legendary || 0}
+                {rarityBreakdown.legendary || 0}
               </p>
               <p className="text-sm text-gray-400">Legendaries</p>
             </div>
@@ -295,11 +348,11 @@ export default function Collection() {
         )}
 
         {/* Rarity Breakdown */}
-        {stats?.rarityBreakdown && (
+        {Object.keys(rarityBreakdown).length > 0 && (
           <div className="mb-6">
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {Object.entries(RARITY_CONFIG).map(([key, config]) => {
-                const count = stats.rarityBreakdown[key] || 0;
+                const count = rarityBreakdown[key] || 0;
                 return (
                   <button
                     key={key}
@@ -379,7 +432,9 @@ export default function Collection() {
           <>
             {getDisplayItems().length === 0 ? (
               <div className="text-center py-16">
-                <Icons.Gift className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                <div className="w-12 h-12 mx-auto text-gray-600 mb-4">
+                  <Icons.Gift />
+                </div>
                 <p className="text-gray-400">
                   {activeTab === 'favorites' ? 'No favorites yet' : 'No items in collection'}
                 </p>
@@ -400,7 +455,7 @@ export default function Collection() {
                     onFavoriteToggle={() => toggleFavorite(item.id)}
                     onClick={() => {
                       setSelectedItem(item);
-                      if (item.is_new) markAsSeen(item.id);
+                      if (item.isNew) markAsSeen(item.id);
                     }}
                   />
                 ))}
@@ -415,7 +470,7 @@ export default function Collection() {
                     onFavoriteToggle={() => toggleFavorite(item.id)}
                     onClick={() => {
                       setSelectedItem(item);
-                      if (item.is_new) markAsSeen(item.id);
+                      if (item.isNew) markAsSeen(item.id);
                     }}
                   />
                 ))}
@@ -504,7 +559,14 @@ export default function Collection() {
 // COLLECTION ITEM CARD
 // =====================================================
 
-function CollectionItemCard({ item, isFavorite, onFavoriteToggle, onClick }) {
+interface CollectionItemCardProps {
+  item: CollectionItem;
+  isFavorite: boolean;
+  onFavoriteToggle: () => void;
+  onClick: () => void;
+}
+
+function CollectionItemCard({ item, isFavorite, onFavoriteToggle, onClick }: CollectionItemCardProps) {
   const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
 
   return (
@@ -519,7 +581,7 @@ function CollectionItemCard({ item, isFavorite, onFavoriteToggle, onClick }) {
       )}
     >
       {/* New Badge */}
-      {item.is_new && (
+      {item.isNew && (
         <div className="absolute top-2 left-2 z-10">
           <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-violet-600 text-white">
             NEW
@@ -549,7 +611,7 @@ function CollectionItemCard({ item, isFavorite, onFavoriteToggle, onClick }) {
         </span>
         <h3 className="font-medium text-sm truncate">{item.name}</h3>
         <p className="text-xs text-gray-400 mt-1">
-          Acquired {new Date(item.acquired_at).toLocaleDateString()}
+          Acquired {new Date(item.acquiredAt).toLocaleDateString()}
         </p>
       </div>
     </motion.div>
@@ -560,7 +622,14 @@ function CollectionItemCard({ item, isFavorite, onFavoriteToggle, onClick }) {
 // COLLECTION ITEM ROW
 // =====================================================
 
-function CollectionItemRow({ item, isFavorite, onFavoriteToggle, onClick }) {
+interface CollectionItemRowProps {
+  item: CollectionItem;
+  isFavorite: boolean;
+  onFavoriteToggle: () => void;
+  onClick: () => void;
+}
+
+function CollectionItemRow({ item, isFavorite, onFavoriteToggle, onClick }: CollectionItemRowProps) {
   const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
 
   return (
@@ -578,14 +647,14 @@ function CollectionItemRow({ item, isFavorite, onFavoriteToggle, onClick }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="font-medium truncate">{item.name}</h3>
-          {item.is_new && (
+          {item.isNew && (
             <span className="px-2 py-0.5 text-xs bg-violet-600 rounded-full">NEW</span>
           )}
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <span className={rarity.textColor}>{rarity.label}</span>
           <span>•</span>
-          <span>{new Date(item.acquired_at).toLocaleDateString()}</span>
+          <span>{new Date(item.acquiredAt).toLocaleDateString()}</span>
         </div>
       </div>
 
@@ -603,11 +672,18 @@ function CollectionItemRow({ item, isFavorite, onFavoriteToggle, onClick }) {
 // SETS VIEW
 // =====================================================
 
-function SetsView({ sets, onSelectSet }) {
+interface SetsViewProps {
+  sets: CollectionSet[];
+  onSelectSet: (set: CollectionSet) => void;
+}
+
+function SetsView({ sets, onSelectSet }: SetsViewProps) {
   if (sets.length === 0) {
     return (
       <div className="text-center py-16">
-        <Icons.Puzzle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+        <div className="w-12 h-12 mx-auto text-gray-600 mb-4">
+          <Icons.Puzzle />
+        </div>
         <p className="text-gray-400">No sets available</p>
       </div>
     );
@@ -616,7 +692,7 @@ function SetsView({ sets, onSelectSet }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {sets.map(set => {
-        const progress = set.owned_count / set.total_count;
+        const progress = set.ownedCount / set.totalCount;
         const isComplete = progress >= 1;
 
         return (
@@ -647,7 +723,7 @@ function SetsView({ sets, onSelectSet }) {
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="text-gray-400">Progress</span>
                 <span className={isComplete ? 'text-amber-400' : 'text-gray-400'}>
-                  {set.owned_count}/{set.total_count}
+                  {set.ownedCount}/{set.totalCount}
                 </span>
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -677,7 +753,14 @@ function SetsView({ sets, onSelectSet }) {
 // ITEM DETAIL MODAL
 // =====================================================
 
-function ItemDetailModal({ item, isFavorite, onFavoriteToggle, onClose }) {
+interface ItemDetailModalProps {
+  item: CollectionItem;
+  isFavorite: boolean;
+  onFavoriteToggle: () => void;
+  onClose: () => void;
+}
+
+function ItemDetailModal({ item, isFavorite, onFavoriteToggle, onClose }: ItemDetailModalProps) {
   const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
 
   return (
@@ -724,14 +807,14 @@ function ItemDetailModal({ item, isFavorite, onFavoriteToggle, onClose }) {
           </div>
           <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
             <span className="text-gray-400">Acquired</span>
-            <span>{new Date(item.acquired_at).toLocaleDateString()}</span>
+            <span>{new Date(item.acquiredAt).toLocaleDateString()}</span>
           </div>
-          {item.estimated_value && (
+          {item.estimatedValue && (
             <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
               <span className="text-gray-400">Est. Value</span>
               <div className="flex items-center gap-1">
                 <Icons.Sparkle className="text-violet-400 w-4 h-4" />
-                <span>{item.estimated_value.toLocaleString()}</span>
+                <span>{item.estimatedValue.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -760,8 +843,14 @@ function ItemDetailModal({ item, isFavorite, onFavoriteToggle, onClose }) {
 // SET DETAIL MODAL
 // =====================================================
 
-function SetDetailModal({ set, onClaimReward, onClose }) {
-  const progress = set.owned_count / set.total_count;
+interface SetDetailModalProps {
+  set: CollectionSet;
+  onClaimReward: (setId: string, threshold: number) => void;
+  onClose: () => void;
+}
+
+function SetDetailModal({ set, onClaimReward, onClose }: SetDetailModalProps) {
+  const progress = set.ownedCount / set.totalCount;
   const isComplete = progress >= 1;
 
   return (
@@ -787,7 +876,7 @@ function SetDetailModal({ set, onClaimReward, onClose }) {
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-gray-400">Collection Progress</span>
             <span className={isComplete ? 'text-amber-400 font-bold' : 'text-gray-400'}>
-              {set.owned_count}/{set.total_count} ({Math.round(progress * 100)}%)
+              {set.ownedCount}/{set.totalCount} ({Math.round(progress * 100)}%)
             </span>
           </div>
           <div className="h-3 bg-white/10 rounded-full overflow-hidden">
@@ -798,32 +887,6 @@ function SetDetailModal({ set, onClaimReward, onClose }) {
               )}
               style={{ width: `${Math.min(100, progress * 100)}%` }}
             />
-          </div>
-        </div>
-
-        {/* Items in Set */}
-        <div className="mb-6">
-          <h3 className="text-sm text-gray-400 mb-3">Items in Set</h3>
-          <div className="grid grid-cols-5 gap-2">
-            {(set.items || []).map((item, i) => {
-              const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
-              return (
-                <div
-                  key={i}
-                  className={clsx(
-                    'aspect-square rounded-lg flex items-center justify-center relative',
-                    item.owned ? rarity.bg + ' ' + rarity.border + ' border' : 'bg-white/5 opacity-50'
-                  )}
-                >
-                  <span className="text-2xl">{item.icon || '?'}</span>
-                  {item.owned && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <Icons.New />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
 
@@ -866,7 +929,7 @@ function SetDetailModal({ set, onClaimReward, onClose }) {
                     </button>
                   ) : (
                     <span className="px-3 py-1 text-sm bg-white/10 text-gray-400 rounded-full">
-                      {Math.round((reward.threshold - progress) * set.total_count)} more
+                      {Math.round((reward.threshold - progress) * set.totalCount)} more
                     </span>
                   )}
                 </div>

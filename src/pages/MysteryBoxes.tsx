@@ -1,8 +1,63 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  MYSTERY_BOXES_QUERY,
+  MYSTERY_BOX_HISTORY_QUERY,
+  MYSTERY_BOX_PITY_QUERY,
+  ECONOMY_WALLET_QUERY,
+  OPEN_MYSTERY_BOX_MUTATION,
+} from '../graphql';
+
+// =====================================================
+// TYPES
+// =====================================================
+
+interface MysteryBox {
+  id: string;
+  name: string;
+  description: string | null;
+  boxType: string;
+  price: number;
+  dropRates: Record<string, number> | null;
+  availableFrom: string | null;
+  availableUntil: string | null;
+  maxPurchasesPerDay: number | null;
+  createdAt: string;
+}
+
+interface MysteryBoxOpening {
+  id: string;
+  boxId: string;
+  boxName: string;
+  cosmeticId: string;
+  cosmeticName: string;
+  rarity: string;
+  previewUrl: string | null;
+  creditsSpent: number;
+  wasPityReward: boolean;
+  openedAt: string;
+}
+
+interface PityCounter {
+  boxType: string;
+  epicCounter: number;
+  legendaryCounter: number;
+  epicThreshold: number;
+  legendaryThreshold: number;
+}
+
+interface MysteryBoxReward {
+  cosmeticId: string;
+  cosmeticName: string;
+  rarity: string;
+  previewUrl: string | null;
+  wasPityReward: boolean;
+  isDuplicate: boolean | null;
+  refundAmount: number | null;
+}
 
 // =====================================================
 // ICONS
@@ -23,7 +78,7 @@ const Icons = {
 // CONSTANTS
 // =====================================================
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; textColor: string; probability: number }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', textColor: 'text-gray-400', probability: 50 },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', textColor: 'text-green-400', probability: 25 },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', textColor: 'text-blue-400', probability: 15 },
@@ -38,70 +93,57 @@ const RARITY_CONFIG = {
 // =====================================================
 
 export default function MysteryBoxes() {
-  const { token } = useAuth();
+  // GraphQL queries
+  const { data: boxesData, loading: boxesLoading } = useQuery(MYSTERY_BOXES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: walletData, refetch: refetchWallet } = useQuery(ECONOMY_WALLET_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: pityData, refetch: refetchPity } = useQuery(MYSTERY_BOX_PITY_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: historyData, refetch: refetchHistory } = useQuery(MYSTERY_BOX_HISTORY_QUERY, {
+    variables: { limit: 50 },
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL mutation
+  const [openMysteryBox] = useMutation(OPEN_MYSTERY_BOX_MUTATION);
 
   // State
-  const [boxes, setBoxes] = useState([]);
-  const [wallet, setWallet] = useState(null);
-  const [pityCounters, setPityCounters] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedBox, setSelectedBox] = useState(null);
+  const [selectedBox, setSelectedBox] = useState<MysteryBox | null>(null);
   const [openingBox, setOpeningBox] = useState(false);
-  const [openResults, setOpenResults] = useState(null);
+  const [openResults, setOpenResults] = useState<MysteryBoxReward[] | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showHistory, setShowHistory] = useState(false);
   const [showOdds, setShowOdds] = useState(false);
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
-  // =====================================================
-  // DATA FETCHING
-  // =====================================================
+  // Data
+  const boxes: MysteryBox[] = boxesData?.mysteryBoxes || [];
+  const wallet = walletData?.economyWallet;
+  const pityCounters: PityCounter[] = pityData?.mysteryBoxPity || [];
+  const history: MysteryBoxOpening[] = historyData?.mysteryBoxHistory || [];
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [boxesRes, walletRes, pityRes, historyRes] = await Promise.all([
-        fetch('/api/mystery-boxes', { headers }),
-        fetch('/api/wallet', { headers }),
-        fetch('/api/mystery-boxes/pity', { headers }),
-        fetch('/api/mystery-boxes/history', { headers }),
-      ]);
-
-      const [boxesData, walletData, pityData, historyData] = await Promise.all([
-        boxesRes.json(),
-        walletRes.json(),
-        pityRes.json(),
-        historyRes.json(),
-      ]);
-
-      setBoxes(boxesData.data || []);
-      setWallet(walletData.data);
-      setPityCounters(pityData.data);
-      setHistory(historyData.data || []);
-    } catch (err) {
-      console.error('Failed to fetch data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Get the first pity counter for display (or use defaults)
+  const pityCounter = pityCounters[0] || {
+    epicCounter: 0,
+    legendaryCounter: 0,
+    epicThreshold: 30,
+    legendaryThreshold: 100,
+  };
 
   // =====================================================
   // ACTIONS
   // =====================================================
 
-  const showSnackbar = (message, type = 'success') => {
+  const showSnackbar = (message: string, type = 'success') => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const openBox = async (boxId) => {
+  const openBox = async (boxId: string) => {
     if (!selectedBox) return;
 
     const totalCost = selectedBox.price * quantity;
@@ -114,39 +156,35 @@ export default function MysteryBoxes() {
     setOpenResults(null);
 
     try {
-      const res = await fetch(`/api/mystery-boxes/${boxId}/open`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ quantity }),
+      const { data } = await openMysteryBox({
+        variables: { boxId, quantity },
       });
 
-      const data = await res.json();
-
-      if (data.data) {
+      if (data?.openMysteryBox?.success) {
         // Simulate dramatic reveal
         await new Promise(resolve => setTimeout(resolve, 1500));
-        setOpenResults(data.data);
-        fetchData(); // Refresh wallet and pity counters
+        setOpenResults(data.openMysteryBox.results);
+        // Refresh data
+        refetchWallet();
+        refetchPity();
+        refetchHistory();
       } else {
-        showSnackbar(data.error?.message || 'Failed to open box', 'error');
+        showSnackbar('Failed to open box', 'error');
       }
-    } catch (_err) {
-      showSnackbar('Failed to open box', 'error');
+    } catch (err) {
+      showSnackbar((err as Error).message || 'Failed to open box', 'error');
     } finally {
       setOpeningBox(false);
     }
   };
 
-  const canAfford = (price, qty = 1) => (wallet?.balance || 0) >= (price * qty);
+  const canAfford = (price: number, qty = 1) => (wallet?.balance || 0) >= (price * qty);
 
   // =====================================================
   // RENDER
   // =====================================================
 
-  if (loading) {
+  if (boxesLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -186,7 +224,7 @@ export default function MysteryBoxes() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Pity System Info */}
-        {pityCounters && (
+        {pityCounters.length > 0 && (
           <div className="mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-500/30 rounded-xl">
             <div className="flex items-center gap-2 mb-3">
               <Icons.Zap className="text-purple-400" />
@@ -201,32 +239,32 @@ export default function MysteryBoxes() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Epic Pity (30 pulls)</p>
+                <p className="text-sm text-gray-400 mb-1">Epic Pity ({pityCounter.epicThreshold} pulls)</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-purple-500 rounded-full"
-                      style={{ width: `${(pityCounters.epic_pity / 30) * 100}%` }}
+                      style={{ width: `${(pityCounter.epicCounter / pityCounter.epicThreshold) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-bold text-purple-400">{pityCounters.epic_pity}/30</span>
+                  <span className="text-sm font-bold text-purple-400">{pityCounter.epicCounter}/{pityCounter.epicThreshold}</span>
                 </div>
               </div>
               <div>
-                <p className="text-sm text-gray-400 mb-1">Legendary Pity (100 pulls)</p>
+                <p className="text-sm text-gray-400 mb-1">Legendary Pity ({pityCounter.legendaryThreshold} pulls)</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-amber-500 rounded-full"
-                      style={{ width: `${(pityCounters.legendary_pity / 100) * 100}%` }}
+                      style={{ width: `${(pityCounter.legendaryCounter / pityCounter.legendaryThreshold) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-bold text-amber-400">{pityCounters.legendary_pity}/100</span>
+                  <span className="text-sm font-bold text-amber-400">{pityCounter.legendaryCounter}/{pityCounter.legendaryThreshold}</span>
                 </div>
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-3">
-              Guaranteed Epic at 30 pulls without one. Guaranteed Legendary at 100 pulls without one.
+              Guaranteed Epic at {pityCounter.epicThreshold} pulls without one. Guaranteed Legendary at {pityCounter.legendaryThreshold} pulls without one.
               Rates increase after 20 pulls (soft pity).
             </p>
           </div>
@@ -311,7 +349,7 @@ export default function MysteryBoxes() {
                   box={selectedBox}
                   quantity={quantity}
                   setQuantity={setQuantity}
-                  wallet={wallet}
+                  walletBalance={wallet?.balance || 0}
                   opening={openingBox}
                   onOpen={() => openBox(selectedBox.id)}
                   onClose={() => setSelectedBox(null)}
@@ -392,7 +430,13 @@ export default function MysteryBoxes() {
 // BOX CARD
 // =====================================================
 
-function BoxCard({ box, canAfford, onClick }) {
+interface BoxCardProps {
+  box: MysteryBox;
+  canAfford: boolean;
+  onClick: () => void;
+}
+
+function BoxCard({ box, canAfford, onClick }: BoxCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -411,7 +455,7 @@ function BoxCard({ box, canAfford, onClick }) {
           animate={{ rotate: [0, -5, 5, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         >
-          {box.icon || '📦'}
+          📦
         </motion.span>
         {/* Sparkles */}
         <div className="absolute inset-0 overflow-hidden">
@@ -460,9 +504,19 @@ function BoxCard({ box, canAfford, onClick }) {
 // BOX OPENING VIEW
 // =====================================================
 
-function BoxOpeningView({ box, quantity, setQuantity, wallet, opening, onOpen, onClose }) {
+interface BoxOpeningViewProps {
+  box: MysteryBox;
+  quantity: number;
+  setQuantity: (q: number) => void;
+  walletBalance: number;
+  opening: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}
+
+function BoxOpeningView({ box, quantity, setQuantity, walletBalance, opening, onOpen, onClose }: BoxOpeningViewProps) {
   const totalCost = box.price * quantity;
-  const canAfford = (wallet?.balance || 0) >= totalCost;
+  const canAfford = walletBalance >= totalCost;
 
   return (
     <>
@@ -484,7 +538,7 @@ function BoxOpeningView({ box, quantity, setQuantity, wallet, opening, onOpen, o
             ease: 'easeInOut',
           }}
         >
-          {box.icon || '📦'}
+          📦
         </motion.span>
         <button
           onClick={onClose}
@@ -537,7 +591,7 @@ function BoxOpeningView({ box, quantity, setQuantity, wallet, opening, onOpen, o
           <span className="text-gray-400">Your Balance</span>
           <div className="flex items-center gap-1">
             <Icons.Sparkle className="text-violet-400 w-4 h-4" />
-            <span>{(wallet?.balance || 0).toLocaleString()}</span>
+            <span>{walletBalance.toLocaleString()}</span>
           </div>
         </div>
 
@@ -547,7 +601,7 @@ function BoxOpeningView({ box, quantity, setQuantity, wallet, opening, onOpen, o
             <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-center">
               <p className="text-red-400 font-medium">Insufficient credits</p>
               <p className="text-sm text-gray-400">
-                You need {(totalCost - (wallet?.balance || 0)).toLocaleString()} more credits
+                You need {(totalCost - walletBalance).toLocaleString()} more credits
               </p>
             </div>
             <Link
@@ -584,10 +638,20 @@ function BoxOpeningView({ box, quantity, setQuantity, wallet, opening, onOpen, o
 // OPEN RESULTS VIEW
 // =====================================================
 
-function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }) {
-  const items = results.items || [];
-  const bestRarity = getBestRarity(items);
+interface OpenResultsViewProps {
+  results: MysteryBoxReward[];
+  onClose: () => void;
+  onOpenAgain: () => void;
+  canAffordAgain: boolean;
+}
+
+function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }: OpenResultsViewProps) {
+  const bestRarity = getBestRarity(results);
   const bestConfig = RARITY_CONFIG[bestRarity] || RARITY_CONFIG.common;
+
+  const totalRefund = results
+    .filter(r => r.isDuplicate && r.refundAmount)
+    .reduce((sum, r) => sum + (r.refundAmount || 0), 0);
 
   return (
     <>
@@ -615,7 +679,7 @@ function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }) {
         <h2 className="text-2xl font-bold text-center mb-6">You received!</h2>
 
         <div className="space-y-3 max-h-64 overflow-y-auto">
-          {items.map((item, i) => {
+          {results.map((item, i) => {
             const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
             return (
               <motion.div
@@ -626,23 +690,30 @@ function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }) {
                 className={clsx(
                   'flex items-center gap-3 p-3 rounded-xl border',
                   `bg-gradient-to-r ${rarity.color}/10`,
-                  item.is_duplicate && 'opacity-75'
+                  item.isDuplicate && 'opacity-75'
                 )}
               >
-                <span className="text-3xl">{item.icon || '🎨'}</span>
+                {item.previewUrl ? (
+                  <img src={item.previewUrl} alt={item.cosmeticName} className="w-10 h-10 rounded-lg object-cover" />
+                ) : (
+                  <span className="text-3xl">🎨</span>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium truncate">{item.name}</p>
-                    {item.is_duplicate && (
+                    <p className="font-medium truncate">{item.cosmeticName}</p>
+                    {item.isDuplicate && (
                       <span className="text-xs text-gray-400">(Duplicate)</span>
+                    )}
+                    {item.wasPityReward && (
+                      <span className="text-xs text-purple-400">(Pity!)</span>
                     )}
                   </div>
                   <p className={clsx('text-sm', rarity.textColor)}>{rarity.label}</p>
                 </div>
-                {item.is_duplicate && item.refund_amount && (
+                {item.isDuplicate && item.refundAmount && (
                   <div className="flex items-center gap-1 text-green-400">
                     <Icons.Sparkle className="w-4 h-4" />
-                    <span className="text-sm">+{item.refund_amount}</span>
+                    <span className="text-sm">+{item.refundAmount}</span>
                   </div>
                 )}
               </motion.div>
@@ -651,10 +722,10 @@ function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }) {
         </div>
 
         {/* Summary */}
-        {results.totalDuplicateRefund > 0 && (
+        {totalRefund > 0 && (
           <div className="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-center">
             <p className="text-green-400 font-medium">
-              +{results.totalDuplicateRefund.toLocaleString()} credits from duplicates
+              +{totalRefund.toLocaleString()} credits from duplicates
             </p>
           </div>
         )}
@@ -687,7 +758,12 @@ function OpenResultsView({ results, onClose, onOpenAgain, canAffordAgain }) {
 // HISTORY MODAL
 // =====================================================
 
-function HistoryModal({ history, onClose }) {
+interface HistoryModalProps {
+  history: MysteryBoxOpening[];
+  onClose: () => void;
+}
+
+function HistoryModal({ history, onClose }: HistoryModalProps) {
   return (
     <>
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
@@ -702,21 +778,30 @@ function HistoryModal({ history, onClose }) {
           <p className="text-center text-gray-400 py-8">No history yet</p>
         ) : (
           <div className="space-y-3">
-            {history.map((entry, i) => {
+            {history.map((entry) => {
               const rarity = RARITY_CONFIG[entry.rarity] || RARITY_CONFIG.common;
               return (
                 <div
-                  key={i}
+                  key={entry.id}
                   className="flex items-center gap-3 p-3 bg-white/5 rounded-xl"
                 >
-                  <span className="text-2xl">{entry.item_icon || '🎨'}</span>
+                  {entry.previewUrl ? (
+                    <img src={entry.previewUrl} alt={entry.cosmeticName} className="w-10 h-10 rounded-lg object-cover" />
+                  ) : (
+                    <span className="text-2xl">🎨</span>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{entry.item_name}</p>
+                    <p className="font-medium truncate">{entry.cosmeticName}</p>
                     <p className={clsx('text-sm', rarity.textColor)}>{rarity.label}</p>
                   </div>
-                  <span className="text-sm text-gray-400">
-                    {new Date(entry.opened_at).toLocaleDateString()}
-                  </span>
+                  <div className="text-right">
+                    <span className="text-sm text-gray-400 block">
+                      {new Date(entry.openedAt).toLocaleDateString()}
+                    </span>
+                    {entry.wasPityReward && (
+                      <span className="text-xs text-purple-400">Pity</span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -731,7 +816,11 @@ function HistoryModal({ history, onClose }) {
 // ODDS MODAL
 // =====================================================
 
-function OddsModal({ onClose }) {
+interface OddsModalProps {
+  onClose: () => void;
+}
+
+function OddsModal({ onClose }: OddsModalProps) {
   return (
     <>
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
@@ -791,7 +880,7 @@ function OddsModal({ onClose }) {
 // HELPERS
 // =====================================================
 
-function getBestRarity(items) {
+function getBestRarity(items: MysteryBoxReward[]): string {
   const rarityOrder = ['divine', 'mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common'];
   for (const rarity of rarityOrder) {
     if (items.some(item => item.rarity === rarity)) {

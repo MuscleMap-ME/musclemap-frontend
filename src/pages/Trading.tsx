@@ -1,8 +1,71 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  TRADES_INCOMING_QUERY,
+  TRADES_OUTGOING_QUERY,
+  TRADES_HISTORY_QUERY,
+  ECONOMY_WALLET_QUERY,
+  COLLECTION_ITEMS_QUERY,
+  CREATE_TRADE_MUTATION,
+  ACCEPT_TRADE_MUTATION,
+  REJECT_TRADE_MUTATION,
+  CANCEL_TRADE_MUTATION,
+} from '../graphql';
+
+// =====================================================
+// TYPES
+// =====================================================
+
+interface TradeItem {
+  id: string;
+  name: string;
+  rarity: string;
+  icon?: string;
+  previewUrl?: string;
+}
+
+interface Trade {
+  id: string;
+  initiatorId: string;
+  initiatorUsername: string;
+  receiverId: string;
+  receiverUsername: string;
+  initiatorItems: TradeItem[];
+  initiatorCredits: number;
+  receiverItems: TradeItem[];
+  receiverCredits: number;
+  status: string;
+  message?: string;
+  valueWarning?: boolean;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+interface TradeHistory {
+  id: string;
+  user1Id: string;
+  user1Username: string;
+  user2Id: string;
+  user2Username: string;
+  status: string;
+  completedAt: string;
+}
+
+interface CollectionItem {
+  id: string;
+  name: string;
+  rarity: string;
+  icon?: string;
+}
+
+interface User {
+  id: string;
+  username: string;
+  displayName?: string;
+}
 
 // =====================================================
 // ICONS
@@ -28,7 +91,7 @@ const Icons = {
 // CONSTANTS
 // =====================================================
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; border: string; bg: string }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', border: 'border-gray-500/30', bg: 'bg-gray-500/10' },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', border: 'border-green-500/30', bg: 'bg-green-500/10' },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', border: 'border-blue-500/30', bg: 'bg-blue-500/10' },
@@ -38,7 +101,7 @@ const RARITY_CONFIG = {
   divine: { label: 'Divine', color: 'from-cyan-400 to-sky-500', border: 'border-cyan-400/30', bg: 'bg-cyan-400/10' },
 };
 
-const TRADE_STATUS_CONFIG = {
+const TRADE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400' },
   accepted: { label: 'Accepted', color: 'bg-green-500/20 text-green-400' },
   declined: { label: 'Declined', color: 'bg-red-500/20 text-red-400' },
@@ -59,138 +122,116 @@ const TABS = [
 // =====================================================
 
 export default function Trading() {
-  const { token } = useAuth();
   const { tradeId } = useParams();
 
   // State
   const [activeTab, setActiveTab] = useState('incoming');
-  const [incomingTrades, setIncomingTrades] = useState([]);
-  const [outgoingTrades, setOutgoingTrades] = useState([]);
-  const [historyTrades, setHistoryTrades] = useState([]);
-  const [wallet, setWallet] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedTrade, setSelectedTrade] = useState(null);
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showNewTradeModal, setShowNewTradeModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
-  // =====================================================
-  // DATA FETCHING
-  // =====================================================
+  // GraphQL Queries
+  const { data: incomingData, loading: incomingLoading, refetch: refetchIncoming } = useQuery(TRADES_INCOMING_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: outgoingData, loading: outgoingLoading, refetch: refetchOutgoing } = useQuery(TRADES_OUTGOING_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: historyData, loading: historyLoading, refetch: refetchHistory } = useQuery(TRADES_HISTORY_QUERY, {
+    variables: { limit: 50 },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: walletData } = useQuery(ECONOMY_WALLET_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchTrades = useCallback(async () => {
-    setLoading(true);
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
+  // GraphQL Mutations
+  const [acceptTradeMutation] = useMutation(ACCEPT_TRADE_MUTATION);
+  const [rejectTradeMutation] = useMutation(REJECT_TRADE_MUTATION);
+  const [cancelTradeMutation] = useMutation(CANCEL_TRADE_MUTATION);
 
-      const [inRes, outRes, histRes, walletRes] = await Promise.all([
-        fetch('/api/trades/incoming', { headers }),
-        fetch('/api/trades/outgoing', { headers }),
-        fetch('/api/trades/history', { headers }),
-        fetch('/api/wallet', { headers }),
-      ]);
+  const incomingTrades: Trade[] = useMemo(() => incomingData?.tradesIncoming || [], [incomingData?.tradesIncoming]);
+  const outgoingTrades: Trade[] = useMemo(() => outgoingData?.tradesOutgoing || [], [outgoingData?.tradesOutgoing]);
+  const historyTrades: TradeHistory[] = historyData?.tradesHistory || [];
+  const wallet = walletData?.economyWallet;
+  const loading = incomingLoading || outgoingLoading || historyLoading;
 
-      const [inData, outData, histData, walletData] = await Promise.all([
-        inRes.json(),
-        outRes.json(),
-        histRes.json(),
-        walletRes.json(),
-      ]);
-
-      setIncomingTrades(inData.data || []);
-      setOutgoingTrades(outData.data || []);
-      setHistoryTrades(histData.data || []);
-      setWallet(walletData.data);
-
-      // Auto-select trade if tradeId in URL
-      if (tradeId) {
-        const allTrades = [...(inData.data || []), ...(outData.data || []), ...(histData.data || [])];
-        const trade = allTrades.find(t => t.id === tradeId);
-        if (trade) setSelectedTrade(trade);
-      }
-    } catch {
-      // Failed to fetch trades
-    } finally {
-      setLoading(false);
+  // Auto-select trade if tradeId in URL
+  React.useEffect(() => {
+    if (tradeId && !selectedTrade) {
+      const allTrades = [...incomingTrades, ...outgoingTrades];
+      const trade = allTrades.find(t => t.id === tradeId);
+      if (trade) setSelectedTrade(trade);
     }
-  }, [token, tradeId]);
-
-  useEffect(() => {
-    fetchTrades();
-  }, [fetchTrades]);
+  }, [tradeId, incomingTrades, outgoingTrades, selectedTrade]);
 
   // =====================================================
   // ACTIONS
   // =====================================================
 
-  const showSnackbar = (message, type = 'success') => {
+  const showSnackbar = (message: string, type = 'success') => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const acceptTrade = async (tradeId) => {
+  const refetchAll = useCallback(() => {
+    refetchIncoming();
+    refetchOutgoing();
+    refetchHistory();
+  }, [refetchIncoming, refetchOutgoing, refetchHistory]);
+
+  const acceptTrade = async (id: string) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/trades/${tradeId}/accept`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const { data } = await acceptTradeMutation({ variables: { tradeId: id } });
 
-      if (data.data?.success) {
+      if (data?.acceptTrade?.success) {
         showSnackbar('Trade accepted!', 'success');
         setSelectedTrade(null);
-        fetchTrades();
+        refetchAll();
       } else {
-        showSnackbar(data.error?.message || 'Failed to accept trade', 'error');
+        showSnackbar(data?.acceptTrade?.message || 'Failed to accept trade', 'error');
       }
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to accept trade', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const declineTrade = async (tradeId) => {
+  const declineTrade = async (id: string) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/trades/${tradeId}/decline`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const { data } = await rejectTradeMutation({ variables: { tradeId: id } });
 
-      if (data.data?.success) {
+      if (data?.rejectTrade?.success) {
         showSnackbar('Trade declined', 'success');
         setSelectedTrade(null);
-        fetchTrades();
+        refetchAll();
       } else {
-        showSnackbar(data.error?.message || 'Failed to decline trade', 'error');
+        showSnackbar(data?.rejectTrade?.message || 'Failed to decline trade', 'error');
       }
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to decline trade', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const cancelTrade = async (tradeId) => {
+  const cancelTrade = async (id: string) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/trades/${tradeId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const { data } = await cancelTradeMutation({ variables: { tradeId: id } });
 
-      if (data.data?.success) {
+      if (data?.cancelTrade?.success) {
         showSnackbar('Trade cancelled', 'success');
         setSelectedTrade(null);
-        fetchTrades();
+        refetchAll();
       } else {
-        showSnackbar(data.error?.message || 'Failed to cancel trade', 'error');
+        showSnackbar(data?.cancelTrade?.message || 'Failed to cancel trade', 'error');
       }
-    } catch (_err) {
+    } catch {
       showSnackbar('Failed to cancel trade', 'error');
     } finally {
       setSubmitting(false);
@@ -210,7 +251,7 @@ export default function Trading() {
     }
   };
 
-  if (loading) {
+  if (loading && !incomingTrades.length && !outgoingTrades.length) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -306,9 +347,9 @@ export default function Trading() {
             getCurrentTrades().map(trade => (
               <TradeCard
                 key={trade.id}
-                trade={trade}
+                trade={trade as Trade}
                 isIncoming={activeTab === 'incoming'}
-                onClick={() => setSelectedTrade(trade)}
+                onClick={() => setSelectedTrade(trade as Trade)}
               />
             ))
           )}
@@ -364,14 +405,13 @@ export default function Trading() {
               className="bg-[#12121a] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <NewTradeModal
-                token={token}
                 wallet={wallet}
                 onSuccess={() => {
                   setShowNewTradeModal(false);
                   showSnackbar('Trade request sent!', 'success');
-                  fetchTrades();
+                  refetchAll();
                 }}
-                onError={(msg) => showSnackbar(msg, 'error')}
+                onError={(msg: string) => showSnackbar(msg, 'error')}
                 onClose={() => setShowNewTradeModal(false)}
               />
             </motion.div>
@@ -403,11 +443,17 @@ export default function Trading() {
 // TRADE CARD COMPONENT
 // =====================================================
 
-function TradeCard({ trade, isIncoming, onClick }) {
+interface TradeCardProps {
+  trade: Trade;
+  isIncoming: boolean;
+  onClick: () => void;
+}
+
+function TradeCard({ trade, isIncoming, onClick }: TradeCardProps) {
   const statusConfig = TRADE_STATUS_CONFIG[trade.status] || TRADE_STATUS_CONFIG.pending;
-  const otherUser = isIncoming ? trade.initiator_username : trade.receiver_username;
-  const itemCount = (trade.initiator_items?.length || 0) + (trade.receiver_items?.length || 0);
-  const totalCredits = (trade.initiator_credits || 0) + (trade.receiver_credits || 0);
+  const otherUser = isIncoming ? trade.initiatorUsername : trade.receiverUsername;
+  const itemCount = (trade.initiatorItems?.length || 0) + (trade.receiverItems?.length || 0);
+  const totalCredits = (trade.initiatorCredits || 0) + (trade.receiverCredits || 0);
 
   return (
     <motion.div
@@ -425,7 +471,7 @@ function TradeCard({ trade, isIncoming, onClick }) {
           <div>
             <p className="font-medium">{otherUser || 'Unknown User'}</p>
             <p className="text-sm text-gray-400">
-              {new Date(trade.created_at).toLocaleDateString()}
+              {new Date(trade.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>
@@ -445,7 +491,7 @@ function TradeCard({ trade, isIncoming, onClick }) {
           )}
         </div>
 
-        {trade.value_warning && (
+        {trade.valueWarning && (
           <div className="flex items-center gap-1 text-amber-400 text-sm">
             <Icons.AlertTriangle className="w-4 h-4" />
             <span>Value mismatch</span>
@@ -464,10 +510,20 @@ function TradeCard({ trade, isIncoming, onClick }) {
 // TRADE DETAIL MODAL
 // =====================================================
 
-function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, submitting, onClose }) {
+interface TradeDetailModalProps {
+  trade: Trade;
+  isIncoming: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  onCancel: () => void;
+  submitting: boolean;
+  onClose: () => void;
+}
+
+function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, submitting, onClose }: TradeDetailModalProps) {
   const statusConfig = TRADE_STATUS_CONFIG[trade.status] || TRADE_STATUS_CONFIG.pending;
   const isPending = trade.status === 'pending';
-  const otherUser = isIncoming ? trade.initiator_username : trade.receiver_username;
+  const otherUser = isIncoming ? trade.initiatorUsername : trade.receiverUsername;
 
   return (
     <>
@@ -481,7 +537,7 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
             <div>
               <p className="font-semibold text-lg">Trade with {otherUser}</p>
               <p className="text-sm text-gray-400">
-                {new Date(trade.created_at).toLocaleString()}
+                {new Date(trade.createdAt).toLocaleString()}
               </p>
             </div>
           </div>
@@ -499,7 +555,7 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
       {/* Trade Contents */}
       <div className="p-6">
         {/* Value Warning */}
-        {trade.value_warning && (
+        {trade.valueWarning && (
           <div className="flex items-center gap-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-6">
             <Icons.AlertTriangle className="text-amber-400" />
             <div>
@@ -516,19 +572,19 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
           {/* Left Side - Initiator */}
           <div>
             <p className="text-sm text-gray-400 mb-3">
-              {isIncoming ? `${trade.initiator_username} offers` : 'You offer'}
+              {isIncoming ? `${trade.initiatorUsername} offers` : 'You offer'}
             </p>
             <div className="space-y-2">
-              {(trade.initiator_items || []).map((item, i) => (
-                <TradeItem key={i} item={item} />
+              {(trade.initiatorItems || []).map((item, i) => (
+                <TradeItemComponent key={i} item={item} />
               ))}
-              {trade.initiator_credits > 0 && (
+              {trade.initiatorCredits > 0 && (
                 <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl">
                   <Icons.Sparkle className="text-violet-400" />
-                  <span className="font-bold">{trade.initiator_credits.toLocaleString()} credits</span>
+                  <span className="font-bold">{trade.initiatorCredits.toLocaleString()} credits</span>
                 </div>
               )}
-              {(trade.initiator_items || []).length === 0 && !trade.initiator_credits && (
+              {(trade.initiatorItems || []).length === 0 && !trade.initiatorCredits && (
                 <p className="text-gray-500 italic">No items offered</p>
               )}
             </div>
@@ -544,19 +600,19 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
           {/* Right Side - Receiver */}
           <div>
             <p className="text-sm text-gray-400 mb-3">
-              {isIncoming ? 'You give' : `${trade.receiver_username} gives`}
+              {isIncoming ? 'You give' : `${trade.receiverUsername} gives`}
             </p>
             <div className="space-y-2">
-              {(trade.receiver_items || []).map((item, i) => (
-                <TradeItem key={i} item={item} />
+              {(trade.receiverItems || []).map((item, i) => (
+                <TradeItemComponent key={i} item={item} />
               ))}
-              {trade.receiver_credits > 0 && (
+              {trade.receiverCredits > 0 && (
                 <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl">
                   <Icons.Sparkle className="text-violet-400" />
-                  <span className="font-bold">{trade.receiver_credits.toLocaleString()} credits</span>
+                  <span className="font-bold">{trade.receiverCredits.toLocaleString()} credits</span>
                 </div>
               )}
-              {(trade.receiver_items || []).length === 0 && !trade.receiver_credits && (
+              {(trade.receiverItems || []).length === 0 && !trade.receiverCredits && (
                 <p className="text-gray-500 italic">No items requested</p>
               )}
             </div>
@@ -621,7 +677,11 @@ function TradeDetailModal({ trade, isIncoming, onAccept, onDecline, onCancel, su
 // TRADE ITEM COMPONENT
 // =====================================================
 
-function TradeItem({ item }) {
+interface TradeItemComponentProps {
+  item: TradeItem;
+}
+
+function TradeItemComponent({ item }: TradeItemComponentProps) {
   const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
 
   return (
@@ -643,31 +703,43 @@ function TradeItem({ item }) {
 // NEW TRADE MODAL
 // =====================================================
 
-function NewTradeModal({ token, wallet, onSuccess, onError, onClose }) {
+interface NewTradeModalProps {
+  wallet: { balance: number } | null;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onClose: () => void;
+}
+
+function NewTradeModal({ wallet, onSuccess, onError, onClose }: NewTradeModalProps) {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [myCollection, setMyCollection] = useState([]);
-  const [_theirWishlist, _setTheirWishlist] = useState([]);
-  const [myItems, setMyItems] = useState([]);
-  const [_theirItems, _setTheirItems] = useState([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [myItems, setMyItems] = useState<CollectionItem[]>([]);
+  const [theirItems] = useState<CollectionItem[]>([]);
   const [myCredits, setMyCredits] = useState(0);
   const [theirCredits, setTheirCredits] = useState(0);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [loadingCollection, setLoadingCollection] = useState(false);
 
-  const searchUsers = async (query) => {
+  // GraphQL Queries and Mutations
+  const { data: collectionData, loading: loadingCollection } = useQuery(COLLECTION_ITEMS_QUERY, {
+    skip: !selectedUser,
+    fetchPolicy: 'cache-and-network',
+  });
+  const [createTradeMutation] = useMutation(CREATE_TRADE_MUTATION);
+
+  const myCollection: CollectionItem[] = collectionData?.collectionItems || [];
+
+  // For user search, we still need REST as there's no GraphQL query yet
+  const searchUsers = async (query: string) => {
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
 
     try {
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       setSearchResults(data.data || []);
     } catch (err) {
@@ -675,26 +747,12 @@ function NewTradeModal({ token, wallet, onSuccess, onError, onClose }) {
     }
   };
 
-  const selectUser = async (user) => {
+  const selectUser = (user: User) => {
     setSelectedUser(user);
-    setLoadingCollection(true);
-
-    try {
-      const res = await fetch('/api/collection', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setMyCollection(data.data?.items || []);
-    } catch (err) {
-      console.error('Failed to load collection:', err);
-    } finally {
-      setLoadingCollection(false);
-    }
-
     setStep(2);
   };
 
-  const toggleMyItem = (item) => {
+  const toggleMyItem = (item: CollectionItem) => {
     if (myItems.find(i => i.id === item.id)) {
       setMyItems(myItems.filter(i => i.id !== item.id));
     } else if (myItems.length < 10) {
@@ -716,30 +774,25 @@ function NewTradeModal({ token, wallet, onSuccess, onError, onClose }) {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/trades', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const { data } = await createTradeMutation({
+        variables: {
+          input: {
+            receiverId: selectedUser.id,
+            initiatorItems: myItems.map(i => i.id),
+            initiatorCredits: myCredits,
+            receiverItems: theirItems.map(i => i.id),
+            receiverCredits: theirCredits,
+            message: message || undefined,
+          },
         },
-        body: JSON.stringify({
-          receiverId: selectedUser.id,
-          initiatorItems: myItems.map(i => i.id),
-          initiatorCredits: myCredits,
-          receiverItems: theirItems.map(i => i.id),
-          receiverCredits: theirCredits,
-          message: message || undefined,
-        }),
       });
 
-      const data = await res.json();
-
-      if (data.data) {
+      if (data?.createTrade?.success) {
         onSuccess();
       } else {
-        onError(data.error?.message || 'Failed to create trade');
+        onError(data?.createTrade?.message || 'Failed to create trade');
       }
-    } catch (_err) {
+    } catch {
       onError('Failed to create trade');
     } finally {
       setSubmitting(false);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { ExerciseTip, WorkoutComplete } from '../components/tips';
 import { useAuth } from '../store/authStore';
 import { hasExerciseIllustration } from '@musclemap/shared';
@@ -19,6 +20,8 @@ import {
 } from '../components/workout';
 import { useWorkoutSessionGraphQL } from '../hooks/useWorkoutSessionGraphQL';
 import type { RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
+import { EXERCISES_QUERY } from '../graphql/queries';
+import { CREATE_WORKOUT_MUTATION, GENERATE_PRESCRIPTION_MUTATION } from '../graphql/mutations';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -342,6 +345,16 @@ export default function Workout() {
     registerCallbacks,
   } = useWorkoutSessionGraphQL();
 
+  // GraphQL queries and mutations for workout functionality
+  const { data: exercisesData, loading: exercisesLoading } = useQuery(EXERCISES_QUERY, {
+    variables: { limit: 200 },
+    skip: mode !== 'manual',
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const [createWorkoutMutation] = useMutation(CREATE_WORKOUT_MUTATION);
+  const [generatePrescriptionMutation] = useMutation(GENERATE_PRESCRIPTION_MUTATION);
+
   // Register callbacks for PR achievements and level ups
   useEffect(() => {
     registerCallbacks({
@@ -536,68 +549,62 @@ export default function Workout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prescription, currentExerciseIndex]);
 
-  // Load exercises for manual mode
+  // Load exercises for manual mode from GraphQL
   useEffect(() => {
-    if (mode === 'manual' && exercises.length === 0) {
-      setLoading(true);
-      fetch('/api/exercises').then(r => r.json()).then(d => {
-        // API returns {data: [...]} - normalize primaryMuscles from comma-separated string to array
-        const exerciseList = d.data || d.exercises || [];
-        const normalized = exerciseList.map(ex => ({
-          ...ex,
-          primary_muscles: typeof ex.primaryMuscles === 'string'
-            ? ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean)
-            : ex.primaryMuscles || [],
-        }));
-        setExercises(normalized);
-        setLoading(false);
-      }).catch(() => setLoading(false));
+    if (mode === 'manual' && exercisesData?.exercises) {
+      // Normalize primaryMuscles from comma-separated string to array
+      const normalized = exercisesData.exercises.map((ex: any) => ({
+        ...ex,
+        primary_muscles: typeof ex.primaryMuscles === 'string'
+          ? ex.primaryMuscles.split(',').map((m: string) => m.trim()).filter(Boolean)
+          : ex.primaryMuscles || [],
+      }));
+      setExercises(normalized);
     }
-  }, [mode, exercises.length]);
+  }, [mode, exercisesData]);
 
-  // Generate workout from prescription API
+  // Sync loading state with GraphQL loading
+  useEffect(() => {
+    if (mode === 'manual') {
+      setLoading(exercisesLoading);
+    }
+  }, [mode, exercisesLoading]);
+
+  // Generate workout from GraphQL mutation
   const generateWorkout = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/prescription/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          timeAvailable: selectedTime,
-          location: selectedLocation,
-          equipment: selectedEquipment,
-          goals: selectedGoals,
-        }),
+      const { data } = await generatePrescriptionMutation({
+        variables: {
+          input: {
+            timeAvailable: selectedTime,
+            location: selectedLocation,
+            equipment: selectedEquipment,
+            goals: selectedGoals,
+          }
+        }
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Failed to generate workout');
+      if (!data?.generatePrescription) {
+        throw new Error('Failed to generate workout');
       }
 
-      // API returns { data: prescription }
-      const prescriptionData = result.data;
+      const prescriptionData = data.generatePrescription;
       setPrescription(prescriptionData);
       setCurrentExerciseIndex(0);
       setMode('workout');
 
       // Start a GraphQL workout session
-      const exercises = [
-        ...(prescriptionData.warmup || []),
-        ...(prescriptionData.exercises || []),
-        ...(prescriptionData.cooldown || []),
-      ].filter(e => e.id || e.exerciseId).map(e => ({
-        exerciseId: e.id || e.exerciseId,
-        name: e.name,
-        plannedSets: e.sets || 3,
-        plannedReps: typeof e.reps === 'number' ? e.reps : 10,
-      }));
+      const exercises = (prescriptionData.exercises || [])
+        .filter((e: any) => e.exerciseId)
+        .map((e: any) => ({
+          exerciseId: e.exerciseId,
+          name: e.name,
+          plannedSets: e.sets || 3,
+          plannedReps: typeof e.reps === 'number' ? e.reps : 10,
+        }));
 
       if (exercises.length > 0) {
         const sessionResult = await startSession(exercises);
@@ -608,7 +615,7 @@ export default function Workout() {
           setError(`Session start issue: ${sessionResult.error || 'Unknown error'}. Click "Start Session Now" to retry.`);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to generate workout. Try different constraints.');
     } finally {
       setLoading(false);
@@ -716,7 +723,7 @@ export default function Workout() {
           alert('Failed to complete workout. Please try again.');
         }
       } else {
-        // Fallback to REST API if no GraphQL session
+        // Fallback to GraphQL mutation if no active session
         const exercises = loggedSnapshot
           .filter(e => {
             const hasValidId = e.id && typeof e.id === 'string' && !e.id.startsWith('activity-');
@@ -737,21 +744,18 @@ export default function Workout() {
           return;
         }
 
-        const idempotencyKey = `workout-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-        const res = await fetch('/api/workouts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({
-            exercises,
-            idempotencyKey,
-            notes: `${logged.length} exercises completed`,
-          })
+        const { data } = await createWorkoutMutation({
+          variables: {
+            input: {
+              exercises,
+              notes: `${logged.length} exercises completed`,
+            }
+          }
         });
-        const data = await res.json();
-        if (res.ok && data.data) {
+
+        if (data?.createWorkout) {
           if (sessionIdRef.current) {
-            await clearAllSessionPersistence('completed', data.data.id);
+            await clearAllSessionPersistence('completed', data.createWorkout.workout?.id);
             sessionIdRef.current = null;
             sessionStartRef.current = null;
           }
@@ -759,15 +763,18 @@ export default function Workout() {
           const totalSetsCount = loggedSnapshot.reduce((sum, e) => sum + (e.sets || 0), 0);
 
           setRewards({
-            tuEarned: data.data.totalTU,
-            characterStats: data.data.characterStats,
+            tuEarned: data.createWorkout.tuEarned,
+            characterStats: data.createWorkout.characterStats,
             exerciseCount,
             totalSets: totalSetsCount,
             exercises: loggedSnapshot,
+            levelUp: data.createWorkout.levelUp,
+            newLevel: data.createWorkout.newLevel,
+            achievements: data.createWorkout.achievements,
           });
           setLogged([]);
         } else {
-          alert(data.error?.message || data.error || 'Failed to complete workout');
+          alert('Failed to complete workout');
         }
       }
     } catch {
@@ -787,19 +794,11 @@ export default function Workout() {
 
   async function logExercise() {
     if (!adding) return;
-    try {
-      await fetch('/api/workouts/exercise', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ exerciseId: adding.id, sets, reps, weight })
-      });
-      setLogged([...logged, { ...adding, sets, reps, weight }]);
-      setSuccess(adding.name);
-      setTimeout(() => setSuccess(null), 2000);
-      setAdding(null);
-    } catch {
-      // Failed to log exercise
-    }
+    // Log locally - the GraphQL session handles real-time sync via RealtimeSetLogger
+    setLogged([...logged, { ...adding, sets, reps, weight }]);
+    setSuccess(adding.name);
+    setTimeout(() => setSuccess(null), 2000);
+    setAdding(null);
   }
 
   const getCat = (e) => CATEGORY[e.type] || CATEGORY.default;
@@ -842,34 +841,22 @@ export default function Workout() {
       return;
     }
 
-    try {
-      await fetch('/api/workouts/exercise', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({
-          exerciseId: exerciseId,
-          sets: exercise.sets,
-          reps: typeof exercise.reps === 'number' ? exercise.reps : 10,
-          weight: 0
-        })
-      });
-      setLogged([...logged, {
-        id: exerciseId,
-        name: exercise.name,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        weight: 0,
-        primaryMuscles: exercise.primaryMuscles
-      }]);
-      setSuccess(exercise.name);
-      setTimeout(() => setSuccess(null), 2000);
-      // Move to next exercise
-      const allExercises = getAllPrescribedExercises();
-      if (currentExerciseIndex < allExercises.length - 1) {
-        setCurrentExerciseIndex(currentExerciseIndex + 1);
-      }
-    } catch {
-      // Failed to log exercise
+    // Log locally - the GraphQL session handles real-time sync
+    setLogged([...logged, {
+      id: exerciseId,
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      weight: 0,
+      primaryMuscles: exercise.primaryMuscles
+    }]);
+    setSuccess(exercise.name);
+    setTimeout(() => setSuccess(null), 2000);
+
+    // Move to next exercise
+    const allExercises = getAllPrescribedExercises();
+    if (currentExerciseIndex < allExercises.length - 1) {
+      setCurrentExerciseIndex(currentExerciseIndex + 1);
     }
   };
 
