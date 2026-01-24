@@ -157,25 +157,45 @@ if [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
     echo "  Deployment ID: $DEPLOY_ID"
 fi
 
-# Step 7: Deploy to VPS using memory-safe staged build system
-echo -e "${BLUE}🔄 Deploying to VPS...${NC}"
-echo -e "${YELLOW}   Using memory-safe staged build with auto-retry${NC}"
-echo -e "${YELLOW}   Features: staged builds, OOM recovery, site stays online${NC}"
-echo -e "${YELLOW}   Tier 0 (no changes): <1s | Tier 1 (restore): 1-2s | Tier 2/3: 15-90s${NC}"
+# Step 7: Build locally and deploy to VPS via rsync
+# The server has limited RAM and Vite builds OOM, so we build locally and rsync
+echo -e "${BLUE}🔧 Building locally...${NC}"
+echo -e "${YELLOW}   Building on local machine (server has limited RAM)${NC}"
+
+# Build locally using intelligent cache
+if ! pnpm build:intelligent; then
+    echo -e "${RED}❌ Local build failed!${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}🔄 Deploying to VPS via rsync...${NC}"
+echo -e "${YELLOW}   Syncing dist folder to server (avoids server OOM)${NC}"
 
 # Update deployment status
 if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
     npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "deploying" 2>/dev/null || true
 fi
 
-# Deploy with memory-safe build (--staged flag enables staged builds with OOM auto-recovery)
+# Step 7a: Rsync dist folder to server
+echo -e "${BLUE}   → Syncing dist folder...${NC}"
+if ! rsync -avz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/; then
+    echo -e "${RED}❌ Rsync failed!${NC}"
+    if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
+        npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "failed" 2>/dev/null || true
+    fi
+    exit 1
+fi
+
+# Step 7b: Update server packages and API (no frontend build needed)
+echo -e "${BLUE}   → Updating server packages and API...${NC}"
 if ! ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && \
   git fetch origin && \
   git reset --hard origin/main && \
   pnpm install && \
-  node scripts/aggressive-cache.mjs --staged && \
+  pnpm build:packages && \
+  pnpm build:api && \
   pm2 restart musclemap --silent"; then
-    echo -e "${RED}❌ Deployment failed!${NC}"
+    echo -e "${RED}❌ Server update failed!${NC}"
     if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
         npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "failed" 2>/dev/null || true
     fi

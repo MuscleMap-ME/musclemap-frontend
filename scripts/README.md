@@ -489,38 +489,57 @@ ssh root@musclemap.me "pm2 status"
 ssh root@musclemap.me "pm2 logs musclemap-api --lines 50 --nostream"
 
 # Follow API logs live
-ssh root@musclemap.me "pm2 logs musclemap-api"
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap"
 
 # Restart API
-ssh root@musclemap.me "pm2 restart musclemap-api"
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 
 # Run database migration
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
 
-# Rebuild API
-ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api"
-
-# Full rebuild
-ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:packages && pnpm build:api && pnpm build"
+# Rebuild API only (server-side)
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api"
 
 # Check disk space
-ssh root@musclemap.me "df -h"
+ssh -p 2222 root@musclemap.me "df -h"
 
 # Check memory
-ssh root@musclemap.me "free -m"
+ssh -p 2222 root@musclemap.me "free -m"
 
 # Check running processes
-ssh root@musclemap.me "htop" # (interactive)
+ssh -p 2222 root@musclemap.me "htop" # (interactive)
+```
+
+### IMPORTANT: Build Locally, Deploy via Rsync
+
+**The production server has limited RAM (8GB) and Vite builds cause OOM errors.**
+
+**ALWAYS build locally and rsync the dist folder to the server:**
+
+```bash
+# 1. Build locally (on your machine with plenty of RAM)
+pnpm build:intelligent
+
+# 2. Rsync dist to server (fast, ~60MB transfer)
+rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+
+# 3. Update server packages/API and restart PM2
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:packages && pnpm build:api && pm2 restart musclemap --silent"
 ```
 
 ### Pattern for Remote Commands
 ```bash
-ssh root@musclemap.me "cd /var/www/musclemap.me && <command>"
+# IMPORTANT: Always use port 2222 (port 22 is blocked)
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && <command>"
 ```
 
-Chain multiple commands:
+**NEVER run Vite/frontend builds on the server** - they will OOM:
 ```bash
-ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build"
+# ❌ WRONG - Will OOM on server
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build"
+
+# ✅ CORRECT - Build locally, rsync to server
+pnpm build:intelligent && rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
 ```
 
 ---
@@ -534,10 +553,10 @@ ssh root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && p
 **Solution:**
 ```bash
 # Build native module on VPS
-ssh root@musclemap.me "cd /var/www/musclemap.me/native && pnpm add -D typescript @types/node && pnpm build"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/native && pnpm add -D typescript @types/node && pnpm build"
 
 # Rebuild API and restart
-ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api && pm2 restart musclemap-api"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api && pm2 restart musclemap --silent"
 ```
 
 ### Issue: TypeScript errors in hangouts/geo services
@@ -546,7 +565,7 @@ ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api && pm2 restart
 
 **Temporary Solution:** Comment out broken imports in `server.ts` or remove files:
 ```bash
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api/src && rm -f http/routes/hangouts.ts middleware/security.ts services/geo.service.ts services/hangout.service.ts"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api/src && rm -f http/routes/hangouts.ts middleware/security.ts services/geo.service.ts services/hangout.service.ts"
 ```
 
 ### Issue: Database migration fails
@@ -558,23 +577,39 @@ ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api/src && rm -f http/route
 2. Check DATABASE_URL or PG* variables are set
 3. Run migration:
 ```bash
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
 ```
 
 ### Issue: PM2 process keeps crashing
 
 **Check logs:**
 ```bash
-ssh root@musclemap.me "pm2 logs musclemap-api --lines 100 --nostream"
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap --lines 100 --nostream"
 ```
 
 **Common fixes:**
 ```bash
-# Rebuild
-ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api"
+# Rebuild API
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build:api"
 
 # Clean restart
-ssh root@musclemap.me "pm2 delete musclemap-api; cd /var/www/musclemap.me/apps/api && pm2 start dist/index.js --name musclemap-api"
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
+```
+
+### Issue: Vite build OOM on server
+
+**Cause:** The production server has only 8GB RAM and Vite builds require ~4GB.
+
+**Solution:** NEVER build frontend on the server. Always build locally and rsync:
+```bash
+# Build locally
+pnpm build:intelligent
+
+# Rsync to server
+rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+
+# Restart PM2
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 
 ### Issue: Merge conflicts

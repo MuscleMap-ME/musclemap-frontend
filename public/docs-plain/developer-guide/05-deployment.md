@@ -7,8 +7,8 @@
 ## Deployment Overview
 
 ```
-DEPLOYMENT FLOW
-===============
+DEPLOYMENT FLOW (Build Locally, Deploy via Rsync)
+=================================================
 
 Local Development
       │
@@ -16,13 +16,19 @@ Local Development
 Merge to Main
       │
       ▼
-Run Tests
+Run Tests & Typecheck
       │
       ▼
-Build All Packages
+Build Locally (pnpm build:intelligent)
       │
       ▼
-Deploy to VPS
+Rsync dist/ to Server
+      │
+      ▼
+Update Server (packages + API only)
+      │
+      ▼
+Restart PM2
       │
       ▼
 Run Migrations (if any)
@@ -30,6 +36,9 @@ Run Migrations (if any)
       ▼
 Verify on Live Site
 ```
+
+**IMPORTANT:** The production server has limited RAM (8GB). Vite frontend builds cause OOM errors.
+**ALWAYS build locally and rsync the dist folder to the server.**
 
 ---
 
@@ -71,17 +80,17 @@ pnpm test:e2e:api
 
 ## Deployment Commands
 
-### Standard Deployment
+### Standard Deployment (Recommended)
 
 ```bash
 # 1. Merge all worktree branches
 ./scripts/merge-all.sh
 
-# 2. Deploy to production
+# 2. Deploy to production (builds locally, rsyncs to server)
 ./deploy.sh "description of changes"
 
 # 3. Run migrations (if any)
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
 
 # 4. Verify deployment
 curl https://musclemap.me/health
@@ -95,14 +104,41 @@ curl https://musclemap.me/health
 1. Runs pnpm typecheck
 2. Runs pnpm lint
 3. Regenerates documentation
-4. Builds all packages
+4. Builds ALL packages LOCALLY (including frontend via pnpm build:intelligent)
 5. Commits and pushes to git
-6. SSHs to VPS
-7. Pulls latest code
-8. Installs dependencies
-9. Rebuilds on server
-10. Restarts PM2 processes
-11. Publishes npm packages (if versions changed)
+6. Rsyncs dist/ folder to server (avoids OOM on server)
+7. SSHs to VPS (port 2222)
+8. Pulls latest code
+9. Installs dependencies
+10. Rebuilds packages and API only (NOT frontend)
+11. Restarts PM2 processes
+12. Publishes npm packages (if versions changed)
+```
+
+### Manual Deployment (Step by Step)
+
+```bash
+# 1. Build locally
+pnpm build:intelligent
+
+# 2. Rsync dist to server
+rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+
+# 3. Update server (packages + API only)
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:packages && pnpm build:api && pm2 restart musclemap --silent"
+
+# 4. Verify
+curl https://musclemap.me/health
+```
+
+### Frontend-Only Deployment (Fastest)
+
+When only frontend files changed:
+
+```bash
+pnpm build:intelligent && \
+rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/ && \
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 
 ---
@@ -111,12 +147,14 @@ curl https://musclemap.me/health
 
 ### Server Access
 
+**IMPORTANT: Always use port 2222 (port 22 is blocked)**
+
 ```bash
 # SSH to server
-ssh root@musclemap.me
+ssh -p 2222 root@musclemap.me
 
 # Or with key file
-ssh -i ~/.ssh/musclemap root@musclemap.me
+ssh -p 2222 -i ~/.ssh/musclemap root@musclemap.me
 ```
 
 ### Directory Structure
@@ -127,7 +165,7 @@ ssh -i ~/.ssh/musclemap root@musclemap.me
 │   └── api/              # API server
 ├── packages/             # Shared packages
 ├── src/                  # Frontend source
-├── dist/                 # Built frontend
+├── dist/                 # Built frontend (rsync target)
 ├── node_modules/         # Dependencies
 └── ecosystem.config.cjs  # PM2 config
 ```
@@ -136,16 +174,16 @@ ssh -i ~/.ssh/musclemap root@musclemap.me
 
 ```bash
 # Check API status
-pm2 status
+ssh -p 2222 root@musclemap.me "pm2 status"
 
 # View logs
-pm2 logs musclemap-api --lines 50 --nostream
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap --lines 50 --nostream"
 
 # Restart API
-pm2 restart musclemap-api
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 
 # Reload (zero-downtime)
-pm2 reload musclemap-api
+ssh -p 2222 root@musclemap.me "pm2 reload musclemap"
 ```
 
 ---
@@ -189,11 +227,11 @@ export async function down(knex: Knex): Promise<void> {
 # Local
 pnpm -C apps/api db:migrate
 
-# Production
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
+# Production (use port 2222)
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:migrate"
 
 # Rollback (careful!)
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback"
 ```
 
 ---
@@ -217,14 +255,16 @@ curl https://musclemap.me/metrics
 
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2026-01-15T12:00:00Z",
-  "services": {
-    "database": "connected",
-    "redis": "connected",
-    "api": "running"
+  "status": "ok",
+  "timestamp": "2026-01-24T12:00:00Z",
+  "version": "2.0.0",
+  "database": {
+    "connected": true
   },
-  "version": "1.2.3"
+  "redis": {
+    "enabled": true,
+    "connected": true
+  }
 }
 ```
 
@@ -232,13 +272,13 @@ curl https://musclemap.me/metrics
 
 ```bash
 # Live logs
-ssh root@musclemap.me "pm2 logs musclemap-api"
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap"
 
 # Recent logs
-ssh root@musclemap.me "pm2 logs musclemap-api --lines 100 --nostream"
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap --lines 100 --nostream"
 
 # Error logs only
-ssh root@musclemap.me "pm2 logs musclemap-api --err"
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap --err"
 ```
 
 ---
@@ -249,14 +289,14 @@ ssh root@musclemap.me "pm2 logs musclemap-api --err"
 
 ```bash
 # Revert to previous commit
-ssh root@musclemap.me "cd /var/www/musclemap.me && git revert HEAD && pm2 restart musclemap-api"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git revert HEAD && pm2 restart musclemap --silent"
 ```
 
 ### Full Rollback
 
 ```bash
 # 1. SSH to server
-ssh root@musclemap.me
+ssh -p 2222 root@musclemap.me
 
 # 2. Check git history
 cd /var/www/musclemap.me
@@ -265,12 +305,13 @@ git log --oneline -10
 # 3. Reset to specific commit
 git reset --hard <commit-sha>
 
-# 4. Rebuild
+# 4. Rebuild packages and API (NOT frontend - rsync from local if needed)
 pnpm install
-pnpm build:all
+pnpm build:packages
+pnpm build:api
 
 # 5. Restart
-pm2 restart musclemap-api
+pm2 restart musclemap --silent
 
 # 6. Rollback migrations if needed
 cd apps/api
@@ -281,10 +322,10 @@ pnpm db:rollback
 
 ```bash
 # Rollback last migration
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback"
 
 # Rollback multiple migrations
-ssh root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback --step 3"
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me/apps/api && pnpm db:rollback --step 3"
 ```
 
 ---
@@ -344,53 +385,57 @@ STRIPE_SECRET_KEY=sk_live_...
 
 ```bash
 # Edit production env
-ssh root@musclemap.me "nano /var/www/musclemap.me/apps/api/.env"
+ssh -p 2222 root@musclemap.me "nano /var/www/musclemap.me/apps/api/.env"
 
 # Restart to apply
-ssh root@musclemap.me "pm2 restart musclemap-api"
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 
 ---
 
 ## Troubleshooting
 
-### Deployment Failed
+### Deployment Failed - Build OOM on Server
+
+**This is why we build locally and rsync!**
 
 ```bash
-# Check server logs
-ssh root@musclemap.me "pm2 logs musclemap-api --err --lines 50"
+# NEVER do this - will OOM:
+ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build"
 
-# Check build output
-ssh root@musclemap.me "cd /var/www/musclemap.me && pnpm build:all"
-
-# Check disk space
-ssh root@musclemap.me "df -h"
+# ALWAYS do this instead:
+pnpm build:intelligent  # Build locally
+rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 
 ### API Not Responding
 
 ```bash
 # Check PM2 status
-ssh root@musclemap.me "pm2 status"
+ssh -p 2222 root@musclemap.me "pm2 status"
+
+# Check logs
+ssh -p 2222 root@musclemap.me "pm2 logs musclemap --err --lines 50"
 
 # Restart PM2
-ssh root@musclemap.me "pm2 restart all"
+ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 
 # Check Caddy
-ssh root@musclemap.me "systemctl status caddy"
+ssh -p 2222 root@musclemap.me "systemctl status caddy"
 ```
 
 ### Database Issues
 
 ```bash
 # Check PostgreSQL
-ssh root@musclemap.me "systemctl status postgresql"
+ssh -p 2222 root@musclemap.me "systemctl status postgresql"
 
 # Check connections
-ssh root@musclemap.me "psql -c 'SELECT count(*) FROM pg_stat_activity'"
+ssh -p 2222 root@musclemap.me "psql -U musclemap -d musclemap -c 'SELECT count(*) FROM pg_stat_activity'"
 
 # Restart PostgreSQL (careful!)
-ssh root@musclemap.me "systemctl restart postgresql"
+ssh -p 2222 root@musclemap.me "systemctl restart postgresql"
 ```
 
 ---
@@ -404,7 +449,7 @@ ssh root@musclemap.me "systemctl restart postgresql"
 curl https://musclemap.me/health
 
 # 2. Test GraphQL
-curl -X POST https://musclemap.me/graphql \
+curl -X POST https://musclemap.me/api/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ __typename }"}'
 
@@ -413,9 +458,6 @@ curl -I https://musclemap.me/
 
 # 4. Check metrics
 curl https://musclemap.me/metrics | head -20
-
-# 5. Test specific feature
-curl https://musclemap.me/api/exercises | head
 ```
 
 ### Smoke Tests
@@ -439,4 +481,4 @@ After deployment, manually verify:
 
 ---
 
-*Last updated: 2026-01-15*
+*Last updated: 2026-01-24*
