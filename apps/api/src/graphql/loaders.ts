@@ -557,12 +557,11 @@ export function createExtendedLoaders() {
       new DataLoader<string, ExerciseStats | null>(async (exerciseIds) => {
         // For exercise stats, we need to query workout_exercises grouped by exercise
         // This is a complex aggregation so we query the relevant data and aggregate
-        const placeholders = generatePlaceholders(exerciseIds.length);
-        const exercisePlaceholderStart = 2; // $1 is userId
+        const exercisePlaceholderStart = 2; // $1 is userId for stats query
 
-        // Get exercise names
+        // Get exercise names (doesn't need userId, so starts at $1)
         const exercises = await queryAll<{ id: string; name: string }>(
-          `SELECT id, name FROM exercises WHERE id IN (${generatePlaceholders(exerciseIds.length, exercisePlaceholderStart)})`,
+          `SELECT id, name FROM exercises WHERE id IN (${generatePlaceholders(exerciseIds.length)})`,
           [...exerciseIds]
         );
         const exerciseNameMap = new Map(exercises.map((e) => [e.id, e.name]));

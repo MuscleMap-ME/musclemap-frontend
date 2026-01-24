@@ -3843,9 +3843,9 @@ export const resolvers = {
         Promise.all(goalIds.map((id) => context.extendedLoaders.careerReadiness.load(id))),
       ]);
 
-      return goals.map((g, idx) => {
-        const standard = standards[idx];
-        const readiness = readinessScores[idx];
+      return goals.map((g, goalIdx) => {
+        const standard = standards[goalIdx];
+        const readiness = readinessScores[goalIdx];
 
         // Calculate days remaining if target date exists
         let daysRemaining = null;
@@ -3870,7 +3870,7 @@ export const resolvers = {
                 scoringType: standard.scoringMethod,
                 recertificationPeriodMonths: standard.recertificationMonths,
                 events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
-                  (c, idx) => ({
+                  (c, componentIdx) => ({
                     id: c.id,
                     name: c.name,
                     description: c.description || null,
@@ -3880,7 +3880,7 @@ export const resolvers = {
                     passingThreshold: null,
                     exerciseMappings: standard.exerciseMappings[c.id] || [],
                     tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
-                    orderIndex: idx,
+                    orderIndex: componentIdx,
                   })
                 ),
                 eventCount: (standard.components as Array<unknown>).length,
