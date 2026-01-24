@@ -327,6 +327,17 @@ export const typeDefs = `#graphql
     crewLeaderboard(limit: Int): [CrewLeaderboardEntry!]!
     searchCrews(query: String!, limit: Int): [Crew!]!
 
+    # Trainers & Classes
+    trainers(verified: Boolean, specialty: String, status: String, limit: Int, offset: Int): TrainersResult!
+    trainer(userId: ID!): TrainerProfile
+    myTrainerProfile: TrainerProfile
+    trainerClasses(input: TrainerClassesInput): TrainerClassesResult!
+    trainerClass(classId: ID!): TrainerClass
+    myTrainerClasses(status: String, limit: Int, offset: Int): TrainerClassesResult!
+    myEnrollments(status: String, limit: Int, offset: Int): EnrollmentsResult!
+    classEnrollments(classId: ID!): [ClassEnrollment!]!
+    classAttendance(classId: ID!): [ClassAttendance!]!
+
     # Buddy (Training Companion)
     buddy: Buddy
     buddyInventory(category: String): [BuddyInventoryItem!]!
@@ -642,6 +653,16 @@ export const typeDefs = `#graphql
     executeMascotSocialAction(actionId: ID!): Boolean!
     setExerciseAvoidance(input: MascotExerciseAvoidanceInput!): Boolean!
     removeExerciseAvoidance(exerciseId: ID!): Boolean!
+
+    # Trainers & Classes
+    upsertTrainerProfile(input: TrainerProfileInput!): TrainerProfile!
+    updateTrainerStatus(status: String!): Boolean!
+    createTrainerClass(input: CreateTrainerClassInput!): TrainerClass!
+    updateTrainerClass(classId: ID!, input: UpdateTrainerClassInput!): TrainerClass!
+    cancelTrainerClass(classId: ID!, reason: String): Boolean!
+    enrollInClass(classId: ID!): ClassEnrollment!
+    unenrollFromClass(classId: ID!): Boolean!
+    markClassAttendance(classId: ID!, attendees: [AttendeeInput!]!): AttendanceResult!
 
     # Buddy (Training Companion)
     createBuddy(input: CreateBuddyInput!): Buddy!
@@ -1556,6 +1577,16 @@ export const typeDefs = `#graphql
     startDate: DateTime
     endDate: DateTime
     excludedExercises: [ID!]
+  }
+
+  # ============================================
+  # PAGINATION TYPES
+  # ============================================
+  type PaginationInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    nextCursor: String
+    totalCount: Int
   }
 
   # ============================================
@@ -2717,6 +2748,151 @@ export const typeDefs = `#graphql
     tag: String!
     description: String
     color: String
+  }
+
+  # ============================================
+  # TRAINER & CLASS TYPES
+  # ============================================
+  type TrainerProfile {
+    userId: ID!
+    displayName: String!
+    bio: String
+    specialties: [String!]!
+    certifications: [String!]!
+    hourlyRateCredits: Int!
+    perClassRateCredits: Int!
+    verified: Boolean!
+    verifiedAt: DateTime
+    ratingAvg: Float!
+    ratingCount: Int!
+    totalClassesTaught: Int!
+    totalStudentsTrained: Int!
+    totalCreditsEarned: Int!
+    status: String!
+    createdAt: DateTime!
+  }
+
+  type TrainerClass {
+    id: ID!
+    trainerUserId: ID!
+    trainer: TrainerProfile
+    title: String!
+    description: String
+    category: String!
+    difficulty: String!
+    startAt: DateTime!
+    durationMinutes: Int!
+    locationType: String!
+    locationDetails: String
+    hangoutId: Int
+    virtualHangoutId: Int
+    capacity: Int!
+    enrolledCount: Int!
+    creditsPerStudent: Int!
+    trainerWagePerStudent: Int!
+    status: String!
+    metadata: JSON
+    createdAt: DateTime!
+  }
+
+  type ClassEnrollment {
+    id: ID!
+    classId: ID!
+    userId: ID!
+    status: String!
+    paymentTxId: String
+    creditsPaid: Int!
+    enrolledAt: DateTime!
+    cancelledAt: DateTime
+    refundTxId: String
+    class: TrainerClass
+  }
+
+  type ClassAttendance {
+    id: ID!
+    classId: ID!
+    userId: ID!
+    attended: Boolean!
+    markedBy: ID!
+    wageTxId: String
+    rating: Int
+    feedback: String
+    markedAt: DateTime!
+  }
+
+  type TrainersResult {
+    trainers: [TrainerProfile!]!
+    total: Int!
+  }
+
+  type TrainerClassesResult {
+    classes: [TrainerClass!]!
+    total: Int!
+  }
+
+  type EnrollmentsResult {
+    enrollments: [ClassEnrollment!]!
+    total: Int!
+  }
+
+  type AttendanceResult {
+    attendeeCount: Int!
+    wageEarned: Int!
+  }
+
+  input TrainerClassesInput {
+    trainerUserId: ID
+    status: String
+    category: String
+    upcoming: Boolean
+    limit: Int
+    offset: Int
+  }
+
+  input TrainerProfileInput {
+    displayName: String!
+    bio: String
+    specialties: [String!]
+    certifications: [String!]
+    hourlyRateCredits: Int
+    perClassRateCredits: Int
+  }
+
+  input CreateTrainerClassInput {
+    title: String!
+    description: String
+    category: String!
+    difficulty: String!
+    startAt: DateTime!
+    durationMinutes: Int!
+    locationType: String!
+    locationDetails: String
+    hangoutId: Int
+    virtualHangoutId: Int
+    capacity: Int!
+    creditsPerStudent: Int!
+    trainerWagePerStudent: Int!
+  }
+
+  input UpdateTrainerClassInput {
+    title: String
+    description: String
+    category: String
+    difficulty: String
+    startAt: DateTime
+    durationMinutes: Int
+    locationType: String
+    locationDetails: String
+    capacity: Int
+    creditsPerStudent: Int
+    trainerWagePerStudent: Int
+  }
+
+  input AttendeeInput {
+    userId: ID!
+    attended: Boolean!
+    rating: Int
+    feedback: String
   }
 
   # ============================================

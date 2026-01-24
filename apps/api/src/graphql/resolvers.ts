@@ -65,6 +65,7 @@ import { mysteryBoxService } from '../modules/marketplace/mystery-box.service';
 import * as equipmentService from '../services/equipment.service';
 import { rivalsService } from '../modules/rivals/service';
 import * as crewsService from '../modules/crews/service';
+import { trainerService } from '../modules/economy/trainer.service';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -1409,9 +1410,10 @@ export const resolvers = {
           createdAt: m.created_at,
         })),
         pagination: {
-          hasMore,
-          nextCursor,
-          count: items.length,
+          hasNextPage: hasMore,
+          hasPreviousPage: !!args.cursor,
+          nextCursor: hasMore ? nextCursor : null,
+          totalCount: items.length,
         },
       };
     },
@@ -5264,6 +5266,73 @@ export const resolvers = {
     searchCrews: async (_: unknown, args: { query: string; limit?: number }, context: Context) => {
       requireAuth(context);
       return crewsService.searchCrews(args.query, args.limit || 20);
+    },
+
+    // ============================================
+    // TRAINER & CLASS QUERIES
+    // ============================================
+    trainers: async (_: unknown, args: { verified?: boolean; specialty?: string; status?: string; limit?: number; offset?: number }) => {
+      return trainerService.listProfiles({
+        verified: args.verified,
+        specialty: args.specialty,
+        status: args.status,
+        limit: args.limit ?? 50,
+        offset: args.offset ?? 0,
+      });
+    },
+
+    trainer: async (_: unknown, args: { userId: string }) => {
+      return trainerService.getProfile(args.userId);
+    },
+
+    myTrainerProfile: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return trainerService.getProfile(userId);
+    },
+
+    trainerClasses: async (_: unknown, args: { input?: { trainerUserId?: string; status?: string; category?: string; upcoming?: boolean; limit?: number; offset?: number } }) => {
+      const input = args.input || {};
+      return trainerService.listClasses({
+        trainerUserId: input.trainerUserId,
+        status: input.status,
+        category: input.category,
+        upcoming: input.upcoming,
+        limit: input.limit ?? 50,
+        offset: input.offset ?? 0,
+      });
+    },
+
+    trainerClass: async (_: unknown, args: { classId: string }) => {
+      return trainerService.getClass(args.classId);
+    },
+
+    myTrainerClasses: async (_: unknown, args: { status?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return trainerService.listClasses({
+        trainerUserId: userId,
+        status: args.status,
+        limit: args.limit ?? 50,
+        offset: args.offset ?? 0,
+      });
+    },
+
+    myClassEnrollments: async (_: unknown, args: { status?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return trainerService.getUserEnrollments(userId, {
+        status: args.status,
+        limit: args.limit ?? 50,
+        offset: args.offset ?? 0,
+      });
+    },
+
+    classEnrollments: async (_: unknown, args: { classId: string }, context: Context) => {
+      requireAuth(context);
+      return trainerService.getClassEnrollments(args.classId);
+    },
+
+    classAttendance: async (_: unknown, args: { classId: string }, context: Context) => {
+      requireAuth(context);
+      return trainerService.getClassAttendance(args.classId);
     },
 
     // ============================================
@@ -9422,6 +9491,76 @@ export const resolvers = {
       }
 
       return crewsService.startCrewWar(args.crewId, args.defendingCrewId, args.durationDays || 7);
+    },
+
+    // ============================================
+    // TRAINER & CLASS MUTATIONS
+    // ============================================
+    upsertTrainerProfile: async (
+      _: unknown,
+      args: { input: { displayName: string; bio?: string; specialties?: string[]; certifications?: string[]; hourlyRateCredits?: number; perClassRateCredits?: number } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return trainerService.upsertProfile(userId, args.input);
+    },
+
+    updateTrainerStatus: async (_: unknown, args: { status: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await trainerService.updateStatus(userId, args.status as 'active' | 'paused' | 'suspended');
+      return true;
+    },
+
+    createTrainerClass: async (
+      _: unknown,
+      args: { input: { title: string; description?: string; category: string; difficulty: string; startAt: Date; durationMinutes: number; locationType: string; locationDetails?: string; hangoutId?: number; virtualHangoutId?: number; capacity: number; creditsPerStudent: number; trainerWagePerStudent: number } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return trainerService.createClass(userId, {
+        ...args.input,
+        difficulty: args.input.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'all',
+        locationType: args.input.locationType as 'in_person' | 'virtual' | 'hybrid',
+      });
+    },
+
+    updateTrainerClass: async (
+      _: unknown,
+      args: { classId: string; input: { title?: string; description?: string; category?: string; difficulty?: string; startAt?: Date; durationMinutes?: number; locationType?: string; locationDetails?: string; capacity?: number; creditsPerStudent?: number; trainerWagePerStudent?: number } },
+      context: Context
+    ) => {
+      requireAuth(context);
+      return trainerService.updateClass(args.classId, {
+        ...args.input,
+        difficulty: args.input.difficulty as 'beginner' | 'intermediate' | 'advanced' | 'all' | undefined,
+        locationType: args.input.locationType as 'in_person' | 'virtual' | 'hybrid' | undefined,
+      });
+    },
+
+    cancelTrainerClass: async (_: unknown, args: { classId: string; reason?: string }, context: Context) => {
+      requireAuth(context);
+      await trainerService.cancelClass(args.classId, args.reason);
+      return true;
+    },
+
+    enrollInClass: async (_: unknown, args: { classId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return trainerService.enroll(userId, args.classId);
+    },
+
+    unenrollFromClass: async (_: unknown, args: { classId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await trainerService.cancelEnrollment(userId, args.classId);
+      return true;
+    },
+
+    markClassAttendance: async (
+      _: unknown,
+      args: { classId: string; attendees: Array<{ userId: string; attended: boolean; rating?: number; feedback?: string }> },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return trainerService.markAttendance(userId, args.classId, args.attendees);
     },
 
     // Goal System
