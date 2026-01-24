@@ -1,52 +1,43 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation } from '@apollo/client/react';
 import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
-import { fetchWithLogging } from '../utils/logger';
 import SEO from '../components/SEO';
 import Logo from '../components/Logo';
 import { sanitizeEmail } from '../utils/sanitize';
 import { trackLogin, setUserProperties } from '../lib/analytics';
 import { CockatriceToast } from '../components/mascot/cockatrice';
+import { LOGIN_MUTATION } from '../graphql/mutations';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useUser();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const [loginMutation, { loading }] = useMutation(LOGIN_MUTATION);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     try {
-      // Sanitize email before sending to API
-      const res = await fetchWithLogging('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: sanitizeEmail(form.email), password: form.password }),
+      const { data } = await loginMutation({
+        variables: {
+          input: {
+            email: sanitizeEmail(form.email),
+            password: form.password,
+          },
+        },
       });
 
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        throw new Error(extractErrorMessage(data, `Login failed (${res.status})`));
-      }
-
-      // API returns { data: { token, user } }
-      const payload = data?.data ?? data;
-      const token = payload?.token;
-      const user = payload?.user;
+      const result = data?.login;
+      const token = result?.token;
+      const user = result?.user;
 
       if (!token || !user) {
-        throw new Error('Login response missing token/user (API contract mismatch).');
+        throw new Error('Login response missing token/user.');
       }
 
       login(user, token);
@@ -64,8 +55,6 @@ export default function Login() {
       navigate(hasCompletedOnboarding ? '/dashboard' : '/onboarding');
     } catch (err) {
       setError(extractErrorMessage(err, 'Login failed'));
-    } finally {
-      setLoading(false);
     }
   };
 

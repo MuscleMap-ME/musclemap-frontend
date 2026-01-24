@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
 import SEO from '../components/SEO';
 import Logo from '../components/Logo';
 import { sanitizeText, sanitizeEmail } from '../utils/sanitize';
 import { trackSignUp, trackLogin, setUserProperties } from '../lib/analytics';
+import { REGISTER_MUTATION, LOGIN_MUTATION } from '../graphql/mutations';
+import { extractErrorMessage } from '@musclemap/shared';
 
 export default function Signup() {
   // SEO structured data for signup
@@ -20,58 +22,72 @@ export default function Signup() {
   const { login } = useUser();
   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const [registerMutation, { loading: registerLoading }] = useMutation(REGISTER_MUTATION);
+  const [loginMutation, { loading: loginLoading }] = useMutation(LOGIN_MUTATION);
+  const loading = registerLoading || loginLoading;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (form.password.length < 8) { setError('Password must be at least 8 characters'); return; }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
-    setLoading(true);
+
     try {
-      // Sanitize user input before sending to API
-      const sanitizedData = {
-        username: sanitizeText(form.username),
-        email: sanitizeEmail(form.email),
-        password: form.password, // Don't sanitize password - it may contain special chars
-      };
-      const data = await api.auth.register(sanitizedData);
-      login(data.user, data.token);
+      const { data } = await registerMutation({
+        variables: {
+          input: {
+            username: sanitizeText(form.username),
+            email: sanitizeEmail(form.email),
+            password: form.password,
+          },
+        },
+      });
+
+      const result = data?.register;
+      login(result.user, result.token);
 
       // Track signup event
       trackSignUp('email');
-      setUserProperties(data.user.id, {
+      setUserProperties(result.user.id, {
         archetype: 'none',
         has_completed_onboarding: false,
       });
 
       navigate('/onboarding');
     } catch (err) {
-      const message = err.message || '';
+      const message = extractErrorMessage(err, '');
       if (message.toLowerCase().includes('exist')) {
         setError('Account already exists. Trying to log you in...');
         try {
-          const loginData = await api.auth.login(form.email, form.password);
-          login(loginData.user, loginData.token);
+          const { data: loginData } = await loginMutation({
+            variables: {
+              input: {
+                email: sanitizeEmail(form.email),
+                password: form.password,
+              },
+            },
+          });
+
+          const loginResult = loginData?.login;
+          login(loginResult.user, loginResult.token);
 
           // Track login event (user already exists)
           trackLogin('email');
-          setUserProperties(loginData.user.id, {
-            archetype: loginData.user.archetype || 'none',
-            has_completed_onboarding: !!loginData.user.archetype,
+          setUserProperties(loginResult.user.id, {
+            archetype: loginResult.user.archetype || 'none',
+            has_completed_onboarding: !!loginResult.user.archetype,
           });
 
-          navigate(loginData.user?.archetype ? '/dashboard' : '/onboarding');
+          navigate(loginResult.user?.archetype ? '/dashboard' : '/onboarding');
           return;
         } catch (loginErr) {
-          setError(loginErr.message || 'Account exists but password is different. Please log in.');
-          setLoading(false);
+          setError(extractErrorMessage(loginErr, 'Account exists but password is different. Please log in.'));
           return;
         }
       }
       setError(message || 'Registration failed');
     }
-    finally { setLoading(false); }
   };
 
   return (
