@@ -834,6 +834,15 @@ async function refreshMaterializedViews(): Promise<void> {
           log.debug('Refreshed mv_xp_rankings (direct)');
         }
       }
+
+      // Refresh stat leaderboard materialized views (global, country, state, city)
+      try {
+        await query('SELECT refresh_leaderboard_views()');
+        log.debug('Refreshed stat leaderboard materialized views');
+      } catch {
+        // Views may not exist yet - silently skip
+        log.debug('Stat leaderboard views not available - migration may not have run yet');
+      }
     }, { ttl: 60000 }); // 1 minute lock
   } catch (err) {
     if ((err as Error).message?.includes('Failed to acquire lock')) {
