@@ -4600,6 +4600,38 @@ export const resolvers = {
       }));
     },
 
+    // Personal records
+    myPersonalRecords: async (_: unknown, args: { limit?: number; recordType?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 100, 200);
+
+      const records = await ProgressionService.getAllRecords(userId, {
+        limit,
+        recordType: args.recordType as any,
+      });
+
+      return records.map((r: any) => ({
+        id: r.id,
+        userId: r.userId,
+        exerciseId: r.exerciseId,
+        exerciseName: r.exerciseName,
+        recordType: r.recordType,
+        value: r.value,
+        unit: r.recordType.includes('weight') ? 'lbs' : undefined,
+        reps: r.reps,
+        bodyweight: r.bodyweight,
+        workoutId: r.workoutId,
+        setNumber: r.setNumber,
+        achievedAt: r.achievedAt,
+        previousValue: null, // Would need additional query for historical comparison
+        details: r.reps ? {
+          weight: r.value,
+          reps: r.reps,
+          estimated1RM: r.recordType === 'e1rm' ? r.value : (r.reps === 1 ? r.value : Math.round(r.value * (36 / (37 - r.reps)))),
+        } : null,
+      }));
+    },
+
     // Nearby hangouts
     nearbyHangouts: async (_: unknown, args: { latitude: number; longitude: number; radiusKm?: number; limit?: number }) => {
       const radiusKm = args.radiusKm || 10;

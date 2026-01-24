@@ -1653,21 +1653,42 @@ export const typeDefs = `#graphql
   type Limitation {
     id: ID!
     userId: ID!
-    bodyRegion: String!
-    description: String!
+    bodyRegionId: ID
+    bodyRegionName: String
+    limitationType: String!
     severity: String!
-    startDate: DateTime
-    endDate: DateTime
-    active: Boolean!
-    excludedExercises: [ID!]
+    status: String!
+    name: String!
+    description: String
+    medicalNotes: String
+    avoidMovements: [String!]
+    avoidImpact: Boolean!
+    avoidWeightBearing: Boolean!
+    maxWeightLbs: Int
+    maxReps: Int
+    romFlexionPercent: Int
+    romExtensionPercent: Int
+    romRotationPercent: Int
+    onsetDate: DateTime
+    expectedRecoveryDate: DateTime
+    lastReviewed: DateTime
+    diagnosedBy: String
+    ptApproved: Boolean!
     createdAt: DateTime!
+    updatedAt: DateTime
   }
 
   type BodyRegion {
     id: ID!
     name: String!
-    parentRegion: String
-    affectedMuscles: [String!]!
+    icon: String
+    children: [BodyRegionChild!]
+  }
+
+  type BodyRegionChild {
+    id: ID!
+    name: String!
+    icon: String
   }
 
   type ExerciseSubstitution {
@@ -1692,12 +1713,25 @@ export const typeDefs = `#graphql
   }
 
   input LimitationInput {
-    bodyRegion: String!
-    description: String!
-    severity: String!
-    startDate: DateTime
-    endDate: DateTime
-    excludedExercises: [ID!]
+    bodyRegionId: ID
+    limitationType: String!
+    severity: String
+    status: String
+    name: String!
+    description: String
+    medicalNotes: String
+    avoidMovements: [String!]
+    avoidImpact: Boolean
+    avoidWeightBearing: Boolean
+    maxWeightLbs: Int
+    maxReps: Int
+    romFlexionPercent: Int
+    romExtensionPercent: Int
+    romRotationPercent: Int
+    onsetDate: DateTime
+    expectedRecoveryDate: DateTime
+    diagnosedBy: String
+    ptApproved: Boolean
   }
 
   # ============================================
@@ -3354,6 +3388,32 @@ export const typeDefs = `#graphql
     suitable: Boolean!
     warnings: [String!]
     alternatives: [Exercise!]
+  }
+
+  # ============================================
+  # PERSONAL RECORDS TYPES
+  # ============================================
+  type PersonalRecord {
+    id: ID!
+    userId: ID!
+    exerciseId: ID!
+    exerciseName: String
+    recordType: String!
+    value: Float!
+    unit: String
+    reps: Int
+    bodyweight: Float
+    workoutId: ID
+    setNumber: Int
+    achievedAt: DateTime!
+    previousValue: Float
+    details: PersonalRecordDetails
+  }
+
+  type PersonalRecordDetails {
+    weight: Float
+    reps: Int
+    estimated1RM: Float
   }
 
   # ============================================

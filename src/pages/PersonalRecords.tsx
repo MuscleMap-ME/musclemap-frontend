@@ -8,10 +8,12 @@
  * - Overall strength progression
  */
 
-import React, { useState, useEffect, useCallback, useMemo, lazy } from 'react';
+import React, { useState, useCallback, useMemo, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api } from '../utils/api';
+import { useQuery } from '@apollo/client/react';
+import { MY_PERSONAL_RECORDS_QUERY } from '../graphql';
+import { useAuth } from '../store';
 import { calculate1RM } from '../store/workoutSessionStore';
 import {
   GlassSurface,
@@ -261,30 +263,51 @@ function PRRecordCard({ record }) {
 }
 
 // ============================================
+// TYPES
+// ============================================
+interface PersonalRecordDetails {
+  weight?: number;
+  reps?: number;
+  estimated1RM?: number;
+}
+
+interface PersonalRecord {
+  id: string;
+  userId: string;
+  exerciseId: string;
+  exerciseName?: string;
+  recordType: string;
+  value: number;
+  unit?: string;
+  reps?: number;
+  bodyweight?: number;
+  workoutId?: string;
+  setNumber?: number;
+  achievedAt: string;
+  previousValue?: number;
+  details?: PersonalRecordDetails;
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 export default function PersonalRecords() {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
   const [filter, setFilter] = useState('all'); // 'all', 'weight', 'volume', 'e1rm'
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('date'); // 'date', 'value', 'name'
 
-  useEffect(() => {
-    loadRecords();
-  }, []);
+  // GraphQL query for personal records
+  const { data: recordsData, loading } = useQuery(MY_PERSONAL_RECORDS_QUERY, {
+    variables: { limit: 100 },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadRecords = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/progression/records?limit=100');
-      setRecords(response.data || []);
-    } catch (error) {
-      console.error('Failed to load records:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Memoize records data
+  const records: PersonalRecord[] = useMemo(() => {
+    return recordsData?.myPersonalRecords || [];
+  }, [recordsData]);
 
   const filteredRecords = useMemo(() => {
     let result = [...records];

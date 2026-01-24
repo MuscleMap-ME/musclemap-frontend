@@ -1573,6 +1573,32 @@ export const ECONOMY_HISTORY_QUERY = gql`
   }
 `;
 
+// Personal Records
+export const MY_PERSONAL_RECORDS_QUERY = gql`
+  query MyPersonalRecords($limit: Int, $recordType: String) {
+    myPersonalRecords(limit: $limit, recordType: $recordType) {
+      id
+      userId
+      exerciseId
+      exerciseName
+      recordType
+      value
+      unit
+      reps
+      bodyweight
+      workoutId
+      setNumber
+      achievedAt
+      previousValue
+      details {
+        weight
+        reps
+        estimated1RM
+      }
+    }
+  }
+`;
+
 // User Entitlements (subscription/trial status)
 export const MY_ENTITLEMENTS_QUERY = gql`
   query MyEntitlements {

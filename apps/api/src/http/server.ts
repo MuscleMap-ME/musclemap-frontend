@@ -776,7 +776,11 @@ export async function startServer(app: FastifyInstance): Promise<void> {
       log.info('Redis: enabled');
     }
   } catch (err) {
-    log.fatal({ err }, 'Failed to start server');
+    // Properly serialize error for logging
+    const errorInfo = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name }
+      : { value: String(err) };
+    log.fatal({ error: errorInfo }, 'Failed to start server');
     process.exit(1);
   }
 }
