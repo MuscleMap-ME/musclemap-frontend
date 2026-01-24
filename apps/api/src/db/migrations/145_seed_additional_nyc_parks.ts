@@ -466,7 +466,7 @@ export async function migrate(): Promise<void> {
           'good', // condition
           null, // condition_notes
           true, // is_verified
-          'seed_migration', // data_source
+          'manual', // data_source - seeded via migration
         ]
       );
       equipmentCreated++;
