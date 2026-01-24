@@ -5289,35 +5289,126 @@ export const resolvers = {
     // ============================================
     // Limitation Queries
     // ============================================
-    limitations: async (_: unknown, __: unknown, context: Context) => {
+    limitations: async (_: unknown, args: { status?: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      const limitations = await queryAll<{
-        id: string;
-        body_region: string;
-        description: string;
-        severity: string;
-        start_date: Date;
-        end_date: Date;
-        is_active: boolean;
-        excluded_exercises: string[];
-        created_at: Date;
-      }>(`
-        SELECT id, body_region, description, severity, start_date, end_date, is_active, excluded_exercises, created_at
-        FROM user_limitations WHERE user_id = $1
-        ORDER BY is_active DESC, created_at DESC
-      `, [userId]);
+      const { status } = args;
 
-      return limitations.map(l => ({
-        id: l.id,
-        userId,
-        bodyRegion: l.body_region,
-        description: l.description,
-        severity: l.severity,
-        startDate: l.start_date,
-        endDate: l.end_date,
-        active: l.is_active,
-        excludedExercises: l.excluded_exercises || [],
-        createdAt: l.created_at,
+      let query = `
+        SELECT
+          l.id, l.user_id, l.body_region_id, l.limitation_type,
+          l.severity, l.status, l.name, l.description, l.medical_notes,
+          l.avoid_movements, l.avoid_impact, l.avoid_weight_bearing,
+          l.max_weight_lbs, l.max_reps,
+          l.rom_flexion_percent, l.rom_extension_percent, l.rom_rotation_percent,
+          l.onset_date, l.expected_recovery_date, l.last_reviewed,
+          l.diagnosed_by, l.pt_approved,
+          l.created_at, l.updated_at,
+          br.name as body_region_name
+        FROM user_limitations l
+        LEFT JOIN body_regions br ON l.body_region_id = br.id
+        WHERE l.user_id = $1
+      `;
+      const params: unknown[] = [userId];
+
+      if (status) {
+        query += ` AND l.status = $2`;
+        params.push(status);
+      }
+
+      query += ` ORDER BY l.status ASC, l.severity DESC, l.created_at DESC`;
+
+      const rows = await queryAll<{
+        id: string;
+        user_id: string;
+        body_region_id: string | null;
+        limitation_type: string;
+        severity: string;
+        status: string;
+        name: string;
+        description: string | null;
+        medical_notes: string | null;
+        avoid_movements: string[] | null;
+        avoid_impact: boolean;
+        avoid_weight_bearing: boolean;
+        max_weight_lbs: number | null;
+        max_reps: number | null;
+        rom_flexion_percent: number | null;
+        rom_extension_percent: number | null;
+        rom_rotation_percent: number | null;
+        onset_date: string | null;
+        expected_recovery_date: string | null;
+        last_reviewed: string | null;
+        diagnosed_by: string | null;
+        pt_approved: boolean;
+        body_region_name: string | null;
+        created_at: Date;
+        updated_at: Date | null;
+      }>(query, params);
+
+      return rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        bodyRegionId: row.body_region_id,
+        bodyRegionName: row.body_region_name,
+        limitationType: row.limitation_type,
+        severity: row.severity,
+        status: row.status,
+        name: row.name,
+        description: row.description,
+        medicalNotes: row.medical_notes,
+        avoidMovements: row.avoid_movements || [],
+        avoidImpact: row.avoid_impact,
+        avoidWeightBearing: row.avoid_weight_bearing,
+        maxWeightLbs: row.max_weight_lbs,
+        maxReps: row.max_reps,
+        romFlexionPercent: row.rom_flexion_percent,
+        romExtensionPercent: row.rom_extension_percent,
+        romRotationPercent: row.rom_rotation_percent,
+        onsetDate: row.onset_date,
+        expectedRecoveryDate: row.expected_recovery_date,
+        lastReviewed: row.last_reviewed,
+        diagnosedBy: row.diagnosed_by,
+        ptApproved: row.pt_approved,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    },
+
+    // Body Regions for limitations
+    bodyRegions: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+
+      const regions = await queryAll<{
+        id: string;
+        name: string;
+        parent_region: string | null;
+        display_order: number;
+        icon: string | null;
+      }>(
+        `SELECT id, name, parent_region, display_order, icon
+         FROM body_regions
+         ORDER BY display_order, name`
+      );
+
+      // Organize into hierarchy
+      const topLevel = regions.filter(r => !r.parent_region);
+      const byParent = regions.reduce((acc, r) => {
+        if (r.parent_region) {
+          if (!acc[r.parent_region]) acc[r.parent_region] = [];
+          acc[r.parent_region].push(r);
+        }
+        return acc;
+      }, {} as Record<string, typeof regions>);
+
+      return topLevel.map(parent => ({
+        id: parent.id,
+        name: parent.name,
+        icon: parent.icon,
+        children: (byParent[parent.id] || []).map(child => ({
+          id: child.id,
+          name: child.name,
+          icon: child.icon,
+        })),
       }));
     },
 
@@ -10666,64 +10757,168 @@ export const resolvers = {
     // Limitations/Injuries
     createLimitation: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { bodyPart, description, severity, startDate, endDate } = args.input;
+      const input = args.input;
 
-      const limitationId = `lim_${crypto.randomBytes(12).toString('hex')}`;
-
-      await query(
-        `INSERT INTO user_limitations (id, user_id, body_part, description, severity, start_date, end_date, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')`,
-        [limitationId, userId, bodyPart, description, severity || 'moderate', startDate || new Date(), endDate]
+      const result = await queryOne<{ id: string }>(
+        `INSERT INTO user_limitations (
+          user_id, body_region_id, limitation_type, severity, status,
+          name, description, medical_notes, avoid_movements,
+          avoid_impact, avoid_weight_bearing, max_weight_lbs, max_reps,
+          rom_flexion_percent, rom_extension_percent, rom_rotation_percent,
+          onset_date, expected_recovery_date, diagnosed_by, pt_approved
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        RETURNING id`,
+        [
+          userId,
+          input.bodyRegionId ?? null,
+          input.limitationType,
+          input.severity ?? 'moderate',
+          input.status ?? 'active',
+          input.name,
+          input.description ?? null,
+          input.medicalNotes ?? null,
+          input.avoidMovements ?? null,
+          input.avoidImpact ?? false,
+          input.avoidWeightBearing ?? false,
+          input.maxWeightLbs ?? null,
+          input.maxReps ?? null,
+          input.romFlexionPercent ?? null,
+          input.romExtensionPercent ?? null,
+          input.romRotationPercent ?? null,
+          input.onsetDate ?? null,
+          input.expectedRecoveryDate ?? null,
+          input.diagnosedBy ?? null,
+          input.ptApproved ?? false,
+        ]
       );
 
+      // Fetch the created record with body region name
+      const created = await queryOne<any>(`
+        SELECT l.*, br.name as body_region_name
+        FROM user_limitations l
+        LEFT JOIN body_regions br ON l.body_region_id = br.id
+        WHERE l.id = $1
+      `, [result?.id]);
+
       return {
-        id: limitationId,
-        userId,
-        bodyPart,
-        description,
-        severity: severity || 'moderate',
-        startDate: startDate || new Date(),
-        endDate,
-        status: 'active',
-        createdAt: new Date(),
+        id: created.id,
+        userId: created.user_id,
+        bodyRegionId: created.body_region_id,
+        bodyRegionName: created.body_region_name,
+        limitationType: created.limitation_type,
+        severity: created.severity,
+        status: created.status,
+        name: created.name,
+        description: created.description,
+        medicalNotes: created.medical_notes,
+        avoidMovements: created.avoid_movements || [],
+        avoidImpact: created.avoid_impact,
+        avoidWeightBearing: created.avoid_weight_bearing,
+        maxWeightLbs: created.max_weight_lbs,
+        maxReps: created.max_reps,
+        romFlexionPercent: created.rom_flexion_percent,
+        romExtensionPercent: created.rom_extension_percent,
+        romRotationPercent: created.rom_rotation_percent,
+        onsetDate: created.onset_date,
+        expectedRecoveryDate: created.expected_recovery_date,
+        lastReviewed: created.last_reviewed,
+        diagnosedBy: created.diagnosed_by,
+        ptApproved: created.pt_approved,
+        createdAt: created.created_at,
+        updatedAt: created.updated_at,
       };
     },
 
-    updateLimitation: async (_: unknown, args: { limitationId: string; input: any }, context: Context) => {
+    updateLimitation: async (_: unknown, args: { id: string; input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { description, severity, endDate, status } = args.input;
+      const input = args.input;
 
-      const limitation = await queryOne<{ user_id: string }>(
-        'SELECT user_id FROM user_limitations WHERE id = $1',
-        [args.limitationId]
+      // Verify ownership
+      const existing = await queryOne<{ id: string }>(
+        `SELECT id FROM user_limitations WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
       );
 
-      if (!limitation || limitation.user_id !== userId) {
+      if (!existing) {
         throw new GraphQLError('Limitation not found or access denied', { extensions: { code: 'NOT_FOUND' } });
       }
 
-      await query(
-        `UPDATE user_limitations SET
-          description = COALESCE($2, description),
-          severity = COALESCE($3, severity),
-          end_date = COALESCE($4, end_date),
-          status = COALESCE($5, status),
-          updated_at = NOW()
-         WHERE id = $1`,
-        [args.limitationId, description, severity, endDate, status]
-      );
+      // Build dynamic update
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
 
-      const updated = await queryOne<any>('SELECT * FROM user_limitations WHERE id = $1', [args.limitationId]);
+      const fieldMappings: Record<string, string> = {
+        bodyRegionId: 'body_region_id',
+        limitationType: 'limitation_type',
+        severity: 'severity',
+        status: 'status',
+        name: 'name',
+        description: 'description',
+        medicalNotes: 'medical_notes',
+        avoidMovements: 'avoid_movements',
+        avoidImpact: 'avoid_impact',
+        avoidWeightBearing: 'avoid_weight_bearing',
+        maxWeightLbs: 'max_weight_lbs',
+        maxReps: 'max_reps',
+        romFlexionPercent: 'rom_flexion_percent',
+        romExtensionPercent: 'rom_extension_percent',
+        romRotationPercent: 'rom_rotation_percent',
+        onsetDate: 'onset_date',
+        expectedRecoveryDate: 'expected_recovery_date',
+        diagnosedBy: 'diagnosed_by',
+        ptApproved: 'pt_approved',
+      };
+
+      for (const [key, dbColumn] of Object.entries(fieldMappings)) {
+        if (key in input) {
+          updates.push(`${dbColumn} = $${paramIndex}`);
+          values.push(input[key] ?? null);
+          paramIndex++;
+        }
+      }
+
+      updates.push('updated_at = NOW()');
+
+      if (updates.length > 1) {
+        values.push(args.id, userId);
+        const updateQuery = `UPDATE user_limitations SET ${updates.join(', ')} WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}`;
+        await query(updateQuery, values);
+      }
+
+      // Fetch the updated record
+      const updated = await queryOne<any>(`
+        SELECT l.*, br.name as body_region_name
+        FROM user_limitations l
+        LEFT JOIN body_regions br ON l.body_region_id = br.id
+        WHERE l.id = $1
+      `, [args.id]);
 
       return {
         id: updated.id,
         userId: updated.user_id,
-        bodyPart: updated.body_part,
-        description: updated.description,
+        bodyRegionId: updated.body_region_id,
+        bodyRegionName: updated.body_region_name,
+        limitationType: updated.limitation_type,
         severity: updated.severity,
-        startDate: updated.start_date,
-        endDate: updated.end_date,
         status: updated.status,
+        name: updated.name,
+        description: updated.description,
+        medicalNotes: updated.medical_notes,
+        avoidMovements: updated.avoid_movements || [],
+        avoidImpact: updated.avoid_impact,
+        avoidWeightBearing: updated.avoid_weight_bearing,
+        maxWeightLbs: updated.max_weight_lbs,
+        maxReps: updated.max_reps,
+        romFlexionPercent: updated.rom_flexion_percent,
+        romExtensionPercent: updated.rom_extension_percent,
+        romRotationPercent: updated.rom_rotation_percent,
+        onsetDate: updated.onset_date,
+        expectedRecoveryDate: updated.expected_recovery_date,
+        lastReviewed: updated.last_reviewed,
+        diagnosedBy: updated.diagnosed_by,
+        ptApproved: updated.pt_approved,
+        createdAt: updated.created_at,
         updatedAt: updated.updated_at,
       };
     },

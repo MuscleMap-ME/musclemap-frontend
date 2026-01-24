@@ -3686,3 +3686,54 @@ export const HIGH_FIVES_SENT_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// LIMITATIONS QUERIES
+// ============================================
+
+export const MY_LIMITATIONS_QUERY = gql`
+  query MyLimitations($status: String) {
+    limitations(status: $status) {
+      id
+      userId
+      bodyRegionId
+      bodyRegionName
+      limitationType
+      severity
+      status
+      name
+      description
+      medicalNotes
+      avoidMovements
+      avoidImpact
+      avoidWeightBearing
+      maxWeightLbs
+      maxReps
+      romFlexionPercent
+      romExtensionPercent
+      romRotationPercent
+      onsetDate
+      expectedRecoveryDate
+      lastReviewed
+      diagnosedBy
+      ptApproved
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const BODY_REGIONS_QUERY = gql`
+  query BodyRegions {
+    bodyRegions {
+      id
+      name
+      icon
+      children {
+        id
+        name
+        icon
+      }
+    }
+  }
+`;

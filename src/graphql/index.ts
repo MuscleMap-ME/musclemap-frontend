@@ -173,6 +173,10 @@ export {
   ADMIN_FEEDBACK_STATS_QUERY,
   ADMIN_BUGS_STATS_QUERY,
   ADMIN_TEST_SCORECARD_QUERY,
+
+  // Limitations
+  MY_LIMITATIONS_QUERY,
+  BODY_REGIONS_QUERY,
 } from './queries';
 
 // Mutations
@@ -319,4 +323,9 @@ export {
 
   // Community
   UPDATE_PRESENCE_MUTATION,
+
+  // Limitations
+  CREATE_LIMITATION_MUTATION,
+  UPDATE_LIMITATION_MUTATION,
+  DELETE_LIMITATION_MUTATION,
 } from './mutations';

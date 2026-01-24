@@ -84,7 +84,7 @@ export const typeDefs = `#graphql
     locationEquipment(locationId: ID!): [LocationEquipment!]!
 
     # Limitations
-    limitations: [Limitation!]!
+    limitations(status: String): [Limitation!]!
     bodyRegions: [BodyRegion!]!
     exerciseSubstitutions(exerciseId: ID!): [ExerciseSubstitution!]!
 

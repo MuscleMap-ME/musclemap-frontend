@@ -119,6 +119,11 @@ async function loadServices(): Promise<{
   osmDataIngestionService: any;
 }> {
   // Dynamic import to allow the script to show help without loading database deps
+  // First, initialize the database pool
+  const dbClient = await import('../apps/api/src/db/client.js');
+  await dbClient.initializePool();
+  log('   Database pool initialized', 'dim');
+
   const nycModule = await import('../apps/api/src/modules/venues/nyc-data-ingestion.service.js');
   const osmModule = await import('../apps/api/src/modules/venues/osm-data-ingestion.service.js');
 

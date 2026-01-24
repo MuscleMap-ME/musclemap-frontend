@@ -2090,3 +2090,68 @@ export const TRANSFER_CREDITS_BY_USERNAME_MUTATION = gql`
     }
   }
 `;
+
+// ============================================
+// LIMITATIONS MUTATIONS
+// ============================================
+
+export const CREATE_LIMITATION_MUTATION = gql`
+  mutation CreateLimitation($input: LimitationInput!) {
+    createLimitation(input: $input) {
+      id
+      userId
+      bodyRegionId
+      bodyRegionName
+      limitationType
+      severity
+      status
+      name
+      description
+      medicalNotes
+      avoidMovements
+      avoidImpact
+      avoidWeightBearing
+      maxWeightLbs
+      maxReps
+      onsetDate
+      expectedRecoveryDate
+      diagnosedBy
+      ptApproved
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_LIMITATION_MUTATION = gql`
+  mutation UpdateLimitation($id: ID!, $input: LimitationInput!) {
+    updateLimitation(id: $id, input: $input) {
+      id
+      userId
+      bodyRegionId
+      bodyRegionName
+      limitationType
+      severity
+      status
+      name
+      description
+      medicalNotes
+      avoidMovements
+      avoidImpact
+      avoidWeightBearing
+      maxWeightLbs
+      maxReps
+      onsetDate
+      expectedRecoveryDate
+      diagnosedBy
+      ptApproved
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_LIMITATION_MUTATION = gql`
+  mutation DeleteLimitation($id: ID!) {
+    deleteLimitation(id: $id)
+  }
+`;
