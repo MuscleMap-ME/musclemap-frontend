@@ -334,10 +334,30 @@ export async function up(): Promise<void> {
         -- Timestamp
         activity_at TIMESTAMPTZ DEFAULT NOW(),
 
-        -- For time-series partitioning
-        activity_date DATE GENERATED ALWAYS AS (activity_at::date) STORED,
-        activity_hour INTEGER GENERATED ALWAYS AS (EXTRACT(HOUR FROM activity_at)::integer) STORED
+        -- For time-series partitioning (computed on insert, not generated columns)
+        -- Using regular columns instead of GENERATED columns because ::date cast isn't immutable
+        activity_date DATE,
+        activity_hour INTEGER
       )
+    `);
+
+    // Create a trigger to compute activity_date and activity_hour on insert
+    await db.query(`
+      CREATE OR REPLACE FUNCTION compute_activity_date_hour()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.activity_date := (NEW.activity_at AT TIME ZONE 'UTC')::date;
+        NEW.activity_hour := EXTRACT(HOUR FROM NEW.activity_at AT TIME ZONE 'UTC')::integer;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    await db.query(`
+      CREATE TRIGGER trg_compute_activity_date_hour
+      BEFORE INSERT OR UPDATE ON venue_activity_log
+      FOR EACH ROW
+      EXECUTE FUNCTION compute_activity_date_hour();
     `);
 
     // Indexes for aggregation queries
@@ -628,6 +648,10 @@ export async function down(): Promise<void> {
 
   // Drop function
   await db.query(`DROP FUNCTION IF EXISTS check_venue_exercise_record`);
+
+  // Drop triggers for venue_activity_log
+  await db.query(`DROP TRIGGER IF EXISTS trg_compute_activity_date_hour ON venue_activity_log`);
+  await db.query(`DROP FUNCTION IF EXISTS compute_activity_date_hour`);
 
   // Drop triggers
   await db.query(`DROP TRIGGER IF EXISTS tr_venue_exercise_records_updated ON venue_exercise_records`);
