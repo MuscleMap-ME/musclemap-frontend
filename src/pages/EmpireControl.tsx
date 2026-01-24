@@ -207,7 +207,29 @@ function StatusIndicator({ status, label }) {
   );
 }
 
+// Category badge styling
+const categoryStyles = {
+  owner: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Owner' },
+  team: { bg: 'bg-violet-500/20', text: 'text-violet-400', label: 'Team' },
+  beta_tester: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', label: 'Beta' },
+  friends_family: { bg: 'bg-pink-500/20', text: 'text-pink-400', label: 'F&F' },
+  public: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Public' },
+  test: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Test' },
+};
+
+function _CategoryCard({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: React.ElementType }) {
+  return (
+    <div className="text-center p-3 bg-white/5 rounded-lg">
+      <Icon className="w-5 h-5 mx-auto mb-2" style={{ color }} />
+      <div className="text-lg font-bold" style={{ color }}>{count}</div>
+      <div className="text-xs text-gray-400">{label}</div>
+    </div>
+  );
+}
+
 function UserCard({ user, onAction }) {
+  const catStyle = categoryStyles[user.userCategory] || categoryStyles.public;
+
   return (
     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
       <Link
@@ -218,7 +240,12 @@ function UserCard({ user, onAction }) {
           {user.username?.charAt(0).toUpperCase() || '?'}
         </div>
         <div className="min-w-0">
-          <div className="font-medium truncate">{user.displayName || user.username}</div>
+          <div className="font-medium truncate flex items-center gap-2">
+            {user.displayName || user.username}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${catStyle.bg} ${catStyle.text}`}>
+              {catStyle.label}
+            </span>
+          </div>
           <div className="text-xs text-gray-400 truncate">{user.email}</div>
         </div>
       </Link>
@@ -259,6 +286,20 @@ export default function EmpireControl() {
   const [metrics, setMetrics] = useState(null);
   const [metricsHistory, setMetricsHistory] = useState([]);
   const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [_userStats, _setUserStats] = useState({
+    total: 0,
+    byCategory: {
+      owner: 0,
+      team: 0,
+      beta_tester: 0,
+      friends_family: 0,
+      public: 0,
+      test: 0,
+    },
+    realUsers: 0,
+  });
+  const [_userCategoryFilter, _setUserCategoryFilter] = useState('all');
   const [_recentActivity, _setRecentActivity] = useState([]);
   const [messages, setMessages] = useState([]);
   const [economyStats, setEconomyStats] = useState(null);
@@ -364,15 +405,39 @@ export default function EmpireControl() {
     }
   }, []);
 
-  // Fetch users
-  const fetchUsers = useCallback(async () => {
+  // Fetch user statistics by category (for future use)
+  const _fetchUserStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin-control/users?limit=20', {
+      const res = await fetch('/api/admin-control/users/stats', {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        _setUserStats(data);
+      }
+    } catch {
+      // Failed to fetch user stats
+    }
+  }, [getAuthHeader]);
+
+  // Fetch users with optional category filter
+  const fetchUsers = useCallback(async (category?: string) => {
+    try {
+      let url = '/api/admin-control/users?limit=50';
+      if (category && category !== 'all') {
+        if (category === 'real') {
+          url += '&excludeTest=true';
+        } else {
+          url += `&category=${category}`;
+        }
+      }
+      const res = await fetch(url, {
         headers: getAuthHeader(),
       });
       if (res.ok) {
         const data = await res.json();
         setUsers(data.data || data.users || []);
+        setTotalUsers(data.total || (data.data || data.users || []).length);
       }
     } catch {
       // Failed to fetch users
@@ -1090,6 +1155,7 @@ export default function EmpireControl() {
       await Promise.all([
         fetchMetrics(),
         fetchUsers(),
+        fetchUserStats(),
         fetchEconomyStats(),
         fetchMessages(),
         fetchFeedbackStats(),
@@ -1099,7 +1165,12 @@ export default function EmpireControl() {
       setLoading(false);
     };
     loadData();
-  }, [fetchMetrics, fetchUsers, fetchEconomyStats, fetchMessages, fetchFeedbackStats, fetchFeedbackItems, fetchNotificationCount]);
+  }, [fetchMetrics, fetchUsers, _fetchUserStats, fetchEconomyStats, fetchMessages, fetchFeedbackStats, fetchFeedbackItems, fetchNotificationCount]);
+
+  // Refresh users when category filter changes
+  useEffect(() => {
+    fetchUsers(_userCategoryFilter);
+  }, [_userCategoryFilter, fetchUsers]);
 
   // Refresh feedback when filter changes
   useEffect(() => {
@@ -1296,7 +1367,7 @@ export default function EmpireControl() {
                     />
                     <StatCard
                       title="Total Users"
-                      value={users.length}
+                      value={totalUsers}
                       icon={Users}
                       color="#8b5cf6"
                     />

@@ -282,23 +282,80 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
     }
   });
 
+  // Get user statistics by category
+  app.get('/admin-control/users/stats', { preHandler: adminOnly }, async (_request, reply) => {
+    const stats = await queryOne<{
+      total: number;
+      owner_count: number;
+      team_count: number;
+      beta_tester_count: number;
+      friends_family_count: number;
+      public_count: number;
+      test_count: number;
+      real_users: number;
+    }>(
+      `SELECT
+        COUNT(*)::int as total,
+        COUNT(*) FILTER (WHERE user_category = 'owner')::int as owner_count,
+        COUNT(*) FILTER (WHERE user_category = 'team')::int as team_count,
+        COUNT(*) FILTER (WHERE user_category = 'beta_tester')::int as beta_tester_count,
+        COUNT(*) FILTER (WHERE user_category = 'friends_family')::int as friends_family_count,
+        COUNT(*) FILTER (WHERE user_category = 'public')::int as public_count,
+        COUNT(*) FILTER (WHERE user_category = 'test')::int as test_count,
+        COUNT(*) FILTER (WHERE user_category != 'test')::int as real_users
+      FROM users`
+    );
+
+    return reply.send({
+      total: stats?.total || 0,
+      byCategory: {
+        owner: stats?.owner_count || 0,
+        team: stats?.team_count || 0,
+        beta_tester: stats?.beta_tester_count || 0,
+        friends_family: stats?.friends_family_count || 0,
+        public: stats?.public_count || 0,
+        test: stats?.test_count || 0,
+      },
+      realUsers: stats?.real_users || 0,
+    });
+  });
+
   // Get all users (paginated)
   app.get('/admin-control/users', { preHandler: adminOnly }, async (request, reply) => {
-    const params = request.query as { limit?: string; offset?: string; search?: string };
+    const params = request.query as {
+      limit?: string;
+      offset?: string;
+      search?: string;
+      category?: string;
+      excludeTest?: string;
+    };
     const limit = Math.min(parseInt(params.limit || '50'), 100);
     const offset = parseInt(params.offset || '0');
     const search = params.search || '';
+    const category = params.category || '';
+    const excludeTest = params.excludeTest === 'true';
 
-    let whereClause = '1=1';
+    const whereClauses: string[] = ['1=1'];
     const queryParams: unknown[] = [];
     let paramIndex = 1;
 
     if (search) {
-      whereClause = `(username ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR display_name ILIKE $${paramIndex})`;
+      whereClauses.push(`(u.username ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR u.display_name ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
 
+    if (category && ['owner', 'team', 'beta_tester', 'friends_family', 'public', 'test'].includes(category)) {
+      whereClauses.push(`u.user_category = $${paramIndex}`);
+      queryParams.push(category);
+      paramIndex++;
+    }
+
+    if (excludeTest) {
+      whereClauses.push(`u.user_category != 'test'`);
+    }
+
+    const whereClause = whereClauses.join(' AND ');
     queryParams.push(limit, offset);
 
     const users = await queryAll<{
@@ -312,21 +369,44 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
       total_xp: number;
       credit_balance: number;
       status: string;
+      user_category: string;
     }>(
       `SELECT u.id, u.username, u.email, u.display_name, u.avatar_url, u.roles, u.created_at, u.total_xp,
               COALESCE(cb.balance, 0) as credit_balance,
-              COALESCE(u.moderation_status, 'active') as status
+              COALESCE(u.moderation_status, 'active') as status,
+              COALESCE(u.user_category, 'public') as user_category
        FROM users u
        LEFT JOIN credit_balances cb ON cb.user_id = u.id
-       WHERE ${whereClause.replace(/username/g, 'u.username').replace(/email/g, 'u.email').replace(/display_name/g, 'u.display_name')}
+       WHERE ${whereClause}
        ORDER BY u.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
       queryParams
     );
 
+    // Build count query params (same filters but without limit/offset)
+    const countParams: unknown[] = [];
+    let countParamIndex = 1;
+    const countWhereClauses: string[] = ['1=1'];
+
+    if (search) {
+      countWhereClauses.push(`(username ILIKE $${countParamIndex} OR email ILIKE $${countParamIndex} OR display_name ILIKE $${countParamIndex})`);
+      countParams.push(`%${search}%`);
+      countParamIndex++;
+    }
+
+    if (category && ['owner', 'team', 'beta_tester', 'friends_family', 'public', 'test'].includes(category)) {
+      countWhereClauses.push(`user_category = $${countParamIndex}`);
+      countParams.push(category);
+      countParamIndex++;
+    }
+
+    if (excludeTest) {
+      countWhereClauses.push(`user_category != 'test'`);
+    }
+
     const countResult = await queryOne<{ count: string }>(
-      `SELECT COUNT(*)::text as count FROM users WHERE ${whereClause}`,
-      search ? [`%${search}%`] : []
+      `SELECT COUNT(*)::text as count FROM users WHERE ${countWhereClauses.join(' AND ')}`,
+      countParams
     );
 
     return reply.send({
@@ -341,6 +421,7 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
         totalXp: u.total_xp || 0,
         creditBalance: u.credit_balance || 0,
         status: u.status,
+        userCategory: u.user_category,
       })),
       total: parseInt(countResult?.count || '0'),
     });
@@ -718,6 +799,43 @@ export async function registerAdminControlRoutes(app: FastifyInstance) {
       log.error({ err, action, adminId }, 'Failed to execute emergency action');
       return reply.status(500).send({
         error: { code: 'ACTION_FAILED', message: 'Failed to execute emergency action', statusCode: 500 },
+      });
+    }
+  });
+
+  // Update user category
+  app.post('/admin-control/users/:userId/category', { preHandler: adminOnly }, async (request, reply) => {
+    const { userId } = request.params as { userId: string };
+    const { category } = request.body as { category: string };
+    const adminId = request.user!.userId;
+
+    const validCategories = ['owner', 'team', 'beta_tester', 'friends_family', 'public', 'test'];
+    if (!category || !validCategories.includes(category)) {
+      return reply.status(400).send({
+        error: { code: 'INVALID_CATEGORY', message: `Invalid category. Must be one of: ${validCategories.join(', ')}`, statusCode: 400 },
+      });
+    }
+
+    try {
+      await query(
+        `UPDATE users SET user_category = $1, updated_at = NOW() WHERE id = $2`,
+        [category, userId]
+      );
+
+      // Log to audit
+      await query(
+        `INSERT INTO audit_log (user_id, action, details)
+         VALUES ($1, 'admin_user_category_change', $2)`,
+        [adminId, JSON.stringify({ targetUserId: userId, newCategory: category })]
+      );
+
+      log.info({ adminId, userId, category }, 'User category updated');
+
+      return reply.send({ success: true, category });
+    } catch (err) {
+      log.error({ err }, 'Failed to update user category');
+      return reply.status(500).send({
+        error: { code: 'UPDATE_FAILED', message: 'Failed to update user category', statusCode: 500 },
       });
     }
   });

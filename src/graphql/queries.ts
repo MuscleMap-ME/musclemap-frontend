@@ -4,7 +4,7 @@
  * All query definitions for MuscleMap client
  */
 
-import { gql } from '@apollo/client';
+import { gql } from '@apollo/client/core';
 
 // ============================================
 // AUTH & USER
@@ -584,6 +584,844 @@ export const EXERCISE_SUBSTITUTIONS_QUERY = gql`
       similarityScore
       matchedMuscles
       missingMuscles
+    }
+  }
+`;
+
+// ============================================
+// PROFILE
+// ============================================
+
+export const PROFILE_QUERY = gql`
+  query Profile {
+    profile {
+      id
+      userId
+      displayName
+      bio
+      avatar
+      location
+      website
+      socialLinks
+      fitnessGoals
+      preferredWorkoutTime
+      experienceLevel
+      visibility
+      wealthTier {
+        tier
+        name
+        color
+        icon
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// ============================================
+// MESSAGING
+// ============================================
+
+export const CONVERSATIONS_QUERY = gql`
+  query Conversations {
+    conversations {
+      id
+      type
+      participants {
+        id
+        username
+        avatar
+      }
+      lastMessage {
+        id
+        content
+        createdAt
+      }
+      unreadCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CONVERSATION_MESSAGES_QUERY = gql`
+  query ConversationMessages($conversationId: ID!, $limit: Int, $before: ID) {
+    conversationMessages(conversationId: $conversationId, limit: $limit, before: $before) {
+      id
+      conversationId
+      senderId
+      content
+      readAt
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// ISSUES & ROADMAP
+// ============================================
+
+export const ISSUES_QUERY = gql`
+  query Issues($status: String, $label: String, $limit: Int, $offset: Int) {
+    issues(status: $status, label: $label, limit: $limit, offset: $offset) {
+      id
+      title
+      description
+      status
+      priority
+      labels
+      author {
+        id
+        username
+        avatar
+      }
+      voteCount
+      hasVoted
+      commentCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const ISSUE_QUERY = gql`
+  query Issue($id: ID!) {
+    issue(id: $id) {
+      id
+      title
+      description
+      status
+      priority
+      labels
+      author {
+        id
+        username
+        avatar
+      }
+      comments {
+        id
+        content
+        author {
+          id
+          username
+          avatar
+        }
+        isSolution
+        createdAt
+      }
+      voteCount
+      hasVoted
+      commentCount
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const ISSUE_LABELS_QUERY = gql`
+  query IssueLabels {
+    issueLabels {
+      id
+      name
+      color
+      description
+    }
+  }
+`;
+
+export const ISSUE_STATS_QUERY = gql`
+  query IssueStats {
+    issueStats {
+      total
+      open
+      inProgress
+      closed
+      byLabel
+    }
+  }
+`;
+
+export const MY_ISSUES_QUERY = gql`
+  query MyIssues {
+    myIssues {
+      id
+      title
+      status
+      priority
+      voteCount
+      commentCount
+      createdAt
+    }
+  }
+`;
+
+export const ROADMAP_QUERY = gql`
+  query Roadmap {
+    roadmap {
+      id
+      title
+      description
+      status
+      quarter
+      priority
+      voteCount
+      hasVoted
+    }
+  }
+`;
+
+export const UPDATES_QUERY = gql`
+  query Updates($limit: Int) {
+    updates(limit: $limit) {
+      id
+      title
+      content
+      type
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// ACHIEVEMENTS
+// ============================================
+
+export const ACHIEVEMENTS_QUERY = gql`
+  query Achievements {
+    achievements {
+      id
+      name
+      description
+      icon
+      rarity
+      category
+      requirement
+      progress
+      unlockedAt
+    }
+  }
+`;
+
+// ============================================
+// SKILLS
+// ============================================
+
+export const SKILL_TREES_QUERY = gql`
+  query SkillTrees {
+    skillTrees {
+      id
+      name
+      description
+      icon
+      skills {
+        id
+        name
+        description
+        level
+        maxLevel
+        requirements
+        unlocked
+      }
+    }
+  }
+`;
+
+export const SKILL_PROGRESS_QUERY = gql`
+  query SkillProgress {
+    skillProgress {
+      skillId
+      currentLevel
+      currentXP
+      xpToNextLevel
+    }
+  }
+`;
+
+// ============================================
+// MARTIAL ARTS
+// ============================================
+
+export const MARTIAL_ARTS_PROGRESS_QUERY = gql`
+  query MartialArtsProgress {
+    martialArtsProgress {
+      disciplineId
+      disciplineName
+      belt
+      progress
+      totalPracticeMinutes
+      techniquesLearned
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_DISCIPLINES_QUERY = gql`
+  query MartialArtsDisciplines {
+    martialArtsDisciplines {
+      id
+      name
+      description
+      icon
+      belts {
+        name
+        color
+        requirements
+      }
+    }
+  }
+`;
+
+// ============================================
+// WALLET & ECONOMY
+// ============================================
+
+export const ECONOMY_WALLET_QUERY = gql`
+  query EconomyWallet {
+    economyWallet {
+      credits
+      pending
+      lifetime
+      transactions {
+        id
+        type
+        amount
+        description
+        createdAt
+      }
+    }
+  }
+`;
+
+export const ECONOMY_PRICING_QUERY = gql`
+  query EconomyPricing {
+    economyPricing {
+      id
+      name
+      credits
+      price
+      bonus
+      popular
+    }
+  }
+`;
+
+export const ECONOMY_HISTORY_QUERY = gql`
+  query EconomyHistory($limit: Int) {
+    economyHistory(limit: $limit) {
+      id
+      type
+      amount
+      description
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// COMMUNITY FEED
+// ============================================
+
+export const COMMUNITY_FEED_QUERY = gql`
+  query CommunityFeed($limit: Int, $offset: Int) {
+    communityFeed(limit: $limit, offset: $offset) {
+      id
+      type
+      user {
+        id
+        username
+        avatar
+        level
+      }
+      content
+      workout {
+        id
+        totalTU
+        duration
+      }
+      achievement {
+        id
+        name
+        icon
+      }
+      reactions {
+        type
+        count
+        hasReacted
+      }
+      comments {
+        id
+        content
+        author {
+          id
+          username
+          avatar
+        }
+        createdAt
+      }
+      createdAt
+    }
+  }
+`;
+
+export const COMMUNITY_PRESENCE_QUERY = gql`
+  query CommunityPresence {
+    communityPresence {
+      activeUsers
+      workoutsInProgress
+      recentActivity {
+        type
+        userId
+        username
+        action
+        timestamp
+      }
+    }
+  }
+`;
+
+// ============================================
+// PRESCRIPTION
+// ============================================
+
+export const PRESCRIPTION_QUERY = gql`
+  query Prescription($id: ID!) {
+    prescription(id: $id) {
+      id
+      userId
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        restSeconds
+        notes
+      }
+      targetMuscles
+      difficulty
+      estimatedDuration
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// COMPETITIONS
+// ============================================
+
+export const COMPETITIONS_QUERY = gql`
+  query Competitions($status: String) {
+    competitions(status: $status) {
+      id
+      name
+      description
+      type
+      status
+      startDate
+      endDate
+      prizePool
+      participantCount
+      maxParticipants
+      goalTu
+      hasJoined
+      leaderboard {
+        userId
+        username
+        displayName
+        avatar
+        score
+        rank
+        tuEarned
+      }
+      createdAt
+    }
+  }
+`;
+
+export const MY_COMPETITION_ENTRIES_QUERY = gql`
+  query MyCompetitionEntries {
+    myCompetitionEntries {
+      id
+      competitionId
+      competition {
+        id
+        name
+        type
+      }
+      rank
+      score
+      joinedAt
+    }
+  }
+`;
+
+// ============================================
+// TRAINERS
+// ============================================
+
+export const TRAINERS_QUERY = gql`
+  query Trainers {
+    trainers {
+      id
+      userId
+      name
+      bio
+      specialties
+      certifications
+      rating
+      reviewCount
+      hourlyRate
+      available
+    }
+  }
+`;
+
+export const MY_TRAINER_PROFILE_QUERY = gql`
+  query MyTrainerProfile {
+    myTrainerProfile {
+      id
+      userId
+      name
+      bio
+      specialties
+      certifications
+      rating
+      reviewCount
+      hourlyRate
+      available
+      totalClients
+      totalSessions
+    }
+  }
+`;
+
+// ============================================
+// CLASSES
+// ============================================
+
+export const CLASSES_QUERY = gql`
+  query Classes($status: String) {
+    classes(status: $status) {
+      id
+      trainerId
+      name
+      description
+      type
+      duration
+      maxParticipants
+      currentParticipants
+      scheduledAt
+      price
+    }
+  }
+`;
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+export const NOTIFICATIONS_QUERY = gql`
+  query Notifications($unreadOnly: Boolean, $limit: Int) {
+    notifications(unreadOnly: $unreadOnly, limit: $limit) {
+      id
+      type
+      title
+      message
+      data
+      readAt
+      createdAt
+    }
+  }
+`;
+
+export const NOTIFICATION_UNREAD_COUNT_QUERY = gql`
+  query NotificationUnreadCount {
+    notificationUnreadCount
+  }
+`;
+
+// ============================================
+// BUDDY SYSTEM
+// ============================================
+
+export const BUDDY_QUERY = gql`
+  query Buddy {
+    buddy {
+      id
+      species
+      nickname
+      level
+      xp
+      mood
+      hunger
+      energy
+      equippedItems
+      createdAt
+    }
+  }
+`;
+
+export const BUDDY_INVENTORY_QUERY = gql`
+  query BuddyInventory {
+    buddyInventory {
+      id
+      itemId
+      name
+      type
+      rarity
+      equipped
+    }
+  }
+`;
+
+// ============================================
+// COLLECTION
+// ============================================
+
+export const COLLECTION_STATS_QUERY = gql`
+  query CollectionStats {
+    collectionStats {
+      totalItems
+      uniqueItems
+      rareItems
+      legendaryItems
+      completionRate
+    }
+  }
+`;
+
+export const COLLECTION_ITEMS_QUERY = gql`
+  query CollectionItems($category: String, $rarity: String) {
+    collectionItems(category: $category, rarity: $rarity) {
+      id
+      name
+      description
+      category
+      rarity
+      imageUrl
+      obtainedAt
+      isFavorite
+    }
+  }
+`;
+
+// ============================================
+// MARKETPLACE
+// ============================================
+
+export const MARKETPLACE_LISTINGS_QUERY = gql`
+  query MarketplaceListings($category: String, $sort: String, $limit: Int) {
+    marketplaceListings(category: $category, sort: $sort, limit: $limit) {
+      id
+      item {
+        id
+        name
+        rarity
+        imageUrl
+      }
+      seller {
+        id
+        username
+        avatar
+      }
+      price
+      status
+      createdAt
+    }
+  }
+`;
+
+export const MARKETPLACE_WATCHLIST_QUERY = gql`
+  query MarketplaceWatchlist {
+    marketplaceWatchlist {
+      id
+      listing {
+        id
+        item {
+          id
+          name
+        }
+        price
+        status
+      }
+      addedAt
+    }
+  }
+`;
+
+// ============================================
+// TRADES
+// ============================================
+
+export const TRADES_INCOMING_QUERY = gql`
+  query TradesIncoming {
+    tradesIncoming {
+      id
+      from {
+        id
+        username
+        avatar
+      }
+      offeredItems {
+        id
+        name
+        rarity
+      }
+      requestedItems {
+        id
+        name
+        rarity
+      }
+      status
+      createdAt
+    }
+  }
+`;
+
+export const TRADES_OUTGOING_QUERY = gql`
+  query TradesOutgoing {
+    tradesOutgoing {
+      id
+      to {
+        id
+        username
+        avatar
+      }
+      offeredItems {
+        id
+        name
+        rarity
+      }
+      requestedItems {
+        id
+        name
+        rarity
+      }
+      status
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// MYSTERY BOXES
+// ============================================
+
+export const MYSTERY_BOXES_QUERY = gql`
+  query MysteryBoxes {
+    mysteryBoxes {
+      id
+      name
+      description
+      rarity
+      price
+      available
+    }
+  }
+`;
+
+export const MYSTERY_BOX_HISTORY_QUERY = gql`
+  query MysteryBoxHistory {
+    mysteryBoxHistory {
+      id
+      boxId
+      boxName
+      rewards {
+        id
+        name
+        rarity
+      }
+      openedAt
+    }
+  }
+`;
+
+// ============================================
+// SKINS
+// ============================================
+
+export const SKINS_QUERY = gql`
+  query Skins {
+    skins {
+      id
+      name
+      description
+      category
+      rarity
+      price
+      imageUrl
+    }
+  }
+`;
+
+export const OWNED_SKINS_QUERY = gql`
+  query OwnedSkins {
+    ownedSkins {
+      id
+      skinId
+      purchasedAt
+      equipped
+    }
+  }
+`;
+
+// ============================================
+// ADMIN
+// ============================================
+
+export const ADMIN_USERS_QUERY = gql`
+  query AdminUsers($limit: Int, $offset: Int, $search: String) {
+    adminUsers(limit: $limit, offset: $offset, search: $search) {
+      id
+      username
+      email
+      level
+      roles
+      creditBalance
+      banned
+      createdAt
+      lastActiveAt
+    }
+  }
+`;
+
+export const ADMIN_FEEDBACK_STATS_QUERY = gql`
+  query AdminFeedbackStats {
+    adminFeedbackStats {
+      total
+      pending
+      resolved
+      byType
+    }
+  }
+`;
+
+export const ADMIN_BUGS_STATS_QUERY = gql`
+  query AdminBugsStats {
+    adminBugsStats {
+      total
+      open
+      inProgress
+      resolved
+      critical
+    }
+  }
+`;
+
+export const ADMIN_TEST_SCORECARD_QUERY = gql`
+  query AdminTestScorecard {
+    adminTestScorecard {
+      passRate
+      totalTests
+      passed
+      failed
+      skipped
+      categories {
+        name
+        passRate
+        tests
+      }
+      lastRun
     }
   }
 `;

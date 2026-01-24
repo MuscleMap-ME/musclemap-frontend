@@ -252,6 +252,27 @@ export const typeDefs = `#graphql
     journeyRecommendations(journeyId: ID!): [JourneyRecommendation!]!
     stalledJourneys(thresholdDays: Int): [StalledJourney!]!
     journeyHealthHistory(journeyId: ID!, days: Int): [JourneyHealthHistoryEntry!]!
+
+    # Outdoor Equipment / Fitness Venues
+    outdoorVenues(input: VenueSearchInput): VenueConnection!
+    outdoorVenue(id: ID!): OutdoorVenue
+    outdoorVenueBySlug(slug: String!): OutdoorVenue
+    nearestOutdoorVenues(input: NearestVenuesInput!): [OutdoorVenue!]!
+    venuesByBorough(borough: String!, limit: Int, cursor: String): VenueConnection!
+    outdoorEquipmentTypes: [OutdoorEquipmentType!]!
+    venueMapClusters(input: ClusterInput!): [VenueCluster!]!
+    venueMapGeoJSON(input: GeoJSONInput): VenueGeoJSONCollection!
+    myVenueSubmissions(status: String): [VenueSubmission!]!
+    myContributorStats: ContributorStats
+    contributorLeaderboard(limit: Int): [ContributorLeaderboardEntry!]!
+    venuePhotos(venueId: ID!): [VenuePhoto!]!
+    venueSyncStats: VenueSyncStats
+    pendingVenueSubmissions(limit: Int): [VenueSubmission!]!
+
+    # Competitions
+    competitions(status: String): [Competition!]!
+    competition(id: ID!): Competition
+    myCompetitionEntries: [CompetitionEntry!]!
   }
 
   type Mutation {
@@ -348,6 +369,10 @@ export const typeDefs = `#graphql
     joinHangout(hangoutId: ID!): HangoutMembership!
     leaveHangout(hangoutId: ID!): Boolean!
     createHangoutPost(hangoutId: ID!, content: String!): HangoutPost!
+
+    # Competitions
+    createCompetition(input: CompetitionInput!): Competition!
+    joinCompetition(competitionId: ID!): CompetitionJoinResult!
 
     # Onboarding
     updateOnboardingProfile(input: OnboardingProfileInput!): OnboardingProfile!
@@ -463,6 +488,19 @@ export const typeDefs = `#graphql
     markRecommendationActioned(recommendationId: ID!): Boolean!
     provideRecommendationFeedback(recommendationId: ID!, wasHelpful: Boolean!, feedbackText: String): Boolean!
     recalculateAllJourneyHealth: JourneyHealthRecalcResult!
+
+    # Outdoor Equipment / Fitness Venues
+    submitVenue(input: VenueSubmissionInput!): VenueSubmissionResult!
+    verifyVenue(venueId: ID!, input: VenueVerifyInput!): VenueVerifyResult!
+    verifyEquipment(venueId: ID!, input: EquipmentVerifyInput!): VenueVerifyResult!
+    uploadVenuePhoto(venueId: ID!, input: VenuePhotoInput!): VenuePhotoResult!
+    reportVenueIssue(venueId: ID!, input: VenueReportInput!): VenueReportResult!
+
+    # Admin: Outdoor Equipment
+    syncNycData: AdminSyncResult!
+    syncOsmData: AdminSyncResult!
+    approveVenueSubmission(submissionId: ID!, notes: String): AdminSubmissionResult!
+    rejectVenueSubmission(submissionId: ID!, reason: String!): AdminSubmissionResult!
   }
 
   type Subscription {
@@ -1633,6 +1671,69 @@ export const typeDefs = `#graphql
     startsAt: DateTime!
     endsAt: DateTime
     maxMembers: Int
+  }
+
+  # ============================================
+  # COMPETITION TYPES
+  # ============================================
+  type Competition {
+    id: ID!
+    name: String!
+    description: String
+    creatorId: ID!
+    creator: User
+    type: String!
+    status: String!
+    startDate: DateTime!
+    endDate: DateTime!
+    maxParticipants: Int
+    entryFee: Int
+    prizePool: Int
+    rules: String
+    isPublic: Boolean!
+    participantCount: Int!
+    goalTu: Int
+    leaderboard: [CompetitionLeaderboardEntry!]
+    hasJoined: Boolean
+    createdAt: DateTime!
+  }
+
+  type CompetitionLeaderboardEntry {
+    userId: ID!
+    username: String!
+    displayName: String
+    avatar: String
+    score: Float!
+    rank: Int
+    tuEarned: Float!
+  }
+
+  type CompetitionEntry {
+    id: ID!
+    competitionId: ID!
+    competition: Competition
+    userId: ID!
+    score: Float!
+    rank: Int
+    joinedAt: DateTime!
+  }
+
+  type CompetitionJoinResult {
+    success: Boolean!
+    entry: CompetitionEntry
+    message: String
+  }
+
+  input CompetitionInput {
+    name: String!
+    description: String
+    type: String!
+    goalTu: Int
+    startDate: DateTime
+    endDate: DateTime
+    maxParticipants: Int
+    entryFee: Int
+    isPublic: Boolean
   }
 
   # ============================================
@@ -3687,5 +3788,392 @@ export const typeDefs = `#graphql
     tuRank: Int
     percentile: Int
     totalUsers: Int!
+  }
+
+  # ============================================
+  # OUTDOOR EQUIPMENT / FITNESS VENUES
+  # ============================================
+
+  """A fitness venue with outdoor exercise equipment"""
+  type OutdoorVenue {
+    id: ID!
+    name: String!
+    slug: String!
+    description: String
+    latitude: Float!
+    longitude: Float!
+    address: String
+    borough: String
+    neighborhood: String
+    venueType: String!
+    dataSource: String
+    externalId: String
+    osmId: String
+    nycParkId: String
+    amenities: [String!]
+    surfaceType: String
+    lightingAvailable: Boolean
+    coveredArea: Boolean
+    accessibleFeatures: [String!]
+    operatingHours: JSON
+    seasonalAvailability: String
+    equipment: [VenueEquipmentItem!]!
+    photos: [VenuePhoto!]!
+    verificationCount: Int!
+    lastVerifiedAt: DateTime
+    averageRating: Float
+    totalRatings: Int!
+    distance: Float
+    isVerified: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  """Equipment item at a venue"""
+  type VenueEquipmentItem {
+    id: ID!
+    venueId: ID!
+    equipmentType: OutdoorEquipmentType!
+    brand: String
+    model: String
+    condition: String
+    installDate: DateTime
+    quantity: Int!
+    notes: String
+    isVerified: Boolean!
+    lastVerifiedAt: DateTime
+    verificationCount: Int!
+    photos: [VenuePhoto!]!
+  }
+
+  """Type of outdoor exercise equipment"""
+  type OutdoorEquipmentType {
+    id: ID!
+    name: String!
+    slug: String!
+    category: String!
+    description: String
+    iconName: String
+    exercises: [Exercise!]!
+    muscleGroups: [String!]!
+  }
+
+  """Photo of a venue or equipment"""
+  type VenuePhoto {
+    id: ID!
+    venueId: ID!
+    equipmentItemId: ID
+    url: String!
+    thumbnailUrl: String
+    caption: String
+    uploadedBy: User!
+    verificationCount: Int!
+    isFeatured: Boolean!
+    createdAt: DateTime!
+  }
+
+  """User submission for a new venue"""
+  type VenueSubmission {
+    id: ID!
+    name: String!
+    latitude: Float!
+    longitude: Float!
+    address: String
+    borough: String
+    description: String
+    equipment: [VenueSubmissionEquipment!]!
+    photos: [VenuePhoto!]!
+    status: String!
+    submittedBy: User!
+    reviewNotes: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  """Equipment in a venue submission"""
+  type VenueSubmissionEquipment {
+    equipmentType: String!
+    quantity: Int!
+    condition: String
+    notes: String
+  }
+
+  """User contribution to venue data"""
+  type VenueContribution {
+    id: ID!
+    venueId: ID
+    submissionId: ID
+    userId: ID!
+    user: User!
+    contributionType: String!
+    data: JSON
+    creditsEarned: Int!
+    createdAt: DateTime!
+  }
+
+  """Issue report for a venue"""
+  type VenueReport {
+    id: ID!
+    venueId: ID!
+    reportedBy: User!
+    reportType: String!
+    description: String!
+    severity: String!
+    status: String!
+    adminNotes: String
+    resolvedAt: DateTime
+    createdAt: DateTime!
+  }
+
+  """Contributor statistics"""
+  type ContributorStats {
+    userId: ID!
+    totalContributions: Int!
+    venuesSubmitted: Int!
+    venuesVerified: Int!
+    photosUploaded: Int!
+    reportsSubmitted: Int!
+    totalCreditsEarned: Int!
+    level: Int!
+    levelName: String!
+    pointsToNextLevel: Int!
+    rank: Int
+    badges: [ContributorBadge!]!
+  }
+
+  """Contributor badge"""
+  type ContributorBadge {
+    id: ID!
+    name: String!
+    description: String!
+    iconName: String!
+    earnedAt: DateTime!
+  }
+
+  """Map cluster for venue visualization"""
+  type VenueCluster {
+    id: ID!
+    latitude: Float!
+    longitude: Float!
+    count: Int!
+    expansion_zoom: Int
+    venues: [OutdoorVenue!]
+  }
+
+  """GeoJSON feature for map rendering"""
+  type VenueGeoJSONFeature {
+    type: String!
+    geometry: VenueGeometry!
+    properties: VenueGeoJSONProperties!
+  }
+
+  type VenueGeometry {
+    type: String!
+    coordinates: [Float!]!
+  }
+
+  type VenueGeoJSONProperties {
+    id: ID!
+    name: String!
+    slug: String!
+    venueType: String!
+    equipmentCount: Int!
+    hasPhotos: Boolean!
+    isVerified: Boolean!
+    clusterExpansion: Boolean
+    pointCount: Int
+  }
+
+  """GeoJSON FeatureCollection"""
+  type VenueGeoJSONCollection {
+    type: String!
+    features: [VenueGeoJSONFeature!]!
+    totalCount: Int!
+    bounds: VenueBounds
+  }
+
+  type VenueBounds {
+    north: Float!
+    south: Float!
+    east: Float!
+    west: Float!
+  }
+
+  """Connection type for paginated venue results"""
+  type VenueConnection {
+    edges: [VenueEdge!]!
+    pageInfo: VenuePageInfo!
+    totalCount: Int!
+  }
+
+  type VenueEdge {
+    cursor: String!
+    node: OutdoorVenue!
+  }
+
+  type VenuePageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+
+  """Data sync statistics"""
+  type VenueSyncStats {
+    lastNycSync: DateTime
+    lastOsmSync: DateTime
+    totalVenues: Int!
+    nycVenues: Int!
+    osmVenues: Int!
+    crowdsourcedVenues: Int!
+    pendingSubmissions: Int!
+    totalEquipment: Int!
+    totalPhotos: Int!
+    totalContributors: Int!
+  }
+
+  """Contributor leaderboard entry"""
+  type ContributorLeaderboardEntry {
+    rank: Int!
+    userId: ID!
+    user: User!
+    stats: ContributorStats!
+    score: Int!
+  }
+
+  # ============================================
+  # OUTDOOR EQUIPMENT INPUTS
+  # ============================================
+
+  input VenueSearchInput {
+    latitude: Float
+    longitude: Float
+    radiusKm: Float
+    borough: String
+    equipmentTypes: [String!]
+    amenities: [String!]
+    verifiedOnly: Boolean
+    hasPhotos: Boolean
+    search: String
+    limit: Int
+    cursor: String
+  }
+
+  input NearestVenuesInput {
+    latitude: Float!
+    longitude: Float!
+    limit: Int
+    maxDistanceKm: Float
+    equipmentTypes: [String!]
+  }
+
+  input VenueSubmissionInput {
+    name: String!
+    latitude: Float!
+    longitude: Float!
+    address: String
+    borough: String
+    description: String
+    equipment: [EquipmentSubmissionInput!]!
+    photoUrls: [String!]
+  }
+
+  input EquipmentSubmissionInput {
+    equipmentType: String!
+    quantity: Int
+    condition: String
+    notes: String
+  }
+
+  input VenueVerifyInput {
+    exists: Boolean!
+    notes: String
+    rating: Int
+  }
+
+  input EquipmentVerifyInput {
+    equipmentItemId: ID!
+    exists: Boolean!
+    condition: String
+    notes: String
+  }
+
+  input VenuePhotoInput {
+    url: String!
+    thumbnailUrl: String
+    caption: String
+    equipmentItemId: ID
+  }
+
+  input VenueReportInput {
+    reportType: String!
+    description: String!
+    severity: String
+  }
+
+  input MapBoundsInput {
+    north: Float!
+    south: Float!
+    east: Float!
+    west: Float!
+  }
+
+  input ClusterInput {
+    bounds: MapBoundsInput!
+    zoom: Int!
+  }
+
+  input GeoJSONInput {
+    bounds: MapBoundsInput
+    equipmentTypes: [String!]
+    verifiedOnly: Boolean
+    includePhotos: Boolean
+  }
+
+  # ============================================
+  # OUTDOOR EQUIPMENT RESULTS
+  # ============================================
+
+  type VenueSubmissionResult {
+    success: Boolean!
+    submission: VenueSubmission
+    creditsEarned: Int!
+    message: String
+  }
+
+  type VenueVerifyResult {
+    success: Boolean!
+    contribution: VenueContribution
+    creditsEarned: Int!
+    message: String
+  }
+
+  type VenuePhotoResult {
+    success: Boolean!
+    photo: VenuePhoto
+    creditsEarned: Int!
+    message: String
+  }
+
+  type VenueReportResult {
+    success: Boolean!
+    report: VenueReport
+    creditsEarned: Int!
+    message: String
+  }
+
+  type AdminSyncResult {
+    success: Boolean!
+    message: String
+    venuesCreated: Int!
+    venuesUpdated: Int!
+    errors: [String!]
+  }
+
+  type AdminSubmissionResult {
+    success: Boolean!
+    submission: VenueSubmission
+    venue: OutdoorVenue
+    message: String
   }
 `;

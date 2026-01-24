@@ -74,6 +74,11 @@ import {
   wealthTierProgress,
   type WealthTierLevel,
 } from '@musclemap/core';
+import {
+  outdoorEquipmentQueries,
+  outdoorEquipmentMutations,
+  outdoorEquipmentTypeResolvers,
+} from './outdoor-equipment.resolvers';
 
 const log = loggers.core;
 
@@ -3830,6 +3835,223 @@ export const resolvers = {
         remainingSteps: steps.filter(s => !profile?.completed_steps?.includes(s)),
       };
     },
+
+    // Competitions
+    competitions: async (_: unknown, args: { status?: string }, context: Context) => {
+      let query = `
+        SELECT c.*,
+          (SELECT COUNT(*) FROM competition_participants WHERE competition_id = c.id) as participant_count
+        FROM competitions c
+        WHERE c.is_public = TRUE AND c.status != 'canceled'
+      `;
+      const params: unknown[] = [];
+
+      if (args.status) {
+        params.push(args.status);
+        query += ` AND c.status = $${params.length}`;
+      }
+
+      query += ` ORDER BY c.start_date DESC LIMIT 50`;
+
+      const competitions = await queryAll<{
+        id: string;
+        name: string;
+        description: string | null;
+        creator_id: string;
+        type: string;
+        status: string;
+        start_date: Date;
+        end_date: Date;
+        max_participants: number | null;
+        entry_fee: number | null;
+        prize_pool: number | null;
+        rules: string | null;
+        is_public: boolean;
+        participant_count: string;
+        created_at: Date;
+      }>(query, params);
+
+      // Get leaderboards for each competition
+      const competitionIds = competitions.map(c => c.id);
+      let leaderboardMap: Record<string, Array<{
+        user_id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        score: number;
+        rank: number | null;
+      }>> = {};
+
+      if (competitionIds.length > 0) {
+        const leaderboardEntries = await queryAll<{
+          competition_id: string;
+          user_id: string;
+          username: string;
+          display_name: string | null;
+          avatar_url: string | null;
+          score: number;
+          rank: number | null;
+        }>(`
+          SELECT cp.competition_id, cp.user_id, u.username, u.display_name, u.avatar_url, cp.score, cp.rank
+          FROM competition_participants cp
+          JOIN users u ON cp.user_id = u.id
+          WHERE cp.competition_id = ANY($1)
+          ORDER BY cp.score DESC
+        `, [competitionIds]);
+
+        for (const entry of leaderboardEntries) {
+          if (!leaderboardMap[entry.competition_id]) {
+            leaderboardMap[entry.competition_id] = [];
+          }
+          if (leaderboardMap[entry.competition_id].length < 10) {
+            leaderboardMap[entry.competition_id].push(entry);
+          }
+        }
+      }
+
+      // Check if user has joined each competition
+      const userId = context.user?.userId;
+      let joinedMap: Record<string, boolean> = {};
+      if (userId && competitionIds.length > 0) {
+        const joined = await queryAll<{ competition_id: string }>(`
+          SELECT competition_id FROM competition_participants
+          WHERE user_id = $1 AND competition_id = ANY($2)
+        `, [userId, competitionIds]);
+        for (const j of joined) {
+          joinedMap[j.competition_id] = true;
+        }
+      }
+
+      return competitions.map(c => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        creatorId: c.creator_id,
+        type: c.type,
+        status: c.status,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        maxParticipants: c.max_participants,
+        entryFee: c.entry_fee,
+        prizePool: c.prize_pool,
+        rules: c.rules,
+        isPublic: c.is_public,
+        participantCount: Number(c.participant_count),
+        goalTu: 100, // Default goal TU
+        hasJoined: joinedMap[c.id] || false,
+        leaderboard: (leaderboardMap[c.id] || []).map((e, idx) => ({
+          userId: e.user_id,
+          username: e.username,
+          displayName: e.display_name,
+          avatar: e.avatar_url,
+          score: e.score,
+          rank: e.rank || idx + 1,
+          tuEarned: e.score,
+        })),
+        createdAt: c.created_at,
+      }));
+    },
+
+    competition: async (_: unknown, args: { id: string }) => {
+      const competition = await queryOne<{
+        id: string;
+        name: string;
+        description: string | null;
+        creator_id: string;
+        type: string;
+        status: string;
+        start_date: Date;
+        end_date: Date;
+        max_participants: number | null;
+        entry_fee: number | null;
+        prize_pool: number | null;
+        rules: string | null;
+        is_public: boolean;
+        created_at: Date;
+      }>('SELECT * FROM competitions WHERE id = $1', [args.id]);
+
+      if (!competition) {
+        return null;
+      }
+
+      const participants = await queryAll<{
+        user_id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        score: number;
+        rank: number | null;
+      }>(`
+        SELECT cp.*, u.username, u.display_name, u.avatar_url
+        FROM competition_participants cp
+        JOIN users u ON cp.user_id = u.id
+        WHERE cp.competition_id = $1
+        ORDER BY cp.score DESC
+        LIMIT 10
+      `, [args.id]);
+
+      return {
+        id: competition.id,
+        name: competition.name,
+        description: competition.description,
+        creatorId: competition.creator_id,
+        type: competition.type,
+        status: competition.status,
+        startDate: competition.start_date,
+        endDate: competition.end_date,
+        maxParticipants: competition.max_participants,
+        entryFee: competition.entry_fee,
+        prizePool: competition.prize_pool,
+        rules: competition.rules,
+        isPublic: competition.is_public,
+        participantCount: participants.length,
+        goalTu: 100,
+        leaderboard: participants.map((p, idx) => ({
+          userId: p.user_id,
+          username: p.username,
+          displayName: p.display_name,
+          avatar: p.avatar_url,
+          score: p.score,
+          rank: p.rank || idx + 1,
+          tuEarned: p.score,
+        })),
+        createdAt: competition.created_at,
+      };
+    },
+
+    myCompetitionEntries: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const entries = await queryAll<{
+        competition_id: string;
+        user_id: string;
+        score: number;
+        rank: number | null;
+        joined_at: Date;
+        comp_name: string;
+        comp_type: string;
+      }>(`
+        SELECT cp.*, c.name as comp_name, c.type as comp_type
+        FROM competition_participants cp
+        JOIN competitions c ON cp.competition_id = c.id
+        WHERE cp.user_id = $1
+        ORDER BY cp.joined_at DESC
+      `, [userId]);
+
+      return entries.map(e => ({
+        id: `${e.competition_id}_${e.user_id}`,
+        competitionId: e.competition_id,
+        competition: {
+          id: e.competition_id,
+          name: e.comp_name,
+          type: e.comp_type,
+        },
+        userId: e.user_id,
+        score: e.score,
+        rank: e.rank,
+        joinedAt: e.joined_at,
+      }));
+    },
   },
 
   // ============================================
@@ -5927,6 +6149,115 @@ export const resolvers = {
       };
     },
 
+    // Competitions
+    createCompetition: async (_: unknown, args: { input: {
+      name: string;
+      description?: string;
+      type: string;
+      goalTu?: number;
+      startDate?: Date;
+      endDate?: Date;
+      maxParticipants?: number;
+      entryFee?: number;
+      isPublic?: boolean;
+    } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { name, description, type, startDate, endDate, maxParticipants, entryFee, isPublic } = args.input;
+
+      // Default dates if not provided
+      const start = startDate || new Date();
+      const end = endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
+
+      const compId = `comp_${crypto.randomBytes(12).toString('hex')}`;
+
+      await query(`
+        INSERT INTO competitions (id, name, description, creator_id, type, status, start_date, end_date, max_participants, entry_fee, is_public)
+        VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, $8, $9, $10)
+      `, [compId, name, description || null, userId, type || 'total_tu', start, end, maxParticipants || null, entryFee || null, isPublic !== false]);
+
+      // Auto-join the creator
+      await query(`
+        INSERT INTO competition_participants (competition_id, user_id)
+        VALUES ($1, $2)
+      `, [compId, userId]);
+
+      return {
+        id: compId,
+        name,
+        description,
+        creatorId: userId,
+        type: type || 'total_tu',
+        status: 'active',
+        startDate: start,
+        endDate: end,
+        maxParticipants,
+        entryFee,
+        prizePool: null,
+        rules: null,
+        isPublic: isPublic !== false,
+        participantCount: 1,
+        goalTu: args.input.goalTu || 100,
+        leaderboard: [],
+        hasJoined: true,
+        createdAt: new Date(),
+      };
+    },
+
+    joinCompetition: async (_: unknown, args: { competitionId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const competition = await queryOne<{ id: string; max_participants: number | null; status: string }>(`
+        SELECT id, max_participants, status FROM competitions WHERE id = $1
+      `, [args.competitionId]);
+
+      if (!competition) {
+        throw new GraphQLError('Competition not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (competition.status !== 'active') {
+        throw new GraphQLError('Competition is not active', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      // Check if already joined
+      const existing = await queryOne<{ competition_id: string }>(`
+        SELECT competition_id FROM competition_participants
+        WHERE competition_id = $1 AND user_id = $2
+      `, [args.competitionId, userId]);
+
+      if (existing) {
+        throw new GraphQLError('Already joined this competition', { extensions: { code: 'CONFLICT' } });
+      }
+
+      // Check max participants
+      if (competition.max_participants) {
+        const count = await queryOne<{ count: string }>(`
+          SELECT COUNT(*) as count FROM competition_participants WHERE competition_id = $1
+        `, [args.competitionId]);
+
+        if (Number(count?.count || 0) >= competition.max_participants) {
+          throw new GraphQLError('Competition is full', { extensions: { code: 'BAD_USER_INPUT' } });
+        }
+      }
+
+      await query(`
+        INSERT INTO competition_participants (competition_id, user_id)
+        VALUES ($1, $2)
+      `, [args.competitionId, userId]);
+
+      return {
+        success: true,
+        entry: {
+          id: `${args.competitionId}_${userId}`,
+          competitionId: args.competitionId,
+          userId,
+          score: 0,
+          rank: null,
+          joinedAt: new Date(),
+        },
+        message: 'Joined competition successfully',
+      };
+    },
+
     // Goal System
     updateGoal: async (_: unknown, args: { goalId: string; input: any }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -7184,4 +7515,11 @@ export const resolvers = {
       }));
     },
   },
+
+  // Outdoor Equipment / Fitness Venues type resolvers
+  ...outdoorEquipmentTypeResolvers,
 };
+
+// Merge outdoor equipment resolvers into Query and Mutation
+Object.assign(resolvers.Query, outdoorEquipmentQueries);
+Object.assign(resolvers.Mutation, outdoorEquipmentMutations);

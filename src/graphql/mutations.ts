@@ -4,7 +4,7 @@
  * All mutation definitions for MuscleMap client
  */
 
-import { gql } from '@apollo/client';
+import { gql } from '@apollo/client/core';
 
 // ============================================
 // AUTH
@@ -560,6 +560,547 @@ export const RECOVER_WORKOUT_SESSION_MUTATION = gql`
         achievedAt
       }
       estimatedCalories
+    }
+  }
+`;
+
+// ============================================
+// MESSAGING
+// ============================================
+
+export const CREATE_CONVERSATION_MUTATION = gql`
+  mutation CreateConversation($participantIds: [ID!]!) {
+    createConversation(participantIds: $participantIds) {
+      id
+      type
+      participants {
+        id
+        username
+        avatar
+      }
+      createdAt
+    }
+  }
+`;
+
+export const SEND_MESSAGE_MUTATION = gql`
+  mutation SendMessage($conversationId: ID!, $content: String!) {
+    sendMessage(conversationId: $conversationId, content: $content) {
+      id
+      conversationId
+      senderId
+      content
+      createdAt
+    }
+  }
+`;
+
+export const MARK_CONVERSATION_READ_MUTATION = gql`
+  mutation MarkConversationRead($conversationId: ID!) {
+    markConversationRead(conversationId: $conversationId)
+  }
+`;
+
+export const DELETE_MESSAGE_MUTATION = gql`
+  mutation DeleteMessage($messageId: ID!) {
+    deleteMessage(messageId: $messageId)
+  }
+`;
+
+export const BLOCK_USER_MUTATION = gql`
+  mutation BlockUser($userId: ID!) {
+    blockUser(userId: $userId)
+  }
+`;
+
+export const UNBLOCK_USER_MUTATION = gql`
+  mutation UnblockUser($userId: ID!) {
+    unblockUser(userId: $userId)
+  }
+`;
+
+// ============================================
+// ISSUES
+// ============================================
+
+export const CREATE_ISSUE_MUTATION = gql`
+  mutation CreateIssue($input: IssueInput!) {
+    createIssue(input: $input) {
+      id
+      title
+      description
+      status
+      priority
+      labels
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_ISSUE_MUTATION = gql`
+  mutation UpdateIssue($id: ID!, $input: IssueUpdateInput!) {
+    updateIssue(id: $id, input: $input) {
+      id
+      title
+      description
+      status
+      priority
+      labels
+      updatedAt
+    }
+  }
+`;
+
+export const VOTE_ON_ISSUE_MUTATION = gql`
+  mutation VoteOnIssue($issueId: ID!, $vote: Int!) {
+    voteOnIssue(issueId: $issueId, vote: $vote) {
+      id
+      voteCount
+      hasVoted
+    }
+  }
+`;
+
+export const CREATE_ISSUE_COMMENT_MUTATION = gql`
+  mutation CreateIssueComment($issueId: ID!, $content: String!) {
+    createIssueComment(issueId: $issueId, content: $content) {
+      id
+      content
+      author {
+        id
+        username
+        avatar
+      }
+      createdAt
+    }
+  }
+`;
+
+export const SUBSCRIBE_TO_ISSUE_MUTATION = gql`
+  mutation SubscribeToIssue($issueId: ID!) {
+    subscribeToIssue(issueId: $issueId)
+  }
+`;
+
+// ============================================
+// ROADMAP
+// ============================================
+
+export const CREATE_ROADMAP_ITEM_MUTATION = gql`
+  mutation CreateRoadmapItem($input: RoadmapInput!) {
+    createRoadmapItem(input: $input) {
+      id
+      title
+      description
+      status
+      quarter
+      priority
+    }
+  }
+`;
+
+export const VOTE_ON_ROADMAP_ITEM_MUTATION = gql`
+  mutation VoteOnRoadmapItem($itemId: ID!) {
+    voteOnRoadmapItem(itemId: $itemId) {
+      id
+      voteCount
+      hasVoted
+    }
+  }
+`;
+
+// ============================================
+// SKILLS
+// ============================================
+
+export const PRACTICE_SKILL_MUTATION = gql`
+  mutation PracticeSkill($skillId: ID!, $duration: Int!) {
+    practiceSkill(skillId: $skillId, duration: $duration) {
+      skillId
+      xpEarned
+      newLevel
+      levelUp
+    }
+  }
+`;
+
+export const ACHIEVE_SKILL_MUTATION = gql`
+  mutation AchieveSkill($skillId: ID!) {
+    achieveSkill(skillId: $skillId) {
+      success
+      achievement {
+        id
+        name
+        description
+      }
+    }
+  }
+`;
+
+// ============================================
+// MARTIAL ARTS
+// ============================================
+
+export const PRACTICE_MARTIAL_ART_MUTATION = gql`
+  mutation PracticeMartialArt($disciplineId: ID!, $duration: Int!, $techniques: [String!]) {
+    practiceMartialArt(disciplineId: $disciplineId, duration: $duration, techniques: $techniques) {
+      xpEarned
+      newBelt
+      beltUp
+      techniquesLearned
+    }
+  }
+`;
+
+export const MASTER_MARTIAL_ART_MUTATION = gql`
+  mutation MasterMartialArt($disciplineId: ID!) {
+    masterMartialArt(disciplineId: $disciplineId) {
+      success
+      newBelt
+      reward {
+        type
+        value
+      }
+    }
+  }
+`;
+
+// ============================================
+// PRESCRIPTION
+// ============================================
+
+export const GENERATE_PRESCRIPTION_MUTATION = gql`
+  mutation GeneratePrescription($input: PrescriptionInput!) {
+    generatePrescription(input: $input) {
+      id
+      userId
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        restSeconds
+        notes
+      }
+      targetMuscles
+      difficulty
+      estimatedDuration
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// COMPETITIONS
+// ============================================
+
+export const JOIN_COMPETITION_MUTATION = gql`
+  mutation JoinCompetition($competitionId: ID!) {
+    joinCompetition(competitionId: $competitionId) {
+      success
+      message
+      entry {
+        id
+        competitionId
+        userId
+        rank
+        score
+        joinedAt
+      }
+    }
+  }
+`;
+
+export const CREATE_COMPETITION_MUTATION = gql`
+  mutation CreateCompetition($input: CompetitionInput!) {
+    createCompetition(input: $input) {
+      id
+      name
+      description
+      type
+      status
+      startDate
+      endDate
+      participantCount
+      goalTu
+      hasJoined
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// TRAINERS
+// ============================================
+
+export const UPDATE_TRAINER_PROFILE_MUTATION = gql`
+  mutation UpdateTrainerProfile($input: TrainerProfileInput!) {
+    updateTrainerProfile(input: $input) {
+      id
+      name
+      bio
+      specialties
+      hourlyRate
+      available
+    }
+  }
+`;
+
+export const CREATE_CLASS_MUTATION = gql`
+  mutation CreateClass($input: ClassInput!) {
+    createClass(input: $input) {
+      id
+      name
+      description
+      type
+      duration
+      maxParticipants
+      scheduledAt
+      price
+    }
+  }
+`;
+
+// ============================================
+// BUDDY
+// ============================================
+
+export const UPDATE_BUDDY_MUTATION = gql`
+  mutation UpdateBuddy($input: BuddyInput!) {
+    updateBuddy(input: $input) {
+      id
+      nickname
+      mood
+    }
+  }
+`;
+
+export const FEED_BUDDY_MUTATION = gql`
+  mutation FeedBuddy {
+    feedBuddy {
+      id
+      hunger
+      mood
+      xpEarned
+    }
+  }
+`;
+
+export const EQUIP_BUDDY_ITEM_MUTATION = gql`
+  mutation EquipBuddyItem($itemId: ID!) {
+    equipBuddyItem(itemId: $itemId) {
+      success
+      buddy {
+        id
+        equippedItems
+      }
+    }
+  }
+`;
+
+// ============================================
+// COLLECTION
+// ============================================
+
+export const TOGGLE_FAVORITE_MUTATION = gql`
+  mutation ToggleFavorite($itemId: ID!) {
+    toggleFavorite(itemId: $itemId) {
+      id
+      isFavorite
+    }
+  }
+`;
+
+// ============================================
+// MARKETPLACE
+// ============================================
+
+export const CREATE_LISTING_MUTATION = gql`
+  mutation CreateListing($input: ListingInput!) {
+    createListing(input: $input) {
+      id
+      item {
+        id
+        name
+      }
+      price
+      status
+      createdAt
+    }
+  }
+`;
+
+export const PURCHASE_LISTING_MUTATION = gql`
+  mutation PurchaseListing($listingId: ID!) {
+    purchaseListing(listingId: $listingId) {
+      success
+      item {
+        id
+        name
+      }
+      newBalance
+    }
+  }
+`;
+
+export const ADD_TO_WATCHLIST_MUTATION = gql`
+  mutation AddToWatchlist($listingId: ID!) {
+    addToWatchlist(listingId: $listingId) {
+      success
+    }
+  }
+`;
+
+// ============================================
+// TRADES
+// ============================================
+
+export const CREATE_TRADE_MUTATION = gql`
+  mutation CreateTrade($input: TradeInput!) {
+    createTrade(input: $input) {
+      id
+      to {
+        id
+        username
+      }
+      offeredItems {
+        id
+        name
+      }
+      requestedItems {
+        id
+        name
+      }
+      status
+      createdAt
+    }
+  }
+`;
+
+export const ACCEPT_TRADE_MUTATION = gql`
+  mutation AcceptTrade($tradeId: ID!) {
+    acceptTrade(tradeId: $tradeId) {
+      success
+      trade {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const REJECT_TRADE_MUTATION = gql`
+  mutation RejectTrade($tradeId: ID!) {
+    rejectTrade(tradeId: $tradeId) {
+      success
+    }
+  }
+`;
+
+// ============================================
+// MYSTERY BOXES
+// ============================================
+
+export const OPEN_MYSTERY_BOX_MUTATION = gql`
+  mutation OpenMysteryBox($boxId: ID!) {
+    openMysteryBox(boxId: $boxId) {
+      success
+      rewards {
+        id
+        name
+        rarity
+        imageUrl
+      }
+      newBalance
+    }
+  }
+`;
+
+// ============================================
+// SKINS
+// ============================================
+
+export const PURCHASE_SKIN_MUTATION = gql`
+  mutation PurchaseSkin($skinId: ID!) {
+    purchaseSkin(skinId: $skinId) {
+      success
+      skin {
+        id
+        name
+      }
+      newBalance
+    }
+  }
+`;
+
+export const EQUIP_SKIN_MUTATION = gql`
+  mutation EquipSkin($skinId: ID!) {
+    equipSkin(skinId: $skinId) {
+      success
+    }
+  }
+`;
+
+// ============================================
+// FEEDBACK
+// ============================================
+
+export const SUBMIT_FEEDBACK_MUTATION = gql`
+  mutation SubmitFeedback($input: FeedbackInput!) {
+    submitFeedback(input: $input) {
+      id
+      type
+      message
+      status
+      createdAt
+    }
+  }
+`;
+
+// ============================================
+// ADMIN
+// ============================================
+
+export const ADMIN_ADJUST_CREDITS_MUTATION = gql`
+  mutation AdminAdjustCredits($userId: ID!, $amount: Int!, $reason: String!) {
+    adminAdjustCredits(userId: $userId, amount: $amount, reason: $reason) {
+      success
+      newBalance
+    }
+  }
+`;
+
+export const ADMIN_BAN_USER_MUTATION = gql`
+  mutation AdminBanUser($userId: ID!, $reason: String!, $duration: Int) {
+    adminBanUser(userId: $userId, reason: $reason, duration: $duration) {
+      success
+    }
+  }
+`;
+
+export const ADMIN_GRANT_ACHIEVEMENT_MUTATION = gql`
+  mutation AdminGrantAchievement($userId: ID!, $achievementId: ID!) {
+    adminGrantAchievement(userId: $userId, achievementId: $achievementId) {
+      success
+    }
+  }
+`;
+
+export const ADMIN_BULK_UPDATE_ISSUES_MUTATION = gql`
+  mutation AdminBulkUpdateIssues($issueIds: [ID!]!, $status: String!) {
+    adminBulkUpdateIssues(issueIds: $issueIds, status: $status) {
+      id
+      status
+    }
+  }
+`;
+
+export const UPDATE_PRESENCE_MUTATION = gql`
+  mutation UpdatePresence($status: String!) {
+    updatePresence(status: $status) {
+      activeUsers
+      workoutsInProgress
     }
   }
 `;
