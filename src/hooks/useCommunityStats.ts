@@ -1,176 +1,165 @@
 /**
  * useCommunityStats Hook
  *
- * Fetches and manages community statistics data.
+ * Fetches and manages community statistics data using GraphQL.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-// authFetch available for future expansion
-// import { authFetch } from '../utils/auth';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import {
+  PUBLIC_COMMUNITY_STATS_QUERY,
+  COMMUNITY_STATS_QUERY,
+} from '../graphql';
 
-const CACHE_TTL = 60000; // 1 minute cache
-const statsCache = new Map();
+// Types
+interface StatValue {
+  value: number;
+  display: string;
+}
 
-export function useCommunityStats(options = {}) {
+interface RecentActivity {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+}
+
+interface Milestone {
+  type: string;
+  value: number;
+  reached: boolean;
+}
+
+interface PublicCommunityStats {
+  activeNow: StatValue;
+  activeWorkouts: StatValue;
+  totalUsers: StatValue;
+  totalWorkouts: StatValue;
+  recentActivity: RecentActivity[];
+  milestone: Milestone | null;
+}
+
+interface CommunityStats {
+  activeUsers: number;
+  activeWorkouts: number;
+  totalWorkoutsToday: number;
+  totalWorkoutsWeek: number;
+  topArchetype: string | null;
+}
+
+interface UseCommunityStatsOptions {
+  autoFetch?: boolean;
+  refreshInterval?: number;
+}
+
+export function useCommunityStats(options: UseCommunityStatsOptions = {}) {
   const { autoFetch = true, refreshInterval = 60000 } = options;
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [archetypes, setArchetypes] = useState(null);
-  const [exercises, setExercises] = useState(null);
-  const [funnel, setFunnel] = useState(null);
-  const [credits, setCredits] = useState(null);
-  const [geographic, setGeographic] = useState(null);
-  const [nowStats, setNowStats] = useState(null);
+  // GraphQL queries
+  const {
+    data: publicStatsData,
+    loading: publicLoading,
+    error: publicError,
+    refetch: refetchPublic,
+  } = useQuery<{ publicCommunityStats: PublicCommunityStats }>(PUBLIC_COMMUNITY_STATS_QUERY, {
+    skip: !autoFetch,
+    fetchPolicy: 'cache-and-network',
+    pollInterval: refreshInterval,
+  });
 
-  const fetchWithCache = useCallback(async (key, url, setter) => {
-    const cached = statsCache.get(key);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      setter(cached.data);
-      return cached.data;
-    }
+  const {
+    data: statsData,
+    loading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery<{ communityStats: CommunityStats }>(COMMUNITY_STATS_QUERY, {
+    skip: !autoFetch,
+    fetchPolicy: 'cache-and-network',
+  });
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        console.warn(`Failed to fetch ${key}: ${res.status}`);
-        // Return null/empty instead of throwing - don't break the whole page
-        setter(null);
-        return null;
-      }
-      const json = await res.json();
-      const data = json.data;
+  // Extract data
+  const publicStats = useMemo(() => publicStatsData?.publicCommunityStats || null, [publicStatsData]);
+  const communityStats = useMemo(() => statsData?.communityStats || null, [statsData]);
 
-      statsCache.set(key, { data, ts: Date.now() });
-      setter(data);
-      return data;
-    } catch (err) {
-      console.error(`Error fetching ${key}:`, err);
-      // Return null instead of throwing - don't break the whole page
-      setter(null);
-      return null;
-    }
+  // Derive summary from public stats
+  const summary = useMemo(() => {
+    if (!publicStats) return null;
+    return {
+      activeNow: publicStats.activeNow?.value || 0,
+      activeWorkouts: publicStats.activeWorkouts?.value || 0,
+      totalUsers: publicStats.totalUsers?.value || 0,
+      totalWorkouts: publicStats.totalWorkouts?.value || 0,
+    };
+  }, [publicStats]);
+
+  // Derive nowStats from public stats
+  const nowStats = useMemo(() => {
+    if (!publicStats) return null;
+    return {
+      activeNow: publicStats.activeNow?.value || 0,
+      activeWorkouts: publicStats.activeWorkouts?.value || 0,
+      recentActivity: publicStats.recentActivity || [],
+      milestone: publicStats.milestone,
+    };
+  }, [publicStats]);
+
+  const loading = publicLoading || statsLoading;
+  const error = publicError || statsError || null;
+
+  // Fetch functions for compatibility
+  const fetchSummary = useCallback(async () => {
+    await refetchPublic();
+    return summary;
+  }, [refetchPublic, summary]);
+
+  const fetchArchetypes = useCallback(async () => {
+    // Using community stats for top archetype
+    await refetchStats();
+    return communityStats?.topArchetype ? [{ id: communityStats.topArchetype, count: 0 }] : [];
+  }, [refetchStats, communityStats]);
+
+  const fetchExercises = useCallback(async () => {
+    // Not implemented in GraphQL yet - return empty
+    return [];
   }, []);
 
-  const fetchSummary = useCallback(
-    (window = '24h') =>
-      fetchWithCache(
-        `summary:${window}`,
-        `/api/community/stats/summary?window=${window}`,
-        setSummary
-      ),
-    [fetchWithCache]
-  );
+  const fetchFunnel = useCallback(async () => {
+    // Not implemented in GraphQL yet - return null
+    return null;
+  }, []);
 
-  const fetchArchetypes = useCallback(
-    () =>
-      fetchWithCache('archetypes', '/api/community/stats/archetypes', setArchetypes),
-    [fetchWithCache]
-  );
+  const fetchCredits = useCallback(async () => {
+    // Not implemented in GraphQL yet - return null
+    return null;
+  }, []);
 
-  const fetchExercises = useCallback(
-    (window = '7d', limit = 20) =>
-      fetchWithCache(
-        `exercises:${window}:${limit}`,
-        `/api/community/stats/exercises?window=${window}&limit=${limit}`,
-        setExercises
-      ),
-    [fetchWithCache]
-  );
-
-  const fetchFunnel = useCallback(
-    () => fetchWithCache('funnel', '/api/community/stats/funnel', setFunnel),
-    [fetchWithCache]
-  );
-
-  const fetchCredits = useCallback(
-    () => fetchWithCache('credits', '/api/community/stats/credits', setCredits),
-    [fetchWithCache]
-  );
-
-  const fetchGeographic = useCallback(
-    () =>
-      fetchWithCache('geographic', '/api/community/stats/geographic', setGeographic),
-    [fetchWithCache]
-  );
+  const fetchGeographic = useCallback(async () => {
+    // Not implemented in GraphQL yet - return null
+    return null;
+  }, []);
 
   const fetchNowStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/community/now');
-      if (!res.ok) throw new Error('Failed to fetch now stats');
-      const json = await res.json();
-      setNowStats(json.data);
-      return json.data;
-    } catch (err) {
-      console.error('Error fetching now stats:', err);
-      throw err;
-    }
-  }, []);
+    await refetchPublic();
+    return nowStats;
+  }, [refetchPublic, nowStats]);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    await Promise.all([refetchPublic(), refetchStats()]);
+  }, [refetchPublic, refetchStats]);
 
-    // Use Promise.allSettled to not fail if one endpoint fails
-    const results = await Promise.allSettled([
-      fetchSummary(),
-      fetchArchetypes(),
-      fetchExercises(),
-      fetchFunnel(),
-      fetchCredits(),
-      fetchGeographic(),
-      fetchNowStats(),
-    ]);
-
-    // Check if any critical endpoints failed
-    const failures = results.filter((r) => r.status === 'rejected');
-    if (failures.length > 0) {
-      console.warn(`${failures.length} community stats endpoints failed`);
-    }
-
-    setLoading(false);
-  }, [
-    fetchSummary,
-    fetchArchetypes,
-    fetchExercises,
-    fetchFunnel,
-    fetchCredits,
-    fetchGeographic,
-    fetchNowStats,
-  ]);
-
-  const refresh = useCallback(() => {
-    // Clear cache
-    statsCache.clear();
-    return fetchAll();
+  const refresh = useCallback(async () => {
+    await fetchAll();
   }, [fetchAll]);
-
-  useEffect(() => {
-    if (autoFetch) {
-      fetchAll();
-    }
-  }, [autoFetch, fetchAll]);
-
-  useEffect(() => {
-    if (!refreshInterval) return;
-
-    const interval = setInterval(() => {
-      fetchNowStats();
-    }, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [refreshInterval, fetchNowStats]);
 
   return {
     loading,
     error,
     summary,
-    archetypes,
-    exercises,
-    funnel,
-    credits,
-    geographic,
+    archetypes: communityStats?.topArchetype ? [{ id: communityStats.topArchetype }] : null,
+    exercises: null,
+    funnel: null,
+    credits: null,
+    geographic: null,
     nowStats,
     fetchSummary,
     fetchArchetypes,

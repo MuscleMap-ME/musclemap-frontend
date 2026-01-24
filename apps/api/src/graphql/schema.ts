@@ -137,7 +137,7 @@ export const typeDefs = `#graphql
     communityFeed(limit: Int, offset: Int): [FeedItem!]!
     communityStats: CommunityStats
     publicCommunityStats: PublicCommunityStats
-    communityPresence: PresenceInfo
+    communityPresence: CommunityPresenceData
     communityPercentile: PercentileInfo
 
     # Economy
@@ -454,6 +454,11 @@ export const typeDefs = `#graphql
     achievementDefinitions(category: String): [AchievementDefinition!]!
     myAchievements(category: String, limit: Int, offset: Int): AchievementResult!
     myAchievementSummary: AchievementSummary!
+
+    # Verifications
+    myVerifications(status: String, limit: Int, offset: Int): VerificationsResult!
+    myWitnessRequests(status: String, limit: Int, offset: Int): VerificationsResult!
+    verification(id: ID!): AchievementVerification
 
     # Wearables & Health Data
     wearablesSummary: WearablesSummary
@@ -819,6 +824,9 @@ export const typeDefs = `#graphql
     disputeVenueRecord(recordId: ID!, reason: String!): Boolean!
     """Update privacy settings for location records"""
     updateLocationRecordPrivacy(input: LocationRecordPrivacyInput!): PrivacySettings!
+
+    # Achievement Verifications
+    cancelVerification(verificationId: ID!): Boolean!
 
     # Admin: Outdoor Equipment
     syncNycData: AdminSyncResult!
@@ -2178,6 +2186,17 @@ export const typeDefs = `#graphql
     status: String
   }
 
+  type GeoBucket {
+    geoBucket: String!
+    count: Int!
+  }
+
+  type CommunityPresenceData {
+    total: Int!
+    byGeoBucket: [GeoBucket!]!
+    redisEnabled: Boolean!
+  }
+
   type PercentileInfo {
     overall: Float!
     archetype: Float!
@@ -2552,6 +2571,53 @@ export const typeDefs = `#graphql
   }
 
   # ============================================
+  # ACHIEVEMENT VERIFICATION TYPES
+  # ============================================
+  type AchievementVerification {
+    id: ID!
+    userId: ID!
+    achievementId: ID!
+    achievementKey: String
+    achievementName: String
+    achievementTier: String
+    videoUrl: String
+    thumbnailUrl: String
+    videoDurationSeconds: Int
+    status: String!
+    notes: String
+    rejectionReason: String
+    submittedAt: DateTime!
+    verifiedAt: DateTime
+    expiresAt: DateTime!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    username: String
+    displayName: String
+    avatarUrl: String
+    witness: WitnessInfo
+  }
+
+  type WitnessInfo {
+    id: ID!
+    witnessUserId: ID!
+    witnessUsername: String
+    witnessDisplayName: String
+    witnessAvatarUrl: String
+    attestationText: String
+    relationship: String
+    locationDescription: String
+    status: String!
+    isPublic: Boolean!
+    requestedAt: DateTime!
+    respondedAt: DateTime
+  }
+
+  type VerificationsResult {
+    verifications: [AchievementVerification!]!
+    total: Int!
+  }
+
+  # ============================================
   # MESSAGING TYPES
   # ============================================
   type ConversationParticipant {
@@ -2781,17 +2847,28 @@ export const typeDefs = `#graphql
     id: ID!
     title: String!
     description: String!
-    status: String!
+    status: Int!
+    category: String
     quarter: String
-    votes: Int!
-    userVoted: Boolean!
+    priority: Int
+    progress: Int
+    voteCount: Int!
+    hasVoted: Boolean!
+    relatedIssueIds: [String!]
+    completedAt: DateTime
+    targetDate: DateTime
     createdAt: DateTime!
   }
 
   input IssueInput {
     title: String!
     description: String!
-    labels: [ID!]
+    type: Int
+    priority: Int
+    labelIds: [ID!]
+    pageUrl: String
+    browserInfo: JSON
+    deviceInfo: JSON
   }
 
   input IssueUpdateInput {

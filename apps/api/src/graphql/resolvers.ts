@@ -66,7 +66,10 @@ import * as equipmentService from '../services/equipment.service';
 import { rivalsService } from '../modules/rivals/service';
 import * as crewsService from '../modules/crews/service';
 import { trainerService } from '../modules/economy/trainer.service';
+import { verificationService } from '../modules/verification';
+import { ForbiddenError } from '../lib/errors';
 import { loggers } from '../lib/logger';
+import { getRedis, isRedisAvailable, REDIS_KEYS } from '../lib/redis';
 import {
   subscribe,
   subscribeForConversation,
@@ -2883,6 +2886,53 @@ export const resolvers = {
       };
     },
 
+    communityPresence: async () => {
+      const redis = getRedis();
+      const redisEnabled = isRedisAvailable();
+      const cutoff = Date.now() - 120 * 1000;
+      const buckets: Record<string, number> = {};
+      let total = 0;
+
+      if (redis) {
+        // Get active user count
+        total = await redis.zcount(REDIS_KEYS.PRESENCE_ZSET, cutoff, '+inf');
+
+        // Get presence by geo bucket
+        const userIds = await redis.zrangebyscore(REDIS_KEYS.PRESENCE_ZSET, cutoff, '+inf');
+        if (userIds.length > 0) {
+          const pipeline = redis.pipeline();
+          for (const userId of userIds) {
+            pipeline.get(REDIS_KEYS.PRESENCE_META(userId));
+          }
+          const responses = await pipeline.exec();
+          if (responses) {
+            for (const [err, data] of responses) {
+              if (!err && data) {
+                try {
+                  const meta = JSON.parse(data as string);
+                  if (meta.geoBucket) {
+                    buckets[meta.geoBucket] = (buckets[meta.geoBucket] || 0) + 1;
+                  }
+                } catch {
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const byGeoBucket = Object.entries(buckets)
+        .map(([geoBucket, count]) => ({ geoBucket, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        total,
+        byGeoBucket,
+        redisEnabled,
+      };
+    },
+
     // Economy
     creditsBalance: async (_: unknown, __: unknown, context: Context) => {
       const { userId } = requireAuth(context);
@@ -5558,14 +5608,17 @@ export const resolvers = {
     },
 
     // Roadmap items
-    roadmap: async (_: unknown, args: { status?: string }) => {
+    roadmap: async (_: unknown, args: { status?: string }, context: Context) => {
+      const userId = context.user?.userId || null;
+
       let query = `SELECT r.*,
         (SELECT COUNT(*) FROM roadmap_votes WHERE roadmap_item_id = r.id) as vote_count
+        ${userId ? `, EXISTS(SELECT 1 FROM roadmap_votes WHERE roadmap_item_id = r.id AND user_id = $1) as has_voted` : ''}
         FROM roadmap_items r`;
-      const params: any[] = [];
+      const params: any[] = userId ? [userId] : [];
 
       if (args.status) {
-        query += ` WHERE r.status = $1`;
+        query += ` WHERE r.status = $${params.length + 1}`;
         params.push(args.status);
       }
 
@@ -5579,10 +5632,15 @@ export const resolvers = {
         description: r.description,
         status: r.status,
         category: r.category,
+        quarter: r.quarter,
         priority: r.priority,
+        progress: r.progress || 0,
         voteCount: Number(r.vote_count),
-        createdAt: r.created_at,
+        hasVoted: r.has_voted || false,
+        relatedIssueIds: r.related_issue_ids || [],
+        completedAt: r.completed_at,
         targetDate: r.target_date,
+        createdAt: r.created_at,
       }));
     },
 
@@ -7848,6 +7906,50 @@ export const resolvers = {
           earnedAt: a.earnedAt,
         })),
       };
+    },
+
+    // Verifications
+    myVerifications: async (_: unknown, args: { status?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await verificationService.getUserVerifications(userId, {
+        status: args.status as any,
+        limit: args.limit ?? 20,
+        offset: args.offset ?? 0,
+      });
+      return {
+        verifications: result.verifications,
+        total: result.total,
+      };
+    },
+
+    myWitnessRequests: async (_: unknown, args: { status?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await verificationService.getWitnessRequests(userId, {
+        status: args.status as any,
+        limit: args.limit ?? 20,
+        offset: args.offset ?? 0,
+      });
+      return {
+        verifications: result.requests,
+        total: result.total,
+      };
+    },
+
+    verification: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      try {
+        const verification = await verificationService.getVerification(args.id);
+        // Check access - only owner or witness can view
+        if (verification.userId !== userId && verification.witness?.witnessUserId !== userId) {
+          throw new ForbiddenError('Access denied');
+        }
+        return verification;
+      } catch (error: any) {
+        if (error.name === 'NotFoundError') {
+          return null;
+        }
+        throw error;
+      }
     },
 
     // User Settings
@@ -11631,6 +11733,13 @@ export const resolvers = {
       return trainerService.markAttendance(userId, args.classId, args.attendees);
     },
 
+    // Achievement Verifications
+    cancelVerification: async (_: unknown, args: { verificationId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await verificationService.cancelVerification(args.verificationId, userId);
+      return true;
+    },
+
     // Goal System
     updateGoal: async (_: unknown, args: { id: string; input: any }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -11738,25 +11847,55 @@ export const resolvers = {
     // Issue/Feedback System
     createIssue: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { title, description, type, priority } = args.input;
+      const { title, description, type, priority, labelIds, pageUrl, browserInfo, deviceInfo } = args.input;
 
       const issueId = `issue_${crypto.randomBytes(12).toString('hex')}`;
 
-      await query(
-        `INSERT INTO issues (id, author_id, title, description, type, priority, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'open')`,
-        [issueId, userId, title, description, type || 'bug', priority || 'medium']
+      // Insert issue and get the auto-generated issue_number
+      const result = await queryOne<{
+        id: string;
+        issue_number: number;
+        created_at: Date;
+      }>(
+        `INSERT INTO issues (id, author_id, title, description, type, priority, status, page_url, browser_info, device_info)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, $9)
+         RETURNING id, issue_number, created_at`,
+        [
+          issueId,
+          userId,
+          title,
+          description,
+          type ?? 0,
+          priority ?? 1,
+          pageUrl || null,
+          browserInfo ? JSON.stringify(browserInfo) : null,
+          deviceInfo ? JSON.stringify(deviceInfo) : null,
+        ]
       );
 
+      // Add labels if provided
+      if (labelIds && labelIds.length > 0) {
+        for (const labelId of labelIds) {
+          await query(
+            'INSERT INTO issue_labels_junction (issue_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [issueId, labelId]
+          );
+        }
+      }
+
       return {
-        id: issueId,
+        id: result?.id || issueId,
+        issueNumber: result?.issue_number || 0,
         authorId: userId,
         title,
         description,
-        type: type || 'bug',
-        priority: priority || 'medium',
-        status: 'open',
-        createdAt: new Date(),
+        type: type ?? 0,
+        priority: priority ?? 1,
+        status: 0,
+        labels: [],
+        voteCount: 0,
+        commentCount: 0,
+        createdAt: result?.created_at || new Date(),
       };
     },
 

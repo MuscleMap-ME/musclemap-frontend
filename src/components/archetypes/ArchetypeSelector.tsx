@@ -18,11 +18,47 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
+import { useQuery, useMutation } from '@apollo/client/react';
 
 import CategoryGrid from './CategoryGrid';
 import ArchetypeGrid from './ArchetypeGrid';
 import ArchetypeDetail from './ArchetypeDetail';
-import { useAuth, useToast } from '../../hooks';
+import { useToast } from '../../hooks';
+import {
+  ARCHETYPE_CATEGORIES_QUERY,
+  ARCHETYPES_QUERY,
+  SELECT_ARCHETYPE_MUTATION,
+} from '../../graphql';
+
+// Types
+interface Archetype {
+  id: string;
+  name: string;
+  description: string;
+  philosophy?: string;
+  icon?: string;
+  color?: string;
+  categoryId?: string;
+  category_id?: string;
+  primaryStats?: string[];
+  bonuses?: Record<string, unknown>;
+}
+
+interface ArchetypeCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  displayOrder?: number;
+  archetypes: Archetype[];
+}
+
+interface CategoryDisplay {
+  id: string;
+  name: string;
+  icon: string;
+  archetypeCount: number;
+}
 
 /**
  * View states for the drill-down flow
@@ -31,12 +67,14 @@ const VIEWS = {
   CATEGORIES: 'categories',
   ARCHETYPES: 'archetypes',
   DETAIL: 'detail',
-};
+} as const;
+
+type ViewType = typeof VIEWS[keyof typeof VIEWS];
 
 /**
  * Category icon mapping for display
  */
-const CATEGORY_ICONS = {
+const CATEGORY_ICONS: Record<string, string> = {
   general: '🏋️',
   strength: '💪',
   movement: '🤸',
@@ -57,7 +95,7 @@ const CATEGORY_ICONS = {
 /**
  * Category color mapping for visual theming
  */
-const CATEGORY_COLORS = {
+const CATEGORY_COLORS: Record<string, string> = {
   general: '#DC2626',
   strength: '#DC2626',
   movement: '#9333EA',
@@ -77,10 +115,8 @@ const CATEGORY_COLORS = {
 
 /**
  * Format category ID to display name
- * @param {string} id - Category ID like 'first_responder'
- * @returns {string} Formatted name like 'First Responder'
  */
-function formatCategoryName(id) {
+function formatCategoryName(id: string): string {
   return id
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -89,7 +125,6 @@ function formatCategoryName(id) {
 
 /**
  * Animation variants for slide transitions - simplified for better performance
- * Using opacity-only animations to reduce jitter on mobile/slow connections
  */
 const slideVariants = {
   enterFromRight: {
@@ -127,7 +162,7 @@ const slideVariants = {
 /**
  * Progress indicator component showing current step
  */
-function ProgressIndicator({ currentStep, totalSteps = 3 }) {
+function ProgressIndicator({ currentStep, totalSteps = 3 }: { currentStep: number; totalSteps?: number }) {
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {Array.from({ length: totalSteps }).map((_, index) => {
@@ -157,7 +192,7 @@ function ProgressIndicator({ currentStep, totalSteps = 3 }) {
 /**
  * Error state component with retry functionality
  */
-function ErrorState({ error, onRetry }) {
+function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <motion.div
       className="flex flex-col items-center justify-center py-16 px-4 text-center"
@@ -190,7 +225,7 @@ function ErrorState({ error, onRetry }) {
 /**
  * Back button component for navigation header
  */
-function BackButton({ onClick, label = 'Back', showOnMobile = true }) {
+function BackButton({ onClick, label = 'Back', showOnMobile = true }: { onClick: () => void; label?: string; showOnMobile?: boolean }) {
   return (
     <motion.button
       onClick={onClick}
@@ -210,182 +245,130 @@ function BackButton({ onClick, label = 'Back', showOnMobile = true }) {
   );
 }
 
+interface ArchetypeSelectorProps {
+  onComplete?: (archetypeId: string, archetype: Archetype) => void;
+  initialArchetype?: string | null;
+  showBackButton?: boolean;
+  onBack?: () => void;
+}
+
 /**
  * ArchetypeSelector Component
- *
- * @param {Object} props
- * @param {Function} props.onComplete - Callback when user confirms selection (archetypeId, archetype) => void
- * @param {string|null} props.initialArchetype - Pre-selected archetype ID
- * @param {boolean} props.showBackButton - Whether to show back to previous page
- * @param {Function} props.onBack - Callback when back button is clicked (only at categories view)
  */
 const ArchetypeSelector = memo(function ArchetypeSelector({
   onComplete,
   initialArchetype = null,
   showBackButton = false,
   onBack,
-}) {
+}: ArchetypeSelectorProps) {
   // State
-  const [view, setView] = useState(VIEWS.CATEGORIES);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedArchetype, setSelectedArchetype] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [archetypes, setArchetypes] = useState([]);
-  const [allArchetypes, setAllArchetypes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [view, setView] = useState<ViewType>(VIEWS.CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedArchetype, setSelectedArchetype] = useState<Archetype | null>(null);
+  const [archetypes, setArchetypes] = useState<Archetype[]>([]);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
-
-  // Hooks
-  const { token } = useAuth();
-  const { error: showError } = useToast();
-
-  /**
-   * Track if initial archetype has been handled to prevent jitter
-   */
   const [initialArchetypeHandled, setInitialArchetypeHandled] = useState(false);
 
-  /**
-   * Fetch categories and all archetypes on mount
-   */
-  useEffect(() => {
-    fetchInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Hooks
+  const { error: showError } = useToast();
+
+  // GraphQL queries
+  const { data: categoriesData, loading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery<{
+    archetypeCategories: ArchetypeCategory[];
+  }>(ARCHETYPE_CATEGORIES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: archetypesData, loading: archetypesLoading } = useQuery<{
+    archetypes: Archetype[];
+  }>(ARCHETYPES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL mutation
+  const [selectArchetypeMutation, { loading: confirmLoading }] = useMutation(SELECT_ARCHETYPE_MUTATION, {
+    onCompleted: () => {
+      if (selectedArchetype) {
+        onComplete?.(selectedArchetype.id, selectedArchetype);
+      }
+    },
+    onError: (err) => {
+      showError?.(err.message || 'Failed to select archetype');
+    },
+  });
+
+  // Extract data
+  const allArchetypes = useMemo(() => archetypesData?.archetypes || [], [archetypesData]);
+
+  const categories = useMemo((): CategoryDisplay[] => {
+    const cats = categoriesData?.archetypeCategories || [];
+    if (cats.length > 0) {
+      return cats.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon || CATEGORY_ICONS[cat.id] || '🎯',
+        archetypeCount: cat.archetypes?.length || 0,
+      }));
+    }
+
+    // Fallback: derive categories from archetypes
+    if (allArchetypes.length > 0) {
+      const categoryMap = new Map<string, CategoryDisplay>();
+      for (const archetype of allArchetypes) {
+        const categoryId = archetype.categoryId || archetype.category_id || 'general';
+        if (!categoryMap.has(categoryId)) {
+          categoryMap.set(categoryId, {
+            id: categoryId,
+            name: formatCategoryName(categoryId),
+            icon: CATEGORY_ICONS[categoryId] || '🎯',
+            archetypeCount: 0,
+          });
+        }
+        const cat = categoryMap.get(categoryId)!;
+        cat.archetypeCount++;
+      }
+      return Array.from(categoryMap.values());
+    }
+
+    return [];
+  }, [categoriesData, allArchetypes]);
+
+  const loading = categoriesLoading || archetypesLoading;
+  const error = categoriesError?.message || null;
 
   /**
    * Handle initial archetype pre-selection - only run once after data loads
    */
   useEffect(() => {
-    // Skip if already handled or no initial archetype
     if (initialArchetypeHandled || !initialArchetype) return;
-    // Wait for data to load
     if (loading || allArchetypes.length === 0) return;
 
     const archetype = allArchetypes.find((a) => a.id === initialArchetype);
     if (archetype) {
-      // Find the category for this archetype
-      const categoryId = archetype.category_id || archetype.categoryId || 'general';
+      const categoryId = archetype.categoryId || archetype.category_id || 'general';
       setSelectedCategory(categoryId);
       setSelectedArchetype(archetype);
-      // Filter archetypes for this category
       const categoryArchetypes = allArchetypes.filter(
-        (a) => (a.category_id || a.categoryId || 'general') === categoryId
+        (a) => (a.categoryId || a.category_id || 'general') === categoryId
       );
       setArchetypes(categoryArchetypes);
       setView(VIEWS.DETAIL);
     }
-    // Mark as handled to prevent re-running
     setInitialArchetypeHandled(true);
   }, [initialArchetype, allArchetypes, loading, initialArchetypeHandled]);
-
-  /**
-   * Fetch initial data (categories and archetypes) with retry and timeout
-   */
-  const fetchInitialData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    // Helper to fetch with timeout
-    const fetchWithTimeout = async (url, timeoutMs = 15000) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        return res;
-      } catch (err) {
-        clearTimeout(timeoutId);
-        throw err;
-      }
-    };
-
-    try {
-      // Fetch archetypes (which includes category info)
-      const archetypesRes = await fetchWithTimeout('/api/archetypes');
-      if (!archetypesRes.ok) {
-        throw new Error('Failed to fetch archetypes');
-      }
-      const archetypesData = await archetypesRes.json();
-      const fetchedArchetypes = archetypesData.data || [];
-
-      // Set archetypes immediately to reduce perceived load time
-      setAllArchetypes(fetchedArchetypes);
-
-      // Try to fetch categories from dedicated endpoint
-      let fetchedCategories = [];
-      try {
-        const categoriesRes = await fetchWithTimeout('/api/archetypes/categories', 10000);
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json();
-          fetchedCategories = categoriesData.data || [];
-        }
-      } catch {
-        // Categories endpoint might not exist or timed out, derive from archetypes
-      }
-
-      // If no categories endpoint, derive from archetypes
-      if (fetchedCategories.length === 0) {
-        const categoryMap = new Map();
-        for (const archetype of fetchedArchetypes) {
-          const categoryId = archetype.category_id || archetype.categoryId || 'general';
-          if (!categoryMap.has(categoryId)) {
-            categoryMap.set(categoryId, {
-              id: categoryId,
-              name: formatCategoryName(categoryId),
-              icon: CATEGORY_ICONS[categoryId] || '🎯',
-              archetypeCount: 0,
-            });
-          }
-          categoryMap.get(categoryId).archetypeCount++;
-        }
-        fetchedCategories = Array.from(categoryMap.values());
-      } else {
-        // Add archetype counts to fetched categories
-        const countMap = new Map();
-        for (const archetype of fetchedArchetypes) {
-          const categoryId = archetype.category_id || archetype.categoryId || 'general';
-          countMap.set(categoryId, (countMap.get(categoryId) || 0) + 1);
-        }
-        fetchedCategories = fetchedCategories.map((cat) => ({
-          ...cat,
-          archetypeCount: countMap.get(cat.id) || 0,
-          icon: cat.icon || CATEGORY_ICONS[cat.id] || '🎯',
-        }));
-      }
-
-      setCategories(fetchedCategories);
-    } catch (err) {
-      // Provide more helpful error messages
-      let errorMessage = 'Failed to load archetypes';
-      if (err.name === 'AbortError') {
-        errorMessage = 'Request timed out. Please check your connection and try again.';
-      } else if (!navigator.onLine) {
-        errorMessage = 'You appear to be offline. Please check your internet connection.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   /**
    * Handle category selection
    */
   const handleCategorySelect = useCallback(
-    (categoryId) => {
+    (categoryId: string) => {
       setSelectedCategory(categoryId);
       setDirection(1);
 
-      // Filter archetypes for this category
       const categoryArchetypes = allArchetypes.filter(
-        (a) => (a.category_id || a.categoryId || 'general') === categoryId
+        (a) => (a.categoryId || a.category_id || 'general') === categoryId
       );
 
-      // Add icons and colors if not present
       const enrichedArchetypes = categoryArchetypes.map((a) => ({
         ...a,
         icon: a.icon || CATEGORY_ICONS[categoryId] || '🎯',
@@ -401,7 +384,7 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
   /**
    * Handle archetype selection
    */
-  const handleArchetypeSelect = useCallback((archetype) => {
+  const handleArchetypeSelect = useCallback((archetype: Archetype) => {
     setSelectedArchetype(archetype);
     setDirection(1);
     setView(VIEWS.DETAIL);
@@ -430,32 +413,10 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
   const handleConfirm = useCallback(async () => {
     if (!selectedArchetype) return;
 
-    setConfirmLoading(true);
-
-    try {
-      // Call API to select archetype
-      const res = await fetch('/api/archetypes/select', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ archetypeId: selectedArchetype.id }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to select archetype');
-      }
-
-      // Call onComplete callback
-      onComplete?.(selectedArchetype.id, selectedArchetype);
-    } catch (err) {
-      showError?.(err.message || 'Failed to select archetype');
-    } finally {
-      setConfirmLoading(false);
-    }
-  }, [selectedArchetype, token, onComplete, showError]);
+    selectArchetypeMutation({
+      variables: { archetypeId: selectedArchetype.id },
+    });
+  }, [selectedArchetype, selectArchetypeMutation]);
 
   /**
    * Get current step number for progress indicator
@@ -491,7 +452,7 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
   if (error && !loading) {
     return (
       <div className="min-h-full bg-gradient-to-b from-gray-950 via-gray-900 to-black">
-        <ErrorState error={error} onRetry={fetchInitialData} />
+        <ErrorState error={error} onRetry={() => refetchCategories()} />
       </div>
     );
   }
@@ -520,7 +481,7 @@ const ArchetypeSelector = memo(function ArchetypeSelector({
         </motion.div>
       )}
 
-      {/* Main content with animated transitions - use sync mode to prevent jitter */}
+      {/* Main content with animated transitions */}
       <AnimatePresence mode="sync" initial={false}>
         {view === VIEWS.CATEGORIES && (
           <motion.div

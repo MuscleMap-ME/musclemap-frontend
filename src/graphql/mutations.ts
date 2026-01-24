@@ -771,11 +771,18 @@ export const CREATE_ISSUE_MUTATION = gql`
   mutation CreateIssue($input: IssueInput!) {
     createIssue(input: $input) {
       id
+      issueNumber
       title
       description
+      type
       status
       priority
-      labels
+      labels {
+        id
+        name
+        color
+        icon
+      }
       createdAt
     }
   }
@@ -1722,6 +1729,16 @@ export const CANCEL_TRADE_MUTATION = gql`
       }
       message
     }
+  }
+`;
+
+// ============================================
+// VERIFICATIONS
+// ============================================
+
+export const CANCEL_VERIFICATION_MUTATION = gql`
+  mutation CancelVerification($verificationId: ID!) {
+    cancelVerification(verificationId: $verificationId)
   }
 `;
 

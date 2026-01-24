@@ -3,58 +3,104 @@
  *
  * Fetches public community stats for landing page with WebSocket real-time updates.
  * No authentication required - designed for anonymous visitors.
+ *
+ * Uses GraphQL for initial data fetch, with WebSocket fallback for real-time updates.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { PUBLIC_COMMUNITY_STATS_QUERY } from '../graphql';
 
 const WS_RECONNECT_ATTEMPTS = 5;
 const WS_RECONNECT_DELAY = 3000;
 const POLL_INTERVAL = 60000; // 60s fallback polling
 
-export function useLiveCommunityStats() {
-  const [stats, setStats] = useState(null);
-  const [activity, setActivity] = useState([]);
-  const [milestone, setMilestone] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState(null);
+// Types
+interface StatValue {
+  value: number;
+  display: string;
+}
 
-  const wsRef = useRef(null);
+interface RecentActivity {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+}
+
+interface Milestone {
+  type: string;
+  value: number;
+  reached: boolean;
+}
+
+interface PublicCommunityStats {
+  activeNow: StatValue;
+  activeWorkouts: StatValue;
+  totalUsers: StatValue;
+  totalWorkouts: StatValue;
+  recentActivity: RecentActivity[];
+  milestone: Milestone | null;
+}
+
+export function useLiveCommunityStats() {
+  const [localActivity, setLocalActivity] = useState<RecentActivity[]>([]);
+  const [connected, setConnected] = useState(false);
+
+  const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const pollIntervalRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const heartbeatIntervalRef = useRef(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // GraphQL query for public community stats
+  const { data, loading, error, refetch } = useQuery<{
+    publicCommunityStats: PublicCommunityStats;
+  }>(PUBLIC_COMMUNITY_STATS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    pollInterval: connected ? 0 : POLL_INTERVAL, // Only poll when WebSocket disconnected
+  });
+
+  // Derive stats from GraphQL data
+  const stats = useMemo(() => {
+    if (!data?.publicCommunityStats) return null;
+    const d = data.publicCommunityStats;
+    return {
+      activeNow: d.activeNow,
+      activeWorkouts: d.activeWorkouts,
+      totalUsers: d.totalUsers,
+      totalWorkouts: d.totalWorkouts,
+    };
+  }, [data]);
+
+  // Merge GraphQL activity with local WebSocket activity
+  const activity = useMemo(() => {
+    const graphqlActivity = data?.publicCommunityStats?.recentActivity || [];
+    const combined = [...localActivity, ...graphqlActivity];
+    // Dedupe by id
+    const seen = new Set<string>();
+    return combined.filter(item => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }).slice(0, 20);
+  }, [data, localActivity]);
+
+  // Derive milestone from GraphQL data
+  const milestone = useMemo(() => {
+    return data?.publicCommunityStats?.milestone || null;
+  }, [data]);
 
   // Format stat display (handles threshold logic from server)
-  const formatStat = useCallback((stat) => {
+  const formatStat = useCallback((stat: StatValue | null | undefined) => {
     if (!stat) return '—';
     return stat.display || stat.value?.toString() || '—';
   }, []);
 
-  // Fetch stats via REST API
+  // Fetch stats via GraphQL refetch
   const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/community/stats/public');
-      if (!res.ok) throw new Error('Failed to fetch stats');
-      const json = await res.json();
-      const data = json.data;
-
-      setStats({
-        activeNow: data.activeNow,
-        activeWorkouts: data.activeWorkouts,
-        totalUsers: data.totalUsers,
-        totalWorkouts: data.totalWorkouts,
-      });
-      setActivity(data.recentActivity || []);
-      setMilestone(data.milestone);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching public stats:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await refetch();
+  }, [refetch]);
 
   // Start polling as fallback
   const startPolling = useCallback(() => {
@@ -96,23 +142,11 @@ export function useLiveCommunityStats() {
           const message = JSON.parse(event.data);
 
           if (message.type === 'snapshot' || message.type === 'update') {
-            const data = message.data;
-            setStats({
-              activeNow: data.activeNow,
-              activeWorkouts: data.activeWorkouts,
-              totalUsers: data.totalUsers,
-              totalWorkouts: data.totalWorkouts,
-            });
-            if (data.recentActivity) {
-              setActivity(data.recentActivity);
-            }
-            if (data.milestone !== undefined) {
-              setMilestone(data.milestone);
-            }
-            setLoading(false);
+            // Refetch GraphQL data for snapshot/update
+            refetch();
           } else if (message.type === 'activity') {
-            // Real-time activity event
-            setActivity((prev) => [message.data, ...prev].slice(0, 20));
+            // Real-time activity event - add to local state
+            setLocalActivity((prev) => [message.data, ...prev].slice(0, 20));
           }
         } catch (err) {
           console.error('Error parsing WS message:', err);
@@ -153,14 +187,11 @@ export function useLiveCommunityStats() {
       console.error('Error connecting to WebSocket:', err);
       startPolling();
     }
-  }, [startPolling]);
+  }, [startPolling, refetch]);
 
-  // Initial fetch and WebSocket connection
+  // Initial WebSocket connection
   useEffect(() => {
-    // Fetch initial data
-    fetchStats();
-
-    // Try to connect WebSocket
+    // Try to connect WebSocket for real-time updates
     connectWebSocket();
 
     return () => {
@@ -182,7 +213,7 @@ export function useLiveCommunityStats() {
         pollIntervalRef.current = null;
       }
     };
-  }, [fetchStats, connectWebSocket]);
+  }, [connectWebSocket]);
 
   return {
     stats,
@@ -190,7 +221,7 @@ export function useLiveCommunityStats() {
     milestone,
     loading,
     connected,
-    error,
+    error: error?.message || null,
     formatStat,
     refresh: fetchStats,
   };

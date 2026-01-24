@@ -1,8 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
+import {
+  MY_TRAINER_PROFILE_QUERY,
+  MY_TRAINER_CLASSES_QUERY,
+  CLASS_ENROLLMENTS_QUERY,
+  UPSERT_TRAINER_PROFILE_MUTATION,
+  CREATE_TRAINER_CLASS_MUTATION,
+  CANCEL_TRAINER_CLASS_MUTATION,
+  MARK_CLASS_ATTENDANCE_MUTATION,
+} from '../graphql';
+
+// Types
+interface TrainerProfile {
+  userId: string;
+  displayName: string;
+  bio: string;
+  specialties: string[];
+  certifications?: string[];
+  hourlyRateCredits: number;
+  perClassRateCredits: number;
+  verified: boolean;
+  verifiedAt?: string;
+  ratingAvg: number;
+  ratingCount: number;
+  totalClassesTaught: number;
+  totalStudentsTrained: number;
+  totalCreditsEarned: number;
+  status: string;
+  createdAt: string;
+}
+
+interface TrainerClass {
+  id: string;
+  trainerUserId: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  startAt: string;
+  durationMinutes: number;
+  locationType: string;
+  locationDetails: string;
+  capacity: number;
+  enrolledCount: number;
+  creditsPerStudent: number;
+  trainerWagePerStudent: number;
+  status: string;
+  createdAt: string;
+}
+
+interface ClassEnrollment {
+  id: string;
+  classId: string;
+  userId: string;
+  status: string;
+  creditsPaid: number;
+  enrolledAt: string;
+  cancelledAt?: string;
+}
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -41,16 +100,13 @@ const formatDate = (dateStr) => {
 
 export default function TrainerDashboard() {
   const { token } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateProfile, setShowCreateProfile] = useState(false);
   const [showCreateClass, setShowCreateClass] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [enrollments, setEnrollments] = useState([]);
-  const [attendanceData, setAttendanceData] = useState({});
+  const [selectedClass, setSelectedClass] = useState<TrainerClass | null>(null);
+  const [enrollments, setEnrollments] = useState<ClassEnrollment[]>([]);
+  const [attendanceData, setAttendanceData] = useState<Record<string, { attended: boolean; rating: number }>>({});
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
   // Form states
@@ -76,122 +132,136 @@ export default function TrainerDashboard() {
     trainerWagePerStudent: 40,
   });
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [profileRes, classesRes] = await Promise.all([
-        fetch('/api/trainers/me', { headers }),
-        fetch('/api/trainers/me/classes', { headers }),
-      ]);
-
-      const [profileData, classesData] = await Promise.all([
-        profileRes.json(),
-        classesRes.json(),
-      ]);
-
-      setProfile(profileData.data);
-      setClasses(classesData.data || []);
-
-      if (profileData.data) {
+  // GraphQL Queries
+  const { data: profileData, loading: profileLoading, refetch: refetchProfile } = useQuery<{
+    myTrainerProfile: TrainerProfile | null;
+  }>(MY_TRAINER_PROFILE_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !token,
+    onCompleted: (data) => {
+      if (data?.myTrainerProfile) {
         setProfileForm({
-          displayName: profileData.data.displayName || profileData.data.display_name || '',
-          bio: profileData.data.bio || '',
-          specialties: (profileData.data.specialties || []).join(', '),
-          hourlyRateCredits: profileData.data.hourlyRateCredits || profileData.data.hourly_rate_credits || 100,
-          perClassRateCredits: profileData.data.perClassRateCredits || profileData.data.per_class_rate_credits || 50,
+          displayName: data.myTrainerProfile.displayName || '',
+          bio: data.myTrainerProfile.bio || '',
+          specialties: (data.myTrainerProfile.specialties || []).join(', '),
+          hourlyRateCredits: data.myTrainerProfile.hourlyRateCredits || 100,
+          perClassRateCredits: data.myTrainerProfile.perClassRateCredits || 50,
         });
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  const createOrUpdateProfile = async (e) => {
+  const { data: classesData, loading: classesLoading, refetch: refetchClasses } = useQuery<{
+    myTrainerClasses: { classes: TrainerClass[]; total: number };
+  }>(MY_TRAINER_CLASSES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !token,
+  });
+
+  const profile = profileData?.myTrainerProfile || null;
+  const classes = useMemo(() => classesData?.myTrainerClasses?.classes || [], [classesData?.myTrainerClasses?.classes]);
+  const loading = profileLoading || classesLoading;
+
+  // GraphQL Mutations
+  const [upsertProfile] = useMutation(UPSERT_TRAINER_PROFILE_MUTATION, {
+    onCompleted: () => {
+      setShowCreateProfile(false);
+      showSnackbar('Profile saved!', 'success');
+      refetchProfile();
+    },
+    onError: () => {
+      showSnackbar('Failed to save profile', 'error');
+    },
+  });
+
+  const [createTrainerClass] = useMutation(CREATE_TRAINER_CLASS_MUTATION, {
+    onCompleted: () => {
+      setShowCreateClass(false);
+      setClassForm({
+        title: '',
+        description: '',
+        category: 'strength',
+        difficulty: 'all',
+        startAt: '',
+        durationMinutes: 60,
+        locationType: 'in_person',
+        locationDetails: '',
+        capacity: 20,
+        creditsPerStudent: 50,
+        trainerWagePerStudent: 40,
+      });
+      showSnackbar('Class created!', 'success');
+      refetchClasses();
+    },
+    onError: (err) => {
+      showSnackbar(err.message || 'Failed to create class', 'error');
+    },
+  });
+
+  const [cancelTrainerClass] = useMutation(CANCEL_TRAINER_CLASS_MUTATION, {
+    onCompleted: () => {
+      showSnackbar('Class cancelled', 'success');
+      refetchClasses();
+    },
+    onError: () => {
+      showSnackbar('Failed to cancel class', 'error');
+    },
+  });
+
+  const [markAttendance] = useMutation(MARK_CLASS_ATTENDANCE_MUTATION, {
+    onCompleted: (data) => {
+      setShowAttendanceModal(false);
+      showSnackbar(`Attendance marked! Earned ${data.markClassAttendance?.wageEarned || 0} credits`, 'success');
+      refetchClasses();
+    },
+    onError: () => {
+      showSnackbar('Failed to mark attendance', 'error');
+    },
+  });
+
+  // Lazy query for enrollments
+  const { refetch: fetchEnrollments } = useQuery<{
+    classEnrollments: ClassEnrollment[];
+  }>(CLASS_ENROLLMENTS_QUERY, {
+    skip: true, // Don't auto-fetch
+    variables: { classId: '' },
+  });
+
+  const createOrUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/trainers/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+    upsertProfile({
+      variables: {
+        input: {
           displayName: profileForm.displayName,
           bio: profileForm.bio,
           specialties: profileForm.specialties.split(',').map(s => s.trim()).filter(Boolean),
           hourlyRateCredits: profileForm.hourlyRateCredits,
           perClassRateCredits: profileForm.perClassRateCredits,
-        }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setProfile(data.data);
-        setShowCreateProfile(false);
-        showSnackbar('Profile saved!', 'success');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to save profile', 'error');
-    }
+        },
+      },
+    });
   };
 
-  const createClass = async (e) => {
+  const createClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/classes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+    createTrainerClass({
+      variables: {
+        input: {
           ...classForm,
           startAt: new Date(classForm.startAt).toISOString(),
-        }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setShowCreateClass(false);
-        setClassForm({
-          title: '',
-          description: '',
-          category: 'strength',
-          difficulty: 'all',
-          startAt: '',
-          durationMinutes: 60,
-          locationType: 'in_person',
-          locationDetails: '',
-          capacity: 20,
-          creditsPerStudent: 50,
-          trainerWagePerStudent: 40,
-        });
-        showSnackbar('Class created!', 'success');
-        fetchData();
-      } else {
-        showSnackbar(data.error?.message || 'Failed to create class', 'error');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to create class', 'error');
-    }
+        },
+      },
+    });
   };
 
-  const openAttendanceModal = async (classData) => {
+  const openAttendanceModal = async (classData: TrainerClass) => {
     setSelectedClass(classData);
     try {
-      const res = await fetch(`/api/classes/${classData.id}/enrollments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setEnrollments(data.data || []);
+      const result = await fetchEnrollments({ classId: classData.id });
+      const enrollmentList = result.data?.classEnrollments || [];
+      setEnrollments(enrollmentList);
       setAttendanceData(
-        (data.data || []).reduce((acc, e) => ({ ...acc, [e.userId || e.user_id]: { attended: false, rating: 5 } }), {})
+        enrollmentList.reduce((acc, e) => ({ ...acc, [e.userId]: { attended: false, rating: 5 } }), {})
       );
       setShowAttendanceModal(true);
     } catch (_err) {
@@ -200,61 +270,43 @@ export default function TrainerDashboard() {
   };
 
   const submitAttendance = async () => {
-    try {
-      const attendees = Object.entries(attendanceData).map(([userId, data]) => ({
-        userId,
-        attended: data.attended,
-        rating: data.rating,
-      }));
+    if (!selectedClass) return;
 
-      const res = await fetch(`/api/classes/${selectedClass.id}/attendance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ attendees }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setShowAttendanceModal(false);
-        showSnackbar(`Attendance marked! Earned ${data.data.wageEarned} credits`, 'success');
-        fetchData();
-      }
-    } catch (_err) {
-      showSnackbar('Failed to mark attendance', 'error');
-    }
+    const attendees = Object.entries(attendanceData).map(([userId, data]) => ({
+      userId,
+      attended: data.attended,
+      rating: data.rating,
+    }));
+
+    markAttendance({
+      variables: {
+        classId: selectedClass.id,
+        attendees,
+      },
+    });
   };
 
-  const cancelClass = async (classId) => {
+  const cancelClass = async (classId: string) => {
     if (!confirm('Are you sure you want to cancel this class? All enrolled students will be refunded.')) return;
 
-    try {
-      const res = await fetch(`/api/classes/${classId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reason: 'Cancelled by trainer' }),
-      });
-      const data = await res.json();
-      if (data.data?.success) {
-        showSnackbar('Class cancelled', 'success');
-        fetchData();
-      }
-    } catch (_err) {
-      showSnackbar('Failed to cancel class', 'error');
-    }
+    cancelTrainerClass({
+      variables: {
+        classId,
+        reason: 'Cancelled by trainer',
+      },
+    });
   };
 
-  const showSnackbar = (message, type) => {
+  const showSnackbar = (message: string, type: 'success' | 'error') => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const upcomingClasses = classes.filter(c => c.status === 'scheduled' && new Date(c.startAt || c.start_at) > new Date());
-  const pastClasses = classes.filter(c => c.status === 'completed');
+  const upcomingClasses = useMemo(() =>
+    classes.filter(c => c.status === 'scheduled' && new Date(c.startAt) > new Date()),
+    [classes]
+  );
+  const pastClasses = useMemo(() => classes.filter(c => c.status === 'completed'), [classes]);
 
   if (loading) {
     return (

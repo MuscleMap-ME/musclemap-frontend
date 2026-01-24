@@ -6,14 +6,18 @@
  * - Auto-capture browser/device info
  * - Screenshot upload
  * - Label selection
+ *
+ * Uses GraphQL for all API operations.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // motion is imported for potential future animations
 import { motion as _motion } from 'framer-motion';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
 import { sanitizeText, sanitizeHtml } from '../utils/sanitize';
+import { ISSUE_LABELS_QUERY, CREATE_ISSUE_MUTATION } from '../graphql';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -88,12 +92,20 @@ function getDeviceInfo() {
   return { device, os };
 }
 
+// Types
+interface IssueLabel {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  icon: string;
+  description?: string;
+}
+
 export default function NewIssue() {
   const { token, user: _user } = useAuth();
   const navigate = useNavigate();
 
-  const [labels, setLabels] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
@@ -101,7 +113,7 @@ export default function NewIssue() {
     priority: 1,
     title: '',
     description: '',
-    labelIds: [],
+    labelIds: [] as string[],
     includeEnvironment: true,
   });
 
@@ -112,15 +124,28 @@ export default function NewIssue() {
     }
   }, [token, navigate]);
 
-  // Fetch labels
-  useEffect(() => {
-    fetch('/api/issues/labels')
-      .then(r => r.json())
-      .then(data => setLabels(data.data || []))
-      .catch(console.error);
-  }, []);
+  // Fetch labels via GraphQL
+  const { data: labelsData } = useQuery<{ issueLabels: IssueLabel[] }>(ISSUE_LABELS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const labels = labelsData?.issueLabels || [];
 
-  const handleSubmit = async (e) => {
+  // Create issue mutation
+  const [createIssue, { loading }] = useMutation(CREATE_ISSUE_MUTATION, {
+    onCompleted: (data) => {
+      const issueNumber = data?.createIssue?.issueNumber;
+      if (issueNumber) {
+        navigate(`/issues/${issueNumber}`);
+      } else {
+        navigate('/issues');
+      }
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to create issue');
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -134,45 +159,22 @@ export default function NewIssue() {
       return;
     }
 
-    setLoading(true);
+    // Sanitize user input before sending to API
+    const input: Record<string, unknown> = {
+      type: form.type,
+      priority: form.priority,
+      title: sanitizeText(form.title),
+      description: sanitizeHtml(form.description), // Allow safe HTML for formatting
+      labelIds: form.labelIds,
+      pageUrl: window.location.origin + window.location.pathname,
+    };
 
-    try {
-      // Sanitize user input before sending to API
-      const body = {
-        type: form.type,
-        priority: form.priority,
-        title: sanitizeText(form.title),
-        description: sanitizeHtml(form.description), // Allow safe HTML for formatting
-        labelIds: form.labelIds,
-        pageUrl: window.location.origin + window.location.pathname,
-      };
-
-      if (form.includeEnvironment) {
-        body.browserInfo = getBrowserInfo();
-        body.deviceInfo = getDeviceInfo();
-      }
-
-      const res = await fetch('/api/issues', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Failed to create issue');
-      }
-
-      navigate(`/issues/${data.data.issueNumber}`);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (form.includeEnvironment) {
+      input.browserInfo = getBrowserInfo();
+      input.deviceInfo = getDeviceInfo();
     }
+
+    createIssue({ variables: { input } });
   };
 
   const toggleLabel = (labelId) => {

@@ -328,8 +328,32 @@ export const ARCHETYPES_QUERY = gql`
       philosophy
       icon
       color
+      categoryId
       primaryStats
       bonuses
+    }
+  }
+`;
+
+export const ARCHETYPE_CATEGORIES_QUERY = gql`
+  query ArchetypeCategories {
+    archetypeCategories {
+      id
+      name
+      description
+      icon
+      displayOrder
+      archetypes {
+        id
+        name
+        description
+        philosophy
+        icon
+        color
+        categoryId
+        primaryStats
+        bonuses
+      }
     }
   }
 `;
@@ -1162,10 +1186,14 @@ export const ROADMAP_QUERY = gql`
       title
       description
       status
+      category
       quarter
       priority
+      progress
       voteCount
       hasVoted
+      relatedIssueIds
+      completedAt
     }
   }
 `;
@@ -1267,6 +1295,86 @@ export const MY_ACHIEVEMENT_SUMMARY_QUERY = gql`
         xpEarned
         earnedAt
       }
+    }
+  }
+`;
+
+// ============================================
+// VERIFICATIONS
+// ============================================
+
+export const MY_VERIFICATIONS_QUERY = gql`
+  query MyVerifications($status: String, $limit: Int, $offset: Int) {
+    myVerifications(status: $status, limit: $limit, offset: $offset) {
+      verifications {
+        id
+        userId
+        achievementId
+        achievementKey
+        achievementName
+        achievementTier
+        videoUrl
+        thumbnailUrl
+        videoDurationSeconds
+        status
+        notes
+        rejectionReason
+        submittedAt
+        verifiedAt
+        expiresAt
+        createdAt
+        updatedAt
+        username
+        displayName
+        avatarUrl
+        witness {
+          id
+          witnessUserId
+          witnessUsername
+          witnessDisplayName
+          witnessAvatarUrl
+          attestationText
+          relationship
+          locationDescription
+          status
+          isPublic
+          requestedAt
+          respondedAt
+        }
+      }
+      total
+    }
+  }
+`;
+
+export const MY_WITNESS_REQUESTS_QUERY = gql`
+  query MyWitnessRequests($status: String, $limit: Int, $offset: Int) {
+    myWitnessRequests(status: $status, limit: $limit, offset: $offset) {
+      verifications {
+        id
+        userId
+        achievementId
+        achievementKey
+        achievementName
+        achievementTier
+        videoUrl
+        thumbnailUrl
+        status
+        notes
+        submittedAt
+        expiresAt
+        username
+        displayName
+        avatarUrl
+        witness {
+          id
+          witnessUserId
+          witnessUsername
+          status
+          requestedAt
+        }
+      }
+      total
     }
   }
 `;
@@ -1685,15 +1793,12 @@ export const COMMUNITY_FEED_QUERY = gql`
 export const COMMUNITY_PRESENCE_QUERY = gql`
   query CommunityPresence {
     communityPresence {
-      activeUsers
-      workoutsInProgress
-      recentActivity {
-        type
-        userId
-        username
-        action
-        timestamp
+      total
+      byGeoBucket {
+        geoBucket
+        count
       }
+      redisEnabled
     }
   }
 `;

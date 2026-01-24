@@ -3,104 +3,142 @@
  *
  * Fetches anonymous live activity data with WebSocket real-time updates.
  * All data is aggregated and anonymous - respects user privacy absolutely.
+ *
+ * Uses GraphQL for feed data, with WebSocket fallback for real-time updates.
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { COMMUNITY_FEED_QUERY, PUBLIC_COMMUNITY_STATS_QUERY } from '../graphql';
 
 const WS_RECONNECT_ATTEMPTS = 5;
 const WS_RECONNECT_DELAY = 3000;
 const POLL_INTERVAL = 30000; // 30s fallback polling
 
-const TIME_WINDOWS = {
+const TIME_WINDOWS: Record<string, number> = {
   '5m': 5,
   '15m': 15,
   '1h': 60,
   '24h': 1440,
 };
 
-export function useLiveActivity(options = {}) {
+// Types
+interface FeedItem {
+  id: string;
+  type: string;
+  user?: {
+    id: string;
+    username: string;
+    avatar?: string;
+    level?: number;
+  };
+  content?: string;
+  workout?: {
+    id: string;
+    totalTU: number;
+    duration: number;
+  };
+  achievement?: {
+    id: string;
+    name: string;
+    icon?: string;
+  };
+  message?: string;
+  timestamp?: string;
+  createdAt?: string;
+}
+
+interface LiveStats {
+  total?: number;
+  activeUsers?: number;
+  byMuscle?: Record<string, number>;
+  byCountry?: Record<string, number>;
+}
+
+interface TrendingExercise {
+  exerciseId: string;
+  name: string;
+  count: number;
+}
+
+interface UseLiveActivityOptions {
+  timeWindow?: string;
+  autoConnect?: boolean;
+}
+
+export function useLiveActivity(options: UseLiveActivityOptions = {}) {
   const {
     timeWindow = '1h',
     autoConnect = true,
   } = options;
 
-  const [stats, setStats] = useState(null);
-  const [mapData, setMapData] = useState([]);
-  const [feed, setFeed] = useState([]);
-  const [trending, setTrending] = useState([]);
+  const [stats, setStats] = useState<LiveStats | null>(null);
+  const [_mapData, _setMapData] = useState<unknown[]>([]);
+  const [localFeed, setLocalFeed] = useState<FeedItem[]>([]);
+  const [_trending, _setTrending] = useState<TrendingExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
-  const [error, setError] = useState(null);
+  const [_error, _setError] = useState<string | null>(null);
 
-  const wsRef = useRef(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const pollIntervalRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const heartbeatIntervalRef = useRef(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch stats via REST API
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/live/stats?window=${timeWindow}`);
-      if (!res.ok) throw new Error('Failed to fetch live stats');
-      const json = await res.json();
-      setStats(json.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching live stats:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  // GraphQL queries
+  const { data: feedData, refetch: refetchFeed } = useQuery<{ communityFeed: FeedItem[] }>(
+    COMMUNITY_FEED_QUERY,
+    {
+      variables: { limit: 50 },
+      fetchPolicy: 'cache-and-network',
     }
-  }, [timeWindow]);
+  );
 
-  // Fetch map data
-  const fetchMapData = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/live/map?window=${timeWindow}`);
-      if (!res.ok) throw new Error('Failed to fetch map data');
-      const json = await res.json();
-      setMapData(json.data || []);
-    } catch (err) {
-      console.error('Error fetching map data:', err);
+  const { data: publicStatsData, refetch: refetchStats } = useQuery<{
+    publicCommunityStats: {
+      activeNow: { value: number };
+      totalWorkouts: { value: number };
+    };
+  }>(PUBLIC_COMMUNITY_STATS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    pollInterval: POLL_INTERVAL,
+  });
+
+  // Derive feed from GraphQL data + local WebSocket updates
+  const feed = useMemo(() => {
+    const graphqlFeed = feedData?.communityFeed || [];
+    // Merge local feed (from WebSocket) with GraphQL feed
+    const combined = [...localFeed, ...graphqlFeed];
+    // Dedupe by id
+    const seen = new Set<string>();
+    return combined.filter(item => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }).slice(0, 100);
+  }, [feedData, localFeed]);
+
+  // Derive stats from public stats
+  useEffect(() => {
+    if (publicStatsData?.publicCommunityStats) {
+      setStats(prev => ({
+        ...prev,
+        total: publicStatsData.publicCommunityStats.totalWorkouts?.value || 0,
+        activeUsers: publicStatsData.publicCommunityStats.activeNow?.value || 0,
+      }));
     }
-  }, [timeWindow]);
+  }, [publicStatsData]);
 
-  // Fetch feed data
-  const fetchFeed = useCallback(async () => {
-    try {
-      const res = await fetch('/api/live/feed?limit=50');
-      if (!res.ok) throw new Error('Failed to fetch feed');
-      const json = await res.json();
-      setFeed(json.data || []);
-    } catch (err) {
-      console.error('Error fetching feed:', err);
-    }
-  }, []);
-
-  // Fetch trending exercises
-  const fetchTrending = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/live/trending?window=${timeWindow}&limit=10`);
-      if (!res.ok) throw new Error('Failed to fetch trending');
-      const json = await res.json();
-      setTrending(json.data || []);
-    } catch (err) {
-      console.error('Error fetching trending:', err);
-    }
-  }, [timeWindow]);
-
-  // Fetch all data
+  // Fetch all data using GraphQL refetch
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     await Promise.all([
-      fetchStats(),
-      fetchMapData(),
-      fetchFeed(),
-      fetchTrending(),
+      refetchFeed(),
+      refetchStats(),
     ]);
     setLoading(false);
-  }, [fetchStats, fetchMapData, fetchFeed, fetchTrending]);
+  }, [refetchFeed, refetchStats]);
 
   // Start polling as fallback
   const startPolling = useCallback(() => {
@@ -110,7 +148,7 @@ export function useLiveActivity(options = {}) {
     pollIntervalRef.current = setInterval(fetchAllData, POLL_INTERVAL);
   }, [fetchAllData]);
 
-  // Connect to WebSocket
+  // Connect to WebSocket for real-time updates
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -141,9 +179,9 @@ export function useLiveActivity(options = {}) {
         try {
           const message = JSON.parse(event.data);
 
-          // Real-time activity event - add to feed
-          if (message.type) {
-            setFeed((prev) => [message, ...prev].slice(0, 100));
+          // Real-time activity event - add to local feed
+          if (message.type && message.id) {
+            setLocalFeed((prev) => [message, ...prev].slice(0, 50));
 
             // Update stats count
             setStats((prev) => prev ? {
@@ -223,18 +261,11 @@ export function useLiveActivity(options = {}) {
     };
   }, [fetchAllData, connectWebSocket, autoConnect]);
 
-  // Refetch when time window changes
-  useEffect(() => {
-    fetchStats();
-    fetchMapData();
-    fetchTrending();
-  }, [timeWindow, fetchStats, fetchMapData, fetchTrending]);
-
   // Format relative time
-  const formatRelativeTime = useCallback((timestamp) => {
+  const formatRelativeTime = useCallback((timestamp: string) => {
     const now = new Date();
     const then = new Date(timestamp);
-    const diffMs = now - then;
+    const diffMs = now.getTime() - then.getTime();
     const diffSec = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSec / 60);
     const diffHour = Math.floor(diffMin / 60);
@@ -278,10 +309,10 @@ export function useLiveActivity(options = {}) {
 
     // Actions
     refresh: fetchAllData,
-    refreshStats: fetchStats,
-    refreshMap: fetchMapData,
-    refreshFeed: fetchFeed,
-    refreshTrending: fetchTrending,
+    refreshStats: () => refetchStats(),
+    refreshMap: () => Promise.resolve(), // Map data not in GraphQL yet
+    refreshFeed: () => refetchFeed(),
+    refreshTrending: () => Promise.resolve(), // Trending not in GraphQL yet
 
     // Helpers
     formatRelativeTime,

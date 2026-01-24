@@ -9,12 +9,14 @@
  * - Privacy settings
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
 import { getToken } from '../utils/auth';
 import useWebSocket from '../hooks/useWebSocket';
 import useCommunityStats from '../hooks/useCommunityStats';
+import { COMMUNITY_PRESENCE_QUERY } from '../graphql';
 import ActivityFeed from '../components/community/ActivityFeed';
 import CommunityMap from '../components/community/CommunityMap';
 import StatsDashboard from '../components/community/StatsDashboard';
@@ -116,11 +118,22 @@ function TopExercisesBar({ exercises = [] }) {
   );
 }
 
+// TypeScript interface for geographic bucket data
+interface GeoBucket {
+  geoBucket: string;
+  count: number;
+}
+
+interface CommunityPresenceData {
+  total: number;
+  byGeoBucket: GeoBucket[];
+  redisEnabled: boolean;
+}
+
 export default function CommunityDashboard() {
   const { user } = useUser();
   const token = getToken();
   const [activeTab, setActiveTab] = useState('feed');
-  const [presenceData, setPresenceData] = useState([]);
 
   // Determine user role
   const userRole = user?.role || (user?.roles?.includes('admin') ? 'admin' : 'user');
@@ -183,23 +196,18 @@ export default function CommunityDashboard() {
     return merged.sort((a, b) => new Date(b.ts) - new Date(a.ts)).slice(0, 100);
   }, [snapshot, wsEvents]);
 
-  // Fetch presence data for map
-  const fetchPresence = useCallback(async () => {
-    try {
-      const res = await fetch('/api/community/presence');
-      if (!res.ok) return;
-      const json = await res.json();
-      setPresenceData(json.data?.byGeoBucket || []);
-    } catch {
-      // Failed to fetch presence
-    }
-  }, []);
+  // Fetch presence data for map via GraphQL
+  const { data: presenceResponse } = useQuery<{
+    communityPresence: CommunityPresenceData;
+  }>(COMMUNITY_PRESENCE_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    pollInterval: 30000, // Refresh every 30 seconds
+  });
 
-  useEffect(() => {
-    fetchPresence();
-    const interval = setInterval(fetchPresence, 30000);
-    return () => clearInterval(interval);
-  }, [fetchPresence]);
+  // Extract presence data for the map component
+  const presenceData = useMemo(() => {
+    return presenceResponse?.communityPresence?.byGeoBucket || [];
+  }, [presenceResponse]);
 
   // Available tabs
   const tabs = [...TABS, ...(isModOrAdmin ? ADMIN_TABS : [])];

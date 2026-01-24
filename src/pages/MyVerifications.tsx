@@ -1,8 +1,24 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * My Verifications Page
+ *
+ * View and manage achievement verifications:
+ * - My Submissions: verification requests I've submitted
+ * - Witness Requests: requests from others for me to witness
+ *
+ * Uses GraphQL for all API operations.
+ */
+
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
+import {
+  MY_VERIFICATIONS_QUERY,
+  MY_WITNESS_REQUESTS_QUERY,
+  CANCEL_VERIFICATION_MUTATION,
+} from '../graphql';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -16,7 +32,7 @@ const Icons = {
   Video: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>,
 };
 
-const TIER_CONFIG = {
+const TIER_CONFIG: Record<string, { label: string; color: string }> = {
   bronze: { label: 'Bronze', color: 'bg-amber-700/20 text-amber-500 border-amber-700/30' },
   silver: { label: 'Silver', color: 'bg-gray-400/20 text-gray-400 border-gray-400/30' },
   gold: { label: 'Gold', color: 'bg-amber-400/20 text-amber-400 border-amber-400/30' },
@@ -24,14 +40,14 @@ const TIER_CONFIG = {
   diamond: { label: 'Diamond', color: 'bg-violet-400/20 text-violet-400 border-violet-400/30' },
 };
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.FC }> = {
   pending_witness: { label: 'Awaiting Witness', color: 'bg-yellow-500/20 text-yellow-400', icon: Icons.Clock },
   verified: { label: 'Verified', color: 'bg-green-500/20 text-green-400', icon: Icons.Check },
   rejected: { label: 'Rejected', color: 'bg-red-500/20 text-red-400', icon: Icons.X },
   expired: { label: 'Expired', color: 'bg-gray-500/20 text-gray-400', icon: Icons.Clock },
 };
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr: string) => {
   try {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -40,71 +56,117 @@ const formatDate = (dateStr) => {
   }
 };
 
-const formatDaysRemaining = (expiresAt) => {
+const formatDaysRemaining = (expiresAt: string) => {
   const now = new Date();
   const expiry = new Date(expiresAt);
-  const days = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  const days = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   if (days <= 0) return 'Expired';
   if (days === 1) return '1 day left';
   return `${days} days left`;
 };
 
+// Types
+interface WitnessInfo {
+  id: string;
+  witnessUserId: string;
+  witnessUsername?: string;
+  witnessDisplayName?: string;
+  witnessAvatarUrl?: string;
+  attestationText?: string;
+  relationship?: string;
+  locationDescription?: string;
+  status: string;
+  isPublic: boolean;
+  requestedAt: string;
+  respondedAt?: string;
+}
+
+interface AchievementVerification {
+  id: string;
+  userId: string;
+  achievementId: string;
+  achievementKey?: string;
+  achievementName?: string;
+  achievementTier?: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  videoDurationSeconds?: number;
+  status: string;
+  notes?: string;
+  rejectionReason?: string;
+  submittedAt: string;
+  verifiedAt?: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  witness?: WitnessInfo;
+}
+
 export default function MyVerifications() {
   const { token } = useAuth();
-  const _navigate = useNavigate();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('my'); // 'my' or 'witness'
-  const [verifications, setVerifications] = useState([]);
-  const [witnessRequests, setWitnessRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState(null);
+  const [activeTab, setActiveTab] = useState<'my' | 'witness'>('my');
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [myRes, witnessRes] = await Promise.all([
-        fetch('/api/me/verifications', { headers }),
-        fetch('/api/me/witness-requests', { headers }),
-      ]);
-
-      const [myData, witnessData] = await Promise.all([
-        myRes.json(),
-        witnessRes.json(),
-      ]);
-
-      setVerifications(myData.data || []);
-      setWitnessRequests(witnessData.data || []);
-    } catch (err) {
-      console.error('Failed to load verifications:', err);
-    } finally {
-      setLoading(false);
+  // Redirect if not logged in
+  React.useEffect(() => {
+    if (!token) {
+      navigate('/login');
     }
-  };
+  }, [token, navigate]);
 
-  const handleCancel = async (verificationId) => {
+  // Fetch my verifications via GraphQL
+  const { data: verificationsData, loading: verificationsLoading, refetch: refetchVerifications } = useQuery<{
+    myVerifications: { verifications: AchievementVerification[]; total: number };
+  }>(MY_VERIFICATIONS_QUERY, {
+    skip: !token,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Fetch witness requests via GraphQL
+  const { data: witnessData, loading: witnessLoading } = useQuery<{
+    myWitnessRequests: { verifications: AchievementVerification[]; total: number };
+  }>(MY_WITNESS_REQUESTS_QUERY, {
+    skip: !token,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Cancel verification mutation
+  const [cancelVerification] = useMutation(CANCEL_VERIFICATION_MUTATION, {
+    onCompleted: () => {
+      refetchVerifications();
+      setCancelling(null);
+    },
+    onError: (err) => {
+      console.error('Failed to cancel:', err);
+      setCancelling(null);
+    },
+  });
+
+  const verifications = useMemo(() =>
+    verificationsData?.myVerifications?.verifications || [],
+    [verificationsData]
+  );
+
+  const witnessRequests = useMemo(() =>
+    witnessData?.myWitnessRequests?.verifications || [],
+    [witnessData]
+  );
+
+  const handleCancel = async (verificationId: string) => {
     if (!confirm('Are you sure you want to cancel this verification request?')) return;
 
     setCancelling(verificationId);
-    try {
-      await fetch(`/api/verifications/${verificationId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setVerifications(verifications.filter((v) => v.id !== verificationId));
-    } catch (err) {
-      console.error('Failed to cancel:', err);
-    } finally {
-      setCancelling(null);
-    }
+    cancelVerification({ variables: { verificationId } });
   };
 
-  if (loading) {
+  const loading = verificationsLoading && witnessLoading;
+
+  if (loading && verifications.length === 0 && witnessRequests.length === 0) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
@@ -178,7 +240,7 @@ export default function MyVerifications() {
               </div>
             ) : (
               verifications.map((verification) => {
-                const tierConfig = TIER_CONFIG[verification.achievementTier] || TIER_CONFIG.bronze;
+                const tierConfig = TIER_CONFIG[verification.achievementTier || 'bronze'] || TIER_CONFIG.bronze;
                 const statusConfig = STATUS_CONFIG[verification.status] || STATUS_CONFIG.pending_witness;
                 const StatusIcon = statusConfig.icon;
 
@@ -192,7 +254,7 @@ export default function MyVerifications() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <span className={clsx('text-xs px-2 py-0.5 rounded border', tierConfig.color)}>
-                          {TIER_CONFIG[verification.achievementTier]?.label || 'Bronze'}
+                          {TIER_CONFIG[verification.achievementTier || 'bronze']?.label || 'Bronze'}
                         </span>
                         <h3 className="text-lg font-semibold mt-1">{verification.achievementName}</h3>
                       </div>
@@ -278,7 +340,7 @@ export default function MyVerifications() {
               </div>
             ) : (
               witnessRequests.map((request) => {
-                const tierConfig = TIER_CONFIG[request.achievementTier] || TIER_CONFIG.bronze;
+                const tierConfig = TIER_CONFIG[request.achievementTier || 'bronze'] || TIER_CONFIG.bronze;
                 const isPending = request.witness?.status === 'pending';
 
                 return (
@@ -294,7 +356,7 @@ export default function MyVerifications() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <span className={clsx('text-xs px-2 py-0.5 rounded border', tierConfig.color)}>
-                          {TIER_CONFIG[request.achievementTier]?.label || 'Bronze'}
+                          {TIER_CONFIG[request.achievementTier || 'bronze']?.label || 'Bronze'}
                         </span>
                         <h3 className="text-lg font-semibold mt-1">{request.achievementName}</h3>
                       </div>

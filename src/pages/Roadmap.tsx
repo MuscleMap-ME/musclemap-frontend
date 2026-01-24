@@ -6,16 +6,20 @@
  * - In progress work
  * - Completed features
  * - Voting on priorities
+ *
+ * Uses GraphQL for all API operations.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { RoadmapAtlas } from '../components/atlas';
 import SEO, { getBreadcrumbSchema } from '../components/SEO';
+import { ROADMAP_QUERY, VOTE_ON_ROADMAP_ITEM_MUTATION } from '../graphql';
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -169,33 +173,45 @@ function RoadmapColumn({ title, icon, items, onVote, votingId, emptyMessage }) {
   );
 }
 
+// Types
+interface RoadmapItem {
+  id: string;
+  title: string;
+  description: string;
+  status: number;
+  category?: string;
+  quarter?: string;
+  priority?: number;
+  progress?: number;
+  voteCount: number;
+  hasVoted: boolean;
+  relatedIssueIds?: string[];
+  completedAt?: string;
+}
+
 export default function Roadmap() {
   const { token } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [votingId, setVotingId] = useState(null);
+  const [votingId, setVotingId] = useState<string | null>(null);
   const [view, setView] = useState('board'); // 'board' or 'list'
 
-  useEffect(() => {
-    fetchRoadmap();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Fetch roadmap via GraphQL
+  const { data, loading, refetch } = useQuery<{ roadmap: RoadmapItem[] }>(ROADMAP_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+  const items = useMemo(() => data?.roadmap || [], [data?.roadmap]);
 
-  const fetchRoadmap = async () => {
-    try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch('/api/roadmap', { headers });
-      const data = await res.json();
-      setItems(data.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Vote mutation
+  const [voteOnRoadmapItem] = useMutation(VOTE_ON_ROADMAP_ITEM_MUTATION, {
+    onCompleted: () => {
+      refetch();
+    },
+    onError: (err) => {
+      console.error('Vote error:', err);
+    },
+  });
 
-  const handleVote = async (itemId) => {
+  const handleVote = async (itemId: string) => {
     if (!token) {
       navigate('/login');
       return;
@@ -203,30 +219,27 @@ export default function Roadmap() {
 
     setVotingId(itemId);
     try {
-      const res = await fetch(`/api/roadmap/${itemId}/vote`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (data.data) {
-        setItems(items.map(item =>
-          item.id === itemId
-            ? { ...item, hasVoted: data.data.voted, voteCount: data.data.voteCount }
-            : item
-        ));
-      }
-    } catch (err) {
-      console.error(err);
+      await voteOnRoadmapItem({ variables: { itemId } });
     } finally {
       setVotingId(null);
     }
   };
 
   // Group items by status
-  const planned = items.filter(i => i.status === 0).sort((a, b) => b.voteCount - a.voteCount);
-  const inProgress = items.filter(i => i.status === 1).sort((a, b) => b.progress - a.progress);
-  const completed = items.filter(i => i.status === 2).sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  const planned = useMemo(() =>
+    items.filter(i => i.status === 0).sort((a, b) => b.voteCount - a.voteCount),
+    [items]
+  );
+  const inProgress = useMemo(() =>
+    items.filter(i => i.status === 1).sort((a, b) => (b.progress || 0) - (a.progress || 0)),
+    [items]
+  );
+  const completed = useMemo(() =>
+    items.filter(i => i.status === 2).sort((a, b) =>
+      new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+    ),
+    [items]
+  );
 
   // Breadcrumb structured data
   const breadcrumbs = getBreadcrumbSchema([
