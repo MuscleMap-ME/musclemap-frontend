@@ -2,12 +2,39 @@
  * GlassNav - Floating navigation bar with liquid glass effect
  *
  * Features scroll-responsive blur intensity and luminous logo integration.
+ *
+ * CRITICAL: Uses SafeMotion wrappers to prevent blank content on iOS Lockdown Mode
+ * and Brave Shields, which can cause framer-motion animations to fail silently.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
+
+/**
+ * Detect if we're in a restrictive environment where framer-motion might fail
+ */
+function isRestrictiveEnvironment(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isBrave = !!(navigator as any).brave;
+    return isIOS && isBrave;
+  } catch {
+    return false;
+  }
+}
+
+// Cache the result
+let _isRestrictive: boolean | null = null;
+function getIsRestrictive(): boolean {
+  if (_isRestrictive === null) {
+    _isRestrictive = isRestrictiveEnvironment();
+  }
+  return _isRestrictive;
+}
 
 /**
  * Hook to detect scroll position
@@ -33,8 +60,41 @@ const useScrollPosition = () => {
 /**
  * Animated MuscleMap Logo
  * Uses the official MuscleMap logo image with breathing pulse effect
+ * Falls back to static logo on restrictive environments to prevent disappearing
  */
 export const AnimatedLogo = ({ size = 32, breathing = true }) => {
+  // In restrictive environments, use static logo to prevent disappearing
+  if (getIsRestrictive()) {
+    return (
+      <div
+        className={clsx(
+          'relative flex items-center justify-center rounded-xl overflow-hidden',
+          breathing && 'glow-breathing'
+        )}
+        style={{
+          width: size,
+          height: size,
+          boxShadow: 'var(--glow-brand-sm)',
+          // Ensure visibility
+          opacity: 1,
+        }}
+      >
+        <picture>
+          <source srcSet="/logo.avif" type="image/avif" />
+          <source srcSet="/logo.webp" type="image/webp" />
+          <img
+            src="/logo.png"
+            alt="MuscleMap"
+            width={size}
+            height={size}
+            className="w-full h-full object-contain"
+            style={{ opacity: 1 }}
+          />
+        </picture>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       className={clsx(
@@ -45,13 +105,18 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
         width: size,
         height: size,
         boxShadow: 'var(--glow-brand-sm)',
+        // Ensure base visibility even if animation fails
+        opacity: 1,
       }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      // REMOVED opacity animation - this was causing logo to disappear!
+      // The opacity: [0.95, 1, 0.95] animation could leave the logo at 0.95 opacity
+      // which on some browsers renders as invisible
       animate={
         breathing
-          ? { scale: [1, 1.02, 1], opacity: [0.95, 1, 0.95] }
+          ? { scale: [1, 1.02, 1] }
           : {}
       }
     >
@@ -65,6 +130,7 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
           width={size}
           height={size}
           className="w-full h-full object-contain"
+          style={{ opacity: 1 }}
         />
       </picture>
     </motion.div>
@@ -73,6 +139,7 @@ export const AnimatedLogo = ({ size = 32, breathing = true }) => {
 
 /**
  * GlassNavBar - Main navigation component
+ * Uses SafeMotion pattern - falls back to static header on restrictive environments
  */
 const GlassNavBar = ({
   logo,
@@ -86,6 +153,58 @@ const GlassNavBar = ({
 }) => {
   const { isScrolled } = useScrollPosition();
 
+  // In restrictive environments, render without motion to prevent header disappearing
+  if (getIsRestrictive()) {
+    return (
+      <header
+        className={clsx(
+          'top-0 left-0 right-0 z-[var(--z-sticky)]',
+          fixed ? 'fixed' : 'sticky',
+          'transition-all duration-300',
+          className
+        )}
+        style={{ opacity: 1, transform: 'translateY(0)' }}
+      >
+        <nav
+          className={clsx(
+            'nav-glass nav-glass-scroll',
+            isScrolled && 'scrolled'
+          )}
+        >
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            {/* Left section: Logo + Brand */}
+            <div className="flex items-center gap-3">
+              {brandSlot || (
+                <Link to="/" className="flex items-center gap-3">
+                  {logo || <AnimatedLogo size={32} breathing={false} />}
+                  <span
+                    className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
+                    style={{ opacity: 1 }}
+                  >
+                    {brandName}
+                  </span>
+                </Link>
+              )}
+              {leftContent}
+            </div>
+
+            {/* Center section: Navigation links */}
+            {children && (
+              <div className="hidden md:flex items-center gap-1">
+                {children}
+              </div>
+            )}
+
+            {/* Right section: Actions */}
+            <div className="flex items-center gap-2">
+              {rightContent}
+            </div>
+          </div>
+        </nav>
+      </header>
+    );
+  }
+
   return (
     <motion.header
       className={clsx(
@@ -94,6 +213,8 @@ const GlassNavBar = ({
         'transition-all duration-300',
         className
       )}
+      // Ensure header is visible even if animation fails
+      style={{ opacity: 1 }}
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 100, damping: 20 }}
@@ -112,6 +233,7 @@ const GlassNavBar = ({
                 {logo || <AnimatedLogo size={32} breathing={!isScrolled} />}
                 <motion.span
                   className="font-semibold text-lg text-[var(--text-primary)] hidden sm:block"
+                  style={{ opacity: 1 }}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
