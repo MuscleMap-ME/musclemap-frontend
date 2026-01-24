@@ -10,24 +10,11 @@ import { GraphQLError } from 'graphql';
 import { queryOne, queryAll } from '../../db/client';
 import type { Loaders } from '../loaders';
 
-// ============================================
-// TYPES
-// ============================================
+// Re-export types from the types module
+export type { Context, PaginationArgs, AuthResult, ResolverFn, ResolverMap } from './types';
 
-export interface Context {
-  user?: {
-    userId: string;
-    email: string;
-    roles: string[];
-  };
-  loaders: Loaders;
-}
-
-export interface PaginationArgs {
-  limit?: number;
-  offset?: number;
-  cursor?: string;
-}
+// Import Context for use in this file
+import type { Context, PaginationArgs } from './types';
 
 export interface KeysetCursor {
   createdAt: string;

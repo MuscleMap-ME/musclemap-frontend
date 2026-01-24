@@ -1,92 +1,76 @@
 /**
- * GraphQL Resolvers - Modular Architecture
+ * GraphQL Resolvers - Modular Entry Point
  *
- * This file serves as the entry point for all resolvers.
- * Resolvers are organized by domain for better maintainability.
+ * This file combines all domain-specific resolver modules into a single
+ * resolver map for Apollo Server.
  *
- * Migration Strategy:
- * 1. Domain resolvers are gradually extracted to separate files
- * 2. This index re-exports all resolvers in a single object
- * 3. The main resolvers.ts will eventually just import from here
+ * Architecture:
+ * - Each domain has its own file (user.ts, workout.ts, economy.ts, etc.)
+ * - Domain files export queries, mutations, and type resolvers
+ * - This file merges them into the final resolver structure
  *
- * Domain modules:
- * - auth: User authentication, profile, capabilities
- * - exercises: Exercise library, muscle data
- * - workouts: Workout tracking, sets, sessions
- * - stats: Statistics, leaderboards, rankings
- * - economy: Credits, wallet, transactions
- * - community: Feed, presence, messaging
- * - achievements: Achievements, verifications
- * - goals: User goals and progress
- * - journey: Archetypes, journeys, progression
- * - skills: Skill trees, progression
- * - martial-arts: Martial arts module
- * - teams: Crews, rivals, mentorship
- * - mascot: Companion mascot system
- * - marketplace: Store, mystery boxes
- * - nutrition: Food logging, macros
- * - recovery: Sleep, recovery tracking
- * - career: PT tests, career readiness
- * - programs: Workout programs
- * - admin: Administrative operations
+ * Migration Status:
+ * - [x] user.ts - User queries/mutations
+ * - [ ] workout.ts - Workout tracking
+ * - [ ] economy.ts - Credits and transactions
+ * - [ ] achievement.ts - Achievements and badges
+ * - [ ] community.ts - Social features
+ * - [ ] (more to be added)
+ *
+ * Legacy: The main resolvers.ts still contains most resolvers.
+ * These will be gradually migrated to domain modules.
  */
 
-// Re-export utilities for use in resolver modules
+// Re-export types and utilities
+export * from './types';
 export * from './utils';
 
-// Import domain resolvers as they are extracted
-// (These will be gradually populated as we modularize)
+// Domain modules
+import userResolvers, { userQueries, userMutations, userTypeResolvers } from './user';
 
-// For now, the main resolvers.ts still contains all resolvers
-// This file will be the future entry point once modularization is complete
+// Export individual resolvers for testing
+export { userResolvers, userQueries, userMutations, userTypeResolvers };
 
 /**
- * Merge multiple resolver objects into one
+ * Merge multiple resolver objects into one.
+ * Handles nested type resolvers correctly.
  */
-export function mergeResolvers(
-  ...resolverSets: Array<Record<string, Record<string, unknown>>>
-): Record<string, Record<string, unknown>> {
-  const merged: Record<string, Record<string, unknown>> = {};
+function mergeResolvers(...resolverMaps: Record<string, unknown>[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
 
-  for (const resolvers of resolverSets) {
+  for (const resolvers of resolverMaps) {
     for (const [typeName, typeResolvers] of Object.entries(resolvers)) {
-      if (!merged[typeName]) {
-        merged[typeName] = {};
+      if (!result[typeName]) {
+        result[typeName] = {};
       }
-      Object.assign(merged[typeName], typeResolvers);
+
+      if (typeof typeResolvers === 'object' && typeResolvers !== null) {
+        // Merge type resolvers
+        Object.assign(result[typeName] as object, typeResolvers);
+      } else {
+        // Direct assignment for scalars, etc.
+        result[typeName] = typeResolvers;
+      }
     }
   }
 
-  return merged;
+  return result;
 }
 
 /**
- * Create a resolver module structure
+ * Combined modular resolvers.
+ *
+ * NOTE: These are currently used alongside the legacy resolvers.ts file.
+ * The main resolvers.ts takes precedence for queries/mutations that exist in both.
+ * As migration progresses, more resolvers will move here.
  */
-export interface ResolverModule {
-  Query?: Record<string, unknown>;
-  Mutation?: Record<string, unknown>;
-  Subscription?: Record<string, unknown>;
-  [typeName: string]: Record<string, unknown> | undefined;
-}
+export const modularResolvers = mergeResolvers(
+  userResolvers
+  // Add more domain resolvers here as they are created:
+  // workoutResolvers,
+  // economyResolvers,
+  // achievementResolvers,
+  // communityResolvers,
+);
 
-// Domain resolver exports (uncomment as modules are created)
-// export { authResolvers } from './auth.resolvers';
-// export { exerciseResolvers } from './exercises.resolvers';
-// export { workoutResolvers } from './workouts.resolvers';
-// export { statsResolvers } from './stats.resolvers';
-// export { economyResolvers } from './economy.resolvers';
-// export { communityResolvers } from './community.resolvers';
-// export { achievementResolvers } from './achievements.resolvers';
-// export { goalResolvers } from './goals.resolvers';
-// export { journeyResolvers } from './journey.resolvers';
-// export { skillResolvers } from './skills.resolvers';
-// export { martialArtsResolvers } from './martial-arts.resolvers';
-// export { teamResolvers } from './teams.resolvers';
-// export { mascotResolvers } from './mascot.resolvers';
-// export { marketplaceResolvers } from './marketplace.resolvers';
-// export { nutritionResolvers } from './nutrition.resolvers';
-// export { recoveryResolvers } from './recovery.resolvers';
-// export { careerResolvers } from './career.resolvers';
-// export { programResolvers } from './programs.resolvers';
-// export { adminResolvers } from './admin.resolvers';
+export default modularResolvers;
