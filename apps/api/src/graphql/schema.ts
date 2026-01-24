@@ -26,6 +26,7 @@ export const typeDefs = `#graphql
     exercises(search: String, muscleGroup: String, equipment: String, limit: Int): [Exercise!]!
     exercise(id: ID!): Exercise
     muscles: [Muscle!]!
+    myMuscleActivations: [UserMuscleActivation!]!
 
     # Workouts
     myWorkouts(limit: Int, offset: Int): [Workout!]!
@@ -49,10 +50,27 @@ export const typeDefs = `#graphql
 
     # Journey & Archetypes
     journey: JourneyProgress
+    journeyOverview: JourneyOverview
     archetypes: [Archetype!]!
     archetype(id: ID!): Archetype
     archetypeCategories: [ArchetypeCategory!]!
     archetypesByCategory(categoryId: ID!): [Archetype!]!
+
+    # Skills (Calisthenics/Gymnastics)
+    skillTrees: [SkillTree!]!
+    skillTree(treeId: ID!): SkillTree
+    skillTreeProgress(treeId: ID!): [SkillNode!]!
+    skillSummary: SkillSummary
+
+    # Martial Arts
+    martialArtsDisciplines(militaryOnly: Boolean): [MartialArtsDiscipline!]!
+    martialArtsDiscipline(id: ID!): MartialArtsDiscipline
+    martialArtsTechniques(disciplineId: ID!): [MartialArtsTechnique!]!
+    martialArtsTechnique(id: ID!): MartialArtsTechnique
+    martialArtsProgress: MartialArtsSummary
+    martialArtsDisciplineProgress(disciplineId: ID!): [MartialArtsTechnique!]!
+    martialArtsDisciplineLeaderboard(disciplineId: ID!, limit: Int): [DisciplineLeaderboardEntry!]!
+    martialArtsPracticeHistory(limit: Int, offset: Int, disciplineId: ID): TechniquePracticeHistory!
 
     # Equipment
     equipmentTypes: [EquipmentType!]!
@@ -273,6 +291,12 @@ export const typeDefs = `#graphql
     competitions(status: String): [Competition!]!
     competition(id: ID!): Competition
     myCompetitionEntries: [CompetitionEntry!]!
+
+    # Buddy (Training Companion)
+    buddy: Buddy
+    buddyInventory(category: String): [BuddyInventoryItem!]!
+    buddyEvolutionPath(species: String!): [BuddyEvolutionStage!]!
+    buddyLeaderboard(species: String, limit: Int, offset: Int): BuddyLeaderboardResult!
   }
 
   type Mutation {
@@ -308,6 +332,15 @@ export const typeDefs = `#graphql
 
     # Archetypes
     selectArchetype(archetypeId: ID!): ArchetypeSelection!
+
+    # Skills
+    logSkillPractice(input: SkillPracticeInput!): SkillPracticeLog!
+    achieveSkill(skillNodeId: ID!): SkillAchieveResult!
+
+    # Martial Arts
+    practiceMartialArt(input: TechniquePracticeInput!): TechniquePracticeLog!
+    masterMartialArt(techniqueId: ID!): TechniqueMasterResult!
+    updateMartialArtNotes(techniqueId: ID!, notes: String!): Boolean!
 
     # Equipment
     updateHomeEquipment(equipmentIds: [ID!]!): [HomeEquipment!]!
@@ -479,6 +512,15 @@ export const typeDefs = `#graphql
     setExerciseAvoidance(input: MascotExerciseAvoidanceInput!): Boolean!
     removeExerciseAvoidance(exerciseId: ID!): Boolean!
 
+    # Buddy (Training Companion)
+    createBuddy(input: CreateBuddyInput!): Buddy!
+    updateBuddySpecies(species: String!): Buddy!
+    updateBuddyNickname(nickname: String): Boolean!
+    updateBuddySettings(input: BuddySettingsInput!): Boolean!
+    equipBuddyCosmetic(sku: String!, slot: String!): Boolean!
+    unequipBuddyCosmetic(slot: String!): Boolean!
+    feedBuddy(xpAmount: Int!): BuddyXpResult!
+
     # Journey Health
     calculateJourneyHealth(journeyId: ID!): JourneyHealthScore!
     acknowledgeJourneyAlert(alertId: ID!): JourneyHealthAlert!
@@ -632,6 +674,12 @@ export const typeDefs = `#graphql
     group: String!
     subGroup: String
     description: String
+  }
+
+  # User's aggregated muscle activation data from recent workouts
+  type UserMuscleActivation {
+    muscleId: String!
+    activation: Int!
   }
 
   # ============================================
@@ -977,6 +1025,292 @@ export const typeDefs = `#graphql
     success: Boolean!
     archetype: Archetype!
     journey: JourneyProgress!
+  }
+
+  # ============================================
+  # JOURNEY OVERVIEW TYPES (Comprehensive journey data)
+  # ============================================
+  type JourneyOverview {
+    # Core stats
+    currentArchetype: String!
+    totalTU: Float!
+    currentLevel: Int!
+    currentLevelName: String!
+    daysSinceJoined: Int!
+    totalWorkouts: Int!
+    streak: Int!
+    nextLevelTU: Float!
+
+    # Detailed stats
+    stats: JourneyStats!
+
+    # Chart data (30 days)
+    workoutHistory: [JourneyWorkoutDay!]!
+
+    # Top exercises
+    topExercises: [JourneyExercise!]!
+
+    # Level progression
+    levels: [JourneyLevel!]!
+
+    # Muscle data
+    muscleGroups: [JourneyMuscleGroup!]!
+    muscleBreakdown: [JourneyMuscle!]!
+
+    # Recent workouts
+    recentWorkouts: [JourneyWorkout!]!
+
+    # Archetype paths for switching
+    paths: [JourneyPath!]!
+  }
+
+  type JourneyStats {
+    weekly: JourneyPeriodStats!
+    monthly: JourneyPeriodStats!
+    allTime: JourneyPeriodStats!
+  }
+
+  type JourneyPeriodStats {
+    workouts: Int!
+    tu: Float!
+    avgTuPerWorkout: Float!
+  }
+
+  type JourneyWorkoutDay {
+    date: String!
+    tu: Float!
+    count: Int!
+  }
+
+  type JourneyExercise {
+    id: ID!
+    name: String!
+    count: Int!
+  }
+
+  type JourneyLevel {
+    level: Int!
+    name: String!
+    totalTu: Float!
+    achieved: Boolean!
+  }
+
+  type JourneyMuscleGroup {
+    name: String!
+    total: Float!
+  }
+
+  type JourneyMuscle {
+    id: ID!
+    name: String!
+    group: String!
+    totalActivation: Float!
+  }
+
+  type JourneyWorkout {
+    id: ID!
+    date: String!
+    tu: Float!
+    createdAt: DateTime!
+  }
+
+  type JourneyPath {
+    archetype: String!
+    name: String!
+    philosophy: String
+    focusAreas: [String!]!
+    isCurrent: Boolean!
+    percentComplete: Float!
+  }
+
+  # ============================================
+  # SKILL TYPES (Calisthenics/Gymnastics)
+  # ============================================
+  type SkillTree {
+    id: ID!
+    name: String!
+    description: String
+    icon: String
+    color: String
+    nodeCount: Int!
+    nodes: [SkillNode!]
+  }
+
+  type SkillNode {
+    id: ID!
+    treeId: ID!
+    name: String!
+    description: String
+    tier: Int!
+    position: Int!
+    difficulty: Int!
+    criteriaType: String
+    criteriaValue: Int
+    criteriaDescription: String
+    xpReward: Int!
+    creditReward: Int!
+    tips: [String!]
+    progress: SkillProgress
+  }
+
+  type SkillProgress {
+    status: String!
+    practiceMinutes: Int!
+    practiceCount: Int!
+    bestValue: Int
+    achievedAt: DateTime
+  }
+
+  type SkillSummary {
+    totalSkills: Int!
+    achievedSkills: Int!
+    inProgressSkills: Int!
+    availableSkills: Int!
+    lockedSkills: Int!
+    totalPracticeMinutes: Int!
+  }
+
+  input SkillPracticeInput {
+    skillNodeId: ID!
+    durationMinutes: Int!
+    valueAchieved: Int
+    notes: String
+  }
+
+  type SkillPracticeLog {
+    id: ID!
+    skillNodeId: ID!
+    durationMinutes: Int!
+    valueAchieved: Int
+    notes: String
+    createdAt: DateTime!
+  }
+
+  type SkillAchieveResult {
+    success: Boolean!
+    error: String
+    xpAwarded: Int
+    creditsAwarded: Int
+  }
+
+  # ============================================
+  # MARTIAL ARTS TYPES
+  # ============================================
+  type MartialArtsDiscipline {
+    id: ID!
+    name: String!
+    description: String
+    originCountry: String
+    focusAreas: [String!]!
+    icon: String
+    color: String
+    orderIndex: Int!
+    isMilitary: Boolean!
+    categories: [MartialArtsCategory!]
+  }
+
+  type MartialArtsCategory {
+    id: ID!
+    disciplineId: ID!
+    name: String!
+    description: String
+    orderIndex: Int!
+  }
+
+  type MartialArtsTechnique {
+    id: ID!
+    disciplineId: ID!
+    categoryId: ID
+    name: String!
+    description: String
+    category: String!
+    difficulty: Int!
+    prerequisites: [String!]!
+    keyPoints: [String!]!
+    commonMistakes: [String!]!
+    drillSuggestions: [String!]!
+    videoUrl: String
+    thumbnailUrl: String
+    muscleGroups: [String!]!
+    xpReward: Int!
+    creditReward: Int!
+    tier: Int!
+    position: Int!
+    progress: UserTechniqueProgress
+  }
+
+  type UserTechniqueProgress {
+    id: ID!
+    userId: ID!
+    techniqueId: ID!
+    status: String!
+    proficiency: Int!
+    practiceCount: Int!
+    totalPracticeMinutes: Int!
+    lastPracticed: DateTime
+    masteredAt: DateTime
+    notes: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type MartialArtsSummary {
+    totalTechniques: Int!
+    masteredTechniques: Int!
+    learningTechniques: Int!
+    availableTechniques: Int!
+    totalPracticeMinutes: Int!
+    disciplineProgress: [DisciplineProgress!]!
+  }
+
+  type DisciplineProgress {
+    disciplineId: ID!
+    disciplineName: String!
+    mastered: Int!
+    total: Int!
+  }
+
+  type TechniquePracticeLog {
+    id: ID!
+    userId: ID!
+    techniqueId: ID!
+    techniqueName: String
+    disciplineName: String
+    practiceDate: DateTime!
+    durationMinutes: Int!
+    repsPerformed: Int
+    roundsPerformed: Int
+    partnerDrill: Boolean!
+    notes: String
+    createdAt: DateTime!
+  }
+
+  type TechniquePracticeHistory {
+    logs: [TechniquePracticeLog!]!
+    total: Int!
+  }
+
+  type DisciplineLeaderboardEntry {
+    userId: ID!
+    username: String!
+    masteredCount: Int!
+    totalPracticeMinutes: Int!
+  }
+
+  input TechniquePracticeInput {
+    techniqueId: ID!
+    durationMinutes: Int!
+    repsPerformed: Int
+    roundsPerformed: Int
+    partnerDrill: Boolean
+    notes: String
+  }
+
+  type TechniqueMasterResult {
+    success: Boolean!
+    creditsAwarded: Int
+    xpAwarded: Int
+    error: String
   }
 
   # ============================================
@@ -1734,6 +2068,103 @@ export const typeDefs = `#graphql
     maxParticipants: Int
     entryFee: Int
     isPublic: Boolean
+  }
+
+  # ============================================
+  # BUDDY (TRAINING COMPANION) TYPES
+  # ============================================
+  type Buddy {
+    userId: ID!
+    species: String!
+    nickname: String
+    level: Int!
+    xp: Int!
+    xpToNextLevel: Int!
+    stage: Int!
+    stageName: String!
+    stageDescription: String
+
+    # Equipped cosmetics
+    equippedAura: String
+    equippedArmor: String
+    equippedWings: String
+    equippedTool: String
+    equippedSkin: String
+    equippedEmotePack: String
+    equippedVoicePack: String
+
+    # Unlocked abilities
+    unlockedAbilities: [String!]!
+
+    # Display settings
+    visible: Boolean!
+    showOnProfile: Boolean!
+    showInWorkouts: Boolean!
+
+    # Stats
+    totalXpEarned: Int!
+    workoutsTogether: Int!
+    streaksWitnessed: Int!
+    prsCelebrated: Int!
+
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type BuddyEvolutionStage {
+    species: String!
+    stage: Int!
+    minLevel: Int!
+    stageName: String!
+    description: String
+    unlockedFeatures: [String!]!
+  }
+
+  type BuddyInventoryItem {
+    id: ID!
+    sku: String!
+    name: String!
+    category: String!
+    slot: String
+    rarity: String
+    equipped: Boolean!
+    icon: String
+    description: String
+  }
+
+  type BuddyLeaderboardEntry {
+    rank: Int!
+    userId: ID!
+    username: String!
+    species: String!
+    nickname: String
+    level: Int!
+    stage: Int!
+    stageName: String!
+  }
+
+  type BuddyLeaderboardResult {
+    entries: [BuddyLeaderboardEntry!]!
+    total: Int!
+  }
+
+  type BuddyXpResult {
+    newXp: Int!
+    newLevel: Int!
+    leveledUp: Boolean!
+    newStage: Int!
+    evolved: Boolean!
+  }
+
+  input CreateBuddyInput {
+    species: String!
+    nickname: String
+  }
+
+  input BuddySettingsInput {
+    visible: Boolean
+    showOnProfile: Boolean
+    showInWorkouts: Boolean
   }
 
   # ============================================

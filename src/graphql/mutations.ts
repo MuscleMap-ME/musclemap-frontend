@@ -714,25 +714,38 @@ export const VOTE_ON_ROADMAP_ITEM_MUTATION = gql`
 // ============================================
 
 export const PRACTICE_SKILL_MUTATION = gql`
-  mutation PracticeSkill($skillId: ID!, $duration: Int!) {
-    practiceSkill(skillId: $skillId, duration: $duration) {
-      skillId
-      xpEarned
-      newLevel
-      levelUp
+  mutation LogSkillPractice($input: SkillPracticeInput!) {
+    logSkillPractice(input: $input) {
+      id
+      skillNodeId
+      durationMinutes
+      valueAchieved
+      notes
+      createdAt
+    }
+  }
+`;
+
+export const LOG_SKILL_PRACTICE_MUTATION = gql`
+  mutation LogSkillPractice($input: SkillPracticeInput!) {
+    logSkillPractice(input: $input) {
+      id
+      skillNodeId
+      durationMinutes
+      valueAchieved
+      notes
+      createdAt
     }
   }
 `;
 
 export const ACHIEVE_SKILL_MUTATION = gql`
-  mutation AchieveSkill($skillId: ID!) {
-    achieveSkill(skillId: $skillId) {
+  mutation AchieveSkill($skillNodeId: ID!) {
+    achieveSkill(skillNodeId: $skillNodeId) {
       success
-      achievement {
-        id
-        name
-        description
-      }
+      error
+      xpAwarded
+      creditsAwarded
     }
   }
 `;
@@ -742,26 +755,38 @@ export const ACHIEVE_SKILL_MUTATION = gql`
 // ============================================
 
 export const PRACTICE_MARTIAL_ART_MUTATION = gql`
-  mutation PracticeMartialArt($disciplineId: ID!, $duration: Int!, $techniques: [String!]) {
-    practiceMartialArt(disciplineId: $disciplineId, duration: $duration, techniques: $techniques) {
-      xpEarned
-      newBelt
-      beltUp
-      techniquesLearned
+  mutation PracticeMartialArt($input: TechniquePracticeInput!) {
+    practiceMartialArt(input: $input) {
+      id
+      userId
+      techniqueId
+      techniqueName
+      disciplineName
+      practiceDate
+      durationMinutes
+      repsPerformed
+      roundsPerformed
+      partnerDrill
+      notes
+      createdAt
     }
   }
 `;
 
 export const MASTER_MARTIAL_ART_MUTATION = gql`
-  mutation MasterMartialArt($disciplineId: ID!) {
-    masterMartialArt(disciplineId: $disciplineId) {
+  mutation MasterMartialArt($techniqueId: ID!) {
+    masterMartialArt(techniqueId: $techniqueId) {
       success
-      newBelt
-      reward {
-        type
-        value
-      }
+      creditsAwarded
+      xpAwarded
+      error
     }
+  }
+`;
+
+export const UPDATE_MARTIAL_ART_NOTES_MUTATION = gql`
+  mutation UpdateMartialArtNotes($techniqueId: ID!, $notes: String!) {
+    updateMartialArtNotes(techniqueId: $techniqueId, notes: $notes)
   }
 `;
 
@@ -866,36 +891,67 @@ export const CREATE_CLASS_MUTATION = gql`
 // BUDDY
 // ============================================
 
-export const UPDATE_BUDDY_MUTATION = gql`
-  mutation UpdateBuddy($input: BuddyInput!) {
-    updateBuddy(input: $input) {
-      id
+export const CREATE_BUDDY_MUTATION = gql`
+  mutation CreateBuddy($input: CreateBuddyInput!) {
+    createBuddy(input: $input) {
+      userId
+      species
       nickname
-      mood
+      level
+      xp
+      xpToNextLevel
+      stage
+      stageName
     }
   }
 `;
 
+export const UPDATE_BUDDY_MUTATION = gql`
+  mutation UpdateBuddySpecies($species: String!) {
+    updateBuddySpecies(species: $species) {
+      userId
+      species
+      nickname
+      level
+      stage
+      stageName
+    }
+  }
+`;
+
+export const UPDATE_BUDDY_NICKNAME_MUTATION = gql`
+  mutation UpdateBuddyNickname($nickname: String) {
+    updateBuddyNickname(nickname: $nickname)
+  }
+`;
+
+export const UPDATE_BUDDY_SETTINGS_MUTATION = gql`
+  mutation UpdateBuddySettings($input: BuddySettingsInput!) {
+    updateBuddySettings(input: $input)
+  }
+`;
+
 export const FEED_BUDDY_MUTATION = gql`
-  mutation FeedBuddy {
-    feedBuddy {
-      id
-      hunger
-      mood
-      xpEarned
+  mutation FeedBuddy($xpAmount: Int!) {
+    feedBuddy(xpAmount: $xpAmount) {
+      newXp
+      newLevel
+      leveledUp
+      newStage
+      evolved
     }
   }
 `;
 
 export const EQUIP_BUDDY_ITEM_MUTATION = gql`
-  mutation EquipBuddyItem($itemId: ID!) {
-    equipBuddyItem(itemId: $itemId) {
-      success
-      buddy {
-        id
-        equippedItems
-      }
-    }
+  mutation EquipBuddyCosmetic($sku: String!, $slot: String!) {
+    equipBuddyCosmetic(sku: $sku, slot: $slot)
+  }
+`;
+
+export const UNEQUIP_BUDDY_ITEM_MUTATION = gql`
+  mutation UnequipBuddyCosmetic($slot: String!) {
+    unequipBuddyCosmetic(slot: $slot)
   }
 `;
 

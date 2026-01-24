@@ -17,8 +17,10 @@ import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Dumbbell, ClipboardList, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
+import { MY_MUSCLE_ACTIVATIONS_QUERY } from '../graphql/queries';
 import logger from '../utils/logger';
 import { DailyTip, MilestoneProgress, useContextualTips, useTipOnCondition, ActiveContextualTip } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -971,8 +973,30 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [characterStats, setCharacterStats] = useState(null);
-  const [muscleActivations, setMuscleActivations] = useState([]);
+  const [muscleActivations, setMuscleActivations] = useState<Array<{ muscleId: string; activation: number }>>([]);
   const [_loading, setLoading] = useState(true);
+
+  // GraphQL query for muscle activations
+  const { data: muscleData } = useQuery<{ myMuscleActivations: Array<{ muscleId: string; activation: number }> }>(
+    MY_MUSCLE_ACTIVATIONS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
+
+  // Update muscle activations when GraphQL data changes
+  useEffect(() => {
+    if (muscleData?.myMuscleActivations && muscleData.myMuscleActivations.length > 0) {
+      setMuscleActivations(muscleData.myMuscleActivations);
+    } else if (muscleData && muscleData.myMuscleActivations?.length === 0) {
+      // Fallback to mock data if no activations
+      setMuscleActivations([
+        { muscleId: 'pectoralis-major', activation: 65 },
+        { muscleId: 'deltoid-anterior', activation: 45 },
+        { muscleId: 'biceps-brachii', activation: 30 },
+        { muscleId: 'rectus-abdominis', activation: 20 },
+        { muscleId: 'quadriceps', activation: 50 },
+      ]);
+    }
+  }, [muscleData]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1149,25 +1173,7 @@ export default function Dashboard() {
         setStatsLoading(false);
       });
 
-    // Fetch muscle activations for the body map
-    fetch('/api/muscles/activations')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && Array.isArray(data.data)) {
-          // Keep as array format for BodyMuscleMap component
-          setMuscleActivations(data.data);
-        }
-      })
-      .catch(() => {
-        // Fallback to mock data if API fails - must be array format
-        setMuscleActivations([
-          { muscleId: 'pectoralis-major', activation: 65 },
-          { muscleId: 'deltoid-anterior', activation: 45 },
-          { muscleId: 'biceps-brachii', activation: 30 },
-          { muscleId: 'rectus-abdominis', activation: 20 },
-          { muscleId: 'quadriceps', activation: 50 },
-        ]);
-      });
+    // Muscle activations are now loaded via GraphQL query hook below
   }, []);
 
   // Pull to refresh handler

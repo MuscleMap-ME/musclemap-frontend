@@ -1,9 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
+import {
+  MARTIAL_ARTS_DISCIPLINES_QUERY,
+  MARTIAL_ARTS_DISCIPLINE_QUERY,
+  MARTIAL_ARTS_PROGRESS_QUERY,
+  MARTIAL_ARTS_DISCIPLINE_PROGRESS_QUERY,
+  MARTIAL_ARTS_TECHNIQUES_QUERY,
+  PRACTICE_MARTIAL_ART_MUTATION,
+  MASTER_MARTIAL_ART_MUTATION,
+} from '../graphql';
+
+// Types
+interface DisciplineProgress {
+  disciplineId: string;
+  disciplineName: string;
+  mastered: number;
+  total: number;
+}
+
+interface MartialArtsSummary {
+  totalTechniques: number;
+  masteredTechniques: number;
+  learningTechniques: number;
+  availableTechniques: number;
+  totalPracticeMinutes: number;
+  disciplineProgress: DisciplineProgress[];
+}
+
+interface MartialArtsCategory {
+  id: string;
+  disciplineId: string;
+  name: string;
+  description?: string;
+  orderIndex: number;
+}
+
+interface MartialArtsDiscipline {
+  id: string;
+  name: string;
+  description?: string;
+  originCountry?: string;
+  focusAreas: string[];
+  icon?: string;
+  color?: string;
+  orderIndex: number;
+  isMilitary: boolean;
+  categories?: MartialArtsCategory[];
+}
+
+interface UserTechniqueProgress {
+  id: string;
+  userId: string;
+  techniqueId: string;
+  status: string;
+  proficiency: number;
+  practiceCount: number;
+  totalPracticeMinutes: number;
+  lastPracticed?: string;
+  masteredAt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface MartialArtsTechnique {
+  id: string;
+  disciplineId: string;
+  categoryId?: string;
+  name: string;
+  description?: string;
+  category: string;
+  difficulty: number;
+  prerequisites: string[];
+  keyPoints: string[];
+  commonMistakes: string[];
+  drillSuggestions: string[];
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  muscleGroups: string[];
+  xpReward: number;
+  creditReward: number;
+  tier: number;
+  position: number;
+  progress?: UserTechniqueProgress;
+}
 
 // Difficulty stars display
-const DifficultyStars = ({ difficulty }) => (
+const DifficultyStars = ({ difficulty }: { difficulty: number }) => (
   <div className="flex gap-0.5">
     {[1, 2, 3, 4, 5].map((star) => (
       <span
@@ -17,15 +102,15 @@ const DifficultyStars = ({ difficulty }) => (
 );
 
 // Status badge with color
-const StatusBadge = ({ status }) => {
-  const colors = {
+const StatusBadge = ({ status }: { status: string }) => {
+  const colors: Record<string, string> = {
     locked: 'bg-gray-700 text-gray-400',
     available: 'bg-blue-600 text-white',
     learning: 'bg-yellow-600 text-white',
     proficient: 'bg-purple-600 text-white',
     mastered: 'bg-green-600 text-white',
   };
-  const labels = {
+  const labels: Record<string, string> = {
     locked: '🔒 Locked',
     available: '✨ Available',
     learning: '🔥 Learning',
@@ -40,7 +125,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // Proficiency bar
-const ProficiencyBar = ({ proficiency }) => (
+const ProficiencyBar = ({ proficiency }: { proficiency: number }) => (
   <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
     <div
       className={`h-full transition-all ${
@@ -52,7 +137,7 @@ const ProficiencyBar = ({ proficiency }) => (
 );
 
 // Technique card component
-const TechniqueCard = ({ technique, onClick }) => {
+const TechniqueCard = ({ technique, onClick }: { technique: MartialArtsTechnique; onClick: (t: MartialArtsTechnique) => void }) => {
   const status = technique.progress?.status || 'locked';
   const isLocked = status === 'locked';
   const proficiency = technique.progress?.proficiency || 0;
@@ -96,7 +181,21 @@ const TechniqueCard = ({ technique, onClick }) => {
 };
 
 // Technique detail modal
-const TechniqueDetailModal = ({ technique, onClose, onLogPractice, onMaster }) => {
+interface TechniqueDetailModalProps {
+  technique: MartialArtsTechnique;
+  onClose: () => void;
+  onLogPractice: (data: {
+    techniqueId: string;
+    durationMinutes: number;
+    repsPerformed?: number;
+    roundsPerformed?: number;
+    partnerDrill?: boolean;
+    notes?: string;
+  }) => Promise<void>;
+  onMaster: (data: { techniqueId: string }) => Promise<void>;
+}
+
+const TechniqueDetailModal = ({ technique, onClose, onLogPractice, onMaster }: TechniqueDetailModalProps) => {
   const [practiceMinutes, setPracticeMinutes] = useState(15);
   const [repsPerformed, setRepsPerformed] = useState('');
   const [roundsPerformed, setRoundsPerformed] = useState('');
@@ -305,11 +404,25 @@ const TechniqueDetailModal = ({ technique, onClose, onLogPractice, onMaster }) =
 };
 
 // Discipline view with techniques
-const DisciplineView = ({ discipline, techniques, onLogPractice, onMaster }) => {
-  const [selectedTechnique, setSelectedTechnique] = useState(null);
+interface DisciplineViewProps {
+  discipline: MartialArtsDiscipline;
+  techniques: MartialArtsTechnique[];
+  onLogPractice: (data: {
+    techniqueId: string;
+    durationMinutes: number;
+    repsPerformed?: number;
+    roundsPerformed?: number;
+    partnerDrill?: boolean;
+    notes?: string;
+  }) => Promise<void>;
+  onMaster: (data: { techniqueId: string }) => Promise<void>;
+}
+
+const DisciplineView = ({ discipline, techniques, onLogPractice, onMaster }: DisciplineViewProps) => {
+  const [selectedTechnique, setSelectedTechnique] = useState<MartialArtsTechnique | null>(null);
 
   // Group techniques by category
-  const categories = {};
+  const categories: Record<string, MartialArtsTechnique[]> = {};
   techniques.forEach((tech) => {
     const categoryId = tech.categoryId || 'uncategorized';
     if (!categories[categoryId]) categories[categoryId] = [];
@@ -380,7 +493,7 @@ const DisciplineView = ({ discipline, techniques, onLogPractice, onMaster }) => 
 };
 
 // Summary card
-const ProgressSummaryCard = ({ summary }) => {
+const ProgressSummaryCard = ({ summary }: { summary: MartialArtsSummary | null }) => {
   if (!summary) return null;
 
   const percent =
@@ -433,129 +546,114 @@ export default function MartialArts() {
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  const [disciplines, setDisciplines] = useState([]);
-  const [selectedDiscipline, setSelectedDiscipline] = useState(null);
-  const [techniques, setTechniques] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showMilitaryOnly, setShowMilitaryOnly] = useState(false);
 
-  const headers = { Authorization: `Bearer ${token}` };
+  // GraphQL queries
+  const { data: disciplinesData, loading: disciplinesLoading, error: disciplinesError } = useQuery<{
+    martialArtsDisciplines: MartialArtsDiscipline[];
+  }>(MARTIAL_ARTS_DISCIPLINES_QUERY, {
+    variables: { militaryOnly: showMilitaryOnly || undefined },
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Load disciplines
-  useEffect(() => {
-    const url = showMilitaryOnly
-      ? '/api/martial-arts/disciplines?military=true'
-      : '/api/martial-arts/disciplines';
+  const { data: summaryData, refetch: refetchSummary } = useQuery<{
+    martialArtsProgress: MartialArtsSummary;
+  }>(MARTIAL_ARTS_PROGRESS_QUERY, {
+    skip: !token,
+    fetchPolicy: 'cache-and-network',
+  });
 
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        setDisciplines(data.disciplines || []);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [showMilitaryOnly]);
+  const { data: disciplineData } = useQuery<{
+    martialArtsDiscipline: MartialArtsDiscipline;
+  }>(MARTIAL_ARTS_DISCIPLINE_QUERY, {
+    variables: { id: disciplineId },
+    skip: !disciplineId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Load summary when authenticated
-  useEffect(() => {
-    if (!token) return;
-    fetch('/api/martial-arts/progress', { headers })
-      .then((r) => r.json())
-      .then(setSummary)
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  // For authenticated users, get techniques with progress
+  const { data: progressData, refetch: refetchProgress } = useQuery<{
+    martialArtsDisciplineProgress: MartialArtsTechnique[];
+  }>(MARTIAL_ARTS_DISCIPLINE_PROGRESS_QUERY, {
+    variables: { disciplineId },
+    skip: !disciplineId || !token,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Load discipline details when disciplineId changes
-  useEffect(() => {
-    if (!disciplineId) {
-      setSelectedDiscipline(null);
-      setTechniques([]);
-      return;
-    }
+  // For unauthenticated users, get just techniques (no progress)
+  const { data: techniquesData } = useQuery<{
+    martialArtsTechniques: MartialArtsTechnique[];
+  }>(MARTIAL_ARTS_TECHNIQUES_QUERY, {
+    variables: { disciplineId },
+    skip: !disciplineId || !!token,
+    fetchPolicy: 'cache-and-network',
+  });
 
-    setLoading(true);
-    Promise.all([
-      fetch(`/api/martial-arts/disciplines/${disciplineId}`).then((r) => r.json()),
-      token
-        ? fetch(`/api/martial-arts/disciplines/${disciplineId}/progress`, { headers }).then((r) =>
-            r.json()
-          )
-        : fetch(`/api/martial-arts/disciplines/${disciplineId}/techniques`).then((r) => r.json()),
-    ])
-      .then(([disciplineData, techniquesData]) => {
-        setSelectedDiscipline(disciplineData.discipline);
-        setTechniques(techniquesData.techniques || []);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disciplineId, token]);
+  // Mutations
+  const [practiceMartialArt] = useMutation(PRACTICE_MARTIAL_ART_MUTATION, {
+    onCompleted: () => {
+      refetchProgress();
+      refetchSummary();
+    },
+  });
+
+  const [masterMartialArt] = useMutation(MASTER_MARTIAL_ART_MUTATION, {
+    onCompleted: (data) => {
+      if (data.masterMartialArt.success) {
+        alert(`🏆 Technique mastered! +${data.masterMartialArt.creditsAwarded} credits, +${data.masterMartialArt.xpAwarded} XP`);
+        refetchProgress();
+        refetchSummary();
+      } else {
+        alert(data.masterMartialArt.error || 'Failed to master technique');
+      }
+    },
+  });
+
+  const disciplines = disciplinesData?.martialArtsDisciplines || [];
+  const summary = summaryData?.martialArtsProgress || null;
+  const selectedDiscipline = disciplineData?.martialArtsDiscipline || null;
+  const techniques = token
+    ? (progressData?.martialArtsDisciplineProgress || [])
+    : (techniquesData?.martialArtsTechniques || []);
 
   // Log practice handler
-  const handleLogPractice = async (data) => {
+  const handleLogPractice = async (data: {
+    techniqueId: string;
+    durationMinutes: number;
+    repsPerformed?: number;
+    roundsPerformed?: number;
+    partnerDrill?: boolean;
+    notes?: string;
+  }) => {
     if (!token) {
       alert('Please log in to track your progress');
       return;
     }
     try {
-      const res = await fetch('/api/martial-arts/practice', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      await practiceMartialArt({
+        variables: { input: data },
       });
-      const result = await res.json();
-      if (result.practiceLog) {
-        // Refresh progress
-        const progressRes = await fetch(`/api/martial-arts/disciplines/${disciplineId}/progress`, {
-          headers,
-        });
-        const progressData = await progressRes.json();
-        setTechniques(progressData.techniques || []);
-        // Refresh summary
-        const summaryRes = await fetch('/api/martial-arts/progress', { headers });
-        setSummary(await summaryRes.json());
-      }
     } catch (_err) {
       alert('Failed to log practice');
     }
   };
 
   // Master technique handler
-  const handleMaster = async (data) => {
+  const handleMaster = async (data: { techniqueId: string }) => {
     if (!token) {
       alert('Please log in to track your progress');
       return;
     }
     try {
-      const res = await fetch('/api/martial-arts/master', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      await masterMartialArt({
+        variables: { techniqueId: data.techniqueId },
       });
-      const result = await res.json();
-      if (result.success) {
-        alert(`🏆 Technique mastered! +${result.creditsAwarded} credits, +${result.xpAwarded} XP`);
-        // Refresh progress
-        const progressRes = await fetch(`/api/martial-arts/disciplines/${disciplineId}/progress`, {
-          headers,
-        });
-        const progressData = await progressRes.json();
-        setTechniques(progressData.techniques || []);
-        // Refresh summary
-        const summaryRes = await fetch('/api/martial-arts/progress', { headers });
-        setSummary(await summaryRes.json());
-      } else {
-        alert(result.error || 'Failed to master technique');
-      }
     } catch (_err) {
       alert('Failed to master technique');
     }
   };
 
-  if (loading && !disciplines.length) {
+  if (disciplinesLoading && !disciplines.length) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
@@ -581,8 +679,10 @@ export default function MartialArts() {
       </header>
 
       <main className="max-w-6xl mx-auto p-4">
-        {error && (
-          <div className="bg-red-900/50 border border-red-600 rounded-lg p-4 mb-4">{error}</div>
+        {disciplinesError && (
+          <div className="bg-red-900/50 border border-red-600 rounded-lg p-4 mb-4">
+            {disciplinesError.message}
+          </div>
         )}
 
         {!disciplineId ? (

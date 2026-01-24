@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
+import {
+  SKILL_TREES_QUERY,
+  SKILL_TREE_QUERY,
+  SKILL_TREE_PROGRESS_QUERY,
+  SKILL_SUMMARY_QUERY,
+  LOG_SKILL_PRACTICE_MUTATION,
+  ACHIEVE_SKILL_MUTATION,
+} from '../graphql';
 
 // Difficulty stars display
 const DifficultyStars = ({ difficulty }) => (
@@ -345,121 +354,139 @@ const ProgressSummaryCard = ({ summary }) => {
   );
 };
 
+// TypeScript interfaces
+interface SkillTree {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  nodeCount: number;
+  nodes?: SkillNodeData[];
+}
+
+interface SkillNodeData {
+  id: string;
+  treeId: string;
+  name: string;
+  description?: string;
+  tier: number;
+  position: number;
+  difficulty: number;
+  criteriaType?: string;
+  criteriaValue?: number;
+  criteriaDescription?: string;
+  xpReward: number;
+  creditReward: number;
+  tips?: string[];
+  progress?: {
+    status: string;
+    practiceMinutes: number;
+    practiceCount: number;
+    bestValue?: number;
+    achievedAt?: string;
+  };
+}
+
+interface SkillSummary {
+  totalSkills: number;
+  achievedSkills: number;
+  inProgressSkills: number;
+  availableSkills: number;
+  lockedSkills: number;
+  totalPracticeMinutes: number;
+}
+
 // Main component
 export default function Skills() {
   const { treeId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  const [trees, setTrees] = useState([]);
-  const [selectedTree, setSelectedTree] = useState(null);
-  const [treeProgress, setTreeProgress] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const headers = { Authorization: `Bearer ${token}` };
+  // GraphQL queries
+  const { data: treesData, loading: treesLoading } = useQuery<{ skillTrees: SkillTree[] }>(SKILL_TREES_QUERY);
 
-  // Load skill trees
-  useEffect(() => {
-    fetch('/api/skills/trees')
-      .then((r) => r.json())
-      .then((data) => {
-        setTrees(data.trees || []);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: summaryData, refetch: refetchSummary } = useQuery<{ skillSummary: SkillSummary }>(SKILL_SUMMARY_QUERY, {
+    skip: !token,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Load summary when authenticated
-  useEffect(() => {
-    if (!token) return;
-    fetch('/api/skills/progress', { headers })
-      .then((r) => r.json())
-      .then(setSummary)
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  const { data: treeData, loading: treeLoading } = useQuery<{ skillTree: SkillTree }>(SKILL_TREE_QUERY, {
+    variables: { treeId },
+    skip: !treeId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  // Load tree details when treeId changes
-  useEffect(() => {
-    if (!treeId) {
-      setSelectedTree(null);
-      setTreeProgress([]);
-      return;
+  const { data: progressData, loading: progressLoading, refetch: refetchProgress } = useQuery<{ skillTreeProgress: SkillNodeData[] }>(
+    SKILL_TREE_PROGRESS_QUERY,
+    {
+      variables: { treeId },
+      skip: !treeId || !token,
+      fetchPolicy: 'cache-and-network',
     }
+  );
 
-    setLoading(true);
-    Promise.all([
-      fetch(`/api/skills/trees/${treeId}`).then((r) => r.json()),
-      token
-        ? fetch(`/api/skills/trees/${treeId}/progress`, { headers }).then((r) => r.json())
-        : Promise.resolve({ nodes: [] }),
-    ])
-      .then(([treeData, progressData]) => {
-        setSelectedTree(treeData.tree);
-        setTreeProgress(progressData.nodes || []);
-      })
-      .catch((_err) => setError(_err.message))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeId, token]);
+  // GraphQL mutations
+  const [logPractice] = useMutation(LOG_SKILL_PRACTICE_MUTATION, {
+    onCompleted: () => {
+      refetchProgress();
+      refetchSummary();
+    },
+    onError: () => {
+      setError('Failed to log practice');
+    },
+  });
+
+  const [achieveSkillMutation] = useMutation(ACHIEVE_SKILL_MUTATION, {
+    onCompleted: (result) => {
+      if (result?.achieveSkill?.success) {
+        alert(`🏆 Skill achieved! +${result.achieveSkill.creditsAwarded} credits, +${result.achieveSkill.xpAwarded} XP`);
+        refetchProgress();
+        refetchSummary();
+      } else {
+        alert(result?.achieveSkill?.error || 'Failed to achieve skill');
+      }
+    },
+    onError: () => {
+      setError('Failed to achieve skill');
+    },
+  });
+
+  const trees = treesData?.skillTrees || [];
+  const selectedTree = treeData?.skillTree || null;
+  const treeProgress = progressData?.skillTreeProgress || [];
+  const summary = summaryData?.skillSummary || null;
+  const loading = treesLoading || treeLoading || progressLoading;
 
   // Log practice handler
-  const handleLogPractice = async (data) => {
+  const handleLogPractice = async (data: { skillNodeId: string; durationMinutes: number; valueAchieved?: number; notes?: string }) => {
     if (!token) {
       alert('Please log in to track your progress');
       return;
     }
-    try {
-      const res = await fetch('/api/skills/practice', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await res.json();
-      if (result.practiceLog) {
-        // Refresh progress
-        const progressRes = await fetch(`/api/skills/trees/${treeId}/progress`, { headers });
-        const progressData = await progressRes.json();
-        setTreeProgress(progressData.nodes || []);
-        // Refresh summary
-        const summaryRes = await fetch('/api/skills/progress', { headers });
-        setSummary(await summaryRes.json());
-      }
-    } catch (_err) {
-      alert('Failed to log practice');
-    }
+    await logPractice({
+      variables: {
+        input: {
+          skillNodeId: data.skillNodeId,
+          durationMinutes: data.durationMinutes,
+          valueAchieved: data.valueAchieved,
+          notes: data.notes,
+        },
+      },
+    });
   };
 
   // Achieve skill handler
-  const handleAchieve = async (data) => {
+  const handleAchieve = async (data: { skillNodeId: string }) => {
     if (!token) {
       alert('Please log in to track your progress');
       return;
     }
-    try {
-      const res = await fetch('/api/skills/achieve', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await res.json();
-      if (result.success) {
-        alert(`🏆 Skill achieved! +${result.creditsAwarded} credits, +${result.xpAwarded} XP`);
-        // Refresh progress
-        const progressRes = await fetch(`/api/skills/trees/${treeId}/progress`, { headers });
-        const progressData = await progressRes.json();
-        setTreeProgress(progressData.nodes || []);
-        // Refresh summary
-        const summaryRes = await fetch('/api/skills/progress', { headers });
-        setSummary(await summaryRes.json());
-      } else {
-        alert(result.error || 'Failed to achieve skill');
-      }
-    } catch (_err) {
-      alert('Failed to achieve skill');
-    }
+    await achieveSkillMutation({
+      variables: { skillNodeId: data.skillNodeId },
+    });
   };
 
   if (loading && !trees.length) {

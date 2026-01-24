@@ -1,8 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation } from '@apollo/client/react';
 import clsx from 'clsx';
-import { useAuth } from '../store/authStore';
+import {
+  BUDDY_QUERY,
+  BUDDY_INVENTORY_QUERY,
+  BUDDY_EVOLUTION_PATH_QUERY,
+  CREDITS_BALANCE_QUERY,
+  CREATE_BUDDY_MUTATION,
+  UPDATE_BUDDY_MUTATION,
+  UPDATE_BUDDY_NICKNAME_MUTATION,
+  UPDATE_BUDDY_SETTINGS_MUTATION,
+  EQUIP_BUDDY_ITEM_MUTATION,
+  UNEQUIP_BUDDY_ITEM_MUTATION,
+} from '../graphql';
+
+// Types
+interface Buddy {
+  userId: string;
+  species: string;
+  nickname: string | null;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  stage: number;
+  stageName: string;
+  stageDescription: string | null;
+  equippedAura: string | null;
+  equippedArmor: string | null;
+  equippedWings: string | null;
+  equippedTool: string | null;
+  equippedSkin: string | null;
+  equippedEmotePack: string | null;
+  equippedVoicePack: string | null;
+  unlockedAbilities: string[];
+  visible: boolean;
+  showOnProfile: boolean;
+  showInWorkouts: boolean;
+  totalXpEarned: number;
+  workoutsTogether: number;
+  streaksWitnessed: number;
+  prsCelebrated: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BuddyInventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  slot: string | null;
+  rarity: string | null;
+  equipped: boolean;
+  icon: string | null;
+  description: string | null;
+}
+
+interface BuddyEvolutionStage {
+  species: string;
+  stage: number;
+  minLevel: number;
+  stageName: string;
+  description: string | null;
+  unlockedFeatures: string[];
+}
 
 const Icons = {
   Back: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7"/></svg>,
@@ -10,12 +73,9 @@ const Icons = {
   Sparkle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
   Close: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12"/></svg>,
   Edit: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>,
-  Star: () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
-  Eye: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>,
-  EyeOff: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>,
 };
 
-const SPECIES_CONFIG = {
+const SPECIES_CONFIG: Record<string, { emoji: string; color: string; name: string }> = {
   wolf: { emoji: '🐺', color: 'from-gray-500 to-gray-700', name: 'Wolf' },
   bear: { emoji: '🐻', color: 'from-amber-700 to-amber-900', name: 'Bear' },
   eagle: { emoji: '🦅', color: 'from-amber-500 to-amber-700', name: 'Eagle' },
@@ -26,7 +86,7 @@ const SPECIES_CONFIG = {
   shark: { emoji: '🦈', color: 'from-blue-600 to-blue-900', name: 'Shark' },
 };
 
-const RARITY_CONFIG = {
+const RARITY_CONFIG: Record<string, { label: string; color: string; border: string; bg: string }> = {
   common: { label: 'Common', color: 'from-gray-500 to-gray-600', border: 'border-gray-500/30', bg: 'bg-gray-500/10' },
   uncommon: { label: 'Uncommon', color: 'from-green-500 to-emerald-600', border: 'border-green-500/30', bg: 'bg-green-500/10' },
   rare: { label: 'Rare', color: 'from-blue-500 to-cyan-600', border: 'border-blue-500/30', bg: 'bg-blue-500/10' },
@@ -45,195 +105,139 @@ const COSMETIC_SLOTS = [
 ];
 
 export default function Buddy() {
-  const { token } = useAuth();
-  const [buddy, setBuddy] = useState(null);
-  const [inventory, setInventory] = useState([]);
-  const [wallet, setWallet] = useState(null);
-  const [evolutionPath, setEvolutionPath] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [_selectedSlot, setSelectedSlot] = useState(null);
+  const [_selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
   const [newNickname, setNewNickname] = useState('');
   const [snackbar, setSnackbar] = useState({ show: false, message: '', type: 'success' });
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // GraphQL Queries
+  const { data: buddyData, loading: buddyLoading, refetch: refetchBuddy } = useQuery<{ buddy: Buddy | null }>(
+    BUDDY_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-  const fetchData = async () => {
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
+  const { data: inventoryData, refetch: refetchInventory } = useQuery<{ buddyInventory: BuddyInventoryItem[] }>(
+    BUDDY_INVENTORY_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-      const [buddyRes, inventoryRes, walletRes] = await Promise.all([
-        fetch('/api/buddy', { headers }),
-        fetch('/api/store/inventory?category=buddy', { headers }),
-        fetch('/api/wallet', { headers }),
-      ]);
+  const { data: walletData } = useQuery<{ creditsBalance: { balance: number } }>(
+    CREDITS_BALANCE_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
-      const [buddyData, inventoryData, walletData] = await Promise.all([
-        buddyRes.json(),
-        inventoryRes.json(),
-        walletRes.json(),
-      ]);
-
-      setBuddy(buddyData.data);
-      setInventory(inventoryData.data || []);
-      setWallet(walletData.data);
-
-      if (buddyData.data?.species) {
-        const evoRes = await fetch(`/api/buddy/evolution/${buddyData.data.species}`, { headers });
-        const evoData = await evoRes.json();
-        setEvolutionPath(evoData.data || []);
-      }
-    } catch {
-      // Error occurred
-    } finally {
-      setLoading(false);
+  const { data: evolutionData } = useQuery<{ buddyEvolutionPath: BuddyEvolutionStage[] }>(
+    BUDDY_EVOLUTION_PATH_QUERY,
+    {
+      variables: { species: buddyData?.buddy?.species || 'wolf' },
+      skip: !buddyData?.buddy?.species,
+      fetchPolicy: 'cache-and-network',
     }
+  );
+
+  // GraphQL Mutations
+  const [createBuddyMutation] = useMutation(CREATE_BUDDY_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      refetchInventory();
+      setShowCreateModal(false);
+      showSnackbar('Training buddy created!', 'success');
+    },
+    onError: () => showSnackbar('Failed to create buddy', 'error'),
+  });
+
+  const [changeSpeciesMutation] = useMutation(UPDATE_BUDDY_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      setShowSpeciesModal(false);
+      showSnackbar('Species changed!', 'success');
+    },
+    onError: () => showSnackbar('Failed to change species', 'error'),
+  });
+
+  const [updateNicknameMutation] = useMutation(UPDATE_BUDDY_NICKNAME_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      setEditingNickname(false);
+      showSnackbar('Nickname updated!', 'success');
+    },
+    onError: () => showSnackbar('Failed to update nickname', 'error'),
+  });
+
+  const [updateSettingsMutation] = useMutation(UPDATE_BUDDY_SETTINGS_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      showSnackbar('Settings updated!', 'success');
+    },
+    onError: () => showSnackbar('Failed to update settings', 'error'),
+  });
+
+  const [equipCosmeticMutation] = useMutation(EQUIP_BUDDY_ITEM_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      refetchInventory();
+      setSelectedSlot(null);
+      showSnackbar('Cosmetic equipped!', 'success');
+    },
+    onError: () => showSnackbar('Failed to equip cosmetic', 'error'),
+  });
+
+  const [unequipCosmeticMutation] = useMutation(UNEQUIP_BUDDY_ITEM_MUTATION, {
+    onCompleted: () => {
+      refetchBuddy();
+      refetchInventory();
+      showSnackbar('Cosmetic unequipped!', 'success');
+    },
+    onError: () => showSnackbar('Failed to unequip cosmetic', 'error'),
+  });
+
+  const buddy = buddyData?.buddy;
+  const inventory = inventoryData?.buddyInventory || [];
+  const evolutionPath = evolutionData?.buddyEvolutionPath || [];
+  const walletBalance = walletData?.creditsBalance?.balance || 0;
+
+  const createBuddy = (species: string) => {
+    createBuddyMutation({ variables: { input: { species } } });
   };
 
-  const createBuddy = async (species) => {
-    try {
-      const res = await fetch('/api/buddy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ species }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        setShowCreateModal(false);
-        showSnackbar('Training buddy created!', 'success');
-        fetchData();
-      }
-    } catch (_err) {
-      showSnackbar('Failed to create buddy', 'error');
-    }
+  const changeSpecies = (species: string) => {
+    changeSpeciesMutation({ variables: { species } });
   };
 
-  const changeSpecies = async (species) => {
-    try {
-      const res = await fetch('/api/buddy/species', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ species }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        setShowSpeciesModal(false);
-        showSnackbar('Species changed!', 'success');
-        fetchData();
-      }
-    } catch (_err) {
-      showSnackbar('Failed to change species', 'error');
-    }
+  const updateNickname = () => {
+    updateNicknameMutation({ variables: { nickname: newNickname || null } });
   };
 
-  const updateNickname = async () => {
-    try {
-      const res = await fetch('/api/buddy/nickname', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ nickname: newNickname || null }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        setEditingNickname(false);
-        showSnackbar('Nickname updated!', 'success');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to update nickname', 'error');
-    }
+  const equipCosmetic = (sku: string, slot: string) => {
+    equipCosmeticMutation({ variables: { sku, slot } });
   };
 
-  const equipCosmetic = async (sku, slot) => {
-    try {
-      const res = await fetch('/api/buddy/equip', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ sku, slot }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        setSelectedSlot(null);
-        showSnackbar('Cosmetic equipped!', 'success');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to equip cosmetic', 'error');
-    }
+  const unequipCosmetic = (slot: string) => {
+    unequipCosmeticMutation({ variables: { slot } });
   };
 
-  const unequipCosmetic = async (slot) => {
-    try {
-      const res = await fetch('/api/buddy/unequip', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ slot }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        showSnackbar('Cosmetic unequipped!', 'success');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to unequip cosmetic', 'error');
-    }
+  const toggleVisibility = (setting: string, value: boolean) => {
+    updateSettingsMutation({ variables: { input: { [setting]: value } } });
   };
 
-  const toggleVisibility = async (setting, value) => {
-    try {
-      const res = await fetch('/api/buddy/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ [setting]: value }),
-      });
-      const data = await res.json();
-      if (data.data) {
-        setBuddy(data.data);
-        showSnackbar('Settings updated!', 'success');
-      }
-    } catch (_err) {
-      showSnackbar('Failed to update settings', 'error');
-    }
-  };
-
-  const showSnackbar = (message, type) => {
+  const showSnackbar = (message: string, type: string) => {
     setSnackbar({ show: true, message, type });
     setTimeout(() => setSnackbar({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const getEquippedItem = (slot) => {
-    const equippedSku = buddy?.[`equipped_${slot}`] || buddy?.[`equipped${slot.charAt(0).toUpperCase() + slot.slice(1)}`];
-    if (!equippedSku) return null;
+  const getEquippedItem = (slot: string) => {
+    const slotKey = slot === 'emote_pack' ? 'equippedEmotePack' :
+                    slot === 'voice_pack' ? 'equippedVoicePack' :
+                    `equipped${slot.charAt(0).toUpperCase() + slot.slice(1)}`;
+    const equippedSku = buddy?.[slotKey as keyof Buddy];
+    if (!equippedSku || typeof equippedSku !== 'string') return null;
     return inventory.find(i => i.sku === equippedSku);
   };
 
-  const getAvailableItems = (slot) => {
+  const getAvailableItems = (slot: string) => {
     const slotConfig = COSMETIC_SLOTS.find(s => s.key === slot);
     if (!slotConfig) return [];
     return inventory.filter(i => i.category?.includes(slotConfig.category.replace('buddy_', '')));
@@ -242,7 +246,7 @@ export default function Buddy() {
   const xpProgress = buddy ? (buddy.xp / buddy.xpToNextLevel) * 100 : 0;
   const speciesConfig = buddy ? SPECIES_CONFIG[buddy.species] : null;
 
-  if (loading) {
+  if (buddyLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
@@ -334,7 +338,7 @@ export default function Buddy() {
           </div>
           <Link to="/wallet" className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all">
             <Icons.Sparkle />
-            <span className="font-semibold">{wallet?.balance || 0}</span>
+            <span className="font-semibold">{walletBalance}</span>
           </Link>
         </div>
       </header>
@@ -418,11 +422,11 @@ export default function Buddy() {
                 <div className="text-xs text-white/70">Stage</div>
               </div>
               <div className="bg-black/20 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold">{buddy.totalXpEarned || buddy.total_xp_earned || 0}</div>
+                <div className="text-2xl font-bold">{buddy.totalXpEarned || 0}</div>
                 <div className="text-xs text-white/70">Total XP</div>
               </div>
               <div className="bg-black/20 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold">{buddy.workoutsTogether || buddy.workouts_together || 0}</div>
+                <div className="text-2xl font-bold">{buddy.workoutsTogether || 0}</div>
                 <div className="text-xs text-white/70">Workouts</div>
               </div>
             </div>
@@ -465,9 +469,9 @@ export default function Buddy() {
                         <>
                           <div className={clsx(
                             'text-xs px-2 py-0.5 rounded-full mb-2 inline-block bg-gradient-to-r text-white',
-                            RARITY_CONFIG[equipped.rarity]?.color || 'from-gray-500 to-gray-600'
+                            RARITY_CONFIG[equipped.rarity || 'common']?.color || 'from-gray-500 to-gray-600'
                           )}>
-                            {RARITY_CONFIG[equipped.rarity]?.label || 'Common'}
+                            {RARITY_CONFIG[equipped.rarity || 'common']?.label || 'Common'}
                           </div>
                           <div className="font-medium text-sm truncate">{equipped.name}</div>
                         </>
@@ -486,15 +490,15 @@ export default function Buddy() {
               <div className="bg-white/5 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-400">PRs Celebrated</span>
-                  <span className="font-medium">{buddy.prsCelebrated || buddy.prs_celebrated || 0}</span>
+                  <span className="font-medium">{buddy.prsCelebrated || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Streaks Witnessed</span>
-                  <span className="font-medium">{buddy.streaksWitnessed || buddy.streaks_witnessed || 0}</span>
+                  <span className="font-medium">{buddy.streaksWitnessed || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Workouts Together</span>
-                  <span className="font-medium">{buddy.workoutsTogether || buddy.workouts_together || 0}</span>
+                  <span className="font-medium">{buddy.workoutsTogether || 0}</span>
                 </div>
               </div>
             </div>
@@ -518,7 +522,7 @@ export default function Buddy() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {items.map(item => {
                         const isEquipped = equipped?.sku === item.sku;
-                        const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
+                        const rarity = RARITY_CONFIG[item.rarity || 'common'] || RARITY_CONFIG.common;
 
                         return (
                           <div
@@ -557,7 +561,7 @@ export default function Buddy() {
         {activeTab === 'evolution' && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold mb-4">Evolution Path</h3>
-            {evolutionPath.map((stage, _i) => {
+            {evolutionPath.map((stage) => {
               const isUnlocked = buddy.level >= stage.minLevel;
               const isCurrent = buddy.stage === stage.stage;
 
@@ -578,14 +582,14 @@ export default function Buddy() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{stage.stageName || stage.stage_name}</span>
+                      <span className="font-semibold">{stage.stageName}</span>
                       {isCurrent && <span className="text-xs bg-violet-600 px-2 py-0.5 rounded-full">Current</span>}
                     </div>
                     <div className="text-sm text-gray-400">{stage.description}</div>
-                    <div className="text-xs text-gray-500 mt-1">Level {stage.minLevel || stage.min_level}+</div>
+                    <div className="text-xs text-gray-500 mt-1">Level {stage.minLevel}+</div>
                   </div>
                   {isUnlocked && (
-                    <Icons.Check className="text-green-500" />
+                    <Icons.Check />
                   )}
                 </div>
               );
@@ -623,15 +627,15 @@ export default function Buddy() {
                   <div className="text-sm text-gray-400">Display buddy on your public profile</div>
                 </div>
                 <button
-                  onClick={() => toggleVisibility('showOnProfile', !(buddy.showOnProfile ?? buddy.show_on_profile))}
+                  onClick={() => toggleVisibility('showOnProfile', !buddy.showOnProfile)}
                   className={clsx(
                     'w-12 h-7 rounded-full transition-all relative',
-                    (buddy.showOnProfile ?? buddy.show_on_profile) ? 'bg-violet-600' : 'bg-gray-700'
+                    buddy.showOnProfile ? 'bg-violet-600' : 'bg-gray-700'
                   )}
                 >
                   <div className={clsx(
                     'w-5 h-5 rounded-full bg-white absolute top-1 transition-all',
-                    (buddy.showOnProfile ?? buddy.show_on_profile) ? 'right-1' : 'left-1'
+                    buddy.showOnProfile ? 'right-1' : 'left-1'
                   )} />
                 </button>
               </div>
@@ -642,15 +646,15 @@ export default function Buddy() {
                   <div className="text-sm text-gray-400">Display buddy during workout sessions</div>
                 </div>
                 <button
-                  onClick={() => toggleVisibility('showInWorkouts', !(buddy.showInWorkouts ?? buddy.show_in_workouts))}
+                  onClick={() => toggleVisibility('showInWorkouts', !buddy.showInWorkouts)}
                   className={clsx(
                     'w-12 h-7 rounded-full transition-all relative',
-                    (buddy.showInWorkouts ?? buddy.show_in_workouts) ? 'bg-violet-600' : 'bg-gray-700'
+                    buddy.showInWorkouts ? 'bg-violet-600' : 'bg-gray-700'
                   )}
                 >
                   <div className={clsx(
                     'w-5 h-5 rounded-full bg-white absolute top-1 transition-all',
-                    (buddy.showInWorkouts ?? buddy.show_in_workouts) ? 'right-1' : 'left-1'
+                    buddy.showInWorkouts ? 'right-1' : 'left-1'
                   )} />
                 </button>
               </div>

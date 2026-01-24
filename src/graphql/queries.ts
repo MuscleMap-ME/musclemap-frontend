@@ -95,6 +95,15 @@ export const MUSCLES_QUERY = gql`
   }
 `;
 
+export const MY_MUSCLE_ACTIVATIONS_QUERY = gql`
+  query MyMuscleActivations {
+    myMuscleActivations {
+      muscleId
+      activation
+    }
+  }
+`;
+
 // ============================================
 // EXERCISE HISTORY (PRs and Best Lifts)
 // ============================================
@@ -220,6 +229,78 @@ export const JOURNEY_QUERY = gql`
       totalXP
       completedMilestones
       unlockedAbilities
+    }
+  }
+`;
+
+export const JOURNEY_OVERVIEW_QUERY = gql`
+  query JourneyOverview {
+    journeyOverview {
+      currentArchetype
+      totalTU
+      currentLevel
+      currentLevelName
+      daysSinceJoined
+      totalWorkouts
+      streak
+      nextLevelTU
+      stats {
+        weekly {
+          workouts
+          tu
+          avgTuPerWorkout
+        }
+        monthly {
+          workouts
+          tu
+          avgTuPerWorkout
+        }
+        allTime {
+          workouts
+          tu
+          avgTuPerWorkout
+        }
+      }
+      workoutHistory {
+        date
+        tu
+        count
+      }
+      topExercises {
+        id
+        name
+        count
+      }
+      levels {
+        level
+        name
+        totalTu
+        achieved
+      }
+      muscleGroups {
+        name
+        total
+      }
+      muscleBreakdown {
+        id
+        name
+        group
+        totalActivation
+      }
+      recentWorkouts {
+        id
+        date
+        tu
+        createdAt
+      }
+      paths {
+        archetype
+        name
+        philosophy
+        focusAreas
+        isCurrent
+        percentComplete
+      }
     }
   }
 `;
@@ -814,26 +895,89 @@ export const SKILL_TREES_QUERY = gql`
       name
       description
       icon
-      skills {
+      color
+      nodeCount
+    }
+  }
+`;
+
+export const SKILL_TREE_QUERY = gql`
+  query SkillTree($treeId: ID!) {
+    skillTree(treeId: $treeId) {
+      id
+      name
+      description
+      icon
+      color
+      nodeCount
+      nodes {
         id
+        treeId
         name
         description
-        level
-        maxLevel
-        requirements
-        unlocked
+        tier
+        position
+        difficulty
+        criteriaType
+        criteriaValue
+        criteriaDescription
+        xpReward
+        creditReward
+        tips
       }
+    }
+  }
+`;
+
+export const SKILL_TREE_PROGRESS_QUERY = gql`
+  query SkillTreeProgress($treeId: ID!) {
+    skillTreeProgress(treeId: $treeId) {
+      id
+      treeId
+      name
+      description
+      tier
+      position
+      difficulty
+      criteriaType
+      criteriaValue
+      criteriaDescription
+      xpReward
+      creditReward
+      tips
+      progress {
+        status
+        practiceMinutes
+        practiceCount
+        bestValue
+        achievedAt
+      }
+    }
+  }
+`;
+
+export const SKILL_SUMMARY_QUERY = gql`
+  query SkillSummary {
+    skillSummary {
+      totalSkills
+      achievedSkills
+      inProgressSkills
+      availableSkills
+      lockedSkills
+      totalPracticeMinutes
     }
   }
 `;
 
 export const SKILL_PROGRESS_QUERY = gql`
   query SkillProgress {
-    skillProgress {
-      skillId
-      currentLevel
-      currentXP
-      xpToNextLevel
+    skillSummary {
+      totalSkills
+      achievedSkills
+      inProgressSkills
+      availableSkills
+      lockedSkills
+      totalPracticeMinutes
     }
   }
 `;
@@ -845,28 +989,153 @@ export const SKILL_PROGRESS_QUERY = gql`
 export const MARTIAL_ARTS_PROGRESS_QUERY = gql`
   query MartialArtsProgress {
     martialArtsProgress {
-      disciplineId
-      disciplineName
-      belt
-      progress
+      totalTechniques
+      masteredTechniques
+      learningTechniques
+      availableTechniques
       totalPracticeMinutes
-      techniquesLearned
+      disciplineProgress {
+        disciplineId
+        disciplineName
+        mastered
+        total
+      }
     }
   }
 `;
 
 export const MARTIAL_ARTS_DISCIPLINES_QUERY = gql`
-  query MartialArtsDisciplines {
-    martialArtsDisciplines {
+  query MartialArtsDisciplines($militaryOnly: Boolean) {
+    martialArtsDisciplines(militaryOnly: $militaryOnly) {
       id
       name
       description
+      originCountry
+      focusAreas
       icon
-      belts {
+      color
+      orderIndex
+      isMilitary
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_DISCIPLINE_QUERY = gql`
+  query MartialArtsDiscipline($id: ID!) {
+    martialArtsDiscipline(id: $id) {
+      id
+      name
+      description
+      originCountry
+      focusAreas
+      icon
+      color
+      orderIndex
+      isMilitary
+      categories {
+        id
+        disciplineId
         name
-        color
-        requirements
+        description
+        orderIndex
       }
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_TECHNIQUES_QUERY = gql`
+  query MartialArtsTechniques($disciplineId: ID!) {
+    martialArtsTechniques(disciplineId: $disciplineId) {
+      id
+      disciplineId
+      categoryId
+      name
+      description
+      category
+      difficulty
+      prerequisites
+      keyPoints
+      commonMistakes
+      drillSuggestions
+      videoUrl
+      thumbnailUrl
+      muscleGroups
+      xpReward
+      creditReward
+      tier
+      position
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_DISCIPLINE_PROGRESS_QUERY = gql`
+  query MartialArtsDisciplineProgress($disciplineId: ID!) {
+    martialArtsDisciplineProgress(disciplineId: $disciplineId) {
+      id
+      disciplineId
+      categoryId
+      name
+      description
+      category
+      difficulty
+      prerequisites
+      keyPoints
+      commonMistakes
+      drillSuggestions
+      videoUrl
+      thumbnailUrl
+      muscleGroups
+      xpReward
+      creditReward
+      tier
+      position
+      progress {
+        id
+        userId
+        techniqueId
+        status
+        proficiency
+        practiceCount
+        totalPracticeMinutes
+        lastPracticed
+        masteredAt
+        notes
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_DISCIPLINE_LEADERBOARD_QUERY = gql`
+  query MartialArtsDisciplineLeaderboard($disciplineId: ID!, $limit: Int) {
+    martialArtsDisciplineLeaderboard(disciplineId: $disciplineId, limit: $limit) {
+      userId
+      username
+      masteredCount
+      totalPracticeMinutes
+    }
+  }
+`;
+
+export const MARTIAL_ARTS_PRACTICE_HISTORY_QUERY = gql`
+  query MartialArtsPracticeHistory($limit: Int, $offset: Int, $disciplineId: ID) {
+    martialArtsPracticeHistory(limit: $limit, offset: $offset, disciplineId: $disciplineId) {
+      logs {
+        id
+        userId
+        techniqueId
+        techniqueName
+        disciplineName
+        practiceDate
+        durationMinutes
+        repsPerformed
+        roundsPerformed
+        partnerDrill
+        notes
+        createdAt
+      }
+      total
     }
   }
 `;
@@ -1147,29 +1416,79 @@ export const NOTIFICATION_UNREAD_COUNT_QUERY = gql`
 export const BUDDY_QUERY = gql`
   query Buddy {
     buddy {
-      id
+      userId
       species
       nickname
       level
       xp
-      mood
-      hunger
-      energy
-      equippedItems
+      xpToNextLevel
+      stage
+      stageName
+      stageDescription
+      equippedAura
+      equippedArmor
+      equippedWings
+      equippedTool
+      equippedSkin
+      equippedEmotePack
+      equippedVoicePack
+      unlockedAbilities
+      visible
+      showOnProfile
+      showInWorkouts
+      totalXpEarned
+      workoutsTogether
+      streaksWitnessed
+      prsCelebrated
       createdAt
+      updatedAt
     }
   }
 `;
 
 export const BUDDY_INVENTORY_QUERY = gql`
-  query BuddyInventory {
-    buddyInventory {
+  query BuddyInventory($category: String) {
+    buddyInventory(category: $category) {
       id
-      itemId
+      sku
       name
-      type
+      category
+      slot
       rarity
       equipped
+      icon
+      description
+    }
+  }
+`;
+
+export const BUDDY_EVOLUTION_PATH_QUERY = gql`
+  query BuddyEvolutionPath($species: String!) {
+    buddyEvolutionPath(species: $species) {
+      species
+      stage
+      minLevel
+      stageName
+      description
+      unlockedFeatures
+    }
+  }
+`;
+
+export const BUDDY_LEADERBOARD_QUERY = gql`
+  query BuddyLeaderboard($species: String, $limit: Int, $offset: Int) {
+    buddyLeaderboard(species: $species, limit: $limit, offset: $offset) {
+      entries {
+        rank
+        userId
+        username
+        species
+        nickname
+        level
+        stage
+        stageName
+      }
+      total
     }
   }
 `;

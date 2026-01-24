@@ -17,8 +17,12 @@ import {
   socialSpendingService,
   walletService,
   paymentsService as _paymentsService,
+  buddyService,
+  storeService,
 } from '../modules/economy';
 import { statsService } from '../modules/stats';
+import { skillService } from '../modules/skills';
+import { martialArtsService } from '../modules/martial-arts';
 import { longTermAnalyticsService } from '../modules/analytics';
 import { careerService } from '../modules/career';
 import {
@@ -455,6 +459,41 @@ export const resolvers = {
       }));
     },
 
+    // User's muscle activation data aggregated from recent workouts
+    myMuscleActivations: async (_: unknown, _args: unknown, context: Context) => {
+      const userId = context.user?.userId;
+
+      // If not authenticated, return empty array
+      if (!userId) {
+        return [];
+      }
+
+      // Get muscle activations from user's workouts in the last 30 days
+      const workouts = await queryAll<{ muscle_activations: Record<string, number> | null }>(
+        `SELECT muscle_activations FROM workouts
+         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'
+         AND muscle_activations IS NOT NULL`,
+        [userId]
+      );
+
+      // Aggregate muscle activations
+      const muscleActivations: Record<string, number> = {};
+      for (const row of workouts) {
+        const activations = row.muscle_activations || {};
+        for (const [muscleId, value] of Object.entries(activations)) {
+          muscleActivations[muscleId] = (muscleActivations[muscleId] || 0) + (value as number);
+        }
+      }
+
+      // Convert to array format and sort by activation level
+      return Object.entries(muscleActivations)
+        .map(([muscleId, activation]) => ({
+          muscleId,
+          activation: Math.min(100, Math.round(activation)), // Cap at 100
+        }))
+        .sort((a, b) => b.activation - a.activation);
+    },
+
     // Workouts - uses keyset pagination for O(1) performance
     myWorkouts: async (_: unknown, args: { limit?: number; offset?: number; cursor?: string }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -768,6 +807,471 @@ export const resolvers = {
         totalXP: xp,
         completedMilestones: [],
         unlockedAbilities: [],
+      };
+    },
+
+    // Comprehensive journey overview - matches REST /api/journey
+    journeyOverview: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get user's archetype, level, and join date
+      const user = await queryOne<{
+        current_identity_id: string;
+        current_level: number;
+        created_at: Date;
+      }>(
+        'SELECT current_identity_id, current_level, created_at FROM users WHERE id = $1',
+        [userId]
+      );
+
+      // Calculate days since joined
+      const daysSinceJoined = user?.created_at
+        ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      // Get total workout stats
+      const totalStats = await queryOne<{
+        total_workouts: string;
+        total_tu: string;
+      }>(
+        `SELECT
+           COUNT(*)::text as total_workouts,
+           COALESCE(SUM(total_tu), 0)::text as total_tu
+         FROM workouts WHERE user_id = $1`,
+        [userId]
+      );
+
+      const totalWorkouts = parseInt(totalStats?.total_workouts || '0');
+      const totalTU = parseFloat(totalStats?.total_tu || '0');
+
+      // Calculate streak
+      const streakResult = await queryOne<{ streak: string }>(
+        `WITH workout_dates AS (
+          SELECT DISTINCT date::date as workout_date
+          FROM workouts
+          WHERE user_id = $1
+          ORDER BY workout_date DESC
+        ),
+        date_series AS (
+          SELECT workout_date,
+                 workout_date - (ROW_NUMBER() OVER (ORDER BY workout_date DESC))::int AS grp
+          FROM workout_dates
+        )
+        SELECT COUNT(*)::text as streak
+        FROM date_series
+        WHERE grp = (SELECT grp FROM date_series WHERE workout_date = CURRENT_DATE OR workout_date = CURRENT_DATE - 1 LIMIT 1)`,
+        [userId]
+      );
+      const streak = parseInt(streakResult?.streak || '0');
+
+      // Get weekly stats
+      const weeklyStats = await queryOne<{ workouts: string; tu: string }>(
+        `SELECT COUNT(*)::text as workouts, COALESCE(SUM(total_tu), 0)::text as tu
+         FROM workouts WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '7 days'`,
+        [userId]
+      );
+      const weeklyWorkouts = parseInt(weeklyStats?.workouts || '0');
+      const weeklyTU = parseFloat(weeklyStats?.tu || '0');
+
+      // Get monthly stats
+      const monthlyStats = await queryOne<{ workouts: string; tu: string }>(
+        `SELECT COUNT(*)::text as workouts, COALESCE(SUM(total_tu), 0)::text as tu
+         FROM workouts WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'`,
+        [userId]
+      );
+      const monthlyWorkouts = parseInt(monthlyStats?.workouts || '0');
+      const monthlyTU = parseFloat(monthlyStats?.tu || '0');
+
+      // Get archetype info
+      let currentArchetype = user?.current_identity_id || 'default';
+      let currentLevelName = 'Beginner';
+      let nextLevelTU = 1000;
+
+      if (user?.current_identity_id) {
+        const level = await queryOne<{ name: string; total_tu: number }>(
+          'SELECT name, total_tu FROM archetype_levels WHERE archetype_id = $1 AND level = $2',
+          [user.current_identity_id, user.current_level || 1]
+        );
+        if (level) currentLevelName = level.name;
+
+        const nextLevel = await queryOne<{ total_tu: number }>(
+          'SELECT total_tu FROM archetype_levels WHERE archetype_id = $1 AND level = $2',
+          [user.current_identity_id, (user.current_level || 1) + 1]
+        );
+        if (nextLevel) nextLevelTU = nextLevel.total_tu - totalTU;
+      }
+
+      // Get 30-day workout history
+      const workoutHistory = await queryAll<{ date: string; tu: string; count: string }>(
+        `WITH date_series AS (
+          SELECT generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day')::date AS date
+        )
+        SELECT ds.date::text as date, COALESCE(SUM(w.total_tu), 0)::text as tu, COUNT(w.id)::text as count
+        FROM date_series ds
+        LEFT JOIN workouts w ON w.date = ds.date AND w.user_id = $1
+        GROUP BY ds.date ORDER BY ds.date ASC`,
+        [userId]
+      );
+
+      // Get top exercises
+      const topExercises = await queryAll<{ id: string; name: string; count: string }>(
+        `SELECT e.id, e.name, COUNT(*)::text as count
+         FROM workouts w
+         CROSS JOIN LATERAL jsonb_array_elements(w.exercise_data) AS ex
+         JOIN exercises e ON e.id = (ex->>'exerciseId')
+         WHERE w.user_id = $1
+         GROUP BY e.id, e.name ORDER BY COUNT(*) DESC LIMIT 10`,
+        [userId]
+      );
+
+      // Get archetype levels
+      const levels = user?.current_identity_id
+        ? await queryAll<{ level: number; name: string; total_tu: number }>(
+            'SELECT level, name, total_tu FROM archetype_levels WHERE archetype_id = $1 ORDER BY level',
+            [user.current_identity_id]
+          )
+        : [];
+
+      // Get muscle data
+      const muscleData = await queryAll<{ muscle_activations: Record<string, number> | null }>(
+        `SELECT muscle_activations FROM workouts WHERE user_id = $1 AND muscle_activations IS NOT NULL`,
+        [userId]
+      );
+
+      const muscleGroups: Record<string, number> = {};
+      const muscleBreakdown: Record<string, { name: string; group: string; total: number }> = {};
+
+      for (const row of muscleData) {
+        const activations = row.muscle_activations || {};
+        for (const [muscleId, value] of Object.entries(activations)) {
+          const numValue = typeof value === 'number' ? value : 0;
+          let group = 'Other';
+          const muscleLower = muscleId.toLowerCase();
+          if (muscleLower.includes('pec') || muscleLower.includes('chest')) group = 'Chest';
+          else if (muscleLower.includes('lat') || muscleLower.includes('back') || muscleLower.includes('rhomb') || muscleLower.includes('trap')) group = 'Back';
+          else if (muscleLower.includes('delt') || muscleLower.includes('shoulder')) group = 'Shoulders';
+          else if (muscleLower.includes('bicep') || muscleLower.includes('tricep') || muscleLower.includes('forearm')) group = 'Arms';
+          else if (muscleLower.includes('quad') || muscleLower.includes('hamstr') || muscleLower.includes('calf') || muscleLower.includes('glute')) group = 'Legs';
+          else if (muscleLower.includes('abs') || muscleLower.includes('oblique') || muscleLower.includes('core')) group = 'Core';
+
+          muscleGroups[group] = (muscleGroups[group] || 0) + numValue;
+          if (!muscleBreakdown[muscleId]) muscleBreakdown[muscleId] = { name: muscleId, group, total: 0 };
+          muscleBreakdown[muscleId].total += numValue;
+        }
+      }
+
+      // Get recent workouts
+      const recentWorkouts = await queryAll<{ id: string; date: string; total_tu: number; created_at: Date }>(
+        `SELECT id, date::text, total_tu, created_at FROM workouts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10`,
+        [userId]
+      );
+
+      // Get all archetypes for path switching
+      const archetypes = await queryAll<{ id: string; name: string; philosophy: string; focus_areas: string[] | null }>(
+        'SELECT id, name, philosophy, focus_areas FROM archetypes'
+      );
+
+      const paths = archetypes.map((a) => ({
+        archetype: a.id,
+        name: a.name,
+        philosophy: a.philosophy,
+        focusAreas: Array.isArray(a.focus_areas) ? a.focus_areas : [],
+        isCurrent: a.id === currentArchetype,
+        percentComplete: a.id === currentArchetype ? Math.min(100, (totalTU / 100000) * 100) : 0,
+      }));
+
+      return {
+        currentArchetype,
+        totalTU,
+        currentLevel: user?.current_level || 1,
+        currentLevelName,
+        daysSinceJoined,
+        totalWorkouts,
+        streak,
+        nextLevelTU: Math.max(0, nextLevelTU),
+        stats: {
+          weekly: { workouts: weeklyWorkouts, tu: weeklyTU, avgTuPerWorkout: weeklyWorkouts > 0 ? weeklyTU / weeklyWorkouts : 0 },
+          monthly: { workouts: monthlyWorkouts, tu: monthlyTU, avgTuPerWorkout: monthlyWorkouts > 0 ? monthlyTU / monthlyWorkouts : 0 },
+          allTime: { workouts: totalWorkouts, tu: totalTU, avgTuPerWorkout: totalWorkouts > 0 ? totalTU / totalWorkouts : 0 },
+        },
+        workoutHistory: workoutHistory.map((h) => ({ date: h.date, tu: parseFloat(h.tu), count: parseInt(h.count) })),
+        topExercises: topExercises.map((e) => ({ id: e.id, name: e.name, count: parseInt(e.count) })),
+        levels: levels.map((l) => ({ level: l.level, name: l.name, totalTu: l.total_tu, achieved: totalTU >= l.total_tu })),
+        muscleGroups: Object.entries(muscleGroups).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total),
+        muscleBreakdown: Object.entries(muscleBreakdown).map(([id, data]) => ({ id, name: data.name, group: data.group, totalActivation: data.total })).sort((a, b) => b.totalActivation - a.totalActivation),
+        recentWorkouts: recentWorkouts.map((w) => ({ id: w.id, date: w.date, tu: w.total_tu, createdAt: w.created_at })),
+        paths,
+      };
+    },
+
+    // Skills
+    skillTrees: async () => {
+      const trees = await skillService.getSkillTrees();
+      return trees.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        icon: t.icon,
+        color: t.color,
+        nodeCount: t.nodeCount || 0,
+      }));
+    },
+
+    skillTree: async (_: unknown, args: { treeId: string }) => {
+      const tree = await skillService.getSkillTree(args.treeId);
+      if (!tree) return null;
+      return {
+        id: tree.id,
+        name: tree.name,
+        description: tree.description,
+        icon: tree.icon,
+        color: tree.color,
+        nodeCount: tree.nodes?.length || 0,
+        nodes: tree.nodes?.map((n: any) => ({
+          id: n.id,
+          treeId: n.treeId || args.treeId,
+          name: n.name,
+          description: n.description,
+          tier: n.tier,
+          position: n.position,
+          difficulty: n.difficulty,
+          criteriaType: n.criteriaType,
+          criteriaValue: n.criteriaValue,
+          criteriaDescription: n.criteriaDescription,
+          xpReward: n.xpReward || 0,
+          creditReward: n.creditReward || 0,
+          tips: n.tips || [],
+        })),
+      };
+    },
+
+    skillTreeProgress: async (_: unknown, args: { treeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const progress = await skillService.getUserTreeProgress(userId, args.treeId);
+      return progress.map((n: any) => ({
+        id: n.id,
+        treeId: n.treeId || args.treeId,
+        name: n.name,
+        description: n.description,
+        tier: n.tier,
+        position: n.position,
+        difficulty: n.difficulty,
+        criteriaType: n.criteriaType,
+        criteriaValue: n.criteriaValue,
+        criteriaDescription: n.criteriaDescription,
+        xpReward: n.xpReward || 0,
+        creditReward: n.creditReward || 0,
+        tips: n.tips || [],
+        progress: n.progress ? {
+          status: n.progress.status,
+          practiceMinutes: n.progress.practiceMinutes || 0,
+          practiceCount: n.progress.practiceCount || 0,
+          bestValue: n.progress.bestValue,
+          achievedAt: n.progress.achievedAt,
+        } : null,
+      }));
+    },
+
+    skillSummary: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const summary = await skillService.getUserSkillSummary(userId);
+      const total = summary.totalSkills || 0;
+      const achieved = summary.achievedSkills || 0;
+      const inProgress = summary.inProgressSkills || 0;
+      const available = summary.availableSkills || 0;
+      // Calculate locked as: total - (achieved + inProgress + available)
+      const locked = Math.max(0, total - achieved - inProgress - available);
+      return {
+        totalSkills: total,
+        achievedSkills: achieved,
+        inProgressSkills: inProgress,
+        availableSkills: available,
+        lockedSkills: locked,
+        totalPracticeMinutes: summary.totalPracticeMinutes || 0,
+      };
+    },
+
+    // Martial Arts
+    martialArtsDisciplines: async (_: unknown, args: { militaryOnly?: boolean }) => {
+      const disciplines = await martialArtsService.getDisciplines({ militaryOnly: args.militaryOnly });
+      return disciplines.map((d) => ({
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        originCountry: d.originCountry,
+        focusAreas: d.focusAreas,
+        icon: d.icon,
+        color: d.color,
+        orderIndex: d.orderIndex,
+        isMilitary: d.isMilitary,
+        categories: null, // Loaded separately if needed
+      }));
+    },
+
+    martialArtsDiscipline: async (_: unknown, args: { id: string }) => {
+      const discipline = await martialArtsService.getDiscipline(args.id);
+      if (!discipline) return null;
+      return {
+        id: discipline.id,
+        name: discipline.name,
+        description: discipline.description,
+        originCountry: discipline.originCountry,
+        focusAreas: discipline.focusAreas,
+        icon: discipline.icon,
+        color: discipline.color,
+        orderIndex: discipline.orderIndex,
+        isMilitary: discipline.isMilitary,
+        categories: discipline.categories?.map((c) => ({
+          id: c.id,
+          disciplineId: c.disciplineId,
+          name: c.name,
+          description: c.description,
+          orderIndex: c.orderIndex,
+        })),
+      };
+    },
+
+    martialArtsTechniques: async (_: unknown, args: { disciplineId: string }) => {
+      const techniques = await martialArtsService.getTechniques(args.disciplineId);
+      return techniques.map((t) => ({
+        id: t.id,
+        disciplineId: t.disciplineId,
+        categoryId: t.categoryId,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        difficulty: t.difficulty,
+        prerequisites: t.prerequisites,
+        keyPoints: t.keyPoints,
+        commonMistakes: t.commonMistakes,
+        drillSuggestions: t.drillSuggestions,
+        videoUrl: t.videoUrl,
+        thumbnailUrl: t.thumbnailUrl,
+        muscleGroups: t.muscleGroups,
+        xpReward: t.xpReward,
+        creditReward: t.creditReward,
+        tier: t.tier,
+        position: t.position,
+        progress: null,
+      }));
+    },
+
+    martialArtsTechnique: async (_: unknown, args: { id: string }) => {
+      const technique = await martialArtsService.getTechnique(args.id);
+      if (!technique) return null;
+      return {
+        id: technique.id,
+        disciplineId: technique.disciplineId,
+        categoryId: technique.categoryId,
+        name: technique.name,
+        description: technique.description,
+        category: technique.category,
+        difficulty: technique.difficulty,
+        prerequisites: technique.prerequisites,
+        keyPoints: technique.keyPoints,
+        commonMistakes: technique.commonMistakes,
+        drillSuggestions: technique.drillSuggestions,
+        videoUrl: technique.videoUrl,
+        thumbnailUrl: technique.thumbnailUrl,
+        muscleGroups: technique.muscleGroups,
+        xpReward: technique.xpReward,
+        creditReward: technique.creditReward,
+        tier: technique.tier,
+        position: technique.position,
+        progress: null,
+      };
+    },
+
+    martialArtsProgress: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const summary = await martialArtsService.getUserSummary(userId);
+      return {
+        totalTechniques: summary.totalTechniques,
+        masteredTechniques: summary.masteredTechniques,
+        learningTechniques: summary.learningTechniques,
+        availableTechniques: summary.availableTechniques,
+        totalPracticeMinutes: summary.totalPracticeMinutes,
+        disciplineProgress: summary.disciplineProgress.map((d) => ({
+          disciplineId: d.disciplineId,
+          disciplineName: d.disciplineName,
+          mastered: d.mastered,
+          total: d.total,
+        })),
+      };
+    },
+
+    martialArtsDisciplineProgress: async (_: unknown, args: { disciplineId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const techniquesWithProgress = await martialArtsService.getUserDisciplineProgress(userId, args.disciplineId);
+      return techniquesWithProgress.map((t) => ({
+        id: t.id,
+        disciplineId: t.disciplineId,
+        categoryId: t.categoryId,
+        name: t.name,
+        description: t.description,
+        category: t.category,
+        difficulty: t.difficulty,
+        prerequisites: t.prerequisites,
+        keyPoints: t.keyPoints,
+        commonMistakes: t.commonMistakes,
+        drillSuggestions: t.drillSuggestions,
+        videoUrl: t.videoUrl,
+        thumbnailUrl: t.thumbnailUrl,
+        muscleGroups: t.muscleGroups,
+        xpReward: t.xpReward,
+        creditReward: t.creditReward,
+        tier: t.tier,
+        position: t.position,
+        progress: t.progress ? {
+          id: t.progress.id,
+          userId: t.progress.userId,
+          techniqueId: t.progress.techniqueId,
+          status: t.progress.status,
+          proficiency: t.progress.proficiency,
+          practiceCount: t.progress.practiceCount,
+          totalPracticeMinutes: t.progress.totalPracticeMinutes,
+          lastPracticed: t.progress.lastPracticed,
+          masteredAt: t.progress.masteredAt,
+          notes: t.progress.notes,
+          createdAt: t.progress.createdAt,
+          updatedAt: t.progress.updatedAt,
+        } : null,
+      }));
+    },
+
+    martialArtsDisciplineLeaderboard: async (_: unknown, args: { disciplineId: string; limit?: number }) => {
+      const leaderboard = await martialArtsService.getDisciplineLeaderboard(args.disciplineId, { limit: args.limit });
+      return leaderboard.map((entry) => ({
+        userId: entry.userId,
+        username: entry.username,
+        masteredCount: entry.masteredCount,
+        totalPracticeMinutes: entry.totalPracticeMinutes,
+      }));
+    },
+
+    martialArtsPracticeHistory: async (_: unknown, args: { limit?: number; offset?: number; disciplineId?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const history = await martialArtsService.getPracticeHistory(userId, {
+        limit: args.limit,
+        offset: args.offset,
+        disciplineId: args.disciplineId,
+      });
+      return {
+        logs: history.logs.map((log) => ({
+          id: log.id,
+          userId: log.userId,
+          techniqueId: log.techniqueId,
+          techniqueName: log.techniqueName,
+          disciplineName: log.disciplineName,
+          practiceDate: log.practiceDate,
+          durationMinutes: log.durationMinutes,
+          repsPerformed: log.repsPerformed,
+          roundsPerformed: log.roundsPerformed,
+          partnerDrill: log.partnerDrill,
+          notes: log.notes,
+          createdAt: log.createdAt,
+        })),
+        total: history.total,
       };
     },
 
@@ -4052,6 +4556,68 @@ export const resolvers = {
         joinedAt: e.joined_at,
       }));
     },
+
+    // ============================================
+    // BUDDY (TRAINING COMPANION) QUERIES
+    // ============================================
+    buddy: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return buddyService.getBuddy(userId);
+    },
+
+    buddyInventory: async (_: unknown, args: { category?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get owned SKUs from store
+      const ownedSkus = await storeService.getOwnedSkus(userId);
+
+      // Get all buddy-related items from the store
+      const categoryFilter = args.category ? `buddy_${args.category}` : 'buddy';
+      const { items: allBuddyItems } = await storeService.getItems({ category: categoryFilter, limit: 500 });
+
+      // Filter to only owned items
+      const ownedBuddyItems = allBuddyItems.filter((item: { sku: string; category: string }) => {
+        if (!ownedSkus.has(item.sku)) return false;
+        if (!item.category.startsWith('buddy_')) return false;
+        return true;
+      });
+
+      // Check which items are equipped
+      const buddy = await buddyService.getBuddy(userId);
+      const equippedSkus = buddy ? [
+        buddy.equippedAura,
+        buddy.equippedArmor,
+        buddy.equippedWings,
+        buddy.equippedTool,
+        buddy.equippedSkin,
+        buddy.equippedEmotePack,
+        buddy.equippedVoicePack,
+      ].filter(Boolean) : [];
+
+      return ownedBuddyItems.map((item: { sku: string; name: string; category: string; rarity?: string; icon?: string; description?: string }) => ({
+        id: item.sku, // Use sku as the unique identifier
+        sku: item.sku,
+        name: item.name,
+        category: item.category,
+        slot: item.category.replace('buddy_', ''),
+        rarity: item.rarity || null,
+        equipped: equippedSkus.includes(item.sku),
+        icon: item.icon || null,
+        description: item.description || null,
+      }));
+    },
+
+    buddyEvolutionPath: async (_: unknown, args: { species: string }) => {
+      return buddyService.getEvolutionPath(args.species as any);
+    },
+
+    buddyLeaderboard: async (_: unknown, args: { species?: string; limit?: number; offset?: number }) => {
+      return buddyService.getLeaderboard({
+        species: args.species as any,
+        limit: args.limit ?? 50,
+        offset: args.offset ?? 0,
+      });
+    },
   },
 
   // ============================================
@@ -4404,6 +4970,94 @@ export const resolvers = {
           unlockedAbilities: [],
         },
       };
+    },
+
+    // Skills
+    logSkillPractice: async (_: unknown, args: { input: { skillNodeId: string; durationMinutes: number; valueAchieved?: number; notes?: string } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { skillNodeId, durationMinutes, valueAchieved, notes } = args.input;
+
+      const practiceLog = await skillService.logPractice({
+        userId,
+        skillNodeId,
+        durationMinutes,
+        valueAchieved,
+        notes,
+      });
+
+      return {
+        id: practiceLog.id,
+        skillNodeId: practiceLog.skillNodeId,
+        durationMinutes: practiceLog.durationMinutes,
+        valueAchieved: practiceLog.valueAchieved,
+        notes: practiceLog.notes,
+        createdAt: practiceLog.createdAt,
+      };
+    },
+
+    achieveSkill: async (_: unknown, args: { skillNodeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await skillService.achieveSkill({
+        userId,
+        skillNodeId: args.skillNodeId,
+      });
+
+      return {
+        success: result.success,
+        error: result.error,
+        xpAwarded: result.xpAwarded,
+        creditsAwarded: result.creditsAwarded,
+      };
+    },
+
+    // Martial Arts Mutations
+    practiceMartialArt: async (_: unknown, args: { input: { techniqueId: string; durationMinutes: number; repsPerformed?: number; roundsPerformed?: number; partnerDrill?: boolean; notes?: string } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const practiceLog = await martialArtsService.logPractice({
+        userId,
+        techniqueId: args.input.techniqueId,
+        durationMinutes: args.input.durationMinutes,
+        repsPerformed: args.input.repsPerformed,
+        roundsPerformed: args.input.roundsPerformed,
+        partnerDrill: args.input.partnerDrill,
+        notes: args.input.notes,
+      });
+
+      return {
+        id: practiceLog.id,
+        userId: practiceLog.userId,
+        techniqueId: practiceLog.techniqueId,
+        techniqueName: null,
+        disciplineName: null,
+        practiceDate: practiceLog.practiceDate,
+        durationMinutes: practiceLog.durationMinutes,
+        repsPerformed: practiceLog.repsPerformed,
+        roundsPerformed: practiceLog.roundsPerformed,
+        partnerDrill: practiceLog.partnerDrill,
+        notes: practiceLog.notes,
+        createdAt: practiceLog.createdAt,
+      };
+    },
+
+    masterMartialArt: async (_: unknown, args: { techniqueId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await martialArtsService.masterTechnique({
+        userId,
+        techniqueId: args.techniqueId,
+      });
+
+      return {
+        success: result.success,
+        creditsAwarded: result.creditsAwarded,
+        xpAwarded: result.xpAwarded,
+        error: result.error,
+      };
+    },
+
+    updateMartialArtNotes: async (_: unknown, args: { techniqueId: string; notes: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await martialArtsService.updateNotes(userId, args.techniqueId, args.notes);
+      return true;
     },
 
     // Economy
@@ -5553,6 +6207,61 @@ export const resolvers = {
       const { userId } = requireAuth(context);
       await mascotPowersService.removeExerciseAvoidance(userId, args.exerciseId);
       return true;
+    },
+
+    // ============================================
+    // BUDDY (TRAINING COMPANION) MUTATIONS
+    // ============================================
+
+    createBuddy: async (
+      _: unknown,
+      args: { input: { species: string; nickname?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return buddyService.createBuddy(userId, args.input.species as any, args.input.nickname);
+    },
+
+    updateBuddySpecies: async (_: unknown, args: { species: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return buddyService.changeSpecies(userId, args.species as any);
+    },
+
+    updateBuddyNickname: async (_: unknown, args: { nickname: string | null }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await buddyService.setNickname(userId, args.nickname);
+      return true;
+    },
+
+    updateBuddySettings: async (
+      _: unknown,
+      args: { input: { visible?: boolean; showOnProfile?: boolean; showInWorkouts?: boolean } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await buddyService.updateDisplaySettings(userId, args.input);
+      return true;
+    },
+
+    equipBuddyCosmetic: async (
+      _: unknown,
+      args: { sku: string; slot: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      await buddyService.equipCosmetic(userId, args.sku, args.slot);
+      return true;
+    },
+
+    unequipBuddyCosmetic: async (_: unknown, args: { slot: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await buddyService.unequipCosmetic(userId, args.slot);
+      return true;
+    },
+
+    feedBuddy: async (_: unknown, args: { xpAmount: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return buddyService.addXp(userId, args.xpAmount);
     },
 
     // ============================================

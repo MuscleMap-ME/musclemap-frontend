@@ -2,12 +2,14 @@ import React, { useState, useEffect, Suspense, lazy, useMemo, useCallback, useRe
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { useQuery } from '@apollo/client/react';
 import { hasExerciseIllustration } from '@musclemap/shared';
 import { MuscleViewer, MuscleActivationBadge } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
 import { ExerciseImageUploadButton } from '../components/ExerciseImageUpload';
 import { PullToRefresh } from '../components/mobile';
 import { haptic } from '../utils/haptics';
+import { EXERCISES_QUERY } from '../graphql/queries';
 
 // Lazy load illustration component
 const ExerciseIllustration = lazy(() =>
@@ -614,18 +616,68 @@ const CategoryCard = ({ category, exerciseCount, onClick }) => (
   </motion.button>
 );
 
+// Helper to normalize muscle arrays from various formats
+function normalizeMuscles(primaryMuscles: unknown): string[] {
+  if (Array.isArray(primaryMuscles)) {
+    return primaryMuscles;
+  }
+  if (typeof primaryMuscles === 'string') {
+    // Parse PostgreSQL array format: {"chest-upper","delt-front"}
+    const pgArrayMatch = primaryMuscles.match(/^\{(.+)\}$/);
+    if (pgArrayMatch) {
+      return pgArrayMatch[1]
+        .split(',')
+        .map(m => m.replace(/^"|"$/g, '').trim())
+        .filter(Boolean);
+    }
+    return primaryMuscles.split(',').map(m => m.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+interface Exercise {
+  id: string;
+  name: string;
+  description?: string;
+  type?: string;
+  primaryMuscles: string[];
+  secondaryMuscles?: string[];
+  equipment?: string[];
+  difficulty?: number;
+  instructions?: string[];
+  tips?: string[];
+  category?: string;
+}
+
 export default function Exercises() {
-  const [exercises, setExercises] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('all');
-  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' | 'list' | 'muscle'
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]); // For muscle-first discovery
   const searchInputRef = useRef<HTMLInputElement>(null);
   const shouldFocusSearch = useRef(false);
+
+  // GraphQL query for exercises
+  const { data, loading, refetch } = useQuery<{ exercises: Exercise[] }>(EXERCISES_QUERY, {
+    variables: { limit: 500 },
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Normalize exercises data
+  const exercises = useMemo(() => {
+    if (!data?.exercises) return [];
+    return data.exercises.map(ex => {
+      const muscles = normalizeMuscles(ex.primaryMuscles);
+      return {
+        ...ex,
+        primaryMuscles: muscles,
+        category: getExerciseCategory({ ...ex, primaryMuscles: muscles }),
+      };
+    });
+  }, [data?.exercises]);
 
   // Restore focus to search input after view mode changes
   useEffect(() => {
@@ -641,53 +693,11 @@ export default function Exercises() {
     }
   }, [viewMode]);
 
-  // Fetch exercises function - extracted for pull-to-refresh
-  const fetchExercises = useCallback(async () => {
-    try {
-      const res = await fetch('/api/exercises');
-      const data = await res.json();
-      if (data.data) {
-        // Normalize primaryMuscles to always be an array
-        // Handles PostgreSQL array format: {"muscle1","muscle2"}
-        const normalized = data.data.map(ex => {
-          let muscles = [];
-          if (Array.isArray(ex.primaryMuscles)) {
-            muscles = ex.primaryMuscles;
-          } else if (typeof ex.primaryMuscles === 'string') {
-            // Parse PostgreSQL array format: {"chest-upper","delt-front"}
-            const pgArrayMatch = ex.primaryMuscles.match(/^\{(.+)\}$/);
-            if (pgArrayMatch) {
-              // Remove quotes and split by comma
-              muscles = pgArrayMatch[1]
-                .split(',')
-                .map(m => m.replace(/^"|"$/g, '').trim())
-                .filter(Boolean);
-            } else {
-              muscles = ex.primaryMuscles.split(',').map(m => m.trim()).filter(Boolean);
-            }
-          }
-          return {
-            ...ex,
-            primaryMuscles: muscles,
-            category: getExerciseCategory({ ...ex, primaryMuscles: muscles }),
-          };
-        });
-        setExercises(normalized);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchExercises().finally(() => setLoading(false));
-  }, [fetchExercises]);
-
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     haptic('light');
-    await fetchExercises();
-  }, [fetchExercises]);
+    await refetch();
+  }, [refetch]);
 
   // Count exercises per category
   const exercisesByCategory = exercises.reduce((acc, ex) => {

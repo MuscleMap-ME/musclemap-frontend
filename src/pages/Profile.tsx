@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
 import { api } from '../utils/api';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
@@ -7,6 +8,7 @@ import { XPProgress } from '../components/gamification';
 import { WeeklyHeatmap } from '../components/analytics';
 import { MuscleViewer } from '../components/muscle-viewer';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
+import { MY_MUSCLE_ACTIVATIONS_QUERY } from '../graphql/queries';
 
 const LIMITATIONS = [
   { id: 'back_pain', name: 'Back Pain', icon: '🤴' },
@@ -41,6 +43,35 @@ export default function Profile() {
   const [success, setSuccess] = useState(false);
   const [muscleActivations, setMuscleActivations] = useState<Record<string, number>>({});
 
+  // GraphQL query for muscle activations
+  const { data: muscleData } = useQuery<{ myMuscleActivations: Array<{ muscleId: string; activation: number }> }>(
+    MY_MUSCLE_ACTIVATIONS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
+
+  // Update muscle activations when GraphQL data changes
+  useEffect(() => {
+    if (muscleData?.myMuscleActivations && muscleData.myMuscleActivations.length > 0) {
+      const activationMap: Record<string, number> = {};
+      muscleData.myMuscleActivations.forEach(item => {
+        activationMap[item.muscleId] = item.activation;
+      });
+      setMuscleActivations(activationMap);
+    } else if (muscleData && muscleData.myMuscleActivations?.length === 0) {
+      // Fallback to mock data if no activations
+      setMuscleActivations({
+        'chest': 65,
+        'front_delts': 45,
+        'biceps': 30,
+        'abs': 20,
+        'quads': 50,
+        'lats': 35,
+        'traps': 40,
+        'glutes': 55,
+      });
+    }
+  }, [muscleData]);
+
   const loadProfile = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -62,32 +93,7 @@ export default function Profile() {
     }
   }, [token]);
 
-  // Load muscle activation data for physique display
-  const loadMuscleData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/muscles/activations');
-      const data = await response.json();
-      if (data.data && Array.isArray(data.data)) {
-        const activationMap: Record<string, number> = {};
-        data.data.forEach((item: { muscleId: string; activation: number }) => {
-          activationMap[item.muscleId] = item.activation;
-        });
-        setMuscleActivations(activationMap);
-      }
-    } catch {
-      // Use mock data if API fails
-      setMuscleActivations({
-        'chest': 65,
-        'front_delts': 45,
-        'biceps': 30,
-        'abs': 20,
-        'quads': 50,
-        'lats': 35,
-        'traps': 40,
-        'glutes': 55,
-      });
-    }
-  }, []);
+  // Muscle activation data is now loaded via GraphQL query hook above
 
   // Convert to MuscleActivation array format
   const physiqueActivations = useMemo((): MuscleActivation[] => {
@@ -100,8 +106,7 @@ export default function Profile() {
 
   useEffect(() => {
     loadProfile();
-    loadMuscleData();
-  }, [loadProfile, loadMuscleData]);
+  }, [loadProfile]);
 
   async function save() {
     setSaving(true);

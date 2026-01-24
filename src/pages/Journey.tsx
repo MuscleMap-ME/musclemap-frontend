@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation } from "@apollo/client/react";
 import { useAuth } from "../store/authStore";
 import { ArchetypeCard } from "../components/archetypes";
 import { XPProgress } from "../components/gamification";
 import { MuscleViewer, MuscleHeatmap } from "../components/muscle-viewer";
+import { JOURNEY_OVERVIEW_QUERY, SELECT_ARCHETYPE_MUTATION } from "../graphql";
 
 // Simple static challenge card for Journey page (uses old individual props API)
 function SimpleChallengeCard({ title, description, progress, total, xpReward, difficulty, icon, timeRemaining }: {
@@ -158,22 +160,74 @@ const MUSCLE_ID_MAP: Record<string, string> = {
   'erector spinae': 'lower_back',
 };
 
+// TypeScript interfaces for GraphQL response
+interface JourneyOverviewData {
+  journeyOverview: {
+    currentArchetype: string;
+    totalTU: number;
+    currentLevel: number;
+    currentLevelName: string;
+    daysSinceJoined: number;
+    totalWorkouts: number;
+    streak: number;
+    nextLevelTU: number;
+    stats: {
+      weekly: { workouts: number; tu: number; avgTuPerWorkout: number };
+      monthly: { workouts: number; tu: number; avgTuPerWorkout: number };
+      allTime: { workouts: number; tu: number; avgTuPerWorkout: number };
+    };
+    workoutHistory: { date: string; tu: number; count: number }[];
+    topExercises: { id: string; name: string; count: number }[];
+    levels: { level: number; name: string; totalTu: number; achieved: boolean }[];
+    muscleGroups: { name: string; total: number }[];
+    muscleBreakdown: { id: string; name: string; group: string; totalActivation: number }[];
+    recentWorkouts: { id: string; date: string; tu: number; createdAt: string }[];
+    paths: { archetype: string; name: string; philosophy: string | null; focusAreas: string[]; isCurrent: boolean; percentComplete: number }[];
+  } | null;
+}
+
 export default function Journey() {
   const { token, user, login } = useAuth();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [switching, setSwitching] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showMuscleViewer, setShowMuscleViewer] = useState(true);
+
+  // GraphQL queries
+  const { data: queryData, loading, refetch } = useQuery<JourneyOverviewData>(JOURNEY_OVERVIEW_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !token,
+  });
+
+  // GraphQL mutation for switching archetype
+  const [selectArchetype] = useMutation(SELECT_ARCHETYPE_MUTATION, {
+    onCompleted: (result) => {
+      if (result?.selectArchetype?.success) {
+        const newArchetype = result.selectArchetype.archetype?.id;
+        if (newArchetype) {
+          const updatedUser = { ...user, archetype: newArchetype };
+          login(updatedUser, token!);
+          setSuccess(newArchetype);
+          setTimeout(() => setSuccess(null), 2000);
+          refetch();
+        }
+      }
+      setSwitching(null);
+    },
+    onError: () => {
+      setSwitching(null);
+    },
+  });
+
+  const data = queryData?.journeyOverview;
 
   // Convert muscle data to MuscleActivation format for 3D visualization
   const muscleActivations = useMemo((): MuscleActivation[] => {
     if (!data?.muscleBreakdown?.length) return [];
 
-    const maxTotal = Math.max(...data.muscleBreakdown.map((m: { totalActivation: number }) => m.totalActivation));
+    const maxTotal = Math.max(...data.muscleBreakdown.map((m) => m.totalActivation));
 
-    return data.muscleBreakdown.map((muscle: { name: string; totalActivation: number }) => {
+    return data.muscleBreakdown.map((muscle) => {
       const normalizedName = muscle.name.toLowerCase();
       const mappedId = MUSCLE_ID_MAP[normalizedName] || normalizedName.replace(/\s+/g, '_');
       const intensity = maxTotal > 0 ? muscle.totalActivation / maxTotal : 0;
@@ -190,9 +244,9 @@ export default function Journey() {
   const muscleGroupActivations = useMemo((): MuscleActivation[] => {
     if (!data?.muscleGroups?.length) return [];
 
-    const maxTotal = Math.max(...data.muscleGroups.map((g: { total: number }) => g.total));
+    const maxTotal = Math.max(...data.muscleGroups.map((g) => g.total));
 
-    return data.muscleGroups.map((group: { name: string; total: number }) => {
+    return data.muscleGroups.map((group) => {
       const mappedId = MUSCLE_ID_MAP[group.name] || group.name.toLowerCase().replace(/\s+/g, '_');
       const intensity = maxTotal > 0 ? group.total / maxTotal : 0;
 
@@ -204,42 +258,9 @@ export default function Journey() {
     });
   }, [data?.muscleGroups]);
 
-  const load = useCallback(async () => {
-    if (!token) { setLoading(false); return; }
-    try {
-      const res = await fetch("/api/journey", { headers: { Authorization: "Bearer " + token } });
-      if (res.ok) {
-        const d = await res.json();
-        setData(d.data);
-      }
-    } catch {
-      // Failed to load journey data
-    }
-    setLoading(false);
-  }, [token]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function switchPath(id) {
+  function switchPath(id: string) {
     setSwitching(id);
-    try {
-      const res = await fetch("/api/journey/switch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify({ archetype: id })
-      });
-      const result = await res.json();
-      if (result.success) {
-        const updatedUser = { ...user, archetype: id };
-        login(updatedUser, token);
-        setSuccess(id);
-        setTimeout(() => setSuccess(null), 2000);
-        await load();
-      }
-    } catch {
-      // Failed to switch archetype
-    }
-    setSwitching(null);
+    selectArchetype({ variables: { archetypeId: id } });
   }
 
   if (loading) {
@@ -517,7 +538,7 @@ export default function Journey() {
                       </div>
                       <div className="flex-1">
                         <div className="font-medium">{level.name}</div>
-                        <div className="text-xs text-gray-400">{Math.round(level.total_tu).toLocaleString()} TU required</div>
+                        <div className="text-xs text-gray-400">{Math.round(level.totalTu).toLocaleString()} TU required</div>
                       </div>
                     </div>
                   ))}

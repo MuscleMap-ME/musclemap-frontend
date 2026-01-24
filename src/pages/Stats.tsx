@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
 import {
@@ -18,6 +19,7 @@ import { InsightCard, WeeklyHeatmap, MiniChart } from '../components/analytics';
 import { MuscleViewer, MuscleHeatmap } from '../components/muscle-viewer';
 import { RPGStatBar } from '../components/stats';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
+import { MY_MUSCLE_ACTIVATIONS_QUERY } from '../graphql/queries';
 
 // Lazy load heavy D3 chart component
 const RadarChartD3 = lazy(() =>
@@ -468,21 +470,25 @@ export default function Stats() {
     }
   }, []);
 
-  // Load muscle activation data
-  const loadMuscleData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/muscles/activations');
-      const data = await response.json();
-      if (data.data && Array.isArray(data.data)) {
-        // Convert array to object map for MuscleExplorer
-        const activationMap = {};
-        data.data.forEach(item => {
-          activationMap[item.muscleId] = item.activation;
-        });
-        setMuscleActivations(activationMap);
-      }
-    } catch (_err) {
-      // Use mock data if API fails
+  // Load muscle activation data via GraphQL
+  interface MuscleActivationData {
+    myMuscleActivations: Array<{ muscleId: string; activation: number }>;
+  }
+
+  const { data: muscleData } = useQuery<MuscleActivationData>(MY_MUSCLE_ACTIVATIONS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Convert GraphQL data to object map for MuscleExplorer
+  useEffect(() => {
+    if (muscleData?.myMuscleActivations && muscleData.myMuscleActivations.length > 0) {
+      const activationMap: Record<string, number> = {};
+      muscleData.myMuscleActivations.forEach(item => {
+        activationMap[item.muscleId] = item.activation;
+      });
+      setMuscleActivations(activationMap);
+    } else if (muscleData && muscleData.myMuscleActivations?.length === 0) {
+      // Use mock data if no data available
       setMuscleActivations({
         'pectoralis-major': 65,
         'deltoid-anterior': 45,
@@ -494,7 +500,7 @@ export default function Stats() {
         'gluteus-maximus': 55,
       });
     }
-  }, []);
+  }, [muscleData]);
 
   // Handle muscle selection - navigates to exercises filtered by muscle
   const handleFindExercises = useCallback((muscleId) => {
@@ -516,8 +522,7 @@ export default function Stats() {
 
   useEffect(() => {
     loadData();
-    loadMuscleData();
-  }, [loadData, loadMuscleData]);
+  }, [loadData]);
 
   const handleRecalculate = async () => {
     setRecalculating(true);
