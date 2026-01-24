@@ -359,6 +359,14 @@ export async function up(): Promise<void> {
   if (await tableExists('user_journeys')) {
     log.info('Adding health tracking columns to user_journeys...');
 
+    // First add the status column if it doesn't exist (required for the index)
+    if (!(await columnExists('user_journeys', 'status'))) {
+      await db.query(`
+        ALTER TABLE user_journeys
+        ADD COLUMN status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'abandoned', 'paused'))
+      `);
+    }
+
     if (!(await columnExists('user_journeys', 'last_progress_at'))) {
       await db.query(`
         ALTER TABLE user_journeys
