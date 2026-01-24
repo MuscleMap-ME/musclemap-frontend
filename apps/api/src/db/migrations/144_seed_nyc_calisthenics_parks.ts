@@ -363,8 +363,6 @@ export async function migrate(): Promise<void> {
            description = COALESCE(NULLIF($2, ''), description),
            amenities = $3,
            is_free = $4,
-           covered_area = $5,
-           lighting_available = $6,
            updated_at = NOW()
          WHERE id = $1`,
         [
@@ -372,8 +370,6 @@ export async function migrate(): Promise<void> {
           location.description,
           JSON.stringify(location.amenities || []),
           location.isFree,
-          location.coveredArea || false,
-          location.lightingAvailable || false,
         ]
       );
     } else {
@@ -384,11 +380,11 @@ export async function migrate(): Promise<void> {
         `INSERT INTO fitness_venues (
            id, name, slug, description, venue_type, latitude, longitude,
            address, borough, neighborhood, city, country, data_source,
-           amenities, is_free, covered_area, lighting_available,
-           has_calisthenics_equipment, is_active, is_verified, created_at, updated_at
+           amenities, is_free, has_calisthenics_equipment, is_active, is_verified,
+           created_at, updated_at
          ) VALUES (
            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-           $14, $15, $16, $17, $18, $19, $20, NOW(), NOW()
+           $14, $15, $16, $17, $18, NOW(), NOW()
          )
          ON CONFLICT (slug) DO NOTHING`,
         [
@@ -407,11 +403,9 @@ export async function migrate(): Promise<void> {
           'seed_data',
           JSON.stringify(location.amenities || []),
           location.isFree,
-          location.coveredArea || false,
-          location.lightingAvailable || false,
-          true,
-          true,
-          true, // Pre-verified since these are known locations
+          true, // has_calisthenics_equipment
+          true, // is_active
+          true, // is_verified - Pre-verified since these are known locations
         ]
       );
 
