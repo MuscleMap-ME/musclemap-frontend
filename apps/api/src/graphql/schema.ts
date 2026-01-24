@@ -87,9 +87,11 @@ export const typeDefs = `#graphql
 
     # Stats
     myStats: CharacterStats
+    myStatsWithRankings: StatsWithRankings
     userStats(userId: ID!): CharacterStats
     statsHistory(days: Int): [StatsHistoryEntry!]!
     leaderboards(type: String): [LeaderboardEntry!]!
+    statLeaderboard(stat: String, scope: String, scopeValue: String, limit: Int, offset: Int): StatLeaderboardResult!
     myLeaderboardPosition: LeaderboardPosition
     extendedProfile: ExtendedProfile
     statsInfo: StatsInfo
@@ -183,6 +185,10 @@ export const typeDefs = `#graphql
     # Privacy
     privacy: PrivacySettings
     privacySummary: PrivacySummary
+
+    # User Settings
+    mySettings: UserSettings
+    messagingPrivacy: MessagingPrivacy
 
     # PT Tests
     ptTests: [PTTest!]!
@@ -565,6 +571,10 @@ export const typeDefs = `#graphql
     updatePrivacy(input: PrivacyInput!): PrivacySettings!
     enableMinimalistMode: PrivacySettings!
     disableMinimalistMode: PrivacySettings!
+
+    # User Settings
+    updateSettings(input: UserSettingsInput!): UserSettings!
+    updateMessagingPrivacy(enabled: Boolean!): MessagingPrivacy!
 
     # PT Tests
     submitPTTestResults(input: PTTestResultInput!): PTTestResult!
@@ -1743,6 +1753,56 @@ export const typeDefs = `#graphql
     fitnessLevel: String
     goals: [String!]
     preferredUnits: String
+    city: String
+    county: String
+    state: String
+    country: String
+    countryCode: String
+    leaderboardOptIn: Boolean
+    profileVisibility: String
+    weeklyActivity: [Int!]
+    volumeTrend: [VolumeTrendEntry!]
+    previousStrength: Int
+  }
+
+  type VolumeTrendEntry {
+    label: String!
+    value: Float!
+  }
+
+  type StatRanking {
+    rank: Int!
+    total: Int!
+    percentile: Float!
+  }
+
+  type StatRankingsByScope {
+    global: StatRanking!
+    country: StatRanking
+    state: StatRanking
+    city: StatRanking
+  }
+
+  type StatsWithRankings {
+    stats: CharacterStats!
+    rankings: JSON!
+  }
+
+  type StatLeaderboardEntry {
+    userId: ID!
+    username: String!
+    avatarUrl: String
+    statValue: Float!
+    rank: Int!
+    gender: String
+    country: String
+    state: String
+    city: String
+  }
+
+  type StatLeaderboardResult {
+    entries: [StatLeaderboardEntry!]!
+    total: Int!
   }
 
   type StatsInfo {
@@ -3192,6 +3252,32 @@ export const typeDefs = `#graphql
     allowMessages: String!
     shareProgress: Boolean!
     minimalistMode: Boolean!
+  }
+
+  type UserSettings {
+    theme: String!
+    reducedMotion: Boolean!
+    highContrast: Boolean!
+    textSize: String!
+    isPublic: Boolean!
+    showLocation: Boolean!
+    showProgress: Boolean!
+    equipment: [String!]
+  }
+
+  input UserSettingsInput {
+    theme: String
+    reducedMotion: Boolean
+    highContrast: Boolean
+    textSize: String
+    isPublic: Boolean
+    showLocation: Boolean
+    showProgress: Boolean
+    equipment: [String!]
+  }
+
+  type MessagingPrivacy {
+    messagingEnabled: Boolean!
   }
 
   type PrivacySummary {

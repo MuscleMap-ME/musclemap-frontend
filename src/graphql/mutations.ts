@@ -1269,6 +1269,119 @@ export const START_CREW_WAR_MUTATION = gql`
 `;
 
 // ============================================
+// TRAINERS & CLASSES
+// ============================================
+
+export const UPSERT_TRAINER_PROFILE_MUTATION = gql`
+  mutation UpsertTrainerProfile($input: TrainerProfileInput!) {
+    upsertTrainerProfile(input: $input) {
+      userId
+      displayName
+      bio
+      specialties
+      certifications
+      hourlyRateCredits
+      perClassRateCredits
+      verified
+      verifiedAt
+      ratingAvg
+      ratingCount
+      totalClassesTaught
+      totalStudentsTrained
+      totalCreditsEarned
+      status
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_TRAINER_STATUS_MUTATION = gql`
+  mutation UpdateTrainerStatus($status: String!) {
+    updateTrainerStatus(status: $status)
+  }
+`;
+
+export const CREATE_TRAINER_CLASS_MUTATION = gql`
+  mutation CreateTrainerClass($input: CreateTrainerClassInput!) {
+    createTrainerClass(input: $input) {
+      id
+      trainerUserId
+      title
+      description
+      category
+      difficulty
+      startAt
+      durationMinutes
+      locationType
+      locationDetails
+      capacity
+      enrolledCount
+      creditsPerStudent
+      trainerWagePerStudent
+      status
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_TRAINER_CLASS_MUTATION = gql`
+  mutation UpdateTrainerClass($classId: ID!, $input: UpdateTrainerClassInput!) {
+    updateTrainerClass(classId: $classId, input: $input) {
+      id
+      trainerUserId
+      title
+      description
+      category
+      difficulty
+      startAt
+      durationMinutes
+      locationType
+      locationDetails
+      capacity
+      enrolledCount
+      creditsPerStudent
+      trainerWagePerStudent
+      status
+      createdAt
+    }
+  }
+`;
+
+export const CANCEL_TRAINER_CLASS_MUTATION = gql`
+  mutation CancelTrainerClass($classId: ID!, $reason: String) {
+    cancelTrainerClass(classId: $classId, reason: $reason)
+  }
+`;
+
+export const ENROLL_IN_CLASS_MUTATION = gql`
+  mutation EnrollInClass($classId: ID!) {
+    enrollInClass(classId: $classId) {
+      id
+      classId
+      userId
+      status
+      creditsPaid
+      enrolledAt
+    }
+  }
+`;
+
+export const UNENROLL_FROM_CLASS_MUTATION = gql`
+  mutation UnenrollFromClass($classId: ID!) {
+    unenrollFromClass(classId: $classId)
+  }
+`;
+
+export const MARK_CLASS_ATTENDANCE_MUTATION = gql`
+  mutation MarkClassAttendance($classId: ID!, $attendees: [AttendeeInput!]!) {
+    markClassAttendance(classId: $classId, attendees: $attendees) {
+      attendeeCount
+      wageEarned
+    }
+  }
+`;
+
+// ============================================
 // CAREER READINESS
 // ============================================
 
@@ -1846,5 +1959,71 @@ export const UPDATE_BODY_MEASUREMENT_MUTATION = gql`
 export const DELETE_BODY_MEASUREMENT_MUTATION = gql`
   mutation DeleteBodyMeasurement($id: ID!) {
     deleteBodyMeasurement(id: $id)
+  }
+`;
+
+// ============================================
+// STATS
+// ============================================
+
+export const RECALCULATE_STATS_MUTATION = gql`
+  mutation RecalculateStats {
+    recalculateStats {
+      userId
+      level
+      xp
+      xpToNextLevel
+      strength
+      endurance
+      agility
+      flexibility
+      balance
+      mentalFocus
+      totalWorkouts
+      totalExercises
+      currentStreak
+      longestStreak
+      lastWorkoutAt
+    }
+  }
+`;
+
+// ============================================
+// SETTINGS
+// ============================================
+
+export const UPDATE_SETTINGS_MUTATION = gql`
+  mutation UpdateSettings($input: UserSettingsInput!) {
+    updateSettings(input: $input) {
+      theme
+      reducedMotion
+      highContrast
+      textSize
+      isPublic
+      showLocation
+      showProgress
+      equipment
+    }
+  }
+`;
+
+export const UPDATE_MESSAGING_PRIVACY_MUTATION = gql`
+  mutation UpdateMessagingPrivacy($enabled: Boolean!) {
+    updateMessagingPrivacy(enabled: $enabled) {
+      messagingEnabled
+    }
+  }
+`;
+
+// ============================================
+// ONBOARDING
+// ============================================
+
+export const COMPLETE_ONBOARDING_MUTATION = gql`
+  mutation CompleteOnboarding {
+    completeOnboarding {
+      success
+      message
+    }
   }
 `;

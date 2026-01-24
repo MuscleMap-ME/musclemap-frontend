@@ -375,6 +375,77 @@ export const LEADERBOARDS_QUERY = gql`
   }
 `;
 
+export const MY_STATS_WITH_RANKINGS_QUERY = gql`
+  query MyStatsWithRankings {
+    myStatsWithRankings {
+      stats {
+        userId
+        level
+        xp
+        xpToNextLevel
+        strength
+        endurance
+        agility
+        flexibility
+        balance
+        mentalFocus
+        totalWorkouts
+        totalExercises
+        currentStreak
+        longestStreak
+        lastWorkoutAt
+      }
+      rankings
+    }
+  }
+`;
+
+export const EXTENDED_PROFILE_QUERY = gql`
+  query ExtendedProfile {
+    extendedProfile {
+      height
+      weight
+      age
+      gender
+      fitnessLevel
+      goals
+      preferredUnits
+      city
+      county
+      state
+      country
+      countryCode
+      leaderboardOptIn
+      profileVisibility
+      weeklyActivity
+      volumeTrend {
+        label
+        value
+      }
+      previousStrength
+    }
+  }
+`;
+
+export const STAT_LEADERBOARD_QUERY = gql`
+  query StatLeaderboard($stat: String, $scope: String, $scopeValue: String, $limit: Int, $offset: Int) {
+    statLeaderboard(stat: $stat, scope: $scope, scopeValue: $scopeValue, limit: $limit, offset: $offset) {
+      entries {
+        userId
+        username
+        avatarUrl
+        statValue
+        rank
+        gender
+        country
+        state
+        city
+      }
+      total
+    }
+  }
+`;
+
 // ============================================
 // BODY MEASUREMENTS
 // ============================================
@@ -1914,22 +1985,31 @@ export const SEARCH_CREWS_QUERY = gql`
 `;
 
 // ============================================
-// TRAINERS
+// TRAINERS & CLASSES
 // ============================================
 
 export const TRAINERS_QUERY = gql`
-  query Trainers {
-    trainers {
-      id
-      userId
-      name
-      bio
-      specialties
-      certifications
-      rating
-      reviewCount
-      hourlyRate
-      available
+  query Trainers($verified: Boolean, $specialty: String, $status: String, $limit: Int, $offset: Int) {
+    trainers(verified: $verified, specialty: $specialty, status: $status, limit: $limit, offset: $offset) {
+      trainers {
+        userId
+        displayName
+        bio
+        specialties
+        certifications
+        hourlyRateCredits
+        perClassRateCredits
+        verified
+        verifiedAt
+        ratingAvg
+        ratingCount
+        totalClassesTaught
+        totalStudentsTrained
+        totalCreditsEarned
+        status
+        createdAt
+      }
+      total
     }
   }
 `;
@@ -1937,39 +2017,161 @@ export const TRAINERS_QUERY = gql`
 export const MY_TRAINER_PROFILE_QUERY = gql`
   query MyTrainerProfile {
     myTrainerProfile {
-      id
       userId
-      name
+      displayName
       bio
       specialties
       certifications
-      rating
-      reviewCount
-      hourlyRate
-      available
-      totalClients
-      totalSessions
+      hourlyRateCredits
+      perClassRateCredits
+      verified
+      verifiedAt
+      ratingAvg
+      ratingCount
+      totalClassesTaught
+      totalStudentsTrained
+      totalCreditsEarned
+      status
+      createdAt
     }
   }
 `;
 
-// ============================================
-// CLASSES
-// ============================================
+export const TRAINER_CLASSES_QUERY = gql`
+  query TrainerClasses($input: TrainerClassesInput) {
+    trainerClasses(input: $input) {
+      classes {
+        id
+        trainerUserId
+        title
+        description
+        category
+        difficulty
+        startAt
+        durationMinutes
+        locationType
+        locationDetails
+        capacity
+        enrolledCount
+        creditsPerStudent
+        trainerWagePerStudent
+        status
+        createdAt
+      }
+      total
+    }
+  }
+`;
 
-export const CLASSES_QUERY = gql`
-  query Classes($status: String) {
-    classes(status: $status) {
+export const UPCOMING_CLASSES_QUERY = gql`
+  query UpcomingClasses($limit: Int) {
+    trainerClasses(input: { upcoming: true, limit: $limit }) {
+      classes {
+        id
+        trainerUserId
+        title
+        description
+        category
+        difficulty
+        startAt
+        durationMinutes
+        locationType
+        locationDetails
+        capacity
+        enrolledCount
+        creditsPerStudent
+        status
+        createdAt
+      }
+      total
+    }
+  }
+`;
+
+export const MY_TRAINER_CLASSES_QUERY = gql`
+  query MyTrainerClasses($status: String, $limit: Int, $offset: Int) {
+    myTrainerClasses(status: $status, limit: $limit, offset: $offset) {
+      classes {
+        id
+        trainerUserId
+        title
+        description
+        category
+        difficulty
+        startAt
+        durationMinutes
+        locationType
+        locationDetails
+        capacity
+        enrolledCount
+        creditsPerStudent
+        trainerWagePerStudent
+        status
+        createdAt
+      }
+      total
+    }
+  }
+`;
+
+export const MY_CLASS_ENROLLMENTS_QUERY = gql`
+  query MyClassEnrollments($status: String, $limit: Int, $offset: Int) {
+    myClassEnrollments(status: $status, limit: $limit, offset: $offset) {
+      enrollments {
+        id
+        classId
+        userId
+        status
+        creditsPaid
+        enrolledAt
+        cancelledAt
+        class {
+          id
+          trainerUserId
+          title
+          description
+          category
+          difficulty
+          startAt
+          durationMinutes
+          locationType
+          locationDetails
+          capacity
+          enrolledCount
+          creditsPerStudent
+          status
+        }
+      }
+      total
+    }
+  }
+`;
+
+export const CLASS_ENROLLMENTS_QUERY = gql`
+  query ClassEnrollments($classId: ID!) {
+    classEnrollments(classId: $classId) {
       id
-      trainerId
-      name
-      description
-      type
-      duration
-      maxParticipants
-      currentParticipants
-      scheduledAt
-      price
+      classId
+      userId
+      status
+      creditsPaid
+      enrolledAt
+      cancelledAt
+    }
+  }
+`;
+
+export const CLASS_ATTENDANCE_QUERY = gql`
+  query ClassAttendance($classId: ID!) {
+    classAttendance(classId: $classId) {
+      id
+      classId
+      userId
+      attended
+      markedBy
+      rating
+      feedback
+      markedAt
     }
   }
 `;
@@ -3271,6 +3473,42 @@ export const CAREER_GOAL_TREND_QUERY = gql`
       score
       eventsPassed
       eventsTotal
+    }
+  }
+`;
+
+// ============================================
+// SETTINGS
+// ============================================
+
+export const MY_SETTINGS_QUERY = gql`
+  query MySettings {
+    mySettings {
+      theme
+      reducedMotion
+      highContrast
+      textSize
+      isPublic
+      showLocation
+      showProgress
+      equipment
+    }
+  }
+`;
+
+export const MESSAGING_PRIVACY_QUERY = gql`
+  query MessagingPrivacy {
+    messagingPrivacy {
+      messagingEnabled
+    }
+  }
+`;
+
+export const MY_PROFILE_LEVEL_QUERY = gql`
+  query MyProfileLevel {
+    me {
+      id
+      level
     }
   }
 `;

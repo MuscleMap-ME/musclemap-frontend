@@ -2,12 +2,26 @@
  * Trainers Page
  *
  * Browse trainers, manage trainer profile, create/manage classes.
+ * Uses GraphQL for all data operations.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  TRAINERS_QUERY,
+  MY_TRAINER_PROFILE_QUERY,
+  UPCOMING_CLASSES_QUERY,
+  MY_TRAINER_CLASSES_QUERY,
+  MY_CLASS_ENROLLMENTS_QUERY,
+} from '../graphql/queries';
+import {
+  UPSERT_TRAINER_PROFILE_MUTATION,
+  CREATE_TRAINER_CLASS_MUTATION,
+  ENROLL_IN_CLASS_MUTATION,
+  UNENROLL_FROM_CLASS_MUTATION,
+} from '../graphql/mutations';
 import {
   GlassSurface,
   GlassCard,
@@ -15,66 +29,145 @@ import {
 } from '../components/glass';
 
 // ============================================
+// TYPES
+// ============================================
+interface TrainerProfile {
+  userId: string;
+  displayName: string;
+  bio: string | null;
+  specialties: string[];
+  certifications: string[];
+  hourlyRateCredits: number;
+  perClassRateCredits: number;
+  verified: boolean;
+  verifiedAt: string | null;
+  ratingAvg: number;
+  ratingCount: number;
+  totalClassesTaught: number;
+  totalStudentsTrained: number;
+  totalCreditsEarned: number;
+  status: string;
+  createdAt: string;
+}
+
+interface TrainerClass {
+  id: string;
+  trainerUserId: string;
+  title: string;
+  description: string | null;
+  category: string;
+  difficulty: string;
+  startAt: string;
+  durationMinutes: number;
+  locationType: string;
+  locationDetails: string | null;
+  capacity: number;
+  enrolledCount: number;
+  creditsPerStudent: number;
+  trainerWagePerStudent: number;
+  status: string;
+  createdAt: string;
+}
+
+interface ClassEnrollment {
+  id: string;
+  classId: string;
+  userId: string;
+  status: string;
+  creditsPaid: number;
+  enrolledAt: string;
+  cancelledAt: string | null;
+  class: TrainerClass;
+}
+
+interface TrainersData {
+  trainers: {
+    trainers: TrainerProfile[];
+    total: number;
+  };
+}
+
+interface MyTrainerProfileData {
+  myTrainerProfile: TrainerProfile | null;
+}
+
+interface UpcomingClassesData {
+  trainerClasses: {
+    classes: TrainerClass[];
+    total: number;
+  };
+}
+
+interface MyTrainerClassesData {
+  myTrainerClasses: {
+    classes: TrainerClass[];
+    total: number;
+  };
+}
+
+interface MyEnrollmentsData {
+  myClassEnrollments: {
+    enrollments: ClassEnrollment[];
+    total: number;
+  };
+}
+
+// ============================================
 // ICONS
 // ============================================
 const Icons = {
-  User: ({ className = 'w-5 h-5' }) => (
+  User: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
   ),
-  Calendar: ({ className = 'w-5 h-5' }) => (
+  Calendar: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
-  Users: ({ className = 'w-5 h-5' }) => (
+  Users: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
   ),
-  Clock: ({ className = 'w-5 h-5' }) => (
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  MapPin: ({ className = 'w-5 h-5' }) => (
+  MapPin: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
-  Star: ({ className = 'w-5 h-5' }) => (
+  Star: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  Check: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Coins: ({ className = 'w-5 h-5' }) => (
+  Coins: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Video: ({ className = 'w-5 h-5' }) => (
+  Video: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
     </svg>
   ),
-  Badge: ({ className = 'w-5 h-5' }) => (
+  Badge: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
     </svg>
@@ -84,10 +177,22 @@ const Icons = {
 // ============================================
 // CLASS CARD COMPONENT
 // ============================================
-function ClassCard({ classData, onEnroll, onCancel, isEnrolled, isTrainer }) {
+function ClassCard({
+  classData,
+  onEnroll,
+  onCancel,
+  isEnrolled,
+  isTrainer,
+}: {
+  classData: TrainerClass;
+  onEnroll?: () => void;
+  onCancel?: () => void;
+  isEnrolled?: boolean;
+  isTrainer?: boolean;
+}) {
   const startDate = new Date(classData.startAt);
   const isPast = startDate < new Date();
-  const isFull = classData.currentEnrollment >= classData.capacity;
+  const isFull = classData.enrolledCount >= classData.capacity;
 
   return (
     <GlassCard className="p-4">
@@ -124,7 +229,7 @@ function ClassCard({ classData, onEnroll, onCancel, isEnrolled, isTrainer }) {
         </div>
         <div className="flex items-center gap-2 text-white/60">
           <Icons.Users className="w-4 h-4" />
-          <span>{classData.currentEnrollment || 0}/{classData.capacity}</span>
+          <span>{classData.enrolledCount || 0}/{classData.capacity}</span>
         </div>
         <div className="flex items-center gap-2 text-white/60">
           {classData.locationType === 'virtual' ? (
@@ -163,7 +268,13 @@ function ClassCard({ classData, onEnroll, onCancel, isEnrolled, isTrainer }) {
 // ============================================
 // TRAINER CARD COMPONENT
 // ============================================
-function TrainerCard({ trainer, onSelect }) {
+function TrainerCard({
+  trainer,
+  onSelect,
+}: {
+  trainer: TrainerProfile;
+  onSelect: (trainer: TrainerProfile) => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -184,14 +295,14 @@ function TrainerCard({ trainer, onSelect }) {
               )}
             </div>
             <div className="flex items-center gap-3 text-sm text-white/50">
-              {trainer.avgRating && (
+              {trainer.ratingAvg > 0 && (
                 <div className="flex items-center gap-1">
                   <Icons.Star className="w-3 h-3 text-amber-400" />
-                  <span>{trainer.avgRating.toFixed(1)}</span>
+                  <span>{trainer.ratingAvg.toFixed(1)}</span>
                 </div>
               )}
-              {trainer.totalClasses > 0 && (
-                <span>{trainer.totalClasses} classes</span>
+              {trainer.totalClassesTaught > 0 && (
+                <span>{trainer.totalClassesTaught} classes</span>
               )}
             </div>
             {trainer.specialties?.length > 0 && (
@@ -205,7 +316,7 @@ function TrainerCard({ trainer, onSelect }) {
             )}
           </div>
           <div className="text-right text-sm">
-            {trainer.perClassRateCredits && (
+            {trainer.perClassRateCredits > 0 && (
               <div className="flex items-center gap-1 text-amber-400">
                 <Icons.Coins className="w-4 h-4" />
                 <span>{trainer.perClassRateCredits}/class</span>
@@ -222,18 +333,12 @@ function TrainerCard({ trainer, onSelect }) {
 // MAIN TRAINERS PAGE
 // ============================================
 export default function Trainers() {
-  const { user: _user } = useUser();
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('browse');
-  const [trainers, setTrainers] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [myProfile, setMyProfile] = useState(null);
-  const [myClasses, setMyClasses] = useState([]);
-  const [myEnrollments, setMyEnrollments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal states
-  const [selectedTrainer, setSelectedTrainer] = useState(null);
+  const [selectedTrainer, setSelectedTrainer] = useState<TrainerProfile | null>(null);
   const [showCreateClass, setShowCreateClass] = useState(false);
   const [showCreateProfile, setShowCreateProfile] = useState(false);
 
@@ -241,8 +346,8 @@ export default function Trainers() {
   const [profileForm, setProfileForm] = useState({
     displayName: '',
     bio: '',
-    specialties: [],
-    certifications: [],
+    specialties: [] as string[],
+    certifications: [] as string[],
     perClassRateCredits: 50,
   });
   const [classForm, setClassForm] = useState({
@@ -258,82 +363,69 @@ export default function Trainers() {
   });
   const [newSpecialty, setNewSpecialty] = useState('');
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const [trainersRes, classesRes, profileRes, enrollmentsRes] = await Promise.all([
-        api.get('/trainers?limit=50'),
-        api.get('/classes?upcoming=true&limit=50'),
-        api.get('/trainers/me').catch(() => ({ data: null })),
-        api.get('/me/enrollments?limit=50').catch(() => ({ data: { enrollments: [] } })),
-      ]);
+  // GraphQL Queries
+  const { data: trainersData, loading: loadingTrainers } = useQuery<TrainersData>(TRAINERS_QUERY, {
+    variables: { limit: 50 },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      setTrainers(trainersRes.data.data || []);
-      setClasses(classesRes.data.data || []);
-      setMyProfile(profileRes.data.data);
-      setMyEnrollments(enrollmentsRes.data.data?.enrollments || []);
-
-      if (profileRes.data.data) {
-        setProfileForm({
-          displayName: profileRes.data.data.displayName || '',
-          bio: profileRes.data.data.bio || '',
-          specialties: profileRes.data.data.specialties || [],
-          certifications: profileRes.data.data.certifications || [],
-          perClassRateCredits: profileRes.data.data.perClassRateCredits || 50,
-        });
-
-        // Load trainer's own classes
-        const myClassesRes = await api.get('/trainers/me/classes');
-        setMyClasses(myClassesRes.data.data || []);
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to load trainer data');
-    } finally {
-      setLoading(false);
+  const { data: profileData, loading: loadingProfile, refetch: refetchProfile } = useQuery<MyTrainerProfileData>(
+    MY_TRAINER_PROFILE_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+      onCompleted: (data) => {
+        if (data?.myTrainerProfile) {
+          setProfileForm({
+            displayName: data.myTrainerProfile.displayName || '',
+            bio: data.myTrainerProfile.bio || '',
+            specialties: data.myTrainerProfile.specialties || [],
+            certifications: data.myTrainerProfile.certifications || [],
+            perClassRateCredits: data.myTrainerProfile.perClassRateCredits || 50,
+          });
+        }
+      },
     }
-  }, []);
+  );
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const handleEnroll = async (classId) => {
-    try {
-      await api.post(`/classes/${classId}/enroll`);
-      await loadData();
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to enroll');
+  const { data: classesData, loading: loadingClasses, refetch: refetchClasses } = useQuery<UpcomingClassesData>(
+    UPCOMING_CLASSES_QUERY,
+    {
+      variables: { limit: 50 },
+      fetchPolicy: 'cache-and-network',
     }
-  };
+  );
 
-  const handleCancelEnrollment = async (classId) => {
-    try {
-      await api.post(`/classes/${classId}/unenroll`);
-      await loadData();
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to cancel enrollment');
+  const { data: myClassesData, loading: loadingMyClasses, refetch: refetchMyClasses } = useQuery<MyTrainerClassesData>(
+    MY_TRAINER_CLASSES_QUERY,
+    {
+      skip: !isAuthenticated || !profileData?.myTrainerProfile,
+      fetchPolicy: 'cache-and-network',
     }
-  };
+  );
 
-  const handleCreateProfile = async () => {
-    try {
-      await api.post('/trainers/profile', profileForm);
-      await loadData();
+  const { data: enrollmentsData, loading: loadingEnrollments, refetch: refetchEnrollments } = useQuery<MyEnrollmentsData>(
+    MY_CLASS_ENROLLMENTS_QUERY,
+    {
+      skip: !isAuthenticated,
+      variables: { limit: 50 },
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  // GraphQL Mutations
+  const [upsertProfile, { loading: creatingProfile }] = useMutation(UPSERT_TRAINER_PROFILE_MUTATION, {
+    onCompleted: () => {
+      refetchProfile();
       setShowCreateProfile(false);
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to create profile');
-    }
-  };
+    },
+    onError: (err) => setError(err.message),
+  });
 
-  const handleCreateClass = async () => {
-    try {
-      const startAt = new Date(classForm.startAt).toISOString();
-      await api.post('/classes', {
-        ...classForm,
-        startAt,
-        trainerWagePerStudent: Math.floor(classForm.creditsPerStudent * 0.8),
-      });
-      await loadData();
+  const [createClass, { loading: creatingClass }] = useMutation(CREATE_TRAINER_CLASS_MUTATION, {
+    onCompleted: () => {
+      refetchClasses();
+      refetchMyClasses();
       setShowCreateClass(false);
       setClassForm({
         title: '',
@@ -346,9 +438,74 @@ export default function Trainers() {
         capacity: 20,
         creditsPerStudent: 50,
       });
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to create class');
-    }
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  const [enrollInClass] = useMutation(ENROLL_IN_CLASS_MUTATION, {
+    onCompleted: () => {
+      refetchClasses();
+      refetchEnrollments();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  const [unenrollFromClass] = useMutation(UNENROLL_FROM_CLASS_MUTATION, {
+    onCompleted: () => {
+      refetchClasses();
+      refetchEnrollments();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  // Memoized data
+  const trainers = useMemo(() => trainersData?.trainers?.trainers || [], [trainersData]);
+  const myProfile = useMemo(() => profileData?.myTrainerProfile || null, [profileData]);
+  const classes = useMemo(() => classesData?.trainerClasses?.classes || [], [classesData]);
+  const myClasses = useMemo(() => myClassesData?.myTrainerClasses?.classes || [], [myClassesData]);
+  const enrollments = useMemo(() => enrollmentsData?.myClassEnrollments?.enrollments || [], [enrollmentsData]);
+
+  // Handlers
+  const handleEnroll = async (classId: string) => {
+    await enrollInClass({ variables: { classId } });
+  };
+
+  const handleCancelEnrollment = async (classId: string) => {
+    await unenrollFromClass({ variables: { classId } });
+  };
+
+  const handleCreateProfile = async () => {
+    await upsertProfile({
+      variables: {
+        input: {
+          displayName: profileForm.displayName,
+          bio: profileForm.bio || undefined,
+          specialties: profileForm.specialties,
+          certifications: profileForm.certifications,
+          perClassRateCredits: profileForm.perClassRateCredits,
+        },
+      },
+    });
+  };
+
+  const handleCreateClass = async () => {
+    const startAt = new Date(classForm.startAt).toISOString();
+    await createClass({
+      variables: {
+        input: {
+          title: classForm.title,
+          description: classForm.description || undefined,
+          category: classForm.category,
+          difficulty: classForm.difficulty,
+          startAt,
+          durationMinutes: classForm.durationMinutes,
+          locationType: classForm.locationType,
+          capacity: classForm.capacity,
+          creditsPerStudent: classForm.creditsPerStudent,
+          trainerWagePerStudent: Math.floor(classForm.creditsPerStudent * 0.8),
+        },
+      },
+    });
   };
 
   const addSpecialty = () => {
@@ -361,18 +518,20 @@ export default function Trainers() {
     }
   };
 
-  const removeSpecialty = (specialty) => {
+  const removeSpecialty = (specialty: string) => {
     setProfileForm({
       ...profileForm,
-      specialties: profileForm.specialties.filter(s => s !== specialty),
+      specialties: profileForm.specialties.filter((s) => s !== specialty),
     });
   };
 
-  const isEnrolled = (classId) => {
-    return myEnrollments.some(e => e.classId === classId);
+  const isEnrolled = (classId: string) => {
+    return enrollments.some((e) => e.classId === classId && e.status === 'enrolled');
   };
 
-  if (loading) {
+  const loading = loadingTrainers || loadingProfile || loadingClasses;
+
+  if (loading && !trainersData && !classesData) {
     return (
       <GlassSurface className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -418,15 +577,15 @@ export default function Trainers() {
         <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
           {['browse', 'classes', myProfile && 'my-classes', 'enrollments'].filter(Boolean).map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab as string}
+              onClick={() => setActiveTab(tab as string)}
               className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors capitalize ${
                 activeTab === tab
                   ? 'bg-white/10 text-white'
                   : 'text-white/50 hover:text-white'
               }`}
             >
-              {tab.replace('-', ' ')}
+              {(tab as string).replace('-', ' ')}
             </button>
           ))}
         </div>
@@ -483,7 +642,11 @@ export default function Trainers() {
         {activeTab === 'my-classes' && myProfile && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white">My Classes</h2>
-            {myClasses.length === 0 ? (
+            {loadingMyClasses ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            ) : myClasses.length === 0 ? (
               <GlassCard className="p-8 text-center">
                 <Icons.Calendar className="w-12 h-12 text-white/30 mx-auto mb-4" />
                 <h3 className="text-white font-bold mb-2">No Classes Created</h3>
@@ -496,11 +659,7 @@ export default function Trainers() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {myClasses.map((cls) => (
-                  <ClassCard
-                    key={cls.id}
-                    classData={cls}
-                    isTrainer
-                  />
+                  <ClassCard key={cls.id} classData={cls} isTrainer />
                 ))}
               </div>
             )}
@@ -510,7 +669,11 @@ export default function Trainers() {
         {activeTab === 'enrollments' && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white">My Enrollments</h2>
-            {myEnrollments.length === 0 ? (
+            {loadingEnrollments ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            ) : enrollments.length === 0 ? (
               <GlassCard className="p-8 text-center">
                 <Icons.Calendar className="w-12 h-12 text-white/30 mx-auto mb-4" />
                 <h3 className="text-white font-bold mb-2">No Enrollments</h3>
@@ -518,7 +681,7 @@ export default function Trainers() {
               </GlassCard>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {myEnrollments.map((enrollment) => (
+                {enrollments.map((enrollment) => (
                   <ClassCard
                     key={enrollment.id}
                     classData={enrollment.class}
@@ -622,10 +785,10 @@ export default function Trainers() {
 
                     <GlassButton
                       onClick={handleCreateProfile}
-                      disabled={!profileForm.displayName}
+                      disabled={!profileForm.displayName || creatingProfile}
                       className="w-full"
                     >
-                      Create Trainer Profile
+                      {creatingProfile ? 'Creating...' : 'Create Trainer Profile'}
                     </GlassButton>
                   </div>
                 </div>
@@ -780,10 +943,10 @@ export default function Trainers() {
 
                     <GlassButton
                       onClick={handleCreateClass}
-                      disabled={!classForm.title || !classForm.startAt}
+                      disabled={!classForm.title || !classForm.startAt || creatingClass}
                       className="w-full"
                     >
-                      Create Class
+                      {creatingClass ? 'Creating...' : 'Create Class'}
                     </GlassButton>
                   </div>
                 </div>
@@ -827,11 +990,11 @@ export default function Trainers() {
                         <Icons.Badge className="w-5 h-5 text-blue-400" />
                       )}
                     </div>
-                    {selectedTrainer.avgRating && (
+                    {selectedTrainer.ratingAvg > 0 && (
                       <div className="flex items-center justify-center gap-1 text-amber-400 mt-2">
                         <Icons.Star className="w-4 h-4" />
-                        <span>{selectedTrainer.avgRating.toFixed(1)}</span>
-                        <span className="text-white/50">({selectedTrainer.totalReviews || 0} reviews)</span>
+                        <span>{selectedTrainer.ratingAvg.toFixed(1)}</span>
+                        <span className="text-white/50">({selectedTrainer.ratingCount || 0} reviews)</span>
                       </div>
                     )}
                   </div>
@@ -872,7 +1035,7 @@ export default function Trainers() {
 
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <GlassCard className="p-4 text-center">
-                      <div className="text-2xl font-bold text-white">{selectedTrainer.totalClasses || 0}</div>
+                      <div className="text-2xl font-bold text-white">{selectedTrainer.totalClassesTaught || 0}</div>
                       <div className="text-white/50 text-sm">Classes Taught</div>
                     </GlassCard>
                     <GlassCard className="p-4 text-center">

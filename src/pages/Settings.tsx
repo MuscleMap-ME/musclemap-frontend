@@ -1,10 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { RestTimerSettings } from '../components/workout/RestTimerSettings';
 import { EquipmentSelector, UnitToggle } from '../components/settings';
 import JourneyManagement from '../components/settings/JourneyManagement';
 import { useUnitsPreferences } from '../store/preferencesStore';
+import { useAuth } from '../store';
+import {
+  MY_SETTINGS_QUERY,
+  MESSAGING_PRIVACY_QUERY,
+  MY_PROFILE_LEVEL_QUERY,
+} from '../graphql/queries';
+import {
+  UPDATE_SETTINGS_MUTATION,
+  UPDATE_MESSAGING_PRIVACY_MUTATION,
+} from '../graphql/mutations';
+
+// Types
+interface UserSettings {
+  theme: string;
+  reducedMotion: boolean;
+  highContrast: boolean;
+  textSize: string;
+  isPublic: boolean;
+  showLocation: boolean;
+  showProgress: boolean;
+  equipment: string[] | null;
+}
+
+interface MessagingPrivacy {
+  messagingEnabled: boolean;
+}
+
+interface ProfileLevel {
+  id: string;
+  level: number;
+}
+
+interface MySettingsData {
+  mySettings: UserSettings | null;
+}
+
+interface MessagingPrivacyData {
+  messagingPrivacy: MessagingPrivacy | null;
+}
+
+interface MyProfileLevelData {
+  me: ProfileLevel | null;
+}
 
 const THEMES = [
   { id: 'dark', name: 'Dark', bg: '#111827', icon: '🌙' },
@@ -17,18 +60,7 @@ const THEMES = [
 ];
 
 export default function Settings() {
-  const [settings, setSettings] = useState({
-    theme: 'dark',
-    reduced_motion: 0,
-    high_contrast: 0,
-    text_size: 'normal',
-    is_public: 0,
-    show_location: 0,
-    show_progress: 1
-  });
-  const [userLevel, setUserLevel] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [messagingEnabled, setMessagingEnabled] = useState(true);
+  const { isAuthenticated } = useAuth();
 
   // Unit preferences from the store (persisted)
   const {
@@ -44,55 +76,128 @@ export default function Settings() {
     isImperial,
   } = useUnitsPreferences();
 
-  useEffect(() => {
-    Promise.all([
-      api.settings.fetch(),
-      api.profile.get()
-    ]).then(([s, p]) => {
-      if (s.settings) setSettings(prev => ({ ...prev, ...s.settings }));
-      else setSettings(prev => ({ ...prev, ...s }));
-      if (p.level) setUserLevel(p.level);
-    }).catch(() => {});
+  // GraphQL queries
+  const { data: settingsData, loading: settingsLoading } = useQuery<MySettingsData>(
+    MY_SETTINGS_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+    }
+  );
 
-    // Fetch messaging privacy setting
-    api.get('/messaging/privacy').then((res) => {
-      if (res.data?.data?.messagingEnabled !== undefined) {
-        setMessagingEnabled(res.data.data.messagingEnabled);
-      }
-    }).catch(() => {});
-  }, []);
+  const { data: messagingData } = useQuery<MessagingPrivacyData>(
+    MESSAGING_PRIVACY_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  const { data: profileData } = useQuery<MyProfileLevelData>(
+    MY_PROFILE_LEVEL_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  // GraphQL mutations
+  const [updateSettings, { loading: saving }] = useMutation(UPDATE_SETTINGS_MUTATION, {
+    refetchQueries: [{ query: MY_SETTINGS_QUERY }],
+  });
+
+  const [updateMessagingPrivacy] = useMutation(UPDATE_MESSAGING_PRIVACY_MUTATION, {
+    refetchQueries: [{ query: MESSAGING_PRIVACY_QUERY }],
+  });
+
+  // Memoized data extraction
+  const settings = useMemo(() => {
+    const s = settingsData?.mySettings;
+    return {
+      theme: s?.theme || 'dark',
+      reduced_motion: s?.reducedMotion ? 1 : 0,
+      high_contrast: s?.highContrast ? 1 : 0,
+      text_size: s?.textSize || 'normal',
+      is_public: s?.isPublic ? 1 : 0,
+      show_location: s?.showLocation ? 1 : 0,
+      show_progress: s?.showProgress ? 1 : 0,
+      equipment: s?.equipment || [],
+    };
+  }, [settingsData]);
+
+  const messagingEnabled = useMemo(() => {
+    return messagingData?.messagingPrivacy?.messagingEnabled ?? true;
+  }, [messagingData]);
+
+  const userLevel = useMemo(() => {
+    return profileData?.me?.level || 1;
+  }, [profileData]);
 
   const toggleMessaging = async () => {
     const newValue = !messagingEnabled;
-    setMessagingEnabled(newValue);
     try {
-      await api.put('/messaging/privacy', { enabled: newValue });
+      await updateMessagingPrivacy({
+        variables: { enabled: newValue },
+        optimisticResponse: {
+          updateMessagingPrivacy: {
+            __typename: 'MessagingPrivacy',
+            messagingEnabled: newValue,
+          },
+        },
+      });
     } catch {
-      // Revert on error
-      setMessagingEnabled(!newValue);
+      // Error handled by Apollo
     }
   };
 
-  const save = async (updates) => {
-    setSaving(true);
-    setSettings(s => ({ ...s, ...updates }));
+  const save = async (updates: Partial<{
+    theme: string;
+    reduced_motion: number;
+    high_contrast: number;
+    text_size: string;
+    is_public: number;
+    show_location: number;
+    show_progress: number;
+    equipment: string[];
+  }>) => {
+    // Convert snake_case to camelCase for GraphQL
+    const input: Record<string, any> = {};
+    if (updates.theme !== undefined) input.theme = updates.theme;
+    if (updates.reduced_motion !== undefined) input.reducedMotion = Boolean(updates.reduced_motion);
+    if (updates.high_contrast !== undefined) input.highContrast = Boolean(updates.high_contrast);
+    if (updates.text_size !== undefined) input.textSize = updates.text_size;
+    if (updates.is_public !== undefined) input.isPublic = Boolean(updates.is_public);
+    if (updates.show_location !== undefined) input.showLocation = Boolean(updates.show_location);
+    if (updates.show_progress !== undefined) input.showProgress = Boolean(updates.show_progress);
+    if (updates.equipment !== undefined) input.equipment = updates.equipment;
+
     try {
-      await api.settings.update(updates);
+      await updateSettings({ variables: { input } });
       if (updates.theme) localStorage.setItem('musclemap_theme', updates.theme);
     } catch {
-      // Failed to save settings
+      // Error handled by Apollo
     }
-    setSaving(false);
   };
 
-  const Toggle = ({ value, onChange }) => (
-    <button 
-      onClick={onChange} 
+  const Toggle = ({ value, onChange }: { value: number | boolean; onChange: () => void }) => (
+    <button
+      onClick={onChange}
       className={'w-14 h-8 rounded-full transition-all duration-200 ' + (value ? 'bg-purple-600' : 'bg-gray-600')}
     >
       <div className={'w-6 h-6 bg-white rounded-full transition-transform duration-200 mx-1 ' + (value ? 'translate-x-6' : '')} />
     </button>
   );
+
+  if (settingsLoading && !settingsData) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pb-24">
@@ -119,7 +224,7 @@ export default function Settings() {
                   key={t.id}
                   onClick={() => !locked && save({ theme: t.id })}
                   disabled={locked}
-                  className={'p-3 rounded-xl border-2 transition-all ' + 
+                  className={'p-3 rounded-xl border-2 transition-all ' +
                     (settings.theme === t.id ? 'border-purple-500 scale-105' : 'border-transparent') +
                     (locked ? ' opacity-40 cursor-not-allowed' : ' hover:scale-102')}
                   style={{ backgroundColor: t.bg, color: t.textDark ? '#111' : '#fff' }}
@@ -144,7 +249,7 @@ export default function Settings() {
               </div>
               <Toggle value={settings.reduced_motion} onChange={() => save({ reduced_motion: settings.reduced_motion ? 0 : 1 })} />
             </div>
-            
+
             <div className="flex justify-between items-center">
               <div>
                 <div className="font-medium">High Contrast</div>
@@ -152,14 +257,14 @@ export default function Settings() {
               </div>
               <Toggle value={settings.high_contrast} onChange={() => save({ high_contrast: settings.high_contrast ? 0 : 1 })} />
             </div>
-            
+
             <div>
               <div className="font-medium mb-2">Text Size</div>
               <div className="flex gap-2">
                 {['small', 'normal', 'large', 'xlarge'].map(s => (
-                  <button 
-                    key={s} 
-                    onClick={() => save({ text_size: s })} 
+                  <button
+                    key={s}
+                    onClick={() => save({ text_size: s })}
                     className={'flex-1 py-2 rounded-xl capitalize transition-all ' + (settings.text_size === s ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600')}
                   >
                     {s === 'xlarge' ? 'XL' : s}

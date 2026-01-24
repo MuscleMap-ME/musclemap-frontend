@@ -1338,6 +1338,315 @@ export const resolvers = {
       };
     },
 
+    myStatsWithRankings: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const stats = await statsService.getUserStats(userId);
+      if (!stats) return null;
+
+      // Get workout stats
+      const workoutStats = await queryOne<{
+        total_workouts: number;
+        current_streak: number;
+        longest_streak: number;
+        last_workout_at: Date | null;
+      }>(
+        `SELECT
+          COUNT(*)::int as total_workouts,
+          0 as current_streak,
+          0 as longest_streak,
+          MAX(created_at) as last_workout_at
+         FROM workouts WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Get user level/xp and location
+      const user = await queryOne<{ level: number; xp: number; country: string; state: string; city: string }>(
+        `SELECT COALESCE(u.current_level, 1) as level, COALESCE(u.total_xp, 0) as xp,
+                COALESCE(up.country, '') as country, COALESCE(up.state, '') as state, COALESCE(up.city, '') as city
+         FROM users u
+         LEFT JOIN user_profiles up ON up.user_id = u.id
+         WHERE u.id = $1`,
+        [userId]
+      );
+
+      const level = user?.level || 1;
+      const xp = user?.xp || 0;
+
+      // Build rankings for each stat
+      const statKeys = ['strength', 'endurance', 'dexterity', 'constitution', 'power', 'vitality'];
+      const rankings: Record<string, {
+        global: { rank: number; total: number; percentile: number };
+        country?: { rank: number; total: number; percentile: number };
+        state?: { rank: number; total: number; percentile: number };
+        city?: { rank: number; total: number; percentile: number };
+      }> = {};
+
+      for (const statKey of statKeys) {
+        // Global ranking
+        const globalRank = await queryOne<{ rank: number; total: number }>(
+          `SELECT
+            (SELECT COUNT(*) + 1 FROM character_stats cs2 WHERE cs2.${statKey} > cs.${statKey})::int as rank,
+            (SELECT COUNT(*) FROM character_stats)::int as total
+           FROM character_stats cs
+           WHERE cs.user_id = $1`,
+          [userId]
+        );
+
+        rankings[statKey] = {
+          global: {
+            rank: globalRank?.rank || 1,
+            total: globalRank?.total || 1,
+            percentile: globalRank && globalRank.total > 0
+              ? ((globalRank.total - globalRank.rank + 1) / globalRank.total) * 100
+              : 100,
+          },
+        };
+
+        // Country ranking if user has country
+        if (user?.country) {
+          const countryRank = await queryOne<{ rank: number; total: number }>(
+            `SELECT
+              (SELECT COUNT(*) + 1 FROM character_stats cs2
+               JOIN user_profiles up2 ON up2.user_id = cs2.user_id
+               WHERE up2.country = $2 AND cs2.${statKey} > cs.${statKey})::int as rank,
+              (SELECT COUNT(*) FROM character_stats cs3
+               JOIN user_profiles up3 ON up3.user_id = cs3.user_id
+               WHERE up3.country = $2)::int as total
+             FROM character_stats cs
+             WHERE cs.user_id = $1`,
+            [userId, user.country]
+          );
+          if (countryRank && countryRank.total > 0) {
+            rankings[statKey].country = {
+              rank: countryRank.rank,
+              total: countryRank.total,
+              percentile: ((countryRank.total - countryRank.rank + 1) / countryRank.total) * 100,
+            };
+          }
+        }
+
+        // State ranking if user has state
+        if (user?.state) {
+          const stateRank = await queryOne<{ rank: number; total: number }>(
+            `SELECT
+              (SELECT COUNT(*) + 1 FROM character_stats cs2
+               JOIN user_profiles up2 ON up2.user_id = cs2.user_id
+               WHERE up2.state = $2 AND cs2.${statKey} > cs.${statKey})::int as rank,
+              (SELECT COUNT(*) FROM character_stats cs3
+               JOIN user_profiles up3 ON up3.user_id = cs3.user_id
+               WHERE up3.state = $2)::int as total
+             FROM character_stats cs
+             WHERE cs.user_id = $1`,
+            [userId, user.state]
+          );
+          if (stateRank && stateRank.total > 0) {
+            rankings[statKey].state = {
+              rank: stateRank.rank,
+              total: stateRank.total,
+              percentile: ((stateRank.total - stateRank.rank + 1) / stateRank.total) * 100,
+            };
+          }
+        }
+      }
+
+      return {
+        stats: {
+          userId,
+          level,
+          xp,
+          xpToNextLevel: level * 1000 - xp,
+          strength: Number(stats.strength),
+          endurance: Number(stats.endurance),
+          agility: Number(stats.dexterity),
+          flexibility: Number(stats.constitution),
+          balance: Number(stats.power),
+          mentalFocus: Number(stats.vitality),
+          totalWorkouts: workoutStats?.total_workouts || 0,
+          totalExercises: 0,
+          currentStreak: workoutStats?.current_streak || 0,
+          longestStreak: workoutStats?.longest_streak || 0,
+          lastWorkoutAt: workoutStats?.last_workout_at,
+        },
+        rankings,
+      };
+    },
+
+    extendedProfile: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get user profile with location and stats
+      const profile = await queryOne<{
+        height: number;
+        weight: number;
+        age: number;
+        gender: string;
+        fitness_level: string;
+        goals: string[];
+        preferred_units: string;
+        city: string;
+        county: string;
+        state: string;
+        country: string;
+        country_code: string;
+        leaderboard_opt_in: boolean;
+        profile_visibility: string;
+      }>(
+        `SELECT up.height, up.weight, up.age, up.gender, up.fitness_level, up.goals,
+                up.preferred_units, up.city, up.county, up.state, up.country, up.country_code,
+                COALESCE(ups.show_on_leaderboards, true) as leaderboard_opt_in,
+                COALESCE(ups.profile_visibility, 'public') as profile_visibility
+         FROM user_profiles up
+         LEFT JOIN user_privacy_settings ups ON ups.user_id = up.user_id
+         WHERE up.user_id = $1`,
+        [userId]
+      );
+
+      // Get weekly activity (workouts per day for the last 7 days)
+      const weeklyActivity = await queryAll<{ day_num: number; workout_count: number }>(
+        `SELECT EXTRACT(DOW FROM created_at)::int as day_num, COUNT(*)::int as workout_count
+         FROM workouts
+         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+         GROUP BY day_num
+         ORDER BY day_num`,
+        [userId]
+      );
+
+      // Convert to 7-element array (Mon=0 to Sun=6)
+      const weeklyArr = [0, 0, 0, 0, 0, 0, 0];
+      weeklyActivity.forEach(({ day_num, workout_count }) => {
+        // PostgreSQL DOW: 0=Sun, 1=Mon, etc. Convert to Mon=0
+        const idx = day_num === 0 ? 6 : day_num - 1;
+        weeklyArr[idx] = workout_count;
+      });
+
+      // Get volume trend (total volume per day for the last 7 days)
+      const volumeTrend = await queryAll<{ day_label: string; total_volume: number }>(
+        `SELECT TO_CHAR(created_at, 'Dy') as day_label,
+                COALESCE(SUM(total_tu), 0)::float as total_volume
+         FROM workouts
+         WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+         GROUP BY DATE(created_at), day_label
+         ORDER BY DATE(created_at)`,
+        [userId]
+      );
+
+      // Get previous strength for comparison
+      const prevStats = await queryOne<{ strength: number }>(
+        `SELECT strength FROM character_stats_history
+         WHERE user_id = $1 AND snapshot_date < NOW() - INTERVAL '7 days'
+         ORDER BY snapshot_date DESC LIMIT 1`,
+        [userId]
+      );
+
+      return {
+        height: profile?.height,
+        weight: profile?.weight,
+        age: profile?.age,
+        gender: profile?.gender,
+        fitnessLevel: profile?.fitness_level,
+        goals: profile?.goals || [],
+        preferredUnits: profile?.preferred_units,
+        city: profile?.city,
+        county: profile?.county,
+        state: profile?.state,
+        country: profile?.country,
+        countryCode: profile?.country_code,
+        leaderboardOptIn: profile?.leaderboard_opt_in ?? true,
+        profileVisibility: profile?.profile_visibility || 'public',
+        weeklyActivity: weeklyArr,
+        volumeTrend: volumeTrend.length > 0 ? volumeTrend.map(v => ({ label: v.day_label, value: v.total_volume })) : [
+          { label: 'M', value: 0 },
+          { label: 'T', value: 0 },
+          { label: 'W', value: 0 },
+          { label: 'T', value: 0 },
+          { label: 'F', value: 0 },
+          { label: 'S', value: 0 },
+          { label: 'S', value: 0 },
+        ],
+        previousStrength: prevStats?.strength || 0,
+      };
+    },
+
+    statLeaderboard: async (
+      _: unknown,
+      args: { stat?: string; scope?: string; scopeValue?: string; limit?: number; offset?: number },
+      _context: Context
+    ) => {
+      const stat = args.stat || 'vitality';
+      const scope = args.scope || 'global';
+      const limit = Math.min(args.limit || 20, 100);
+      const offset = args.offset || 0;
+
+      // Validate stat name to prevent SQL injection
+      const validStats = ['strength', 'endurance', 'dexterity', 'constitution', 'power', 'vitality'];
+      if (!validStats.includes(stat)) {
+        throw new Error(`Invalid stat: ${stat}`);
+      }
+
+      let whereClause = '';
+      const params: (string | number)[] = [];
+
+      if (scope === 'country' && args.scopeValue) {
+        whereClause = 'AND up.country = $3';
+        params.push(args.scopeValue);
+      } else if (scope === 'state' && args.scopeValue) {
+        whereClause = 'AND up.state = $3';
+        params.push(args.scopeValue);
+      } else if (scope === 'city' && args.scopeValue) {
+        whereClause = 'AND up.city = $3';
+        params.push(args.scopeValue);
+      }
+
+      const entries = await queryAll<{
+        user_id: string;
+        username: string;
+        avatar_url: string;
+        stat_value: number;
+        gender: string;
+        country: string;
+        state: string;
+        city: string;
+      }>(
+        `SELECT cs.user_id, u.username, u.avatar_url, cs.${stat} as stat_value,
+                up.gender, up.country, up.state, up.city
+         FROM character_stats cs
+         JOIN users u ON u.id = cs.user_id
+         LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+         LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
+         WHERE COALESCE(ups.show_on_leaderboards, true) = true
+         ${whereClause}
+         ORDER BY cs.${stat} DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset, ...params]
+      );
+
+      // Get total count
+      const countResult = await queryOne<{ count: number }>(
+        `SELECT COUNT(*)::int as count
+         FROM character_stats cs
+         LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+         LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
+         WHERE COALESCE(ups.show_on_leaderboards, true) = true
+         ${whereClause}`,
+        params.length > 0 ? [params[0]] : []
+      );
+
+      return {
+        entries: entries.map((e, idx) => ({
+          userId: e.user_id,
+          username: e.username,
+          avatarUrl: e.avatar_url,
+          statValue: Number(e.stat_value),
+          rank: offset + idx + 1,
+          gender: e.gender,
+          country: e.country,
+          state: e.state,
+          city: e.city,
+        })),
+        total: countResult?.count || 0,
+      };
+    },
+
     // Body Measurements
     bodyMeasurements: async (_: unknown, args: { limit?: number; cursor?: string }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -6117,6 +6426,68 @@ export const resolvers = {
         })),
       };
     },
+
+    // User Settings
+    mySettings: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const settings = await queryOne<{
+        theme: string;
+        reduced_motion: number;
+        high_contrast: number;
+        text_size: string;
+        is_public: number;
+        show_location: number;
+        show_progress: number;
+        equipment: string[] | null;
+      }>(
+        `SELECT theme, reduced_motion, high_contrast, text_size, is_public, show_location, show_progress, equipment
+         FROM user_settings WHERE user_id = $1`,
+        [userId]
+      );
+
+      if (!settings) {
+        // Return defaults if no settings exist
+        return {
+          theme: 'dark',
+          reducedMotion: false,
+          highContrast: false,
+          textSize: 'normal',
+          isPublic: false,
+          showLocation: false,
+          showProgress: true,
+          equipment: [],
+        };
+      }
+
+      return {
+        theme: settings.theme || 'dark',
+        reducedMotion: Boolean(settings.reduced_motion),
+        highContrast: Boolean(settings.high_contrast),
+        textSize: settings.text_size || 'normal',
+        isPublic: Boolean(settings.is_public),
+        showLocation: Boolean(settings.show_location),
+        showProgress: Boolean(settings.show_progress),
+        equipment: settings.equipment || [],
+      };
+    },
+
+    // Messaging Privacy
+    messagingPrivacy: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const result = await queryOne<{ messaging_enabled: boolean }>(
+        `SELECT COALESCE(
+          (SELECT allow_direct_messages FROM user_privacy_settings WHERE user_id = $1),
+          true
+        ) as messaging_enabled`,
+        [userId]
+      );
+
+      return {
+        messagingEnabled: result?.messaging_enabled ?? true,
+      };
+    },
   },
 
   // ============================================
@@ -9906,6 +10277,122 @@ export const resolvers = {
         allowMessages: settings?.allow_messages ?? true,
         showOnLeaderboards: settings?.show_on_leaderboards ?? true,
         showOnlineStatus: settings?.show_online_status ?? true,
+      };
+    },
+
+    // Update User Settings
+    updateSettings: async (
+      _: unknown,
+      args: {
+        input: {
+          theme?: string;
+          reducedMotion?: boolean;
+          highContrast?: boolean;
+          textSize?: string;
+          isPublic?: boolean;
+          showLocation?: boolean;
+          showProgress?: boolean;
+          equipment?: string[];
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      // Build dynamic update
+      const updates: string[] = [];
+      const values: any[] = [userId];
+      let paramIndex = 2;
+
+      if (input.theme !== undefined) {
+        updates.push(`theme = $${paramIndex++}`);
+        values.push(input.theme);
+      }
+      if (input.reducedMotion !== undefined) {
+        updates.push(`reduced_motion = $${paramIndex++}`);
+        values.push(input.reducedMotion ? 1 : 0);
+      }
+      if (input.highContrast !== undefined) {
+        updates.push(`high_contrast = $${paramIndex++}`);
+        values.push(input.highContrast ? 1 : 0);
+      }
+      if (input.textSize !== undefined) {
+        updates.push(`text_size = $${paramIndex++}`);
+        values.push(input.textSize);
+      }
+      if (input.isPublic !== undefined) {
+        updates.push(`is_public = $${paramIndex++}`);
+        values.push(input.isPublic ? 1 : 0);
+      }
+      if (input.showLocation !== undefined) {
+        updates.push(`show_location = $${paramIndex++}`);
+        values.push(input.showLocation ? 1 : 0);
+      }
+      if (input.showProgress !== undefined) {
+        updates.push(`show_progress = $${paramIndex++}`);
+        values.push(input.showProgress ? 1 : 0);
+      }
+      if (input.equipment !== undefined) {
+        updates.push(`equipment = $${paramIndex++}`);
+        values.push(input.equipment);
+      }
+
+      if (updates.length > 0) {
+        // Upsert settings
+        await query(
+          `INSERT INTO user_settings (user_id, ${updates.map(u => u.split(' = ')[0]).join(', ')})
+           VALUES ($1, ${values.slice(1).map((_, i) => `$${i + 2}`).join(', ')})
+           ON CONFLICT (user_id) DO UPDATE SET ${updates.join(', ')}, updated_at = NOW()`,
+          values
+        );
+      }
+
+      // Return updated settings
+      const settings = await queryOne<{
+        theme: string;
+        reduced_motion: number;
+        high_contrast: number;
+        text_size: string;
+        is_public: number;
+        show_location: number;
+        show_progress: number;
+        equipment: string[] | null;
+      }>(
+        `SELECT theme, reduced_motion, high_contrast, text_size, is_public, show_location, show_progress, equipment
+         FROM user_settings WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        theme: settings?.theme || 'dark',
+        reducedMotion: Boolean(settings?.reduced_motion),
+        highContrast: Boolean(settings?.high_contrast),
+        textSize: settings?.text_size || 'normal',
+        isPublic: Boolean(settings?.is_public),
+        showLocation: Boolean(settings?.show_location),
+        showProgress: Boolean(settings?.show_progress),
+        equipment: settings?.equipment || [],
+      };
+    },
+
+    // Update Messaging Privacy
+    updateMessagingPrivacy: async (
+      _: unknown,
+      args: { enabled: boolean },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      await query(
+        `INSERT INTO user_privacy_settings (user_id, allow_direct_messages)
+         VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET allow_direct_messages = $2, updated_at = NOW()`,
+        [userId, args.enabled]
+      );
+
+      return {
+        messagingEnabled: args.enabled,
       };
     },
 

@@ -25,20 +25,22 @@ import { gql } from '@apollo/client/core';
 
 // GraphQL query for nearby venues
 const NEARBY_VENUES_QUERY = gql`
-  query NearbyVenues($lat: Float!, $lng: Float!, $limit: Int) {
-    nearbyVenues(lat: $lat, lng: $lng, limit: $limit) {
+  query NearestOutdoorVenues($input: NearestVenuesInput!) {
+    nearestOutdoorVenues(input: $input) {
       id
       name
       address
       distance
-      rating
-      reviewCount
-      equipmentTypes
+      averageRating
+      totalRatings
       isVerified
-      openNow
-      coordinates {
-        lat
-        lng
+      latitude
+      longitude
+      equipment {
+        equipmentType {
+          slug
+          name
+        }
       }
     }
   }
@@ -49,15 +51,12 @@ interface Venue {
   name: string;
   address?: string;
   distance: number;
-  rating?: number;
-  reviewCount?: number;
+  averageRating?: number;
+  totalRatings?: number;
   equipmentTypes?: string[];
   isVerified?: boolean;
-  openNow?: boolean;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
+  latitude?: number;
+  longitude?: number;
 }
 
 // Format distance for display
@@ -72,15 +71,18 @@ function formatDistance(meters: number): string {
   return `${Math.round(miles)} mi`;
 }
 
-// Equipment type icons/labels
+// Equipment type icons/labels (slugs from API)
 const EQUIPMENT_LABELS: Record<string, string> = {
   'pull-up-bar': 'Pull-up',
   'dip-station': 'Dips',
   'parallel-bars': 'Parallels',
-  rings: 'Rings',
+  'rings': 'Rings',
   'monkey-bars': 'Monkey Bars',
-  bench: 'Bench',
-  'battle-ropes': 'Ropes',
+  'ab-bench': 'Ab Bench',
+  'sit-up-bench': 'Sit-up Bench',
+  'balance-beam': 'Balance',
+  'outdoor-gym-station': 'Gym Station',
+  'calisthenics-park': 'Calisthenics',
 };
 
 interface NearbyVenuesWidgetProps {
@@ -133,9 +135,11 @@ export function NearbyVenuesWidget({
   // Fetch nearby venues
   const { data, loading, error: _error } = useQuery(NEARBY_VENUES_QUERY, {
     variables: {
-      lat: userLocation?.lat || 0,
-      lng: userLocation?.lng || 0,
-      limit,
+      input: {
+        latitude: userLocation?.lat || 0,
+        longitude: userLocation?.lng || 0,
+        limit,
+      },
     },
     skip: !userLocation,
     fetchPolicy: 'cache-and-network',
@@ -202,40 +206,51 @@ export function NearbyVenuesWidget({
     );
   }
 
+  // Transform API response to widget format
+  const apiVenues = data?.nearestOutdoorVenues?.map((v: any) => ({
+    id: v.id,
+    name: v.name,
+    address: v.address,
+    distance: v.distance || 0,
+    averageRating: v.averageRating,
+    totalRatings: v.totalRatings,
+    equipmentTypes: v.equipment?.map((e: any) => e.equipmentType?.slug) || [],
+    isVerified: v.isVerified,
+    latitude: v.latitude,
+    longitude: v.longitude,
+  }));
+
   // No venues or API error - show mock data
-  const venues: Venue[] = data?.nearbyVenues || [
+  const venues: Venue[] = apiVenues || [
     {
       id: 'mock-1',
       name: 'Central Park Fitness Station',
       address: 'Near 72nd Street',
       distance: 450,
-      rating: 4.5,
-      reviewCount: 23,
+      averageRating: 4.5,
+      totalRatings: 23,
       equipmentTypes: ['pull-up-bar', 'parallel-bars', 'dip-station'],
       isVerified: true,
-      openNow: true,
     },
     {
       id: 'mock-2',
       name: 'Riverside Calisthenics Area',
       address: 'Riverside Park',
       distance: 890,
-      rating: 4.2,
-      reviewCount: 15,
+      averageRating: 4.2,
+      totalRatings: 15,
       equipmentTypes: ['pull-up-bar', 'rings', 'monkey-bars'],
       isVerified: false,
-      openNow: true,
     },
     {
       id: 'mock-3',
       name: 'East Side Outdoor Gym',
       address: 'Carl Schurz Park',
       distance: 1200,
-      rating: 4.8,
-      reviewCount: 31,
-      equipmentTypes: ['pull-up-bar', 'dip-station', 'bench'],
+      averageRating: 4.8,
+      totalRatings: 31,
+      equipmentTypes: ['pull-up-bar', 'dip-station', 'ab-bench'],
       isVerified: true,
-      openNow: true,
     },
   ];
 
@@ -289,10 +304,10 @@ export function NearbyVenuesWidget({
                   <Navigation className="w-3 h-3" />
                   {formatDistance(venue.distance)}
                 </span>
-                {venue.rating && (
+                {venue.averageRating && (
                   <span className="flex items-center gap-1">
                     <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                    {venue.rating.toFixed(1)}
+                    {venue.averageRating.toFixed(1)}
                   </span>
                 )}
                 {venue.equipmentTypes && venue.equipmentTypes.length > 0 && (
@@ -332,7 +347,7 @@ export function NearbyVenuesWidget({
       )}
 
       {/* Note if using mock data */}
-      {!data?.nearbyVenues && (
+      {!data?.nearestOutdoorVenues && (
         <p className="mt-3 text-xs text-gray-500 text-center">
           Sample locations shown. Enable location for accurate results.
         </p>

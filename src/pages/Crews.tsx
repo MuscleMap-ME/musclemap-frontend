@@ -2,12 +2,22 @@
  * Crews Page
  *
  * Crew management and Crew Wars tournament system for web.
+ * Uses GraphQL for all data operations.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  MY_CREW_QUERY,
+  CREW_LEADERBOARD_QUERY,
+  SEARCH_CREWS_QUERY,
+} from '../graphql/queries';
+import {
+  CREATE_CREW_MUTATION,
+  LEAVE_CREW_MUTATION,
+} from '../graphql/mutations';
 import {
   GlassSurface,
   GlassCard,
@@ -15,60 +25,173 @@ import {
 } from '../components/glass';
 
 // ============================================
+// TYPES
+// ============================================
+
+interface Crew {
+  id: string;
+  name: string;
+  tag: string;
+  description: string | null;
+  avatar: string | null;
+  color: string;
+  ownerId: string;
+  memberCount: number;
+  totalTU: number;
+  weeklyTU: number;
+  wins: number;
+  losses: number;
+  createdAt: string;
+}
+
+interface CrewMember {
+  id: string;
+  crewId: string;
+  userId: string;
+  role: string;
+  joinedAt: string;
+  weeklyTU: number;
+  totalTU: number;
+  username: string;
+  avatar: string | null;
+  archetype: string | null;
+}
+
+interface CrewWarBasicInfo {
+  id: string;
+  name: string;
+  tag: string;
+  avatar: string | null;
+  color: string;
+}
+
+interface CrewWarWithDetails {
+  id: string;
+  challengerCrewId: string;
+  defendingCrewId: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  challengerTU: number;
+  defendingTU: number;
+  winnerId: string | null;
+  createdAt: string;
+  challengerCrew: CrewWarBasicInfo;
+  defendingCrew: CrewWarBasicInfo;
+  isChallenger: boolean;
+  myCrewTU: number;
+  opponentCrewTU: number;
+  daysRemaining: number;
+  isWinning: boolean;
+}
+
+interface CrewTopContributor {
+  userId: string;
+  username: string;
+  avatar: string | null;
+  weeklyTU: number;
+}
+
+interface CrewStats {
+  totalMembers: number;
+  totalTU: number;
+  weeklyTU: number;
+  warsWon: number;
+  warsLost: number;
+  currentStreak: number;
+  topContributors: CrewTopContributor[];
+}
+
+interface MyCrewResult {
+  crew: Crew;
+  membership: CrewMember;
+  members: CrewMember[];
+  wars: CrewWarWithDetails[];
+  stats: CrewStats;
+}
+
+interface CrewLeaderboardCrew {
+  id: string;
+  name: string;
+  tag: string;
+  avatar: string | null;
+  color: string;
+  memberCount: number;
+  weeklyTU: number;
+}
+
+interface CrewLeaderboardEntry {
+  rank: number;
+  crew: CrewLeaderboardCrew;
+}
+
+interface MyCrewData {
+  myCrew: MyCrewResult | null;
+}
+
+interface CrewLeaderboardData {
+  crewLeaderboard: CrewLeaderboardEntry[];
+}
+
+interface SearchCrewsData {
+  searchCrews: Crew[];
+}
+
+// ============================================
 // ICONS
 // ============================================
 const Icons = {
-  Users: ({ className = 'w-5 h-5' }) => (
+  Users: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
+  Trophy: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
-  Swords: ({ className = 'w-5 h-5' }) => (
+  Swords: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  Search: ({ className = 'w-5 h-5' }) => (
+  Search: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
   ),
-  Crown: ({ className = 'w-5 h-5' }) => (
+  Crown: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3l4 9-6 3 9 6 9-6-6-3 4-9-5 3-3-6-3 6-5-3z" />
     </svg>
   ),
-  Shield: ({ className = 'w-5 h-5' }) => (
+  Shield: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
-  TrendingUp: ({ className = 'w-5 h-5' }) => (
+  TrendingUp: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
     </svg>
   ),
-  TrendingDown: ({ className = 'w-5 h-5' }) => (
+  TrendingDown: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
     </svg>
   ),
-  Clock: ({ className = 'w-5 h-5' }) => (
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
     </svg>
@@ -78,7 +201,7 @@ const Icons = {
 // ============================================
 // WAR CARD COMPONENT
 // ============================================
-function WarCard({ war, myCrew }) {
+function WarCard({ war, myCrew }: { war: CrewWarWithDetails; myCrew: Crew }) {
   const isChallenger = war.challengerCrewId === myCrew.id;
   const opponentCrew = isChallenger ? war.defendingCrew : war.challengerCrew;
   const myTU = isChallenger ? war.challengerTU : war.defendingTU;
@@ -133,129 +256,124 @@ function WarCard({ war, myCrew }) {
 // MAIN CREWS PAGE
 // ============================================
 export default function Crews() {
-  const { user: _user } = useUser();
-  const [myCrew, setMyCrew] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   // Create/Search UI state
   const [showCreate, setShowCreate] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<Crew[]>([]);
 
   // Create crew form
   const [crewName, setCrewName] = useState('');
   const [crewTag, setCrewTag] = useState('');
   const [crewDescription, setCrewDescription] = useState('');
-  const [creating, setCreating] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const [crewRes, leaderboardRes] = await Promise.all([
-        api.get('/crews/my').catch(() => ({ data: null })),
-        api.get('/crews/leaderboard?limit=20'),
-      ]);
+  // GraphQL queries
+  const {
+    data: myCrewData,
+    loading: loadingMyCrew,
+    refetch: refetchMyCrew,
+  } = useQuery<MyCrewData>(MY_CREW_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-      // API response is { data: { data: {...} } }, so extract the inner data
-      const crewData = crewRes.data?.data || crewRes.data || null;
-      setMyCrew(crewData);
+  const {
+    data: leaderboardData,
+    loading: loadingLeaderboard,
+  } = useQuery<CrewLeaderboardData>(CREW_LEADERBOARD_QUERY, {
+    variables: { limit: 20 },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      // API response is { data: { data: [...] } }, so extract the inner array
-      const leaderboardData = leaderboardRes.data?.data || leaderboardRes.data || [];
-      setLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
-    } catch (err) {
-      setError(err.message || 'Failed to load crews data');
-    } finally {
-      setLoading(false);
+  // Lazy query for search
+  const [searchCrews, { loading: searching }] = useLazyQuery<SearchCrewsData>(
+    SEARCH_CREWS_QUERY,
+    {
+      fetchPolicy: 'network-only',
+      onCompleted: (data) => {
+        setSearchResults(data?.searchCrews || []);
+      },
+      onError: (err) => {
+        console.error('Search failed:', err);
+        setSearchResults([]);
+      },
     }
-  }, []);
+  );
 
+  // Mutations
+  const [createCrewMutation, { loading: creating }] = useMutation(CREATE_CREW_MUTATION, {
+    onCompleted: () => {
+      setShowCreate(false);
+      setCrewName('');
+      setCrewTag('');
+      setCrewDescription('');
+      refetchMyCrew();
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to create crew');
+    },
+  });
+
+  const [leaveCrewMutation] = useMutation(LEAVE_CREW_MUTATION, {
+    onCompleted: () => {
+      refetchMyCrew();
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to leave crew');
+    },
+  });
+
+  // Extract data with memoization
+  const myCrew = useMemo(() => myCrewData?.myCrew || null, [myCrewData]);
+  const leaderboard = useMemo(() => leaderboardData?.crewLeaderboard || [], [leaderboardData]);
+
+  // Search crews with debounce
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Search crews
-  const handleSearch = useCallback(async (query) => {
-    if (query.length < 2) {
+    if (searchQuery.length < 2) {
       setSearchResults([]);
       return;
     }
 
-    setSearching(true);
-    try {
-      const response = await api.get(`/crews/search?q=${encodeURIComponent(query)}`);
-      const searchData = response.data?.data || response.data || [];
-      setSearchResults(Array.isArray(searchData) ? searchData : []);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
     const timeout = setTimeout(() => {
-      handleSearch(searchQuery);
+      searchCrews({ variables: { query: searchQuery, limit: 20 } });
     }, 300);
+
     return () => clearTimeout(timeout);
-  }, [searchQuery, handleSearch]);
+  }, [searchQuery, searchCrews]);
 
   // Create crew
-  const handleCreateCrew = async () => {
+  const handleCreateCrew = useCallback(async () => {
     if (!crewName.trim() || !crewTag.trim()) {
       setError('Name and tag are required');
       return;
     }
 
-    setCreating(true);
-    try {
-      await api.post('/crews', {
-        name: crewName.trim(),
-        tag: crewTag.trim().toUpperCase(),
-        description: crewDescription.trim() || undefined,
-      });
-      setShowCreate(false);
-      setCrewName('');
-      setCrewTag('');
-      setCrewDescription('');
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to create crew');
-    } finally {
-      setCreating(false);
-    }
-  };
+    createCrewMutation({
+      variables: {
+        input: {
+          name: crewName.trim(),
+          tag: crewTag.trim().toUpperCase(),
+          description: crewDescription.trim() || undefined,
+        },
+      },
+    });
+  }, [crewName, crewTag, crewDescription, createCrewMutation]);
 
   // Leave crew
-  const handleLeaveCrew = async () => {
+  const handleLeaveCrew = useCallback(async () => {
     if (!window.confirm('Are you sure you want to leave this crew?')) return;
+    leaveCrewMutation();
+  }, [leaveCrewMutation]);
 
-    try {
-      await api.post('/crews/leave');
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to leave crew');
-    }
-  };
+  // Join crew - not directly supported, need invites
+  const handleJoinCrew = useCallback(async (_crewId: string) => {
+    setError('Direct joining not supported. Request an invitation from a crew captain.');
+  }, []);
 
-  // Join crew
-  const handleJoinCrew = async (crewId) => {
-    try {
-      await api.post(`/crews/${crewId}/join`);
-      setShowSearch(false);
-      setSearchQuery('');
-      setSearchResults([]);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to join crew');
-    }
-  };
-
-  const getRoleIcon = (role) => {
+  const getRoleIcon = (role: string) => {
     switch (role) {
       case 'owner':
         return <Icons.Crown className="w-4 h-4 text-yellow-400" />;
@@ -266,7 +384,9 @@ export default function Crews() {
     }
   };
 
-  if (loading) {
+  const loading = loadingMyCrew || loadingLeaderboard;
+
+  if (loading && !myCrew && leaderboard.length === 0) {
     return (
       <GlassSurface className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -565,7 +685,7 @@ export default function Crews() {
           </div>
 
           <div className="space-y-2">
-            {(Array.isArray(leaderboard) ? leaderboard : []).slice(0, 10).map((entry) => (
+            {leaderboard.slice(0, 10).map((entry) => (
               <motion.div
                 key={entry.crew?.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"

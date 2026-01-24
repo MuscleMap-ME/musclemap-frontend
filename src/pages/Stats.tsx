@@ -2,14 +2,14 @@
  * Stats Page
  *
  * Character stats display with radar chart visualization and leaderboards.
+ * Fully converted to GraphQL.
  */
 
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@apollo/client/react';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
 import {
   GlassSurface,
   GlassCard,
@@ -19,7 +19,13 @@ import { InsightCard, WeeklyHeatmap, MiniChart } from '../components/analytics';
 import { MuscleViewer, MuscleHeatmap } from '../components/muscle-viewer';
 import { RPGStatBar } from '../components/stats';
 import type { MuscleActivation } from '../components/muscle-viewer/types';
-import { MY_MUSCLE_ACTIVATIONS_QUERY } from '../graphql/queries';
+import {
+  MY_MUSCLE_ACTIVATIONS_QUERY,
+  MY_STATS_WITH_RANKINGS_QUERY,
+  EXTENDED_PROFILE_QUERY,
+  STAT_LEADERBOARD_QUERY,
+} from '../graphql/queries';
+import { RECALCULATE_STATS_MUTATION } from '../graphql/mutations';
 
 // Lazy load heavy D3 chart component
 const RadarChartD3 = lazy(() =>
@@ -31,38 +37,129 @@ const MuscleExplorer = lazy(() =>
   import('../components/muscle-explorer').then(m => ({ default: m.default || m.MuscleExplorer }))
 );
 
+// ============================================
+// TYPES
+// ============================================
+interface CharacterStats {
+  userId: string;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  strength: number;
+  endurance: number;
+  agility: number;
+  flexibility: number;
+  balance: number;
+  mentalFocus: number;
+  totalWorkouts: number;
+  totalExercises: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastWorkoutAt: string | null;
+}
+
+interface StatRanking {
+  rank: number;
+  total: number;
+  percentile: number;
+}
+
+interface StatRankingsByScope {
+  global: StatRanking;
+  country?: StatRanking;
+  state?: StatRanking;
+  city?: StatRanking;
+}
+
+interface StatsWithRankingsData {
+  myStatsWithRankings: {
+    stats: CharacterStats;
+    rankings: Record<string, StatRankingsByScope>;
+  } | null;
+}
+
+interface VolumeTrendEntry {
+  label: string;
+  value: number;
+}
+
+interface ExtendedProfileData {
+  extendedProfile: {
+    height: number | null;
+    weight: number | null;
+    age: number | null;
+    gender: string | null;
+    fitnessLevel: string | null;
+    goals: string[] | null;
+    preferredUnits: string | null;
+    city: string | null;
+    county: string | null;
+    state: string | null;
+    country: string | null;
+    countryCode: string | null;
+    leaderboardOptIn: boolean;
+    profileVisibility: string;
+    weeklyActivity: number[];
+    volumeTrend: VolumeTrendEntry[];
+    previousStrength: number;
+  } | null;
+}
+
+interface LeaderboardEntry {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  statValue: number;
+  rank: number;
+  gender: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+}
+
+interface StatLeaderboardData {
+  statLeaderboard: {
+    entries: LeaderboardEntry[];
+    total: number;
+  };
+}
+
+interface MuscleActivationData {
+  myMuscleActivations: Array<{ muscleId: string; activation: number }>;
+}
+
 
 // ============================================
 // ICONS
 // ============================================
 const Icons = {
-  Refresh: ({ className = 'w-5 h-5' }) => (
+  Refresh: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   ),
-  Globe: ({ className = 'w-5 h-5' }) => (
+  Globe: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
     </svg>
   ),
-  MapPin: ({ className = 'w-5 h-5' }) => (
+  MapPin: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
-  TrendingUp: ({ className = 'w-5 h-5' }) => (
+  TrendingUp: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
+  Trophy: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
-  User: ({ className = 'w-5 h-5' }) => (
+  User: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
@@ -72,7 +169,7 @@ const Icons = {
 // ============================================
 // STAT METADATA
 // ============================================
-const STAT_META = {
+const STAT_META: Record<string, { name: string; abbr: string; color: string; description: string }> = {
   strength: { name: 'Strength', abbr: 'STR', color: '#FF3366', description: 'Raw lifting power' },
   constitution: { name: 'Constitution', abbr: 'CON', color: '#00CC66', description: 'Recovery & resilience' },
   dexterity: { name: 'Dexterity', abbr: 'DEX', color: '#FFB800', description: 'Movement skill' },
@@ -84,24 +181,28 @@ const STAT_META = {
 const STAT_ORDER = ['strength', 'constitution', 'dexterity', 'power', 'endurance', 'vitality'];
 
 // ============================================
-// RADAR CHART COMPONENT
+// RADAR CHART COMPONENT (SVG version - kept for reference, D3 version in use)
 // ============================================
-function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-eslint/no-unused-vars
+/* eslint-disable @typescript-eslint/no-unused-vars */
+interface RadarChartProps {
+  stats: Record<string, number>;
+  size?: number;
+}
+
+function RadarChart({ stats, size = 300 }: RadarChartProps) {
   const center = size / 2;
-  const maxRadius = size * 0.32; // Reduced to leave room for labels
+  const maxRadius = size * 0.32;
   const levels = [0.25, 0.5, 0.75, 1.0];
 
-  // Calculate max stat for normalization
   const maxStat = useMemo(() => {
     return Math.max(
       ...STAT_ORDER.map((key) => stats[key] || 0),
-      100 // Minimum scale
+      100
     );
   }, [stats]);
 
-  // Calculate polygon points
   const points = useMemo(() => {
-    const pts = [];
+    const pts: { x: number; y: number }[] = [];
     const angleStep = (2 * Math.PI) / 6;
 
     for (let i = 0; i < 6; i++) {
@@ -121,9 +222,8 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
 
   const polygonPoints = points.map((p) => `${p.x},${p.y}`).join(' ');
 
-  // Axis endpoints and labels
   const axisPoints = useMemo(() => {
-    const pts = [];
+    const pts: { x1: number; y1: number; x2: number; y2: number; labelX: number; labelY: number; key: string }[] = [];
     const angleStep = (2 * Math.PI) / 6;
 
     for (let i = 0; i < 6; i++) {
@@ -144,9 +244,8 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
 
   return (
     <svg width={size} height={size} className="mx-auto">
-      {/* Background level rings */}
       {levels.map((level) => {
-        const pts = [];
+        const pts: string[] = [];
         const angleStep = (2 * Math.PI) / 6;
         for (let i = 0; i < 6; i++) {
           const angle = angleStep * i - Math.PI / 2;
@@ -164,7 +263,6 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
         );
       })}
 
-      {/* Axis lines */}
       {axisPoints.map(({ x1, y1, x2, y2, key }) => (
         <line
           key={key}
@@ -177,7 +275,6 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
         />
       ))}
 
-      {/* Stats polygon */}
       <motion.polygon
         points={polygonPoints}
         fill="rgba(59, 130, 246, 0.3)"
@@ -188,7 +285,6 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
         transition={{ duration: 0.5 }}
       />
 
-      {/* Points on vertices */}
       {points.map((point, i) => (
         <motion.circle
           key={STAT_ORDER[i]}
@@ -202,7 +298,6 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
         />
       ))}
 
-      {/* Labels */}
       {axisPoints.map(({ labelX, labelY, key }) => (
         <text
           key={`label-${key}`}
@@ -220,12 +315,18 @@ function RadarChart({ stats, size = 300 }) { // eslint-disable-line @typescript-
     </svg>
   );
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 
 // ============================================
 // RANKING DISPLAY
 // ============================================
-function RankingDisplay({ statKey, rankings }) {
+interface RankingDisplayProps {
+  statKey: string;
+  rankings: StatRankingsByScope;
+}
+
+function RankingDisplay({ statKey, rankings }: RankingDisplayProps) {
   const meta = STAT_META[statKey];
 
   return (
@@ -275,39 +376,25 @@ function RankingDisplay({ statKey, rankings }) {
 // ============================================
 // LEADERBOARD COMPONENT
 // ============================================
-function Leaderboard({ userLocation }) {
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
+interface LeaderboardProps {
+  userLocation: { country?: string | null; state?: string | null } | null;
+}
+
+function Leaderboard({ userLocation }: LeaderboardProps) {
   const [scope, setScope] = useState('global');
   const [statType, setStatType] = useState('vitality');
 
-  const loadLeaderboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const options = {
-        stat: statType,
-        scope: scope,
-        limit: 20,
-      };
+  const { data: leaderboardData, loading } = useQuery<StatLeaderboardData>(STAT_LEADERBOARD_QUERY, {
+    variables: {
+      stat: statType,
+      scope: scope,
+      scopeValue: scope === 'country' ? userLocation?.country : scope === 'state' ? userLocation?.state : undefined,
+      limit: 20,
+    },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      if (scope === 'country' && userLocation?.country) {
-        options.scopeValue = userLocation.country;
-      } else if (scope === 'state' && userLocation?.state) {
-        options.scopeValue = userLocation.state;
-      }
-
-      const response = await api.characterStats.leaderboard(options);
-      setLeaderboard(response.data || []);
-    } catch {
-      // Failed to load leaderboard
-    } finally {
-      setLoading(false);
-    }
-  }, [scope, statType, userLocation]);
-
-  useEffect(() => {
-    loadLeaderboard();
-  }, [loadLeaderboard]);
+  const leaderboard = useMemo(() => leaderboardData?.statLeaderboard?.entries || [], [leaderboardData]);
 
   return (
     <GlassCard className="p-6">
@@ -403,20 +490,15 @@ function Leaderboard({ userLocation }) {
 // MAIN STATS PAGE
 // ============================================
 export default function Stats() {
-  const { user: _user } = useUser();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [stats, setStats] = useState(null);
-  const [rankings, setRankings] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [recalculating, setRecalculating] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Muscle Explorer state
   const [muscleActivations, setMuscleActivations] = useState<Record<string, number>>({});
-  const [selectedMuscle, setSelectedMuscle] = useState(searchParams.get('muscle') || null);
-  const [muscleHistory, _setMuscleHistory] = useState({});
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(searchParams.get('muscle') || null);
+  const [muscleHistory] = useState({});
 
   // Muscle ID mapping for MuscleViewer
   const MUSCLE_ID_MAP: Record<string, string> = {
@@ -439,45 +521,58 @@ export default function Stats() {
     'forearm-flexors': 'forearms',
   };
 
+  // GraphQL Queries
+  const { data: statsData, loading: loadingStats, refetch: refetchStats } = useQuery<StatsWithRankingsData>(MY_STATS_WITH_RANKINGS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !isAuthenticated,
+  });
+
+  const { data: profileData, loading: loadingProfile } = useQuery<ExtendedProfileData>(EXTENDED_PROFILE_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !isAuthenticated,
+  });
+
+  const { data: muscleData } = useQuery<MuscleActivationData>(MY_MUSCLE_ACTIVATIONS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !isAuthenticated,
+  });
+
+  const [recalculateStats, { loading: recalculating }] = useMutation(RECALCULATE_STATS_MUTATION, {
+    onCompleted: () => {
+      refetchStats();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  // Extract data from queries
+  const stats = useMemo(() => {
+    const s = statsData?.myStatsWithRankings?.stats;
+    if (!s) return null;
+    return {
+      strength: s.strength,
+      constitution: s.flexibility,
+      dexterity: s.agility,
+      power: s.balance,
+      endurance: s.endurance,
+      vitality: s.mentalFocus,
+    };
+  }, [statsData]);
+
+  const rankings = useMemo(() => statsData?.myStatsWithRankings?.rankings || null, [statsData]);
+  const profile = useMemo(() => profileData?.extendedProfile || null, [profileData]);
+
   // Convert muscle activations to MuscleActivation array format for MuscleViewer
   const muscleViewerActivations = useMemo((): MuscleActivation[] => {
     return Object.entries(muscleActivations).map(([muscleId, activation]) => {
       const mappedId = MUSCLE_ID_MAP[muscleId] || muscleId.replace(/-/g, '_');
       return {
         id: mappedId,
-        intensity: activation / 100, // Convert 0-100 to 0-1
+        intensity: activation / 100,
         isPrimary: activation > 50,
       };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muscleActivations]);
-
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const [statsRes, profileRes] = await Promise.all([
-        api.characterStats.me(),
-        api.characterStats.extendedProfile(),
-      ]);
-
-      setStats(statsRes.data.stats);
-      setRankings(statsRes.data.rankings);
-      setProfile(profileRes.data);
-    } catch (err) {
-      setError(err.message || 'Failed to load stats');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Load muscle activation data via GraphQL
-  interface MuscleActivationData {
-    myMuscleActivations: Array<{ muscleId: string; activation: number }>;
-  }
-
-  const { data: muscleData } = useQuery<MuscleActivationData>(MY_MUSCLE_ACTIVATIONS_QUERY, {
-    fetchPolicy: 'cache-and-network',
-  });
 
   // Convert GraphQL data to object map for MuscleExplorer
   useEffect(() => {
@@ -503,14 +598,13 @@ export default function Stats() {
   }, [muscleData]);
 
   // Handle muscle selection - navigates to exercises filtered by muscle
-  const handleFindExercises = useCallback((muscleId) => {
+  const handleFindExercises = useCallback((muscleId: string) => {
     navigate(`/exercises?muscle=${muscleId}`);
   }, [navigate]);
 
   // Handle muscle click to filter stats by that muscle
-  const handleMuscleSelect = useCallback((muscleId) => {
+  const handleMuscleSelect = useCallback((muscleId: string | null) => {
     setSelectedMuscle(muscleId);
-    // Update URL params
     const params = new URLSearchParams(searchParams);
     if (muscleId) {
       params.set('muscle', muscleId);
@@ -520,29 +614,22 @@ export default function Stats() {
     navigate({ search: params.toString() }, { replace: true });
   }, [navigate, searchParams]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   const handleRecalculate = async () => {
-    setRecalculating(true);
     try {
-      const response = await api.characterStats.recalculate();
-      setStats(response.data.stats);
-      await loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to recalculate stats');
-    } finally {
-      setRecalculating(false);
+      await recalculateStats();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to recalculate stats');
     }
   };
 
   const maxStat = useMemo(() => {
     if (!stats) return 100;
-    return Math.max(...STAT_ORDER.map((key) => stats[key] || 0), 100);
+    return Math.max(...STAT_ORDER.map((key) => stats[key as keyof typeof stats] || 0), 100);
   }, [stats]);
 
-  if (loading) {
+  const loading = loadingStats || loadingProfile;
+
+  if (loading && !stats) {
     return (
       <GlassSurface className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -609,13 +696,13 @@ export default function Stats() {
 
           {/* Insight Card */}
           <InsightCard
-            type={stats?.strength > (profile?.previousStrength || 0) ? 'positive' : 'info'}
-            title={stats?.strength > (profile?.previousStrength || 0) ? 'Getting Stronger!' : 'Keep Pushing'}
-            message={stats?.strength > (profile?.previousStrength || 0)
-              ? `Your strength increased ${Math.round(((stats?.strength || 0) / (profile?.previousStrength || 1) - 1) * 100)}% this week`
+            type={stats?.strength && profile?.previousStrength && stats.strength > profile.previousStrength ? 'positive' : 'info'}
+            title={stats?.strength && profile?.previousStrength && stats.strength > profile.previousStrength ? 'Getting Stronger!' : 'Keep Pushing'}
+            message={stats?.strength && profile?.previousStrength && stats.strength > profile.previousStrength
+              ? `Your strength increased ${Math.round(((stats.strength) / (profile.previousStrength || 1) - 1) * 100)}% this week`
               : 'Consistency is key - keep showing up!'
             }
-            icon={stats?.strength > (profile?.previousStrength || 0) ? '📈' : '💪'}
+            icon={stats?.strength && profile?.previousStrength && stats.strength > profile.previousStrength ? '📈' : '💪'}
           />
         </div>
 
@@ -729,26 +816,28 @@ export default function Stats() {
           <GlassCard className="p-6">
             <h2 className="text-xl font-bold text-white mb-4 text-center">Stat Overview</h2>
             {stats && (
-              <RadarChartD3
-                axes={STAT_ORDER.map((key) => ({
-                  key,
-                  label: STAT_META[key].abbr,
-                  color: STAT_META[key].color,
-                }))}
-                series={[
-                  {
-                    name: 'Your Stats',
-                    data: stats,
-                    color: '#8b5cf6',
-                    fillOpacity: 0.4,
-                  },
-                ]}
-                height={320}
-                showValues
-                animated
-                pulsing
-                interactive
-              />
+              <Suspense fallback={<div className="h-80 flex items-center justify-center"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>}>
+                <RadarChartD3
+                  axes={STAT_ORDER.map((key) => ({
+                    key,
+                    label: STAT_META[key].abbr,
+                    color: STAT_META[key].color,
+                  }))}
+                  series={[
+                    {
+                      name: 'Your Stats',
+                      data: stats,
+                      color: '#8b5cf6',
+                      fillOpacity: 0.4,
+                    },
+                  ]}
+                  height={320}
+                  showValues
+                  animated
+                  pulsing
+                  interactive
+                />
+              </Suspense>
             )}
           </GlassCard>
 
@@ -765,7 +854,7 @@ export default function Stats() {
                   statKey={key}
                   label={STAT_META[key].name}
                   abbreviation={STAT_META[key].abbr}
-                  value={stats[key] || 0}
+                  value={stats[key as keyof typeof stats] || 0}
                   maxValue={maxStat * 1.2}
                   color={STAT_META[key].color}
                   description={STAT_META[key].description}

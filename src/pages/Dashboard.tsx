@@ -13,14 +13,19 @@
  * - Celebration hooks for achievements
  */
 
-import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Dumbbell, ClipboardList, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@apollo/client/react';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
-import { MY_MUSCLE_ACTIVATIONS_QUERY, CONVERSATIONS_QUERY } from '../graphql/queries';
+import {
+  MY_MUSCLE_ACTIVATIONS_QUERY,
+  CONVERSATIONS_QUERY,
+  MY_STATS_QUERY,
+  ECONOMY_WALLET_QUERY,
+} from '../graphql/queries';
+import { COMPLETE_ONBOARDING_MUTATION } from '../graphql/mutations';
 import logger from '../utils/logger';
 import { DailyTip, MilestoneProgress, useContextualTips, useTipOnCondition, ActiveContextualTip } from '../components/tips';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -974,11 +979,19 @@ const LAST_WORKOUT_KEY = 'musclemap_last_workout_date';
 export default function Dashboard() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [characterStats, setCharacterStats] = useState(null);
-  const [muscleActivations, setMuscleActivations] = useState<Array<{ muscleId: string; activation: number }>>([]);
-  const [_loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // GraphQL query for stats (replaces api.progress.stats() and api.characterStats.me())
+  const { data: statsData, loading: statsLoading, refetch: refetchStats } = useQuery(
+    MY_STATS_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
+
+  // GraphQL query for wallet (replaces api.wallet.balance())
+  const { data: walletData, refetch: refetchWallet } = useQuery(
+    ECONOMY_WALLET_QUERY,
+    { fetchPolicy: 'cache-and-network' }
+  );
 
   // GraphQL query for muscle activations
   const { data: muscleData } = useQuery<{ myMuscleActivations: Array<{ muscleId: string; activation: number }> }>(
@@ -992,41 +1005,78 @@ export default function Dashboard() {
     { variables: { tab: 'inbox' }, fetchPolicy: 'cache-and-network' }
   );
 
-  // Update unread count from conversations data
-  useEffect(() => {
-    if (conversationsData?.conversations) {
-      const totalUnread = conversationsData.conversations.reduce(
-        (sum: number, conv: { unreadCount?: number }) => sum + (conv.unreadCount || 0),
-        0
-      );
-      setUnreadMessageCount(totalUnread);
-    }
-  }, [conversationsData]);
+  // Memoize stats from GraphQL data
+  const stats = useMemo(() => {
+    const s = statsData?.myStats;
+    if (!s) return null;
+    return {
+      streak: s.currentStreak || 0,
+      workouts: s.totalWorkouts || 0,
+      xp: s.xp || 0,
+      level: s.level || 1,
+      levelName: `Level ${s.level || 1}`,
+      lastWorkoutDate: s.lastWorkoutAt,
+    };
+  }, [statsData]);
 
-  // Update muscle activations when GraphQL data changes
-  useEffect(() => {
+  // Memoize character stats from GraphQL data
+  const characterStats = useMemo(() => {
+    const s = statsData?.myStats;
+    if (!s) return null;
+    return {
+      stats: {
+        strength: s.strength || 0,
+        constitution: s.endurance || 0, // Map endurance to constitution
+        dexterity: s.agility || 0,      // Map agility to dexterity
+        power: s.flexibility || 0,       // Map flexibility to power
+        endurance: s.balance || 0,       // Map balance to endurance
+        vitality: s.mentalFocus || 0,    // Map mentalFocus to vitality
+      },
+    };
+  }, [statsData]);
+
+  // Memoize wallet from GraphQL data
+  const wallet = useMemo(() => {
+    const w = walletData?.economyWallet;
+    if (!w) return null;
+    return {
+      wallet: { balance: w.credits || 0 },
+      ranking: { vip_tier: 'Bronze' }, // Default tier, could be enhanced
+    };
+  }, [walletData]);
+
+  // Memoize muscle activations
+  const muscleActivations = useMemo(() => {
     if (muscleData?.myMuscleActivations && muscleData.myMuscleActivations.length > 0) {
-      setMuscleActivations(muscleData.myMuscleActivations);
-    } else if (muscleData && muscleData.myMuscleActivations?.length === 0) {
-      // Fallback to mock data if no activations
-      setMuscleActivations([
-        { muscleId: 'pectoralis-major', activation: 65 },
-        { muscleId: 'deltoid-anterior', activation: 45 },
-        { muscleId: 'biceps-brachii', activation: 30 },
-        { muscleId: 'rectus-abdominis', activation: 20 },
-        { muscleId: 'quadriceps', activation: 50 },
-      ]);
+      return muscleData.myMuscleActivations;
     }
+    // Fallback to mock data if no activations
+    return [
+      { muscleId: 'pectoralis-major', activation: 65 },
+      { muscleId: 'deltoid-anterior', activation: 45 },
+      { muscleId: 'biceps-brachii', activation: 30 },
+      { muscleId: 'rectus-abdominis', activation: 20 },
+      { muscleId: 'quadriceps', activation: 50 },
+    ];
   }, [muscleData]);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Memoize unread message count
+  const unreadMessageCount = useMemo(() => {
+    if (!conversationsData?.conversations) return 0;
+    return conversationsData.conversations.reduce(
+      (sum: number, conv: { unreadCount?: number }) => sum + (conv.unreadCount || 0),
+      0
+    );
+  }, [conversationsData]);
 
   // ============================================
   // ONBOARDING TOUR STATE
   // ============================================
   const [showOnboardingTour, setShowOnboardingTour] = useState(false);
   const { hasCompletedTour } = useTour();
+
+  // GraphQL mutation for onboarding completion
+  const [completeOnboarding] = useMutation(COMPLETE_ONBOARDING_MUTATION);
 
   // Check if user needs onboarding tour
   // Uses multiple sources to determine completion:
@@ -1062,13 +1112,13 @@ export default function Dashboard() {
 
     // Sync to server so completion persists across devices/sessions (fixes iOS issues)
     try {
-      await api.post('/onboarding/complete', {});
+      await completeOnboarding();
       logger.info('Tour completion synced to server');
     } catch (error) {
       // Non-blocking - localStorage already set, server sync is best-effort
       logger.warn('Failed to sync tour completion to server', { error });
     }
-  }, []);
+  }, [completeOnboarding]);
 
   // ============================================
   // CONTEXTUAL TIP TRIGGERS
@@ -1156,50 +1206,21 @@ export default function Dashboard() {
     loadNutrition().catch(() => {});
   }, [loadNutrition]);
 
-  useEffect(() => {
-    Promise.all([
-      api.progress.stats().catch(() => null),
-      api.wallet.balance().catch(() => null),
-    ]).then(([statsData, walletData]) => {
-      // Extract data from wrapper (api returns {data: Stats})
-      setStats(statsData?.data || null);
-      setWallet(walletData);
-      setLoading(false);
-    });
+  // All stats, wallet, and muscle activations are now loaded via GraphQL queries above
 
-    // Note: Unread message count is now fetched via GraphQL (CONVERSATIONS_QUERY)
-
-    // Fetch character stats separately
-    api.characterStats.me()
-      .then(data => {
-        setCharacterStats(data?.data);
-        setStatsLoading(false);
-      })
-      .catch(() => {
-        setStatsLoading(false);
-      });
-
-    // Muscle activations are now loaded via GraphQL query hook below
-  }, []);
-
-  // Pull to refresh handler
+  // Pull to refresh handler - refetches GraphQL queries
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     haptic('medium');
 
     await Promise.all([
-      api.progress.stats().catch(() => null),
-      api.wallet.balance().catch(() => null),
-      api.characterStats.me().catch(() => null),
+      refetchStats(),
+      refetchWallet(),
       loadNutrition().catch(() => null),
-    ]).then(([statsData, walletData, characterData]) => {
-      setStats(statsData?.data || null);
-      setWallet(walletData);
-      setCharacterStats(characterData?.data || null);
-    });
+    ]);
 
     setIsRefreshing(false);
-  }, [loadNutrition]);
+  }, [refetchStats, refetchWallet, loadNutrition]);
 
   return (
     <PullToRefresh
