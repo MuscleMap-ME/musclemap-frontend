@@ -8,15 +8,23 @@
  * - Body part categorization
  * - Image compression before upload
  * - Local-only storage option (privacy mode)
+ *
+ * Uses GraphQL for cloud photo management
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useAuth } from '../store/authStore';
 import { useToast } from '../store';
-import { api } from '../utils/api';
+import {
+  PROGRESS_PHOTOS_QUERY,
+  PROGRESS_PHOTO_STATS_QUERY,
+  CREATE_PROGRESS_PHOTO_MUTATION,
+  DELETE_PROGRESS_PHOTO_MUTATION,
+} from '../graphql';
 import {
   compressWithPreset,
   createThumbnail,
@@ -39,6 +47,24 @@ interface ProgressPhoto {
   weight?: number;
   notes?: string;
   isLocal: boolean;
+}
+
+/**
+ * GraphQL photo data structure
+ */
+interface GraphQLProgressPhoto {
+  id: string;
+  userId: string;
+  storagePath: string;
+  thumbnailPath?: string;
+  photoType: string;
+  pose: string;
+  isPrivate: boolean;
+  weightKg?: number;
+  bodyFatPercentage?: number;
+  notes?: string;
+  photoDate: string;
+  createdAt: string;
 }
 
 /**
@@ -70,6 +96,15 @@ const LOCAL_SETTINGS_KEY = 'musclemap_photo_settings';
 async function saveLocalPhotos(photos: ProgressPhoto[]): Promise<void> {
   try {
     const db = await openPhotoDB();
+    if (!db) {
+      // Fallback to localStorage
+      const miniPhotos = photos.map(p => ({
+        ...p,
+        src: p.thumbnailSrc || p.src.substring(0, 1000),
+      }));
+      localStorage.setItem(LOCAL_PHOTOS_KEY, JSON.stringify(miniPhotos));
+      return;
+    }
     const tx = db.transaction('photos', 'readwrite');
     const store = tx.objectStore('photos');
     await store.clear();
@@ -79,11 +114,10 @@ async function saveLocalPhotos(photos: ProgressPhoto[]): Promise<void> {
     await tx.done;
   } catch (error) {
     console.error('Failed to save local photos:', error);
-    // Fallback to localStorage for smaller datasets
     try {
       const miniPhotos = photos.map(p => ({
         ...p,
-        src: p.thumbnailSrc || p.src.substring(0, 1000), // Truncate for localStorage
+        src: p.thumbnailSrc || p.src.substring(0, 1000),
       }));
       localStorage.setItem(LOCAL_PHOTOS_KEY, JSON.stringify(miniPhotos));
     } catch {
@@ -98,6 +132,10 @@ async function saveLocalPhotos(photos: ProgressPhoto[]): Promise<void> {
 async function loadLocalPhotos(): Promise<ProgressPhoto[]> {
   try {
     const db = await openPhotoDB();
+    if (!db) {
+      const stored = localStorage.getItem(LOCAL_PHOTOS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    }
     const tx = db.transaction('photos', 'readonly');
     const store = tx.objectStore('photos');
     const photos = await store.getAll();
@@ -105,7 +143,6 @@ async function loadLocalPhotos(): Promise<ProgressPhoto[]> {
     return photos || [];
   } catch (error) {
     console.error('Failed to load local photos:', error);
-    // Fallback to localStorage
     try {
       const stored = localStorage.getItem(LOCAL_PHOTOS_KEY);
       return stored ? JSON.parse(stored) : [];
@@ -121,14 +158,12 @@ async function loadLocalPhotos(): Promise<ProgressPhoto[]> {
  */
 function openPhotoDB(): Promise<IDBDatabase | null> {
   return new Promise((resolve, reject) => {
-    // Check if IndexedDB is available (Brave Shields blocks it entirely)
     try {
       if (typeof indexedDB === 'undefined') {
         resolve(null);
         return;
       }
     } catch {
-      // Brave Shields throws ReferenceError on indexedDB access
       resolve(null);
       return;
     }
@@ -148,15 +183,31 @@ function openPhotoDB(): Promise<IDBDatabase | null> {
 }
 
 /**
+ * Map GraphQL photo to component format
+ */
+function mapGraphQLPhoto(p: GraphQLProgressPhoto): ProgressPhoto {
+  return {
+    id: p.id,
+    src: p.storagePath,
+    thumbnailSrc: p.thumbnailPath || undefined,
+    bodyPart: p.photoType,
+    date: p.photoDate,
+    weight: p.weightKg || undefined,
+    notes: p.notes || undefined,
+    isLocal: false,
+  };
+}
+
+/**
  * Progress Photos Page Component
  */
 export default function ProgressPhotos() {
-  const { token, user: _user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast, error: showError, success } = useToast();
 
   // State
-  const [photos, setPhotos] = useState<ProgressPhoto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [localPhotos, setLocalPhotos] = useState<ProgressPhoto[]>([]);
+  const [localLoading, setLocalLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [settings, setSettings] = useState<PhotoSettings>(DEFAULT_SETTINGS);
   const [activeTab, setActiveTab] = useState<'gallery' | 'capture' | 'compare' | 'settings'>('gallery');
@@ -176,10 +227,76 @@ export default function ProgressPhotos() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Load photos and settings on mount
+  // GraphQL queries
+  const { data: photosData, loading: photosLoading, refetch: refetchPhotos } = useQuery(PROGRESS_PHOTOS_QUERY, {
+    variables: { limit: 100 },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: statsData } = useQuery(PROGRESS_PHOTO_STATS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL mutations
+  const [createPhoto] = useMutation(CREATE_PROGRESS_PHOTO_MUTATION, {
+    onCompleted: () => {
+      refetchPhotos();
+    },
+    onError: (err) => {
+      console.error('Failed to create progress photo:', err);
+    },
+  });
+
+  const [deletePhoto] = useMutation(DELETE_PROGRESS_PHOTO_MUTATION, {
+    onCompleted: () => {
+      refetchPhotos();
+    },
+    onError: (err) => {
+      console.error('Failed to delete progress photo:', err);
+    },
+  });
+
+  // Map cloud photos
+  const cloudPhotos = useMemo(() => {
+    if (!photosData?.progressPhotos?.photos) return [];
+    return photosData.progressPhotos.photos.map(mapGraphQLPhoto);
+  }, [photosData]);
+
+  // Merge local and cloud photos
+  const photos = useMemo(() => {
+    const localIds = new Set(localPhotos.map(p => p.id));
+    const newCloud = cloudPhotos.filter(p => !localIds.has(p.id));
+    return [...localPhotos, ...newCloud];
+  }, [localPhotos, cloudPhotos]);
+
+  // Stats from GraphQL or computed from local
+  const photoStats = useMemo(() => {
+    if (statsData?.progressPhotoStats) {
+      return statsData.progressPhotoStats;
+    }
+    // Compute from local photos
+    const byType = localPhotos.reduce((acc, p) => {
+      acc[p.bodyPart] = (acc[p.bodyPart] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const dates = localPhotos.map(p => new Date(p.date).getTime()).filter(Boolean);
+    return {
+      byType,
+      firstPhoto: dates.length > 0 ? new Date(Math.min(...dates)).toISOString() : null,
+      lastPhoto: dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null,
+      totalPhotos: localPhotos.length,
+    };
+  }, [statsData, localPhotos]);
+
+  const loading = localLoading || photosLoading;
+
+  // Load local photos and settings on mount
   useEffect(() => {
     async function loadData() {
-      setLoading(true);
+      setLocalLoading(true);
       try {
         // Load settings from localStorage
         const savedSettings = localStorage.getItem(LOCAL_SETTINGS_KEY);
@@ -188,33 +305,18 @@ export default function ProgressPhotos() {
         }
 
         // Load local photos
-        const localPhotos = await loadLocalPhotos();
-        setPhotos(localPhotos.map(p => ({ ...p, isLocal: true })));
-
-        // If user is logged in, also load cloud photos
-        if (token) {
-          try {
-            const cloudPhotos = await api.progressPhotos?.list() || [];
-            // Merge cloud and local photos, avoiding duplicates
-            setPhotos(prev => {
-              const localIds = new Set(prev.map(p => p.id));
-              const newCloud = cloudPhotos.filter((p: ProgressPhoto) => !localIds.has(p.id));
-              return [...prev, ...newCloud.map((p: ProgressPhoto) => ({ ...p, isLocal: false }))];
-            });
-          } catch {
-            // API endpoint may not exist yet - that's ok
-          }
-        }
+        const loaded = await loadLocalPhotos();
+        setLocalPhotos(loaded.map(p => ({ ...p, isLocal: true })));
       } catch (error) {
         console.error('Failed to load photos:', error);
         showError('Failed to load photos');
       } finally {
-        setLoading(false);
+        setLocalLoading(false);
       }
     }
 
     loadData();
-  }, [token, showError]);
+  }, [showError]);
 
   // Save settings when changed
   useEffect(() => {
@@ -263,6 +365,68 @@ export default function ProgressPhotos() {
     }
     setShowCamera(false);
   }, []);
+
+  /**
+   * Process and save a photo (compression, thumbnail, storage)
+   */
+  const processAndSavePhoto = useCallback(async (file: File | Blob) => {
+    // Compress image
+    const compressed = await compressWithPreset(file, settings.compressionQuality);
+
+    // Create thumbnail
+    const thumbnail = await createThumbnail(file);
+
+    // Create photo object
+    const newPhoto: ProgressPhoto = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      src: compressed.dataUrl,
+      thumbnailSrc: thumbnail,
+      bodyPart: captureBodyPart,
+      date: new Date().toISOString(),
+      weight: captureWeight ? parseFloat(captureWeight) : undefined,
+      notes: captureNotes || undefined,
+      isLocal: settings.storageMode === 'local',
+    };
+
+    // Add to local state
+    setLocalPhotos(prev => [newPhoto, ...prev]);
+
+    // Save locally or to cloud
+    if (settings.storageMode === 'local' || !isAuthenticated) {
+      const updatedPhotos = [newPhoto, ...localPhotos];
+      await saveLocalPhotos(updatedPhotos);
+    } else {
+      // Upload to cloud via GraphQL
+      try {
+        await createPhoto({
+          variables: {
+            input: {
+              storagePath: compressed.dataUrl,
+              thumbnailPath: thumbnail,
+              photoType: captureBodyPart,
+              pose: 'relaxed',
+              isPrivate: true,
+              weightKg: captureWeight ? parseFloat(captureWeight) : null,
+              notes: captureNotes || null,
+              photoDate: new Date().toISOString().split('T')[0],
+            },
+          },
+        });
+      } catch (error) {
+        console.error('Failed to upload to cloud:', error);
+        // Save locally as fallback
+        newPhoto.isLocal = true;
+        const updatedPhotos = [newPhoto, ...localPhotos];
+        await saveLocalPhotos(updatedPhotos);
+        toast('Saved locally (cloud upload failed)');
+      }
+    }
+
+    success('Photo saved!');
+    setCaptureWeight('');
+    setCaptureNotes('');
+    setActiveTab('gallery');
+  }, [captureBodyPart, captureWeight, captureNotes, settings, isAuthenticated, localPhotos, toast, success, createPhoto]);
 
   /**
    * Capture photo from camera
@@ -335,80 +499,21 @@ export default function ProgressPhotos() {
   }, [showError, processAndSavePhoto]);
 
   /**
-   * Process and save a photo (compression, thumbnail, storage)
-   */
-  const processAndSavePhoto = useCallback(async (file: File | Blob) => {
-    // Compress image
-    const compressed = await compressWithPreset(file, settings.compressionQuality);
-
-    // Create thumbnail
-    const thumbnail = await createThumbnail(file);
-
-    // Create photo object
-    const newPhoto: ProgressPhoto = {
-      id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      src: compressed.dataUrl,
-      thumbnailSrc: thumbnail,
-      bodyPart: captureBodyPart,
-      date: new Date().toISOString(),
-      weight: captureWeight ? parseFloat(captureWeight) : undefined,
-      notes: captureNotes || undefined,
-      isLocal: settings.storageMode === 'local',
-    };
-
-    // Add to state
-    setPhotos(prev => [newPhoto, ...prev]);
-
-    // Save locally
-    if (settings.storageMode === 'local' || !token) {
-      const updatedPhotos = [newPhoto, ...photos.filter(p => p.isLocal)];
-      await saveLocalPhotos(updatedPhotos);
-    } else {
-      // Upload to cloud
-      try {
-        await api.progressPhotos?.create({
-          imageData: compressed.dataUrl,
-          thumbnailData: thumbnail,
-          bodyPart: captureBodyPart,
-          weight: captureWeight ? parseFloat(captureWeight) : null,
-          notes: captureNotes || null,
-        });
-      } catch (error) {
-        console.error('Failed to upload to cloud:', error);
-        // Save locally as fallback
-        newPhoto.isLocal = true;
-        const updatedPhotos = [newPhoto, ...photos.filter(p => p.isLocal)];
-        await saveLocalPhotos(updatedPhotos);
-        toast('Saved locally (cloud upload failed)');
-      }
-    }
-
-    success('Photo saved!');
-    setCaptureWeight('');
-    setCaptureNotes('');
-    setActiveTab('gallery');
-  }, [captureBodyPart, captureWeight, captureNotes, settings, token, photos, toast, success]);
-
-  /**
    * Delete a photo
    */
   const handleDeletePhoto = useCallback(async (photo: ProgressPhoto) => {
     if (!confirm('Delete this photo? This cannot be undone.')) return;
 
     try {
-      // Remove from state
-      setPhotos(prev => prev.filter(p => p.id !== photo.id));
+      // Remove from local state
+      setLocalPhotos(prev => prev.filter(p => p.id !== photo.id));
 
       // Remove from storage
       if (photo.isLocal) {
-        const localPhotos = photos.filter(p => p.isLocal && p.id !== photo.id);
-        await saveLocalPhotos(localPhotos);
-      } else if (token) {
-        try {
-          await api.progressPhotos?.delete(photo.id);
-        } catch {
-          // Ignore if API fails
-        }
+        const remaining = localPhotos.filter(p => p.isLocal && p.id !== photo.id);
+        await saveLocalPhotos(remaining);
+      } else if (isAuthenticated) {
+        await deletePhoto({ variables: { id: photo.id } });
       }
 
       success('Photo deleted');
@@ -416,7 +521,7 @@ export default function ProgressPhotos() {
       console.error('Failed to delete photo:', error);
       showError('Failed to delete photo');
     }
-  }, [photos, token, success, showError]);
+  }, [localPhotos, isAuthenticated, success, showError, deletePhoto]);
 
   /**
    * Handle comparison selection
@@ -505,9 +610,9 @@ export default function ProgressPhotos() {
               </div>
               <div className="glass rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-white">
-                  {photos.length > 0
+                  {photos.length > 0 && photoStats.firstPhoto
                     ? Math.ceil(
-                        (new Date().getTime() - new Date(photos[photos.length - 1].date).getTime()) /
+                        (new Date().getTime() - new Date(photoStats.firstPhoto).getTime()) /
                           (1000 * 60 * 60 * 24)
                       )
                     : 0}
@@ -516,9 +621,7 @@ export default function ProgressPhotos() {
               </div>
               <div className="glass rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-white">
-                  {Object.keys(
-                    photos.reduce((acc, p) => ({ ...acc, [p.bodyPart]: true }), {})
-                  ).length}
+                  {Object.keys(photoStats.byType || {}).length}
                 </div>
                 <div className="text-sm text-gray-400">Body Parts</div>
               </div>

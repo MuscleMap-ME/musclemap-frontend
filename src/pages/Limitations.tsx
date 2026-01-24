@@ -5,11 +5,18 @@
  * Provides personalized exercise substitutions based on user's limitations.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  MY_LIMITATIONS_QUERY,
+  BODY_REGIONS_QUERY,
+  CREATE_LIMITATION_MUTATION,
+  UPDATE_LIMITATION_MUTATION,
+  DELETE_LIMITATION_MUTATION,
+} from '../graphql';
 import {
   GlassSurface,
   GlassButton,
@@ -18,6 +25,48 @@ import {
   GlassMobileNav,
   MeshBackground,
 } from '../components/glass';
+
+// TypeScript interfaces
+interface BodyRegionChild {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
+interface BodyRegion {
+  id: string;
+  name: string;
+  icon?: string;
+  children?: BodyRegionChild[];
+}
+
+interface Limitation {
+  id: string;
+  userId: string;
+  bodyRegionId?: string;
+  bodyRegionName?: string;
+  limitationType: string;
+  severity: string;
+  status: string;
+  name: string;
+  description?: string;
+  medicalNotes?: string;
+  avoidMovements?: string[];
+  avoidImpact: boolean;
+  avoidWeightBearing: boolean;
+  maxWeightLbs?: number;
+  maxReps?: number;
+  romFlexionPercent?: number;
+  romExtensionPercent?: number;
+  romRotationPercent?: number;
+  onsetDate?: string;
+  expectedRecoveryDate?: string;
+  lastReviewed?: string;
+  diagnosedBy?: string;
+  ptApproved: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
 
 // Helper function to convert ISO date string to YYYY-MM-DD format for date inputs
 const formatDateForInput = (dateString: string | null | undefined): string => {
@@ -99,10 +148,14 @@ const STATUS_TYPES = {
 };
 
 // Limitation Card Component
-function LimitationCard({ limitation, onEdit, onDelete }) {
-  const typeMeta = LIMITATION_TYPES[limitation.limitationType] || LIMITATION_TYPES.other;
-  const severityMeta = SEVERITY_LEVELS[limitation.severity] || SEVERITY_LEVELS.moderate;
-  const statusMeta = STATUS_TYPES[limitation.status] || STATUS_TYPES.active;
+function LimitationCard({ limitation, onEdit, onDelete }: {
+  limitation: Limitation;
+  onEdit: (limitation: Limitation) => void;
+  onDelete: (id: string) => void;
+}) {
+  const typeMeta = LIMITATION_TYPES[limitation.limitationType as keyof typeof LIMITATION_TYPES] || LIMITATION_TYPES.other;
+  const severityMeta = SEVERITY_LEVELS[limitation.severity as keyof typeof SEVERITY_LEVELS] || SEVERITY_LEVELS.moderate;
+  const statusMeta = STATUS_TYPES[limitation.status as keyof typeof STATUS_TYPES] || STATUS_TYPES.active;
 
   return (
     <motion.div
@@ -165,7 +218,7 @@ function LimitationCard({ limitation, onEdit, onDelete }) {
         </span>
       </div>
 
-      {(limitation.avoidMovements?.length > 0 || limitation.avoidImpact || limitation.avoidWeightBearing) && (
+      {(limitation.avoidMovements?.length || limitation.avoidImpact || limitation.avoidWeightBearing) && (
         <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
           <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Restrictions:</div>
           <div className="flex flex-wrap gap-1">
@@ -206,7 +259,23 @@ function LimitationCard({ limitation, onEdit, onDelete }) {
 }
 
 // Add Limitation Modal
-function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLimitation, saving = false, error = null }) {
+function AddLimitationModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  bodyRegions,
+  editingLimitation,
+  saving = false,
+  error = null,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+  bodyRegions: BodyRegion[];
+  editingLimitation: Limitation | null;
+  saving?: boolean;
+  error?: string | null;
+}) {
   const [formData, setFormData] = useState({
     name: '',
     limitationType: 'injury',
@@ -232,7 +301,7 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
         description: editingLimitation.description || '',
         avoidImpact: editingLimitation.avoidImpact || false,
         avoidWeightBearing: editingLimitation.avoidWeightBearing || false,
-        maxWeightLbs: editingLimitation.maxWeightLbs || '',
+        maxWeightLbs: editingLimitation.maxWeightLbs?.toString() || '',
         // Convert ISO dates to YYYY-MM-DD format for date inputs
         onsetDate: formatDateForInput(editingLimitation.onsetDate),
         expectedRecoveryDate: formatDateForInput(editingLimitation.expectedRecoveryDate),
@@ -256,7 +325,7 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const submitData = {
       ...formData,
@@ -480,97 +549,138 @@ function AddLimitationModal({ isOpen, onClose, onSubmit, bodyRegions, editingLim
 
 // Main Limitations Page
 export default function Limitations() {
-  const { user: _user } = useUser();
-  const [limitations, setLimitations] = useState([]);
-  const [bodyRegions, setBodyRegions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
   const [showModal, setShowModal] = useState(false);
-  const [editingLimitation, setEditingLimitation] = useState(null);
+  const [editingLimitation, setEditingLimitation] = useState<Limitation | null>(null);
   const [filter, setFilter] = useState('active');
-
-  useEffect(() => {
-    loadLimitations();
-    loadBodyRegions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
-
-  const loadLimitations = async () => {
-    try {
-      const status = filter !== 'all' ? filter : undefined;
-      const response = await api.get(`/limitations${status ? `?status=${status}` : ''}`);
-      console.log('[Limitations] API response:', response);
-      // API returns { data: { data: { limitations: [...] } } } due to double wrapping
-      const loadedLimitations = response.data?.data?.limitations || response.data?.limitations || [];
-      console.log('[Limitations] Loaded limitations:', loadedLimitations);
-      console.log('[Limitations] Limitation count:', loadedLimitations.length);
-      setLimitations(loadedLimitations);
-    } catch (error) {
-      console.error('Failed to load limitations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadBodyRegions = async () => {
-    try {
-      const response = await api.get('/limitations/body-regions');
-      // API returns { data: { data: { regions: [...] } } } due to double wrapping
-      const regions = response.data?.data?.regions || response.data?.regions || [];
-      setBodyRegions(regions);
-    } catch (error) {
-      console.error('Failed to load body regions:', error);
-    }
-  };
-
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAddLimitation = async (data) => {
+  // GraphQL queries
+  const { data: limitationsData, loading, refetch } = useQuery(MY_LIMITATIONS_QUERY, {
+    variables: { status: filter !== 'all' ? filter : undefined },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: bodyRegionsData } = useQuery(BODY_REGIONS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL mutations
+  const [createLimitation] = useMutation(CREATE_LIMITATION_MUTATION, {
+    onCompleted: () => {
+      setShowModal(false);
+      setEditingLimitation(null);
+      refetch();
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to create limitation');
+    },
+  });
+
+  const [updateLimitation] = useMutation(UPDATE_LIMITATION_MUTATION, {
+    onCompleted: () => {
+      setShowModal(false);
+      setEditingLimitation(null);
+      refetch();
+    },
+    onError: (err) => {
+      setError(err.message || 'Failed to update limitation');
+    },
+  });
+
+  const [deleteLimitation] = useMutation(DELETE_LIMITATION_MUTATION, {
+    onCompleted: () => {
+      refetch();
+    },
+    onError: (err) => {
+      console.error('Failed to delete limitation:', err);
+    },
+  });
+
+  // Memoize data
+  const limitations: Limitation[] = useMemo(() => {
+    return limitationsData?.limitations || [];
+  }, [limitationsData]);
+
+  const bodyRegions: BodyRegion[] = useMemo(() => {
+    return bodyRegionsData?.bodyRegions || [];
+  }, [bodyRegionsData]);
+
+  // Refetch when filter changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      refetch({ status: filter !== 'all' ? filter : undefined });
+    }
+  }, [filter, refetch, isAuthenticated]);
+
+  const handleAddLimitation = useCallback(async (data: any) => {
     setSaving(true);
     setError(null);
     try {
       if (editingLimitation) {
-        await api.put(`/limitations/${editingLimitation.id}`, data);
+        await updateLimitation({
+          variables: {
+            id: editingLimitation.id,
+            input: data,
+          },
+        });
       } else {
-        await api.post('/limitations', data);
+        await createLimitation({
+          variables: {
+            input: data,
+          },
+        });
       }
-      setShowModal(false);
-      setEditingLimitation(null);
-      loadLimitations();
     } catch (err) {
       console.error('Failed to save limitation:', err);
       setError(err instanceof Error ? err.message : 'Failed to save limitation. Please try again.');
     } finally {
       setSaving(false);
     }
-  };
+  }, [editingLimitation, createLimitation, updateLimitation]);
 
-  const handleEdit = (limitation) => {
+  const handleEdit = useCallback((limitation: Limitation) => {
     setEditingLimitation(limitation);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('Are you sure you want to delete this limitation?')) return;
 
-    // Store current limitations for rollback
-    const previousLimitations = [...limitations];
-
-    // Optimistically remove from UI immediately
-    setLimitations(prev => prev.filter(l => l.id !== id));
-
     try {
-      await api.delete(`/limitations/${id}`);
-      // Delete succeeded - UI is already updated, no need to reload
-      console.log('[Limitations] Deleted successfully:', id);
+      await deleteLimitation({
+        variables: { id },
+        optimisticResponse: {
+          deleteLimitation: true,
+        },
+        update: (cache) => {
+          // Remove from cache
+          const existingData = cache.readQuery<{ limitations: Limitation[] }>({
+            query: MY_LIMITATIONS_QUERY,
+            variables: { status: filter !== 'all' ? filter : undefined },
+          });
+          if (existingData) {
+            cache.writeQuery({
+              query: MY_LIMITATIONS_QUERY,
+              variables: { status: filter !== 'all' ? filter : undefined },
+              data: {
+                limitations: existingData.limitations.filter(l => l.id !== id),
+              },
+            });
+          }
+        },
+      });
     } catch (error) {
       console.error('Failed to delete limitation:', error);
-      // On error, restore the previous state
-      setLimitations(previousLimitations);
     }
-  };
+  }, [deleteLimitation, filter]);
 
-  const activeLimitations = limitations.filter(l => l.status === 'active' || l.status === 'recovering');
+  const activeLimitations = useMemo(() => {
+    return limitations.filter(l => l.status === 'active' || l.status === 'recovering');
+  }, [limitations]);
 
   return (
     <div className="min-h-screen relative">

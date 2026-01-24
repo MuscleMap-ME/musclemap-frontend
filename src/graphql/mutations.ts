@@ -2155,3 +2155,66 @@ export const DELETE_LIMITATION_MUTATION = gql`
     deleteLimitation(id: $id)
   }
 `;
+
+// ============================================
+// PT TESTS MUTATIONS
+// ============================================
+
+export const RECORD_PT_TEST_RESULT_MUTATION = gql`
+  mutation RecordPTTestResult($input: PTTestResultInput!) {
+    recordPTTestResult(input: $input) {
+      id
+      totalScore
+      passed
+      category
+    }
+  }
+`;
+
+// ============================================
+// PROGRESS PHOTOS MUTATIONS
+// ============================================
+
+export const CREATE_PROGRESS_PHOTO_MUTATION = gql`
+  mutation CreateProgressPhoto($input: ProgressPhotoInput!) {
+    createProgressPhoto(input: $input) {
+      id
+      userId
+      storagePath
+      thumbnailPath
+      photoType
+      pose
+      isPrivate
+      weightKg
+      bodyFatPercentage
+      notes
+      photoDate
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_PROGRESS_PHOTO_MUTATION = gql`
+  mutation UpdateProgressPhoto($id: ID!, $input: ProgressPhotoUpdateInput!) {
+    updateProgressPhoto(id: $id, input: $input) {
+      id
+      userId
+      storagePath
+      thumbnailPath
+      photoType
+      pose
+      isPrivate
+      weightKg
+      bodyFatPercentage
+      notes
+      photoDate
+      createdAt
+    }
+  }
+`;
+
+export const DELETE_PROGRESS_PHOTO_MUTATION = gql`
+  mutation DeleteProgressPhoto($id: ID!) {
+    deleteProgressPhoto(id: $id)
+  }
+`;

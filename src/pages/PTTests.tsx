@@ -3,13 +3,21 @@
  *
  * Physical fitness tests for military, first responders, and occupational training.
  * Track test results, compare against standards, view progress over time.
+ *
+ * Converted to GraphQL for improved performance via Apollo caching.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  PT_TESTS_BY_INSTITUTION_QUERY,
+  MY_ARCHETYPE_PT_TEST_QUERY,
+  PT_TEST_RESULTS_QUERY,
+  RECORD_PT_TEST_RESULT_MUTATION,
+} from '../graphql';
 import {
   GlassSurface,
   GlassButton,
@@ -19,44 +27,76 @@ import {
   MeshBackground,
 } from '../components/glass';
 
+// TypeScript interfaces
+interface PTTestComponent {
+  id: string;
+  name: string;
+  type: string;
+  durationSeconds?: number;
+  distanceMiles?: number;
+  description?: string;
+}
+
+interface PTTest {
+  id: string;
+  name: string;
+  description?: string;
+  institution?: string;
+  components: PTTestComponent[];
+  scoringMethod: string;
+  maxScore?: number;
+  passingScore?: number;
+  testFrequency?: string;
+  sourceUrl?: string;
+  lastUpdated?: string;
+  category?: string;
+}
+
+interface PTTestResult {
+  id: string;
+  testId: string;
+  testName: string;
+  institution?: string;
+  testDate: string;
+  componentResults: Record<string, unknown>;
+  totalScore?: number;
+  passed?: boolean;
+  category?: string;
+  official: boolean;
+  location?: string;
+  proctor?: string;
+  notes?: string;
+  recordedAt: string;
+}
+
 // Icons
 const Icons = {
-  Shield: ({ className = 'w-5 h-5' }) => (
+  Shield: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
-  Star: ({ className = 'w-5 h-5' }) => (
+  Star: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-    </svg>
-  ),
-  Clock: ({ className = 'w-5 h-5' }) => (
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Check: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  ChevronRight: ({ className = 'w-5 h-5' }) => (
+  ChevronRight: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
@@ -64,7 +104,7 @@ const Icons = {
 };
 
 // Institution icons/colors
-const INSTITUTION_META = {
+const INSTITUTION_META: Record<string, { color: string; icon: string }> = {
   'U.S. Army': { color: '#556B2F', icon: '🪖' },
   'U.S. Marine Corps': { color: '#8B0000', icon: '🦅' },
   'U.S. Navy': { color: '#000080', icon: '⚓' },
@@ -77,8 +117,16 @@ const INSTITUTION_META = {
 };
 
 // PT Test Card
-function PTTestCard({ test, onClick, isSelected }) {
-  const meta = INSTITUTION_META[test.institution] || INSTITUTION_META.default;
+function PTTestCard({
+  test,
+  onClick,
+  isSelected,
+}: {
+  test: PTTest;
+  onClick: () => void;
+  isSelected: boolean;
+}) {
+  const meta = INSTITUTION_META[test.institution || ''] || INSTITUTION_META.default;
 
   return (
     <motion.button
@@ -122,8 +170,14 @@ function PTTestCard({ test, onClick, isSelected }) {
 }
 
 // PT Test Detail View
-function PTTestDetail({ test, onRecordResult }) {
-  const meta = INSTITUTION_META[test.institution] || INSTITUTION_META.default;
+function PTTestDetail({
+  test,
+  onRecordResult,
+}: {
+  test: PTTest;
+  onRecordResult: () => void;
+}) {
+  const meta = INSTITUTION_META[test.institution || ''] || INSTITUTION_META.default;
 
   return (
     <GlassSurface className="p-6" depth="medium">
@@ -216,10 +270,29 @@ function PTTestDetail({ test, onRecordResult }) {
 }
 
 // Record Result Modal
-function RecordResultModal({ isOpen, onClose, test, onSubmit }) {
+function RecordResultModal({
+  isOpen,
+  onClose,
+  test,
+  onSubmit,
+  isSubmitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  test: PTTest | null;
+  onSubmit: (data: {
+    ptTestId: string;
+    testDate: string;
+    componentResults: Array<{ componentId: string; value: number }>;
+    official: boolean;
+    location?: string;
+    notes?: string;
+  }) => void;
+  isSubmitting: boolean;
+}) {
   const [formData, setFormData] = useState({
     testDate: new Date().toISOString().split('T')[0],
-    componentResults: {},
+    componentResults: {} as Record<string, string>,
     official: false,
     location: '',
     notes: '',
@@ -227,7 +300,7 @@ function RecordResultModal({ isOpen, onClose, test, onSubmit }) {
 
   useEffect(() => {
     if (test) {
-      const results = {};
+      const results: Record<string, string> = {};
       test.components?.forEach(comp => {
         results[comp.id] = '';
       });
@@ -237,7 +310,7 @@ function RecordResultModal({ isOpen, onClose, test, onSubmit }) {
 
   if (!isOpen || !test) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const results = Object.entries(formData.componentResults).map(([componentId, value]) => ({
       componentId,
@@ -361,8 +434,8 @@ function RecordResultModal({ isOpen, onClose, test, onSubmit }) {
               <GlassButton type="button" variant="ghost" className="flex-1" onClick={onClose}>
                 Cancel
               </GlassButton>
-              <GlassButton type="submit" variant="primary" className="flex-1">
-                Save Result
+              <GlassButton type="submit" variant="primary" className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Result'}
               </GlassButton>
             </div>
           </form>
@@ -373,9 +446,9 @@ function RecordResultModal({ isOpen, onClose, test, onSubmit }) {
 }
 
 // Result History Card
-function ResultHistoryCard({ result }) {
+function ResultHistoryCard({ result }: { result: PTTestResult }) {
   const passed = result.passed;
-  const meta = INSTITUTION_META[result.institution] || INSTITUTION_META.default;
+  const meta = INSTITUTION_META[result.institution || ''] || INSTITUTION_META.default;
 
   return (
     <div className="p-4 rounded-xl bg-[var(--glass-white-5)] border border-[var(--border-subtle)]">
@@ -390,10 +463,10 @@ function ResultHistoryCard({ result }) {
           </div>
         </div>
         <div className="text-right">
-          {result.totalScore !== null && (
+          {result.totalScore !== null && result.totalScore !== undefined && (
             <div className="text-xl font-bold text-[var(--text-primary)]">{result.totalScore}</div>
           )}
-          {passed !== null && (
+          {passed !== null && passed !== undefined && (
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               passed
                 ? 'bg-[var(--feedback-success)]/20 text-[var(--feedback-success)]'
@@ -418,65 +491,82 @@ function ResultHistoryCard({ result }) {
 
 // Main PT Tests Page
 export default function PTTests() {
-  const { user: _user } = useUser();
-  const [_tests, _setTests] = useState([]);
-  const [testsByInstitution, setTestsByInstitution] = useState({});
-  const [results, setResults] = useState([]);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [myArchetypeTest, setMyArchetypeTest] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const [selectedTest, setSelectedTest] = useState<PTTest | null>(null);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [activeTab, setActiveTab] = useState('tests');
 
-  useEffect(() => {
-    loadTests();
-    loadResults();
-    loadMyArchetypeTest();
+  // GraphQL Queries
+  const { data: testsData, loading: testsLoading } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: archetypeTestData } = useQuery(MY_ARCHETYPE_PT_TEST_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { data: resultsData, refetch: refetchResults } = useQuery(PT_TEST_RESULTS_QUERY, {
+    variables: { limit: 20 },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL Mutation
+  const [recordResult, { loading: isRecording }] = useMutation(RECORD_PT_TEST_RESULT_MUTATION, {
+    onCompleted: () => {
+      setShowRecordModal(false);
+      refetchResults();
+    },
+    onError: (err) => {
+      console.error('Failed to record result:', err);
+    },
+  });
+
+  // Memoized data extraction
+  const testsByInstitution: Record<string, PTTest[]> = useMemo(() => {
+    return testsData?.ptTestsByInstitution?.byInstitution || {};
+  }, [testsData]);
+
+  const myArchetypeTest: PTTest | null = useMemo(() => {
+    return archetypeTestData?.myArchetypePTTest || null;
+  }, [archetypeTestData]);
+
+  const results: PTTestResult[] = useMemo(() => {
+    return resultsData?.ptTestResults || [];
+  }, [resultsData]);
+
+  // Handlers
+  const handleRecordResult = useCallback(
+    (data: {
+      ptTestId: string;
+      testDate: string;
+      componentResults: Array<{ componentId: string; value: number }>;
+      official: boolean;
+      location?: string;
+      notes?: string;
+    }) => {
+      recordResult({
+        variables: {
+          input: data,
+        },
+      });
+    },
+    [recordResult]
+  );
+
+  const handleSelectTest = useCallback((test: PTTest) => {
+    setSelectedTest(test);
   }, []);
 
-  const loadTests = async () => {
-    try {
-      const response = await api.get('/pt-tests');
-      // API returns { data: { tests, byInstitution } }, api.get wraps in { data: response }
-      const apiData = response.data?.data || response.data || {};
-      _setTests(apiData.tests || []);
-      setTestsByInstitution(apiData.byInstitution || {});
-    } catch (error) {
-      console.error('Failed to load PT tests:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleOpenRecordModal = useCallback(() => {
+    setShowRecordModal(true);
+  }, []);
 
-  const loadResults = async () => {
-    try {
-      const response = await api.get('/pt-tests/results?limit=20');
-      const apiData = response.data?.data || response.data || {};
-      setResults(apiData.results || []);
-    } catch (error) {
-      console.error('Failed to load results:', error);
-    }
-  };
-
-  const loadMyArchetypeTest = async () => {
-    try {
-      const response = await api.get('/pt-tests/my-archetype');
-      const apiData = response.data?.data || response.data || {};
-      setMyArchetypeTest(apiData.test);
-    } catch (error) {
-      console.error('Failed to load archetype test:', error);
-    }
-  };
-
-  const handleRecordResult = async (data) => {
-    try {
-      await api.post('/pt-tests/results', data);
-      setShowRecordModal(false);
-      loadResults();
-    } catch (error) {
-      console.error('Failed to record result:', error);
-    }
-  };
+  const handleCloseRecordModal = useCallback(() => {
+    setShowRecordModal(false);
+  }, []);
 
   return (
     <div className="min-h-screen relative">
@@ -552,7 +642,7 @@ export default function PTTests() {
               ))}
             </div>
 
-            {loading ? (
+            {testsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="w-8 h-8 border-2 border-[var(--brand-blue-500)] border-t-transparent rounded-full animate-spin" />
               </div>
@@ -566,11 +656,11 @@ export default function PTTests() {
                         {institution}
                       </h3>
                       <div className="space-y-2">
-                        {institutionTests.map(test => (
+                        {(institutionTests as PTTest[]).map(test => (
                           <PTTestCard
                             key={test.id}
                             test={test}
-                            onClick={() => setSelectedTest(test)}
+                            onClick={() => handleSelectTest(test)}
                             isSelected={selectedTest?.id === test.id}
                           />
                         ))}
@@ -584,7 +674,7 @@ export default function PTTests() {
                   {selectedTest ? (
                     <PTTestDetail
                       test={selectedTest}
-                      onRecordResult={() => setShowRecordModal(true)}
+                      onRecordResult={handleOpenRecordModal}
                     />
                   ) : (
                     <GlassSurface className="p-12 text-center" depth="subtle">
@@ -636,9 +726,10 @@ export default function PTTests() {
 
       <RecordResultModal
         isOpen={showRecordModal}
-        onClose={() => setShowRecordModal(false)}
+        onClose={handleCloseRecordModal}
         test={selectedTest}
         onSubmit={handleRecordResult}
+        isSubmitting={isRecording}
       />
     </div>
   );

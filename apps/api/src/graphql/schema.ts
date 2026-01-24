@@ -106,6 +106,13 @@ export const typeDefs = `#graphql
     bodyMeasurementComparison(days: Int): BodyMeasurementComparison
     bodyMeasurementHistory(field: String!, days: Int): BodyMeasurementHistory
 
+    # Progress Photos
+    progressPhotos(limit: Int, cursor: String, photoType: String): ProgressPhotosResult!
+    progressPhoto(id: ID!): ProgressPhoto
+    progressPhotoTimeline(days: Int): ProgressPhotoTimeline!
+    progressPhotoComparison(photoType: String, pose: String): ProgressPhotoComparison!
+    progressPhotoStats: ProgressPhotoStats!
+
     # Long-Term Analytics
     yearlyStats(year: Int!): YearlyStats
     yearsList: [Int!]!
@@ -200,10 +207,12 @@ export const typeDefs = `#graphql
 
     # PT Tests
     ptTests: [PTTest!]!
+    ptTestsByInstitution: PTTestsByInstitution!
     ptTest(id: ID!): PTTest
+    myArchetypePTTest: PTTest
     myArchetypePTTests: [PTTest!]!
-    ptTestResults: [PTTestResult!]!
-    ptTestResult(id: ID!): PTTestResult
+    ptTestResults(testId: ID, limit: Int): [PTTestResult!]!
+    ptTestResult(id: ID!): PTTestResultDetail
     ptTestLeaderboard(testId: ID!): [PTTestLeaderboardEntry!]!
 
     # Career Readiness
@@ -483,6 +492,11 @@ export const typeDefs = `#graphql
     updateBodyMeasurement(id: ID!, input: BodyMeasurementInput!): BodyMeasurement!
     deleteBodyMeasurement(id: ID!): Boolean!
 
+    # Progress Photos
+    createProgressPhoto(input: ProgressPhotoInput!): ProgressPhoto!
+    updateProgressPhoto(id: ID!, input: ProgressPhotoUpdateInput!): ProgressPhoto!
+    deleteProgressPhoto(id: ID!): Boolean!
+
     # Community
     updatePresence(status: String!): PresenceInfo!
 
@@ -594,7 +608,7 @@ export const typeDefs = `#graphql
     updateMessagingPrivacy(enabled: Boolean!): MessagingPrivacy!
 
     # PT Tests
-    submitPTTestResults(input: PTTestResultInput!): PTTestResult!
+    recordPTTestResult(input: PTTestResultInput!): RecordPTTestResultResponse!
 
     # Career Readiness
     createCareerGoal(input: CareerGoalInput!): CareerGoal!
@@ -1844,6 +1858,72 @@ export const typeDefs = `#graphql
     measurementSource: String
     notes: String
     measurementDate: String!
+  }
+
+  # ============================================
+  # PROGRESS PHOTOS TYPES
+  # ============================================
+  type ProgressPhoto {
+    id: ID!
+    userId: ID!
+    storagePath: String!
+    thumbnailPath: String
+    photoType: String!
+    pose: String!
+    isPrivate: Boolean!
+    weightKg: Float
+    bodyFatPercentage: Float
+    notes: String
+    photoDate: String!
+    createdAt: DateTime!
+  }
+
+  type ProgressPhotosResult {
+    photos: [ProgressPhoto!]!
+    pagination: PaginationInfo!
+  }
+
+  type ProgressPhotoTimeline {
+    timeline: JSON!
+  }
+
+  type ProgressPhotoComparison {
+    first: ProgressPhoto
+    middle: ProgressPhoto
+    last: ProgressPhoto
+    totalPhotos: Int!
+    daysBetween: Int
+    allPhotos: [ProgressPhoto!]!
+    message: String
+  }
+
+  type ProgressPhotoStats {
+    byType: JSON!
+    firstPhoto: DateTime
+    lastPhoto: DateTime
+    totalPhotos: Int!
+  }
+
+  input ProgressPhotoInput {
+    storagePath: String!
+    thumbnailPath: String
+    photoType: String!
+    pose: String
+    isPrivate: Boolean
+    weightKg: Float
+    bodyFatPercentage: Float
+    notes: String
+    photoDate: String!
+  }
+
+  input ProgressPhotoUpdateInput {
+    photoType: String
+    pose: String
+    isPrivate: Boolean
+    weightKg: Float
+    bodyFatPercentage: Float
+    notes: String
+    photoDate: String
   }
 
   # ============================================
@@ -3508,43 +3588,95 @@ export const typeDefs = `#graphql
   type PTTest {
     id: ID!
     name: String!
-    description: String!
-    instructions: [String!]!
-    metrics: [PTTestMetric!]!
-    archetypeId: ID
-    category: String!
+    description: String
+    institution: String
+    components: [PTTestComponent!]!
+    scoringMethod: String!
+    maxScore: Int
+    passingScore: Int
+    testFrequency: String
+    sourceUrl: String
+    lastUpdated: DateTime
+    category: String
   }
 
-  type PTTestMetric {
-    id: ID!
+  type PTTestComponent {
+    id: String!
     name: String!
-    unit: String!
-    higherIsBetter: Boolean!
+    type: String!
+    durationSeconds: Int
+    distanceMiles: Float
+    description: String
+    alternative: PTTestComponent
+  }
+
+  type PTTestsByInstitution {
+    tests: [PTTest!]!
+    byInstitution: JSON!
   }
 
   type PTTestResult {
     id: ID!
-    userId: ID!
     testId: ID!
-    test: PTTest!
-    scores: JSON!
-    totalScore: Float!
-    percentile: Float
-    createdAt: DateTime!
+    testName: String!
+    institution: String
+    testDate: String!
+    componentResults: JSON!
+    totalScore: Int
+    passed: Boolean
+    category: String
+    official: Boolean!
+    location: String
+    proctor: String
+    notes: String
+    recordedAt: DateTime!
+  }
+
+  type PTTestResultDetail {
+    result: PTTestResult!
+    components: [PTTestComponent!]!
+    previousResults: [PTTestPreviousResult!]!
+  }
+
+  type PTTestPreviousResult {
+    testDate: String!
+    totalScore: Int
+    passed: Boolean
   }
 
   type PTTestLeaderboardEntry {
     rank: Int!
     userId: ID!
     username: String!
+    displayName: String
     avatar: String
-    score: Float!
-    createdAt: DateTime!
+    score: Int!
+    testDate: String!
+    passed: Boolean
+    category: String
   }
 
   input PTTestResultInput {
-    testId: ID!
-    scores: JSON!
+    ptTestId: ID!
+    testDate: String!
+    componentResults: [PTTestComponentResultInput!]!
+    official: Boolean
+    location: String
+    proctor: String
+    notes: String
+  }
+
+  input PTTestComponentResultInput {
+    componentId: String!
+    value: Float!
+    unit: String
+  }
+
+  type RecordPTTestResultResponse {
+    id: ID!
+    totalScore: Int
+    passed: Boolean
+    category: String
   }
 
   # ============================================

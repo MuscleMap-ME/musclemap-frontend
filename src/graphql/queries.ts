@@ -3737,3 +3737,263 @@ export const BODY_REGIONS_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// PT TESTS QUERIES
+// ============================================
+
+export const PT_TESTS_QUERY = gql`
+  query PTTests {
+    ptTests {
+      id
+      name
+      description
+      institution
+      components
+      scoringMethod
+      maxScore
+      passingScore
+      testFrequency
+      sourceUrl
+      lastUpdated
+      category
+    }
+  }
+`;
+
+export const PT_TESTS_BY_INSTITUTION_QUERY = gql`
+  query PTTestsByInstitution {
+    ptTestsByInstitution {
+      tests {
+        id
+        name
+        description
+        institution
+        components
+        scoringMethod
+        maxScore
+        passingScore
+        testFrequency
+        sourceUrl
+        lastUpdated
+        category
+      }
+      byInstitution
+    }
+  }
+`;
+
+export const PT_TEST_QUERY = gql`
+  query PTTest($id: ID!) {
+    ptTest(id: $id) {
+      id
+      name
+      description
+      institution
+      components
+      scoringMethod
+      maxScore
+      passingScore
+      testFrequency
+      sourceUrl
+      lastUpdated
+      category
+    }
+  }
+`;
+
+export const MY_ARCHETYPE_PT_TEST_QUERY = gql`
+  query MyArchetypePTTest {
+    myArchetypePTTest {
+      id
+      name
+      description
+      institution
+      components
+      scoringMethod
+      maxScore
+      passingScore
+      testFrequency
+      sourceUrl
+    }
+  }
+`;
+
+export const PT_TEST_RESULTS_QUERY = gql`
+  query PTTestResults($testId: ID, $limit: Int) {
+    ptTestResults(testId: $testId, limit: $limit) {
+      id
+      testId
+      testName
+      institution
+      testDate
+      componentResults
+      totalScore
+      passed
+      category
+      official
+      location
+      proctor
+      notes
+      recordedAt
+    }
+  }
+`;
+
+export const PT_TEST_RESULT_QUERY = gql`
+  query PTTestResult($id: ID!) {
+    ptTestResult(id: $id) {
+      result {
+        id
+        testId
+        testName
+        institution
+        testDate
+        componentResults
+        totalScore
+        passed
+        category
+        official
+        location
+        proctor
+        notes
+        recordedAt
+      }
+      components
+      previousResults {
+        testDate
+        totalScore
+        passed
+      }
+    }
+  }
+`;
+
+export const PT_TEST_LEADERBOARD_QUERY = gql`
+  query PTTestLeaderboard($testId: ID!) {
+    ptTestLeaderboard(testId: $testId) {
+      rank
+      userId
+      username
+      displayName
+      avatar
+      score
+      testDate
+      passed
+      category
+    }
+  }
+`;
+
+// ============================================
+// PROGRESS PHOTOS
+// ============================================
+export const PROGRESS_PHOTOS_QUERY = gql`
+  query ProgressPhotos($limit: Int, $cursor: String, $photoType: String) {
+    progressPhotos(limit: $limit, cursor: $cursor, photoType: $photoType) {
+      photos {
+        id
+        userId
+        storagePath
+        thumbnailPath
+        photoType
+        pose
+        isPrivate
+        weightKg
+        bodyFatPercentage
+        notes
+        photoDate
+        createdAt
+      }
+      pagination {
+        hasMore
+        nextCursor
+        count
+      }
+    }
+  }
+`;
+
+export const PROGRESS_PHOTO_QUERY = gql`
+  query ProgressPhoto($id: ID!) {
+    progressPhoto(id: $id) {
+      id
+      userId
+      storagePath
+      thumbnailPath
+      photoType
+      pose
+      isPrivate
+      weightKg
+      bodyFatPercentage
+      notes
+      photoDate
+      createdAt
+    }
+  }
+`;
+
+export const PROGRESS_PHOTO_TIMELINE_QUERY = gql`
+  query ProgressPhotoTimeline($days: Int) {
+    progressPhotoTimeline(days: $days) {
+      timeline
+    }
+  }
+`;
+
+export const PROGRESS_PHOTO_COMPARISON_QUERY = gql`
+  query ProgressPhotoComparison($photoType: String, $pose: String) {
+    progressPhotoComparison(photoType: $photoType, pose: $pose) {
+      first {
+        id
+        storagePath
+        thumbnailPath
+        photoType
+        pose
+        weightKg
+        photoDate
+      }
+      middle {
+        id
+        storagePath
+        thumbnailPath
+        photoType
+        pose
+        weightKg
+        photoDate
+      }
+      last {
+        id
+        storagePath
+        thumbnailPath
+        photoType
+        pose
+        weightKg
+        photoDate
+      }
+      totalPhotos
+      daysBetween
+      allPhotos {
+        id
+        storagePath
+        thumbnailPath
+        photoType
+        pose
+        weightKg
+        photoDate
+      }
+      message
+    }
+  }
+`;
+
+export const PROGRESS_PHOTO_STATS_QUERY = gql`
+  query ProgressPhotoStats {
+    progressPhotoStats {
+      byType
+      firstPhoto
+      lastPhoto
+      totalPhotos
+    }
+  }
+`;

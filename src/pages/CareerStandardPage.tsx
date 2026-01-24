@@ -5,13 +5,21 @@
  * Includes all events, passing requirements, exercise mappings, and option to set as goal.
  *
  * Route: /career/standards/:standardId
+ *
+ * Converted to GraphQL for improved performance via Apollo caching.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  CAREER_STANDARD_QUERY,
+  MY_CAREER_GOALS_QUERY,
+  CAREER_EXERCISE_RECOMMENDATIONS_QUERY,
+  CREATE_CAREER_GOAL_MUTATION,
+} from '../graphql';
 import {
   GlassSurface,
   GlassButton,
@@ -22,81 +30,116 @@ import {
 import { SkeletonCard, SkeletonStats } from '../components/skeletons';
 
 // ============================================
+// TYPES
+// ============================================
+
+interface CareerStandardEvent {
+  id: string;
+  name: string;
+  description: string;
+  metricType: string;
+  metricUnit: string;
+  direction: string;
+  passingThreshold: number;
+  exerciseMappings?: string[];
+  tips?: string[];
+  orderIndex: number;
+}
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  fullName?: string;
+  agency?: string;
+  category: string;
+  description?: string;
+  officialUrl?: string;
+  scoringType: string;
+  recertificationPeriodMonths?: number;
+  events: CareerStandardEvent[];
+  eventCount: number;
+  icon?: string;
+  maxScore?: number;
+  passingScore?: number;
+}
+
+interface CareerGoal {
+  id: string;
+  standardId: string;
+}
+
+interface ExerciseRecommendation {
+  exerciseId: string;
+  exerciseName: string;
+  targetEvents?: string[];
+}
+
+// ============================================
 // ICONS
 // ============================================
 
 const Icons = {
-  Target: ({ className = 'w-5 h-5' }) => (
+  Target: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
+  Trophy: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
-  Calendar: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Check: ({ className = 'w-5 h-5' }) => (
+  Check: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
-  ChevronLeft: ({ className = 'w-5 h-5' }) => (
+  ChevronLeft: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   ),
-  ChevronRight: ({ className = 'w-5 h-5' }) => (
+  ChevronRight: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
-  Clock: ({ className = 'w-5 h-5' }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  Dumbbell: ({ className = 'w-5 h-5' }) => (
+  Dumbbell: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7h16M4 17h16M6 12h12M7 7v10m10-10v10" />
     </svg>
   ),
-  Info: ({ className = 'w-5 h-5' }) => (
+  Info: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  ExternalLink: ({ className = 'w-5 h-5' }) => (
+  ExternalLink: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
     </svg>
   ),
-  Home: ({ className = 'w-5 h-5' }) => (
+  Home: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
     </svg>
   ),
-  Clipboard: ({ className = 'w-5 h-5' }) => (
+  Clipboard: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   ),
-  User: ({ className = 'w-5 h-5' }) => (
+  User: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
@@ -107,13 +150,13 @@ const Icons = {
 // CATEGORY METADATA
 // ============================================
 
-const CATEGORY_META = {
-  military: { color: '#556B2F', icon: null, label: 'Military' },
-  firefighter: { color: '#B22222', icon: null, label: 'Firefighter' },
-  law_enforcement: { color: '#191970', icon: null, label: 'Law Enforcement' },
-  special_operations: { color: '#4B0082', icon: null, label: 'Special Operations' },
-  civil_service: { color: '#2F4F4F', icon: null, label: 'Civil Service' },
-  general: { color: '#6366f1', icon: null, label: 'General Fitness' },
+const CATEGORY_META: Record<string, { color: string; label: string }> = {
+  military: { color: '#556B2F', label: 'Military' },
+  firefighter: { color: '#B22222', label: 'Firefighter' },
+  law_enforcement: { color: '#191970', label: 'Law Enforcement' },
+  special_operations: { color: '#4B0082', label: 'Special Operations' },
+  civil_service: { color: '#2F4F4F', label: 'Civil Service' },
+  general: { color: '#6366f1', label: 'General Fitness' },
 };
 
 // ============================================
@@ -121,8 +164,8 @@ const CATEGORY_META = {
 // ============================================
 
 // Event Type Badge
-function EventTypeBadge({ type }) {
-  const typeConfig = {
+function EventTypeBadge({ type }: { type: string }) {
+  const typeConfig: Record<string, { bg: string; text: string; label: string }> = {
     timed: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Timed' },
     reps: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Reps' },
     distance: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'Distance' },
@@ -139,7 +182,7 @@ function EventTypeBadge({ type }) {
 }
 
 // Event Card
-function EventCard({ event, index }) {
+function EventCard({ event, index }: { event: CareerStandardEvent; index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -152,30 +195,22 @@ function EventCard({ event, index }) {
           <h3 className="font-bold text-[var(--text-primary)]">{event.name}</h3>
           <p className="text-sm text-[var(--text-tertiary)]">{event.description}</p>
         </div>
-        <EventTypeBadge type={event.type} />
+        <EventTypeBadge type={event.metricType} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="p-3 rounded-lg bg-[var(--glass-white-5)]">
           <div className="text-xs text-[var(--text-tertiary)] mb-1">Passing Standard</div>
           <div className="font-bold text-[var(--text-primary)]">
-            {event.passingValue} {event.unit}
+            {event.passingThreshold} {event.metricUnit}
           </div>
         </div>
-        {event.maxValue && (
-          <div className="p-3 rounded-lg bg-[var(--glass-white-5)]">
-            <div className="text-xs text-[var(--text-tertiary)] mb-1">Maximum Score</div>
-            <div className="font-bold text-emerald-400">
-              {event.maxValue} {event.unit}
-            </div>
-          </div>
-        )}
       </div>
 
-      {event.ageAdjusted && (
+      {event.tips && event.tips.length > 0 && (
         <div className="mt-3 flex items-center gap-2 text-xs text-amber-400">
           <Icons.Info className="w-4 h-4" />
-          Age-adjusted scoring applies
+          {event.tips[0]}
         </div>
       )}
     </motion.div>
@@ -183,45 +218,43 @@ function EventCard({ event, index }) {
 }
 
 // Add Goal Modal
-function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
+function AddGoalModal({
+  isOpen,
+  onClose,
+  standard,
+  onSubmit,
+  isSubmitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  standard: CareerStandard | null;
+  onSubmit: (data: {
+    standardId: string;
+    targetDate?: string;
+    priority: string;
+    agencyName?: string;
+    notes?: string;
+  }) => void;
+  isSubmitting: boolean;
+}) {
   const [formData, setFormData] = useState({
     targetDate: '',
     priority: 'primary',
     agencyName: '',
     notes: '',
   });
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        targetDate: '',
-        priority: 'primary',
-        agencyName: '',
-        notes: '',
-      });
-    }
-  }, [isOpen, standard]);
 
   if (!isOpen || !standard) return null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await onSubmit({
-        ptTestId: standard.id,
-        targetDate: formData.targetDate || undefined,
-        priority: formData.priority,
-        agencyName: formData.agencyName || undefined,
-        notes: formData.notes || undefined,
-      });
-      onClose();
-    } catch (error) {
-      console.error('Failed to create goal:', error);
-    } finally {
-      setLoading(false);
-    }
+    onSubmit({
+      standardId: standard.id,
+      targetDate: formData.targetDate || undefined,
+      priority: formData.priority,
+      agencyName: formData.agencyName || undefined,
+      notes: formData.notes || undefined,
+    });
   };
 
   const categoryMeta = CATEGORY_META[standard.category] || CATEGORY_META.general;
@@ -328,8 +361,8 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
               <GlassButton type="button" variant="ghost" className="flex-1" onClick={onClose}>
                 Cancel
               </GlassButton>
-              <GlassButton type="submit" variant="primary" className="flex-1" disabled={loading}>
-                {loading ? 'Creating...' : 'Set as Goal'}
+              <GlassButton type="submit" variant="primary" className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Set as Goal'}
               </GlassButton>
             </div>
           </form>
@@ -355,68 +388,91 @@ const mobileNavItems = [
 // ============================================
 
 export default function CareerStandardPage() {
-  const { standardId } = useParams();
+  const { standardId } = useParams<{ standardId: string }>();
   const navigate = useNavigate();
-  const { user: _user } = useUser();
+  const { isAuthenticated } = useAuth();
 
   // State
-  const [standard, setStandard] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [exercises, setExercises] = useState([]);
-  const [hasGoal, setHasGoal] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Load data
-  const loadStandard = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/standards/${standardId}`);
-      setStandard(response.data?.standard || null);
-      setEvents(response.data?.components || response.data?.events || []);
-    } catch (error) {
-      console.error('Failed to load standard:', error);
-    }
-  }, [standardId]);
+  // GraphQL Queries
+  const { data: standardData, loading: standardLoading } = useQuery(CAREER_STANDARD_QUERY, {
+    variables: { id: standardId },
+    skip: !isAuthenticated || !standardId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadExercises = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/standards/${standardId}/exercises`);
-      setExercises(response.data?.exercises || []);
-    } catch (error) {
-      console.error('Failed to load exercises:', error);
-    }
-  }, [standardId]);
+  const { data: goalsData } = useQuery(MY_CAREER_GOALS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const checkGoal = useCallback(async () => {
-    try {
-      const response = await api.get('/career/goals');
-      const goals = response.data?.goals || [];
-      setHasGoal(goals.some(g => g.ptTestId === standardId));
-    } catch (error) {
-      console.error('Failed to check goals:', error);
-    }
-  }, [standardId]);
+  const { data: exercisesData } = useQuery(CAREER_EXERCISE_RECOMMENDATIONS_QUERY, {
+    variables: { goalId: standardId },
+    skip: !isAuthenticated || !standardId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      await Promise.all([loadStandard(), loadExercises(), checkGoal()]);
-      setLoading(false);
-    };
-    loadAll();
-  }, [loadStandard, loadExercises, checkGoal]);
+  // GraphQL Mutation
+  const [createGoal, { loading: isCreating }] = useMutation(CREATE_CAREER_GOAL_MUTATION, {
+    onCompleted: () => {
+      setShowAddModal(false);
+      navigate('/career?tab=goals');
+    },
+    onError: (err) => {
+      console.error('Failed to create goal:', err);
+    },
+    refetchQueries: [{ query: MY_CAREER_GOALS_QUERY }],
+  });
+
+  // Memoized data extraction
+  const standard: CareerStandard | null = useMemo(() => {
+    return standardData?.careerStandard || null;
+  }, [standardData]);
+
+  const events: CareerStandardEvent[] = useMemo(() => {
+    return standard?.events || [];
+  }, [standard]);
+
+  const exercises: ExerciseRecommendation[] = useMemo(() => {
+    return exercisesData?.careerExerciseRecommendations || [];
+  }, [exercisesData]);
+
+  const hasGoal: boolean = useMemo(() => {
+    const goals: CareerGoal[] = goalsData?.myCareerGoals || [];
+    return goals.some(g => g.standardId === standardId);
+  }, [goalsData, standardId]);
 
   // Handlers
-  const handleCreateGoal = async (data) => {
-    await api.post('/career/goals', data);
-    setHasGoal(true);
-    navigate('/career?tab=goals');
-  };
+  const handleCreateGoal = useCallback(
+    (data: {
+      standardId: string;
+      targetDate?: string;
+      priority: string;
+      agencyName?: string;
+      notes?: string;
+    }) => {
+      createGoal({
+        variables: {
+          input: data,
+        },
+      });
+    },
+    [createGoal]
+  );
+
+  const handleOpenModal = useCallback(() => {
+    setShowAddModal(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowAddModal(false);
+  }, []);
 
   // Computed values
   const categoryMeta = standard ? (CATEGORY_META[standard.category] || CATEGORY_META.general) : CATEGORY_META.general;
 
-  if (loading) {
+  if (standardLoading) {
     return (
       <div className="min-h-screen relative">
         <MeshBackground intensity="subtle" />
@@ -506,7 +562,7 @@ export default function CareerStandardPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <h1 className="text-2xl font-black text-[var(--text-primary)]">{standard.name}</h1>
                 </div>
-                <p className="text-[var(--text-secondary)]">{standard.institution}</p>
+                <p className="text-[var(--text-secondary)]">{standard.agency}</p>
                 <div className="flex items-center gap-3 mt-2">
                   <span
                     className="px-3 py-1 rounded-full text-sm"
@@ -514,11 +570,6 @@ export default function CareerStandardPage() {
                   >
                     {categoryMeta.label}
                   </span>
-                  {standard.version && (
-                    <span className="text-sm text-[var(--text-tertiary)]">
-                      Version {standard.version}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -535,7 +586,7 @@ export default function CareerStandardPage() {
               ) : (
                 <GlassButton
                   variant="primary"
-                  onClick={() => setShowAddModal(true)}
+                  onClick={handleOpenModal}
                 >
                   <Icons.Plus className="w-5 h-5 mr-2" />
                   Set as Goal
@@ -552,9 +603,9 @@ export default function CareerStandardPage() {
               About This Standard
             </h2>
             <p className="text-[var(--text-secondary)]">{standard.description}</p>
-            {standard.sourceUrl && (
+            {standard.officialUrl && (
               <a
-                href={standard.sourceUrl}
+                href={standard.officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 mt-4 text-[var(--brand-blue-400)] hover:underline"
@@ -575,9 +626,9 @@ export default function CareerStandardPage() {
 
           <GlassSurface className="p-4" depth="subtle">
             <div className="text-2xl font-bold text-[var(--text-primary)]">
-              {standard.timeLimit || '-'}
+              {standard.recertificationPeriodMonths ? `${standard.recertificationPeriodMonths}mo` : '-'}
             </div>
-            <div className="text-sm text-[var(--text-tertiary)]">Time Limit</div>
+            <div className="text-sm text-[var(--text-tertiary)]">Recert Period</div>
           </GlassSurface>
 
           <GlassSurface className="p-4" depth="subtle">
@@ -652,9 +703,10 @@ export default function CareerStandardPage() {
 
       <AddGoalModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={handleCloseModal}
         standard={standard}
         onSubmit={handleCreateGoal}
+        isSubmitting={isCreating}
       />
     </div>
   );

@@ -18,9 +18,11 @@ const log = loggers.core;
 
 // NYC Open Data API endpoints
 const NYC_OPEN_DATA_BASE = 'https://data.cityofnewyork.us/resource';
-const RECREATION_CENTERS_ENDPOINT = `${NYC_OPEN_DATA_BASE}/ydj7-rk56.json`;
+// NOTE: Old recreation centers endpoint (ydj7-rk56) is now a non-tabular dataset (href type)
+// Using the exercise equipment dataset instead which has actual fitness locations
+const EXERCISE_EQUIPMENT_ENDPOINT = `${NYC_OPEN_DATA_BASE}/tkzt-zfpz.json`; // Adult Exercise Equipment (227 locations)
 const PARKS_PROPERTIES_ENDPOINT = `${NYC_OPEN_DATA_BASE}/enfh-gkve.json`;
-const ATHLETIC_FACILITIES_ENDPOINT = `${NYC_OPEN_DATA_BASE}/qpgi-ckmp.json`;
+const ATHLETIC_FACILITIES_ENDPOINT = `${NYC_OPEN_DATA_BASE}/qnem-b8re.json`; // Updated to tabular dataset
 
 // NYC Parks Fitness Equipment page (for scraping)
 const NYC_PARKS_FITNESS_URL = 'https://www.nycgovparks.org/facilities/fitnessequipment';
@@ -28,26 +30,20 @@ const NYC_PARKS_FITNESS_URL = 'https://www.nycgovparks.org/facilities/fitnessequ
 // Rate limiting for API calls
 const API_DELAY_MS = 250; // 4 requests per second max
 
-interface NYCRecreationCenter {
-  name?: string;
-  address?: string;
+interface NYCExerciseEquipment {
   borough?: string;
+  propid?: string;
+  propname?: string;
+  propnum?: string;
+  sitename?: string;
+  featuretype?: string;
+  status?: string; // 'Reopened', etc.
+  closuretype?: string;
   zipcode?: string;
-  phone?: string;
-  latitude?: string;
-  longitude?: string;
-  location?: {
-    latitude?: string;
-    longitude?: string;
+  point?: {
+    type: string;
+    coordinates: [number, number]; // [longitude, latitude]
   };
-  gym?: string; // 'Yes' or 'No'
-  pool?: string;
-  fitness_center?: string;
-  weight_room?: string;
-  track?: string;
-  basketball_ct?: string;
-  tennis_ct?: string;
-  handball_ct?: string;
 }
 
 interface NYCParkProperty {
@@ -63,12 +59,23 @@ interface NYCParkProperty {
 }
 
 interface NYCAthleticFacility {
-  prop_id?: string;
-  park_name?: string;
-  facility_type?: string;
-  the_geom?: {
+  borough?: string;
+  gispropnum?: string;
+  primary_sport?: string;
+  surface_type?: string;
+  system?: string;
+  zipcode?: string;
+  // Sport-specific boolean fields
+  basketball?: boolean;
+  handball?: boolean;
+  tennis?: boolean;
+  volleyball?: boolean;
+  track_and_field?: boolean;
+  bocce?: boolean;
+  pickleball?: boolean;
+  multipolygon?: {
     type: string;
-    coordinates: number[];
+    coordinates: number[][][][];
   };
 }
 
@@ -131,27 +138,32 @@ function generateSlug(name: string, borough?: string): string {
   return base;
 }
 
-// Helper function to map recreation center facilities to equipment types
-function mapRecCenterToEquipment(rec: NYCRecreationCenter): EquipmentType[] {
+// Helper function to map athletic facility sports to equipment types
+// Note: Only using equipment types that exist in the EquipmentType union
+function mapAthleticFacilityToEquipment(facility: NYCAthleticFacility): EquipmentType[] {
   const equipment: EquipmentType[] = [];
 
-  if (rec.gym === 'Yes' || rec.fitness_center === 'Yes') {
-    equipment.push('weight_room', 'cardio_room');
-  }
-  if (rec.weight_room === 'Yes') {
-    equipment.push('bench_press', 'squat_rack', 'dumbbells', 'barbell');
-  }
-  if (rec.pool === 'Yes') {
-    equipment.push('pool');
-  }
-  if (rec.track === 'Yes') {
-    equipment.push('track');
-  }
-  if (rec.basketball_ct === 'Yes') {
-    equipment.push('basketball_court');
-  }
-  if (rec.tennis_ct === 'Yes') {
-    equipment.push('tennis_court');
+  if (facility.basketball) equipment.push('basketball_court');
+  if (facility.handball) equipment.push('other'); // handball_court not in EquipmentType
+  if (facility.tennis) equipment.push('tennis_court');
+  if (facility.volleyball) equipment.push('other'); // volleyball_court not in EquipmentType
+  if (facility.track_and_field) equipment.push('track');
+  if (facility.bocce) equipment.push('other'); // bocce_court not in EquipmentType
+  if (facility.pickleball) equipment.push('other'); // pickleball_court not in EquipmentType
+
+  // If no specific equipment found, use primary sport
+  if (equipment.length === 0 && facility.primary_sport) {
+    const sportMap: Record<string, EquipmentType> = {
+      BKB: 'basketball_court',
+      HDB: 'other', // handball
+      TEN: 'tennis_court',
+      VLB: 'other', // volleyball
+      TRK: 'track',
+      BOC: 'other', // bocce
+      PKB: 'other', // pickleball
+    };
+    const mapped = sportMap[facility.primary_sport];
+    if (mapped) equipment.push(mapped);
   }
 
   return [...new Set(equipment)]; // Remove duplicates
@@ -265,117 +277,113 @@ export const nycDataIngestionService = {
   },
 
   // ============================================
-  // NYC RECREATION CENTERS
+  // NYC EXERCISE EQUIPMENT (Outdoor Fitness Stations)
   // ============================================
 
   /**
-   * Fetch recreation centers from NYC Open Data
+   * Fetch exercise equipment locations from NYC Open Data
+   * This replaces the old recreation centers endpoint which is no longer tabular
    */
-  async fetchRecreationCenters(): Promise<NYCRecreationCenter[]> {
+  async fetchExerciseEquipment(): Promise<NYCExerciseEquipment[]> {
     try {
-      log.info('Fetching NYC recreation centers from Open Data...');
+      log.info('Fetching NYC exercise equipment from Open Data...');
 
-      const response = await fetch(`${RECREATION_CENTERS_ENDPOINT}?$limit=1000`);
+      const response = await fetch(`${EXERCISE_EQUIPMENT_ENDPOINT}?$limit=1000`);
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json() as NYCRecreationCenter[];
-      log.info({ count: data.length }, 'Fetched recreation centers');
+      const data = (await response.json()) as NYCExerciseEquipment[];
+      log.info({ count: data.length }, 'Fetched exercise equipment locations');
       return data;
     } catch (error) {
-      log.error({ error }, 'Failed to fetch recreation centers');
+      log.error({ error }, 'Failed to fetch exercise equipment');
       throw error;
     }
   },
 
   /**
-   * Ingest recreation centers into the database
+   * Ingest exercise equipment locations into the database
    */
-  async ingestRecreationCenters(): Promise<{
+  async ingestExerciseEquipment(): Promise<{
     created: number;
     updated: number;
     skipped: number;
     failed: number;
   }> {
-    const logId = await this.createSyncLog('nyc_open_data', 'recreation_centers', 'full');
+    const logId = await this.createSyncLog('nyc_open_data', 'exercise_equipment', 'full');
 
     try {
-      const centers = await this.fetchRecreationCenters();
+      const equipment = await this.fetchExerciseEquipment();
 
       let created = 0;
       let updated = 0;
       let skipped = 0;
       let failed = 0;
 
-      for (const center of centers) {
+      for (const item of equipment) {
         try {
           await delay(API_DELAY_MS);
 
           // Skip if missing required fields
-          if (!center.name) {
+          if (!item.propname && !item.sitename) {
             skipped++;
             continue;
           }
 
-          // Get coordinates
-          let latitude: number | undefined;
-          let longitude: number | undefined;
-
-          if (center.latitude && center.longitude) {
-            latitude = parseFloat(center.latitude);
-            longitude = parseFloat(center.longitude);
-          } else if (center.location?.latitude && center.location?.longitude) {
-            latitude = parseFloat(center.location.latitude);
-            longitude = parseFloat(center.location.longitude);
+          // Get coordinates from point geometry
+          if (!item.point?.coordinates) {
+            log.warn({ name: item.propname }, 'Exercise equipment missing coordinates, skipping');
+            skipped++;
+            continue;
           }
 
+          const [longitude, latitude] = item.point.coordinates;
           if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
-            log.warn({ name: center.name }, 'Recreation center missing coordinates, skipping');
             skipped++;
             continue;
           }
 
-          const borough = normalizeBoroughName(center.borough);
-          const slug = generateSlug(center.name, borough || undefined);
-          const equipment = mapRecCenterToEquipment(center);
+          const name = item.sitename || item.propname || 'Exercise Equipment';
+          const borough = normalizeBoroughName(item.borough);
+          const slug = generateSlug(name, borough || undefined);
 
           // Check if venue already exists (by external_id or slug)
+          const externalId = `nyc_eq_${item.propid || item.propnum || slug}`;
           const existing = await queryOne<{ id: string }>(
             `SELECT id FROM fitness_venues
              WHERE (data_source = 'nyc_open_data' AND external_id = $1)
                 OR slug = $2`,
-            [`rec_${slug}`, slug]
+            [externalId, slug]
           );
 
           const venueData = {
-            name: center.name.trim(),
+            name: name.trim(),
             slug,
-            venueType: 'recreation_center' as VenueType,
+            venueType: 'outdoor_gym' as VenueType,
             latitude,
             longitude,
-            address: center.address,
             city: borough || 'New York',
             borough,
-            postalCode: center.zipcode,
-            equipment: JSON.stringify(equipment),
-            hasFreeWeights: equipment.includes('weight_room'),
-            hasCalisthenicsEquipment: false,
-            hasCardioEquipment: equipment.includes('cardio_room'),
-            isIndoor: true,
+            postalCode: item.zipcode,
+            equipment: JSON.stringify(['pull_up_bar', 'parallel_bars', 'ab_bench', 'multi_station']),
+            hasFreeWeights: false,
+            hasCalisthenicsEquipment: true,
+            hasCardioEquipment: false,
+            isIndoor: false,
             isFree: true,
             isVerified: true,
             dataSource: 'nyc_open_data',
-            externalId: `rec_${slug}`,
+            externalId,
           };
 
           if (existing) {
             // Update existing
             await query(
               `UPDATE fitness_venues SET
-                name = $2, latitude = $3, longitude = $4, address = $5,
-                city = $6, borough = $7, postal_code = $8, equipment = $9::jsonb,
-                has_free_weights = $10, has_cardio_equipment = $11,
+                name = $2, latitude = $3, longitude = $4,
+                city = $5, borough = $6, postal_code = $7, equipment = $8::jsonb,
+                has_calisthenics_equipment = $9,
                 last_synced_at = NOW(), updated_at = NOW()
                WHERE id = $1`,
               [
@@ -383,13 +391,11 @@ export const nycDataIngestionService = {
                 venueData.name,
                 venueData.latitude,
                 venueData.longitude,
-                venueData.address,
                 venueData.city,
                 venueData.borough,
                 venueData.postalCode,
                 venueData.equipment,
-                venueData.hasFreeWeights,
-                venueData.hasCardioEquipment,
+                venueData.hasCalisthenicsEquipment,
               ]
             );
             updated++;
@@ -397,10 +403,10 @@ export const nycDataIngestionService = {
             // Create new
             await query(
               `INSERT INTO fitness_venues (
-                name, slug, venue_type, latitude, longitude, address, city, borough,
+                name, slug, venue_type, latitude, longitude, city, borough,
                 postal_code, equipment, has_free_weights, has_calisthenics_equipment,
                 has_cardio_equipment, is_indoor, is_free, is_verified, data_source, external_id, last_synced_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15, $16, $17, $18, NOW())
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
               ON CONFLICT (slug) DO UPDATE SET
                 name = EXCLUDED.name,
                 latitude = EXCLUDED.latitude,
@@ -412,7 +418,6 @@ export const nycDataIngestionService = {
                 venueData.venueType,
                 venueData.latitude,
                 venueData.longitude,
-                venueData.address,
                 venueData.city,
                 venueData.borough,
                 venueData.postalCode,
@@ -430,21 +435,21 @@ export const nycDataIngestionService = {
             created++;
           }
         } catch (error) {
-          log.error({ error, center: center.name }, 'Failed to process recreation center');
+          log.error({ error, item: item.propname }, 'Failed to process exercise equipment');
           failed++;
         }
       }
 
       await this.updateSyncLog(logId, {
         status: failed > 0 ? 'partial' : 'completed',
-        recordsFetched: centers.length,
+        recordsFetched: equipment.length,
         recordsCreated: created,
         recordsUpdated: updated,
         recordsSkipped: skipped,
         recordsFailed: failed,
       });
 
-      log.info({ created, updated, skipped, failed }, 'Recreation center ingestion complete');
+      log.info({ created, updated, skipped, failed }, 'Exercise equipment ingestion complete');
       return { created, updated, skipped, failed };
     } catch (error) {
       await this.updateSyncLog(logId, {
@@ -453,6 +458,17 @@ export const nycDataIngestionService = {
       });
       throw error;
     }
+  },
+
+  // Legacy method name for backwards compatibility
+  async ingestRecreationCenters(): Promise<{
+    created: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+  }> {
+    log.info('ingestRecreationCenters() is deprecated - using ingestExerciseEquipment() instead');
+    return this.ingestExerciseEquipment();
   },
 
   // ============================================

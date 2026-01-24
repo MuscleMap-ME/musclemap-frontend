@@ -1922,6 +1922,243 @@ export const resolvers = {
       };
     },
 
+    // ==========================================
+    // PROGRESS PHOTOS QUERIES
+    // ==========================================
+    progressPhotos: async (
+      _: unknown,
+      args: { limit?: number; cursor?: string; photoType?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      let cursorData: { photoDate: string; id: string } | null = null;
+      if (args.cursor) {
+        try {
+          cursorData = JSON.parse(Buffer.from(args.cursor, 'base64').toString());
+        } catch {
+          // Invalid cursor
+        }
+      }
+
+      const VALID_PHOTO_TYPES = ['front', 'back', 'side_left', 'side_right', 'custom'];
+      const fetchLimit = limit + 1;
+
+      let query = `SELECT * FROM progress_photos WHERE user_id = $1 AND deleted_at IS NULL`;
+      const params: unknown[] = [userId];
+
+      if (args.photoType && VALID_PHOTO_TYPES.includes(args.photoType)) {
+        query += ` AND photo_type = $${params.length + 1}`;
+        params.push(args.photoType);
+      }
+
+      if (cursorData) {
+        query += ` AND (photo_date, id) < ($${params.length + 1}, $${params.length + 2})`;
+        params.push(cursorData.photoDate, cursorData.id);
+      }
+
+      query += ` ORDER BY photo_date DESC, id DESC LIMIT $${params.length + 1}`;
+      params.push(fetchLimit);
+
+      const results = await queryAll<any>(query, params);
+      const hasMore = results.length > limit;
+      const photos = hasMore ? results.slice(0, -1) : results;
+
+      const nextCursor = photos.length > 0
+        ? Buffer.from(JSON.stringify({
+            photoDate: photos[photos.length - 1].photo_date,
+            id: photos[photos.length - 1].id
+          })).toString('base64')
+        : null;
+
+      return {
+        photos: photos.map((p: any) => ({
+          id: p.id,
+          userId: p.user_id,
+          storagePath: p.storage_path,
+          thumbnailPath: p.thumbnail_path,
+          photoType: p.photo_type,
+          pose: p.pose,
+          isPrivate: p.is_private,
+          weightKg: p.weight_kg,
+          bodyFatPercentage: p.body_fat_percentage,
+          notes: p.notes,
+          photoDate: p.photo_date,
+          createdAt: p.created_at,
+        })),
+        pagination: {
+          hasMore,
+          nextCursor,
+          count: photos.length,
+        },
+      };
+    },
+
+    progressPhoto: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const p = await queryOne<any>(
+        `SELECT * FROM progress_photos WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [args.id, userId]
+      );
+
+      if (!p) {
+        return null;
+      }
+
+      return {
+        id: p.id,
+        userId: p.user_id,
+        storagePath: p.storage_path,
+        thumbnailPath: p.thumbnail_path,
+        photoType: p.photo_type,
+        pose: p.pose,
+        isPrivate: p.is_private,
+        weightKg: p.weight_kg,
+        bodyFatPercentage: p.body_fat_percentage,
+        notes: p.notes,
+        photoDate: p.photo_date,
+        createdAt: p.created_at,
+      };
+    },
+
+    progressPhotoTimeline: async (_: unknown, args: { days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const days = Math.max(1, Math.min(3650, args.days || 365));
+
+      const photos = await queryAll<any>(
+        `SELECT id, photo_type, pose, photo_date, thumbnail_path, weight_kg
+         FROM progress_photos
+         WHERE user_id = $1 AND deleted_at IS NULL
+           AND photo_date >= CURRENT_DATE - INTERVAL '1 day' * $2
+         ORDER BY photo_date DESC`,
+        [userId, days]
+      );
+
+      // Group by date
+      const timeline: Record<string, any[]> = {};
+      for (const photo of photos) {
+        const dateKey = photo.photo_date;
+        if (!timeline[dateKey]) {
+          timeline[dateKey] = [];
+        }
+        timeline[dateKey].push({
+          id: photo.id,
+          photoType: photo.photo_type,
+          pose: photo.pose,
+          photoDate: photo.photo_date,
+          thumbnailPath: photo.thumbnail_path,
+          weightKg: photo.weight_kg,
+        });
+      }
+
+      return { timeline };
+    },
+
+    progressPhotoComparison: async (
+      _: unknown,
+      args: { photoType?: string; pose?: string },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const VALID_PHOTO_TYPES = ['front', 'back', 'side_left', 'side_right', 'custom'];
+      const VALID_POSES = ['relaxed', 'flexed', 'vacuum', 'custom'];
+
+      let query = `SELECT * FROM progress_photos WHERE user_id = $1 AND deleted_at IS NULL`;
+      const params: unknown[] = [userId];
+
+      if (args.photoType && VALID_PHOTO_TYPES.includes(args.photoType)) {
+        query += ` AND photo_type = $${params.length + 1}`;
+        params.push(args.photoType);
+      }
+
+      if (args.pose && VALID_POSES.includes(args.pose)) {
+        query += ` AND pose = $${params.length + 1}`;
+        params.push(args.pose);
+      }
+
+      query += ` ORDER BY photo_date ASC`;
+
+      const photos = await queryAll<any>(query, params);
+
+      const mapPhoto = (p: any) => ({
+        id: p.id,
+        userId: p.user_id,
+        storagePath: p.storage_path,
+        thumbnailPath: p.thumbnail_path,
+        photoType: p.photo_type,
+        pose: p.pose,
+        isPrivate: p.is_private,
+        weightKg: p.weight_kg,
+        bodyFatPercentage: p.body_fat_percentage,
+        notes: p.notes,
+        photoDate: p.photo_date,
+        createdAt: p.created_at,
+      });
+
+      if (photos.length < 2) {
+        return {
+          first: null,
+          middle: null,
+          last: null,
+          totalPhotos: photos.length,
+          daysBetween: null,
+          allPhotos: photos.map(mapPhoto),
+          message: 'Need at least 2 photos of the same type for comparison',
+        };
+      }
+
+      const first = photos[0];
+      const last = photos[photos.length - 1];
+      const middle = photos.length > 2 ? photos[Math.floor(photos.length / 2)] : null;
+
+      const firstDate = new Date(first.photo_date);
+      const lastDate = new Date(last.photo_date);
+      const daysBetween = Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      return {
+        first: mapPhoto(first),
+        middle: middle ? mapPhoto(middle) : null,
+        last: mapPhoto(last),
+        totalPhotos: photos.length,
+        daysBetween,
+        allPhotos: photos.map(mapPhoto),
+        message: null,
+      };
+    },
+
+    progressPhotoStats: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const stats = await queryAll<{ photo_type: string; count: string }>(
+        `SELECT photo_type, COUNT(*) as count
+         FROM progress_photos
+         WHERE user_id = $1 AND deleted_at IS NULL
+         GROUP BY photo_type`,
+        [userId]
+      );
+
+      const dateRange = await queryOne<{ first_photo: string; last_photo: string; total_photos: string }>(
+        `SELECT
+          MIN(photo_date) as first_photo,
+          MAX(photo_date) as last_photo,
+          COUNT(*) as total_photos
+         FROM progress_photos
+         WHERE user_id = $1 AND deleted_at IS NULL`,
+        [userId]
+      );
+
+      return {
+        byType: stats.reduce((acc: Record<string, number>, s) => {
+          acc[s.photo_type] = parseInt(s.count, 10);
+          return acc;
+        }, {}),
+        firstPhoto: dateRange?.first_photo || null,
+        lastPhoto: dateRange?.last_photo || null,
+        totalPhotos: parseInt(dateRange?.total_photos || '0', 10),
+      };
+    },
+
     leaderboards: async (_: unknown, _args: { type?: string }) => {
       const leaderboard = await queryAll(
         `SELECT u.id, u.username, u.avatar_url, u.current_level as level,
@@ -5113,38 +5350,103 @@ export const resolvers = {
       const tests = await queryAll<{
         id: string;
         name: string;
-        description: string;
-        category: string;
-        scoring_type: string;
-        time_limit_seconds: number;
-        equipment_required: string[];
+        description: string | null;
+        institution: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        test_frequency: string;
+        source_url: string | null;
+        last_updated: string | null;
+        category: string | null;
       }>(`
-        SELECT id, name, description, category, scoring_type, time_limit_seconds, equipment_required
-        FROM pt_tests ORDER BY category, name
+        SELECT id, name, description, institution, components,
+               scoring_method, max_score, passing_score, test_frequency,
+               source_url, last_updated, category
+        FROM pt_tests ORDER BY institution, name
       `);
       return tests.map(t => ({
         id: t.id,
         name: t.name,
         description: t.description,
+        institution: t.institution,
+        components: t.components || [],
+        scoringMethod: t.scoring_method,
+        maxScore: t.max_score,
+        passingScore: t.passing_score,
+        testFrequency: t.test_frequency,
+        sourceUrl: t.source_url,
+        lastUpdated: t.last_updated,
         category: t.category,
-        scoringType: t.scoring_type,
-        timeLimitSeconds: t.time_limit_seconds,
-        equipmentRequired: t.equipment_required || [],
       }));
+    },
+
+    ptTestsByInstitution: async () => {
+      const tests = await queryAll<{
+        id: string;
+        name: string;
+        description: string | null;
+        institution: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        test_frequency: string;
+        source_url: string | null;
+        last_updated: string | null;
+        category: string | null;
+      }>(`
+        SELECT id, name, description, institution, components,
+               scoring_method, max_score, passing_score, test_frequency,
+               source_url, last_updated, category
+        FROM pt_tests ORDER BY institution, name
+      `);
+
+      const mappedTests = tests.map(t => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        institution: t.institution,
+        components: t.components || [],
+        scoringMethod: t.scoring_method,
+        maxScore: t.max_score,
+        passingScore: t.passing_score,
+        testFrequency: t.test_frequency,
+        sourceUrl: t.source_url,
+        lastUpdated: t.last_updated,
+        category: t.category,
+      }));
+
+      // Group by institution
+      const byInstitution: Record<string, typeof mappedTests> = {};
+      for (const test of mappedTests) {
+        const inst = test.institution || 'General';
+        if (!byInstitution[inst]) byInstitution[inst] = [];
+        byInstitution[inst].push(test);
+      }
+
+      return { tests: mappedTests, byInstitution };
     },
 
     ptTest: async (_: unknown, args: { id: string }) => {
       const test = await queryOne<{
         id: string;
         name: string;
-        description: string;
-        category: string;
-        scoring_type: string;
-        time_limit_seconds: number;
-        equipment_required: string[];
-        instructions: string;
+        description: string | null;
+        institution: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        test_frequency: string;
+        source_url: string | null;
+        last_updated: string | null;
+        category: string | null;
       }>(`
-        SELECT id, name, description, category, scoring_type, time_limit_seconds, equipment_required, instructions
+        SELECT id, name, description, institution, components,
+               scoring_method, max_score, passing_score, test_frequency,
+               source_url, last_updated, category
         FROM pt_tests WHERE id = $1
       `, [args.id]);
       if (!test) return null;
@@ -5152,11 +5454,64 @@ export const resolvers = {
         id: test.id,
         name: test.name,
         description: test.description,
+        institution: test.institution,
+        components: test.components || [],
+        scoringMethod: test.scoring_method,
+        maxScore: test.max_score,
+        passingScore: test.passing_score,
+        testFrequency: test.test_frequency,
+        sourceUrl: test.source_url,
+        lastUpdated: test.last_updated,
         category: test.category,
-        scoringType: test.scoring_type,
-        timeLimitSeconds: test.time_limit_seconds,
-        equipmentRequired: test.equipment_required || [],
-        instructions: test.instructions,
+      };
+    },
+
+    myArchetypePTTest: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get user's archetype
+      const user = await queryOne<{ current_identity_id: string | null }>(`
+        SELECT current_identity_id FROM users WHERE id = $1
+      `, [userId]);
+
+      if (!user?.current_identity_id) return null;
+
+      // Get archetype's PT test
+      const archetype = await queryOne<{ pt_test_id: string | null }>(`
+        SELECT pt_test_id FROM archetypes WHERE id = $1
+      `, [user.current_identity_id]);
+
+      if (!archetype?.pt_test_id) return null;
+
+      const test = await queryOne<{
+        id: string;
+        name: string;
+        description: string | null;
+        institution: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        test_frequency: string;
+        source_url: string | null;
+      }>(`
+        SELECT id, name, description, institution, components,
+               scoring_method, max_score, passing_score, test_frequency, source_url
+        FROM pt_tests WHERE id = $1
+      `, [archetype.pt_test_id]);
+
+      if (!test) return null;
+      return {
+        id: test.id,
+        name: test.name,
+        description: test.description,
+        institution: test.institution,
+        components: test.components || [],
+        scoringMethod: test.scoring_method,
+        maxScore: test.max_score,
+        passingScore: test.passing_score,
+        testFrequency: test.test_frequency,
+        sourceUrl: test.source_url,
       };
     },
 
@@ -5171,13 +5526,17 @@ export const resolvers = {
       const tests = await queryAll<{
         id: string;
         name: string;
-        description: string;
-        category: string;
-        scoring_type: string;
-        time_limit_seconds: number;
-        equipment_required: string[];
+        description: string | null;
+        institution: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        test_frequency: string;
+        category: string | null;
       }>(`
-        SELECT pt.id, pt.name, pt.description, pt.category, pt.scoring_type, pt.time_limit_seconds, pt.equipment_required
+        SELECT pt.id, pt.name, pt.description, pt.institution, pt.components,
+               pt.scoring_method, pt.max_score, pt.passing_score, pt.test_frequency, pt.category
         FROM pt_tests pt
         JOIN archetype_pt_tests apt ON pt.id = apt.pt_test_id
         WHERE apt.archetype_id = $1
@@ -5188,101 +5547,188 @@ export const resolvers = {
         id: t.id,
         name: t.name,
         description: t.description,
+        institution: t.institution,
+        components: t.components || [],
+        scoringMethod: t.scoring_method,
+        maxScore: t.max_score,
+        passingScore: t.passing_score,
+        testFrequency: t.test_frequency,
         category: t.category,
-        scoringType: t.scoring_type,
-        timeLimitSeconds: t.time_limit_seconds,
-        equipmentRequired: t.equipment_required || [],
       }));
     },
 
-    ptTestResults: async (_: unknown, __: unknown, context: Context) => {
+    ptTestResults: async (_: unknown, args: { testId?: string; limit?: number }, context: Context) => {
       const { userId } = requireAuth(context);
+      const { testId, limit } = args;
+
+      let query = `
+        SELECT
+          r.id, r.pt_test_id, r.test_date, r.component_results,
+          r.total_score, r.passed, r.category, r.official,
+          r.location, r.proctor, r.notes, r.created_at,
+          t.name as test_name, t.institution
+        FROM user_pt_results r
+        JOIN pt_tests t ON r.pt_test_id = t.id
+        WHERE r.user_id = $1
+      `;
+      const params: unknown[] = [userId];
+
+      if (testId) {
+        query += ` AND r.pt_test_id = $2`;
+        params.push(testId);
+      }
+
+      query += ` ORDER BY r.test_date DESC`;
+
+      if (limit) {
+        query += ` LIMIT $${params.length + 1}`;
+        params.push(limit);
+      }
+
       const results = await queryAll<{
         id: string;
         pt_test_id: string;
-        test_name: string;
-        score: number;
-        raw_value: number;
-        unit: string;
-        notes: string;
+        test_date: string;
+        component_results: Record<string, unknown>;
+        total_score: number | null;
+        passed: boolean | null;
+        category: string | null;
+        official: boolean;
+        location: string | null;
+        proctor: string | null;
+        notes: string | null;
         created_at: Date;
-      }>(`
-        SELECT r.id, r.pt_test_id, pt.name as test_name, r.score, r.raw_value, r.unit, r.notes, r.created_at
-        FROM pt_test_results r
-        JOIN pt_tests pt ON r.pt_test_id = pt.id
-        WHERE r.user_id = $1
-        ORDER BY r.created_at DESC LIMIT 100
-      `, [userId]);
+        test_name: string;
+        institution: string | null;
+      }>(query, params);
 
       return results.map(r => ({
         id: r.id,
         testId: r.pt_test_id,
         testName: r.test_name,
-        score: r.score,
-        rawValue: r.raw_value,
-        unit: r.unit,
+        institution: r.institution,
+        testDate: r.test_date,
+        componentResults: r.component_results,
+        totalScore: r.total_score,
+        passed: r.passed,
+        category: r.category,
+        official: r.official,
+        location: r.location,
+        proctor: r.proctor,
         notes: r.notes,
-        createdAt: r.created_at,
+        recordedAt: r.created_at,
       }));
     },
 
     ptTestResult: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
+
       const result = await queryOne<{
         id: string;
         pt_test_id: string;
-        test_name: string;
-        score: number;
-        raw_value: number;
-        unit: string;
-        notes: string;
+        test_date: string;
+        component_results: Record<string, unknown>;
+        total_score: number | null;
+        passed: boolean | null;
+        category: string | null;
+        official: boolean;
+        location: string | null;
+        proctor: string | null;
+        notes: string | null;
         created_at: Date;
       }>(`
-        SELECT r.id, r.pt_test_id, pt.name as test_name, r.score, r.raw_value, r.unit, r.notes, r.created_at
-        FROM pt_test_results r
-        JOIN pt_tests pt ON r.pt_test_id = pt.id
-        WHERE r.id = $1 AND r.user_id = $2
+        SELECT * FROM user_pt_results WHERE id = $1 AND user_id = $2
       `, [args.id, userId]);
 
       if (!result) return null;
+
+      // Get the test details
+      const test = await queryOne<{
+        name: string;
+        institution: string | null;
+        components: unknown[];
+        max_score: number | null;
+        passing_score: number | null;
+      }>(`
+        SELECT name, institution, components, max_score, passing_score FROM pt_tests WHERE id = $1
+      `, [result.pt_test_id]);
+
+      // Get previous results for comparison
+      const previousResults = await queryAll<{
+        test_date: string;
+        total_score: number | null;
+        passed: boolean | null;
+      }>(`
+        SELECT test_date, total_score, passed
+        FROM user_pt_results
+        WHERE user_id = $1 AND pt_test_id = $2 AND test_date < $3
+        ORDER BY test_date DESC
+        LIMIT 5
+      `, [userId, result.pt_test_id, result.test_date]);
+
       return {
-        id: result.id,
-        testId: result.pt_test_id,
-        testName: result.test_name,
-        score: result.score,
-        rawValue: result.raw_value,
-        unit: result.unit,
-        notes: result.notes,
-        createdAt: result.created_at,
+        result: {
+          id: result.id,
+          testId: result.pt_test_id,
+          testName: test?.name,
+          institution: test?.institution,
+          testDate: result.test_date,
+          componentResults: result.component_results,
+          totalScore: result.total_score,
+          passed: result.passed,
+          category: result.category,
+          official: result.official,
+          location: result.location,
+          proctor: result.proctor,
+          notes: result.notes,
+          recordedAt: result.created_at,
+        },
+        components: test?.components || [],
+        previousResults: previousResults.map(r => ({
+          testDate: r.test_date,
+          totalScore: r.total_score,
+          passed: r.passed,
+        })),
       };
     },
 
     ptTestLeaderboard: async (_: unknown, args: { testId: string }) => {
+      // Get top scores (best score per user)
       const entries = await queryAll<{
         user_id: string;
+        total_score: number;
+        test_date: string;
+        passed: boolean | null;
+        category: string | null;
         username: string;
-        avatar_url: string;
-        score: number;
-        raw_value: number;
-        created_at: Date;
+        display_name: string | null;
+        avatar_url: string | null;
       }>(`
         SELECT DISTINCT ON (r.user_id)
-          r.user_id, u.username, u.avatar_url, r.score, r.raw_value, r.created_at
-        FROM pt_test_results r
+          r.user_id, r.total_score, r.test_date, r.passed, r.category,
+          u.username, u.display_name, u.avatar_url
+        FROM user_pt_results r
         JOIN users u ON r.user_id = u.id
+        LEFT JOIN user_privacy_mode pm ON u.id = pm.user_id
         WHERE r.pt_test_id = $1
-        ORDER BY r.user_id, r.score DESC, r.created_at DESC
+          AND r.total_score IS NOT NULL
+          AND (pm.opt_out_leaderboards IS NULL OR pm.opt_out_leaderboards = FALSE)
+          AND (pm.minimalist_mode IS NULL OR pm.minimalist_mode = FALSE)
+        ORDER BY r.user_id, r.total_score DESC
       `, [args.testId]);
 
-      const sorted = entries.sort((a, b) => b.score - a.score);
+      // Sort by score and rank
+      const sorted = entries.sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
       return sorted.map((e, index) => ({
         rank: index + 1,
         userId: e.user_id,
         username: e.username,
+        displayName: e.display_name || e.username,
         avatar: e.avatar_url,
-        score: e.score,
-        rawValue: e.raw_value,
-        achievedAt: e.created_at,
+        score: e.total_score,
+        testDate: e.test_date,
+        passed: e.passed,
+        category: e.category,
       }));
     },
 
@@ -11801,6 +12247,191 @@ export const resolvers = {
       return true;
     },
 
+    // ==========================================
+    // PROGRESS PHOTOS MUTATIONS
+    // ==========================================
+    createProgressPhoto: async (
+      _: unknown,
+      args: {
+        input: {
+          storagePath: string;
+          thumbnailPath?: string;
+          photoType: string;
+          pose?: string;
+          isPrivate?: boolean;
+          weightKg?: number;
+          bodyFatPercentage?: number;
+          notes?: string;
+          photoDate: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      const VALID_PHOTO_TYPES = ['front', 'back', 'side_left', 'side_right', 'custom'];
+      const VALID_POSES = ['relaxed', 'flexed', 'vacuum', 'custom'];
+
+      if (!input.storagePath) {
+        throw new GraphQLError('storagePath is required', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+      if (!input.photoDate) {
+        throw new GraphQLError('photoDate is required', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+      if (!input.photoType || !VALID_PHOTO_TYPES.includes(input.photoType)) {
+        throw new GraphQLError(`photoType must be one of: ${VALID_PHOTO_TYPES.join(', ')}`, { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+      if (input.pose && !VALID_POSES.includes(input.pose)) {
+        throw new GraphQLError(`pose must be one of: ${VALID_POSES.join(', ')}`, { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      const p = await queryOne<any>(
+        `INSERT INTO progress_photos (
+          user_id, storage_path, thumbnail_path, photo_type, pose,
+          is_private, weight_kg, body_fat_percentage, notes, photo_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *`,
+        [
+          userId,
+          input.storagePath,
+          input.thumbnailPath || null,
+          input.photoType,
+          input.pose || 'relaxed',
+          input.isPrivate !== false,
+          input.weightKg || null,
+          input.bodyFatPercentage || null,
+          input.notes || null,
+          input.photoDate,
+        ]
+      );
+
+      return {
+        id: p.id,
+        userId: p.user_id,
+        storagePath: p.storage_path,
+        thumbnailPath: p.thumbnail_path,
+        photoType: p.photo_type,
+        pose: p.pose,
+        isPrivate: p.is_private,
+        weightKg: p.weight_kg,
+        bodyFatPercentage: p.body_fat_percentage,
+        notes: p.notes,
+        photoDate: p.photo_date,
+        createdAt: p.created_at,
+      };
+    },
+
+    updateProgressPhoto: async (
+      _: unknown,
+      args: {
+        id: string;
+        input: {
+          photoType?: string;
+          pose?: string;
+          isPrivate?: boolean;
+          weightKg?: number;
+          bodyFatPercentage?: number;
+          notes?: string;
+          photoDate?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { id, input } = args;
+
+      const VALID_PHOTO_TYPES = ['front', 'back', 'side_left', 'side_right', 'custom'];
+      const VALID_POSES = ['relaxed', 'flexed', 'vacuum', 'custom'];
+
+      const existing = await queryOne(
+        `SELECT id FROM progress_photos WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [id, userId]
+      );
+
+      if (!existing) {
+        throw new GraphQLError('Photo not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      if (input.photoType && !VALID_PHOTO_TYPES.includes(input.photoType)) {
+        throw new GraphQLError(`photoType must be one of: ${VALID_PHOTO_TYPES.join(', ')}`, { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+      if (input.pose && !VALID_POSES.includes(input.pose)) {
+        throw new GraphQLError(`pose must be one of: ${VALID_POSES.join(', ')}`, { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      // Build dynamic update
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      const fieldMapping: Record<string, string> = {
+        photoType: 'photo_type',
+        pose: 'pose',
+        isPrivate: 'is_private',
+        weightKg: 'weight_kg',
+        bodyFatPercentage: 'body_fat_percentage',
+        notes: 'notes',
+        photoDate: 'photo_date',
+      };
+
+      for (const [key, column] of Object.entries(fieldMapping)) {
+        if (input[key as keyof typeof input] !== undefined) {
+          updates.push(`${column} = $${paramIndex++}`);
+          values.push(input[key as keyof typeof input]);
+        }
+      }
+
+      if (updates.length === 0) {
+        throw new GraphQLError('No fields to update', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      values.push(id, userId);
+      const p = await queryOne<any>(
+        `UPDATE progress_photos
+         SET ${updates.join(', ')}
+         WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
+         RETURNING *`,
+        values
+      );
+
+      return {
+        id: p.id,
+        userId: p.user_id,
+        storagePath: p.storage_path,
+        thumbnailPath: p.thumbnail_path,
+        photoType: p.photo_type,
+        pose: p.pose,
+        isPrivate: p.is_private,
+        weightKg: p.weight_kg,
+        bodyFatPercentage: p.body_fat_percentage,
+        notes: p.notes,
+        photoDate: p.photo_date,
+        createdAt: p.created_at,
+      };
+    },
+
+    deleteProgressPhoto: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const existing = await queryOne(
+        `SELECT id FROM progress_photos WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [args.id, userId]
+      );
+
+      if (!existing) {
+        throw new GraphQLError('Photo not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      // Soft delete
+      await query(
+        `UPDATE progress_photos SET deleted_at = NOW() WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      return true;
+    },
+
     // Community - Update Presence
     updatePresence: async (_: unknown, args: { status: string }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -11959,50 +12590,104 @@ export const resolvers = {
     },
 
     // PT Tests - Submit Results
-    submitPTTestResults: async (
+    recordPTTestResult: async (
       _: unknown,
-      args: { input: { testId: string; scores: Record<string, unknown> } },
+      args: {
+        input: {
+          ptTestId: string;
+          testDate: string;
+          componentResults: Array<{ componentId: string; value: number; unit?: string }>;
+          official?: boolean;
+          location?: string;
+          proctor?: string;
+          notes?: string;
+        }
+      },
       context: Context
     ) => {
       const { userId } = requireAuth(context);
-      const { testId, scores } = args.input;
+      const { ptTestId, testDate, componentResults, official, location, proctor, notes } = args.input;
+
+      // Validate test date is not in the future
+      const testDateObj = new Date(testDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (testDateObj > today) {
+        throw new GraphQLError('Test date cannot be in the future', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Get the test configuration
+      const test = await queryOne<{
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+      }>(`
+        SELECT scoring_method, max_score, passing_score FROM pt_tests WHERE id = $1
+      `, [ptTestId]);
+
+      if (!test) {
+        throw new GraphQLError('PT test not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      // Build component results object
+      const componentResultsObj: Record<string, { value: number; points?: number }> = {};
+      let totalScore = 0;
+
+      for (const result of componentResults) {
+        componentResultsObj[result.componentId] = {
+          value: result.value,
+          points: undefined, // Would calculate from standards
+        };
+      }
+
+      // Determine pass/fail
+      let passed: boolean | null = null;
+      let category: string | null = null;
+
+      if (test.scoring_method === 'pass_fail') {
+        passed = true; // Simplified - would check against standards
+      } else if (test.scoring_method === 'points' && test.passing_score !== null) {
+        passed = totalScore >= test.passing_score;
+      } else if (test.scoring_method === 'category') {
+        // Assign category based on score
+        if (totalScore >= 90) category = 'Excellent';
+        else if (totalScore >= 75) category = 'Good';
+        else if (totalScore >= 60) category = 'Satisfactory';
+        else category = 'Needs Improvement';
+      }
 
       const resultId = `ptr_${crypto.randomBytes(12).toString('hex')}`;
 
-      // Calculate total score based on test scoring rules
-      let totalScore = 0;
-      let passed = true;
-
-      for (const [_key, value] of Object.entries(scores)) {
-        if (typeof value === 'number') {
-          totalScore += value;
-        } else if (typeof value === 'object' && value !== null) {
-          const scoreObj = value as { value?: number; passed?: boolean };
-          if (scoreObj.value) totalScore += scoreObj.value;
-          if (scoreObj.passed === false) passed = false;
-        }
-      }
-
       await query(
-        `INSERT INTO user_pt_results (id, user_id, pt_test_id, test_date, component_results, total_score, passed)
-         VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6)`,
-        [resultId, userId, testId, JSON.stringify(scores), totalScore, passed]
-      );
-
-      const test = await queryOne<{ name: string }>(
-        'SELECT name FROM pt_tests WHERE id = $1',
-        [testId]
+        `INSERT INTO user_pt_results (
+          id, user_id, pt_test_id, test_date, component_results,
+          total_score, passed, category, official, location, proctor, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          resultId,
+          userId,
+          ptTestId,
+          testDate,
+          JSON.stringify(componentResultsObj),
+          totalScore || null,
+          passed,
+          category,
+          official ?? false,
+          location ?? null,
+          proctor ?? null,
+          notes ?? null,
+        ]
       );
 
       return {
         id: resultId,
-        userId,
-        testId,
-        testName: test?.name || 'Unknown Test',
-        scores,
         totalScore,
         passed,
-        completedAt: new Date(),
+        category,
       };
     },
 
