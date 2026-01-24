@@ -453,10 +453,10 @@ export async function migrate(): Promise<void> {
       await db.query(
         `INSERT INTO venue_equipment_items (
           id, venue_id, equipment_type, quantity, condition, condition_notes,
-          installed_date, is_verified, is_available, needs_maintenance, created_at, updated_at
+          is_verified, data_source, created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, NOW(), NOW()
+          $7, $8, NOW(), NOW()
         )`,
         [
           `equip_${venueId}_${equipType}`,
@@ -465,10 +465,8 @@ export async function migrate(): Promise<void> {
           1, // quantity
           'good', // condition
           null, // condition_notes
-          new Date().toISOString().split('T')[0], // installed_date
           true, // is_verified
-          true, // is_available
-          false, // needs_maintenance
+          'seed_migration', // data_source
         ]
       );
       equipmentCreated++;
