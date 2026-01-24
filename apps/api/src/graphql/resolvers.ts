@@ -3833,75 +3833,95 @@ export const resolvers = {
       const { userId } = requireAuth(context);
       const goals = await careerService.getUserCareerGoals(userId);
 
-      return Promise.all(
-        goals.map(async (g) => {
-          const readiness = await careerService.getReadiness(userId, g.id);
-          const standard = await careerService.getCareerStandard(g.ptTestId);
+      // PERF-FIX: Batch load standards and readiness using DataLoaders
+      const ptTestIds = goals.map((g) => g.ptTestId);
+      const goalIds = goals.map((g) => g.id);
 
-          // Calculate days remaining if target date exists
-          let daysRemaining = null;
-          if (g.targetDate) {
-            const targetDate = new Date(g.targetDate);
-            const now = new Date();
-            daysRemaining = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          }
+      // Load all in parallel
+      const [standards, readinessScores] = await Promise.all([
+        Promise.all(ptTestIds.map((id) => context.extendedLoaders.careerStandards.load(id))),
+        Promise.all(goalIds.map((id) => context.extendedLoaders.careerReadiness.load(id))),
+      ]);
 
-          return {
-            id: g.id,
-            standardId: g.ptTestId,
-            standard: standard
-              ? {
-                  id: standard.id,
-                  name: standard.name,
-                  fullName: standard.name,
-                  agency: standard.institution,
-                  category: standard.category,
-                  description: standard.description,
-                  officialUrl: null,
-                  scoringType: standard.scoringMethod,
-                  recertificationPeriodMonths: standard.recertificationMonths,
-                  events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
-                    (c, idx) => ({
-                      id: c.id,
-                      name: c.name,
-                      description: c.description || null,
-                      metricType: null,
-                      metricUnit: null,
-                      direction: 'higher',
-                      passingThreshold: null,
-                      exerciseMappings: standard.exerciseMappings[c.id] || [],
-                      tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
-                      orderIndex: idx,
-                    })
-                  ),
-                  eventCount: (standard.components as Array<unknown>).length,
-                  icon: standard.icon,
-                  maxScore: standard.maxScore,
-                  passingScore: standard.passingScore,
-                }
-              : null,
-            targetDate: g.targetDate,
-            priority: g.priority,
-            status: g.status,
-            agencyName: g.agencyName,
-            notes: g.notes,
-            daysRemaining,
-            readiness: {
-              score: readiness.readinessScore,
-              status: readiness.status,
-              trend: null,
-              trendDelta: null,
-              eventBreakdown: [],
-              weakEvents: readiness.weakEvents,
-              lastAssessmentAt: readiness.lastAssessmentAt,
-              eventsPassed: readiness.eventsPassed,
-              eventsTotal: readiness.eventsTotal,
-            },
-            createdAt: new Date(g.createdAt),
-            updatedAt: new Date(g.updatedAt),
-          };
-        })
-      );
+      return goals.map((g, idx) => {
+        const standard = standards[idx];
+        const readiness = readinessScores[idx];
+
+        // Calculate days remaining if target date exists
+        let daysRemaining = null;
+        if (g.targetDate) {
+          const targetDate = new Date(g.targetDate);
+          const now = new Date();
+          daysRemaining = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        return {
+          id: g.id,
+          standardId: g.ptTestId,
+          standard: standard
+            ? {
+                id: standard.id,
+                name: standard.name,
+                fullName: standard.name,
+                agency: standard.institution,
+                category: standard.category,
+                description: standard.description,
+                officialUrl: null,
+                scoringType: standard.scoringMethod,
+                recertificationPeriodMonths: standard.recertificationMonths,
+                events: (standard.components as Array<{ id: string; name: string; description?: string }>).map(
+                  (c, idx) => ({
+                    id: c.id,
+                    name: c.name,
+                    description: c.description || null,
+                    metricType: null,
+                    metricUnit: null,
+                    direction: 'higher',
+                    passingThreshold: null,
+                    exerciseMappings: standard.exerciseMappings[c.id] || [],
+                    tips: standard.tips.filter((t) => t.event === c.id).map((t) => t.tip),
+                    orderIndex: idx,
+                  })
+                ),
+                eventCount: (standard.components as Array<unknown>).length,
+                icon: standard.icon,
+                maxScore: standard.maxScore,
+                passingScore: standard.passingScore,
+              }
+            : null,
+          targetDate: g.targetDate,
+          priority: g.priority,
+          status: g.status,
+          agencyName: g.agencyName,
+          notes: g.notes,
+          daysRemaining,
+          readiness: readiness
+            ? {
+                score: readiness.readinessScore,
+                status: readiness.status,
+                trend: null,
+                trendDelta: null,
+                eventBreakdown: [],
+                weakEvents: readiness.weakEvents,
+                lastAssessmentAt: readiness.lastAssessmentAt,
+                eventsPassed: readiness.eventsPassed,
+                eventsTotal: readiness.eventsTotal,
+              }
+            : {
+                score: null,
+                status: 'no_data',
+                trend: null,
+                trendDelta: null,
+                eventBreakdown: [],
+                weakEvents: [],
+                lastAssessmentAt: null,
+                eventsPassed: 0,
+                eventsTotal: 0,
+              },
+          createdAt: new Date(g.createdAt),
+          updatedAt: new Date(g.updatedAt),
+        };
+      });
     },
 
     myCareerReadiness: async (_: unknown, args: { goalId?: string }, context: Context) => {
@@ -7604,33 +7624,38 @@ export const resolvers = {
       const { collectionService } = await import('../modules/marketplace/collection.service');
       const setsProgress = await collectionService.getUserSetsProgress(userId);
 
-      // Get full set details for each
-      const sets = await Promise.all(
-        setsProgress.map(async (sp: any) => {
-          const detail = await collectionService.getSetWithProgress(sp.id, userId);
+      // PERF-FIX: Batch load set details using DataLoader
+      const setIds = setsProgress.map((sp: any) => sp.id);
+      const details = await Promise.all(
+        setIds.map((id: string) => context.extendedLoaders.collectionSetDetails.load(id))
+      );
+
+      return setsProgress
+        .map((sp: any, idx: number) => {
+          const detail = details[idx];
           if (!detail) return null;
 
           return {
             id: sp.id,
             name: sp.name,
-            description: detail.set.description,
-            icon: detail.set.theme ? `📦` : '🎁',
-            theme: detail.set.theme,
+            description: detail.description,
+            icon: detail.theme ? `📦` : '🎁',
+            theme: detail.theme,
             isLimited: sp.isLimited,
             expirationDate: sp.expirationDate,
-            ownedCount: detail.progress.ownedCount,
-            totalCount: detail.progress.totalCount,
-            rewards: (detail.set.rewards || []).map((r: any) => ({
-              threshold: r.threshold,
-              icon: '🎁',
-              description: r.reward?.type ? `${r.reward.type}: ${r.reward.value}` : 'Reward',
-              claimed: (detail.progress.rewardsClaimed || []).includes(r.threshold),
-            })),
+            ownedCount: detail.ownedCount,
+            totalCount: detail.totalCount,
+            rewards: (detail.rewards as Array<{ threshold: number; reward?: { type: string; value: string } }>).map(
+              (r) => ({
+                threshold: r.threshold,
+                icon: '🎁',
+                description: r.reward?.type ? `${r.reward.type}: ${r.reward.value}` : 'Reward',
+                claimed: detail.rewardsClaimed.includes(r.threshold),
+              })
+            ),
           };
         })
-      );
-
-      return sets.filter(Boolean);
+        .filter(Boolean);
     },
 
     collectionSetDetail: async (_: unknown, args: { setId: string }, context: Context) => {

@@ -189,6 +189,7 @@ export function createContext(req: FastifyRequest): GraphQLContext {
   const extendedLoaders: ExtendedLoaders = {
     conversationParticipants: baseExtendedLoaders.conversationParticipants,
     conversationLastMessage: baseExtendedLoaders.conversationLastMessage,
+    careerStandards: baseExtendedLoaders.careerStandards,
     // User-scoped loaders - create with userId if available
     conversationUnreadCount: user
       ? baseExtendedLoaders.conversationUnreadCount(user.userId)
@@ -196,6 +197,12 @@ export function createContext(req: FastifyRequest): GraphQLContext {
     exerciseStats: user
       ? baseExtendedLoaders.exerciseStats(user.userId)
       : baseExtendedLoaders.exerciseStats(''),
+    careerReadiness: user
+      ? baseExtendedLoaders.careerReadiness(user.userId)
+      : baseExtendedLoaders.careerReadiness(''),
+    collectionSetDetails: user
+      ? baseExtendedLoaders.collectionSetDetails(user.userId)
+      : baseExtendedLoaders.collectionSetDetails(''),
   };
 
   // Create request-scoped cache

@@ -446,6 +446,29 @@ export interface ExerciseStats {
   totalSessions: number;
 }
 
+export interface ReadinessScore {
+  goalId: string;
+  readinessScore: number | null;
+  status: 'ready' | 'at_risk' | 'not_ready' | 'no_data';
+  eventsPassed: number;
+  eventsTotal: number;
+  weakEvents: string[];
+  lastAssessmentAt: string | null;
+}
+
+export interface CollectionSetDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  theme: string | null;
+  isLimited: boolean;
+  expiresAt: string | null;
+  rewards: unknown[];
+  totalCount: number;
+  ownedCount: number;
+  rewardsClaimed: number[];
+}
+
 // ============================================
 // EXTENDED LOADERS FOR N+1 FIXES
 // ============================================
@@ -588,6 +611,186 @@ export function createExtendedLoaders() {
 
         return exerciseIds.map((id) => statsMap.get(id) ?? null);
       }),
+
+    /**
+     * PERF-FIX: Batch load career standards (PT tests) by IDs.
+     * Fixes N+1 in myCareerGoals where standards were loaded per-goal.
+     */
+    careerStandards: new DataLoader<string, CareerStandard | null>(async (ptTestIds) => {
+      const placeholders = generatePlaceholders(ptTestIds.length);
+      const rows = await queryAll<{
+        id: string;
+        name: string;
+        description: string | null;
+        institution: string | null;
+        category: string | null;
+        components: unknown[];
+        scoring_method: string;
+        max_score: number | null;
+        passing_score: number | null;
+        recertification_months: number | null;
+        exercise_mappings: Record<string, string[]> | null;
+        tips: Array<{ event: string; tip: string }> | null;
+        icon: string | null;
+      }>(
+        `SELECT id, name, description, institution, category, components,
+                scoring_method, max_score, passing_score, recertification_months,
+                exercise_mappings, tips, icon
+         FROM pt_tests
+         WHERE id IN (${placeholders})`,
+        [...ptTestIds]
+      );
+
+      const standardMap = new Map(
+        rows.map((t) => [
+          t.id,
+          {
+            id: t.id,
+            name: t.name,
+            institution: t.institution || '',
+            category: t.category || '',
+            description: t.description,
+            scoringMethod: t.scoring_method,
+            recertificationMonths: t.recertification_months,
+            components: t.components || [],
+            exerciseMappings: t.exercise_mappings || {},
+            tips: t.tips || [],
+            icon: t.icon,
+            maxScore: t.max_score,
+            passingScore: t.passing_score,
+          } as CareerStandard,
+        ])
+      );
+
+      return ptTestIds.map((id) => standardMap.get(id) ?? null);
+    }),
+
+    /**
+     * PERF-FIX: Batch load readiness scores by goal IDs for a user.
+     * Fixes N+1 in myCareerGoals where readiness was loaded per-goal.
+     */
+    careerReadiness: (userId: string) =>
+      new DataLoader<string, ReadinessScore | null>(async (goalIds) => {
+        const placeholders = generatePlaceholders(goalIds.length, 2); // $1 is userId
+        const rows = await queryAll<{
+          goal_id: string;
+          readiness_score: number | null;
+          status: string;
+          events_passed: number;
+          events_total: number;
+          weak_events: string[];
+          last_assessment_at: string | null;
+        }>(
+          `SELECT goal_id, readiness_score, status, events_passed, events_total, weak_events, last_assessment_at
+           FROM career_readiness_cache
+           WHERE user_id = $1 AND goal_id IN (${placeholders})`,
+          [userId, ...goalIds]
+        );
+
+        const readinessMap = new Map(
+          rows.map((r) => [
+            r.goal_id,
+            {
+              goalId: r.goal_id,
+              readinessScore: r.readiness_score,
+              status: r.status as 'ready' | 'at_risk' | 'not_ready' | 'no_data',
+              eventsPassed: r.events_passed,
+              eventsTotal: r.events_total,
+              weakEvents: r.weak_events || [],
+              lastAssessmentAt: r.last_assessment_at,
+            } as ReadinessScore,
+          ])
+        );
+
+        // Return cached readiness or default "no_data" state
+        return goalIds.map(
+          (id) =>
+            readinessMap.get(id) ?? {
+              goalId: id,
+              readinessScore: null,
+              status: 'no_data' as const,
+              eventsPassed: 0,
+              eventsTotal: 0,
+              weakEvents: [],
+              lastAssessmentAt: null,
+            }
+        );
+      }),
+
+    /**
+     * PERF-FIX: Batch load collection set details by set IDs for a user.
+     * Fixes N+1 in collectionSets where set details were loaded per-set.
+     */
+    collectionSetDetails: (userId: string) =>
+      new DataLoader<string, CollectionSetDetail | null>(async (setIds) => {
+        // Batch load collection sets
+        const setsPlaceholders = generatePlaceholders(setIds.length);
+        const sets = await queryAll<{
+          id: string;
+          name: string;
+          description: string | null;
+          theme: string | null;
+          is_limited: boolean;
+          expires_at: string | null;
+          rewards: unknown[];
+        }>(
+          `SELECT id, name, description, theme, is_limited, expires_at, rewards
+           FROM collection_sets
+           WHERE id IN (${setsPlaceholders})`,
+          [...setIds]
+        );
+
+        // Batch load item counts per set
+        const itemCounts = await queryAll<{ set_id: string; count: string }>(
+          `SELECT set_id, COUNT(*) as count
+           FROM collection_items
+           WHERE set_id IN (${setsPlaceholders})
+           GROUP BY set_id`,
+          [...setIds]
+        );
+
+        // Batch load user's owned items per set
+        const ownedCounts = await queryAll<{ set_id: string; count: string }>(
+          `SELECT ci.set_id, COUNT(*) as count
+           FROM collection_items ci
+           JOIN user_collection_items uci ON ci.id = uci.item_id AND uci.user_id = $1
+           WHERE ci.set_id IN (${generatePlaceholders(setIds.length, 2)})
+           GROUP BY ci.set_id`,
+          [userId, ...setIds]
+        );
+
+        // Batch load claimed rewards per set for user
+        const claimedRewards = await queryAll<{ set_id: string; thresholds: number[] }>(
+          `SELECT set_id, array_agg(threshold) as thresholds
+           FROM collection_reward_claims
+           WHERE user_id = $1 AND set_id IN (${generatePlaceholders(setIds.length, 2)})
+           GROUP BY set_id`,
+          [userId, ...setIds]
+        );
+
+        const setMap = new Map(sets.map((s) => [s.id, s]));
+        const itemCountMap = new Map(itemCounts.map((c) => [c.set_id, parseInt(c.count, 10)]));
+        const ownedCountMap = new Map(ownedCounts.map((c) => [c.set_id, parseInt(c.count, 10)]));
+        const claimedMap = new Map(claimedRewards.map((c) => [c.set_id, c.thresholds || []]));
+
+        return setIds.map((id) => {
+          const set = setMap.get(id);
+          if (!set) return null;
+
+          return {
+            id: set.id,
+            name: set.name,
+            description: set.description,
+            theme: set.theme,
+            isLimited: set.is_limited,
+            expiresAt: set.expires_at,
+            rewards: set.rewards || [],
+            totalCount: itemCountMap.get(id) ?? 0,
+            ownedCount: ownedCountMap.get(id) ?? 0,
+            rewardsClaimed: claimedMap.get(id) ?? [],
+          } as CollectionSetDetail;
+        });
+      }),
   };
 }
 
@@ -600,4 +803,7 @@ export interface ExtendedLoaders {
   conversationLastMessage: DataLoader<string, ConversationLastMessage | null>;
   conversationUnreadCount: DataLoader<string, number>;
   exerciseStats: DataLoader<string, ExerciseStats | null>;
+  careerStandards: DataLoader<string, CareerStandard | null>;
+  careerReadiness: DataLoader<string, ReadinessScore | null>;
+  collectionSetDetails: DataLoader<string, CollectionSetDetail | null>;
 }
