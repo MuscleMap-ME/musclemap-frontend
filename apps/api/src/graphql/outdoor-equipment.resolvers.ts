@@ -222,39 +222,41 @@ export const outdoorEquipmentQueries = {
   // Search/list venues with filters
   outdoorVenues: async (_: unknown, { input }: { input?: VenueSearchInput }) => {
     const limit = Math.min(input?.limit || 50, 100);
-    const params: (string | number | string[] | null)[] = [];
+    const params: (string | number | string[])[] = [];
     let paramIndex = 1;
 
+    // Calculate distance only if coordinates provided
+    const hasCoords = input?.latitude != null && input?.longitude != null;
+
     let sql = `
-      SELECT fv.*,
-        CASE WHEN $${paramIndex} IS NOT NULL AND $${paramIndex + 1} IS NOT NULL
-          THEN (
-            6371 * acos(
-              cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
-              cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
-              sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
-            )
+      SELECT fv.*${hasCoords ? `,
+        (
+          6371 * acos(
+            cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
+            cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
+            sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
           )
-          ELSE NULL
-        END as distance
+        ) as distance` : ', NULL as distance'}
       FROM fitness_venues fv
       WHERE fv.is_active = true
     `;
 
-    params.push(input?.latitude ?? null, input?.longitude ?? null);
-    paramIndex += 2;
+    if (hasCoords) {
+      params.push(input!.latitude!, input!.longitude!);
+      paramIndex += 2;
+    }
 
     // Filter by radius if lat/lng provided
-    if (input?.latitude && input?.longitude && input?.radiusKm) {
+    if (hasCoords && input?.radiusKm) {
       sql += ` AND (
         6371 * acos(
-          cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
-          cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
-          sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
+          cos(radians($1::numeric)) * cos(radians(fv.latitude)) *
+          cos(radians(fv.longitude) - radians($2::numeric)) +
+          sin(radians($1::numeric)) * sin(radians(fv.latitude))
         )
-      ) <= $${paramIndex + 2}::numeric`;
-      params.push(input.latitude, input.longitude, input.radiusKm);
-      paramIndex += 3;
+      ) <= $${paramIndex}::numeric`;
+      params.push(input.radiusKm);
+      paramIndex++;
     }
 
     // Filter by borough
@@ -295,17 +297,18 @@ export const outdoorEquipmentQueries = {
     if (input?.cursor) {
       try {
         const cursor = JSON.parse(Buffer.from(input.cursor, 'base64').toString()) as { distance?: number; createdAt?: string; id: string };
-        if (input?.latitude && input?.longitude && cursor.distance !== undefined) {
+        if (hasCoords && cursor.distance !== undefined) {
+          // Distance-based pagination using $1 and $2 which are lat/lng
           sql += ` AND (
             (6371 * acos(
-              cos(radians($${paramIndex - 2}::numeric)) * cos(radians(fv.latitude)) *
-              cos(radians(fv.longitude) - radians($${paramIndex - 1}::numeric)) +
-              sin(radians($${paramIndex - 2}::numeric)) * sin(radians(fv.latitude))
+              cos(radians($1::numeric)) * cos(radians(fv.latitude)) *
+              cos(radians(fv.longitude) - radians($2::numeric)) +
+              sin(radians($1::numeric)) * sin(radians(fv.latitude))
             )) > $${paramIndex}::numeric
             OR ((6371 * acos(
-              cos(radians($${paramIndex - 2}::numeric)) * cos(radians(fv.latitude)) *
-              cos(radians(fv.longitude) - radians($${paramIndex - 1}::numeric)) +
-              sin(radians($${paramIndex - 2}::numeric)) * sin(radians(fv.latitude))
+              cos(radians($1::numeric)) * cos(radians(fv.latitude)) *
+              cos(radians(fv.longitude) - radians($2::numeric)) +
+              sin(radians($1::numeric)) * sin(radians(fv.latitude))
             )) = $${paramIndex}::numeric AND fv.id > $${paramIndex + 1})
           )`;
           params.push(cursor.distance, cursor.id);
