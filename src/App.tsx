@@ -252,28 +252,53 @@ function NavigationProgress({ isNavigating }) {
 }
 
 // Page loading skeleton - shown while lazy components load
+// Uses inline styles as fallback for iOS Brave where CSS may not load
 function PageSkeleton() {
+  // Track that skeleton is being shown (iOS Brave debugging)
+  useEffect(() => {
+    console.log('[PageSkeleton] Showing loading skeleton');
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/client-error', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({
+        type: 'component_mount',
+        message: '[PageSkeleton] Suspense fallback is showing',
+        source: 'App.tsx',
+        time: new Date().toISOString()
+      }));
+    } catch { /* ignore */ }
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#0a0a0f] p-6">
+    <div
+      className="min-h-screen bg-[#0a0a0f] p-6"
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#0a0a0f',
+        padding: '24px',
+        color: 'white',
+      }}
+    >
+      {/* Visible text fallback for when CSS doesn't load */}
+      <div style={{ textAlign: 'center', paddingTop: '40px' }}>
+        <div style={{ fontSize: '24px', marginBottom: '16px' }}>Loading MuscleMap...</div>
+        <div style={{ fontSize: '14px', opacity: 0.7 }}>Please wait</div>
+      </div>
       {/* Header skeleton */}
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto" style={{ maxWidth: '64rem', margin: '0 auto' }}>
         <div className="flex items-center justify-between mb-8">
-          <div className="h-10 w-32 bg-white/5 rounded-lg animate-pulse" />
-          <div className="flex gap-4">
-            <div className="h-10 w-24 bg-white/5 rounded-lg animate-pulse" />
-            <div className="h-10 w-24 bg-white/5 rounded-lg animate-pulse" />
+          <div className="h-10 w-32 bg-white/5 rounded-lg animate-pulse" style={{ height: '40px', width: '128px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }} />
+          <div className="flex gap-4" style={{ display: 'flex', gap: '16px' }}>
+            <div className="h-10 w-24 bg-white/5 rounded-lg animate-pulse" style={{ height: '40px', width: '96px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }} />
+            <div className="h-10 w-24 bg-white/5 rounded-lg animate-pulse" style={{ height: '40px', width: '96px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }} />
           </div>
         </div>
 
         {/* Content skeleton */}
         <div className="space-y-6">
-          <div className="h-8 w-64 bg-white/5 rounded animate-pulse" />
-          <div className="h-4 w-full max-w-md bg-white/5 rounded animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 bg-white/5 rounded-xl animate-pulse" />
-            ))}
-          </div>
+          <div className="h-8 w-64 bg-white/5 rounded animate-pulse" style={{ height: '32px', width: '256px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }} />
+          <div className="h-4 w-full max-w-md bg-white/5 rounded animate-pulse" style={{ height: '16px', maxWidth: '28rem', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px' }} />
         </div>
       </div>
     </div>
