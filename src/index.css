@@ -998,3 +998,233 @@
 }
 
 } /* End of @layer components */
+
+/* ============================================
+   BROWSER COMPATIBILITY & ANIMATION FALLBACKS
+   ============================================
+
+   CRITICAL: These styles ensure content remains visible on:
+   - iOS Lockdown Mode
+   - Brave Browser with Shields enabled
+   - Safari with strict privacy settings
+   - Any browser where framer-motion fails
+
+   The !important declarations are intentional to override
+   any animation that might leave elements invisible.
+   ============================================ */
+
+/* Global visibility safety net for motion elements */
+[style*="opacity: 0"],
+[style*="opacity:0"] {
+  /* Allow opacity:0 during animations but ensure it recovers */
+  transition: opacity 0.3s ease-out !important;
+}
+
+/* Force visibility on critical UI elements that should never be invisible */
+header,
+nav,
+main,
+footer,
+[role="banner"],
+[role="navigation"],
+[role="main"],
+[role="contentinfo"],
+[data-critical="true"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* CSS-only animation fallbacks for Safari/Brave/iOS */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Apply CSS animations as fallback when JS animations might fail */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+  opacity: 1; /* Ensure visibility even if animation fails */
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown 0.4s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+/* Reduced motion support - disable ALL animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Ensure elements are visible even without animations */
+  [style*="opacity"],
+  [style*="transform"] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* iOS Safari and Brave specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari detected - add extra visibility safety */
+  [data-framer-motion],
+  [style*="opacity"] {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Force GPU layer for smoother animations */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Fix for iOS where opacity animations can get stuck */
+  .motion-safe-opacity {
+    opacity: 1 !important;
+    transition: opacity 0.2s ease-out;
+  }
+}
+
+/* Brave Browser fingerprinting resistance can break some styles */
+/* Use these utility classes for critical visibility */
+.visibility-guaranteed {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  pointer-events: auto !important;
+}
+
+.visibility-guaranteed-flex {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+/* Navigation specific fixes - these should NEVER be invisible */
+.nav-glass,
+.glass-nav,
+[class*="GlassNav"],
+.bottom-nav,
+.mobile-nav {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+/* Modal and sheet specific fixes */
+.bottom-sheet,
+.modal-content,
+[class*="BottomSheet"],
+[role="dialog"],
+[role="alertdialog"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Toast notifications must always be visible */
+.toast,
+[class*="Toast"],
+[role="alert"],
+[role="status"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Floating action buttons must always be visible */
+.fab,
+[class*="FloatingAction"],
+.floating-button {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Loading indicators should always show */
+.skeleton,
+.loading,
+.spinner,
+[class*="Skeleton"],
+[class*="Loading"],
+[class*="Spinner"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}

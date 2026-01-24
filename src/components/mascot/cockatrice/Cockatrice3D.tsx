@@ -5,16 +5,21 @@
  * cockatrice. Uses stylized geometry to create a medieval bestiary aesthetic
  * in 3D space.
  *
+ * CRITICAL: Falls back to 2D version when WebGL is unavailable
+ * (iOS Lockdown Mode, Brave Shields, etc.)
+ *
  * Used for:
  * - Bug hunter dashboard
  * - Error page hero
  * - Loading states with presence
  */
 
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float } from '@react-three/drei';
 import * as THREE from 'three';
+import { getIsRestrictive, getCapabilities } from '../../../utils/safeMotion';
+import Cockatrice from './Cockatrice';
 
 export type Cockatrice3DState =
   | 'idle'
@@ -267,6 +272,34 @@ function CockatriceMesh({
   );
 }
 
+/**
+ * Check if WebGL is available
+ */
+function checkWebGLAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    return !!gl;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Map 3D state to 2D state for fallback
+ */
+function map3DStateTo2D(state: Cockatrice3DState): 'idle' | 'concerned' | 'apologetic' | 'helpful' | 'victorious' | 'thinking' {
+  switch (state) {
+    case 'alert': return 'concerned';
+    case 'hunting': return 'thinking';
+    case 'found': return 'helpful';
+    case 'victorious': return 'victorious';
+    case 'idle':
+    default: return 'idle';
+  }
+}
+
 export default function Cockatrice3D({
   state = 'idle',
   size = 200,
@@ -274,6 +307,55 @@ export default function Cockatrice3D({
   color = '#1a1a1a',
   backgroundColor = 'transparent',
 }: Cockatrice3DProps) {
+  const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const isRestrictive = getIsRestrictive();
+
+  // Check WebGL availability on mount
+  useEffect(() => {
+    if (isRestrictive) {
+      setWebglAvailable(false);
+      return;
+    }
+
+    const caps = getCapabilities();
+    if (!caps.webgl) {
+      setWebglAvailable(false);
+      return;
+    }
+
+    setWebglAvailable(checkWebGLAvailable());
+  }, [isRestrictive]);
+
+  // Show 2D fallback while checking or if WebGL unavailable
+  if (webglAvailable === null || webglAvailable === false) {
+    const sizeMap = {
+      64: 'sm',
+      96: 'md',
+      128: 'lg',
+      180: 'xl',
+    } as const;
+    const closest = Object.entries(sizeMap).reduce((prev, [key, val]) => {
+      return Math.abs(Number(key) - size) < Math.abs(prev[0] - size) ? [Number(key), val] : prev;
+    }, [128, 'lg'] as [number, 'sm' | 'md' | 'lg' | 'xl']);
+
+    return (
+      <div
+        className={`flex items-center justify-center ${className}`}
+        style={{
+          width: size,
+          height: size,
+          background: backgroundColor,
+        }}
+      >
+        <Cockatrice
+          state={map3DStateTo2D(state)}
+          size={closest[1]}
+          reducedMotion={isRestrictive}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={className}

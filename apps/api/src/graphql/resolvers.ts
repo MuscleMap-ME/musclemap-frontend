@@ -518,14 +518,14 @@ export const resolvers = {
     },
 
     // Workouts - uses keyset pagination for O(1) performance
-    myWorkouts: async (_: unknown, args: { limit?: number; offset?: number; cursor?: string }, context: Context) => {
+    // PERF: Removed legacy OFFSET pagination - always use cursor-based for consistent O(1) performance
+    myWorkouts: async (_: unknown, args: { limit?: number; cursor?: string }, context: Context) => {
       const { userId } = requireAuth(context);
       const limit = Math.min(args.limit || 50, 100);
 
-      // Support both cursor-based (preferred) and offset-based (legacy) pagination
       let workouts;
       if (args.cursor) {
-        // Keyset pagination - O(1) performance
+        // Keyset pagination - O(1) performance using composite cursor
         const [cursorDate, cursorId] = args.cursor.split('_');
         workouts = await queryAll(
           `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
@@ -534,15 +534,6 @@ export const resolvers = {
            ORDER BY date DESC, created_at DESC, id DESC
            LIMIT $5`,
           [userId, cursorDate, cursorDate, cursorId, limit]
-        );
-      } else if (args.offset) {
-        // Legacy offset pagination - O(n) performance, kept for backwards compatibility
-        workouts = await queryAll(
-          `SELECT id, user_id, date, total_tu, notes, exercise_data, muscle_activations, created_at
-           FROM workouts WHERE user_id = $1
-           ORDER BY date DESC, created_at DESC
-           LIMIT $2 OFFSET $3`,
-          [userId, limit, args.offset]
         );
       } else {
         // First page - no cursor needed
@@ -1585,6 +1576,9 @@ export const resolvers = {
       };
     },
 
+    // TODO: PERF - This uses OFFSET pagination which is O(n) for deep pages (rank 5000+)
+    // Optimal solution: Create materialized view with pre-calculated ranks, refresh every 5 minutes
+    // For now, leaderboards are cached at GraphQL layer (60s TTL) to mitigate query cost
     statLeaderboard: async (
       _: unknown,
       args: { stat?: string; scope?: string; scopeValue?: string; limit?: number; offset?: number },

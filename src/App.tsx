@@ -2,7 +2,7 @@ import React, { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { ApolloProvider } from '@apollo/client/react';
 import { AdaptiveAnimatePresence } from './components/transitions/AdaptiveAnimatePresence';
-import { apolloClient } from './graphql';
+import { apolloClient, garbageCollectCache } from './graphql';
 import { UserProvider } from './contexts/UserContext';
 import { useAuth } from './store/authStore';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -331,7 +331,7 @@ function SkipLink() {
   );
 }
 
-// Announces route changes to screen readers and tracks page views
+// Announces route changes to screen readers, tracks page views, and runs cache GC
 function RouteAnnouncer() {
   const location = useLocation();
   const [announcement, setAnnouncement] = useState('');
@@ -350,6 +350,15 @@ function RouteAnnouncer() {
 
     // Track page view in Google Analytics
     trackPageView(location.pathname, `${formattedName} | MuscleMap`);
+
+    // PERF: Run Apollo cache garbage collection on route changes
+    // This prevents memory accumulation over long sessions by removing unreachable cache entries
+    // Debounced slightly to avoid running on rapid navigation
+    const gcTimer = setTimeout(() => {
+      garbageCollectCache();
+    }, 500);
+
+    return () => clearTimeout(gcTimer);
   }, [location.pathname]);
 
   return (

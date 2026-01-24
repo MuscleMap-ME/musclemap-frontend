@@ -5,6 +5,8 @@
  * that's part rooster, part serpent. Used as the friendly error messenger
  * to deliver bad news with charm and humor.
  *
+ * CRITICAL: Uses SafeMotion for iOS Lockdown Mode / Brave Shields compatibility.
+ *
  * States:
  * - idle: Gentle breathing animation
  * - concerned: Tilted head, worried expression
@@ -15,6 +17,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { SafeMotion, getIsRestrictive } from '../../../utils/safeMotion';
 
 export type CockatriceState =
   | 'idle'
@@ -121,13 +124,17 @@ export default function Cockatrice({
   reducedMotion = false,
 }: CockatriceProps) {
   const dimension = SIZE_MAP[size];
+  const isRestrictive = getIsRestrictive();
+  const disableAnimations = reducedMotion || isRestrictive;
+
+  // Use static div for restrictive environments
+  const MotionWrapper = isRestrictive ? 'div' : SafeMotion.div;
 
   return (
-    <motion.div
+    <MotionWrapper
       className={`relative ${className}`}
-      style={{ width: dimension, height: dimension }}
-      animate={reducedMotion ? undefined : state}
-      variants={cockatriceVariants}
+      style={{ width: dimension, height: dimension, opacity: 1 }}
+      {...(!isRestrictive && { animate: disableAnimations ? undefined : state, variants: cockatriceVariants })}
     >
       <svg
         viewBox="0 0 120 120"
@@ -373,7 +380,7 @@ export default function Cockatrice({
           </>
         )}
       </svg>
-    </motion.div>
+    </MotionWrapper>
   );
 }
 

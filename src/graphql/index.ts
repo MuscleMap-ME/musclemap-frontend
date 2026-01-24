@@ -5,7 +5,7 @@
  */
 
 // Apollo Client
-export { apolloClient, default } from './client';
+export { apolloClient, default, garbageCollectCache, getCacheStats } from './client';
 
 // Fragments - reusable field selections
 export {

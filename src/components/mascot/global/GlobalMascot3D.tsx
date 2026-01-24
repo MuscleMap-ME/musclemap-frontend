@@ -3,12 +3,17 @@
  *
  * 3D WebGL rendering of the TЯIPTθMΞAN Spirit global mascot.
  * Uses React Three Fiber for rendering.
+ *
+ * CRITICAL: Falls back to 2D version when WebGL is unavailable
+ * (iOS Lockdown Mode, Brave Shields, etc.)
  */
 
-import React, { useRef, useMemo, Suspense } from 'react';
+import React, { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, Stars } from '@react-three/drei';
 import * as _THREE from 'three';
+import { getIsRestrictive, getCapabilities } from '../../../utils/safeMotion';
+import GlobalMascot2D from './GlobalMascot2D';
 
 // Animation speed configurations by state
 const ANIMATION_SPEEDS = {
@@ -149,7 +154,37 @@ function LoadingFallback() {
 }
 
 /**
+ * Check if WebGL is available and working
+ */
+function checkWebGLAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return false;
+
+    // Check for specific WebGL extensions that indicate full support
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      // Some restrictive modes return a software renderer or limited info
+      if (renderer && renderer.includes('SwiftShader')) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * GlobalMascot3D Component
+ *
+ * Falls back to 2D rendering in:
+ * - iOS Lockdown Mode (WebGL disabled)
+ * - Brave Shields restrictive mode
+ * - Any environment where WebGL is unavailable
  */
 export default function GlobalMascot3D({
   animationState = 'idle',
@@ -157,8 +192,43 @@ export default function GlobalMascot3D({
   showStars = true,
   className = '',
 }) {
+  const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const isRestrictive = getIsRestrictive();
+
+  // Check WebGL availability on mount
+  useEffect(() => {
+    // Skip WebGL entirely in restrictive environments
+    if (isRestrictive) {
+      setWebglAvailable(false);
+      return;
+    }
+
+    // Check if browser capabilities indicate WebGL is available
+    const caps = getCapabilities();
+    if (!caps.webgl) {
+      setWebglAvailable(false);
+      return;
+    }
+
+    // Double-check with actual WebGL context creation
+    setWebglAvailable(checkWebGLAvailable());
+  }, [isRestrictive]);
+
   const mascotScale = SIZE_SCALES[size] || SIZE_SCALES.medium;
   const cameraDistance = CAMERA_DISTANCES[size] || CAMERA_DISTANCES.medium;
+
+  // Show 2D fallback while checking or if WebGL unavailable
+  if (webglAvailable === null || webglAvailable === false) {
+    return (
+      <div className={`w-full h-full flex items-center justify-center ${className}`}>
+        <GlobalMascot2D
+          animationState={animationState}
+          size={size}
+          reducedMotion={isRestrictive}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full h-full ${className}`}>
@@ -166,6 +236,12 @@ export default function GlobalMascot3D({
         camera={{ position: [0, 0, cameraDistance], fov: 45 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
+        onCreated={({ gl }) => {
+          // Verify WebGL context is valid after creation
+          if (!gl.getContext()) {
+            setWebglAvailable(false);
+          }
+        }}
       >
         {/* Transparent background */}
         <color attach="background" args={['transparent']} />

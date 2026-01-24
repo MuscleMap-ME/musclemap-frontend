@@ -3,10 +3,12 @@
  *
  * 2D SVG fallback for the TЯIPTθMΞAN Spirit global mascot.
  * Used when WebGL is unavailable or reduced motion is preferred.
+ *
+ * CRITICAL: Uses SafeMotion for iOS Lockdown Mode / Brave Shields compatibility.
  */
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { SafeMotion, getIsRestrictive } from '../../../utils/safeMotion';
 
 const variants = {
   idle: {
@@ -46,12 +48,17 @@ export default function GlobalMascot2D({
   reducedMotion = false,
 }) {
   const sizeClass = sizeClasses[size] || sizeClasses.medium;
-  const animate = reducedMotion ? {} : variants[animationState] || variants.idle;
+  const isRestrictive = getIsRestrictive();
+  const animate = reducedMotion || isRestrictive ? {} : variants[animationState] || variants.idle;
+
+  // Use static div for restrictive environments
+  const MotionWrapper = isRestrictive ? 'div' : SafeMotion.div;
 
   return (
-    <motion.div
+    <MotionWrapper
       className={`${sizeClass} ${className}`}
-      animate={animate}
+      {...(!isRestrictive && { animate })}
+      style={{ opacity: 1 }}
     >
       <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
         <defs>
@@ -119,6 +126,6 @@ export default function GlobalMascot2D({
           );
         })}
       </svg>
-    </motion.div>
+    </MotionWrapper>
   );
 }

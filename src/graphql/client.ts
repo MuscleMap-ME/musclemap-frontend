@@ -186,23 +186,26 @@ const cache = new InMemoryCache({
     Query: {
       fields: {
         // Merge paginated workout lists with size limit
+        // PERF: Uses cursor-based logic (no offset support)
         myWorkouts: {
           keyArgs: ['filter', 'sortBy'],
           merge(existing = [], incoming, { args }) {
-            // Reset on new search/filter
-            if (args?.offset === 0 || !args?.offset) {
+            // Reset when no cursor (first page / new search)
+            if (!args?.cursor) {
               return limitArraySize(incoming, CACHE_LIMITS.workouts);
             }
-            // Append for pagination with size limit
+            // Append for pagination with cursor and size limit
             const merged = [...existing, ...incoming];
             return limitArraySize(merged, CACHE_LIMITS.workouts);
           },
         },
         // Cache exercises by filter with size limit
+        // PERF: Uses cursor-based logic for pagination
         exercises: {
           keyArgs: ['filter', 'muscleGroup', 'category'],
           merge(existing = [], incoming, { args }) {
-            if (args?.offset === 0 || !args?.offset) {
+            // Reset when no cursor (first page / new filter)
+            if (!args?.cursor) {
               return limitArraySize(incoming, CACHE_LIMITS.exercises);
             }
             const merged = [...existing, ...incoming];
@@ -233,10 +236,12 @@ const cache = new InMemoryCache({
           keyArgs: ['id'],
         },
         // Goals listing with size limit
+        // PERF: Uses cursor-based logic for pagination
         goals: {
           keyArgs: ['userId', 'status'],
           merge(existing = [], incoming, { args }) {
-            if (args?.offset === 0 || !args?.offset) {
+            // Reset when no cursor (first page / new filter)
+            if (!args?.cursor) {
               return limitArraySize(incoming, CACHE_LIMITS.goals);
             }
             const merged = [...existing, ...incoming];

@@ -13,6 +13,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { useReducedMotion } from '../glass/ButtonEffects';
+import { getIsRestrictive } from '../../utils/safeMotion';
 
 // ============================================
 // SOUND EFFECT (placeholder for future audio)
@@ -264,10 +265,13 @@ export function LevelUpCelebration({
   const [showCounter, setShowCounter] = useState(false);
   const animatedLevel = useAnimatedCounter(level, 800, showCounter);
   const reducedMotion = useReducedMotion();
+  const isRestrictive = getIsRestrictive();
+
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
 
   // Start counter after initial animations
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && !isRestrictive) {
       // Play sound effect
       playLevelUpSound();
 
@@ -279,7 +283,7 @@ export function LevelUpCelebration({
     } else {
       setShowCounter(false);
     }
-  }, [isVisible]);
+  }, [isVisible, isRestrictive]);
 
   // Auto-complete after duration
   useEffect(() => {
@@ -295,11 +299,11 @@ export function LevelUpCelebration({
   // Generate floating particles
   const particles = useMemo(
     () =>
-      Array.from({ length: reducedMotion ? 0 : 30 }).map(() => ({
+      Array.from({ length: reducedMotion || isRestrictive ? 0 : 30 }).map(() => ({
         delay: Math.random() * 2,
         duration: Math.random() * 2 + 2,
       })),
-    [reducedMotion]
+    [reducedMotion, isRestrictive]
   );
 
   // Handle keyboard dismiss
@@ -311,6 +315,102 @@ export function LevelUpCelebration({
     },
     [onComplete]
   );
+
+  // Static fallback for restrictive environments (iOS Lockdown Mode, Brave Shields)
+  if (isRestrictive && isVisible) {
+    return (
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center ${className}`}
+        onClick={onComplete}
+        role="dialog"
+        aria-label={`Level up! You are now level ${level}`}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+            onComplete?.();
+          }
+        }}
+        style={{ opacity: 1 }}
+      >
+        {/* Static backdrop */}
+        <div
+          className="absolute inset-0 bg-[var(--void-deep)]/90 backdrop-blur-md"
+          style={{ opacity: 1 }}
+        />
+
+        {/* Static radial gradient background */}
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: 1,
+            background: `
+              radial-gradient(circle at 50% 50%,
+                rgba(0, 102, 255, 0.2) 0%,
+                rgba(255, 51, 102, 0.1) 30%,
+                transparent 70%)
+            `,
+          }}
+        />
+
+        {/* Main content */}
+        <div className="relative z-10 text-center" style={{ opacity: 1 }}>
+          {/* LEVEL UP text */}
+          <div className="mb-4">
+            <h1
+              className="text-4xl md:text-6xl font-black tracking-widest"
+              style={{
+                opacity: 1,
+                background: 'linear-gradient(135deg, var(--brand-blue-400), var(--brand-pulse-400))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: '0 0 40px var(--brand-blue-400)',
+                filter: 'drop-shadow(0 0 20px var(--brand-blue-500))',
+              }}
+            >
+              LEVEL UP!
+            </h1>
+          </div>
+
+          {/* Level number */}
+          <div className="relative">
+            <div
+              className="relative text-8xl md:text-9xl font-black"
+              style={{
+                opacity: 1,
+                background: 'linear-gradient(180deg, #ffffff, var(--brand-blue-200))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: '0 0 60px var(--brand-blue-400)',
+              }}
+            >
+              {level}
+            </div>
+          </div>
+
+          {/* Subtitle */}
+          <p
+            className="mt-6 text-lg md:text-xl text-[var(--text-secondary)] font-medium"
+            style={{ opacity: 1 }}
+          >
+            Keep pushing your limits
+          </p>
+        </div>
+
+        {/* Dismiss hint */}
+        <div
+          className="absolute bottom-8 left-0 right-0 text-center"
+          style={{ opacity: 1 }}
+        >
+          <button
+            onClick={onComplete}
+            className="text-sm text-[var(--text-quaternary)] hover:text-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-blue-400)] focus:ring-offset-2 focus:ring-offset-transparent rounded px-2 py-1"
+          >
+            Tap to continue
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>

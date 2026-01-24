@@ -16,6 +16,7 @@ import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { useReducedMotion } from '../glass/ButtonEffects';
+import { getIsRestrictive } from '../../utils/safeMotion';
 
 // ============================================
 // RARITY CONFIGURATIONS
@@ -293,16 +294,18 @@ export function AchievementBurst({
   const reducedMotion = useReducedMotion();
   const containerRef = useRef(null);
   const config = RARITY_CONFIG[achievement.rarity] || RARITY_CONFIG.common;
+  const isRestrictive = getIsRestrictive();
 
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   // Auto-complete after animation
   useEffect(() => {
-    if (active && onComplete) {
+    if (active && onComplete && !isRestrictive) {
       const timer = setTimeout(() => {
         onComplete();
       }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [active, onComplete]);
+  }, [active, onComplete, isRestrictive]);
 
   // Handle keyboard dismiss
   const handleKeyDown = useCallback(
@@ -329,6 +332,95 @@ export function AchievementBurst({
       scale: 1.5 + i * 0.5,
     }));
   }, [achievement.rarity]);
+
+  // Static fallback for restrictive environments (iOS Lockdown Mode + Brave)
+  // This ensures the achievement is ALWAYS visible and dismissible
+  if (isRestrictive && active) {
+    return (
+      <div
+        ref={containerRef}
+        className={`fixed inset-0 z-50 flex items-center justify-center ${className}`}
+        onClick={onComplete}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+            onComplete?.();
+          }
+        }}
+        tabIndex={0}
+        role="dialog"
+        aria-label={`Achievement unlocked: ${achievement.name}`}
+        style={{ opacity: 1 }}
+      >
+        {/* Static backdrop */}
+        <div
+          className="absolute inset-0 bg-[var(--void-deep)]/85 backdrop-blur-md"
+          style={{ opacity: 1 }}
+        />
+
+        {/* Static radial glow */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, ${config.glow} 0%, transparent 50%)`,
+            opacity: 1,
+          }}
+        />
+
+        {/* Main content - static version */}
+        <div className="relative z-10 flex flex-col items-center text-center px-6" style={{ opacity: 1 }}>
+          {/* Badge circle */}
+          <div
+            className="relative w-28 h-28 md:w-36 md:h-36 rounded-full flex items-center justify-center animate-pulse"
+            style={{
+              background: `linear-gradient(135deg, ${config.gradientFrom}, ${config.gradientTo})`,
+              border: `3px solid ${config.borderColor}`,
+              boxShadow: `0 0 40px ${config.glow}`,
+              opacity: 1,
+            }}
+          >
+            <span className="text-5xl md:text-6xl" role="img" aria-hidden="true">
+              {achievement.icon}
+            </span>
+          </div>
+
+          {/* Rarity label */}
+          <div className="mt-4" style={{ opacity: 1 }}>
+            <span
+              className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+              style={{
+                background: `${config.glow}`,
+                color: config.labelColor,
+                border: `1px solid ${config.borderColor}`,
+              }}
+            >
+              {config.label}
+            </span>
+          </div>
+
+          {/* Achievement name */}
+          <h2
+            className="mt-4 text-2xl md:text-3xl font-bold text-white"
+            style={{ opacity: 1 }}
+          >
+            {achievement.name}
+          </h2>
+          <p className="mt-2 text-[var(--text-secondary)]" style={{ opacity: 1 }}>
+            Achievement Unlocked
+          </p>
+        </div>
+
+        {/* Dismiss button */}
+        <div className="absolute bottom-8 left-0 right-0 text-center" style={{ opacity: 1 }}>
+          <button
+            onClick={onComplete}
+            className="text-sm text-[var(--text-quaternary)] hover:text-[var(--text-secondary)] transition-colors px-4 py-2 bg-white/10 rounded-lg"
+          >
+            Tap to continue
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>
