@@ -117,6 +117,12 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  logger.fatal({ error }, 'Failed to start server');
+  // Properly serialize error for logging
+  const errorInfo = error instanceof Error
+    ? { message: error.message, stack: error.stack, name: error.name, cause: error.cause }
+    : { value: String(error), type: typeof error };
+  logger.fatal({ error: errorInfo }, 'Failed to start server');
+  // Also log to stderr for visibility
+  console.error('FATAL: Failed to start server:', error);
   process.exit(1);
 });
