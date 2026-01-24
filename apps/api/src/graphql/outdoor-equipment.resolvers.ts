@@ -814,6 +814,245 @@ export const outdoorEquipmentQueries = {
 
     return rows.map(transformSubmission);
   },
+
+  // Find venues that have equipment for a specific exercise
+  venuesForExercise: async (
+    _: unknown,
+    { exerciseId, latitude, longitude, maxDistanceKm, limit }: {
+      exerciseId: string;
+      latitude?: number;
+      longitude?: number;
+      maxDistanceKm?: number;
+      limit?: number;
+    }
+  ) => {
+    const pageLimit = Math.min(limit || 20, 50);
+    const maxDist = maxDistanceKm || 10; // Default 10km radius
+
+    // Get exercise equipment requirements
+    interface ExerciseRow {
+      id: string;
+      name: string;
+      equipment_required: string[];
+      locations: string[];
+    }
+
+    const exercise = await queryOne<ExerciseRow>(
+      `SELECT id, name, equipment_required, locations FROM exercises WHERE id = $1`,
+      [exerciseId]
+    );
+
+    if (!exercise) {
+      throw new GraphQLError('Exercise not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Map exercise equipment to venue equipment types
+    // The keys mostly align but some need mapping
+    const equipmentMap: Record<string, string[]> = {
+      // Exercise equipment → venue equipment types
+      pullup_bar: ['pull_up_bar', 'monkey_bars', 'rings', 'swedish_wall'],
+      pull_up_bar: ['pull_up_bar', 'monkey_bars', 'rings'],
+      dip_bars: ['dip_bars', 'dip_station', 'parallel_bars'],
+      dip_station: ['dip_station', 'dip_bars', 'parallel_bars'],
+      parallel_bars: ['parallel_bars', 'dip_bars', 'dip_station'],
+      barbell: ['barbell', 'bench_press', 'squat_rack', 'weight_room'],
+      dumbbells: ['dumbbells', 'weight_room'],
+      kettlebell: ['dumbbells', 'weight_room'], // Kettlebells often at same locations
+      trx: ['rings', 'pull_up_bar'], // TRX alternatives
+      bands: ['pull_up_bar', 'swedish_wall'], // Can use at these locations
+      rings: ['rings', 'pull_up_bar'],
+      squat_rack: ['squat_rack', 'weight_room'],
+      flat_bench: ['bench_press', 'weight_room'],
+      adjustable_bench: ['bench_press', 'weight_room'],
+      cable_machine: ['cable_machine', 'multi_station'],
+      lat_pulldown: ['lat_pull', 'cable_machine', 'multi_station'],
+      leg_press: ['leg_press', 'weight_room'],
+    };
+
+    // Get all relevant venue equipment types for this exercise
+    const exerciseEquipment = exercise.equipment_required || [];
+    const venueEquipmentTypes: string[] = [];
+
+    for (const eq of exerciseEquipment) {
+      const mappedTypes = equipmentMap[eq] || [eq];
+      venueEquipmentTypes.push(...mappedTypes);
+    }
+
+    // Also check if exercise can be done at parks (bodyweight)
+    const canDoAtPark = (exercise.locations || []).includes('park') ||
+                        exerciseEquipment.length === 0; // Bodyweight
+
+    // Build the query
+    const params: (string | number | string[])[] = [];
+    let paramIndex = 1;
+
+    let sql = `
+      SELECT DISTINCT fv.*,
+        CASE WHEN $${paramIndex} IS NOT NULL AND $${paramIndex + 1} IS NOT NULL
+          THEN (
+            6371 * acos(
+              cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
+              cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
+              sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
+            )
+          )
+          ELSE NULL
+        END as distance
+      FROM fitness_venues fv
+      WHERE fv.is_active = true
+    `;
+
+    params.push(latitude ?? 40.7128, longitude ?? -74.006); // Default to NYC center
+    paramIndex += 2;
+
+    // Filter by distance
+    if (latitude && longitude) {
+      sql += ` AND (
+        6371 * acos(
+          cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
+          cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
+          sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
+        )
+      ) <= $${paramIndex + 2}::numeric`;
+      params.push(latitude, longitude, maxDist);
+      paramIndex += 3;
+    }
+
+    // Filter by equipment if exercise requires any
+    if (venueEquipmentTypes.length > 0) {
+      sql += ` AND EXISTS (
+        SELECT 1 FROM venue_equipment_items vei
+        WHERE vei.venue_id = fv.id AND vei.equipment_type = ANY($${paramIndex}::text[])
+      )`;
+      params.push([...new Set(venueEquipmentTypes)]); // Dedupe
+      paramIndex++;
+    } else if (canDoAtPark) {
+      // Bodyweight exercise - include calisthenics parks and outdoor gyms
+      sql += ` AND fv.venue_type IN ('calisthenics_park', 'outdoor_gym', 'park', 'recreation_center')`;
+    }
+
+    // Order by distance
+    sql += ` ORDER BY distance ASC NULLS LAST LIMIT $${paramIndex}`;
+    params.push(pageLimit);
+
+    const rows = await queryAll<VenueRow>(sql, params);
+
+    return {
+      exercise: {
+        id: exercise.id,
+        name: exercise.name,
+        equipmentRequired: exercise.equipment_required || [],
+        locations: exercise.locations || [],
+      },
+      venues: rows.map(transformVenue),
+      totalFound: rows.length,
+      searchRadius: maxDist,
+    };
+  },
+
+  // Find exercises that can be done at a specific venue
+  exercisesAtVenue: async (
+    _: unknown,
+    { venueId, muscleGroup, limit }: { venueId: string; muscleGroup?: string; limit?: number }
+  ) => {
+    const pageLimit = Math.min(limit || 50, 100);
+
+    // Get venue equipment
+    interface EquipmentRow {
+      equipment_type: string;
+    }
+
+    const venueEquipment = await queryAll<EquipmentRow>(
+      `SELECT DISTINCT equipment_type FROM venue_equipment_items WHERE venue_id = $1`,
+      [venueId]
+    );
+
+    if (venueEquipment.length === 0) {
+      // Return bodyweight exercises if venue has no equipment listed
+      const params: (string | number)[] = [];
+      let paramIndex = 1;
+
+      let sql = `
+        SELECT id, name, muscle_groups, equipment_required, instructions, difficulty
+        FROM exercises
+        WHERE (equipment_required IS NULL OR equipment_required = '[]'::jsonb)
+        AND is_active = true
+      `;
+
+      if (muscleGroup) {
+        sql += ` AND $${paramIndex} = ANY(SELECT jsonb_array_elements_text(muscle_groups))`;
+        params.push(muscleGroup);
+        paramIndex++;
+      }
+
+      sql += ` ORDER BY name LIMIT $${paramIndex}`;
+      params.push(pageLimit);
+
+      const exercises = await queryAll(sql, params);
+      return exercises;
+    }
+
+    // Map venue equipment back to exercise equipment
+    const exerciseEquipmentMap: Record<string, string[]> = {
+      pull_up_bar: ['pullup_bar', 'pull_up_bar'],
+      dip_bars: ['dip_bars', 'dip_station'],
+      dip_station: ['dip_bars', 'dip_station'],
+      parallel_bars: ['dip_bars', 'parallel_bars'],
+      monkey_bars: ['pullup_bar'],
+      rings: ['rings', 'trx'],
+      swedish_wall: ['pullup_bar'],
+      bench_press: ['flat_bench', 'barbell'],
+      squat_rack: ['squat_rack', 'barbell'],
+      barbell: ['barbell'],
+      dumbbells: ['dumbbells', 'kettlebell'],
+      weight_room: ['barbell', 'dumbbells', 'cable_machine'],
+      cable_machine: ['cable_machine', 'lat_pulldown'],
+      multi_station: ['cable_machine'],
+      lat_pull: ['lat_pulldown'],
+    };
+
+    const exerciseEquipmentTypes: string[] = [];
+    for (const ve of venueEquipment) {
+      const mapped = exerciseEquipmentMap[ve.equipment_type] || [ve.equipment_type];
+      exerciseEquipmentTypes.push(...mapped);
+    }
+
+    const uniqueEquipment = [...new Set(exerciseEquipmentTypes)];
+
+    // Find exercises that require only equipment available at this venue (or bodyweight)
+    const params: (string | string[] | number)[] = [];
+    let paramIndex = 1;
+
+    let sql = `
+      SELECT id, name, muscle_groups, equipment_required, instructions, difficulty
+      FROM exercises
+      WHERE is_active = true
+      AND (
+        equipment_required IS NULL
+        OR equipment_required = '[]'::jsonb
+        OR EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(equipment_required) eq
+          WHERE eq = ANY($${paramIndex}::text[])
+        )
+      )
+    `;
+    params.push(uniqueEquipment);
+    paramIndex++;
+
+    if (muscleGroup) {
+      sql += ` AND $${paramIndex} = ANY(SELECT jsonb_array_elements_text(muscle_groups))`;
+      params.push(muscleGroup);
+      paramIndex++;
+    }
+
+    sql += ` ORDER BY name LIMIT $${paramIndex}`;
+    params.push(pageLimit);
+
+    const exercises = await queryAll(sql, params);
+    return exercises;
+  },
 };
 
 // ============================================

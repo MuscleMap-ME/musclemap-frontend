@@ -341,6 +341,10 @@ export const typeDefs = `#graphql
     venuePhotos(venueId: ID!): [VenuePhoto!]!
     venueSyncStats: VenueSyncStats
     pendingVenueSubmissions(limit: Int): [VenueSubmission!]!
+    """Find outdoor venues that have equipment for a specific exercise"""
+    venuesForExercise(exerciseId: ID!, latitude: Float, longitude: Float, maxDistanceKm: Float, limit: Int): VenuesForExerciseResult!
+    """Find exercises that can be done at a specific venue based on available equipment"""
+    exercisesAtVenue(venueId: ID!, muscleGroup: String, limit: Int): [Exercise!]!
 
     # Venue Exercise Records & Community Analytics
     """Get records at a specific venue"""
@@ -5779,6 +5783,26 @@ export const typeDefs = `#graphql
     verificationCount: Int!
     isFeatured: Boolean!
     createdAt: DateTime!
+  }
+
+  """Result of searching venues for a specific exercise"""
+  type VenuesForExerciseResult {
+    """The exercise that was searched for"""
+    exercise: ExerciseInfo!
+    """Venues that have equipment for this exercise"""
+    venues: [OutdoorVenue!]!
+    """Total number of venues found"""
+    totalFound: Int!
+    """Search radius in kilometers"""
+    searchRadius: Float!
+  }
+
+  """Basic exercise info for venue search results"""
+  type ExerciseInfo {
+    id: ID!
+    name: String!
+    equipmentRequired: [String!]!
+    locations: [String!]!
   }
 
   """User submission for a new venue"""
