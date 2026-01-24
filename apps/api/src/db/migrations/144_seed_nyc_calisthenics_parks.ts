@@ -428,9 +428,9 @@ export async function migrate(): Promise<void> {
         await db.query(
           `INSERT INTO venue_equipment_items (
              id, venue_id, equipment_type, quantity, condition,
-             is_verified, verification_count, created_at, updated_at
+             is_verified, created_at, updated_at
            ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+             $1, $2, $3, $4, $5, $6, NOW(), NOW()
            )
            ON CONFLICT (venue_id, equipment_type) DO NOTHING`,
           [
@@ -440,7 +440,6 @@ export async function migrate(): Promise<void> {
             1, // Default quantity
             'good', // Default condition
             true, // Pre-verified
-            1, // Initial verification count
           ]
         );
 
