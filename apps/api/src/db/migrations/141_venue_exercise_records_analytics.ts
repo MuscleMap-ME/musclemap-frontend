@@ -502,8 +502,8 @@ export async function up(): Promise<void> {
 
   for (const a of achievements) {
     await db.query(
-      `INSERT INTO achievement_definitions (key, name, description, icon, category, points, rarity, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO achievement_definitions (key, name, description, icon, category, points, rarity, enabled, tier, requires_verification)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'bronze', false)
        ON CONFLICT (key) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
