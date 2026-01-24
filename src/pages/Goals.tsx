@@ -5,12 +5,14 @@
  * Supports weight loss, muscle gain, strength, endurance, and more.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
+import { GOALS_QUERY, GOAL_SUGGESTIONS_QUERY } from '../graphql/queries';
+import { CREATE_GOAL_MUTATION, UPDATE_GOAL_MUTATION, DELETE_GOAL_MUTATION } from '../graphql/mutations';
 import {
   GlassSurface,
   GlassButton,
@@ -134,15 +136,22 @@ const GOAL_MUSCLE_FOCUS: Record<string, MuscleActivation[]> = {
 
 // Goal Card Component
 function GoalCard({ goal, onUpdate, onDelete, showMuscleViewer = false }) {
-  const meta = GOAL_TYPE_META[goal.goalType] || GOAL_TYPE_META.general_fitness;
+  // Map GraphQL field names to component expected names
+  const goalType = goal.type || goal.goalType;
+  const meta = GOAL_TYPE_META[goalType] || GOAL_TYPE_META.general_fitness;
   const Icon = meta.icon || Icons.Target;
 
-  const progressPercent = goal.progress || 0;
+  // Calculate progress from current/target values
+  const targetValue = goal.target ?? goal.targetValue;
+  const currentValue = goal.current ?? goal.currentValue;
+  const progressPercent = targetValue && currentValue
+    ? Math.min(100, Math.round((currentValue / targetValue) * 100))
+    : (goal.progress || 0);
   const isCompleted = goal.status === 'completed';
   const isPaused = goal.status === 'paused';
 
   // Get muscle focus for this goal type
-  const muscleFocus = GOAL_MUSCLE_FOCUS[goal.goalType];
+  const muscleFocus = GOAL_MUSCLE_FOCUS[goalType];
   const hasMuscleVisualization = showMuscleViewer && muscleFocus && muscleFocus.length > 0;
 
   return (
@@ -193,14 +202,14 @@ function GoalCard({ goal, onUpdate, onDelete, showMuscleViewer = false }) {
       )}
 
       {/* Progress */}
-      {goal.targetValue && (
+      {targetValue && (
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-[var(--text-secondary)]">
-              {goal.currentValue?.toFixed(1) || goal.startingValue?.toFixed(1) || '0'} {goal.targetUnit}
+              {currentValue?.toFixed?.(1) || '0'} {goal.unit || goal.targetUnit || ''}
             </span>
             <span className="text-[var(--text-tertiary)]">
-              Target: {goal.targetValue} {goal.targetUnit}
+              Target: {targetValue} {goal.unit || goal.targetUnit || ''}
             </span>
           </div>
           <div className="h-2 bg-[var(--glass-white-10)] rounded-full overflow-hidden">
@@ -219,15 +228,19 @@ function GoalCard({ goal, onUpdate, onDelete, showMuscleViewer = false }) {
       )}
 
       {/* Timeline */}
-      {goal.targetDate && (
+      {(goal.deadline || goal.targetDate) && (
         <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] mb-4">
           <Icons.Calendar className="w-4 h-4" />
           <span>
-            {goal.daysRemaining !== null
-              ? goal.daysRemaining > 0
-                ? `${goal.daysRemaining} days remaining`
-                : 'Target date passed'
-              : `Due ${new Date(goal.targetDate).toLocaleDateString()}`}
+            {(() => {
+              const deadline = goal.deadline || goal.targetDate;
+              const daysRemaining = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              return daysRemaining > 0
+                ? `${daysRemaining} days remaining`
+                : daysRemaining === 0
+                  ? 'Due today'
+                  : 'Target date passed';
+            })()}
           </span>
         </div>
       )}
@@ -486,32 +499,41 @@ function CreateGoalModal({ isOpen, onClose, onSubmit, suggestions }) {
 
 // Update Goal Modal
 function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
+  // Map GraphQL field names
+  const currentVal = goal?.current ?? goal?.currentValue ?? '';
+  const targetVal = goal?.target ?? goal?.targetValue ?? '';
+  const deadline = goal?.deadline || goal?.targetDate || '';
+
   const [formData, setFormData] = useState({
-    currentValue: goal?.currentValue || '',
-    targetValue: goal?.targetValue || '',
-    targetDate: goal?.targetDate ? goal.targetDate.split('T')[0] : '',
+    currentValue: currentVal,
+    targetValue: targetVal,
+    targetDate: deadline ? deadline.split('T')[0] : '',
     isPrimary: goal?.isPrimary || false,
     status: goal?.status || 'active',
-    notes: goal?.notes || '',
+    notes: goal?.description || goal?.notes || '',
   });
 
   // Update form when goal changes
   React.useEffect(() => {
     if (goal) {
+      const currVal = goal.current ?? goal.currentValue ?? '';
+      const targVal = goal.target ?? goal.targetValue ?? '';
+      const deadlineVal = goal.deadline || goal.targetDate || '';
       setFormData({
-        currentValue: goal.currentValue || '',
-        targetValue: goal.targetValue || '',
-        targetDate: goal.targetDate ? goal.targetDate.split('T')[0] : '',
+        currentValue: currVal,
+        targetValue: targVal,
+        targetDate: deadlineVal ? deadlineVal.split('T')[0] : '',
         isPrimary: goal.isPrimary || false,
         status: goal.status || 'active',
-        notes: goal.notes || '',
+        notes: goal.description || goal.notes || '',
       });
     }
   }, [goal]);
 
   if (!isOpen || !goal) return null;
 
-  const meta = GOAL_TYPE_META[goal.goalType];
+  const goalType = goal.type || goal.goalType;
+  const meta = GOAL_TYPE_META[goalType];
   const Icon = meta?.icon || Icons.Target;
 
   const handleSubmit = (e) => {
@@ -556,7 +578,7 @@ function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
                 <Icon className="w-5 h-5" style={{ color: meta?.color }} />
               </div>
               <div>
-                <div className="font-semibold text-[var(--text-primary)] text-sm">{meta?.label || goal.goalType}</div>
+                <div className="font-semibold text-[var(--text-primary)] text-sm">{meta?.label || goalType}</div>
                 <div className="text-xs text-[var(--text-tertiary)]">{meta?.description}</div>
               </div>
             </div>
@@ -566,7 +588,7 @@ function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
             {/* Current Value */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                Current Value ({goal.targetUnit || 'lbs'})
+                Current Value ({goal.unit || goal.targetUnit || 'lbs'})
               </label>
               <input
                 type="number"
@@ -580,7 +602,7 @@ function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
             {/* Target Value */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                Target Value ({goal.targetUnit || 'lbs'})
+                Target Value ({goal.unit || goal.targetUnit || 'lbs'})
               </label>
               <input
                 type="number"
@@ -674,45 +696,62 @@ function UpdateGoalModal({ isOpen, onClose, onSubmit, goal }) {
 // Main Goals Page
 export default function Goals() {
   const { user: _user } = useUser();
-  const [goals, setGoals] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [filter, setFilter] = useState('active');
 
-  useEffect(() => {
-    loadGoals();
-    loadSuggestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  // GraphQL queries
+  const { data: goalsData, loading, refetch: refetchGoals } = useQuery(GOALS_QUERY, {
+    variables: { status: filter !== 'all' ? filter : null },
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadGoals = async () => {
-    try {
-      const response = await api.get(`/goals${filter !== 'all' ? `?status=${filter}` : ''}`);
-      setGoals(response.data?.goals || []);
-    } catch {
-      // Failed to load goals
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: suggestionsData } = useQuery(GOAL_SUGGESTIONS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadSuggestions = async () => {
-    try {
-      const response = await api.get('/goals/suggestions');
-      setSuggestions(response.data?.suggestions || []);
-    } catch {
-      // Failed to load suggestions
-    }
-  };
+  // GraphQL mutations
+  const [createGoalMutation] = useMutation(CREATE_GOAL_MUTATION, {
+    onCompleted: () => {
+      setShowCreateModal(false);
+      refetchGoals();
+    },
+  });
+
+  const [updateGoalMutation] = useMutation(UPDATE_GOAL_MUTATION, {
+    onCompleted: () => {
+      setShowUpdateModal(false);
+      setSelectedGoal(null);
+      refetchGoals();
+    },
+  });
+
+  const [deleteGoalMutation] = useMutation(DELETE_GOAL_MUTATION, {
+    onCompleted: () => {
+      refetchGoals();
+    },
+  });
+
+  const goals = goalsData?.goals || [];
+  const suggestions = suggestionsData?.goalSuggestions || [];
 
   const handleCreateGoal = async (goalData) => {
     try {
-      await api.post('/goals', goalData);
-      setShowCreateModal(false);
-      loadGoals();
+      await createGoalMutation({
+        variables: {
+          input: {
+            type: goalData.goalType,
+            title: GOAL_TYPE_META[goalData.goalType]?.label || goalData.goalType,
+            description: goalData.notes || '',
+            target: goalData.targetValue ? parseFloat(goalData.targetValue) : null,
+            current: goalData.startingValue ? parseFloat(goalData.startingValue) : null,
+            unit: goalData.targetUnit,
+            deadline: goalData.targetDate || null,
+            isPrimary: goalData.isPrimary,
+          },
+        },
+      });
     } catch {
       // Failed to create goal
     }
@@ -725,10 +764,19 @@ export default function Goals() {
 
   const handleSubmitUpdate = async (goalId, updates) => {
     try {
-      await api.put(`/goals/${goalId}`, updates);
-      setShowUpdateModal(false);
-      setSelectedGoal(null);
-      loadGoals();
+      await updateGoalMutation({
+        variables: {
+          id: goalId,
+          input: {
+            target: updates.targetValue ? parseFloat(updates.targetValue) : null,
+            current: updates.currentValue ? parseFloat(updates.currentValue) : null,
+            deadline: updates.targetDate || null,
+            status: updates.status,
+            isPrimary: updates.isPrimary,
+            description: updates.notes || '',
+          },
+        },
+      });
     } catch {
       // Failed to update goal
     }
@@ -737,8 +785,9 @@ export default function Goals() {
   const handleDeleteGoal = async (goalId) => {
     if (!confirm('Are you sure you want to delete this goal?')) return;
     try {
-      await api.delete(`/goals/${goalId}`);
-      loadGoals();
+      await deleteGoalMutation({
+        variables: { id: goalId },
+      });
     } catch {
       // Failed to delete goal
     }

@@ -190,8 +190,8 @@ export const WORKOUT_QUERY = gql`
 // ============================================
 
 export const GOALS_QUERY = gql`
-  query Goals {
-    goals {
+  query Goals($status: String) {
+    goals(status: $status) {
       id
       userId
       type
@@ -202,8 +202,22 @@ export const GOALS_QUERY = gql`
       unit
       deadline
       status
+      isPrimary
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const GOAL_SUGGESTIONS_QUERY = gql`
+  query GoalSuggestions {
+    goalSuggestions {
+      type
+      title
+      description
+      target
+      unit
+      reason
     }
   }
 `;

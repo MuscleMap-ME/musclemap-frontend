@@ -680,25 +680,33 @@ export const resolvers = {
     },
 
     // Goals
-    goals: async (_: unknown, __: unknown, context: Context) => {
+    goals: async (_: unknown, args: { status?: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      const goals = await queryAll(
-        `SELECT id, user_id, type, title, description, target, current_value, unit,
-                deadline, status, created_at, updated_at
-         FROM goals WHERE user_id = $1 ORDER BY created_at DESC`,
-        [userId]
-      );
+      let query = `SELECT id, user_id, goal_type, target_value, target_unit, starting_value,
+                          current_value, target_date, status, is_primary, notes, created_at, updated_at
+                   FROM user_goals WHERE user_id = $1`;
+      const params: any[] = [userId];
+
+      if (args.status) {
+        query += ' AND status = $2';
+        params.push(args.status);
+      }
+
+      query += ' ORDER BY is_primary DESC, created_at DESC';
+
+      const goals = await queryAll(query, params);
       return goals.map((g: any) => ({
         id: g.id,
         userId: g.user_id,
-        type: g.type,
-        title: g.title,
-        description: g.description,
-        target: g.target,
-        current: g.current_value,
-        unit: g.unit,
-        deadline: g.deadline,
+        type: g.goal_type,
+        title: g.goal_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Goal',
+        description: g.notes || '',
+        target: g.target_value ? parseFloat(g.target_value) : null,
+        current: g.current_value ? parseFloat(g.current_value) : null,
+        unit: g.target_unit,
+        deadline: g.target_date,
         status: g.status,
+        isPrimary: g.is_primary,
         createdAt: g.created_at,
         updatedAt: g.updated_at,
       }));
@@ -2876,19 +2884,21 @@ export const resolvers = {
       const goal = await queryOne<{
         id: string;
         user_id: string;
-        type: string;
-        title: string;
-        description: string | null;
-        target: number;
-        current_value: number;
-        unit: string;
-        deadline: Date | null;
+        goal_type: string;
+        target_value: string | null;
+        target_unit: string | null;
+        starting_value: string | null;
+        current_value: string | null;
+        target_date: Date | null;
         status: string;
+        is_primary: boolean;
+        notes: string | null;
         created_at: Date;
         updated_at: Date;
       }>(
-        `SELECT id, user_id, type, title, description, target, current_value, unit, deadline, status, created_at, updated_at
-         FROM goals WHERE id = $1 AND user_id = $2`,
+        `SELECT id, user_id, goal_type, target_value, target_unit, starting_value,
+                current_value, target_date, status, is_primary, notes, created_at, updated_at
+         FROM user_goals WHERE id = $1 AND user_id = $2`,
         [args.id, userId]
       );
 
@@ -2901,33 +2911,34 @@ export const resolvers = {
         id: string;
         goal_id: string;
         title: string;
-        target: number;
-        achieved: boolean;
+        target_value: string;
+        is_achieved: boolean;
         achieved_at: Date | null;
       }>(
-        `SELECT id, goal_id, title, target, achieved, achieved_at
+        `SELECT id, goal_id, title, target_value, is_achieved, achieved_at
          FROM goal_milestones WHERE goal_id = $1
-         ORDER BY target`,
+         ORDER BY target_value`,
         [args.id]
       );
 
       return {
         id: goal.id,
         userId: goal.user_id,
-        type: goal.type,
-        title: goal.title,
-        description: goal.description,
-        target: goal.target,
-        current: goal.current_value,
-        unit: goal.unit,
-        deadline: goal.deadline,
+        type: goal.goal_type,
+        title: goal.goal_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Goal',
+        description: goal.notes || '',
+        target: goal.target_value ? parseFloat(goal.target_value) : null,
+        current: goal.current_value ? parseFloat(goal.current_value) : null,
+        unit: goal.target_unit,
+        deadline: goal.target_date,
         status: goal.status,
+        isPrimary: goal.is_primary,
         milestones: milestones.map(m => ({
           id: m.id,
           goalId: m.goal_id,
           title: m.title,
-          target: m.target,
-          achieved: m.achieved,
+          target: m.target_value ? parseFloat(m.target_value) : 0,
+          achieved: m.is_achieved,
           achievedAt: m.achieved_at,
         })),
         createdAt: goal.created_at,
@@ -2960,11 +2971,11 @@ export const resolvers = {
       const totalTu = parseInt(stats?.total_tu || '0', 10);
 
       // Get existing goals to avoid duplicates
-      const existingGoals = await queryAll<{ type: string }>(
-        `SELECT type FROM goals WHERE user_id = $1 AND status = 'active'`,
+      const existingGoals = await queryAll<{ goal_type: string }>(
+        `SELECT goal_type FROM user_goals WHERE user_id = $1 AND status = 'active'`,
         [userId]
       );
-      const existingTypes = new Set(existingGoals.map(g => g.type));
+      const existingTypes = new Set(existingGoals.map(g => g.goal_type));
 
       const suggestions: Array<{
         type: string;
@@ -3999,7 +4010,7 @@ export const resolvers = {
       `, [userId]);
 
       const goals = await queryAll<any>(`
-        SELECT * FROM goals WHERE user_id = $1 AND status = 'active'
+        SELECT * FROM user_goals WHERE user_id = $1 AND status = 'active'
       `, [userId]);
 
       return {
@@ -4008,7 +4019,11 @@ export const resolvers = {
         archetype: user?.archetype_id ? { id: user.archetype_id, name: user.archetype_name } : null,
         focusAreas: user?.focus_areas || [],
         recentWorkoutCount: recentWorkouts?.count || 0,
-        activeGoals: goals.map((g: any) => ({ id: g.id, type: g.type, title: g.title })),
+        activeGoals: goals.map((g: any) => ({
+          id: g.id,
+          type: g.goal_type,
+          title: g.goal_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Goal',
+        })),
         preferences: user?.preferences || {},
       };
     },
@@ -5884,27 +5899,36 @@ export const resolvers = {
     // Goals
     createGoal: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { type, title, description, target, unit, deadline } = args.input;
+      const { type, title, description, target, current, unit, deadline, isPrimary } = args.input;
 
       const goalId = `goal_${crypto.randomBytes(12).toString('hex')}`;
 
+      // If setting as primary, unset any existing primary goal
+      if (isPrimary) {
+        await query(
+          `UPDATE user_goals SET is_primary = FALSE WHERE user_id = $1 AND is_primary = TRUE`,
+          [userId]
+        );
+      }
+
       await query(
-        `INSERT INTO goals (id, user_id, type, title, description, target, current_value, unit, deadline, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, 'active')`,
-        [goalId, userId, type, title, description, target, unit, deadline]
+        `INSERT INTO user_goals (id, user_id, goal_type, target_value, target_unit, current_value, target_date, status, is_primary, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9)`,
+        [goalId, userId, type, target, unit, current || 0, deadline, isPrimary || false, description || null]
       );
 
       return {
         id: goalId,
         userId,
         type,
-        title,
-        description,
+        title: title || type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Goal',
+        description: description || '',
         target,
-        current: 0,
+        current: current || 0,
         unit,
         deadline,
         status: 'active',
+        isPrimary: isPrimary || false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -5912,7 +5936,7 @@ export const resolvers = {
 
     deleteGoal: async (_: unknown, args: { id: string }, context: Context) => {
       const { userId } = requireAuth(context);
-      await query('DELETE FROM goals WHERE id = $1 AND user_id = $2', [args.id, userId]);
+      await query('DELETE FROM user_goals WHERE id = $1 AND user_id = $2', [args.id, userId]);
       return true;
     },
 
@@ -8758,13 +8782,13 @@ export const resolvers = {
     },
 
     // Goal System
-    updateGoal: async (_: unknown, args: { goalId: string; input: any }, context: Context) => {
+    updateGoal: async (_: unknown, args: { id: string; input: any }, context: Context) => {
       const { userId } = requireAuth(context);
-      const { title, description, target, deadline } = args.input;
+      const { target, current, deadline, status, isPrimary, description } = args.input;
 
       const goal = await queryOne<{ user_id: string }>(
-        'SELECT user_id FROM goals WHERE id = $1',
-        [args.goalId]
+        'SELECT user_id FROM user_goals WHERE id = $1',
+        [args.id]
       );
 
       if (!goal) {
@@ -8775,30 +8799,41 @@ export const resolvers = {
         throw new GraphQLError('Cannot update another user\'s goal', { extensions: { code: 'FORBIDDEN' } });
       }
 
+      // If setting as primary, unset any existing primary goal
+      if (isPrimary) {
+        await query(
+          `UPDATE user_goals SET is_primary = FALSE WHERE user_id = $1 AND is_primary = TRUE AND id != $2`,
+          [userId, args.id]
+        );
+      }
+
       await query(
-        `UPDATE goals SET
-          title = COALESCE($2, title),
-          description = COALESCE($3, description),
-          target = COALESCE($4, target),
-          deadline = COALESCE($5, deadline),
+        `UPDATE user_goals SET
+          target_value = COALESCE($2, target_value),
+          current_value = COALESCE($3, current_value),
+          target_date = COALESCE($4, target_date),
+          status = COALESCE($5, status),
+          is_primary = COALESCE($6, is_primary),
+          notes = COALESCE($7, notes),
           updated_at = NOW()
          WHERE id = $1`,
-        [args.goalId, title, description, target, deadline]
+        [args.id, target, current, deadline, status, isPrimary, description]
       );
 
-      const updated = await queryOne<any>('SELECT * FROM goals WHERE id = $1', [args.goalId]);
+      const updated = await queryOne<any>('SELECT * FROM user_goals WHERE id = $1', [args.id]);
 
       return {
         id: updated.id,
         userId: updated.user_id,
-        type: updated.type,
-        title: updated.title,
-        description: updated.description,
-        target: updated.target,
-        current: updated.current_value,
-        unit: updated.unit,
-        deadline: updated.deadline,
+        type: updated.goal_type,
+        title: updated.goal_type?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Goal',
+        description: updated.notes || '',
+        target: updated.target_value ? parseFloat(updated.target_value) : null,
+        current: updated.current_value ? parseFloat(updated.current_value) : null,
+        unit: updated.target_unit,
+        deadline: updated.target_date,
         status: updated.status,
+        isPrimary: updated.is_primary,
         createdAt: updated.created_at,
         updatedAt: updated.updated_at,
       };
@@ -8807,8 +8842,8 @@ export const resolvers = {
     recordGoalProgress: async (_: unknown, args: { goalId: string; value: number; note?: string }, context: Context) => {
       const { userId } = requireAuth(context);
 
-      const goal = await queryOne<{ user_id: string; current_value: number; target: number }>(
-        'SELECT user_id, current_value, target FROM goals WHERE id = $1',
+      const goal = await queryOne<{ user_id: string; current_value: string | null; target_value: string | null }>(
+        'SELECT user_id, current_value, target_value FROM user_goals WHERE id = $1',
         [args.goalId]
       );
 
@@ -8820,30 +8855,33 @@ export const resolvers = {
         throw new GraphQLError('Cannot update another user\'s goal', { extensions: { code: 'FORBIDDEN' } });
       }
 
-      const newValue = (goal.current_value || 0) + args.value;
+      const currentValue = goal.current_value ? parseFloat(goal.current_value) : 0;
+      const targetValue = goal.target_value ? parseFloat(goal.target_value) : 0;
+      const newValue = currentValue + args.value;
 
       await query(
-        `UPDATE goals SET current_value = $2, updated_at = NOW() WHERE id = $1`,
+        `UPDATE user_goals SET current_value = $2, updated_at = NOW() WHERE id = $1`,
         [args.goalId, newValue]
       );
 
       // Log progress entry
       await query(
-        `INSERT INTO goal_progress (goal_id, user_id, value, note) VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO goal_progress (goal_id, user_id, date, value, notes) VALUES ($1, $2, CURRENT_DATE, $3, $4)
+         ON CONFLICT (goal_id, date) DO UPDATE SET value = goal_progress.value + EXCLUDED.value, notes = COALESCE(EXCLUDED.notes, goal_progress.notes)`,
         [args.goalId, userId, args.value, args.note]
       );
 
       // Check if goal is completed
-      const completed = newValue >= goal.target;
+      const completed = targetValue > 0 && newValue >= targetValue;
       if (completed) {
-        await query(`UPDATE goals SET status = 'completed', completed_at = NOW() WHERE id = $1`, [args.goalId]);
+        await query(`UPDATE user_goals SET status = 'completed', completed_at = NOW() WHERE id = $1`, [args.goalId]);
       }
 
       return {
         goalId: args.goalId,
         newValue,
         completed,
-        progress: Math.min(100, Math.round((newValue / goal.target) * 100)),
+        progress: targetValue > 0 ? Math.min(100, Math.round((newValue / targetValue) * 100)) : 0,
       };
     },
 
@@ -9104,7 +9142,7 @@ export const resolvers = {
 
       // Verify goal ownership
       const goal = await queryOne<{ user_id: string }>(
-        'SELECT user_id FROM goals WHERE id = $1',
+        'SELECT user_id FROM user_goals WHERE id = $1',
         [goalId]
       );
 
@@ -9117,9 +9155,9 @@ export const resolvers = {
       const milestoneId = `milestone_${crypto.randomBytes(12).toString('hex')}`;
 
       await query(
-        `INSERT INTO goal_milestones (id, goal_id, title, target_value, achieved)
-         VALUES ($1, $2, $3, $4, false)`,
-        [milestoneId, goalId, input.title, input.target]
+        `INSERT INTO goal_milestones (id, goal_id, user_id, title, target_value, is_achieved)
+         VALUES ($1, $2, $3, $4, $5, false)`,
+        [milestoneId, goalId, userId, input.title, input.target]
       );
 
       return {

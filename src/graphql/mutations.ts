@@ -158,6 +158,26 @@ export const CREATE_GOAL_MUTATION = gql`
   }
 `;
 
+export const UPDATE_GOAL_MUTATION = gql`
+  mutation UpdateGoal($id: ID!, $input: GoalInput!) {
+    updateGoal(id: $id, input: $input) {
+      id
+      userId
+      type
+      title
+      description
+      target
+      current
+      unit
+      deadline
+      status
+      isPrimary
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const DELETE_GOAL_MUTATION = gql`
   mutation DeleteGoal($id: ID!) {
     deleteGoal(id: $id)

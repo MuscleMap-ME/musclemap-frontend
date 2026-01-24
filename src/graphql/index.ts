@@ -37,6 +37,7 @@ export {
 
   // Goals
   GOALS_QUERY,
+  GOAL_SUGGESTIONS_QUERY,
 
   // Journey & Archetypes
   JOURNEY_QUERY,
@@ -197,6 +198,7 @@ export {
 
   // Goals
   CREATE_GOAL_MUTATION,
+  UPDATE_GOAL_MUTATION,
   DELETE_GOAL_MUTATION,
 
   // Archetypes
