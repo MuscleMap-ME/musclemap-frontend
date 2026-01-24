@@ -261,7 +261,8 @@ export async function up(): Promise<void> {
 
     await db.query(`CREATE INDEX idx_vl_venue ON venue_leaderboards(venue_id)`);
     await db.query(`CREATE INDEX idx_vl_exercise ON venue_leaderboards(exercise_id)`);
-    await db.query(`CREATE INDEX idx_vl_stale ON venue_leaderboards(stale_at) WHERE stale_at < NOW()`);
+    // Note: Removed partial index with WHERE stale_at < NOW() - NOW() is not immutable
+    await db.query(`CREATE INDEX idx_vl_stale ON venue_leaderboards(stale_at)`);
   }
 
   // ============================================
@@ -295,7 +296,8 @@ export async function up(): Promise<void> {
     `);
 
     await db.query(`CREATE INDEX idx_gel_exercise ON global_exercise_leaderboards(exercise_id)`);
-    await db.query(`CREATE INDEX idx_gel_stale ON global_exercise_leaderboards(stale_at) WHERE stale_at < NOW()`);
+    // Note: Removed partial index with WHERE stale_at < NOW() - NOW() is not immutable
+    await db.query(`CREATE INDEX idx_gel_stale ON global_exercise_leaderboards(stale_at)`);
   }
 
   // ============================================
