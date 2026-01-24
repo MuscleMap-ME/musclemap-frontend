@@ -405,7 +405,6 @@ export async function up(): Promise<void> {
       icon: '🏆',
       category: 'milestone',
       points: 50,
-      xp: 100,
       rarity: 'common',
       enabled: true
     },
@@ -416,7 +415,6 @@ export async function up(): Promise<void> {
       icon: '🏠',
       category: 'milestone',
       points: 200,
-      xp: 400,
       rarity: 'uncommon',
       enabled: true
     },
@@ -427,7 +425,6 @@ export async function up(): Promise<void> {
       icon: '🗺️',
       category: 'milestone',
       points: 300,
-      xp: 600,
       rarity: 'rare',
       enabled: true
     },
@@ -438,7 +435,6 @@ export async function up(): Promise<void> {
       icon: '💥',
       category: 'record',
       points: 150,
-      xp: 300,
       rarity: 'uncommon',
       enabled: true
     },
@@ -449,7 +445,6 @@ export async function up(): Promise<void> {
       icon: '👑',
       category: 'top_rank',
       points: 500,
-      xp: 1000,
       rarity: 'epic',
       enabled: true
     },
@@ -460,7 +455,6 @@ export async function up(): Promise<void> {
       icon: '✅',
       category: 'social',
       points: 100,
-      xp: 200,
       rarity: 'common',
       enabled: true
     },
@@ -471,7 +465,6 @@ export async function up(): Promise<void> {
       icon: '🔥',
       category: 'top_rank',
       points: 750,
-      xp: 1500,
       rarity: 'legendary',
       enabled: true
     },
@@ -482,7 +475,6 @@ export async function up(): Promise<void> {
       icon: '🌍',
       category: 'top_rank',
       points: 1000,
-      xp: 2000,
       rarity: 'legendary',
       enabled: true
     },
@@ -493,7 +485,6 @@ export async function up(): Promise<void> {
       icon: '🤝',
       category: 'social',
       points: 50,
-      xp: 100,
       rarity: 'common',
       enabled: true
     },
@@ -504,7 +495,6 @@ export async function up(): Promise<void> {
       icon: '👁️',
       category: 'social',
       points: 200,
-      xp: 400,
       rarity: 'uncommon',
       enabled: true
     }
@@ -512,16 +502,15 @@ export async function up(): Promise<void> {
 
   for (const a of achievements) {
     await db.query(
-      `INSERT INTO achievement_definitions (key, name, description, icon, category, points, xp, rarity, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO achievement_definitions (key, name, description, icon, category, points, rarity, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (key) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
          icon = EXCLUDED.icon,
          points = EXCLUDED.points,
-         xp = EXCLUDED.xp,
          rarity = EXCLUDED.rarity`,
-      [a.key, a.name, a.description, a.icon, a.category, a.points, a.xp, a.rarity, a.enabled]
+      [a.key, a.name, a.description, a.icon, a.category, a.points, a.rarity, a.enabled]
     );
   }
 
