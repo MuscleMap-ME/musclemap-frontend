@@ -980,7 +980,6 @@ export const outdoorEquipmentQueries = {
         SELECT id, name, primary_muscles, equipment_required, description, difficulty
         FROM exercises
         WHERE (equipment_required IS NULL OR equipment_required = '[]'::jsonb)
-        AND is_active = true
       `;
 
       if (muscleGroup) {
@@ -1031,8 +1030,7 @@ export const outdoorEquipmentQueries = {
     let sql = `
       SELECT id, name, primary_muscles, equipment_required, description, difficulty
       FROM exercises
-      WHERE is_active = true
-      AND (
+      WHERE (
         equipment_required IS NULL
         OR equipment_required = '[]'::jsonb
         OR EXISTS (
