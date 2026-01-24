@@ -884,41 +884,40 @@ export const outdoorEquipmentQueries = {
     const canDoAtPark = (exercise.locations || []).includes('park') ||
                         exerciseEquipment.length === 0; // Bodyweight
 
+    // Use NYC center as default if no coordinates provided
+    const searchLat = latitude ?? 40.7128;
+    const searchLng = longitude ?? -74.006;
+
     // Build the query
-    const params: (string | number | string[])[] = [];
+    const params: (string | number | string[] | null)[] = [];
     let paramIndex = 1;
 
     let sql = `
       SELECT DISTINCT fv.*,
-        CASE WHEN $${paramIndex} IS NOT NULL AND $${paramIndex + 1} IS NOT NULL
-          THEN (
-            6371 * acos(
-              cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
-              cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
-              sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
-            )
+        (
+          6371 * acos(
+            cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
+            cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
+            sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
           )
-          ELSE NULL
-        END as distance
+        ) as distance
       FROM fitness_venues fv
       WHERE fv.is_active = true
     `;
 
-    params.push(latitude ?? 40.7128, longitude ?? -74.006); // Default to NYC center
+    params.push(searchLat, searchLng);
     paramIndex += 2;
 
     // Filter by distance
-    if (latitude && longitude) {
-      sql += ` AND (
-        6371 * acos(
-          cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
-          cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
-          sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
-        )
-      ) <= $${paramIndex + 2}::numeric`;
-      params.push(latitude, longitude, maxDist);
-      paramIndex += 3;
-    }
+    sql += ` AND (
+      6371 * acos(
+        cos(radians($${paramIndex}::numeric)) * cos(radians(fv.latitude)) *
+        cos(radians(fv.longitude) - radians($${paramIndex + 1}::numeric)) +
+        sin(radians($${paramIndex}::numeric)) * sin(radians(fv.latitude))
+      )
+    ) <= $${paramIndex + 2}::numeric`;
+    params.push(searchLat, searchLng, maxDist);
+    paramIndex += 3;
 
     // Filter by equipment if exercise requires any
     if (venueEquipmentTypes.length > 0) {
