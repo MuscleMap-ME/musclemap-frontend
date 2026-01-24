@@ -334,7 +334,7 @@ export const typeDefs = `#graphql
     trainerClasses(input: TrainerClassesInput): TrainerClassesResult!
     trainerClass(classId: ID!): TrainerClass
     myTrainerClasses(status: String, limit: Int, offset: Int): TrainerClassesResult!
-    myEnrollments(status: String, limit: Int, offset: Int): EnrollmentsResult!
+    myClassEnrollments(status: String, limit: Int, offset: Int): EnrollmentsResult!
     classEnrollments(classId: ID!): [ClassEnrollment!]!
     classAttendance(classId: ID!): [ClassAttendance!]!
 
