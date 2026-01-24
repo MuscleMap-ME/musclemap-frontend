@@ -1,6 +1,6 @@
 import React, { lazy, useState, useEffect, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// NOTE: motion import removed - we use SafeMotion exclusively for iOS Lockdown Mode / Brave compatibility
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
 import { MuscleHeroAnimation } from '../components/landing';
@@ -16,6 +16,7 @@ import { SafeMotion } from '../utils/safeMotion';
 const SafeMotionDiv = SafeMotion.div;
 const SafeMotionH1 = SafeMotion.h1;
 const SafeMotionA = SafeMotion.a;
+const SafeMotionSpan = SafeMotion.span;
 
 // Lazy load heavy visualization components (D3/Three.js)
 const LiveCommunityStats = lazy(() => import('../components/landing/LiveCommunityStats'));
@@ -778,7 +779,7 @@ export default function Landing() {
             <div className="mt-8 pt-6 border-t border-white/5">
               <div className="flex flex-wrap justify-center gap-2">
                 {['React', 'TypeScript', 'Fastify', 'Caddy', 'React Native', 'Expo'].map((tech, i) => (
-                  <motion.span
+                  <SafeMotionSpan
                     key={tech}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -786,7 +787,7 @@ export default function Landing() {
                     className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400 font-mono"
                   >
                     {tech}
-                  </motion.span>
+                  </SafeMotionSpan>
                 ))}
               </div>
               <p className="text-center text-xs text-gray-600 mt-3">

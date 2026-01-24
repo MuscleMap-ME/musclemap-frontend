@@ -295,16 +295,16 @@ export function useLiveActivity(options: UseLiveActivityOptions = {}) {
   return {
     // Data
     stats,
-    mapData,
+    mapData: _mapData,
     feed,
-    trending,
+    trending: _trending,
     activityByMuscle,
     activityByCountry,
 
     // State
     loading,
     connected,
-    error,
+    error: _error,
     timeWindow,
 
     // Actions
