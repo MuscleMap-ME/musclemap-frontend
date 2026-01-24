@@ -51,8 +51,7 @@ export async function up(): Promise<void> {
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
     LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
-    LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-    WHERE COALESCE(ups.show_on_leaderboards, true) = true
+    WHERE COALESCE(up.leaderboard_opt_in, true) = true
   `);
 
   // Unique index required for CONCURRENTLY refresh
@@ -100,8 +99,7 @@ export async function up(): Promise<void> {
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
     LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
-    LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-    WHERE COALESCE(ups.show_on_leaderboards, true) = true
+    WHERE COALESCE(up.leaderboard_opt_in, true) = true
       AND up.country IS NOT NULL
   `);
 
@@ -145,8 +143,7 @@ export async function up(): Promise<void> {
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
     LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
-    LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-    WHERE COALESCE(ups.show_on_leaderboards, true) = true
+    WHERE COALESCE(up.leaderboard_opt_in, true) = true
       AND up.state IS NOT NULL
   `);
 
@@ -190,8 +187,7 @@ export async function up(): Promise<void> {
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
     LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
-    LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-    WHERE COALESCE(ups.show_on_leaderboards, true) = true
+    WHERE COALESCE(up.leaderboard_opt_in, true) = true
       AND up.city IS NOT NULL
   `);
 
