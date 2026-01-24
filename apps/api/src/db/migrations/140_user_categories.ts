@@ -8,6 +8,8 @@
  * - friends_family: Friends and family early users
  * - public: Regular public users
  * - test: Test/automated accounts (excluded from stats)
+ *
+ * DESTRUCTIVE: Down migration drops user_category column, indexes, and trigger
  */
 
 import { query, queryOne } from '../client';

@@ -286,7 +286,7 @@ export default function EmpireControl() {
   const [metrics, setMetrics] = useState(null);
   const [metricsHistory, setMetricsHistory] = useState([]);
   const [users, setUsers] = useState([]);
-  const [totalUsers, setTotalUsers] = useState(0);
+  const [_totalUsers, setTotalUsers] = useState(0);
   const [_userStats, _setUserStats] = useState({
     total: 0,
     byCategory: {
