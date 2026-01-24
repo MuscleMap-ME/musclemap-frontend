@@ -184,6 +184,9 @@ export const typeDefs = `#graphql
     personalizationPlan: PersonalPlan
     personalizationSummary: PersonalizationSummary
 
+    # Personal Records
+    myPersonalRecords(limit: Int, recordType: String): [PersonalRecord!]!
+
     # Prescription
     prescription(id: ID!): Prescription
 

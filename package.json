@@ -125,6 +125,10 @@
     "optimize:images": "sh ./scripts/convert-icons-webp.sh",
     "migrate:barrel-imports": "node scripts/migrate-barrel-imports.mjs",
     "migrate:barrel-imports:dry": "node scripts/migrate-barrel-imports.mjs --dry-run",
+    "venue:sync": "npx tsx scripts/sync-venue-data.ts",
+    "venue:sync:osm": "npx tsx scripts/sync-venue-data.ts --source=osm",
+    "venue:sync:nyc": "npx tsx scripts/sync-venue-data.ts --source=nyc",
+    "venue:sync:dry": "npx tsx scripts/sync-venue-data.ts --dry-run",
     "prepare": "husky"
   },
   "lint-staged": {

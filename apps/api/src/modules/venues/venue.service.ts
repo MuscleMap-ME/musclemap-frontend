@@ -803,6 +803,207 @@ export const venueService = {
       })),
     };
   },
+
+  // ============================================
+  // DEDUPLICATION
+  // ============================================
+
+  /**
+   * Find potential duplicate venues within a radius
+   * Uses Haversine formula to calculate distance
+   */
+  async findNearbyDuplicates(
+    latitude: number,
+    longitude: number,
+    radiusMeters: number = 50,
+    excludeId?: string
+  ): Promise<Array<{ id: string; name: string; distance: number; dataSource: string }>> {
+    const radiusKm = radiusMeters / 1000;
+
+    const rows = await queryAll<{ id: string; name: string; distance_km: string; data_source: string }>(
+      `SELECT id, name, data_source,
+        (6371 * acos(
+          LEAST(1, GREATEST(-1,
+            cos(radians($1)) * cos(radians(latitude)) *
+            cos(radians(longitude) - radians($2)) +
+            sin(radians($1)) * sin(radians(latitude))
+          ))
+        )) AS distance_km
+       FROM fitness_venues
+       WHERE is_active = TRUE
+         ${excludeId ? 'AND id != $4' : ''}
+         AND (6371 * acos(
+           LEAST(1, GREATEST(-1,
+             cos(radians($1)) * cos(radians(latitude)) *
+             cos(radians(longitude) - radians($2)) +
+             sin(radians($1)) * sin(radians(latitude))
+           ))
+         )) < $3
+       ORDER BY distance_km ASC
+       LIMIT 10`,
+      excludeId ? [latitude, longitude, radiusKm, excludeId] : [latitude, longitude, radiusKm]
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      distance: parseFloat(row.distance_km) * 1000, // Convert back to meters
+      dataSource: row.data_source,
+    }));
+  },
+
+  /**
+   * Merge duplicate venues into a single venue
+   * Keeps the venue with the richest data (most equipment, photos, verifications)
+   * Preserves all external IDs and data sources
+   */
+  async mergeVenues(
+    primaryVenueId: string,
+    duplicateVenueIds: string[]
+  ): Promise<{ merged: number; failed: number }> {
+    let merged = 0;
+    let failed = 0;
+
+    for (const duplicateId of duplicateVenueIds) {
+      try {
+        // Get both venues
+        const primary = await this.getVenueById(primaryVenueId);
+        const duplicate = await this.getVenueById(duplicateId);
+
+        if (!primary || !duplicate) {
+          failed++;
+          continue;
+        }
+
+        // Merge equipment (combine unique items)
+        const mergedEquipment = [...new Set([...primary.equipment, ...duplicate.equipment])];
+
+        // Merge photos (combine unique items)
+        const mergedPhotos = [...new Set([...primary.photos, ...duplicate.photos])];
+
+        // Update primary venue with merged data
+        await query(
+          `UPDATE fitness_venues SET
+            equipment = $2::jsonb,
+            photos = $3::jsonb,
+            has_calisthenics_equipment = $4,
+            has_cardio_equipment = $5,
+            verification_count = GREATEST(verification_count, $6),
+            updated_at = NOW()
+           WHERE id = $1`,
+          [
+            primaryVenueId,
+            JSON.stringify(mergedEquipment),
+            JSON.stringify(mergedPhotos),
+            mergedEquipment.some((e) =>
+              ['pull_up_bar', 'parallel_bars', 'dip_station', 'rings', 'monkey_bars'].includes(e)
+            ),
+            mergedEquipment.some((e) =>
+              ['elliptical_outdoor', 'stationary_bike_outdoor', 'rowing_machine_outdoor'].includes(e)
+            ),
+            duplicate.isVerified ? 1 : 0,
+          ]
+        );
+
+        // Move all check-ins, records, and memberships to primary venue
+        await query('UPDATE venue_checkins SET venue_id = $1 WHERE venue_id = $2', [primaryVenueId, duplicateId]);
+        await query('UPDATE venue_records SET venue_id = $1 WHERE venue_id = $2', [primaryVenueId, duplicateId]);
+        await query('UPDATE venue_memberships SET venue_id = $1 WHERE venue_id = $2', [primaryVenueId, duplicateId]);
+        await query('UPDATE venue_contributions SET venue_id = $1 WHERE venue_id = $2', [primaryVenueId, duplicateId]);
+
+        // Deactivate the duplicate venue (keep for historical reference)
+        await query(
+          `UPDATE fitness_venues SET
+            is_active = FALSE,
+            flag_reason = $2,
+            updated_at = NOW()
+           WHERE id = $1`,
+          [duplicateId, `Merged into venue ${primaryVenueId}`]
+        );
+
+        merged++;
+        log.info({ primaryVenueId, duplicateId }, 'Merged duplicate venue');
+      } catch (error) {
+        log.error({ error, primaryVenueId, duplicateId }, 'Failed to merge venue');
+        failed++;
+      }
+    }
+
+    return { merged, failed };
+  },
+
+  /**
+   * Run deduplication across all venues from a specific data source
+   * Groups nearby venues and suggests merges
+   */
+  async findAllDuplicates(options: {
+    dataSource?: string;
+    radiusMeters?: number;
+    limit?: number;
+  } = {}): Promise<Array<{
+    primaryVenue: { id: string; name: string; dataSource: string };
+    duplicates: Array<{ id: string; name: string; distance: number; dataSource: string }>;
+  }>> {
+    const { dataSource, radiusMeters = 50, limit = 100 } = options;
+
+    // Get all venues, ordered by verification/richness
+    const conditions = ['is_active = TRUE'];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (dataSource) {
+      conditions.push(`data_source = $${paramIndex}`);
+      values.push(dataSource);
+      paramIndex++;
+    }
+
+    values.push(limit);
+
+    const venues = await queryAll<{ id: string; name: string; latitude: string; longitude: string; data_source: string }>(
+      `SELECT id, name, latitude, longitude, data_source
+       FROM fitness_venues
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY is_verified DESC, verification_count DESC, created_at ASC
+       LIMIT $${paramIndex}`,
+      values
+    );
+
+    const duplicateGroups: Array<{
+      primaryVenue: { id: string; name: string; dataSource: string };
+      duplicates: Array<{ id: string; name: string; distance: number; dataSource: string }>;
+    }> = [];
+
+    const processedIds = new Set<string>();
+
+    for (const venue of venues) {
+      if (processedIds.has(venue.id)) continue;
+
+      const duplicates = await this.findNearbyDuplicates(
+        parseFloat(venue.latitude),
+        parseFloat(venue.longitude),
+        radiusMeters,
+        venue.id
+      );
+
+      // Filter out already processed venues
+      const unprocessedDuplicates = duplicates.filter((d) => !processedIds.has(d.id));
+
+      if (unprocessedDuplicates.length > 0) {
+        duplicateGroups.push({
+          primaryVenue: { id: venue.id, name: venue.name, dataSource: venue.data_source },
+          duplicates: unprocessedDuplicates,
+        });
+
+        // Mark all as processed
+        processedIds.add(venue.id);
+        for (const dup of unprocessedDuplicates) {
+          processedIds.add(dup.id);
+        }
+      }
+    }
+
+    return duplicateGroups;
+  },
 };
 
 export default venueService;

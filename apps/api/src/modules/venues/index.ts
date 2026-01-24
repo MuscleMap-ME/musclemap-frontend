@@ -26,6 +26,7 @@ export { locationVerificationService } from './location-verification.service';
 // Data ingestion services
 export { nycDataIngestionService } from './nyc-data-ingestion.service';
 export { osmDataIngestionService } from './osm-data-ingestion.service';
+export { calisthenicsParksIngestionService } from './calisthenics-parks-ingestion.service';
 
 // Crowdsourcing service
 export { crowdsourcingService } from './crowdsourcing.service';

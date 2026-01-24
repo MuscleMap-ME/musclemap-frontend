@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import {
   Box,
   Container,
@@ -36,17 +37,51 @@ import StarIcon from '@mui/icons-material/Star';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { api } from '../utils/api';
+import { useAuth } from '../store';
+import { MY_ENTITLEMENTS_QUERY, MY_WALLET_INFO_QUERY } from '../graphql/queries';
+import { TRANSFER_CREDITS_BY_USERNAME_MUTATION } from '../graphql/mutations';
 
-const VIP_TIERS = {
+// Types
+interface Entitlements {
+  unlimited: boolean;
+  reason: string;
+  trialEndsAt: string | null;
+  subscriptionEndsAt: string | null;
+  creditBalance: number;
+  creditsVisible: boolean;
+  daysLeftInTrial: number | null;
+}
+
+interface WalletTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  action: string | null;
+  createdAt: string;
+}
+
+interface WalletInfo {
+  balance: number;
+  lifetimeEarned: number;
+  lifetimeSpent: number;
+  totalTransferredOut: number;
+  totalTransferredIn: number;
+  status: string;
+  vipTier: string;
+  transactions: WalletTransaction[];
+}
+
+const VIP_TIERS: Record<string, { color: string; min: number; discount: number }> = {
+  broke: { color: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)', min: 0, discount: 0 },
   bronze: { color: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)', min: 0, discount: 0 },
   silver: { color: 'linear-gradient(135deg, #9ca3af 0%, #4b5563 100%)', min: 100, discount: 5 },
   gold: { color: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', min: 500, discount: 10 },
   platinum: { color: 'linear-gradient(135deg, #67e8f9 0%, #3b82f6 100%)', min: 2000, discount: 15 },
   diamond: { color: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', min: 10000, discount: 20 },
+  obsidian: { color: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)', min: 1000000, discount: 25 },
 };
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr: string): string => {
   try {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -56,11 +91,8 @@ const formatDate = (dateStr) => {
 };
 
 export default function Wallet() {
+  const { isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
-  const [wallet, setWallet] = useState(null);
-  const [entitlements, setEntitlements] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
@@ -68,49 +100,74 @@ export default function Wallet() {
   const [sendMessage, setSendMessage] = useState('');
   const [subscribing, setSubscribing] = useState(false);
   const [buyingCredits, setBuyingCredits] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
 
+  // GraphQL queries
+  const { data: entitlementsData, loading: entitlementsLoading, refetch: refetchEntitlements } = useQuery<{ myEntitlements: Entitlements }>(
+    MY_ENTITLEMENTS_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  const { data: walletData, loading: walletLoading, refetch: refetchWallet } = useQuery<{ myWalletInfo: WalletInfo }>(
+    MY_WALLET_INFO_QUERY,
+    {
+      skip: !isAuthenticated,
+      fetchPolicy: 'cache-and-network',
+    }
+  );
+
+  // GraphQL mutation
+  const [transferCredits] = useMutation(TRANSFER_CREDITS_BY_USERNAME_MUTATION, {
+    onCompleted: (data) => {
+      if (data.transferCreditsByUsername.success) {
+        setShowSendModal(false);
+        setSendAmount('');
+        setSendRecipient('');
+        setSendMessage('');
+        refetchWallet();
+        refetchEntitlements();
+        setSnackbar({ open: true, message: 'Credits sent successfully!', severity: 'success' });
+      } else {
+        setSnackbar({ open: true, message: data.transferCreditsByUsername.error || 'Failed to send credits.', severity: 'error' });
+      }
+    },
+    onError: () => {
+      setSnackbar({ open: true, message: 'Failed to send credits.', severity: 'error' });
+    },
+  });
+
+  // Memoized data
+  const entitlements = useMemo(() => entitlementsData?.myEntitlements || null, [entitlementsData]);
+  const wallet = useMemo(() => walletData?.myWalletInfo || null, [walletData]);
+  const transactions = useMemo(() => wallet?.transactions || [], [wallet]);
+
+  const loading = entitlementsLoading || walletLoading;
+
+  // Handle URL params for subscription/credit purchase redirects
   useEffect(() => {
-    fetchData();
-
-    // Handle subscription redirect
     const subStatus = searchParams.get('subscription');
     if (subStatus === 'success') {
       setSnackbar({ open: true, message: 'Subscription activated! Enjoy unlimited access.', severity: 'success' });
+      refetchEntitlements();
     } else if (subStatus === 'canceled') {
       setSnackbar({ open: true, message: 'Subscription canceled.', severity: 'info' });
     }
 
-    // Handle credit purchase redirect
     const creditStatus = searchParams.get('credits');
     if (creditStatus === 'success') {
       setSnackbar({ open: true, message: '100 credits added to your account!', severity: 'success' });
+      refetchWallet();
+      refetchEntitlements();
     } else if (creditStatus === 'canceled') {
       setSnackbar({ open: true, message: 'Credit purchase canceled.', severity: 'info' });
     }
-  }, [searchParams]);
+  }, [searchParams, refetchEntitlements, refetchWallet]);
 
-  const fetchData = async () => {
-    try {
-      const [walletData, entitlementsData, historyData] = await Promise.all([
-        api.wallet.balance().catch(() => null),
-        fetch('/api/entitlements', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('musclemap_token')}` }
-        }).then(r => r.json()).then(d => d.data).catch(() => null),
-        api.wallet.transactions(20).catch(() => ({ transactions: [] })),
-      ]);
-
-      setWallet(walletData);
-      setEntitlements(entitlementsData);
-      setTransactions(historyData.transactions || []);
-    } catch {
-      // Error occurred
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
+  // Billing operations remain as REST (Stripe redirects)
+  const handleSubscribe = useCallback(async () => {
     setSubscribing(true);
     try {
       const response = await fetch('/api/billing/checkout', {
@@ -124,14 +181,14 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (_err) {
+    } catch {
       setSnackbar({ open: true, message: 'Failed to start subscription. Please try again.', severity: 'error' });
     } finally {
       setSubscribing(false);
     }
-  };
+  }, []);
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = useCallback(async () => {
     try {
       const response = await fetch('/api/billing/portal', {
         method: 'POST',
@@ -144,12 +201,12 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (_err) {
+    } catch {
       setSnackbar({ open: true, message: 'Failed to open billing portal.', severity: 'error' });
     }
-  };
+  }, []);
 
-  const handleBuyCredits = async () => {
+  const handleBuyCredits = useCallback(async () => {
     setBuyingCredits(true);
     try {
       const response = await fetch('/api/billing/credits/checkout', {
@@ -163,41 +220,34 @@ export default function Wallet() {
       if (data.data?.url) {
         window.location.href = data.data.url;
       }
-    } catch (_err) {
+    } catch {
       setSnackbar({ open: true, message: 'Failed to start purchase. Please try again.', severity: 'error' });
     } finally {
       setBuyingCredits(false);
     }
-  };
+  }, []);
 
-  const handleSend = async (e) => {
+  const handleSend = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const data = await api.wallet.transfer({
-        recipient_username: sendRecipient,
-        amount: parseFloat(sendAmount),
-        message: sendMessage
-      });
-      if (data.success) {
-        setShowSendModal(false);
-        setSendAmount('');
-        setSendRecipient('');
-        setSendMessage('');
-        fetchData();
-        setSnackbar({ open: true, message: 'Credits sent successfully!', severity: 'success' });
-      }
-    } catch (_err) {
-      setSnackbar({ open: true, message: 'Failed to send credits.', severity: 'error' });
-    }
-  };
+    transferCredits({
+      variables: {
+        input: {
+          recipientUsername: sendRecipient,
+          amount: parseFloat(sendAmount),
+          message: sendMessage || undefined,
+        },
+      },
+    });
+  }, [transferCredits, sendRecipient, sendAmount, sendMessage]);
 
-  const tier = wallet?.ranking?.vip_tier || 'bronze';
+  const tier = wallet?.vipTier || 'bronze';
   const tierConfig = VIP_TIERS[tier] || VIP_TIERS.bronze;
   const isUnlimited = entitlements?.unlimited;
   const isInTrial = entitlements?.reason === 'trial';
   const isSubscribed = entitlements?.reason === 'subscribed';
+  const creditsVisible = entitlements?.creditsVisible ?? true;
 
-  if (loading) {
+  if (loading && !wallet && !entitlements) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
@@ -240,7 +290,7 @@ export default function Wallet() {
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
                   {isSubscribed
                     ? 'All features unlocked - no credit limits!'
-                    : `${entitlements?.daysLeftInTrial} days remaining in your free trial`
+                    : `${entitlements?.daysLeftInTrial || 0} days remaining in your free trial`
                   }
                 </Typography>
               </Box>
@@ -250,7 +300,7 @@ export default function Wallet() {
               <>
                 <LinearProgress
                   variant="determinate"
-                  value={((90 - entitlements?.daysLeftInTrial) / 90) * 100}
+                  value={((90 - (entitlements?.daysLeftInTrial || 0)) / 90) * 100}
                   sx={{
                     mb: 2,
                     height: 8,
@@ -333,7 +383,7 @@ export default function Wallet() {
         )}
 
         {/* Balance Card - Only show if credits are visible */}
-        {entitlements?.creditsVisible && (
+        {creditsVisible && (
           <Paper
             sx={{
               p: 3,
@@ -397,13 +447,13 @@ export default function Wallet() {
         )}
 
         {/* Stats Grid - Only show if credits are visible */}
-        {entitlements?.creditsVisible && (
+        {creditsVisible && wallet && (
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={6}>
               <Paper sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
                 <Typography variant="caption" color="text.secondary">Lifetime Earned</Typography>
                 <Typography variant="h6" fontWeight={600}>
-                  {(wallet?.wallet?.lifetime_earned || 0).toLocaleString()}
+                  {(wallet.lifetimeEarned || 0).toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
@@ -411,7 +461,7 @@ export default function Wallet() {
               <Paper sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
                 <Typography variant="caption" color="text.secondary">Lifetime Spent</Typography>
                 <Typography variant="h6" fontWeight={600}>
-                  {(wallet?.wallet?.lifetime_spent || 0).toLocaleString()}
+                  {(wallet.lifetimeSpent || 0).toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
@@ -419,7 +469,7 @@ export default function Wallet() {
         )}
 
         {/* VIP Progress - Only show if credits are visible */}
-        {entitlements?.creditsVisible && (
+        {creditsVisible && (
           <Paper sx={{ p: 3, mb: 3, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -463,7 +513,7 @@ export default function Wallet() {
         )}
 
         {/* Transaction History - Only show if credits are visible */}
-        {entitlements?.creditsVisible && (
+        {creditsVisible && (
           <Box>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Recent Transactions</Typography>
             {transactions.length === 0 ? (
@@ -493,7 +543,7 @@ export default function Wallet() {
                       </ListItemIcon>
                       <ListItemText
                         primary={tx.action || tx.type || 'Transaction'}
-                        secondary={formatDate(tx.created_at)}
+                        secondary={formatDate(tx.createdAt)}
                       />
                       <Typography
                         variant="body1"
