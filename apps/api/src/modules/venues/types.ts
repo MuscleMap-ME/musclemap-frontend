@@ -57,18 +57,48 @@ export type DisputeReason =
 export type DisputeStatus = 'pending' | 'under_review' | 'resolved_upheld' | 'resolved_revoked' | 'dismissed';
 
 export type EquipmentType =
+  // Calisthenics/Bodyweight
   | 'pull_up_bar'
   | 'dip_bars'
+  | 'dip_station'
   | 'parallel_bars'
   | 'monkey_bars'
   | 'vertical_pole'
+  | 'climbing_boulder'
+  | 'climbing_rope'
+  | 'pegboard'
+  | 'box_jump_platform'
+  | 'rings'
+  | 'swedish_wall'
+  | 'balance_beam'
+  // Free Weights
   | 'bench_press'
   | 'squat_rack'
   | 'barbell'
   | 'dumbbells'
-  | 'cable_machine'
   | 'weight_belt'
-  | 'climbing_boulder';
+  | 'weight_room'
+  // Machines
+  | 'cable_machine'
+  | 'leg_press'
+  | 'chest_press'
+  | 'lat_pull'
+  | 'shoulder_press'
+  | 'ab_bench'
+  | 'back_extension'
+  | 'multi_station'
+  // Cardio (outdoor)
+  | 'elliptical_outdoor'
+  | 'stationary_bike_outdoor'
+  | 'rowing_machine_outdoor'
+  | 'stepper_outdoor'
+  | 'cardio_room'
+  // Facilities
+  | 'pool'
+  | 'track'
+  | 'basketball_court'
+  | 'tennis_court'
+  | 'other';
 
 // ============================================
 // VENUE INTERFACES
@@ -498,18 +528,48 @@ export const VENUE_CONSTANTS = {
 } as const;
 
 export const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
+  // Calisthenics/Bodyweight
   pull_up_bar: 'Pull-Up Bar',
   dip_bars: 'Dip Bars',
+  dip_station: 'Dip Station',
   parallel_bars: 'Parallel Bars',
   monkey_bars: 'Monkey Bars',
   vertical_pole: 'Vertical Pole',
+  climbing_boulder: 'Climbing Boulder',
+  climbing_rope: 'Climbing Rope',
+  pegboard: 'Pegboard',
+  box_jump_platform: 'Box Jump Platform',
+  rings: 'Gymnastic Rings',
+  swedish_wall: 'Swedish Wall/Stall Bars',
+  balance_beam: 'Balance Beam',
+  // Free Weights
   bench_press: 'Bench Press',
   squat_rack: 'Squat Rack',
   barbell: 'Barbell',
   dumbbells: 'Dumbbells',
-  cable_machine: 'Cable Machine',
   weight_belt: 'Weight Belt',
-  climbing_boulder: 'Climbing Boulder',
+  weight_room: 'Weight Room',
+  // Machines
+  cable_machine: 'Cable Machine',
+  leg_press: 'Leg Press',
+  chest_press: 'Chest Press',
+  lat_pull: 'Lat Pulldown',
+  shoulder_press: 'Shoulder Press',
+  ab_bench: 'Ab Bench',
+  back_extension: 'Back Extension',
+  multi_station: 'Multi-Station',
+  // Cardio (outdoor)
+  elliptical_outdoor: 'Outdoor Elliptical',
+  stationary_bike_outdoor: 'Outdoor Bike',
+  rowing_machine_outdoor: 'Outdoor Rower',
+  stepper_outdoor: 'Outdoor Stepper',
+  cardio_room: 'Cardio Room',
+  // Facilities
+  pool: 'Pool',
+  track: 'Track',
+  basketball_court: 'Basketball Court',
+  tennis_court: 'Tennis Court',
+  other: 'Other',
 };
 
 export const RECORD_CATEGORY_LABELS: Record<RecordCategory, string> = {
