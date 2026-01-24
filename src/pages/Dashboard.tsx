@@ -43,6 +43,9 @@ import { FeatureDiscovery } from '../components/discovery';
 // Daily Challenges Component
 import { DailyChallenges } from '../components/challenges';
 
+// Nearby Venues Widget for Outdoor Workouts
+import { NearbyVenuesWidget } from '../components/dashboard';
+
 // New Gamification & Analytics Components
 import { XPProgress, DailyQuests } from '../components/gamification';
 import { InsightCard } from '../components/analytics';
@@ -1463,6 +1466,24 @@ export default function Dashboard() {
             {/* Nutrition Dashboard Card */}
             <div className="mb-8">
               <NutritionDashboardCard />
+            </div>
+
+            {/* Nearby Outdoor Fitness Locations */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">Nearby Outdoor Spots</h2>
+                  <p className="text-sm text-[var(--text-tertiary)]">Outdoor fitness equipment near you</p>
+                </div>
+                <Link
+                  to="/discover"
+                  className="text-sm text-[var(--brand-blue-400)] hover:text-[var(--brand-blue-300)] transition-colors flex items-center gap-1"
+                >
+                  Explore Map
+                  <Icons.ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <NearbyVenuesWidget limit={3} compact />
             </div>
 
             {/* Muscle Activation Map */}

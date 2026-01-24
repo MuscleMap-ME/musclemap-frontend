@@ -18,6 +18,7 @@ import {
   WorkoutNotes,
   ExerciseHistoryGraph,
 } from '../components/workout';
+import { NearbyVenuesWidget } from '../components/dashboard';
 import { useWorkoutSessionGraphQL } from '../hooks/useWorkoutSessionGraphQL';
 import type { RecoverableSession } from '../hooks/useWorkoutSessionGraphQL';
 import { EXERCISES_QUERY } from '../graphql/queries';
@@ -951,6 +952,28 @@ export default function Workout() {
             <p className="text-xs text-green-400 mt-2">{selectedEquipment.length} item{selectedEquipment.length > 1 ? 's' : ''} selected</p>
           )}
         </section>
+
+        {/* Nearby Outdoor Spots - Show when Park is selected */}
+        {selectedLocation === 'park' && (
+          <section className="bg-gradient-to-br from-green-900/30 to-emerald-900/20 rounded-2xl p-4 border border-green-500/20">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm text-green-400 uppercase flex items-center gap-2">
+                <span>🌳</span>
+                Nearby Outdoor Spots
+              </h2>
+              <Link
+                to="/discover"
+                className="text-xs text-green-400 hover:text-green-300 transition-colors"
+              >
+                View Map →
+              </Link>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Find outdoor fitness equipment near you for your park workout
+            </p>
+            <NearbyVenuesWidget limit={3} compact showHeader={false} />
+          </section>
+        )}
 
         {/* Goal Selection */}
         <section>

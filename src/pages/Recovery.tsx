@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
 import { api } from '../utils/api';
@@ -15,6 +16,7 @@ import {
   GlassButton,
 } from '../components/glass';
 import { InsightCard } from '../components/analytics';
+import { NearbyVenuesWidget } from '../components/dashboard';
 
 // ============================================
 // ICONS
@@ -730,6 +732,34 @@ export default function Recovery() {
             </div>
           </motion.div>
         )}
+
+        {/* Active Recovery - Outdoor Spots */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+        >
+          <GlassCard className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <span>🌳</span>
+                  Active Recovery Spots
+                </h3>
+                <p className="text-white/50 text-sm mt-1">
+                  Light outdoor exercise can help speed up recovery
+                </p>
+              </div>
+              <Link
+                to="/discover"
+                className="text-sm text-green-400 hover:text-green-300 transition-colors"
+              >
+                Explore Map →
+              </Link>
+            </div>
+            <NearbyVenuesWidget limit={3} compact showHeader={false} />
+          </GlassCard>
+        </motion.div>
 
         {/* Sleep Goal */}
         {sleepGoal && (

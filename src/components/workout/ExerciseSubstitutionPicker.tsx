@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   RefreshCw,
@@ -16,6 +17,7 @@ import {
   Target,
   AlertCircle,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 import { useWorkoutSessionGraphQL } from '../../hooks/useWorkoutSessionGraphQL';
 import type { ExerciseSubstitution } from '../../hooks/useWorkoutSessionGraphQL';
@@ -207,11 +209,27 @@ export function ExerciseSubstitutionPicker({
 
         {/* Footer */}
         {!loading && !error && (
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-gray-800 space-y-3">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <RefreshCw className="w-3 h-3" />
               <span>Alternatives sorted by muscle similarity</span>
             </div>
+
+            {/* Outdoor Spots Suggestion */}
+            <Link
+              to="/discover"
+              onClick={onCancel}
+              className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-xl hover:bg-green-500/20 transition-colors group"
+            >
+              <div className="p-2 rounded-lg bg-green-500/20">
+                <MapPin className="w-4 h-4 text-green-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-green-400">Find Outdoor Equipment</div>
+                <div className="text-xs text-gray-400">Discover pull-up bars, dip stations & more nearby</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-green-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         )}
       </motion.div>

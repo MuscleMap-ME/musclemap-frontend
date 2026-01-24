@@ -1335,6 +1335,280 @@ export const resolvers = {
       };
     },
 
+    // Body Measurements
+    bodyMeasurements: async (_: unknown, args: { limit?: number; cursor?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const limit = Math.min(args.limit || 50, 100);
+
+      let cursorData: { measurementDate: string; id: string } | null = null;
+      if (args.cursor) {
+        try {
+          cursorData = JSON.parse(Buffer.from(args.cursor, 'base64').toString());
+        } catch {
+          // Invalid cursor, start from beginning
+        }
+      }
+
+      const fetchLimit = limit + 1;
+
+      let measurements;
+      if (cursorData) {
+        measurements = await queryAll(
+          `SELECT * FROM body_measurements
+           WHERE user_id = $1
+             AND (measurement_date, id) < ($2, $3)
+           ORDER BY measurement_date DESC, id DESC
+           LIMIT $4`,
+          [userId, cursorData.measurementDate, cursorData.id, fetchLimit]
+        );
+      } else {
+        measurements = await queryAll(
+          `SELECT * FROM body_measurements
+           WHERE user_id = $1
+           ORDER BY measurement_date DESC, id DESC
+           LIMIT $2`,
+          [userId, fetchLimit]
+        );
+      }
+
+      const hasMore = measurements.length > limit;
+      const items = hasMore ? measurements.slice(0, -1) : measurements;
+
+      const nextCursor = items.length > 0
+        ? Buffer.from(JSON.stringify({
+            measurementDate: items[items.length - 1].measurement_date,
+            id: items[items.length - 1].id
+          })).toString('base64')
+        : null;
+
+      return {
+        measurements: items.map((m: any) => ({
+          id: m.id,
+          userId: m.user_id,
+          weightKg: m.weight_kg,
+          bodyFatPercentage: m.body_fat_percentage,
+          leanMassKg: m.lean_mass_kg,
+          neckCm: m.neck_cm,
+          shouldersCm: m.shoulders_cm,
+          chestCm: m.chest_cm,
+          waistCm: m.waist_cm,
+          hipsCm: m.hips_cm,
+          leftBicepCm: m.left_bicep_cm,
+          rightBicepCm: m.right_bicep_cm,
+          leftForearmCm: m.left_forearm_cm,
+          rightForearmCm: m.right_forearm_cm,
+          leftThighCm: m.left_thigh_cm,
+          rightThighCm: m.right_thigh_cm,
+          leftCalfCm: m.left_calf_cm,
+          rightCalfCm: m.right_calf_cm,
+          measurementSource: m.measurement_source,
+          notes: m.notes,
+          measurementDate: m.measurement_date,
+          createdAt: m.created_at,
+        })),
+        pagination: {
+          hasMore,
+          nextCursor,
+          count: items.length,
+        },
+      };
+    },
+
+    bodyMeasurement: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const m = await queryOne(
+        `SELECT * FROM body_measurements WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      if (!m) return null;
+
+      return {
+        id: m.id,
+        userId: m.user_id,
+        weightKg: m.weight_kg,
+        bodyFatPercentage: m.body_fat_percentage,
+        leanMassKg: m.lean_mass_kg,
+        neckCm: m.neck_cm,
+        shouldersCm: m.shoulders_cm,
+        chestCm: m.chest_cm,
+        waistCm: m.waist_cm,
+        hipsCm: m.hips_cm,
+        leftBicepCm: m.left_bicep_cm,
+        rightBicepCm: m.right_bicep_cm,
+        leftForearmCm: m.left_forearm_cm,
+        rightForearmCm: m.right_forearm_cm,
+        leftThighCm: m.left_thigh_cm,
+        rightThighCm: m.right_thigh_cm,
+        leftCalfCm: m.left_calf_cm,
+        rightCalfCm: m.right_calf_cm,
+        measurementSource: m.measurement_source,
+        notes: m.notes,
+        measurementDate: m.measurement_date,
+        createdAt: m.created_at,
+      };
+    },
+
+    latestBodyMeasurement: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const m = await queryOne(
+        `SELECT * FROM body_measurements
+         WHERE user_id = $1
+         ORDER BY measurement_date DESC
+         LIMIT 1`,
+        [userId]
+      );
+
+      if (!m) return null;
+
+      return {
+        id: m.id,
+        userId: m.user_id,
+        weightKg: m.weight_kg,
+        bodyFatPercentage: m.body_fat_percentage,
+        leanMassKg: m.lean_mass_kg,
+        neckCm: m.neck_cm,
+        shouldersCm: m.shoulders_cm,
+        chestCm: m.chest_cm,
+        waistCm: m.waist_cm,
+        hipsCm: m.hips_cm,
+        leftBicepCm: m.left_bicep_cm,
+        rightBicepCm: m.right_bicep_cm,
+        leftForearmCm: m.left_forearm_cm,
+        rightForearmCm: m.right_forearm_cm,
+        leftThighCm: m.left_thigh_cm,
+        rightThighCm: m.right_thigh_cm,
+        leftCalfCm: m.left_calf_cm,
+        rightCalfCm: m.right_calf_cm,
+        measurementSource: m.measurement_source,
+        notes: m.notes,
+        measurementDate: m.measurement_date,
+        createdAt: m.created_at,
+      };
+    },
+
+    bodyMeasurementComparison: async (_: unknown, args: { days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const days = Math.max(1, Math.min(3650, args.days || 30));
+
+      const latest = await queryOne<Record<string, unknown>>(
+        `SELECT * FROM body_measurements
+         WHERE user_id = $1
+         ORDER BY measurement_date DESC
+         LIMIT 1`,
+        [userId]
+      );
+
+      if (!latest) return null;
+
+      const past = await queryOne<Record<string, unknown>>(
+        `SELECT * FROM body_measurements
+         WHERE user_id = $1
+           AND measurement_date <= CURRENT_DATE - INTERVAL '1 day' * $2
+         ORDER BY measurement_date DESC
+         LIMIT 1`,
+        [userId, days]
+      );
+
+      if (!past) return null;
+
+      const FIELDS = [
+        'weight_kg', 'body_fat_percentage', 'lean_mass_kg',
+        'neck_cm', 'shoulders_cm', 'chest_cm', 'waist_cm', 'hips_cm',
+        'left_bicep_cm', 'right_bicep_cm', 'left_forearm_cm', 'right_forearm_cm',
+        'left_thigh_cm', 'right_thigh_cm', 'left_calf_cm', 'right_calf_cm'
+      ];
+
+      const comparison: Record<string, { current: number | null; past: number | null; change: number | null; changePercent: string | null }> = {};
+
+      for (const field of FIELDS) {
+        const current = latest[field] as number | null;
+        const pastVal = past[field] as number | null;
+
+        if (current !== null && pastVal !== null) {
+          comparison[field] = {
+            current,
+            past: pastVal,
+            change: current - pastVal,
+            changePercent: ((current - pastVal) / pastVal * 100).toFixed(1),
+          };
+        } else {
+          comparison[field] = { current, past: pastVal, change: null, changePercent: null };
+        }
+      }
+
+      const latestDate = new Date(latest.measurement_date as string);
+      const pastDate = new Date(past.measurement_date as string);
+      const daysBetween = Math.round((latestDate.getTime() - pastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Map snake_case to camelCase
+      return {
+        weightKg: comparison.weight_kg,
+        bodyFatPercentage: comparison.body_fat_percentage,
+        leanMassKg: comparison.lean_mass_kg,
+        neckCm: comparison.neck_cm,
+        shouldersCm: comparison.shoulders_cm,
+        chestCm: comparison.chest_cm,
+        waistCm: comparison.waist_cm,
+        hipsCm: comparison.hips_cm,
+        leftBicepCm: comparison.left_bicep_cm,
+        rightBicepCm: comparison.right_bicep_cm,
+        leftForearmCm: comparison.left_forearm_cm,
+        rightForearmCm: comparison.right_forearm_cm,
+        leftThighCm: comparison.left_thigh_cm,
+        rightThighCm: comparison.right_thigh_cm,
+        leftCalfCm: comparison.left_calf_cm,
+        rightCalfCm: comparison.right_calf_cm,
+        currentDate: latest.measurement_date,
+        pastDate: past.measurement_date,
+        daysBetween,
+      };
+    },
+
+    bodyMeasurementHistory: async (_: unknown, args: { field: string; days?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const days = Math.max(1, Math.min(3650, args.days || 365));
+
+      const VALID_FIELDS = [
+        'weight_kg', 'body_fat_percentage', 'lean_mass_kg',
+        'neck_cm', 'shoulders_cm', 'chest_cm', 'waist_cm', 'hips_cm',
+        'left_bicep_cm', 'right_bicep_cm', 'left_forearm_cm', 'right_forearm_cm',
+        'left_thigh_cm', 'right_thigh_cm', 'left_calf_cm', 'right_calf_cm'
+      ];
+
+      if (!VALID_FIELDS.includes(args.field)) {
+        throw new GraphQLError('Invalid field name', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      const history = await queryAll<{ measurement_date: string; [key: string]: unknown }>(
+        `SELECT measurement_date, ${args.field}
+         FROM body_measurements
+         WHERE user_id = $1 AND ${args.field} IS NOT NULL
+           AND measurement_date >= CURRENT_DATE - INTERVAL '1 day' * $2
+         ORDER BY measurement_date ASC`,
+        [userId, days]
+      );
+
+      const values = history.map((h) => h[args.field] as number).filter((v) => v !== null);
+      const stats = values.length > 0 ? {
+        current: values[values.length - 1],
+        min: Math.min(...values),
+        max: Math.max(...values),
+        change: values.length > 1 ? values[values.length - 1] - values[0] : 0,
+        changePercent: values.length > 1
+          ? ((values[values.length - 1] - values[0]) / values[0] * 100).toFixed(1)
+          : '0',
+      } : null;
+
+      return {
+        history: history.map(h => ({
+          measurementDate: h.measurement_date,
+          value: h[args.field] as number,
+        })),
+        stats,
+      };
+    },
+
     leaderboards: async (_: unknown, _args: { type?: string }) => {
       const leaderboard = await queryAll(
         `SELECT u.id, u.username, u.avatar_url, u.current_level as level,
@@ -9810,6 +10084,181 @@ export const resolvers = {
         goals: userProfile?.goals || [],
         preferredUnits: userProfile?.preferred_units || 'metric',
       };
+    },
+
+    // Body Measurements
+    createBodyMeasurement: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { input } = args;
+
+      // Validate at least one measurement is provided
+      const FIELDS = [
+        'weightKg', 'bodyFatPercentage', 'leanMassKg',
+        'neckCm', 'shouldersCm', 'chestCm', 'waistCm', 'hipsCm',
+        'leftBicepCm', 'rightBicepCm', 'leftForearmCm', 'rightForearmCm',
+        'leftThighCm', 'rightThighCm', 'leftCalfCm', 'rightCalfCm'
+      ];
+
+      const hasValue = FIELDS.some(f => input[f] !== undefined && input[f] !== null);
+      if (!hasValue) {
+        throw new GraphQLError('At least one measurement value is required', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      if (!input.measurementDate) {
+        throw new GraphQLError('Measurement date is required', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      const m = await queryOne(
+        `INSERT INTO body_measurements (
+          user_id, weight_kg, body_fat_percentage, lean_mass_kg,
+          neck_cm, shoulders_cm, chest_cm, waist_cm, hips_cm,
+          left_bicep_cm, right_bicep_cm, left_forearm_cm, right_forearm_cm,
+          left_thigh_cm, right_thigh_cm, left_calf_cm, right_calf_cm,
+          measurement_source, notes, measurement_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        RETURNING *`,
+        [
+          userId, input.weightKg, input.bodyFatPercentage, input.leanMassKg,
+          input.neckCm, input.shouldersCm, input.chestCm, input.waistCm, input.hipsCm,
+          input.leftBicepCm, input.rightBicepCm, input.leftForearmCm, input.rightForearmCm,
+          input.leftThighCm, input.rightThighCm, input.leftCalfCm, input.rightCalfCm,
+          input.measurementSource || 'manual', input.notes, input.measurementDate
+        ]
+      );
+
+      if (!m) {
+        throw new GraphQLError('Failed to create body measurement', { extensions: { code: 'INTERNAL_SERVER_ERROR' } });
+      }
+
+      return {
+        id: m.id,
+        userId: m.user_id,
+        weightKg: m.weight_kg,
+        bodyFatPercentage: m.body_fat_percentage,
+        leanMassKg: m.lean_mass_kg,
+        neckCm: m.neck_cm,
+        shouldersCm: m.shoulders_cm,
+        chestCm: m.chest_cm,
+        waistCm: m.waist_cm,
+        hipsCm: m.hips_cm,
+        leftBicepCm: m.left_bicep_cm,
+        rightBicepCm: m.right_bicep_cm,
+        leftForearmCm: m.left_forearm_cm,
+        rightForearmCm: m.right_forearm_cm,
+        leftThighCm: m.left_thigh_cm,
+        rightThighCm: m.right_thigh_cm,
+        leftCalfCm: m.left_calf_cm,
+        rightCalfCm: m.right_calf_cm,
+        measurementSource: m.measurement_source,
+        notes: m.notes,
+        measurementDate: m.measurement_date,
+        createdAt: m.created_at,
+      };
+    },
+
+    updateBodyMeasurement: async (_: unknown, args: { id: string; input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { id, input } = args;
+
+      const existing = await queryOne(
+        `SELECT id FROM body_measurements WHERE id = $1 AND user_id = $2`,
+        [id, userId]
+      );
+
+      if (!existing) {
+        throw new GraphQLError('Measurement not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      const FIELD_MAP: Record<string, string> = {
+        weightKg: 'weight_kg',
+        bodyFatPercentage: 'body_fat_percentage',
+        leanMassKg: 'lean_mass_kg',
+        neckCm: 'neck_cm',
+        shouldersCm: 'shoulders_cm',
+        chestCm: 'chest_cm',
+        waistCm: 'waist_cm',
+        hipsCm: 'hips_cm',
+        leftBicepCm: 'left_bicep_cm',
+        rightBicepCm: 'right_bicep_cm',
+        leftForearmCm: 'left_forearm_cm',
+        rightForearmCm: 'right_forearm_cm',
+        leftThighCm: 'left_thigh_cm',
+        rightThighCm: 'right_thigh_cm',
+        leftCalfCm: 'left_calf_cm',
+        rightCalfCm: 'right_calf_cm',
+        measurementSource: 'measurement_source',
+        notes: 'notes',
+        measurementDate: 'measurement_date',
+      };
+
+      for (const [inputField, dbField] of Object.entries(FIELD_MAP)) {
+        if (input[inputField] !== undefined) {
+          updates.push(`${dbField} = $${paramIndex++}`);
+          values.push(input[inputField]);
+        }
+      }
+
+      if (updates.length === 0) {
+        throw new GraphQLError('No fields to update', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+
+      values.push(id, userId);
+      const m = await queryOne(
+        `UPDATE body_measurements
+         SET ${updates.join(', ')}
+         WHERE id = $${paramIndex++} AND user_id = $${paramIndex}
+         RETURNING *`,
+        values
+      );
+
+      if (!m) {
+        throw new GraphQLError('Body measurement not found or update failed', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      return {
+        id: m.id,
+        userId: m.user_id,
+        weightKg: m.weight_kg,
+        bodyFatPercentage: m.body_fat_percentage,
+        leanMassKg: m.lean_mass_kg,
+        neckCm: m.neck_cm,
+        shouldersCm: m.shoulders_cm,
+        chestCm: m.chest_cm,
+        waistCm: m.waist_cm,
+        hipsCm: m.hips_cm,
+        leftBicepCm: m.left_bicep_cm,
+        rightBicepCm: m.right_bicep_cm,
+        leftForearmCm: m.left_forearm_cm,
+        rightForearmCm: m.right_forearm_cm,
+        leftThighCm: m.left_thigh_cm,
+        rightThighCm: m.right_thigh_cm,
+        leftCalfCm: m.left_calf_cm,
+        rightCalfCm: m.right_calf_cm,
+        measurementSource: m.measurement_source,
+        notes: m.notes,
+        measurementDate: m.measurement_date,
+        createdAt: m.created_at,
+      };
+    },
+
+    deleteBodyMeasurement: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      const existing = await queryOne(
+        `SELECT id FROM body_measurements WHERE id = $1 AND user_id = $2`,
+        [args.id, userId]
+      );
+
+      if (!existing) {
+        throw new GraphQLError('Measurement not found', { extensions: { code: 'NOT_FOUND' } });
+      }
+
+      await query('DELETE FROM body_measurements WHERE id = $1', [args.id]);
+      return true;
     },
 
     // Community - Update Presence
