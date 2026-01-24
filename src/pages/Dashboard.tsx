@@ -936,6 +936,7 @@ const navSections = [
       { to: '/rivals', icon: Icons.Trophy, label: 'Rivals' },
       { to: '/competitions', icon: Icons.Trophy, label: 'Competitions' },
       { to: '/locations', icon: Icons.Map, label: 'Locations' },
+      { to: '/discover', icon: Icons.Map, label: 'Discover', badge: 'New' },
     ]
   },
   {

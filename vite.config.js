@@ -228,6 +228,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Map @ to src directory for cleaner imports
+      '@': resolve(__dirname, 'src'),
       // Map npm package names to local packages
       '@musclemap.me/shared': resolve(__dirname, 'packages/shared/src'),
       '@musclemap.me/core': resolve(__dirname, 'packages/core/src'),

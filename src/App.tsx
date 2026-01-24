@@ -206,6 +206,9 @@ const _AdventureMapFullscreen = lazy(() => import('./components/adventure-map').
 // Map Explore (Interactive Navigation)
 const MapExplore = lazy(() => import('./pages/MapExplore'));
 
+// Outdoor Equipment Discovery
+const Discover = lazy(() => import('./pages/Discover'));
+
 // Plugin pages
 const PluginMarketplace = lazy(() => import('./pages/PluginMarketplace'));
 const PluginSettings = lazy(() => import('./pages/PluginSettings'));
@@ -591,6 +594,10 @@ function AppRoutes() {
           <Route path="/dashboard" element={<ProtectedRoute name="Dashboard"><Dashboard /></ProtectedRoute>} />
           <Route path="/adventure-map" element={<ProtectedRoute name="AdventureMap"><AdventureMapPage /></ProtectedRoute>} />
           <Route path="/explore" element={<ProtectedRoute name="MapExplore"><MapExplore /></ProtectedRoute>} />
+          <Route path="/discover" element={<ProtectedRoute name="Discover"><Discover /></ProtectedRoute>} />
+          <Route path="/discover/venue/:venueId" element={<ProtectedRoute name="Discover"><Discover /></ProtectedRoute>} />
+          <Route path="/discover/add" element={<ProtectedRoute name="Discover"><Discover /></ProtectedRoute>} />
+          <Route path="/discover/contribute" element={<ProtectedRoute name="Discover"><Discover /></ProtectedRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
           <Route path="/workout" element={<ProtectedRoute name="Workout"><Workout /></ProtectedRoute>} />
           <Route path="/journey" element={<ProtectedRoute name="Journey"><Journey /></ProtectedRoute>} />

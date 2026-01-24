@@ -295,6 +295,13 @@ export const typeDefs = `#graphql
     venueSyncStats: VenueSyncStats
     pendingVenueSubmissions(limit: Int): [VenueSubmission!]!
 
+    # Workout Templates
+    workoutTemplates(input: WorkoutTemplateSearchInput): WorkoutTemplatesResult!
+    workoutTemplate(id: ID!): WorkoutTemplate
+    myWorkoutTemplates(limit: Int, offset: Int): WorkoutTemplatesResult!
+    savedWorkoutTemplates(folder: String, limit: Int, offset: Int): WorkoutTemplatesResult!
+    featuredWorkoutTemplates(limit: Int): [WorkoutTemplate!]!
+
     # Competitions
     competitions(status: String): [Competition!]!
     competition(id: ID!): Competition
@@ -478,6 +485,15 @@ export const typeDefs = `#graphql
     joinHangout(hangoutId: ID!): HangoutMembership!
     leaveHangout(hangoutId: ID!): Boolean!
     createHangoutPost(hangoutId: ID!, content: String!): HangoutPost!
+
+    # Workout Templates
+    createWorkoutTemplate(input: CreateWorkoutTemplateInput!): WorkoutTemplate!
+    updateWorkoutTemplate(id: ID!, input: UpdateWorkoutTemplateInput!): WorkoutTemplate!
+    deleteWorkoutTemplate(id: ID!): Boolean!
+    cloneWorkoutTemplate(id: ID!, newName: String): WorkoutTemplate!
+    rateWorkoutTemplate(id: ID!, rating: Int!, review: String): Boolean!
+    saveWorkoutTemplate(id: ID!, folder: String): Boolean!
+    unsaveWorkoutTemplate(id: ID!): Boolean!
 
     # Competitions
     createCompetition(input: CompetitionInput!): Competition!
@@ -5183,6 +5199,105 @@ export const typeDefs = `#graphql
     type: String!
     value: String!
     description: String
+  }
+
+  # ============================================
+  # WORKOUT TEMPLATES TYPES
+  # ============================================
+
+  type WorkoutTemplate {
+    id: ID!
+    creatorId: ID!
+    creatorUsername: String
+    creatorDisplayName: String
+    name: String!
+    description: String
+    exercises: [TemplateExercise!]!
+    difficulty: String
+    durationMinutes: Int
+    targetMuscles: [String!]!
+    equipmentRequired: [String!]!
+    category: String
+    tags: [String!]!
+    isPublic: Boolean!
+    isFeatured: Boolean!
+    forkedFromId: ID
+    version: Int!
+    timesUsed: Int!
+    timesCloned: Int!
+    averageRating: Float
+    ratingCount: Int!
+    userRating: Int
+    isSaved: Boolean
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type TemplateExercise {
+    exerciseId: ID!
+    name: String
+    sets: Int!
+    reps: Int
+    weight: Float
+    duration: Int
+    restSeconds: Int
+    notes: String
+  }
+
+  type WorkoutTemplatesResult {
+    templates: [WorkoutTemplate!]!
+    total: Int!
+  }
+
+  input TemplateExerciseInput {
+    exerciseId: ID!
+    name: String
+    sets: Int!
+    reps: Int
+    weight: Float
+    duration: Int
+    restSeconds: Int
+    notes: String
+  }
+
+  input CreateWorkoutTemplateInput {
+    name: String!
+    description: String
+    exercises: [TemplateExerciseInput!]!
+    difficulty: String
+    durationMinutes: Int
+    targetMuscles: [String!]
+    equipmentRequired: [String!]
+    category: String
+    tags: [String!]
+    isPublic: Boolean
+  }
+
+  input UpdateWorkoutTemplateInput {
+    name: String
+    description: String
+    exercises: [TemplateExerciseInput!]
+    difficulty: String
+    durationMinutes: Int
+    targetMuscles: [String!]
+    equipmentRequired: [String!]
+    category: String
+    tags: [String!]
+    isPublic: Boolean
+  }
+
+  input WorkoutTemplateSearchInput {
+    search: String
+    category: String
+    difficulty: String
+    minRating: Float
+    targetMuscles: [String!]
+    equipment: [String!]
+    creator: String
+    featured: Boolean
+    sortBy: String
+    limit: Int
+    offset: Int
   }
 
   # ============================================

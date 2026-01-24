@@ -961,6 +961,124 @@ export const GENERATE_PRESCRIPTION_MUTATION = gql`
 `;
 
 // ============================================
+// WORKOUT TEMPLATES
+// ============================================
+
+export const CREATE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation CreateWorkoutTemplate($input: CreateWorkoutTemplateInput!) {
+    createWorkoutTemplate(input: $input) {
+      id
+      name
+      description
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        duration
+        restSeconds
+        notes
+      }
+      difficulty
+      durationMinutes
+      targetMuscles
+      equipmentRequired
+      category
+      tags
+      isPublic
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation UpdateWorkoutTemplate($id: ID!, $input: UpdateWorkoutTemplateInput!) {
+    updateWorkoutTemplate(id: $id, input: $input) {
+      id
+      name
+      description
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        duration
+        restSeconds
+        notes
+      }
+      difficulty
+      durationMinutes
+      targetMuscles
+      equipmentRequired
+      category
+      tags
+      isPublic
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation DeleteWorkoutTemplate($id: ID!) {
+    deleteWorkoutTemplate(id: $id)
+  }
+`;
+
+export const CLONE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation CloneWorkoutTemplate($id: ID!) {
+    cloneWorkoutTemplate(id: $id) {
+      id
+      name
+      description
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        duration
+        restSeconds
+        notes
+      }
+      difficulty
+      durationMinutes
+      targetMuscles
+      equipmentRequired
+      category
+      tags
+      isPublic
+      forkedFromId
+      createdAt
+    }
+  }
+`;
+
+export const RATE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation RateWorkoutTemplate($id: ID!, $rating: Int!) {
+    rateWorkoutTemplate(id: $id, rating: $rating) {
+      id
+      averageRating
+      ratingCount
+      userRating
+    }
+  }
+`;
+
+export const SAVE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation SaveWorkoutTemplate($id: ID!) {
+    saveWorkoutTemplate(id: $id)
+  }
+`;
+
+export const UNSAVE_WORKOUT_TEMPLATE_MUTATION = gql`
+  mutation UnsaveWorkoutTemplate($id: ID!) {
+    unsaveWorkoutTemplate(id: $id)
+  }
+`;
+
+// ============================================
 // COMPETITIONS
 // ============================================
 
@@ -996,6 +1114,60 @@ export const CREATE_COMPETITION_MUTATION = gql`
       hasJoined
       createdAt
     }
+  }
+`;
+
+// ============================================
+// CAREER READINESS
+// ============================================
+
+export const CREATE_CAREER_GOAL_MUTATION = gql`
+  mutation CreateCareerGoal($input: CareerGoalInput!) {
+    createCareerGoal(input: $input) {
+      id
+      standard {
+        id
+        name
+        fullName
+        agency
+        category
+        icon
+      }
+      standardId
+      targetDate
+      priority
+      status
+      agencyName
+      notes
+      readiness {
+        score
+        status
+        eventsPassed
+        eventsTotal
+      }
+      daysRemaining
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_CAREER_GOAL_MUTATION = gql`
+  mutation UpdateCareerGoal($goalId: ID!, $input: CareerGoalUpdateInput!) {
+    updateCareerGoal(goalId: $goalId, input: $input) {
+      id
+      targetDate
+      priority
+      status
+      agencyName
+      notes
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_CAREER_GOAL_MUTATION = gql`
+  mutation DeleteCareerGoal($goalId: ID!) {
+    deleteCareerGoal(goalId: $goalId)
   }
 `;
 
@@ -1391,5 +1563,69 @@ export const UPDATE_PRESENCE_MUTATION = gql`
       activeUsers
       workoutsInProgress
     }
+  }
+`;
+
+// ============================================
+// SLEEP & RECOVERY
+// ============================================
+
+export const LOG_SLEEP_MUTATION = gql`
+  mutation LogSleep($input: SleepLogInput!) {
+    logSleep(input: $input) {
+      id
+      bedTime
+      wakeTime
+      sleepDurationMinutes
+      quality
+      notes
+      factors {
+        lateExercise
+        lateFood
+        screenBeforeBed
+        caffeineAfter6pm
+        alcoholConsumed
+      }
+      sleepDebt
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_SLEEP_LOG_MUTATION = gql`
+  mutation UpdateSleepLog($id: ID!, $input: SleepLogInput!) {
+    updateSleepLog(id: $id, input: $input) {
+      id
+      bedTime
+      wakeTime
+      sleepDurationMinutes
+      quality
+      notes
+    }
+  }
+`;
+
+export const DELETE_SLEEP_LOG_MUTATION = gql`
+  mutation DeleteSleepLog($id: ID!) {
+    deleteSleepLog(id: $id)
+  }
+`;
+
+export const UPDATE_SLEEP_GOAL_MUTATION = gql`
+  mutation UpdateSleepGoal($input: SleepGoalInput!) {
+    updateSleepGoal(input: $input) {
+      id
+      targetHours
+      targetBedTime
+      targetWakeTime
+      reminderEnabled
+      reminderMinutesBefore
+    }
+  }
+`;
+
+export const ACKNOWLEDGE_RECOVERY_RECOMMENDATION_MUTATION = gql`
+  mutation AcknowledgeRecoveryRecommendation($recommendationId: ID!, $followed: Boolean, $feedback: String) {
+    acknowledgeRecoveryRecommendation(recommendationId: $recommendationId, followed: $followed, feedback: $feedback)
   }
 `;

@@ -4610,6 +4610,84 @@ export const resolvers = {
       };
     },
 
+    // Workout Templates
+    workoutTemplates: async (_: unknown, args: { input?: {
+      search?: string;
+      category?: string;
+      difficulty?: string;
+      minRating?: number;
+      targetMuscles?: string[];
+      equipment?: string[];
+      creator?: string;
+      featured?: boolean;
+      sortBy?: string;
+      limit?: number;
+      offset?: number;
+    }}, context: Context) => {
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      const result = await WorkoutTemplatesService.search(
+        {
+          search: args.input?.search,
+          category: args.input?.category as any,
+          difficulty: args.input?.difficulty as any,
+          minRating: args.input?.minRating,
+          targetMuscles: args.input?.targetMuscles,
+          equipment: args.input?.equipment,
+          creator: args.input?.creator,
+          featured: args.input?.featured,
+          sortBy: args.input?.sortBy as any,
+          limit: Math.min(args.input?.limit || 20, 100),
+          offset: args.input?.offset || 0,
+        },
+        context.user?.userId
+      );
+      return {
+        templates: result.templates,
+        total: result.total,
+      };
+    },
+
+    workoutTemplate: async (_: unknown, args: { id: string }, context: Context) => {
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      return WorkoutTemplatesService.getById(args.id, context.user?.userId);
+    },
+
+    myWorkoutTemplates: async (_: unknown, args: { limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      const result = await WorkoutTemplatesService.getUserTemplates(userId, {
+        limit: Math.min(args.limit || 20, 100),
+        offset: args.offset || 0,
+      });
+      return {
+        templates: result.templates,
+        total: result.total,
+      };
+    },
+
+    savedWorkoutTemplates: async (_: unknown, args: { folder?: string; limit?: number; offset?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      const result = await WorkoutTemplatesService.getSavedTemplates(userId, {
+        folder: args.folder,
+        limit: Math.min(args.limit || 20, 100),
+        offset: args.offset || 0,
+      });
+      return {
+        templates: result.templates,
+        total: result.total,
+      };
+    },
+
+    featuredWorkoutTemplates: async (_: unknown, args: { limit?: number }, context: Context) => {
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      const result = await WorkoutTemplatesService.search(
+        { featured: true, limit: Math.min(args.limit || 10, 50) },
+        context.user?.userId
+      );
+      return result.templates;
+    },
+
     // Competitions
     competitions: async (_: unknown, args: { status?: string }, context: Context) => {
       let query = `
@@ -8670,6 +8748,115 @@ export const resolvers = {
         content: args.content,
         createdAt: new Date(),
       };
+    },
+
+    // Workout Templates
+    createWorkoutTemplate: async (_: unknown, args: { input: {
+      name: string;
+      description?: string;
+      exercises: Array<{
+        exerciseId: string;
+        name?: string;
+        sets: number;
+        reps?: number;
+        weight?: number;
+        duration?: number;
+        restSeconds?: number;
+        notes?: string;
+      }>;
+      difficulty?: string;
+      durationMinutes?: number;
+      targetMuscles?: string[];
+      equipmentRequired?: string[];
+      category?: string;
+      tags?: string[];
+      isPublic?: boolean;
+    } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      return WorkoutTemplatesService.create(userId, {
+        name: args.input.name,
+        description: args.input.description,
+        exercises: args.input.exercises,
+        difficulty: args.input.difficulty as any,
+        durationMinutes: args.input.durationMinutes,
+        targetMuscles: args.input.targetMuscles,
+        equipmentRequired: args.input.equipmentRequired,
+        category: args.input.category as any,
+        tags: args.input.tags,
+        isPublic: args.input.isPublic,
+      });
+    },
+
+    updateWorkoutTemplate: async (_: unknown, args: { id: string; input: {
+      name?: string;
+      description?: string;
+      exercises?: Array<{
+        exerciseId: string;
+        name?: string;
+        sets: number;
+        reps?: number;
+        weight?: number;
+        duration?: number;
+        restSeconds?: number;
+        notes?: string;
+      }>;
+      difficulty?: string;
+      durationMinutes?: number;
+      targetMuscles?: string[];
+      equipmentRequired?: string[];
+      category?: string;
+      tags?: string[];
+      isPublic?: boolean;
+    } }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      return WorkoutTemplatesService.update(args.id, userId, {
+        name: args.input.name,
+        description: args.input.description,
+        exercises: args.input.exercises,
+        difficulty: args.input.difficulty as any,
+        durationMinutes: args.input.durationMinutes,
+        targetMuscles: args.input.targetMuscles,
+        equipmentRequired: args.input.equipmentRequired,
+        category: args.input.category as any,
+        tags: args.input.tags,
+        isPublic: args.input.isPublic,
+      });
+    },
+
+    deleteWorkoutTemplate: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      await WorkoutTemplatesService.delete(args.id, userId);
+      return true;
+    },
+
+    cloneWorkoutTemplate: async (_: unknown, args: { id: string; newName?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      return WorkoutTemplatesService.clone(args.id, userId, args.newName);
+    },
+
+    rateWorkoutTemplate: async (_: unknown, args: { id: string; rating: number; review?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      await WorkoutTemplatesService.rate(args.id, userId, args.rating, args.review);
+      return true;
+    },
+
+    saveWorkoutTemplate: async (_: unknown, args: { id: string; folder?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      await WorkoutTemplatesService.save(args.id, userId, args.folder);
+      return true;
+    },
+
+    unsaveWorkoutTemplate: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { WorkoutTemplatesService } = await import('../services/workout-templates.service');
+      await WorkoutTemplatesService.unsave(args.id, userId);
+      return true;
     },
 
     // Competitions

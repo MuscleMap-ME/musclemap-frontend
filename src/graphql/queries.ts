@@ -2266,3 +2266,580 @@ export const ADMIN_TEST_SCORECARD_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// WORKOUT TEMPLATES
+// ============================================
+
+export const WORKOUT_TEMPLATES_QUERY = gql`
+  query WorkoutTemplates($input: WorkoutTemplateSearchInput) {
+    workoutTemplates(input: $input) {
+      templates {
+        id
+        creatorId
+        creatorUsername
+        creatorDisplayName
+        name
+        description
+        exercises {
+          exerciseId
+          name
+          sets
+          reps
+          weight
+          duration
+          restSeconds
+          notes
+        }
+        difficulty
+        durationMinutes
+        targetMuscles
+        equipmentRequired
+        category
+        tags
+        isPublic
+        isFeatured
+        timesUsed
+        timesCloned
+        averageRating
+        ratingCount
+        userRating
+        isSaved
+        createdAt
+        updatedAt
+      }
+      total
+    }
+  }
+`;
+
+export const WORKOUT_TEMPLATE_QUERY = gql`
+  query WorkoutTemplate($id: ID!) {
+    workoutTemplate(id: $id) {
+      id
+      creatorId
+      creatorUsername
+      creatorDisplayName
+      name
+      description
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        duration
+        restSeconds
+        notes
+      }
+      difficulty
+      durationMinutes
+      targetMuscles
+      equipmentRequired
+      category
+      tags
+      isPublic
+      isFeatured
+      timesUsed
+      timesCloned
+      averageRating
+      ratingCount
+      userRating
+      isSaved
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const MY_WORKOUT_TEMPLATES_QUERY = gql`
+  query MyWorkoutTemplates($limit: Int, $offset: Int) {
+    myWorkoutTemplates(limit: $limit, offset: $offset) {
+      templates {
+        id
+        creatorId
+        creatorUsername
+        creatorDisplayName
+        name
+        description
+        exercises {
+          exerciseId
+          name
+          sets
+          reps
+          weight
+          duration
+          restSeconds
+          notes
+        }
+        difficulty
+        durationMinutes
+        targetMuscles
+        equipmentRequired
+        category
+        tags
+        isPublic
+        isFeatured
+        timesUsed
+        timesCloned
+        averageRating
+        ratingCount
+        userRating
+        isSaved
+        createdAt
+        updatedAt
+      }
+      total
+    }
+  }
+`;
+
+export const SAVED_WORKOUT_TEMPLATES_QUERY = gql`
+  query SavedWorkoutTemplates($folder: String, $limit: Int, $offset: Int) {
+    savedWorkoutTemplates(folder: $folder, limit: $limit, offset: $offset) {
+      templates {
+        id
+        creatorId
+        creatorUsername
+        creatorDisplayName
+        name
+        description
+        exercises {
+          exerciseId
+          name
+          sets
+          reps
+          weight
+          duration
+          restSeconds
+          notes
+        }
+        difficulty
+        durationMinutes
+        targetMuscles
+        equipmentRequired
+        category
+        tags
+        isPublic
+        isFeatured
+        timesUsed
+        timesCloned
+        averageRating
+        ratingCount
+        userRating
+        isSaved
+        createdAt
+        updatedAt
+      }
+      total
+    }
+  }
+`;
+
+export const FEATURED_WORKOUT_TEMPLATES_QUERY = gql`
+  query FeaturedWorkoutTemplates($limit: Int) {
+    featuredWorkoutTemplates(limit: $limit) {
+      id
+      creatorId
+      creatorUsername
+      creatorDisplayName
+      name
+      description
+      exercises {
+        exerciseId
+        name
+        sets
+        reps
+        weight
+        duration
+        restSeconds
+        notes
+      }
+      difficulty
+      durationMinutes
+      targetMuscles
+      equipmentRequired
+      category
+      tags
+      isPublic
+      isFeatured
+      timesUsed
+      timesCloned
+      averageRating
+      ratingCount
+      userRating
+      isSaved
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// ============================================
+// RECOVERY & SLEEP
+// ============================================
+
+export const RECOVERY_SCORE_QUERY = gql`
+  query RecoveryScore($forceRecalculate: Boolean) {
+    recoveryScore(forceRecalculate: $forceRecalculate) {
+      id
+      userId
+      score
+      classification
+      factors {
+        sleepDurationScore
+        sleepQualityScore
+        restDaysScore
+        hrvBonus
+        strainPenalty
+        consistencyBonus
+        sleepDetails {
+          hoursSlept
+          targetHours
+          qualityRating
+        }
+        restDetails {
+          daysSinceLastWorkout
+          workoutsThisWeek
+          averageIntensity
+        }
+        hrvDetails {
+          currentHrv
+          baselineHrv
+          percentOfBaseline
+        }
+      }
+      recommendedIntensity
+      recommendedWorkoutTypes
+      trend
+      trendConfidence
+      calculatedAt
+      expiresAt
+      dataSources
+    }
+  }
+`;
+
+export const RECOVERY_STATUS_QUERY = gql`
+  query RecoveryStatus {
+    recoveryStatus {
+      currentScore {
+        id
+        score
+        classification
+        recommendedIntensity
+        trend
+      }
+      lastSleep {
+        id
+        bedTime
+        wakeTime
+        sleepDurationMinutes
+        quality
+        notes
+      }
+      sleepStats {
+        avgDuration
+        avgQuality
+        totalNights
+        sleepDebt
+        consistency
+      }
+      recommendations {
+        id
+        type
+        priority
+        title
+        description
+        actionItems {
+          action
+          completed
+        }
+      }
+      sleepGoal {
+        id
+        targetHours
+        targetBedTime
+        targetWakeTime
+      }
+      nextWorkoutSuggestion {
+        intensity
+        types
+        reason
+      }
+    }
+  }
+`;
+
+export const RECOVERY_HISTORY_QUERY = gql`
+  query RecoveryHistory($days: Int) {
+    recoveryHistory(days: $days) {
+      scores {
+        id
+        score
+        classification
+        calculatedAt
+      }
+      averageScore
+      trend
+      bestScore
+      worstScore
+      daysTracked
+    }
+  }
+`;
+
+export const RECOVERY_RECOMMENDATIONS_QUERY = gql`
+  query RecoveryRecommendations {
+    recoveryRecommendations {
+      id
+      type
+      priority
+      title
+      description
+      actionItems {
+        action
+        completed
+      }
+    }
+  }
+`;
+
+export const LAST_SLEEP_QUERY = gql`
+  query LastSleep {
+    lastSleep {
+      id
+      bedTime
+      wakeTime
+      sleepDurationMinutes
+      quality
+      notes
+      factors {
+        lateExercise
+        lateFood
+        screenBeforeBed
+        caffeineAfter6pm
+        alcoholConsumed
+      }
+      createdAt
+    }
+  }
+`;
+
+export const SLEEP_HISTORY_QUERY = gql`
+  query SleepHistory($limit: Int, $cursor: String, $startDate: DateTime, $endDate: DateTime) {
+    sleepHistory(limit: $limit, cursor: $cursor, startDate: $startDate, endDate: $endDate) {
+      logs {
+        id
+        bedTime
+        wakeTime
+        sleepDurationMinutes
+        quality
+        notes
+        createdAt
+      }
+      nextCursor
+      hasMore
+    }
+  }
+`;
+
+export const SLEEP_STATS_QUERY = gql`
+  query SleepStats($period: String) {
+    sleepStats(period: $period) {
+      avgDuration
+      avgQuality
+      totalNights
+      sleepDebt
+      consistency
+      qualityDistribution {
+        poor
+        fair
+        good
+        excellent
+      }
+    }
+  }
+`;
+
+export const WEEKLY_SLEEP_STATS_QUERY = gql`
+  query WeeklySleepStats($weeks: Int) {
+    weeklySleepStats(weeks: $weeks) {
+      weekStart
+      weekEnd
+      avgDuration
+      avgQuality
+      nightsTracked
+      sleepDebt
+    }
+  }
+`;
+
+export const SLEEP_GOAL_QUERY = gql`
+  query SleepGoal {
+    sleepGoal {
+      id
+      targetHours
+      targetBedTime
+      targetWakeTime
+      reminderEnabled
+      reminderMinutesBefore
+    }
+  }
+`;
+
+// ============================================
+// CAREER READINESS
+// ============================================
+
+export const CAREER_STANDARDS_QUERY = gql`
+  query CareerStandards($category: String) {
+    careerStandards(category: $category) {
+      id
+      name
+      fullName
+      agency
+      category
+      description
+      officialUrl
+      scoringType
+      recertificationPeriodMonths
+      events {
+        id
+        name
+        description
+        metricType
+        metricUnit
+        direction
+        passingThreshold
+        exerciseMappings
+        tips
+        orderIndex
+      }
+      eventCount
+      icon
+      maxScore
+      passingScore
+    }
+  }
+`;
+
+export const CAREER_STANDARD_QUERY = gql`
+  query CareerStandard($id: ID!) {
+    careerStandard(id: $id) {
+      id
+      name
+      fullName
+      agency
+      category
+      description
+      officialUrl
+      scoringType
+      recertificationPeriodMonths
+      events {
+        id
+        name
+        description
+        metricType
+        metricUnit
+        direction
+        passingThreshold
+        exerciseMappings
+        tips
+        orderIndex
+      }
+      eventCount
+      icon
+      maxScore
+      passingScore
+    }
+  }
+`;
+
+export const CAREER_STANDARD_CATEGORIES_QUERY = gql`
+  query CareerStandardCategories {
+    careerStandardCategories {
+      category
+      count
+      icon
+    }
+  }
+`;
+
+export const MY_CAREER_GOALS_QUERY = gql`
+  query MyCareerGoals {
+    myCareerGoals {
+      id
+      standard {
+        id
+        name
+        fullName
+        agency
+        category
+        description
+        icon
+        eventCount
+        scoringType
+        maxScore
+        passingScore
+      }
+      standardId
+      targetDate
+      priority
+      status
+      agencyName
+      notes
+      readiness {
+        score
+        status
+        trend
+        trendDelta
+        eventBreakdown {
+          eventId
+          eventName
+          passed
+          value
+          status
+        }
+        weakEvents
+        lastAssessmentAt
+        eventsPassed
+        eventsTotal
+      }
+      daysRemaining
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const MY_CAREER_READINESS_QUERY = gql`
+  query MyCareerReadiness($goalId: ID) {
+    myCareerReadiness(goalId: $goalId) {
+      score
+      status
+      trend
+      trendDelta
+      eventBreakdown {
+        eventId
+        eventName
+        passed
+        value
+        status
+      }
+      weakEvents
+      lastAssessmentAt
+      eventsPassed
+      eventsTotal
+    }
+  }
+`;
+
+export const CAREER_EXERCISE_RECOMMENDATIONS_QUERY = gql`
+  query CareerExerciseRecommendations($goalId: ID!) {
+    careerExerciseRecommendations(goalId: $goalId) {
+      exerciseId
+      exerciseName
+    }
+  }
+`;

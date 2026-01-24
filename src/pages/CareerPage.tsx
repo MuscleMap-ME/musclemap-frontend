@@ -8,13 +8,15 @@
  * - /career - This page (main career hub)
  * - /career/goals/:goalId - Individual goal detail
  * - /career/standards/:standardId - Individual standard detail
+ *
+ * ⚡ GraphQL-only implementation - no REST calls
  */
 
-import React, { useState, useEffect, useCallback, lazy } from 'react';
+import React, { useState, useCallback, lazy } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
 import {
   GlassSurface,
   GlassButton,
@@ -26,6 +28,12 @@ import {
   MeshBackground,
 } from '../components/glass';
 import { SkeletonCard, SkeletonStats } from '../components/skeletons';
+import {
+  MY_CAREER_GOALS_QUERY,
+  CAREER_STANDARDS_QUERY,
+  CAREER_STANDARD_CATEGORIES_QUERY,
+} from '../graphql/queries';
+import { CREATE_CAREER_GOAL_MUTATION } from '../graphql/mutations';
 
 // Lazy load heavy chart component
 const _ReadinessTrendChart = lazy(() => import('../components/career/ReadinessTrendChart').catch(() => ({ default: () => null })));
@@ -150,15 +158,61 @@ const STATUS_COLORS = {
 };
 
 // ============================================
+// TYPES
+// ============================================
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  fullName?: string;
+  agency?: string;
+  category: string;
+  description?: string;
+  icon?: string;
+  eventCount: number;
+  events?: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+interface CareerReadiness {
+  score: number | null;
+  status: string;
+  eventsPassed: number;
+  eventsTotal: number;
+}
+
+interface CareerGoal {
+  id: string;
+  standard: CareerStandard;
+  standardId: string;
+  targetDate?: string;
+  priority: string;
+  status: string;
+  agencyName?: string;
+  notes?: string;
+  readiness?: CareerReadiness;
+  daysRemaining?: number;
+  createdAt: string;
+}
+
+interface CategoryInfo {
+  category: string;
+  count: number;
+  icon: string;
+}
+
+// ============================================
 // COMPONENTS
 // ============================================
 
 // Circular Progress Gauge
-function ReadinessGauge({ score, status, size = 120 }) {
+function ReadinessGauge({ score, status, size = 120 }: { score: number | null; status: string; size?: number }) {
   const radius = (size - 12) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score !== null ? (score / 100) * circumference : 0;
-  const statusConfig = STATUS_COLORS[status] || STATUS_COLORS.no_data;
+  const statusConfig = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || STATUS_COLORS.no_data;
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -201,12 +255,10 @@ function ReadinessGauge({ score, status, size = 120 }) {
 }
 
 // Goal Card (compact list item)
-function GoalCard({ goal, readiness, onClick }) {
-  const categoryMeta = CATEGORY_META[goal.category] || CATEGORY_META.general;
-  const statusConfig = STATUS_COLORS[readiness?.status] || STATUS_COLORS.no_data;
-  const daysRemaining = goal.targetDate
-    ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
-    : null;
+function GoalCard({ goal, onClick }: { goal: CareerGoal; onClick: () => void }) {
+  const categoryMeta = CATEGORY_META[goal.standard?.category as keyof typeof CATEGORY_META] || CATEGORY_META.general;
+  const statusConfig = STATUS_COLORS[goal.readiness?.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.no_data;
+  const daysRemaining = goal.daysRemaining;
 
   return (
     <motion.button
@@ -221,11 +273,11 @@ function GoalCard({ goal, readiness, onClick }) {
           className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
           style={{ backgroundColor: `${categoryMeta.color}20` }}
         >
-          {goal.icon || (goal.category === 'military' ? '🎖️' : goal.category === 'firefighter' ? '🔥' : goal.category === 'law_enforcement' ? '🛡️' : '🏋️')}
+          {goal.standard?.icon || (goal.standard?.category === 'military' ? '🎖️' : goal.standard?.category === 'firefighter' ? '🔥' : goal.standard?.category === 'law_enforcement' ? '🛡️' : '🏋️')}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-[var(--text-primary)] truncate">{goal.testName}</h3>
+            <h3 className="font-bold text-[var(--text-primary)] truncate">{goal.standard?.name}</h3>
             {goal.priority === 'primary' && (
               <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--brand-blue-500)]/20 text-[var(--brand-blue-400)]">
                 Primary
@@ -233,18 +285,18 @@ function GoalCard({ goal, readiness, onClick }) {
             )}
           </div>
           <p className="text-sm text-[var(--text-tertiary)] mb-2">
-            {goal.institution || categoryMeta.label}
+            {goal.agencyName || goal.standard?.agency || categoryMeta.label}
           </p>
           <div className="flex items-center gap-4">
-            {readiness && (
+            {goal.readiness && (
               <div className="flex items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${statusConfig.bg.replace('/20', '')}`} />
                 <span className={`text-sm font-semibold ${statusConfig.text}`}>
-                  {readiness.readinessScore !== null ? `${readiness.readinessScore}%` : 'No data'}
+                  {goal.readiness.score !== null ? `${goal.readiness.score}%` : 'No data'}
                 </span>
               </div>
             )}
-            {daysRemaining !== null && (
+            {daysRemaining !== null && daysRemaining !== undefined && (
               <div className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)]">
                 <Icons.Calendar className="w-4 h-4" />
                 <span>
@@ -265,8 +317,8 @@ function GoalCard({ goal, readiness, onClick }) {
 }
 
 // Standard Card (for browsing)
-function StandardCard({ standard, onSelect, hasGoal }) {
-  const categoryMeta = CATEGORY_META[standard.category] || CATEGORY_META.general;
+function StandardCard({ standard, onSelect, hasGoal }: { standard: CareerStandard; onSelect: (s: CareerStandard) => void; hasGoal: boolean }) {
+  const categoryMeta = CATEGORY_META[standard.category as keyof typeof CATEGORY_META] || CATEGORY_META.general;
 
   return (
     <motion.button
@@ -290,7 +342,7 @@ function StandardCard({ standard, onSelect, hasGoal }) {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-[var(--text-primary)] truncate">{standard.name}</h3>
-          <p className="text-sm text-[var(--text-tertiary)]">{standard.institution}</p>
+          <p className="text-sm text-[var(--text-tertiary)]">{standard.agency}</p>
         </div>
         {hasGoal ? (
           <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">
@@ -300,9 +352,9 @@ function StandardCard({ standard, onSelect, hasGoal }) {
           <Icons.Plus className="w-5 h-5 text-[var(--brand-blue-400)]" />
         )}
       </div>
-      {standard.components && standard.components.length > 0 && (
+      {standard.events && standard.events.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {standard.components.slice(0, 4).map(comp => (
+          {standard.events.slice(0, 4).map(comp => (
             <span
               key={comp.id}
               className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]"
@@ -310,9 +362,9 @@ function StandardCard({ standard, onSelect, hasGoal }) {
               {comp.name}
             </span>
           ))}
-          {standard.components.length > 4 && (
+          {standard.events.length > 4 && (
             <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]">
-              +{standard.components.length - 4}
+              +{standard.events.length - 4}
             </span>
           )}
         </div>
@@ -322,7 +374,12 @@ function StandardCard({ standard, onSelect, hasGoal }) {
 }
 
 // Add Goal Modal
-function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
+function AddGoalModal({ isOpen, onClose, standard, onSubmit }: {
+  isOpen: boolean;
+  onClose: () => void;
+  standard: CareerStandard | null;
+  onSubmit: (data: { standardId: string; targetDate?: string; priority: string; agencyName?: string; notes?: string }) => Promise<void>;
+}) {
   const [formData, setFormData] = useState({
     targetDate: '',
     priority: 'primary',
@@ -331,7 +388,7 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
   });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOpen) {
       setFormData({
         targetDate: '',
@@ -344,12 +401,12 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
 
   if (!isOpen || !standard) return null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await onSubmit({
-        ptTestId: standard.id,
+        standardId: standard.id,
         targetDate: formData.targetDate || undefined,
         priority: formData.priority,
         agencyName: formData.agencyName || undefined,
@@ -363,7 +420,7 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
     }
   };
 
-  const categoryMeta = CATEGORY_META[standard.category] || CATEGORY_META.general;
+  const categoryMeta = CATEGORY_META[standard.category as keyof typeof CATEGORY_META] || CATEGORY_META.general;
 
   return (
     <AnimatePresence>
@@ -489,7 +546,6 @@ const navSections = [
       { to: '/career', icon: <Icons.Target className="w-5 h-5" />, label: 'Overview', active: true },
       { to: '/career?tab=goals', icon: <Icons.Clipboard className="w-5 h-5" />, label: 'My Goals' },
       { to: '/career?tab=standards', icon: <Icons.Trophy className="w-5 h-5" />, label: 'Browse Standards' },
-      { to: '/career?tab=assessments', icon: <Icons.History className="w-5 h-5" />, label: 'Assessments' },
     ]
   },
   {
@@ -520,84 +576,55 @@ export default function CareerPage() {
   const activeTab = searchParams.get('tab') || 'goals';
 
   // State
-  const [goals, setGoals] = useState([]);
-  const [readinessData, setReadinessData] = useState([]);
-  const [standards, setStandards] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [assessments, setAssessments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedStandard, setSelectedStandard] = useState(null);
+  const [selectedStandard, setSelectedStandard] = useState<CareerStandard | null>(null);
 
-  // Load data
-  const loadGoals = useCallback(async () => {
-    try {
-      const response = await api.get('/career/goals');
-      setGoals(response.data?.goals || []);
-    } catch (error) {
-      console.error('Failed to load goals:', error);
-    }
-  }, []);
+  // GraphQL Queries
+  const {
+    data: goalsData,
+    loading: goalsLoading,
+    refetch: refetchGoals,
+  } = useQuery(MY_CAREER_GOALS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadReadiness = useCallback(async () => {
-    try {
-      const response = await api.get('/career/readiness');
-      setReadinessData(response.data?.readiness || []);
-    } catch (error) {
-      console.error('Failed to load readiness:', error);
-    }
-  }, []);
+  const {
+    data: standardsData,
+    loading: standardsLoading,
+  } = useQuery(CAREER_STANDARDS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadStandards = useCallback(async () => {
-    try {
-      const response = await api.get('/career/standards');
-      setStandards(response.data?.standards || []);
-    } catch (error) {
-      console.error('Failed to load standards:', error);
-    }
-  }, []);
+  const {
+    data: categoriesData,
+    loading: categoriesLoading,
+  } = useQuery(CAREER_STANDARD_CATEGORIES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const response = await api.get('/career/standards/categories');
-      setCategories(response.data?.categories || []);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  }, []);
+  // GraphQL Mutation
+  const [createGoalMutation] = useMutation(CREATE_CAREER_GOAL_MUTATION, {
+    onCompleted: () => {
+      refetchGoals();
+    },
+  });
 
-  const loadAssessments = useCallback(async () => {
-    try {
-      const response = await api.get('/career/assessments');
-      setAssessments(response.data?.assessments || []);
-    } catch (error) {
-      console.error('Failed to load assessments:', error);
-    }
-  }, []);
+  // Extract data
+  const goals: CareerGoal[] = goalsData?.myCareerGoals || [];
+  const standards: CareerStandard[] = standardsData?.careerStandards || [];
+  const categories: CategoryInfo[] = categoriesData?.careerStandardCategories || [];
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      await Promise.all([loadGoals(), loadReadiness(), loadStandards(), loadCategories(), loadAssessments()]);
-      setLoading(false);
-    };
-    loadAll();
-  }, [loadGoals, loadReadiness, loadStandards, loadCategories, loadAssessments]);
+  const loading = goalsLoading || standardsLoading || categoriesLoading;
 
   // Handlers
-  const handleCreateGoal = async (data) => {
-    await api.post('/career/goals', data);
-    await loadGoals();
-    await loadReadiness();
-  };
-
-  // Get readiness for a specific goal
-  const getGoalReadiness = (goalId) => {
-    return readinessData.find(r => r.goalId === goalId);
-  };
+  const handleCreateGoal = useCallback(async (data: { standardId: string; targetDate?: string; priority: string; agencyName?: string; notes?: string }) => {
+    await createGoalMutation({
+      variables: { input: data },
+    });
+  }, [createGoalMutation]);
 
   // Filter standards by category
   const filteredStandards = selectedCategory === 'all'
@@ -605,13 +632,12 @@ export default function CareerPage() {
     : standards.filter(s => s.category === selectedCategory);
 
   // Get goal IDs for checking if standard already has a goal
-  const goalTestIds = new Set(goals.map(g => g.ptTestId));
+  const goalStandardIds = new Set(goals.map(g => g.standardId));
 
   // Summary stats
   const primaryGoal = goals.find(g => g.priority === 'primary' && g.status === 'active');
-  const primaryReadiness = primaryGoal ? getGoalReadiness(primaryGoal.id) : null;
   const activeGoalsCount = goals.filter(g => g.status === 'active').length;
-  const readyGoalsCount = readinessData.filter(r => r.status === 'ready').length;
+  const readyGoalsCount = goals.filter(g => g.readiness?.status === 'ready').length;
 
   return (
     <div className="min-h-screen relative">
@@ -638,7 +664,6 @@ export default function CareerPage() {
                   icon={item.icon}
                   label={item.label}
                   active={item.active}
-                  badge={item.badge}
                 />
               ))}
             </GlassSidebarSection>
@@ -702,8 +727,8 @@ export default function CareerPage() {
                       <Icons.History className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-[var(--text-primary)]">{assessments.length}</div>
-                      <div className="text-sm text-[var(--text-tertiary)]">Assessments</div>
+                      <div className="text-2xl font-bold text-[var(--text-primary)]">{categories.length}</div>
+                      <div className="text-sm text-[var(--text-tertiary)]">Categories</div>
                     </div>
                   </div>
                 </GlassSurface>
@@ -716,13 +741,13 @@ export default function CareerPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <ReadinessGauge
-                      score={primaryReadiness?.readinessScore}
-                      status={primaryReadiness?.status || 'no_data'}
+                      score={primaryGoal.readiness?.score ?? null}
+                      status={primaryGoal.readiness?.status || 'no_data'}
                       size={64}
                     />
                     <div>
                       <div className="text-sm text-[var(--text-tertiary)]">Primary Goal</div>
-                      <div className="font-bold text-[var(--text-primary)]">{primaryGoal.testName}</div>
+                      <div className="font-bold text-[var(--text-primary)]">{primaryGoal.standard?.name}</div>
                       {primaryGoal.targetDate && (
                         <div className="text-sm text-[var(--text-tertiary)]">
                           Target: {new Date(primaryGoal.targetDate).toLocaleDateString()}
@@ -746,7 +771,6 @@ export default function CareerPage() {
               {[
                 { key: 'goals', label: 'My Goals', icon: Icons.Target, count: activeGoalsCount },
                 { key: 'standards', label: 'Browse Standards', icon: Icons.Trophy },
-                { key: 'assessments', label: 'Assessments', icon: Icons.History, count: assessments.length },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -802,13 +826,12 @@ export default function CareerPage() {
                     <GoalCard
                       key={goal.id}
                       goal={goal}
-                      readiness={getGoalReadiness(goal.id)}
                       onClick={() => navigate(`/career/goals/${goal.id}`)}
                     />
                   ))
                 )}
               </div>
-            ) : activeTab === 'standards' ? (
+            ) : (
               /* Standards Tab */
               <div>
                 {/* Category Filter */}
@@ -824,7 +847,7 @@ export default function CareerPage() {
                     All ({standards.length})
                   </button>
                   {categories.map(cat => {
-                    const meta = CATEGORY_META[cat.category] || CATEGORY_META.general;
+                    const meta = CATEGORY_META[cat.category as keyof typeof CATEGORY_META] || CATEGORY_META.general;
                     return (
                       <button
                         key={cat.category}
@@ -836,7 +859,7 @@ export default function CareerPage() {
                         }`}
                       >
                         <span>{cat.category === 'military' ? '🎖️' : cat.category === 'firefighter' ? '🔥' : cat.category === 'law_enforcement' ? '🛡️' : '🏋️'}</span>
-                        {cat.label || meta.label} ({cat.count})
+                        {meta.label} ({cat.count})
                       </button>
                     );
                   })}
@@ -849,7 +872,7 @@ export default function CareerPage() {
                       key={standard.id}
                       standard={standard}
                       onSelect={(s) => navigate(`/career/standards/${s.id}`)}
-                      hasGoal={goalTestIds.has(standard.id)}
+                      hasGoal={goalStandardIds.has(standard.id)}
                     />
                   ))}
                 </div>
@@ -864,50 +887,6 @@ export default function CareerPage() {
                       Try selecting a different category
                     </p>
                   </GlassSurface>
-                )}
-              </div>
-            ) : (
-              /* Assessments Tab */
-              <div className="space-y-4">
-                {assessments.length === 0 ? (
-                  <GlassSurface className="p-8 text-center" depth="subtle">
-                    <Icons.History className="w-16 h-16 mx-auto mb-4 text-[var(--text-quaternary)]" />
-                    <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-                      No Assessments Yet
-                    </h3>
-                    <p className="text-[var(--text-tertiary)] mb-6">
-                      Complete a PT test to record your first assessment
-                    </p>
-                    <GlassButton
-                      variant="primary"
-                      onClick={() => navigate('/pt-tests')}
-                    >
-                      Go to PT Tests
-                    </GlassButton>
-                  </GlassSurface>
-                ) : (
-                  assessments.map(assessment => (
-                    <GlassSurface key={assessment.id} className="p-4" depth="subtle">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-[var(--text-primary)]">{assessment.testName}</div>
-                          <div className="text-sm text-[var(--text-tertiary)]">
-                            {new Date(assessment.completedAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-lg font-bold ${
-                            assessment.passed ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {assessment.passed ? 'PASS' : 'FAIL'}
-                          </div>
-                          <div className="text-sm text-[var(--text-tertiary)]">
-                            {assessment.score}%
-                          </div>
-                        </div>
-                      </div>
-                    </GlassSurface>
-                  ))
                 )}
               </div>
             )}

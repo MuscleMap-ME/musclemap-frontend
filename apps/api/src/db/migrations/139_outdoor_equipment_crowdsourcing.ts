@@ -14,6 +14,9 @@
  * - fitness_venues table with equipment JSONB
  * - venue_checkins for user presence tracking
  * - venue_memberships for user-venue relationships
+ *
+ * DESTRUCTIVE: The down() function removes crowdsourcing tables and columns.
+ * This is intentional for clean rollback of the feature.
  */
 
 import { db } from '../client';

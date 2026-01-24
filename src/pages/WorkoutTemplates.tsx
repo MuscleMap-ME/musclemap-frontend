@@ -7,10 +7,13 @@
  * - Discover: Public templates from the community
  * - Create: Build new templates from scratch
  * - Quick Start: Start workout from template
+ *
+ * ⚡ GraphQL-only implementation - no REST calls
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -36,10 +39,22 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../store/authStore';
 import { useToast } from '../hooks';
-import api from '../utils/api';
-import { clearRequestCache } from '@musclemap/client';
 import { PullToRefresh } from '../components/mobile';
 import { haptic } from '../utils/haptics';
+import {
+  MY_WORKOUT_TEMPLATES_QUERY,
+  SAVED_WORKOUT_TEMPLATES_QUERY,
+  WORKOUT_TEMPLATES_QUERY,
+  EXERCISES_QUERY,
+} from '../graphql/queries';
+import {
+  CREATE_WORKOUT_TEMPLATE_MUTATION,
+  UPDATE_WORKOUT_TEMPLATE_MUTATION,
+  DELETE_WORKOUT_TEMPLATE_MUTATION,
+  CLONE_WORKOUT_TEMPLATE_MUTATION,
+  SAVE_WORKOUT_TEMPLATE_MUTATION,
+  UNSAVE_WORKOUT_TEMPLATE_MUTATION,
+} from '../graphql/mutations';
 
 // Types
 interface TemplateExercise {
@@ -105,10 +120,6 @@ export default function WorkoutTemplates() {
   const { toast, error: showError } = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>('my');
-  const [myTemplates, setMyTemplates] = useState<WorkoutTemplate[]>([]);
-  const [savedTemplates, setSavedTemplates] = useState<WorkoutTemplate[]>([]);
-  const [publicTemplates, setPublicTemplates] = useState<WorkoutTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('');
@@ -129,115 +140,178 @@ export default function WorkoutTemplates() {
     isPublic: false,
   });
 
-  // Fetch templates
-  const fetchMyTemplates = useCallback(async () => {
-    try {
-      const response = await api.get('/templates/me');
-      setMyTemplates(response.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch my templates:', err);
-    }
-  }, []);
+  // GraphQL Queries
+  const {
+    data: myTemplatesData,
+    loading: myTemplatesLoading,
+    refetch: refetchMyTemplates,
+  } = useQuery(MY_WORKOUT_TEMPLATES_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchSavedTemplates = useCallback(async () => {
-    try {
-      const response = await api.get('/templates/saved');
-      setSavedTemplates(response.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch saved templates:', err);
-    }
-  }, []);
+  const {
+    data: savedTemplatesData,
+    loading: savedTemplatesLoading,
+    refetch: refetchSavedTemplates,
+  } = useQuery(SAVED_WORKOUT_TEMPLATES_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const fetchPublicTemplates = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (categoryFilter) params.set('category', categoryFilter);
-      if (difficultyFilter) params.set('difficulty', difficultyFilter);
-      params.set('sortBy', 'popular');
-      params.set('limit', '50');
+  const {
+    data: publicTemplatesData,
+    loading: publicTemplatesLoading,
+    refetch: refetchPublicTemplates,
+  } = useQuery(WORKOUT_TEMPLATES_QUERY, {
+    variables: {
+      input: {
+        search: search || undefined,
+        category: categoryFilter || undefined,
+        difficulty: difficultyFilter || undefined,
+        sortBy: 'popular',
+        limit: 50,
+      },
+    },
+    fetchPolicy: 'cache-and-network',
+  });
 
-      const response = await api.get(`/templates?${params.toString()}`);
-      setPublicTemplates(response.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch public templates:', err);
-    }
-  }, [search, categoryFilter, difficultyFilter]);
+  // GraphQL Mutations
+  const [createTemplate] = useMutation(CREATE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template created!');
+      setIsCreating(false);
+      setEditingTemplate(null);
+      resetNewTemplate();
+      refetchMyTemplates();
+      setActiveTab('my');
+    },
+    onError: () => showError('Failed to create template'),
+  });
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchMyTemplates(),
-        fetchSavedTemplates(),
-        fetchPublicTemplates(),
-      ]);
-      setLoading(false);
-    };
-    loadData();
-  }, [fetchMyTemplates, fetchSavedTemplates, fetchPublicTemplates]);
+  const [updateTemplate] = useMutation(UPDATE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template updated!');
+      setIsCreating(false);
+      setEditingTemplate(null);
+      resetNewTemplate();
+      refetchMyTemplates();
+    },
+    onError: () => showError('Failed to update template'),
+  });
+
+  const [deleteTemplate] = useMutation(DELETE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template deleted');
+      refetchMyTemplates();
+    },
+    onError: () => showError('Failed to delete template'),
+  });
+
+  const [cloneTemplate] = useMutation(CLONE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template cloned to your templates!');
+      refetchMyTemplates();
+      setActiveTab('my');
+    },
+    onError: () => showError('Failed to clone template'),
+  });
+
+  const [saveTemplate] = useMutation(SAVE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template saved!');
+      refetchSavedTemplates();
+      refetchPublicTemplates();
+    },
+    onError: () => showError('Failed to save template'),
+  });
+
+  const [unsaveTemplate] = useMutation(UNSAVE_WORKOUT_TEMPLATE_MUTATION, {
+    onCompleted: () => {
+      toast('Template removed from saved');
+      refetchSavedTemplates();
+      refetchPublicTemplates();
+    },
+    onError: () => showError('Failed to unsave template'),
+  });
+
+  // Data extraction - memoized to prevent unnecessary rerenders
+  const myTemplates = useMemo<WorkoutTemplate[]>(
+    () => myTemplatesData?.myWorkoutTemplates?.templates || [],
+    [myTemplatesData?.myWorkoutTemplates?.templates]
+  );
+  const savedTemplates = useMemo<WorkoutTemplate[]>(
+    () => savedTemplatesData?.savedWorkoutTemplates?.templates || [],
+    [savedTemplatesData?.savedWorkoutTemplates?.templates]
+  );
+  const publicTemplates = useMemo<WorkoutTemplate[]>(
+    () => publicTemplatesData?.workoutTemplates?.templates || [],
+    [publicTemplatesData?.workoutTemplates?.templates]
+  );
+
+  const loading = myTemplatesLoading || savedTemplatesLoading || publicTemplatesLoading;
+
+  // Helper functions
+  const resetNewTemplate = () => {
+    setNewTemplate({
+      name: '',
+      description: '',
+      exercises: [],
+      difficulty: '',
+      durationMinutes: 45,
+      category: '',
+      tags: [],
+      isPublic: false,
+    });
+  };
 
   // Pull to refresh handler
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     haptic('medium');
     await Promise.all([
-      fetchMyTemplates(),
-      fetchSavedTemplates(),
-      fetchPublicTemplates(),
+      refetchMyTemplates(),
+      refetchSavedTemplates(),
+      refetchPublicTemplates(),
     ]);
     setIsRefreshing(false);
     toast('Templates refreshed');
-  }, [fetchMyTemplates, fetchSavedTemplates, fetchPublicTemplates, toast]);
+  }, [refetchMyTemplates, refetchSavedTemplates, refetchPublicTemplates, toast]);
 
   // Handlers
   const handleSaveTemplate = async (templateId: string) => {
-    try {
-      await api.post(`/templates/${templateId}/save`);
-      toast('Template saved!');
-      clearRequestCache();
-      fetchSavedTemplates();
-    } catch (_err) {
-      showError('Failed to save template');
-    }
+    await saveTemplate({ variables: { id: templateId } });
   };
 
   const handleUnsaveTemplate = async (templateId: string) => {
-    try {
-      await api.delete(`/templates/${templateId}/save`);
-      toast('Template removed from saved');
-      // Optimistically remove from local state
-      setSavedTemplates((prev) => prev.filter((t) => t.id !== templateId));
-      clearRequestCache();
-    } catch (_err) {
-      showError('Failed to unsave template');
-    }
+    await unsaveTemplate({ variables: { id: templateId } });
   };
 
   const handleCloneTemplate = async (templateId: string) => {
-    try {
-      await api.post(`/templates/${templateId}/clone`);
-      toast('Template cloned to your templates!');
-      clearRequestCache();
-      fetchMyTemplates();
-      setActiveTab('my');
-    } catch (_err) {
-      showError('Failed to clone template');
-    }
+    await cloneTemplate({ variables: { id: templateId } });
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm('Delete this template? This cannot be undone.')) return;
-    try {
-      await api.delete(`/templates/${templateId}`);
-      toast('Template deleted');
-      // Optimistically remove from local state immediately
-      setMyTemplates((prev) => prev.filter((t) => t.id !== templateId));
-      // Clear request cache to ensure fresh data on next fetch
-      clearRequestCache();
-    } catch (_err) {
-      showError('Failed to delete template');
-    }
+    await deleteTemplate({
+      variables: { id: templateId },
+      optimisticResponse: { deleteWorkoutTemplate: true },
+      update: (cache) => {
+        // Optimistically remove from cache
+        cache.modify({
+          fields: {
+            myWorkoutTemplates(existingRef, { readField }) {
+              return {
+                ...existingRef,
+                templates: existingRef.templates?.filter(
+                  (t: { __ref: string }) => readField('id', t) !== templateId
+                ),
+              };
+            },
+          },
+        });
+      },
+    });
   };
 
   const handleStartWorkout = (template: WorkoutTemplate) => {
@@ -255,43 +329,30 @@ export default function WorkoutTemplates() {
       return;
     }
 
-    try {
-      const payload = {
-        name: newTemplate.name.trim(),
-        description: newTemplate.description.trim() || undefined,
-        exercises: newTemplate.exercises,
-        difficulty: newTemplate.difficulty || undefined,
-        durationMinutes: newTemplate.durationMinutes || undefined,
-        category: newTemplate.category || undefined,
-        tags: newTemplate.tags.length > 0 ? newTemplate.tags : undefined,
-        isPublic: newTemplate.isPublic,
-      };
+    const input = {
+      name: newTemplate.name.trim(),
+      description: newTemplate.description.trim() || undefined,
+      exercises: newTemplate.exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight,
+        duration: ex.duration,
+        restSeconds: ex.restSeconds,
+        notes: ex.notes,
+      })),
+      difficulty: newTemplate.difficulty || undefined,
+      durationMinutes: newTemplate.durationMinutes || undefined,
+      category: newTemplate.category || undefined,
+      tags: newTemplate.tags.length > 0 ? newTemplate.tags : undefined,
+      isPublic: newTemplate.isPublic,
+    };
 
-      if (editingTemplate) {
-        await api.put(`/templates/${editingTemplate.id}`, payload);
-        toast('Template updated!');
-      } else {
-        await api.post('/templates', payload);
-        toast('Template created!');
-      }
-
-      setIsCreating(false);
-      setEditingTemplate(null);
-      setNewTemplate({
-        name: '',
-        description: '',
-        exercises: [],
-        difficulty: '',
-        durationMinutes: 45,
-        category: '',
-        tags: [],
-        isPublic: false,
-      });
-      clearRequestCache();
-      fetchMyTemplates();
-      setActiveTab('my');
-    } catch (_err) {
-      showError('Failed to save template');
+    if (editingTemplate) {
+      await updateTemplate({ variables: { id: editingTemplate.id, input } });
+    } else {
+      await createTemplate({ variables: { input } });
     }
   };
 
@@ -379,16 +440,7 @@ export default function WorkoutTemplates() {
               onClick={() => {
                 setIsCreating(true);
                 setEditingTemplate(null);
-                setNewTemplate({
-                  name: '',
-                  description: '',
-                  exercises: [],
-                  difficulty: '',
-                  durationMinutes: 45,
-                  category: '',
-                  tags: [],
-                  isPublic: false,
-                });
+                resetNewTemplate();
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
             >
@@ -771,29 +823,26 @@ function TemplateEditor({
   onCancel: () => void;
 }) {
   const [exerciseSearch, setExerciseSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string }>>([]);
-  const [_searchLoading, setSearchLoading] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Search exercises
-  useEffect(() => {
-    if (!exerciseSearch.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        const response = await api.get(`/exercises?search=${encodeURIComponent(exerciseSearch)}&limit=10`);
-        setSearchResults(response.data?.data || []);
-      } catch (_err) {
-        // Failed to search exercises
-      }
-      setSearchLoading(false);
+  // Debounce exercise search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(exerciseSearch);
     }, 300);
-
     return () => clearTimeout(timer);
   }, [exerciseSearch]);
+
+  // GraphQL query for exercise search
+  const { data: exerciseData } = useQuery(EXERCISES_QUERY, {
+    variables: {
+      search: debouncedSearch,
+      limit: 10,
+    },
+    skip: !debouncedSearch.trim(),
+  });
+
+  const searchResults = exerciseData?.exercises || [];
 
   const addExercise = (exercise: { id: string; name: string }) => {
     onChange({
@@ -804,7 +853,6 @@ function TemplateEditor({
       ],
     });
     setExerciseSearch('');
-    setSearchResults([]);
   };
 
   const updateExercise = (index: number, updates: Partial<TemplateExercise>) => {
@@ -932,9 +980,9 @@ function TemplateEditor({
                   placeholder="Search exercises to add..."
                   className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg"
                 />
-                {searchResults.length > 0 && (
+                {searchResults.length > 0 && exerciseSearch && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 max-h-48 overflow-y-auto">
-                    {searchResults.map((ex) => (
+                    {searchResults.map((ex: { id: string; name: string }) => (
                       <button
                         key={ex.id}
                         onClick={() => addExercise(ex)}
