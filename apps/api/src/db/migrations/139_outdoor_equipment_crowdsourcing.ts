@@ -628,29 +628,38 @@ export async function up(): Promise<void> {
   // ============================================
   log.info('Adding venue contribution earning rules...');
 
+  // First, update the category check constraint to allow 'venue'
+  await db.query(`
+    ALTER TABLE earning_rules DROP CONSTRAINT IF EXISTS earning_rules_category_check;
+    ALTER TABLE earning_rules ADD CONSTRAINT earning_rules_category_check
+      CHECK (category = ANY (ARRAY['workout', 'streak', 'pr', 'goal', 'leaderboard', 'trainer', 'social', 'special', 'venue']));
+  `);
+
+  // Earning rules matching actual schema: code, name, description, category, credits_base, xp_base, max_per_day
   const earningRules = [
-    { key: 'venue_submit_new', category: 'venue', description: 'Submit a new venue location (approved)', base_credits: 50, xp_multiplier: 1.0, daily_limit: 5, enabled: true },
-    { key: 'venue_submit_with_photo', category: 'venue', description: 'Submit venue with photo (approved)', base_credits: 75, xp_multiplier: 1.5, daily_limit: 5, enabled: true },
-    { key: 'venue_verify_exists', category: 'venue', description: 'Verify a venue exists', base_credits: 10, xp_multiplier: 0.5, daily_limit: 10, enabled: true },
-    { key: 'venue_verify_equipment', category: 'venue', description: 'Verify equipment accuracy', base_credits: 15, xp_multiplier: 0.5, daily_limit: 10, enabled: true },
-    { key: 'venue_add_photo', category: 'venue', description: 'Add photo to existing venue', base_credits: 25, xp_multiplier: 1.0, daily_limit: 5, enabled: true },
-    { key: 'venue_report_valid', category: 'venue', description: 'Submit valid issue report', base_credits: 15, xp_multiplier: 0.5, daily_limit: 5, enabled: true },
-    { key: 'venue_first_verification', category: 'venue', description: 'First to verify a new location', base_credits: 25, xp_multiplier: 1.0, daily_limit: 3, enabled: true },
-    { key: 'venue_update_condition', category: 'venue', description: 'Update equipment condition', base_credits: 10, xp_multiplier: 0.5, daily_limit: 10, enabled: true },
-    { key: 'venue_weekly_contributor', category: 'venue', description: 'Make 5+ contributions in a week', base_credits: 100, xp_multiplier: 2.0, daily_limit: 1, enabled: true },
-    { key: 'venue_local_expert', category: 'venue', description: 'Verify 10+ venues in same borough', base_credits: 200, xp_multiplier: 3.0, daily_limit: 1, enabled: true },
+    { code: 'venue_submit_new', name: 'Submit Venue', description: 'Submit a new venue location (approved)', category: 'venue', credits_base: 50, xp_base: 50, max_per_day: 5 },
+    { code: 'venue_submit_with_photo', name: 'Submit Venue w/ Photo', description: 'Submit venue with photo (approved)', category: 'venue', credits_base: 75, xp_base: 75, max_per_day: 5 },
+    { code: 'venue_verify_exists', name: 'Verify Venue', description: 'Verify a venue exists', category: 'venue', credits_base: 10, xp_base: 5, max_per_day: 10 },
+    { code: 'venue_verify_equipment', name: 'Verify Equipment', description: 'Verify equipment accuracy', category: 'venue', credits_base: 15, xp_base: 8, max_per_day: 10 },
+    { code: 'venue_add_photo', name: 'Add Venue Photo', description: 'Add photo to existing venue', category: 'venue', credits_base: 25, xp_base: 25, max_per_day: 5 },
+    { code: 'venue_report_valid', name: 'Valid Report', description: 'Submit valid issue report', category: 'venue', credits_base: 15, xp_base: 8, max_per_day: 5 },
+    { code: 'venue_first_verification', name: 'First Verifier', description: 'First to verify a new location', category: 'venue', credits_base: 25, xp_base: 25, max_per_day: 3 },
+    { code: 'venue_update_condition', name: 'Update Condition', description: 'Update equipment condition', category: 'venue', credits_base: 10, xp_base: 5, max_per_day: 10 },
+    { code: 'venue_weekly_contributor', name: 'Weekly Contributor', description: 'Make 5+ contributions in a week', category: 'venue', credits_base: 100, xp_base: 200, max_per_day: 1 },
+    { code: 'venue_local_expert', name: 'Local Expert', description: 'Verify 10+ venues in same borough', category: 'venue', credits_base: 200, xp_base: 300, max_per_day: 1 },
   ];
 
   for (const rule of earningRules) {
     await db.query(
-      `INSERT INTO earning_rules (key, category, description, base_credits, xp_multiplier, daily_limit, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (key) DO UPDATE SET
+      `INSERT INTO earning_rules (code, name, description, category, credits_base, xp_base, max_per_day, enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+       ON CONFLICT (code) DO UPDATE SET
+         name = EXCLUDED.name,
          description = EXCLUDED.description,
-         base_credits = EXCLUDED.base_credits,
-         xp_multiplier = EXCLUDED.xp_multiplier,
-         daily_limit = EXCLUDED.daily_limit`,
-      [rule.key, rule.category, rule.description, rule.base_credits, rule.xp_multiplier, rule.daily_limit, rule.enabled]
+         credits_base = EXCLUDED.credits_base,
+         xp_base = EXCLUDED.xp_base,
+         max_per_day = EXCLUDED.max_per_day`,
+      [rule.code, rule.name, rule.description, rule.category, rule.credits_base, rule.xp_base, rule.max_per_day]
     );
   }
 
