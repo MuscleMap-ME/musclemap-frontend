@@ -12,6 +12,17 @@ export const typeDefs = `#graphql
   scalar JSON
 
   # ============================================
+  # COMMON PAGINATION TYPES
+  # ============================================
+  """Standard Relay-style pagination info"""
+  type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+
+  # ============================================
   # ROOT TYPES
   # ============================================
   type Query {
