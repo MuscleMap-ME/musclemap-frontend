@@ -2,9 +2,21 @@
  * GraphQL Queries
  *
  * All query definitions for MuscleMap client
+ *
+ * ARCHITECTURE NOTE: Queries use fragments from ./fragments.ts for consistency
+ * and code reuse. Always prefer fragments over inline field selections.
  */
 
 import { gql } from '@apollo/client/core';
+import {
+  USER_EXTENDED_FIELDS,
+  EXERCISE_FULL_FIELDS,
+  MUSCLE_FIELDS,
+  GOAL_FIELDS,
+  JOURNEY_FIELDS,
+  LEADERBOARD_ENTRY_FIELDS,
+  TRAINER_PROFILE_FIELDS,
+} from './fragments';
 
 // ============================================
 // AUTH & USER
@@ -13,17 +25,10 @@ import { gql } from '@apollo/client/core';
 export const ME_QUERY = gql`
   query Me {
     me {
-      id
-      email
-      username
-      displayName
-      avatar
-      level
-      xp
-      roles
-      createdAt
+      ...UserExtendedFields
     }
   }
+  ${USER_EXTENDED_FIELDS}
 `;
 
 export const MY_CAPABILITIES_QUERY = gql`
@@ -48,51 +53,28 @@ export const MY_CAPABILITIES_QUERY = gql`
 export const EXERCISES_QUERY = gql`
   query Exercises($search: String, $muscleGroup: String, $equipment: String, $limit: Int) {
     exercises(search: $search, muscleGroup: $muscleGroup, equipment: $equipment, limit: $limit) {
-      id
-      name
-      description
-      type
-      primaryMuscles
-      secondaryMuscles
-      equipment
-      difficulty
-      instructions
-      tips
-      imageUrl
-      videoUrl
+      ...ExerciseFullFields
     }
   }
+  ${EXERCISE_FULL_FIELDS}
 `;
 
 export const EXERCISE_QUERY = gql`
   query Exercise($id: ID!) {
     exercise(id: $id) {
-      id
-      name
-      description
-      type
-      primaryMuscles
-      secondaryMuscles
-      equipment
-      difficulty
-      instructions
-      tips
-      imageUrl
-      videoUrl
+      ...ExerciseFullFields
     }
   }
+  ${EXERCISE_FULL_FIELDS}
 `;
 
 export const MUSCLES_QUERY = gql`
   query Muscles {
     muscles {
-      id
-      name
-      group
-      subGroup
-      description
+      ...MuscleFields
     }
   }
+  ${MUSCLE_FIELDS}
 `;
 
 export const MY_MUSCLE_ACTIVATIONS_QUERY = gql`
@@ -192,21 +174,11 @@ export const WORKOUT_QUERY = gql`
 export const GOALS_QUERY = gql`
   query Goals($status: String) {
     goals(status: $status) {
-      id
+      ...GoalFields
       userId
-      type
-      title
-      description
-      target
-      current
-      unit
-      deadline
-      status
-      isPrimary
-      createdAt
-      updatedAt
     }
   }
+  ${GOAL_FIELDS}
 `;
 
 export const GOAL_SUGGESTIONS_QUERY = gql`
@@ -229,22 +201,10 @@ export const GOAL_SUGGESTIONS_QUERY = gql`
 export const JOURNEY_QUERY = gql`
   query Journey {
     journey {
-      userId
-      archetype {
-        id
-        name
-        description
-        icon
-        color
-      }
-      currentLevel
-      currentXP
-      xpToNextLevel
-      totalXP
-      completedMilestones
-      unlockedAbilities
+      ...JourneyFields
     }
   }
+  ${JOURNEY_FIELDS}
 `;
 
 export const JOURNEY_OVERVIEW_QUERY = gql`
@@ -387,16 +347,13 @@ export const MY_STATS_QUERY = gql`
 export const LEADERBOARDS_QUERY = gql`
   query Leaderboards($type: String) {
     leaderboards(type: $type) {
-      rank
-      userId
-      username
-      avatar
+      ...LeaderboardEntryFields
       level
       xp
       stat
-      value
     }
   }
+  ${LEADERBOARD_ENTRY_FIELDS}
 `;
 
 export const MY_STATS_WITH_RANKINGS_QUERY = gql`
@@ -2185,24 +2142,10 @@ export const TRAINERS_QUERY = gql`
 export const MY_TRAINER_PROFILE_QUERY = gql`
   query MyTrainerProfile {
     myTrainerProfile {
-      userId
-      displayName
-      bio
-      specialties
-      certifications
-      hourlyRateCredits
-      perClassRateCredits
-      verified
-      verifiedAt
-      ratingAvg
-      ratingCount
-      totalClassesTaught
-      totalStudentsTrained
-      totalCreditsEarned
-      status
-      createdAt
+      ...TrainerProfileFields
     }
   }
+  ${TRAINER_PROFILE_FIELDS}
 `;
 
 export const TRAINER_CLASSES_QUERY = gql`

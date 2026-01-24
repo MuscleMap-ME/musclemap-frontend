@@ -103,11 +103,21 @@ const log = loggers.core;
 // TYPES
 // ============================================
 
+import type { Loaders } from './loaders';
+
 interface Context {
   user?: {
     userId: string;
     email: string;
     roles: string[];
+  };
+  loaders: Loaders;
+  cache: {
+    get: <T>(key: string) => T | undefined;
+    set: <T>(key: string, value: T) => void;
+    has: (key: string) => boolean;
+    delete: (key: string) => boolean;
+    clear: () => void;
   };
 }
 

@@ -7,6 +7,55 @@
 // Apollo Client
 export { apolloClient, default } from './client';
 
+// Fragments - reusable field selections
+export {
+  // User
+  USER_CORE_FIELDS,
+  USER_EXTENDED_FIELDS,
+  USER_PROFILE_FIELDS,
+  // Exercise
+  EXERCISE_CORE_FIELDS,
+  EXERCISE_FULL_FIELDS,
+  // Workout
+  WORKOUT_CORE_FIELDS,
+  WORKOUT_SET_FIELDS,
+  WORKOUT_FULL_FIELDS,
+  // Muscle
+  MUSCLE_FIELDS,
+  MUSCLE_ACTIVATION_FIELDS,
+  // Stats
+  STATS_PERIOD_FIELDS,
+  CHARACTER_STATS_FIELDS,
+  // Economy
+  BALANCE_FIELDS,
+  TRANSACTION_FIELDS,
+  WALLET_INFO_FIELDS,
+  // Achievement
+  ACHIEVEMENT_FIELDS,
+  USER_ACHIEVEMENT_FIELDS,
+  // Community
+  FEED_ITEM_FIELDS,
+  CONVERSATION_FIELDS,
+  MESSAGE_FIELDS,
+  // Goal
+  GOAL_FIELDS,
+  // Journey
+  ARCHETYPE_FIELDS,
+  JOURNEY_FIELDS,
+  // Pagination
+  PAGE_INFO_FIELDS,
+  // Verification
+  WITNESS_INFO_FIELDS,
+  VERIFICATION_FIELDS,
+  // Leaderboard
+  LEADERBOARD_ENTRY_FIELDS,
+  // Competition
+  COMPETITION_FIELDS,
+  // Trainer
+  TRAINER_PROFILE_FIELDS,
+  TRAINER_CLASS_FIELDS,
+} from './fragments';
+
 // Queries
 export {
   // Auth & User
