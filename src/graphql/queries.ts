@@ -409,8 +409,8 @@ export const EXTENDED_PROFILE_QUERY = gql`
 `;
 
 export const STAT_LEADERBOARD_QUERY = gql`
-  query StatLeaderboard($stat: String, $scope: String, $scopeValue: String, $limit: Int, $offset: Int) {
-    statLeaderboard(stat: $stat, scope: $scope, scopeValue: $scopeValue, limit: $limit, offset: $offset) {
+  query StatLeaderboard($stat: String, $scope: String, $scopeValue: String, $limit: Int, $afterRank: Int) {
+    statLeaderboard(stat: $stat, scope: $scope, scopeValue: $scopeValue, limit: $limit, afterRank: $afterRank) {
       entries {
         userId
         username
@@ -423,6 +423,7 @@ export const STAT_LEADERBOARD_QUERY = gql`
         city
       }
       total
+      nextCursor
     }
   }
 `;

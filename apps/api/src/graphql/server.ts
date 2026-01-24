@@ -15,7 +15,7 @@ import depthLimit from 'graphql-depth-limit';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
-import { createLoaders, type Loaders } from './loaders';
+import { createLoaders, createExtendedLoaders, type Loaders, type ExtendedLoaders } from './loaders';
 import { createComplexityLimitRule } from './complexity';
 import { loggers } from '../lib/logger';
 import { optionalAuth } from '../http/routes/auth';
@@ -40,6 +40,11 @@ export interface GraphQLContext {
    * DataLoaders for batched queries.
    */
   loaders: Loaders;
+
+  /**
+   * Extended DataLoaders for N+1 fixes (user-scoped loaders).
+   */
+  extendedLoaders: ExtendedLoaders;
 
   /**
    * Request-scoped cache.
@@ -170,9 +175,6 @@ export function createContext(req: FastifyRequest): GraphQLContext {
   // Create per-request DataLoaders
   const loaders = createLoaders();
 
-  // Create request-scoped cache
-  const requestCache = new Map<string, any>();
-
   // Get user from Fastify request (set by auth middleware)
   const user = (req as any).user
     ? {
@@ -182,9 +184,27 @@ export function createContext(req: FastifyRequest): GraphQLContext {
       }
     : undefined;
 
+  // Create extended loaders (some are user-scoped)
+  const baseExtendedLoaders = createExtendedLoaders();
+  const extendedLoaders: ExtendedLoaders = {
+    conversationParticipants: baseExtendedLoaders.conversationParticipants,
+    conversationLastMessage: baseExtendedLoaders.conversationLastMessage,
+    // User-scoped loaders - create with userId if available
+    conversationUnreadCount: user
+      ? baseExtendedLoaders.conversationUnreadCount(user.userId)
+      : baseExtendedLoaders.conversationUnreadCount(''),
+    exerciseStats: user
+      ? baseExtendedLoaders.exerciseStats(user.userId)
+      : baseExtendedLoaders.exerciseStats(''),
+  };
+
+  // Create request-scoped cache
+  const requestCache = new Map<string, any>();
+
   return {
     user,
     loaders,
+    extendedLoaders,
     cache: {
       get: <T>(key: string) => requestCache.get(key) as T | undefined,
       set: <T>(key: string, value: T) => {

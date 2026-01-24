@@ -105,7 +105,7 @@ export const typeDefs = `#graphql
     userStats(userId: ID!): CharacterStats
     statsHistory(days: Int): [StatsHistoryEntry!]!
     leaderboards(type: String): [LeaderboardEntry!]!
-    statLeaderboard(stat: String, scope: String, scopeValue: String, limit: Int, offset: Int): StatLeaderboardResult!
+    statLeaderboard(stat: String, scope: String, scopeValue: String, limit: Int, afterRank: Int): StatLeaderboardResult!
     myLeaderboardPosition: LeaderboardPosition
     extendedProfile: ExtendedProfile
     statsInfo: StatsInfo
@@ -2111,6 +2111,7 @@ export const typeDefs = `#graphql
   type StatLeaderboardResult {
     entries: [StatLeaderboardEntry!]!
     total: Int!
+    nextCursor: Int
   }
 
   type StatsInfo {

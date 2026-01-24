@@ -103,7 +103,7 @@ const log = loggers.core;
 // TYPES
 // ============================================
 
-import type { Loaders } from './loaders';
+import type { Loaders, ExtendedLoaders } from './loaders';
 
 interface Context {
   user?: {
@@ -112,6 +112,7 @@ interface Context {
     roles: string[];
   };
   loaders: Loaders;
+  extendedLoaders: ExtendedLoaders;
   cache: {
     get: <T>(key: string) => T | undefined;
     set: <T>(key: string, value: T) => void;
@@ -639,6 +640,9 @@ export const resolvers = {
     },
 
     // Exercise History (PRs and best lifts for workout mode)
+    // PERF-FIX: Uses DataLoader to batch exercise stats queries
+    // Previously: 1 query per exercise (N+1 pattern)
+    // Now: 2 batched queries total regardless of exercise count
     exerciseHistory: async (_: unknown, args: { exerciseIds: string[] }, context: Context) => {
       const { userId } = requireAuth(context);
       const { exerciseIds } = args;
@@ -650,32 +654,12 @@ export const resolvers = {
       // Limit to 50 exercises per request to prevent abuse
       const limitedIds = exerciseIds.slice(0, 50);
 
-      // Fetch exercise history for all requested exercises in parallel
-      const historyPromises = limitedIds.map(async (exerciseId) => {
-        try {
-          const stats = await ProgressionService.getExerciseStats(userId, exerciseId);
-          if (!stats) {
-            return {
-              exerciseId,
-              exerciseName: null,
-              bestWeight: 0,
-              best1RM: 0,
-              bestVolume: 0,
-              lastPerformedAt: null,
-              totalSessions: 0,
-            };
-          }
-          return {
-            exerciseId,
-            exerciseName: stats.exerciseName,
-            bestWeight: stats.maxWeight || 0,
-            best1RM: stats.estimated1RM || 0,
-            bestVolume: stats.weeklyVolume || 0,
-            lastPerformedAt: stats.lastWorkoutDate || null,
-            totalSessions: stats.totalSessions,
-          };
-        } catch (err) {
-          log.warn({ err, exerciseId, userId }, 'Failed to get exercise history');
+      // PERF-FIX: Use DataLoader to batch all exercise stats queries
+      const statsResults = await context.extendedLoaders.exerciseStats.loadMany(limitedIds);
+
+      return limitedIds.map((exerciseId, idx) => {
+        const stats = statsResults[idx];
+        if (!stats || stats instanceof Error) {
           return {
             exerciseId,
             exerciseName: null,
@@ -686,9 +670,16 @@ export const resolvers = {
             totalSessions: 0,
           };
         }
+        return {
+          exerciseId,
+          exerciseName: stats.exerciseName,
+          bestWeight: stats.maxWeight || 0,
+          best1RM: stats.estimated1RM || 0,
+          bestVolume: stats.weeklyVolume || 0,
+          lastPerformedAt: stats.lastWorkoutDate || null,
+          totalSessions: stats.totalSessions,
+        };
       });
-
-      return Promise.all(historyPromises);
     },
 
     // Goals
@@ -1576,18 +1567,18 @@ export const resolvers = {
       };
     },
 
-    // TODO: PERF - This uses OFFSET pagination which is O(n) for deep pages (rank 5000+)
-    // Optimal solution: Create materialized view with pre-calculated ranks, refresh every 5 minutes
-    // For now, leaderboards are cached at GraphQL layer (60s TTL) to mitigate query cost
+    // PERF: Uses materialized views with pre-calculated ranks for O(1) lookups
+    // Views are refreshed via refresh_leaderboard_views() function (schedule externally every 5 min)
+    // Supports keyset pagination via cursor (afterRank) for consistent O(1) performance at any depth
     statLeaderboard: async (
       _: unknown,
-      args: { stat?: string; scope?: string; scopeValue?: string; limit?: number; offset?: number },
+      args: { stat?: string; scope?: string; scopeValue?: string; limit?: number; afterRank?: number },
       _context: Context
     ) => {
       const stat = args.stat || 'vitality';
       const scope = args.scope || 'global';
       const limit = Math.min(args.limit || 20, 100);
-      const offset = args.offset || 0;
+      const afterRank = args.afterRank || 0; // Keyset pagination: get ranks > afterRank
 
       // Validate stat name to prevent SQL injection
       const validStats = ['strength', 'endurance', 'dexterity', 'constitution', 'power', 'vitality'];
@@ -1595,67 +1586,87 @@ export const resolvers = {
         throw new Error(`Invalid stat: ${stat}`);
       }
 
+      const rankColumn = `rank_${stat}`;
+
+      // Determine which materialized view to use
+      let viewName: string;
       let whereClause = '';
-      const params: (string | number)[] = [];
+      const params: (number | string)[] = [afterRank, limit];
 
       if (scope === 'country' && args.scopeValue) {
-        whereClause = 'AND up.country = $3';
+        viewName = 'mv_leaderboard_country';
+        whereClause = 'AND country = $3';
         params.push(args.scopeValue);
       } else if (scope === 'state' && args.scopeValue) {
-        whereClause = 'AND up.state = $3';
+        viewName = 'mv_leaderboard_state';
+        whereClause = 'AND state = $3';
         params.push(args.scopeValue);
       } else if (scope === 'city' && args.scopeValue) {
-        whereClause = 'AND up.city = $3';
+        viewName = 'mv_leaderboard_city';
+        whereClause = 'AND city = $3';
         params.push(args.scopeValue);
+      } else {
+        viewName = 'mv_leaderboard_global';
       }
 
+      // Query from materialized view with keyset pagination by rank
       const entries = await queryAll<{
         user_id: string;
         username: string;
         avatar_url: string;
         stat_value: number;
+        rank: number;
         gender: string;
         country: string;
         state: string;
         city: string;
       }>(
-        `SELECT cs.user_id, u.username, u.avatar_url, cs.${stat} as stat_value,
-                up.gender, up.country, up.state, up.city
-         FROM character_stats cs
-         JOIN users u ON u.id = cs.user_id
-         LEFT JOIN user_profiles up ON up.user_id = cs.user_id
-         LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-         WHERE COALESCE(ups.show_on_leaderboards, true) = true
-         ${whereClause}
-         ORDER BY cs.${stat} DESC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset, ...params]
+        `SELECT user_id, username, avatar_url, ${stat} as stat_value,
+                ${rankColumn} as rank, gender, country, state, city
+         FROM ${viewName}
+         WHERE ${rankColumn} > $1 ${whereClause}
+         ORDER BY ${rankColumn} ASC
+         LIMIT $2`,
+        params
       );
 
-      // Get total count
-      const countResult = await queryOne<{ count: number }>(
-        `SELECT COUNT(*)::int as count
-         FROM character_stats cs
-         LEFT JOIN user_profiles up ON up.user_id = cs.user_id
-         LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
-         WHERE COALESCE(ups.show_on_leaderboards, true) = true
-         ${whereClause}`,
-        params.length > 0 ? [params[0]] : []
+      // Get total count from leaderboard_counts table (O(1) lookup)
+      let scopeValueForCount: string | null = null;
+      if (scope === 'country' && args.scopeValue) {
+        scopeValueForCount = args.scopeValue;
+      } else if (scope === 'state' && args.scopeValue) {
+        // State counts use "country::state" format
+        const country = entries[0]?.country;
+        scopeValueForCount = country ? `${country}::${args.scopeValue}` : args.scopeValue;
+      } else if (scope === 'city' && args.scopeValue) {
+        // City counts use "country::state::city" format
+        const entry = entries[0];
+        if (entry?.country && entry?.state) {
+          scopeValueForCount = `${entry.country}::${entry.state}::${args.scopeValue}`;
+        }
+      }
+
+      const countResult = await queryOne<{ user_count: number }>(
+        `SELECT user_count FROM leaderboard_counts
+         WHERE scope = $1 AND (scope_value = $2 OR ($2 IS NULL AND scope_value IS NULL))`,
+        [scope, scopeValueForCount]
       );
 
       return {
-        entries: entries.map((e, idx) => ({
+        entries: entries.map((e) => ({
           userId: e.user_id,
           username: e.username,
           avatarUrl: e.avatar_url,
           statValue: Number(e.stat_value),
-          rank: offset + idx + 1,
+          rank: Number(e.rank),
           gender: e.gender,
           country: e.country,
           state: e.state,
           city: e.city,
         })),
-        total: countResult?.count || 0,
+        total: countResult?.user_count || 0,
+        // Return cursor for next page (last rank in this page)
+        nextCursor: entries.length === limit ? entries[entries.length - 1].rank : null,
       };
     },
 
@@ -4808,6 +4819,9 @@ export const resolvers = {
     },
 
     // 7. Message conversations
+    // PERF-FIX: Uses DataLoaders to batch participants, last messages, and unread counts
+    // Previously: 3 queries per conversation (N+1 pattern)
+    // Now: 4 batched queries total regardless of conversation count
     conversations: async (_: unknown, args: { tab?: string }, context: Context) => {
       const { userId } = requireAuth(context);
       const tab = args.tab || 'inbox';
@@ -4834,58 +4848,55 @@ export const resolvers = {
         [userId]
       );
 
-      // Get participants, last messages, and typing users for each conversation
+      if (convos.length === 0) {
+        return [];
+      }
+
+      // PERF-FIX: Batch load all related data using DataLoaders
+      const conversationIds = convos.map((c: any) => c.id);
+
+      // Batch load participants, last messages, and unread counts in parallel
+      const [participantsResults, lastMessagesResults, unreadCountsResults] = await Promise.all([
+        context.extendedLoaders.conversationParticipants.loadMany(conversationIds),
+        context.extendedLoaders.conversationLastMessage.loadMany(conversationIds),
+        context.extendedLoaders.conversationUnreadCount.loadMany(conversationIds),
+      ]);
+
+      // Get typing users for all conversations (this is from Redis, not DB - keeps it separate)
+      const { getTypingUsers } = await import('../modules/messaging/messaging.service');
+
+      // Map results to response format
       const result = await Promise.all(
-        convos.map(async (c: any) => {
-          // Get participant details
-          const participants = await queryAll<any>(
-            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.last_active_at, cp.role
-             FROM conversation_participants cp
-             JOIN users u ON cp.user_id = u.id
-             WHERE cp.conversation_id = $1`,
-            [c.id]
-          );
+        convos.map(async (c: any, idx: number) => {
+          const participants = participantsResults[idx];
+          const lastMessage = lastMessagesResults[idx];
+          const unreadCount = unreadCountsResults[idx];
 
-          // Get last message
-          const lastMessage = await queryOne<any>(
-            `SELECT id, sender_id, content, created_at
-             FROM messages WHERE conversation_id = $1 AND deleted_at IS NULL
-             ORDER BY created_at DESC LIMIT 1`,
-            [c.id]
-          );
-
-          // Get unread count
-          const unreadResult = await queryOne<{ count: string }>(
-            `SELECT COUNT(*) as count FROM messages m
-             LEFT JOIN message_receipts mr ON m.id = mr.message_id AND mr.user_id = $2
-             WHERE m.conversation_id = $1 AND m.sender_id != $2 AND mr.read_at IS NULL AND m.deleted_at IS NULL`,
-            [c.id, userId]
-          );
-
-          // Get typing users
-          const { getTypingUsers } = await import('../modules/messaging/messaging.service');
+          // Typing users still fetched per-conversation (Redis-based, not DB)
           const typingUsers = await getTypingUsers(c.id);
 
           return {
             id: c.id,
             type: c.type || 'direct',
             name: c.name || null,
-            participants: participants.map((p: any) => ({
-              userId: p.id,
+            participants: (Array.isArray(participants) ? participants : []).map((p: any) => ({
+              userId: p.user_id,
               username: p.username,
               displayName: p.display_name || null,
               avatarUrl: p.avatar_url || null,
-              lastActiveAt: p.last_active_at?.toISOString() || null,
+              lastActiveAt: p.last_active_at?.toISOString?.() || p.last_active_at || null,
               role: p.role || 'member',
             })),
-            lastMessage: lastMessage ? {
+            lastMessage: lastMessage && !(lastMessage instanceof Error) ? {
               id: lastMessage.id,
               senderId: lastMessage.sender_id,
               content: lastMessage.content,
-              createdAt: lastMessage.created_at?.toISOString(),
+              createdAt: typeof lastMessage.created_at === 'string'
+                ? lastMessage.created_at
+                : (lastMessage.created_at as unknown as Date)?.toISOString?.() || null,
             } : null,
             lastMessageAt: c.last_message_at?.toISOString() || null,
-            unreadCount: parseInt(unreadResult?.count || '0', 10),
+            unreadCount: typeof unreadCount === 'number' ? unreadCount : 0,
             starred: c.starred || false,
             archivedAt: c.archived_at?.toISOString() || null,
             disappearingTtl: c.disappearing_ttl || null,

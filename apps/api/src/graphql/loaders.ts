@@ -392,3 +392,212 @@ class LoaderRegistry {
 }
 
 export const loaderRegistry = new LoaderRegistry();
+
+// ============================================
+// ADDITIONAL LOADER TYPES FOR N+1 FIX
+// ============================================
+
+export interface ConversationParticipant {
+  conversation_id: string;
+  user_id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  last_active_at: string | null;
+  role: string;
+}
+
+export interface ConversationLastMessage {
+  conversation_id: string;
+  id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ConversationUnreadCount {
+  conversation_id: string;
+  count: number;
+}
+
+export interface CareerStandard {
+  id: string;
+  name: string;
+  institution: string;
+  category: string;
+  description: string | null;
+  scoringMethod: string;
+  recertificationMonths: number | null;
+  components: unknown[];
+  exerciseMappings: Record<string, string[]>;
+  tips: Array<{ event: string; tip: string }>;
+  icon: string | null;
+  maxScore: number | null;
+  passingScore: number | null;
+}
+
+export interface ExerciseStats {
+  exerciseId: string;
+  exerciseName: string | null;
+  maxWeight: number | null;
+  estimated1RM: number | null;
+  weeklyVolume: number | null;
+  lastWorkoutDate: string | null;
+  totalSessions: number;
+}
+
+// ============================================
+// EXTENDED LOADERS FOR N+1 FIXES
+// ============================================
+
+/**
+ * Create extended loaders that fix N+1 patterns in resolvers.
+ * These are additional loaders beyond the core createLoaders().
+ */
+export function createExtendedLoaders() {
+  return {
+    /**
+     * PERF-FIX: Load conversation participants by conversation IDs.
+     * Fixes N+1 in conversations query where participants were loaded per-conversation.
+     */
+    conversationParticipants: new DataLoader<string, ConversationParticipant[]>(async (conversationIds) => {
+      const placeholders = generatePlaceholders(conversationIds.length);
+      const rows = await queryAll<ConversationParticipant>(
+        `SELECT cp.conversation_id, u.id as user_id, u.username, u.display_name, u.avatar_url,
+                u.last_active_at, cp.role
+         FROM conversation_participants cp
+         JOIN users u ON cp.user_id = u.id
+         WHERE cp.conversation_id IN (${placeholders})`,
+        [...conversationIds]
+      );
+
+      // Group by conversation ID
+      const participantMap = new Map<string, ConversationParticipant[]>();
+      for (const row of rows) {
+        const existing = participantMap.get(row.conversation_id) || [];
+        existing.push(row);
+        participantMap.set(row.conversation_id, existing);
+      }
+
+      return conversationIds.map((id) => participantMap.get(id) || []);
+    }),
+
+    /**
+     * PERF-FIX: Load last message by conversation IDs.
+     * Fixes N+1 in conversations query where last message was loaded per-conversation.
+     */
+    conversationLastMessage: new DataLoader<string, ConversationLastMessage | null>(async (conversationIds) => {
+      const placeholders = generatePlaceholders(conversationIds.length);
+      // Use DISTINCT ON to get only the latest message per conversation
+      const rows = await queryAll<ConversationLastMessage>(
+        `SELECT DISTINCT ON (conversation_id)
+                conversation_id, id, sender_id, content, created_at
+         FROM messages
+         WHERE conversation_id IN (${placeholders}) AND deleted_at IS NULL
+         ORDER BY conversation_id, created_at DESC`,
+        [...conversationIds]
+      );
+
+      const messageMap = new Map(rows.map((m) => [m.conversation_id, m]));
+      return conversationIds.map((id) => messageMap.get(id) ?? null);
+    }),
+
+    /**
+     * PERF-FIX: Load unread counts by conversation IDs for a specific user.
+     * Fixes N+1 in conversations query where unread count was loaded per-conversation.
+     * Note: This loader requires userId to be passed via context or pre-bound.
+     */
+    conversationUnreadCount: (userId: string) =>
+      new DataLoader<string, number>(async (conversationIds) => {
+        const placeholders = generatePlaceholders(conversationIds.length);
+        const rows = await queryAll<{ conversation_id: string; count: string }>(
+          `SELECT m.conversation_id, COUNT(*) as count
+           FROM messages m
+           LEFT JOIN message_receipts mr ON m.id = mr.message_id AND mr.user_id = $1
+           WHERE m.conversation_id IN (${placeholders.split(',').map((_, i) => `$${i + 2}`).join(',')})
+             AND m.sender_id != $1
+             AND mr.read_at IS NULL
+             AND m.deleted_at IS NULL
+           GROUP BY m.conversation_id`,
+          [userId, ...conversationIds]
+        );
+
+        const countMap = new Map(rows.map((r) => [r.conversation_id, parseInt(r.count, 10)]));
+        return conversationIds.map((id) => countMap.get(id) ?? 0);
+      }),
+
+    /**
+     * PERF-FIX: Batch load exercise stats by exercise IDs for a user.
+     * Fixes N+1 in exerciseHistory where stats were loaded per-exercise.
+     */
+    exerciseStats: (userId: string) =>
+      new DataLoader<string, ExerciseStats | null>(async (exerciseIds) => {
+        // For exercise stats, we need to query workout_exercises grouped by exercise
+        // This is a complex aggregation so we query the relevant data and aggregate
+        const placeholders = generatePlaceholders(exerciseIds.length);
+        const exercisePlaceholderStart = 2; // $1 is userId
+
+        // Get exercise names
+        const exercises = await queryAll<{ id: string; name: string }>(
+          `SELECT id, name FROM exercises WHERE id IN (${generatePlaceholders(exerciseIds.length, exercisePlaceholderStart)})`,
+          [...exerciseIds]
+        );
+        const exerciseNameMap = new Map(exercises.map((e) => [e.id, e.name]));
+
+        // Get aggregated stats from workout_exercises
+        const stats = await queryAll<{
+          exercise_id: string;
+          max_weight: number | null;
+          estimated_1rm: number | null;
+          total_volume: number | null;
+          last_workout_date: string | null;
+          session_count: string;
+        }>(
+          `SELECT
+             we.exercise_id,
+             MAX((sets_data::jsonb->0->>'weight')::numeric) as max_weight,
+             MAX((sets_data::jsonb->0->>'weight')::numeric * (1 + (sets_data::jsonb->0->>'reps')::numeric / 30)) as estimated_1rm,
+             SUM(
+               (SELECT COALESCE(SUM((elem->>'weight')::numeric * (elem->>'reps')::numeric), 0)
+                FROM jsonb_array_elements(sets_data::jsonb) AS elem)
+             ) as total_volume,
+             MAX(w.date) as last_workout_date,
+             COUNT(DISTINCT w.id) as session_count
+           FROM workout_exercises we
+           JOIN workouts w ON we.workout_id = w.id
+           WHERE w.user_id = $1
+             AND we.exercise_id IN (${generatePlaceholders(exerciseIds.length, exercisePlaceholderStart)})
+           GROUP BY we.exercise_id`,
+          [userId, ...exerciseIds]
+        );
+
+        const statsMap = new Map(
+          stats.map((s) => [
+            s.exercise_id,
+            {
+              exerciseId: s.exercise_id,
+              exerciseName: exerciseNameMap.get(s.exercise_id) || null,
+              maxWeight: s.max_weight,
+              estimated1RM: s.estimated_1rm,
+              weeklyVolume: s.total_volume,
+              lastWorkoutDate: s.last_workout_date,
+              totalSessions: parseInt(s.session_count, 10),
+            } as ExerciseStats,
+          ])
+        );
+
+        return exerciseIds.map((id) => statsMap.get(id) ?? null);
+      }),
+  };
+}
+
+// Raw type from createExtendedLoaders (includes factory functions)
+export type ExtendedLoadersRaw = ReturnType<typeof createExtendedLoaders>;
+
+// Resolved type for context (after factory functions are called with userId)
+export interface ExtendedLoaders {
+  conversationParticipants: DataLoader<string, ConversationParticipant[]>;
+  conversationLastMessage: DataLoader<string, ConversationLastMessage | null>;
+  conversationUnreadCount: DataLoader<string, number>;
+  exerciseStats: DataLoader<string, ExerciseStats | null>;
+}
