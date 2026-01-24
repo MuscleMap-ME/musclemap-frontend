@@ -50,7 +50,7 @@ export async function up(): Promise<void> {
       DENSE_RANK() OVER (ORDER BY cs.vitality DESC) as rank_vitality
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
-    LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+    LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
     LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
     WHERE COALESCE(ups.show_on_leaderboards, true) = true
   `);
@@ -99,7 +99,7 @@ export async function up(): Promise<void> {
       DENSE_RANK() OVER (PARTITION BY up.country ORDER BY cs.vitality DESC) as rank_vitality
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
-    LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+    LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
     LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
     WHERE COALESCE(ups.show_on_leaderboards, true) = true
       AND up.country IS NOT NULL
@@ -144,7 +144,7 @@ export async function up(): Promise<void> {
       DENSE_RANK() OVER (PARTITION BY up.country, up.state ORDER BY cs.vitality DESC) as rank_vitality
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
-    LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+    LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
     LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
     WHERE COALESCE(ups.show_on_leaderboards, true) = true
       AND up.state IS NOT NULL
@@ -189,7 +189,7 @@ export async function up(): Promise<void> {
       DENSE_RANK() OVER (PARTITION BY up.country, up.state, up.city ORDER BY cs.vitality DESC) as rank_vitality
     FROM character_stats cs
     JOIN users u ON u.id = cs.user_id
-    LEFT JOIN user_profiles up ON up.user_id = cs.user_id
+    LEFT JOIN user_profile_extended up ON up.user_id = cs.user_id
     LEFT JOIN user_privacy_settings ups ON ups.user_id = cs.user_id
     WHERE COALESCE(ups.show_on_leaderboards, true) = true
       AND up.city IS NOT NULL
