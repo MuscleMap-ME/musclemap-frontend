@@ -10,8 +10,9 @@
  * - Supports both metric (kg/cm) and imperial (lbs/in) units
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -33,7 +34,16 @@ import {
 import { useAuth } from '../store/authStore';
 import { useUnitsPreferences } from '../store/preferencesStore';
 import { useToast } from '../hooks';
-import api from '../utils/api';
+import {
+  BODY_MEASUREMENTS_QUERY,
+  LATEST_BODY_MEASUREMENT_QUERY,
+  BODY_MEASUREMENT_COMPARISON_QUERY,
+} from '../graphql/queries';
+import {
+  CREATE_BODY_MEASUREMENT_MUTATION,
+  UPDATE_BODY_MEASUREMENT_MUTATION,
+  DELETE_BODY_MEASUREMENT_MUTATION,
+} from '../graphql/mutations';
 import {
   convertWeight,
   weightToKg,
@@ -44,58 +54,87 @@ import {
   type LengthUnit,
 } from '@musclemap/shared';
 
-// Types
-interface Measurement {
+// Types - GraphQL uses camelCase
+interface BodyMeasurement {
   id: string;
-  user_id: string;
-  weight_kg?: number;
-  body_fat_percentage?: number;
-  lean_mass_kg?: number;
-  neck_cm?: number;
-  shoulders_cm?: number;
-  chest_cm?: number;
-  waist_cm?: number;
-  hips_cm?: number;
-  left_bicep_cm?: number;
-  right_bicep_cm?: number;
-  left_forearm_cm?: number;
-  right_forearm_cm?: number;
-  left_thigh_cm?: number;
-  right_thigh_cm?: number;
-  left_calf_cm?: number;
-  right_calf_cm?: number;
-  measurement_source: string;
+  userId: string;
+  weightKg?: number;
+  bodyFatPercentage?: number;
+  leanMassKg?: number;
+  neckCm?: number;
+  shouldersCm?: number;
+  chestCm?: number;
+  waistCm?: number;
+  hipsCm?: number;
+  leftBicepCm?: number;
+  rightBicepCm?: number;
+  leftForearmCm?: number;
+  rightForearmCm?: number;
+  leftThighCm?: number;
+  rightThighCm?: number;
+  leftCalfCm?: number;
+  rightCalfCm?: number;
+  measurementSource: string;
   notes?: string;
-  measurement_date: string;
-  created_at: string;
+  measurementDate: string;
+  createdAt: string;
+}
+
+interface ComparisonField {
+  current?: number;
+  past?: number;
+  change?: number;
+  changePercent?: string;
+}
+
+interface BodyMeasurementComparison {
+  weightKg?: ComparisonField;
+  bodyFatPercentage?: ComparisonField;
+  leanMassKg?: ComparisonField;
+  neckCm?: ComparisonField;
+  shouldersCm?: ComparisonField;
+  chestCm?: ComparisonField;
+  waistCm?: ComparisonField;
+  hipsCm?: ComparisonField;
+  leftBicepCm?: ComparisonField;
+  rightBicepCm?: ComparisonField;
+  leftForearmCm?: ComparisonField;
+  rightForearmCm?: ComparisonField;
+  leftThighCm?: ComparisonField;
+  rightThighCm?: ComparisonField;
+  leftCalfCm?: ComparisonField;
+  rightCalfCm?: ComparisonField;
+  currentDate?: string;
+  pastDate?: string;
+  daysBetween?: number;
 }
 
 interface MeasurementField {
-  key: keyof Measurement;
+  key: keyof BodyMeasurement;
   label: string;
-  baseUnit: 'kg' | 'cm' | 'percent'; // Storage unit
+  baseUnit: 'kg' | 'cm' | 'percent';
   category: 'weight' | 'composition' | 'upper' | 'lower';
   icon: React.ComponentType<{ className?: string }>;
 }
 
 // Measurement field configuration - uses base storage units
 const MEASUREMENT_FIELDS: MeasurementField[] = [
-  { key: 'weight_kg', label: 'Weight', baseUnit: 'kg', category: 'weight', icon: Scale },
-  { key: 'body_fat_percentage', label: 'Body Fat', baseUnit: 'percent', category: 'composition', icon: Activity },
-  { key: 'lean_mass_kg', label: 'Lean Mass', baseUnit: 'kg', category: 'composition', icon: Target },
-  { key: 'neck_cm', label: 'Neck', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'shoulders_cm', label: 'Shoulders', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'chest_cm', label: 'Chest', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'left_bicep_cm', label: 'Left Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'right_bicep_cm', label: 'Right Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'left_forearm_cm', label: 'Left Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'right_forearm_cm', label: 'Right Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
-  { key: 'waist_cm', label: 'Waist', baseUnit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'hips_cm', label: 'Hips', baseUnit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'left_thigh_cm', label: 'Left Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'right_thigh_cm', label: 'Right Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'left_calf_cm', label: 'Left Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
-  { key: 'right_calf_cm', label: 'Right Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'weightKg', label: 'Weight', baseUnit: 'kg', category: 'weight', icon: Scale },
+  { key: 'bodyFatPercentage', label: 'Body Fat', baseUnit: 'percent', category: 'composition', icon: Activity },
+  { key: 'leanMassKg', label: 'Lean Mass', baseUnit: 'kg', category: 'composition', icon: Target },
+  { key: 'neckCm', label: 'Neck', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'shouldersCm', label: 'Shoulders', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'chestCm', label: 'Chest', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'leftBicepCm', label: 'Left Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'rightBicepCm', label: 'Right Bicep', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'leftForearmCm', label: 'Left Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'rightForearmCm', label: 'Right Forearm', baseUnit: 'cm', category: 'upper', icon: Ruler },
+  { key: 'waistCm', label: 'Waist', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'hipsCm', label: 'Hips', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'leftThighCm', label: 'Left Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'rightThighCm', label: 'Right Thigh', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'leftCalfCm', label: 'Left Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
+  { key: 'rightCalfCm', label: 'Right Calf', baseUnit: 'cm', category: 'lower', icon: Ruler },
 ];
 
 // Helper to get display unit for a field
@@ -170,21 +209,16 @@ export default function BodyMeasurements() {
   // Derive length unit from height preference
   const lengthUnit: LengthUnit = getLengthUnitFromHeightPref(heightPref);
 
-  const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [latestMeasurement, setLatestMeasurement] = useState<Measurement | null>(null);
-  const [comparison, setComparison] = useState<Record<string, { current: number; past: number; change: number; changePercent: string }> | null>(null);
   const [comparisonDays, setComparisonDays] = useState(30);
-  const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingMeasurement, setEditingMeasurement] = useState<Measurement | null>(null);
+  const [editingMeasurement, setEditingMeasurement] = useState<BodyMeasurement | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showUnitSettings, setShowUnitSettings] = useState(false);
 
   // New measurement form - stores values in DISPLAY units (user's preference)
-  // Converts to storage units (kg/cm) on save
-  const [newMeasurement, setNewMeasurement] = useState<Partial<Measurement>>({
-    measurement_date: new Date().toISOString().split('T')[0],
+  const [newMeasurement, setNewMeasurement] = useState<Partial<BodyMeasurement>>({
+    measurementDate: new Date().toISOString().split('T')[0],
   });
   // Track which unit was used when the form was opened (for editing)
   const [formUnits, setFormUnits] = useState<{ weight: WeightUnit; length: LengthUnit }>({
@@ -192,30 +226,78 @@ export default function BodyMeasurements() {
     length: lengthUnit,
   });
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    try {
-      const [measurementsRes, latestRes, comparisonRes] = await Promise.all([
-        api.get('/body-measurements?limit=100'),
-        api.get('/body-measurements/latest'),
-        api.get(`/body-measurements/comparison?days=${comparisonDays}`),
-      ]);
+  // GraphQL Queries
+  const { data: measurementsData, refetch: refetchMeasurements } = useQuery(BODY_MEASUREMENTS_QUERY, {
+    variables: { limit: 100 },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-      setMeasurements(measurementsRes.data?.measurements || []);
-      setLatestMeasurement(latestRes.data?.measurement || null);
-      setComparison(comparisonRes.data?.comparison || null);
-    } catch (err) {
-      console.error('Failed to fetch measurements:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [comparisonDays]);
+  const { data: latestData, refetch: refetchLatest } = useQuery(LATEST_BODY_MEASUREMENT_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchData();
-    }
-  }, [isAuthenticated, fetchData]);
+  const { data: comparisonData, refetch: refetchComparison } = useQuery(BODY_MEASUREMENT_COMPARISON_QUERY, {
+    variables: { days: comparisonDays },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // GraphQL Mutations
+  const [createMeasurement] = useMutation(CREATE_BODY_MEASUREMENT_MUTATION, {
+    onCompleted: () => {
+      toast('Measurement added!');
+      setShowAddModal(false);
+      setEditingMeasurement(null);
+      setNewMeasurement({ measurementDate: new Date().toISOString().split('T')[0] });
+      refetchMeasurements();
+      refetchLatest();
+      refetchComparison();
+    },
+    onError: () => showError('Failed to save measurement'),
+  });
+
+  const [updateMeasurement] = useMutation(UPDATE_BODY_MEASUREMENT_MUTATION, {
+    onCompleted: () => {
+      toast('Measurement updated!');
+      setShowAddModal(false);
+      setEditingMeasurement(null);
+      setNewMeasurement({ measurementDate: new Date().toISOString().split('T')[0] });
+      refetchMeasurements();
+      refetchLatest();
+      refetchComparison();
+    },
+    onError: () => showError('Failed to update measurement'),
+  });
+
+  const [deleteMeasurement] = useMutation(DELETE_BODY_MEASUREMENT_MUTATION, {
+    onCompleted: () => {
+      toast('Measurement deleted');
+      refetchMeasurements();
+      refetchLatest();
+      refetchComparison();
+    },
+    onError: () => showError('Failed to delete measurement'),
+  });
+
+  // Extract data from queries
+  const measurements = useMemo<BodyMeasurement[]>(
+    () => measurementsData?.bodyMeasurements?.measurements || [],
+    [measurementsData?.bodyMeasurements?.measurements]
+  );
+
+  const latestMeasurement = useMemo<BodyMeasurement | null>(
+    () => latestData?.latestBodyMeasurement || null,
+    [latestData?.latestBodyMeasurement]
+  );
+
+  const comparison = useMemo<BodyMeasurementComparison | null>(
+    () => comparisonData?.bodyMeasurementComparison || null,
+    [comparisonData?.bodyMeasurementComparison]
+  );
+
+  const loading = !measurementsData && !latestData;
 
   // Handlers
   const handleSaveMeasurement = async () => {
@@ -229,14 +311,14 @@ export default function BodyMeasurements() {
       return;
     }
 
-    if (!newMeasurement.measurement_date) {
+    if (!newMeasurement.measurementDate) {
       showError('Please select a date');
       return;
     }
 
     // Convert display values to storage units (kg/cm)
-    const storageData: Partial<Measurement> = {
-      measurement_date: newMeasurement.measurement_date,
+    const input: Record<string, number | string | undefined> = {
+      measurementDate: newMeasurement.measurementDate,
       notes: newMeasurement.notes,
     };
 
@@ -244,71 +326,64 @@ export default function BodyMeasurements() {
     for (const field of MEASUREMENT_FIELDS) {
       const displayValue = newMeasurement[field.key] as number | undefined;
       if (displayValue !== undefined && displayValue !== null) {
-        storageData[field.key] = toStorageValue(
+        input[field.key] = toStorageValue(
           displayValue,
           field.baseUnit,
           formUnits.weight,
           formUnits.length
-        ) as never;
+        );
       }
     }
 
-    try {
-      if (editingMeasurement) {
-        await api.put(`/body-measurements/${editingMeasurement.id}`, storageData);
-        toast('Measurement updated!');
-      } else {
-        await api.post('/body-measurements', storageData);
-        toast('Measurement added!');
-      }
-
-      setShowAddModal(false);
-      setEditingMeasurement(null);
-      setNewMeasurement({ measurement_date: new Date().toISOString().split('T')[0] });
-      fetchData();
-    } catch (_err) {
-      showError('Failed to save measurement');
+    if (editingMeasurement) {
+      await updateMeasurement({
+        variables: { id: editingMeasurement.id, input },
+      });
+    } else {
+      await createMeasurement({
+        variables: { input },
+      });
     }
   };
 
   const handleDeleteMeasurement = async (id: string) => {
     if (!confirm('Delete this measurement?')) return;
-
-    try {
-      await api.delete(`/body-measurements/${id}`);
-      toast('Measurement deleted');
-      fetchData();
-    } catch (_err) {
-      showError('Failed to delete measurement');
-    }
+    await deleteMeasurement({ variables: { id } });
   };
 
-  const handleEditMeasurement = (measurement: Measurement) => {
+  const handleEditMeasurement = (measurement: BodyMeasurement) => {
     setEditingMeasurement(measurement);
     // Store current units when opening the form
     setFormUnits({ weight: weightUnit, length: lengthUnit });
 
     // Convert storage values to display values
-    const displayData: Partial<Measurement> = {
-      measurement_date: measurement.measurement_date.split('T')[0],
+    const displayData: Partial<BodyMeasurement> = {
+      measurementDate: measurement.measurementDate.split('T')[0],
       notes: measurement.notes,
     };
 
     for (const field of MEASUREMENT_FIELDS) {
       const storageValue = measurement[field.key] as number | undefined;
       if (storageValue !== undefined && storageValue !== null) {
-        displayData[field.key] = toDisplayValue(
+        (displayData as Record<string, number>)[field.key] = toDisplayValue(
           storageValue,
           field.baseUnit,
           weightUnit,
           lengthUnit
-        ) as never;
+        );
       }
     }
 
     setNewMeasurement(displayData);
     setShowAddModal(true);
   };
+
+  // Refetch comparison when days change
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      refetchComparison({ days: comparisonDays });
+    }
+  }, [comparisonDays, isAuthenticated, refetchComparison]);
 
   // Filter fields by category
   const filteredFields = useMemo(() => {
@@ -374,7 +449,7 @@ export default function BodyMeasurements() {
                 onClick={() => {
                   setEditingMeasurement(null);
                   setFormUnits({ weight: weightUnit, length: lengthUnit });
-                  setNewMeasurement({ measurement_date: new Date().toISOString().split('T')[0] });
+                  setNewMeasurement({ measurementDate: new Date().toISOString().split('T')[0] });
                   setShowAddModal(true);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
@@ -473,10 +548,10 @@ export default function BodyMeasurements() {
             <div className="grid gap-3 sm:grid-cols-2">
               {filteredFields.map((field) => {
                 const storageValue = latestMeasurement[field.key] as number | undefined;
-                const compData = comparison?.[field.key];
+                const compData = comparison?.[field.key as keyof BodyMeasurementComparison] as ComparisonField | undefined;
                 const change = compData?.change;
                 const changePercent = compData?.changePercent;
-                const isWeightOrWaist = field.key === 'weight_kg' || field.key === 'waist_cm';
+                const isWeightOrWaist = field.key === 'weightKg' || field.key === 'waistCm';
                 const trend = getTrend(change, isWeightOrWaist);
                 const TrendIcon = trend.icon;
                 const FieldIcon = field.icon;
@@ -556,27 +631,27 @@ export default function BodyMeasurements() {
                         >
                           <div>
                             <p className="font-medium text-sm">
-                              {new Date(m.measurement_date).toLocaleDateString(undefined, {
+                              {new Date(m.measurementDate).toLocaleDateString(undefined, {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
                               })}
                             </p>
                             <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
-                              {m.weight_kg && (
+                              {m.weightKg && (
                                 <span>
-                                  Weight: {convertWeight(m.weight_kg, weightUnit).toFixed(1)}{weightUnit}
+                                  Weight: {convertWeight(m.weightKg, weightUnit).toFixed(1)}{weightUnit}
                                 </span>
                               )}
-                              {m.body_fat_percentage && <span>BF: {m.body_fat_percentage}%</span>}
-                              {m.chest_cm && (
+                              {m.bodyFatPercentage && <span>BF: {m.bodyFatPercentage}%</span>}
+                              {m.chestCm && (
                                 <span>
-                                  Chest: {convertLength(m.chest_cm, lengthUnit).toFixed(1)}{lengthUnit}
+                                  Chest: {convertLength(m.chestCm, lengthUnit).toFixed(1)}{lengthUnit}
                                 </span>
                               )}
-                              {m.waist_cm && (
+                              {m.waistCm && (
                                 <span>
-                                  Waist: {convertLength(m.waist_cm, lengthUnit).toFixed(1)}{lengthUnit}
+                                  Waist: {convertLength(m.waistCm, lengthUnit).toFixed(1)}{lengthUnit}
                                 </span>
                               )}
                             </div>
@@ -645,8 +720,8 @@ export default function BodyMeasurements() {
                     <label className="block text-sm font-medium text-gray-300 mb-1">Date</label>
                     <input
                       type="date"
-                      value={newMeasurement.measurement_date || ''}
-                      onChange={(e) => setNewMeasurement({ ...newMeasurement, measurement_date: e.target.value })}
+                      value={newMeasurement.measurementDate || ''}
+                      onChange={(e) => setNewMeasurement({ ...newMeasurement, measurementDate: e.target.value })}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"
                     />
                   </div>

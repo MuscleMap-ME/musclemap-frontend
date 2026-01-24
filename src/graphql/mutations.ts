@@ -1118,6 +1118,157 @@ export const CREATE_COMPETITION_MUTATION = gql`
 `;
 
 // ============================================
+// RIVALS (1v1)
+// ============================================
+
+export const CHALLENGE_RIVAL_MUTATION = gql`
+  mutation ChallengeRival($opponentId: ID!) {
+    challengeRival(opponentId: $opponentId) {
+      id
+      challengerId
+      challengedId
+      status
+      createdAt
+      opponent {
+        id
+        username
+        avatar
+        archetype
+        level
+      }
+      isChallenger
+      myTU
+      opponentTU
+    }
+  }
+`;
+
+export const ACCEPT_RIVALRY_MUTATION = gql`
+  mutation AcceptRivalry($rivalryId: ID!) {
+    acceptRivalry(rivalryId: $rivalryId) {
+      id
+      status
+      startedAt
+      opponent {
+        id
+        username
+        avatar
+      }
+      isChallenger
+      myTU
+      opponentTU
+    }
+  }
+`;
+
+export const DECLINE_RIVALRY_MUTATION = gql`
+  mutation DeclineRivalry($rivalryId: ID!) {
+    declineRivalry(rivalryId: $rivalryId)
+  }
+`;
+
+export const END_RIVALRY_MUTATION = gql`
+  mutation EndRivalry($rivalryId: ID!) {
+    endRivalry(rivalryId: $rivalryId)
+  }
+`;
+
+// ============================================
+// CREWS (TEAM SYSTEM)
+// ============================================
+
+export const CREATE_CREW_MUTATION = gql`
+  mutation CreateCrew($input: CreateCrewInput!) {
+    createCrew(input: $input) {
+      id
+      name
+      tag
+      description
+      avatar
+      color
+      ownerId
+      memberCount
+      totalTU
+      weeklyTU
+      wins
+      losses
+      createdAt
+    }
+  }
+`;
+
+export const LEAVE_CREW_MUTATION = gql`
+  mutation LeaveCrew {
+    leaveCrew
+  }
+`;
+
+export const JOIN_CREW_MUTATION = gql`
+  mutation JoinCrew($crewId: ID!) {
+    joinCrew(crewId: $crewId) {
+      id
+      crewId
+      userId
+      role
+      joinedAt
+      weeklyTU
+      totalTU
+      username
+      avatar
+      archetype
+    }
+  }
+`;
+
+export const INVITE_TO_CREW_MUTATION = gql`
+  mutation InviteToCrew($crewId: ID!, $inviteeId: ID!) {
+    inviteToCrew(crewId: $crewId, inviteeId: $inviteeId) {
+      id
+      crewId
+      inviterId
+      inviteeId
+      status
+      createdAt
+      expiresAt
+    }
+  }
+`;
+
+export const ACCEPT_CREW_INVITE_MUTATION = gql`
+  mutation AcceptCrewInvite($inviteId: ID!) {
+    acceptCrewInvite(inviteId: $inviteId) {
+      id
+      crewId
+      userId
+      role
+      joinedAt
+      weeklyTU
+      totalTU
+      username
+      avatar
+      archetype
+    }
+  }
+`;
+
+export const START_CREW_WAR_MUTATION = gql`
+  mutation StartCrewWar($crewId: ID!, $defendingCrewId: ID!, $durationDays: Int) {
+    startCrewWar(crewId: $crewId, defendingCrewId: $defendingCrewId, durationDays: $durationDays) {
+      id
+      challengerCrewId
+      defendingCrewId
+      status
+      startDate
+      endDate
+      challengerTU
+      defendingTU
+      winnerId
+      createdAt
+    }
+  }
+`;
+
+// ============================================
 // CAREER READINESS
 // ============================================
 
@@ -1627,5 +1778,73 @@ export const UPDATE_SLEEP_GOAL_MUTATION = gql`
 export const ACKNOWLEDGE_RECOVERY_RECOMMENDATION_MUTATION = gql`
   mutation AcknowledgeRecoveryRecommendation($recommendationId: ID!, $followed: Boolean, $feedback: String) {
     acknowledgeRecoveryRecommendation(recommendationId: $recommendationId, followed: $followed, feedback: $feedback)
+  }
+`;
+
+// ============================================
+// BODY MEASUREMENTS
+// ============================================
+
+export const CREATE_BODY_MEASUREMENT_MUTATION = gql`
+  mutation CreateBodyMeasurement($input: BodyMeasurementInput!) {
+    createBodyMeasurement(input: $input) {
+      id
+      userId
+      weightKg
+      bodyFatPercentage
+      leanMassKg
+      neckCm
+      shouldersCm
+      chestCm
+      waistCm
+      hipsCm
+      leftBicepCm
+      rightBicepCm
+      leftForearmCm
+      rightForearmCm
+      leftThighCm
+      rightThighCm
+      leftCalfCm
+      rightCalfCm
+      measurementSource
+      notes
+      measurementDate
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_BODY_MEASUREMENT_MUTATION = gql`
+  mutation UpdateBodyMeasurement($id: ID!, $input: BodyMeasurementInput!) {
+    updateBodyMeasurement(id: $id, input: $input) {
+      id
+      userId
+      weightKg
+      bodyFatPercentage
+      leanMassKg
+      neckCm
+      shouldersCm
+      chestCm
+      waistCm
+      hipsCm
+      leftBicepCm
+      rightBicepCm
+      leftForearmCm
+      rightForearmCm
+      leftThighCm
+      rightThighCm
+      leftCalfCm
+      rightCalfCm
+      measurementSource
+      notes
+      measurementDate
+      createdAt
+    }
+  }
+`;
+
+export const DELETE_BODY_MEASUREMENT_MUTATION = gql`
+  mutation DeleteBodyMeasurement($id: ID!) {
+    deleteBodyMeasurement(id: $id)
   }
 `;

@@ -7,11 +7,18 @@
  * Route: /career/goals/:goalId
  */
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import {
+  CAREER_GOAL_QUERY,
+  CAREER_GOAL_READINESS_QUERY,
+  CAREER_EXERCISE_RECOMMENDATIONS_QUERY,
+  CAREER_GOAL_TREND_QUERY,
+} from '../graphql/queries';
+import { DELETE_CAREER_GOAL_MUTATION } from '../graphql/mutations';
 import {
   GlassSurface,
   GlassButton,
@@ -20,6 +27,72 @@ import {
   MeshBackground,
 } from '../components/glass';
 import { SkeletonCard, SkeletonStats } from '../components/skeletons';
+
+// ============================================
+// TYPES
+// ============================================
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  fullName?: string;
+  agency?: string;
+  category: string;
+  icon?: string;
+}
+
+interface CareerGoalReadiness {
+  score: number;
+  status: string;
+  eventsPassed: number;
+  eventsTotal: number;
+}
+
+interface CareerGoal {
+  id: string;
+  standard?: CareerStandard;
+  standardId: string;
+  targetDate?: string;
+  priority: string;
+  status: string;
+  agencyName?: string;
+  notes?: string;
+  readiness?: CareerGoalReadiness;
+  daysRemaining?: number;
+  createdAt: string;
+}
+
+interface CareerEvent {
+  id: string;
+  name: string;
+  currentValue?: number;
+  passingValue?: number;
+  unit?: string;
+  isPassing?: boolean;
+}
+
+interface CareerReadinessData {
+  score: number;
+  status: string;
+  eventsPassed: number;
+  eventsTotal: number;
+  weakEvents?: string[];
+  lastAssessmentAt?: string;
+  events?: CareerEvent[];
+}
+
+interface TrendDataPoint {
+  date: string;
+  score: number;
+  eventsPassed: number;
+  eventsTotal: number;
+}
+
+interface ExerciseRecommendation {
+  exerciseId: string;
+  exerciseName: string;
+  targetEvents?: string[];
+}
 
 // Lazy load chart component
 const ReadinessTrendChart = lazy(() =>
@@ -31,92 +104,92 @@ const ReadinessTrendChart = lazy(() =>
 // ============================================
 
 const Icons = {
-  Target: ({ className = 'w-5 h-5' }) => (
+  Target: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
+  Trophy: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
-  Calendar: ({ className = 'w-5 h-5' }) => (
+  Calendar: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Check: ({ className = 'w-5 h-5' }) => (
+  Check: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
-  ChevronLeft: ({ className = 'w-5 h-5' }) => (
+  ChevronLeft: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   ),
-  ChevronRight: ({ className = 'w-5 h-5' }) => (
+  ChevronRight: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
-  TrendingUp: ({ className = 'w-5 h-5' }) => (
+  TrendingUp: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
     </svg>
   ),
-  TrendingDown: ({ className = 'w-5 h-5' }) => (
+  TrendingDown: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
     </svg>
   ),
-  AlertTriangle: ({ className = 'w-5 h-5' }) => (
+  AlertTriangle: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
   ),
-  Dumbbell: ({ className = 'w-5 h-5' }) => (
+  Dumbbell: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7h16M4 17h16M6 12h12M7 7v10m10-10v10" />
     </svg>
   ),
-  Refresh: ({ className = 'w-5 h-5' }) => (
+  Refresh: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   ),
-  Trash: ({ className = 'w-5 h-5' }) => (
+  Trash: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
     </svg>
   ),
-  Edit: ({ className = 'w-5 h-5' }) => (
+  Edit: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
     </svg>
   ),
-  Home: ({ className = 'w-5 h-5' }) => (
+  Home: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
     </svg>
   ),
-  Clipboard: ({ className = 'w-5 h-5' }) => (
+  Clipboard: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   ),
-  User: ({ className = 'w-5 h-5' }) => (
+  User: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
@@ -127,7 +200,7 @@ const Icons = {
 // CATEGORY METADATA
 // ============================================
 
-const CATEGORY_META = {
+const CATEGORY_META: Record<string, { color: string; icon: string | null; label: string }> = {
   military: { color: '#556B2F', icon: null, label: 'Military' },
   firefighter: { color: '#B22222', icon: null, label: 'Firefighter' },
   law_enforcement: { color: '#191970', icon: null, label: 'Law Enforcement' },
@@ -137,7 +210,7 @@ const CATEGORY_META = {
 };
 
 // Status colors
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, { bg: string; text: string; label: string; color: string }> = {
   ready: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Ready', color: '#10b981' },
   at_risk: { bg: 'bg-amber-500/20', text: 'text-amber-400', label: 'At Risk', color: '#f59e0b' },
   not_ready: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Not Ready', color: '#ef4444' },
@@ -149,7 +222,7 @@ const STATUS_COLORS = {
 // ============================================
 
 // Large Circular Progress Gauge
-function ReadinessGauge({ score, status, size = 180 }) {
+function ReadinessGauge({ score, status, size = 180 }: { score: number | null; status: string; size?: number }) {
   const radius = (size - 16) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score !== null ? (score / 100) * circumference : 0;
@@ -197,7 +270,7 @@ function ReadinessGauge({ score, status, size = 180 }) {
 }
 
 // Event Progress Bar
-function EventProgressBar({ event, percentage, isPassing }) {
+function EventProgressBar({ event, percentage, isPassing }: { event: CareerEvent; percentage: number; isPassing: boolean }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
@@ -219,7 +292,13 @@ function EventProgressBar({ event, percentage, isPassing }) {
 }
 
 // Delete Confirmation Modal
-function DeleteConfirmModal({ isOpen, onClose, onConfirm, goalName, loading }) {
+function DeleteConfirmModal({ isOpen, onClose, onConfirm, goalName, loading }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  goalName: string;
+  loading: boolean;
+}) {
   if (!isOpen) return null;
 
   return (
@@ -288,74 +367,93 @@ const mobileNavItems = [
 // ============================================
 
 export default function CareerGoalPage() {
-  const { goalId } = useParams();
+  const { goalId } = useParams<{ goalId: string }>();
   const navigate = useNavigate();
   const { user: _user } = useUser();
 
   // State
-  const [goal, setGoal] = useState(null);
-  const [readiness, setReadiness] = useState(null);
-  const [exercises, setExercises] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [trendData, setTrendData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Load data
-  const loadGoal = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/goals/${goalId}`);
-      setGoal(response.data?.goal || null);
-    } catch (error) {
-      console.error('Failed to load goal:', error);
-    }
-  }, [goalId]);
+  // GraphQL Queries
+  const {
+    data: goalData,
+    loading: goalLoading,
+  } = useQuery(CAREER_GOAL_QUERY, {
+    variables: { goalId },
+    skip: !goalId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadReadiness = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/readiness/${goalId}`);
-      setReadiness(response.data?.readiness || null);
-      setEvents(response.data?.events || []);
-    } catch (error) {
-      console.error('Failed to load readiness:', error);
-    }
-  }, [goalId]);
+  const {
+    data: readinessData,
+    loading: readinessLoading,
+    refetch: refetchReadiness,
+  } = useQuery(CAREER_GOAL_READINESS_QUERY, {
+    variables: { goalId },
+    skip: !goalId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadExercises = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/goals/${goalId}/exercises`);
-      setExercises(response.data?.exercises || []);
-    } catch (error) {
-      console.error('Failed to load exercises:', error);
-    }
-  }, [goalId]);
+  const {
+    data: exercisesData,
+  } = useQuery(CAREER_EXERCISE_RECOMMENDATIONS_QUERY, {
+    variables: { goalId },
+    skip: !goalId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadTrendData = useCallback(async () => {
-    try {
-      const response = await api.get(`/career/goals/${goalId}/trend`);
-      setTrendData(response.data?.trend || []);
-    } catch (error) {
-      console.error('Failed to load trend data:', error);
-    }
-  }, [goalId]);
+  const {
+    data: trendData,
+  } = useQuery(CAREER_GOAL_TREND_QUERY, {
+    variables: { goalId },
+    skip: !goalId,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      await Promise.all([loadGoal(), loadReadiness(), loadExercises(), loadTrendData()]);
-      setLoading(false);
-    };
-    loadAll();
-  }, [loadGoal, loadReadiness, loadExercises, loadTrendData]);
+  // GraphQL Mutations
+  const [deleteCareerGoal, { loading: deleteLoading }] = useMutation(DELETE_CAREER_GOAL_MUTATION, {
+    onCompleted: () => {
+      navigate('/career');
+    },
+    onError: (error) => {
+      console.error('Failed to delete goal:', error);
+    },
+  });
+
+  // Extract data with useMemo
+  const goal = useMemo<CareerGoal | null>(
+    () => goalData?.careerGoal || null,
+    [goalData?.careerGoal]
+  );
+
+  const readiness = useMemo<CareerReadinessData | null>(
+    () => readinessData?.careerGoalReadiness || null,
+    [readinessData?.careerGoalReadiness]
+  );
+
+  const events = useMemo<CareerEvent[]>(
+    () => readiness?.events || [],
+    [readiness?.events]
+  );
+
+  const exercises = useMemo<ExerciseRecommendation[]>(
+    () => exercisesData?.careerExerciseRecommendations || [],
+    [exercisesData?.careerExerciseRecommendations]
+  );
+
+  const trend = useMemo<TrendDataPoint[]>(
+    () => trendData?.careerGoalTrend || [],
+    [trendData?.careerGoalTrend]
+  );
+
+  const loading = goalLoading || readinessLoading;
+  const [refreshing, setRefreshing] = useState(false);
 
   // Handlers
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await api.post(`/career/readiness/${goalId}/refresh`);
-      await loadReadiness();
+      await refetchReadiness();
     } catch (error) {
       console.error('Failed to refresh readiness:', error);
     } finally {
@@ -363,28 +461,29 @@ export default function CareerGoalPage() {
     }
   };
 
-  const handleDelete = async () => {
-    setDeleteLoading(true);
-    try {
-      await api.delete(`/career/goals/${goalId}`);
-      navigate('/career');
-    } catch (error) {
-      console.error('Failed to delete goal:', error);
-    } finally {
-      setDeleteLoading(false);
+  const handleDelete = () => {
+    if (goalId) {
+      deleteCareerGoal({
+        variables: { goalId },
+      });
     }
   };
 
   const handleLogResult = () => {
-    navigate(`/pt-tests?test=${goal?.ptTestId}`);
+    const testId = goal?.standardId || goal?.standard?.id;
+    navigate(`/pt-tests?test=${testId}`);
   };
 
   // Computed values
-  const categoryMeta = goal ? (CATEGORY_META[goal.category] || CATEGORY_META.general) : CATEGORY_META.general;
-  const _statusConfig = readiness ? (STATUS_COLORS[readiness.status] || STATUS_COLORS.no_data) : STATUS_COLORS.no_data;
+  const category = goal?.standard?.category || 'general';
+  const categoryMeta = CATEGORY_META[category] || CATEGORY_META.general;
+  const readinessScore = readiness?.score ?? null;
   const daysRemaining = goal?.targetDate
-    ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
+  const testName = goal?.standard?.name || 'Unknown Test';
+  const institution = goal?.standard?.agency || categoryMeta.label;
+  const icon = goal?.standard?.icon || (category === 'military' ? '🎖️' : category === 'firefighter' ? '🔥' : category === 'law_enforcement' ? '🛡️' : '🏋️');
 
   if (loading) {
     return (
@@ -469,18 +568,18 @@ export default function CareerGoalPage() {
                 className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
                 style={{ backgroundColor: `${categoryMeta.color}20` }}
               >
-                {goal.icon || (goal.category === 'military' ? '🎖️' : goal.category === 'firefighter' ? '🔥' : goal.category === 'law_enforcement' ? '🛡️' : '🏋️')}
+                {icon}
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-black text-[var(--text-primary)]">{goal.testName}</h1>
+                  <h1 className="text-2xl font-black text-[var(--text-primary)]">{testName}</h1>
                   {goal.priority === 'primary' && (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--brand-blue-500)]/20 text-[var(--brand-blue-400)]">
                       Primary
                     </span>
                   )}
                 </div>
-                <p className="text-[var(--text-secondary)]">{goal.institution || categoryMeta.label}</p>
+                <p className="text-[var(--text-secondary)]">{institution}</p>
                 {goal.agencyName && (
                   <p className="text-sm text-[var(--text-tertiary)]">{goal.agencyName}</p>
                 )}
@@ -521,7 +620,7 @@ export default function CareerGoalPage() {
               </h2>
               <div className="flex justify-center mb-6">
                 <ReadinessGauge
-                  score={readiness?.readinessScore}
+                  score={readinessScore}
                   status={readiness?.status || 'no_data'}
                   size={180}
                 />
@@ -568,9 +667,9 @@ export default function CareerGoalPage() {
                 <div className="space-y-4">
                   {events.map(event => {
                     const percentage = event.passingValue
-                      ? (event.currentValue / event.passingValue) * 100
+                      ? ((event.currentValue || 0) / event.passingValue) * 100
                       : 0;
-                    const isPassing = percentage >= 100;
+                    const isPassing = event.isPassing ?? percentage >= 100;
                     return (
                       <EventProgressBar
                         key={event.id}
@@ -614,7 +713,7 @@ export default function CareerGoalPage() {
             )}
 
             {/* Trend Chart */}
-            {trendData.length > 0 && (
+            {trend.length > 0 && (
               <GlassSurface className="p-6" depth="subtle">
                 <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">
                   Progress Trend
@@ -624,7 +723,7 @@ export default function CareerGoalPage() {
                     <div className="w-8 h-8 border-2 border-[var(--brand-blue-500)] border-t-transparent rounded-full animate-spin" />
                   </div>
                 }>
-                  <ReadinessTrendChart data={trendData} />
+                  <ReadinessTrendChart data={trend} />
                 </Suspense>
               </GlassSurface>
             )}
@@ -681,7 +780,7 @@ export default function CareerGoalPage() {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
-        goalName={goal.testName}
+        goalName={testName}
         loading={deleteLoading}
       />
     </div>

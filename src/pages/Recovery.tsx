@@ -5,11 +5,20 @@
  * Displays current recovery score, sleep history, and recommendations.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  RECOVERY_STATUS_QUERY,
+  SLEEP_HISTORY_QUERY,
+  RECOVERY_SCORE_QUERY,
+} from '../graphql/queries';
+import {
+  LOG_SLEEP_MUTATION,
+  ACKNOWLEDGE_RECOVERY_RECOMMENDATION_MUTATION,
+} from '../graphql/mutations';
 import {
   GlassSurface,
   GlassCard,
@@ -344,79 +353,219 @@ function RecommendationCard({ recommendation, onAcknowledge }) {
 }
 
 // ============================================
+// TYPES
+// ============================================
+interface SleepLog {
+  id: string;
+  bedTime: string;
+  wakeTime: string;
+  sleepDurationMinutes: number;
+  quality: number;
+  notes?: string;
+  createdAt: string;
+}
+
+interface RecoveryScore {
+  id: string;
+  score: number;
+  classification: string;
+  recommendedIntensity: string;
+  trend: string;
+  factors?: {
+    sleepDurationScore: number;
+    sleepQualityScore: number;
+    restDaysScore: number;
+    hrvBonus?: number;
+    consistencyBonus?: number;
+  };
+}
+
+interface Recommendation {
+  id: string;
+  type: string;
+  priority: number;
+  title: string;
+  description: string;
+  actionItems?: { action: string; completed: boolean }[];
+}
+
+interface SleepStats {
+  avgDuration: number;
+  avgQuality: number;
+  totalNights: number;
+  sleepDebt: number;
+  consistency: number;
+  nightsLogged?: number;
+  avgDurationHours?: number;
+  targetMet?: number;
+}
+
+interface SleepGoal {
+  id: string;
+  targetHours: number;
+  targetBedTime?: string;
+  targetWakeTime?: string;
+  consistencyTarget?: number;
+}
+
+interface NextWorkoutSuggestion {
+  intensity: string;
+  types: string[];
+  reason: string;
+}
+
+interface RecoveryStatusData {
+  recoveryStatus: {
+    currentScore: RecoveryScore;
+    lastSleep: SleepLog;
+    sleepStats: SleepStats;
+    recommendations: Recommendation[];
+    sleepGoal: SleepGoal;
+    nextWorkoutSuggestion: NextWorkoutSuggestion;
+  };
+}
+
+interface SleepHistoryData {
+  sleepHistory: {
+    logs: SleepLog[];
+    nextCursor: string | null;
+    hasMore: boolean;
+  };
+}
+
+// ============================================
 // MAIN RECOVERY PAGE
 // ============================================
 export default function Recovery() {
-  const { user: _user } = useUser();
-  const [recoveryStatus, setRecoveryStatus] = useState(null);
-  const [sleepHistory, setSleepHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
   const [showLogModal, setShowLogModal] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  // GraphQL queries
+  const {
+    data: statusData,
+    loading: statusLoading,
+    error: statusError,
+    refetch: refetchStatus,
+  } = useQuery<RecoveryStatusData>(RECOVERY_STATUS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const {
+    data: historyData,
+    loading: historyLoading,
+    refetch: refetchHistory,
+  } = useQuery<SleepHistoryData>(SLEEP_HISTORY_QUERY, {
+    variables: { limit: 7 },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const { refetch: recalculateScore } = useQuery(RECOVERY_SCORE_QUERY, {
+    variables: { forceRecalculate: true },
+    skip: true, // Only run on demand
+    fetchPolicy: 'network-only',
+  });
+
+  // GraphQL mutations
+  const [logSleep] = useMutation(LOG_SLEEP_MUTATION, {
+    onCompleted: () => {
+      refetchStatus();
+      refetchHistory();
+    },
+    onError: (err) => {
+      setLocalError(err.message || 'Failed to log sleep');
+    },
+  });
+
+  const [acknowledgeRecommendation] = useMutation(ACKNOWLEDGE_RECOVERY_RECOMMENDATION_MUTATION, {
+    onCompleted: () => {
+      refetchStatus();
+    },
+    onError: (err) => {
+      console.error('Failed to acknowledge recommendation:', err);
+    },
+  });
+
+  // Extract data with memoization
+  const recoveryStatus = useMemo(
+    () => statusData?.recoveryStatus || null,
+    [statusData?.recoveryStatus]
+  );
+
+  const sleepHistory = useMemo<SleepLog[]>(
+    () => historyData?.sleepHistory?.logs || [],
+    [historyData?.sleepHistory?.logs]
+  );
+
+  // Compute derived sleepStats with expected properties
+  const computedSleepStats = useMemo(() => {
+    const stats = statusData?.recoveryStatus?.sleepStats;
+    if (!stats) return null;
+    return {
+      ...stats,
+      // Convert avgDuration (minutes) to hours
+      avgDurationHours: Math.round((stats.avgDuration / 60) * 10) / 10,
+      // Use totalNights as nightsLogged
+      nightsLogged: stats.totalNights,
+      // targetMet is not in the GraphQL response, calculate or default
+      targetMet: stats.totalNights, // Assume all logged nights for now
+    };
+  }, [statusData?.recoveryStatus?.sleepStats]);
+
+  const loading = statusLoading || historyLoading;
+  const error = localError || statusError?.message || null;
+
   const [recalculating, setRecalculating] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const [statusRes, historyRes] = await Promise.all([
-        api.get('/recovery/status'),
-        api.get('/sleep/history?limit=7'),
-      ]);
-
-      setRecoveryStatus(statusRes.data);
-      setSleepHistory(historyRes.data || []);
-    } catch (err) {
-      setError(err.message || 'Failed to load recovery data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const handleLogSleep = async (sleepData) => {
-    await api.post('/sleep/log', sleepData);
-    await loadData();
+  const handleLogSleep = async (sleepData: { bedTime: string; wakeTime: string; quality: number; notes?: string }) => {
+    await logSleep({
+      variables: {
+        input: {
+          bedTime: sleepData.bedTime,
+          wakeTime: sleepData.wakeTime,
+          quality: sleepData.quality,
+          notes: sleepData.notes,
+        },
+      },
+    });
   };
 
   const handleRecalculate = async () => {
     setRecalculating(true);
+    setLocalError(null);
     try {
-      await api.get('/recovery/score?recalculate=true');
-      await loadData();
-    } catch (err) {
-      setError(err.message);
+      await recalculateScore();
+      await refetchStatus();
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to recalculate');
     } finally {
       setRecalculating(false);
     }
   };
 
-  const handleAcknowledge = async (recommendationId) => {
-    try {
-      await api.post(`/recovery/recommendations/${recommendationId}/acknowledge`);
-      setRecoveryStatus((prev) => ({
-        ...prev,
-        recommendations: prev.recommendations.filter((r) => r.id !== recommendationId),
-      }));
-    } catch (err) {
-      console.error('Failed to acknowledge recommendation:', err);
-    }
+  const handleAcknowledge = async (recommendationId: string) => {
+    await acknowledgeRecommendation({
+      variables: { recommendationId },
+      optimisticResponse: {
+        acknowledgeRecoveryRecommendation: true,
+      },
+    });
   };
 
-  const formatDuration = (minutes) => {
+  const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
   };
 
-  const formatDate = (dateStr) => {
+  const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
     return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  const formatTime = (dateStr) => {
+  const formatTime = (dateStr: string): string => {
     const date = new Date(dateStr);
     return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   };
@@ -432,7 +581,8 @@ export default function Recovery() {
     );
   }
 
-  const { currentScore, sleepStats, recommendations, sleepGoal, nextWorkoutSuggestion } = recoveryStatus || {};
+  const { currentScore, recommendations, sleepGoal, nextWorkoutSuggestion } = recoveryStatus || {};
+  const sleepStats = computedSleepStats;
 
   return (
     <GlassSurface className="min-h-screen p-6">

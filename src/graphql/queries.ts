@@ -376,6 +376,101 @@ export const LEADERBOARDS_QUERY = gql`
 `;
 
 // ============================================
+// BODY MEASUREMENTS
+// ============================================
+
+export const BODY_MEASUREMENTS_QUERY = gql`
+  query BodyMeasurements($limit: Int, $cursor: String) {
+    bodyMeasurements(limit: $limit, cursor: $cursor) {
+      measurements {
+        id
+        userId
+        weightKg
+        bodyFatPercentage
+        leanMassKg
+        neckCm
+        shouldersCm
+        chestCm
+        waistCm
+        hipsCm
+        leftBicepCm
+        rightBicepCm
+        leftForearmCm
+        rightForearmCm
+        leftThighCm
+        rightThighCm
+        leftCalfCm
+        rightCalfCm
+        measurementSource
+        notes
+        measurementDate
+        createdAt
+      }
+      pagination {
+        hasMore
+        nextCursor
+        count
+      }
+    }
+  }
+`;
+
+export const LATEST_BODY_MEASUREMENT_QUERY = gql`
+  query LatestBodyMeasurement {
+    latestBodyMeasurement {
+      id
+      userId
+      weightKg
+      bodyFatPercentage
+      leanMassKg
+      neckCm
+      shouldersCm
+      chestCm
+      waistCm
+      hipsCm
+      leftBicepCm
+      rightBicepCm
+      leftForearmCm
+      rightForearmCm
+      leftThighCm
+      rightThighCm
+      leftCalfCm
+      rightCalfCm
+      measurementSource
+      notes
+      measurementDate
+      createdAt
+    }
+  }
+`;
+
+export const BODY_MEASUREMENT_COMPARISON_QUERY = gql`
+  query BodyMeasurementComparison($days: Int) {
+    bodyMeasurementComparison(days: $days) {
+      weightKg { current past change changePercent }
+      bodyFatPercentage { current past change changePercent }
+      leanMassKg { current past change changePercent }
+      neckCm { current past change changePercent }
+      shouldersCm { current past change changePercent }
+      chestCm { current past change changePercent }
+      waistCm { current past change changePercent }
+      hipsCm { current past change changePercent }
+      leftBicepCm { current past change changePercent }
+      rightBicepCm { current past change changePercent }
+      leftForearmCm { current past change changePercent }
+      rightForearmCm { current past change changePercent }
+      leftThighCm { current past change changePercent }
+      rightThighCm { current past change changePercent }
+      leftCalfCm { current past change changePercent }
+      rightCalfCm { current past change changePercent }
+      currentDate
+      pastDate
+      daysBetween
+    }
+  }
+`;
+
+// ============================================
 // COMMUNITY
 // ============================================
 
@@ -1541,6 +1636,279 @@ export const MY_COMPETITION_ENTRIES_QUERY = gql`
       rank
       score
       joinedAt
+    }
+  }
+`;
+
+// ============================================
+// RIVALS (1v1)
+// ============================================
+
+export const RIVALS_QUERY = gql`
+  query Rivals($status: String) {
+    rivals(status: $status) {
+      rivals {
+        id
+        challengerId
+        challengedId
+        status
+        createdAt
+        startedAt
+        endedAt
+        challengerTU
+        challengedTU
+        opponent {
+          id
+          username
+          avatar
+          archetype
+          level
+        }
+        isChallenger
+        myTU
+        opponentTU
+        myLastWorkout
+        opponentLastWorkout
+        tuDifference
+        isWinning
+      }
+      stats {
+        activeRivals
+        wins
+        losses
+        ties
+        totalTUEarned
+        currentStreak
+        longestStreak
+      }
+    }
+  }
+`;
+
+export const PENDING_RIVALS_QUERY = gql`
+  query PendingRivals {
+    pendingRivals {
+      id
+      challengerId
+      challengedId
+      status
+      createdAt
+      opponent {
+        id
+        username
+        avatar
+        archetype
+        level
+      }
+      isChallenger
+      myTU
+      opponentTU
+    }
+  }
+`;
+
+export const RIVAL_STATS_QUERY = gql`
+  query RivalStats {
+    rivalStats {
+      activeRivals
+      wins
+      losses
+      ties
+      totalTUEarned
+      currentStreak
+      longestStreak
+    }
+  }
+`;
+
+export const SEARCH_POTENTIAL_RIVALS_QUERY = gql`
+  query SearchPotentialRivals($query: String!, $limit: Int) {
+    searchPotentialRivals(query: $query, limit: $limit) {
+      id
+      username
+      avatar
+      archetype
+      level
+    }
+  }
+`;
+
+// ============================================
+// CREWS (TEAM SYSTEM)
+// ============================================
+
+export const MY_CREW_QUERY = gql`
+  query MyCrew {
+    myCrew {
+      crew {
+        id
+        name
+        tag
+        description
+        avatar
+        color
+        ownerId
+        memberCount
+        totalTU
+        weeklyTU
+        wins
+        losses
+        createdAt
+      }
+      membership {
+        id
+        crewId
+        userId
+        role
+        joinedAt
+        weeklyTU
+        totalTU
+        username
+        avatar
+        archetype
+      }
+      members {
+        id
+        crewId
+        userId
+        role
+        joinedAt
+        weeklyTU
+        totalTU
+        username
+        avatar
+        archetype
+      }
+      wars {
+        id
+        challengerCrewId
+        defendingCrewId
+        status
+        startDate
+        endDate
+        challengerTU
+        defendingTU
+        winnerId
+        createdAt
+        challengerCrew {
+          id
+          name
+          tag
+          avatar
+          color
+        }
+        defendingCrew {
+          id
+          name
+          tag
+          avatar
+          color
+        }
+        isChallenger
+        myCrewTU
+        opponentCrewTU
+        daysRemaining
+        isWinning
+      }
+      stats {
+        totalMembers
+        totalTU
+        weeklyTU
+        warsWon
+        warsLost
+        currentStreak
+        topContributors {
+          userId
+          username
+          avatar
+          weeklyTU
+        }
+      }
+    }
+  }
+`;
+
+export const CREW_QUERY = gql`
+  query Crew($id: ID!) {
+    crew(id: $id) {
+      crew {
+        id
+        name
+        tag
+        description
+        avatar
+        color
+        ownerId
+        memberCount
+        totalTU
+        weeklyTU
+        wins
+        losses
+        createdAt
+      }
+      members {
+        id
+        crewId
+        userId
+        role
+        joinedAt
+        weeklyTU
+        totalTU
+        username
+        avatar
+        archetype
+      }
+      stats {
+        totalMembers
+        totalTU
+        weeklyTU
+        warsWon
+        warsLost
+        currentStreak
+        topContributors {
+          userId
+          username
+          avatar
+          weeklyTU
+        }
+      }
+    }
+  }
+`;
+
+export const CREW_LEADERBOARD_QUERY = gql`
+  query CrewLeaderboard($limit: Int) {
+    crewLeaderboard(limit: $limit) {
+      rank
+      crew {
+        id
+        name
+        tag
+        avatar
+        color
+        memberCount
+        weeklyTU
+      }
+    }
+  }
+`;
+
+export const SEARCH_CREWS_QUERY = gql`
+  query SearchCrews($query: String!, $limit: Int) {
+    searchCrews(query: $query, limit: $limit) {
+      id
+      name
+      tag
+      description
+      avatar
+      color
+      ownerId
+      memberCount
+      totalTU
+      weeklyTU
+      wins
+      losses
+      createdAt
     }
   }
 `;
@@ -2840,6 +3208,69 @@ export const CAREER_EXERCISE_RECOMMENDATIONS_QUERY = gql`
     careerExerciseRecommendations(goalId: $goalId) {
       exerciseId
       exerciseName
+      targetEvents
+    }
+  }
+`;
+
+export const CAREER_GOAL_QUERY = gql`
+  query CareerGoal($goalId: ID!) {
+    careerGoal(goalId: $goalId) {
+      id
+      standard {
+        id
+        name
+        fullName
+        agency
+        category
+        icon
+      }
+      standardId
+      targetDate
+      priority
+      status
+      agencyName
+      notes
+      readiness {
+        score
+        status
+        eventsPassed
+        eventsTotal
+      }
+      daysRemaining
+      createdAt
+    }
+  }
+`;
+
+export const CAREER_GOAL_READINESS_QUERY = gql`
+  query CareerGoalReadiness($goalId: ID!) {
+    careerGoalReadiness(goalId: $goalId) {
+      score
+      status
+      eventsPassed
+      eventsTotal
+      weakEvents
+      lastAssessmentAt
+      events {
+        id
+        name
+        currentValue
+        passingValue
+        unit
+        isPassing
+      }
+    }
+  }
+`;
+
+export const CAREER_GOAL_TREND_QUERY = gql`
+  query CareerGoalTrend($goalId: ID!) {
+    careerGoalTrend(goalId: $goalId) {
+      date
+      score
+      eventsPassed
+      eventsTotal
     }
   }
 `;

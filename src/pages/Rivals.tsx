@@ -4,10 +4,21 @@
  * 1v1 rivalry competition system for web.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { useAuth } from '../store';
+import {
+  RIVALS_QUERY,
+  PENDING_RIVALS_QUERY,
+  SEARCH_POTENTIAL_RIVALS_QUERY,
+} from '../graphql/queries';
+import {
+  CHALLENGE_RIVAL_MUTATION,
+  ACCEPT_RIVALRY_MUTATION,
+  DECLINE_RIVALRY_MUTATION,
+  END_RIVALRY_MUTATION,
+} from '../graphql/mutations';
 import {
   GlassSurface,
   GlassCard,
@@ -71,71 +82,186 @@ const Icons = {
 };
 
 // ============================================
+// TYPES
+// ============================================
+interface RivalOpponent {
+  id: string;
+  username: string;
+  avatar?: string;
+  archetype?: string;
+  level?: number;
+}
+
+interface RivalWithUser {
+  id: string;
+  challengerId: string;
+  challengedId: string;
+  status: string;
+  createdAt: string;
+  startedAt?: string;
+  endedAt?: string;
+  challengerTU: number;
+  challengedTU: number;
+  opponent: RivalOpponent;
+  isChallenger: boolean;
+  myTU: number;
+  opponentTU: number;
+  myLastWorkout?: string;
+  opponentLastWorkout?: string;
+  tuDifference: number;
+  isWinning: boolean;
+}
+
+interface RivalStats {
+  activeRivals: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  totalTUEarned: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+interface PotentialRival {
+  id: string;
+  username: string;
+  avatar?: string;
+  archetype?: string;
+  level?: number;
+}
+
+interface RivalsData {
+  rivals: {
+    rivals: RivalWithUser[];
+    stats: RivalStats;
+  };
+}
+
+interface PendingRivalsData {
+  pendingRivals: RivalWithUser[];
+}
+
+interface SearchRivalsData {
+  searchPotentialRivals: PotentialRival[];
+}
+
+// ============================================
 // MAIN RIVALS PAGE
 // ============================================
 export default function Rivals() {
-  const { user: _user } = useUser();
-  const [rivals, setRivals] = useState([]);
-  const [pendingRivals, setPendingRivals] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Search UI state
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<PotentialRival[]>([]);
 
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const [activeRes, pendingRes, statsRes] = await Promise.all([
-        api.get('/rivals?status=active'),
-        api.get('/rivals/pending'),
-        api.get('/rivals/stats'),
-      ]);
+  // GraphQL queries
+  const {
+    data: rivalsData,
+    loading: rivalsLoading,
+    error: rivalsError,
+    refetch: refetchRivals,
+  } = useQuery<RivalsData>(RIVALS_QUERY, {
+    variables: { status: 'active' },
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-      // API returns { data: { rivals, stats } } wrapped in { data: response }
-      // So activeRes.data = { data: { rivals, stats } }
-      const activeData = activeRes.data?.data || activeRes.data || {};
-      const pendingData = pendingRes.data?.data || pendingRes.data || [];
-      const statsData = statsRes.data?.data || statsRes.data || {};
+  const {
+    data: pendingData,
+    loading: pendingLoading,
+    refetch: refetchPending,
+  } = useQuery<PendingRivalsData>(PENDING_RIVALS_QUERY, {
+    skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
 
-      setRivals(activeData.rivals || []);
-      setPendingRivals(Array.isArray(pendingData) ? pendingData : []);
-      setStats(statsData);
-    } catch (err) {
-      setError(err.message || 'Failed to load rivals data');
-    } finally {
-      setLoading(false);
+  // Lazy query for search
+  const [searchRivals, { loading: searching }] = useLazyQuery<SearchRivalsData>(
+    SEARCH_POTENTIAL_RIVALS_QUERY,
+    {
+      fetchPolicy: 'network-only',
+      onCompleted: (data) => {
+        setSearchResults(data?.searchPotentialRivals || []);
+      },
+      onError: (err) => {
+        console.error('Search failed:', err);
+        setSearchResults([]);
+      },
     }
-  }, []);
+  );
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // GraphQL mutations
+  const [challengeRival] = useMutation(CHALLENGE_RIVAL_MUTATION, {
+    onCompleted: () => {
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowSearch(false);
+      refetchRivals();
+      refetchPending();
+    },
+    onError: (err) => {
+      setLocalError(err.message || 'Failed to send challenge');
+    },
+  });
 
-  // Search users
-  const handleSearch = useCallback(async (query) => {
+  const [acceptRivalry] = useMutation(ACCEPT_RIVALRY_MUTATION, {
+    onCompleted: () => {
+      refetchRivals();
+      refetchPending();
+    },
+    onError: (err) => {
+      setLocalError(err.message || 'Failed to accept rivalry');
+    },
+  });
+
+  const [declineRivalry] = useMutation(DECLINE_RIVALRY_MUTATION, {
+    onCompleted: () => {
+      refetchPending();
+    },
+    onError: (err) => {
+      setLocalError(err.message || 'Failed to decline rivalry');
+    },
+  });
+
+  const [endRivalry] = useMutation(END_RIVALRY_MUTATION, {
+    onCompleted: () => {
+      refetchRivals();
+    },
+    onError: (err) => {
+      setLocalError(err.message || 'Failed to end rivalry');
+    },
+  });
+
+  // Extract data with memoization
+  const rivals = useMemo<RivalWithUser[]>(
+    () => rivalsData?.rivals?.rivals || [],
+    [rivalsData?.rivals?.rivals]
+  );
+
+  const stats = useMemo<RivalStats | null>(
+    () => rivalsData?.rivals?.stats || null,
+    [rivalsData?.rivals?.stats]
+  );
+
+  const pendingRivals = useMemo<RivalWithUser[]>(
+    () => pendingData?.pendingRivals || [],
+    [pendingData?.pendingRivals]
+  );
+
+  const loading = rivalsLoading || pendingLoading;
+  const error = localError || rivalsError?.message || null;
+
+  // Search effect with debounce
+  const handleSearch = useCallback((query: string) => {
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
-
-    setSearching(true);
-    try {
-      const response = await api.get(`/rivals/search?q=${encodeURIComponent(query)}`);
-      // API returns { data: users } and api.get wraps in { data: response }
-      // So response.data = { data: users }, need to access response.data.data
-      const users = response.data?.data || response.data || [];
-      setSearchResults(Array.isArray(users) ? users : []);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
+    searchRivals({ variables: { query, limit: 20 } });
+  }, [searchRivals]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -145,56 +271,27 @@ export default function Rivals() {
   }, [searchQuery, handleSearch]);
 
   // Challenge user
-  const handleChallenge = async (userId) => {
-    // Optimistically remove user from search results to prevent duplicate challenges
-    setSearchResults((prev) => (Array.isArray(prev) ? prev.filter((u) => u.id !== userId) : []));
+  const handleChallenge = async (userId: string) => {
+    // Optimistically remove user from search results
+    setSearchResults((prev) => prev.filter((u) => u.id !== userId));
 
-    try {
-      await api.post('/rivals/challenge', { opponentId: userId });
-      setSearchQuery('');
-      setSearchResults([]);
-      setShowSearch(false);
-      loadData();
-    } catch (err) {
-      // Show error but don't re-add the user to prevent retry on "already exists"
-      setError(err.message || 'Failed to send challenge');
-      // Refresh search to get accurate list
-      if (searchQuery.length >= 2) {
-        handleSearch(searchQuery);
-      }
-    }
+    await challengeRival({ variables: { opponentId: userId } });
   };
 
   // Accept rivalry
-  const handleAccept = async (id) => {
-    try {
-      await api.post(`/rivals/${id}/accept`);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to accept rivalry');
-    }
+  const handleAccept = async (id: string) => {
+    await acceptRivalry({ variables: { rivalryId: id } });
   };
 
   // Decline rivalry
-  const handleDecline = async (id) => {
-    try {
-      await api.post(`/rivals/${id}/decline`);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to decline rivalry');
-    }
+  const handleDecline = async (id: string) => {
+    await declineRivalry({ variables: { rivalryId: id } });
   };
 
   // End rivalry
-  const handleEnd = async (id) => {
+  const handleEnd = async (id: string) => {
     if (!window.confirm('Are you sure you want to end this rivalry?')) return;
-
-    try {
-      await api.post(`/rivals/${id}/end`);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to end rivalry');
-    }
+    await endRivalry({ variables: { rivalryId: id } });
   };
 
   if (loading) {

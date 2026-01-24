@@ -5,11 +5,19 @@
  * Set career goals, track readiness scores, get exercise recommendations for weak events.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation } from '@apollo/client/react';
 import { useUser } from '../contexts/UserContext';
-import { api } from '../utils/api';
+import {
+  MY_CAREER_GOALS_QUERY,
+  MY_CAREER_READINESS_QUERY,
+  CAREER_STANDARDS_QUERY,
+  CAREER_STANDARD_CATEGORIES_QUERY,
+  CAREER_EXERCISE_RECOMMENDATIONS_QUERY,
+} from '../graphql/queries';
+import { CREATE_CAREER_GOAL_MUTATION } from '../graphql/mutations';
 import {
   GlassSurface,
   GlassButton,
@@ -20,76 +28,139 @@ import {
 } from '../components/glass';
 
 // ============================================
+// TYPES
+// ============================================
+
+interface CareerEvent {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface CareerStandard {
+  id: string;
+  name: string;
+  fullName?: string;
+  agency?: string;
+  category: string;
+  description?: string;
+  icon?: string;
+  eventCount: number;
+  events?: CareerEvent[];
+}
+
+interface CareerReadinessData {
+  goalId: string;
+  score: number;
+  status: string;
+  eventsPassed: number;
+  eventsTotal: number;
+  lastAssessmentAt?: string;
+  weakEvents?: string[];
+  readinessScore?: number; // alias for score
+}
+
+interface CareerGoal {
+  id: string;
+  standardId: string;
+  standard?: CareerStandard;
+  ptTestId?: string;
+  testName?: string;
+  institution?: string;
+  category?: string;
+  icon?: string;
+  targetDate?: string;
+  priority: string;
+  status: string;
+  agencyName?: string;
+  notes?: string;
+  readiness?: CareerReadinessData;
+  daysRemaining?: number;
+}
+
+interface CategoryInfo {
+  category: string;
+  label: string;
+  count: number;
+}
+
+interface ExerciseRecommendation {
+  exerciseId: string;
+  exerciseName: string;
+  targetEvents: string[];
+}
+
+// ============================================
 // ICONS
 // ============================================
 
 const Icons = {
-  Target: ({ className = 'w-5 h-5' }) => (
+  Target: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
-  Trophy: ({ className = 'w-5 h-5' }) => (
+  Trophy: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
-  Clock: ({ className = 'w-5 h-5' }) => (
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Calendar: ({ className = 'w-5 h-5' }) => (
+  Calendar: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
-  Plus: ({ className = 'w-5 h-5' }) => (
+  Plus: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   ),
-  X: ({ className = 'w-5 h-5' }) => (
+  X: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  Check: ({ className = 'w-5 h-5' }) => (
+  Check: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   ),
-  ChevronRight: ({ className = 'w-5 h-5' }) => (
+  ChevronRight: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
-  TrendingUp: ({ className = 'w-5 h-5' }) => (
+  TrendingUp: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
     </svg>
   ),
-  TrendingDown: ({ className = 'w-5 h-5' }) => (
+  TrendingDown: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
     </svg>
   ),
-  AlertTriangle: ({ className = 'w-5 h-5' }) => (
+  AlertTriangle: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
   ),
-  Dumbbell: ({ className = 'w-5 h-5' }) => (
+  Dumbbell: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7h16M4 17h16M6 12h12M7 7v10m10-10v10" />
     </svg>
   ),
-  Users: ({ className = 'w-5 h-5' }) => (
+  Users: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   ),
-  Refresh: ({ className = 'w-5 h-5' }) => (
+  Refresh: ({ className = 'w-5 h-5' }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
@@ -97,7 +168,7 @@ const Icons = {
 };
 
 // Category metadata
-const CATEGORY_META = {
+const CATEGORY_META: Record<string, { color: string; icon: string; label: string }> = {
   military: { color: '#556B2F', icon: '🎖️', label: 'Military' },
   firefighter: { color: '#B22222', icon: '🔥', label: 'Firefighter' },
   law_enforcement: { color: '#191970', icon: '🛡️', label: 'Law Enforcement' },
@@ -107,7 +178,7 @@ const CATEGORY_META = {
 };
 
 // Status colors
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   ready: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Ready' },
   at_risk: { bg: 'bg-amber-500/20', text: 'text-amber-400', label: 'At Risk' },
   not_ready: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Not Ready' },
@@ -119,7 +190,7 @@ const STATUS_COLORS = {
 // ============================================
 
 // Circular Progress Gauge
-function ReadinessGauge({ score, status, size = 120 }) {
+function ReadinessGauge({ score, status, size = 120 }: { score: number | null; status: string; size?: number }) {
   const radius = (size - 12) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score !== null ? (score / 100) * circumference : 0;
@@ -166,12 +237,23 @@ function ReadinessGauge({ score, status, size = 120 }) {
 }
 
 // Goal Card
-function GoalCard({ goal, readiness, onClick, isSelected }) {
-  const categoryMeta = CATEGORY_META[goal.category] || CATEGORY_META.general;
-  const statusConfig = STATUS_COLORS[readiness?.status] || STATUS_COLORS.no_data;
+function GoalCard({ goal, readiness, onClick, isSelected }: {
+  goal: CareerGoal;
+  readiness?: CareerReadinessData;
+  onClick: () => void;
+  isSelected: boolean;
+}) {
+  const category = goal.category || goal.standard?.category || 'general';
+  const categoryMeta = CATEGORY_META[category] || CATEGORY_META.general;
+  const statusConfig = STATUS_COLORS[readiness?.status || 'no_data'] || STATUS_COLORS.no_data;
   const daysRemaining = goal.targetDate
-    ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
+
+  const testName = goal.testName || goal.standard?.name || 'Unknown Test';
+  const institution = goal.institution || goal.standard?.agency || categoryMeta.label;
+  const icon = goal.icon || goal.standard?.icon || categoryMeta.icon;
+  const readinessScore = readiness?.readinessScore ?? readiness?.score ?? null;
 
   return (
     <motion.button
@@ -190,11 +272,11 @@ function GoalCard({ goal, readiness, onClick, isSelected }) {
           className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
           style={{ backgroundColor: `${categoryMeta.color}20` }}
         >
-          {goal.icon || categoryMeta.icon}
+          {icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-[var(--text-primary)] truncate">{goal.testName}</h3>
+            <h3 className="font-bold text-[var(--text-primary)] truncate">{testName}</h3>
             {goal.priority === 'primary' && (
               <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--brand-blue-500)]/20 text-[var(--brand-blue-400)]">
                 Primary
@@ -202,14 +284,14 @@ function GoalCard({ goal, readiness, onClick, isSelected }) {
             )}
           </div>
           <p className="text-sm text-[var(--text-tertiary)] mb-2">
-            {goal.institution || categoryMeta.label}
+            {institution}
           </p>
           <div className="flex items-center gap-4">
             {readiness && (
               <div className="flex items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${statusConfig.bg.replace('/20', '')}`} />
                 <span className={`text-sm font-semibold ${statusConfig.text}`}>
-                  {readiness.readinessScore !== null ? `${readiness.readinessScore}%` : 'No data'}
+                  {readinessScore !== null ? `${readinessScore}%` : 'No data'}
                 </span>
               </div>
             )}
@@ -234,7 +316,11 @@ function GoalCard({ goal, readiness, onClick, isSelected }) {
 }
 
 // Standard Card (for browsing)
-function StandardCard({ standard, onSelect, hasGoal }) {
+function StandardCard({ standard, onSelect, hasGoal }: {
+  standard: CareerStandard;
+  onSelect: (s: CareerStandard) => void;
+  hasGoal: boolean;
+}) {
   const categoryMeta = CATEGORY_META[standard.category] || CATEGORY_META.general;
 
   return (
@@ -259,7 +345,7 @@ function StandardCard({ standard, onSelect, hasGoal }) {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-[var(--text-primary)] truncate">{standard.name}</h3>
-          <p className="text-sm text-[var(--text-tertiary)]">{standard.institution}</p>
+          <p className="text-sm text-[var(--text-tertiary)]">{standard.agency || standard.fullName}</p>
         </div>
         {hasGoal ? (
           <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">
@@ -269,19 +355,19 @@ function StandardCard({ standard, onSelect, hasGoal }) {
           <Icons.Plus className="w-5 h-5 text-[var(--brand-blue-400)]" />
         )}
       </div>
-      {standard.components && standard.components.length > 0 && (
+      {standard.events && standard.events.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {standard.components.slice(0, 4).map(comp => (
+          {standard.events.slice(0, 4).map(event => (
             <span
-              key={comp.id}
+              key={event.id}
               className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]"
             >
-              {comp.name}
+              {event.name}
             </span>
           ))}
-          {standard.components.length > 4 && (
+          {standard.events.length > 4 && (
             <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-quaternary)]">
-              +{standard.components.length - 4}
+              +{standard.events.length - 4}
             </span>
           )}
         </div>
@@ -291,11 +377,23 @@ function StandardCard({ standard, onSelect, hasGoal }) {
 }
 
 // Goal Detail Panel
-function GoalDetailPanel({ goal, readiness, exercises, onRefresh, onLogResult }) {
-  const categoryMeta = CATEGORY_META[goal.category] || CATEGORY_META.general;
+function GoalDetailPanel({ goal, readiness, exercises, onRefresh, onLogResult }: {
+  goal: CareerGoal;
+  readiness?: CareerReadinessData;
+  exercises: ExerciseRecommendation[];
+  onRefresh: () => void;
+  onLogResult: () => void;
+}) {
+  const category = goal.category || goal.standard?.category || 'general';
+  const categoryMeta = CATEGORY_META[category] || CATEGORY_META.general;
   const daysRemaining = goal.targetDate
-    ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((new Date(goal.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
+
+  const testName = goal.testName || goal.standard?.name || 'Unknown Test';
+  const institution = goal.institution || goal.standard?.agency || categoryMeta.label;
+  const icon = goal.icon || goal.standard?.icon || categoryMeta.icon;
+  const readinessScore = readiness?.readinessScore ?? readiness?.score ?? null;
 
   return (
     <GlassSurface className="p-6" depth="medium">
@@ -306,11 +404,11 @@ function GoalDetailPanel({ goal, readiness, exercises, onRefresh, onLogResult })
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
             style={{ backgroundColor: `${categoryMeta.color}20` }}
           >
-            {goal.icon || categoryMeta.icon}
+            {icon}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-[var(--text-primary)]">{goal.testName}</h2>
-            <p className="text-[var(--text-secondary)]">{goal.institution || categoryMeta.label}</p>
+            <h2 className="text-2xl font-black text-[var(--text-primary)]">{testName}</h2>
+            <p className="text-[var(--text-secondary)]">{institution}</p>
             {goal.agencyName && (
               <p className="text-sm text-[var(--text-tertiary)]">{goal.agencyName}</p>
             )}
@@ -330,7 +428,7 @@ function GoalDetailPanel({ goal, readiness, exercises, onRefresh, onLogResult })
       {/* Readiness Gauge */}
       <div className="flex items-center justify-center mb-6">
         <ReadinessGauge
-          score={readiness?.readinessScore}
+          score={readinessScore}
           status={readiness?.status || 'no_data'}
           size={160}
         />
@@ -423,14 +521,19 @@ function GoalDetailPanel({ goal, readiness, exercises, onRefresh, onLogResult })
 }
 
 // Add Goal Modal
-function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
+function AddGoalModal({ isOpen, onClose, standard, onSubmit, loading: submitLoading }: {
+  isOpen: boolean;
+  onClose: () => void;
+  standard: CareerStandard | null;
+  onSubmit: (data: { standardId: string; targetDate?: string; priority: string; agencyName?: string; notes?: string }) => void;
+  loading: boolean;
+}) {
   const [formData, setFormData] = useState({
     targetDate: '',
     priority: 'primary',
     agencyName: '',
     notes: '',
   });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -446,23 +549,15 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
 
   if (!isOpen || !standard) return null;
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await onSubmit({
-        ptTestId: standard.id,
-        targetDate: formData.targetDate || undefined,
-        priority: formData.priority,
-        agencyName: formData.agencyName || undefined,
-        notes: formData.notes || undefined,
-      });
-      onClose();
-    } catch (error) {
-      console.error('Failed to create goal:', error);
-    } finally {
-      setLoading(false);
-    }
+    onSubmit({
+      standardId: standard.id,
+      targetDate: formData.targetDate || undefined,
+      priority: formData.priority,
+      agencyName: formData.agencyName || undefined,
+      notes: formData.notes || undefined,
+    });
   };
 
   const categoryMeta = CATEGORY_META[standard.category] || CATEGORY_META.general;
@@ -569,8 +664,8 @@ function AddGoalModal({ isOpen, onClose, standard, onSubmit }) {
               <GlassButton type="button" variant="ghost" className="flex-1" onClick={onClose}>
                 Cancel
               </GlassButton>
-              <GlassButton type="submit" variant="primary" className="flex-1" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Goal'}
+              <GlassButton type="submit" variant="primary" className="flex-1" disabled={submitLoading}>
+                {submitLoading ? 'Creating...' : 'Create Goal'}
               </GlassButton>
             </div>
           </form>
@@ -590,100 +685,119 @@ export default function CareerReadiness() {
   const activeTab = searchParams.get('tab') || 'goals';
 
   // State
-  const [goals, setGoals] = useState([]);
-  const [readinessData, setReadinessData] = useState([]);
-  const [standards, setStandards] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedGoal, setSelectedGoal] = useState(null);
-  const [selectedGoalExercises, setSelectedGoalExercises] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedGoal, setSelectedGoal] = useState<CareerGoal | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedStandard, setSelectedStandard] = useState(null);
+  const [selectedStandard, setSelectedStandard] = useState<CareerStandard | null>(null);
 
-  // Load data
-  const loadGoals = useCallback(async () => {
-    try {
-      const response = await api.get('/career/goals');
-      setGoals(response.data?.goals || []);
-    } catch (error) {
-      console.error('Failed to load goals:', error);
-    }
-  }, []);
+  // GraphQL Queries
+  const {
+    data: goalsData,
+    loading: goalsLoading,
+    refetch: refetchGoals,
+  } = useQuery(MY_CAREER_GOALS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadReadiness = useCallback(async () => {
-    try {
-      const response = await api.get('/career/readiness');
-      setReadinessData(response.data?.readiness || []);
-    } catch (error) {
-      console.error('Failed to load readiness:', error);
-    }
-  }, []);
+  const {
+    data: readinessData,
+    loading: readinessLoading,
+    refetch: refetchReadiness,
+  } = useQuery(MY_CAREER_READINESS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadStandards = useCallback(async () => {
-    try {
-      const response = await api.get('/career/standards');
-      setStandards(response.data?.standards || []);
-    } catch (error) {
-      console.error('Failed to load standards:', error);
-    }
-  }, []);
+  const {
+    data: standardsData,
+    loading: standardsLoading,
+  } = useQuery(CAREER_STANDARDS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const response = await api.get('/career/standards/categories');
-      setCategories(response.data?.categories || []);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  }, []);
+  const {
+    data: categoriesData,
+    loading: categoriesLoading,
+  } = useQuery(CAREER_STANDARD_CATEGORIES_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
 
-  const loadExercisesForGoal = useCallback(async (goalId) => {
-    try {
-      const response = await api.get(`/career/goals/${goalId}/exercises`);
-      setSelectedGoalExercises(response.data?.exercises || []);
-    } catch (error) {
-      console.error('Failed to load exercises:', error);
-    }
-  }, []);
+  const {
+    data: exercisesData,
+  } = useQuery(CAREER_EXERCISE_RECOMMENDATIONS_QUERY, {
+    variables: { goalId: selectedGoal?.id },
+    skip: !selectedGoal?.id,
+    fetchPolicy: 'cache-and-network',
+  });
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      await Promise.all([loadGoals(), loadReadiness(), loadStandards(), loadCategories()]);
-      setLoading(false);
-    };
-    loadAll();
-  }, [loadGoals, loadReadiness, loadStandards, loadCategories]);
+  // GraphQL Mutations
+  const [createCareerGoal, { loading: createGoalLoading }] = useMutation(CREATE_CAREER_GOAL_MUTATION, {
+    onCompleted: () => {
+      refetchGoals();
+      refetchReadiness();
+      setShowAddModal(false);
+      setSelectedStandard(null);
+    },
+    onError: (error) => {
+      console.error('Failed to create goal:', error);
+    },
+  });
 
-  // Load exercises when goal selected
-  useEffect(() => {
-    if (selectedGoal) {
-      loadExercisesForGoal(selectedGoal.id);
-    }
-  }, [selectedGoal, loadExercisesForGoal]);
+  // Extract data with useMemo
+  const goals = useMemo<CareerGoal[]>(
+    () => goalsData?.myCareerGoals || [],
+    [goalsData?.myCareerGoals]
+  );
+
+  const readinessMap = useMemo<Map<string, CareerReadinessData>>(() => {
+    const readinessList = readinessData?.myCareerReadiness || [];
+    const map = new Map<string, CareerReadinessData>();
+    readinessList.forEach((r: CareerReadinessData) => {
+      map.set(r.goalId, r);
+    });
+    return map;
+  }, [readinessData?.myCareerReadiness]);
+
+  const standards = useMemo<CareerStandard[]>(
+    () => standardsData?.careerStandards || [],
+    [standardsData?.careerStandards]
+  );
+
+  const categories = useMemo<CategoryInfo[]>(
+    () => categoriesData?.careerStandardCategories || [],
+    [categoriesData?.careerStandardCategories]
+  );
+
+  const selectedGoalExercises = useMemo<ExerciseRecommendation[]>(
+    () => exercisesData?.careerExerciseRecommendations || [],
+    [exercisesData?.careerExerciseRecommendations]
+  );
+
+  const loading = goalsLoading || readinessLoading || standardsLoading || categoriesLoading;
 
   // Handlers
-  const handleCreateGoal = async (data) => {
-    await api.post('/career/goals', data);
-    await loadGoals();
-    await loadReadiness();
+  const handleCreateGoal = (data: { standardId: string; targetDate?: string; priority: string; agencyName?: string; notes?: string }) => {
+    createCareerGoal({
+      variables: {
+        input: {
+          standardId: data.standardId,
+          targetDate: data.targetDate,
+          priority: data.priority,
+          agencyName: data.agencyName,
+          notes: data.notes,
+        },
+      },
+    });
   };
 
-  const handleRefreshReadiness = async (goalId) => {
-    try {
-      await api.post(`/career/readiness/${goalId}/refresh`);
-      await loadReadiness();
-    } catch (error) {
-      console.error('Failed to refresh readiness:', error);
-    }
+  const handleRefreshReadiness = async () => {
+    await refetchReadiness();
   };
 
   // Get readiness for a specific goal
-  const getGoalReadiness = (goalId) => {
-    return readinessData.find(r => r.goalId === goalId);
+  const getGoalReadiness = (goalId: string): CareerReadinessData | undefined => {
+    return readinessMap.get(goalId);
   };
 
   // Filter standards by category
@@ -692,11 +806,11 @@ export default function CareerReadiness() {
     : standards.filter(s => s.category === selectedCategory);
 
   // Get goal IDs for checking if standard already has a goal
-  const goalTestIds = new Set(goals.map(g => g.ptTestId));
+  const goalStandardIds = new Set(goals.map(g => g.standardId || g.standard?.id));
 
   // Summary stats
   const primaryGoal = goals.find(g => g.priority === 'primary' && g.status === 'active');
-  const primaryReadiness = primaryGoal ? getGoalReadiness(primaryGoal.id) : null;
+  const primaryReadiness = primaryGoal ? getGoalReadiness(primaryGoal.id) : undefined;
   const activeGoalsCount = goals.filter(g => g.status === 'active').length;
 
   return (
@@ -731,13 +845,15 @@ export default function CareerReadiness() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <ReadinessGauge
-                      score={primaryReadiness?.readinessScore}
+                      score={primaryReadiness?.readinessScore ?? primaryReadiness?.score ?? null}
                       status={primaryReadiness?.status || 'no_data'}
                       size={64}
                     />
                     <div>
                       <div className="text-sm text-[var(--text-tertiary)]">Primary Goal</div>
-                      <div className="font-bold text-[var(--text-primary)]">{primaryGoal.testName}</div>
+                      <div className="font-bold text-[var(--text-primary)]">
+                        {primaryGoal.testName || primaryGoal.standard?.name}
+                      </div>
                       {primaryGoal.targetDate && (
                         <div className="text-sm text-[var(--text-tertiary)]">
                           Target: {new Date(primaryGoal.targetDate).toLocaleDateString()}
@@ -837,10 +953,11 @@ export default function CareerReadiness() {
                       goal={selectedGoal}
                       readiness={getGoalReadiness(selectedGoal.id)}
                       exercises={selectedGoalExercises}
-                      onRefresh={() => handleRefreshReadiness(selectedGoal.id)}
+                      onRefresh={handleRefreshReadiness}
                       onLogResult={() => {
                         // Navigate to PT Tests page for result logging
-                        window.location.href = `/pt-tests?test=${selectedGoal.ptTestId}`;
+                        const testId = selectedGoal.standardId || selectedGoal.standard?.id;
+                        window.location.href = `/pt-tests?test=${testId}`;
                       }}
                     />
                   ) : goals.length > 0 ? (
@@ -900,7 +1017,7 @@ export default function CareerReadiness() {
                         setSelectedStandard(s);
                         setShowAddModal(true);
                       }}
-                      hasGoal={goalTestIds.has(standard.id)}
+                      hasGoal={goalStandardIds.has(standard.id)}
                     />
                   ))}
                 </div>
@@ -937,6 +1054,7 @@ export default function CareerReadiness() {
         }}
         standard={selectedStandard}
         onSubmit={handleCreateGoal}
+        loading={createGoalLoading}
       />
     </div>
   );

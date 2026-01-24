@@ -63,6 +63,8 @@ import { journeyHealthService } from '../modules/journey';
 import { issuesService } from '../services/issues.service';
 import { mysteryBoxService } from '../modules/marketplace/mystery-box.service';
 import * as equipmentService from '../services/equipment.service';
+import { rivalsService } from '../modules/rivals/service';
+import * as crewsService from '../modules/crews/service';
 import { loggers } from '../lib/logger';
 import {
   subscribe,
@@ -5180,6 +5182,91 @@ export const resolvers = {
     },
 
     // ============================================
+    // RIVALS (1v1) QUERIES
+    // ============================================
+    rivals: async (_: unknown, args: { status?: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const [rivals, stats] = await Promise.all([
+        rivalsService.getUserRivalries(userId, args.status as 'pending' | 'active' | 'ended' | undefined),
+        rivalsService.getUserStats(userId),
+      ]);
+      return { rivals, stats };
+    },
+
+    rival: async (_: unknown, args: { id: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return rivalsService.getRivalryWithUser(args.id, userId);
+    },
+
+    pendingRivals: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return rivalsService.getPendingRequests(userId);
+    },
+
+    rivalStats: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      return rivalsService.getUserStats(userId);
+    },
+
+    searchPotentialRivals: async (_: unknown, args: { query: string; limit?: number }, context: Context) => {
+      const { userId } = requireAuth(context);
+      if (args.query.length < 2) {
+        return [];
+      }
+      return rivalsService.searchPotentialRivals(userId, args.query, args.limit || 20);
+    },
+
+    // ============================================
+    // CREWS (TEAM SYSTEM) QUERIES
+    // ============================================
+    myCrew: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      const result = await crewsService.getUserCrew(userId);
+
+      if (!result) {
+        return null;
+      }
+
+      const [members, wars, stats] = await Promise.all([
+        crewsService.getCrewMembers(result.crew.id),
+        crewsService.getCrewWars(result.crew.id),
+        crewsService.getCrewStats(result.crew.id),
+      ]);
+
+      return {
+        crew: result.crew,
+        membership: result.membership,
+        members,
+        wars,
+        stats,
+      };
+    },
+
+    crew: async (_: unknown, args: { id: string }, context: Context) => {
+      requireAuth(context);
+      const crew = await crewsService.getCrew(args.id);
+      if (!crew) {
+        return null;
+      }
+
+      const [members, stats] = await Promise.all([
+        crewsService.getCrewMembers(crew.id),
+        crewsService.getCrewStats(crew.id),
+      ]);
+
+      return { crew, members, stats };
+    },
+
+    crewLeaderboard: async (_: unknown, args: { limit?: number }, _context: Context) => {
+      return crewsService.getCrewLeaderboard(args.limit || 50);
+    },
+
+    searchCrews: async (_: unknown, args: { query: string; limit?: number }, context: Context) => {
+      requireAuth(context);
+      return crewsService.searchCrews(args.query, args.limit || 20);
+    },
+
+    // ============================================
     // BUDDY (TRAINING COMPANION) QUERIES
     // ============================================
     buddy: async (_: unknown, __: unknown, context: Context) => {
@@ -9240,6 +9327,101 @@ export const resolvers = {
         },
         message: 'Joined competition successfully',
       };
+    },
+
+    // ============================================
+    // RIVALS (1v1) MUTATIONS
+    // ============================================
+    challengeRival: async (_: unknown, args: { opponentId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      if (args.opponentId === userId) {
+        throw new GraphQLError('Cannot challenge yourself', { extensions: { code: 'BAD_USER_INPUT' } });
+      }
+      return rivalsService.createRivalry(userId, args.opponentId);
+    },
+
+    acceptRivalry: async (_: unknown, args: { rivalryId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return rivalsService.acceptRivalry(args.rivalryId, userId);
+    },
+
+    declineRivalry: async (_: unknown, args: { rivalryId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await rivalsService.declineRivalry(args.rivalryId, userId);
+      return true;
+    },
+
+    endRivalry: async (_: unknown, args: { rivalryId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      await rivalsService.endRivalry(args.rivalryId, userId);
+      return true;
+    },
+
+    // ============================================
+    // CREWS (TEAM SYSTEM) MUTATIONS
+    // ============================================
+    createCrew: async (
+      _: unknown,
+      args: { input: { name: string; tag: string; description?: string; color?: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      return crewsService.createCrew(
+        userId,
+        args.input.name,
+        args.input.tag,
+        args.input.description,
+        args.input.color
+      );
+    },
+
+    leaveCrew: async (_: unknown, _args: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+      await crewsService.leaveCrew(userId);
+      return true;
+    },
+
+    joinCrew: async (_: unknown, args: { crewId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      // For now, joining without invite requires creating an invite and accepting it
+      // This is a simplified flow - could be extended for open crews
+      throw new GraphQLError('Direct joining not supported. Use invitations.', {
+        extensions: { code: 'BAD_REQUEST' },
+      });
+    },
+
+    inviteToCrew: async (_: unknown, args: { crewId: string; inviteeId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return crewsService.inviteToCrew(args.crewId, userId, args.inviteeId);
+    },
+
+    acceptCrewInvite: async (_: unknown, args: { inviteId: string }, context: Context) => {
+      const { userId } = requireAuth(context);
+      return crewsService.acceptInvite(args.inviteId, userId);
+    },
+
+    startCrewWar: async (
+      _: unknown,
+      args: { crewId: string; defendingCrewId: string; durationDays?: number },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+
+      // Verify user is owner/captain of the crew
+      const userCrew = await crewsService.getUserCrew(userId);
+      if (!userCrew || userCrew.crew.id !== args.crewId) {
+        throw new GraphQLError('You are not in this crew', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      if (userCrew.membership.role === 'member') {
+        throw new GraphQLError('Only owners and captains can start wars', {
+          extensions: { code: 'FORBIDDEN' },
+        });
+      }
+
+      return crewsService.startCrewWar(args.crewId, args.defendingCrewId, args.durationDays || 7);
     },
 
     // Goal System

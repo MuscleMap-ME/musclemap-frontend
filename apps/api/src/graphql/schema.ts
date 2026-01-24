@@ -94,6 +94,13 @@ export const typeDefs = `#graphql
     extendedProfile: ExtendedProfile
     statsInfo: StatsInfo
 
+    # Body Measurements
+    bodyMeasurements(limit: Int, cursor: String): BodyMeasurementsResult!
+    bodyMeasurement(id: ID!): BodyMeasurement
+    latestBodyMeasurement: BodyMeasurement
+    bodyMeasurementComparison(days: Int): BodyMeasurementComparison
+    bodyMeasurementHistory(field: String!, days: Int): BodyMeasurementHistory
+
     # Long-Term Analytics
     yearlyStats(year: Int!): YearlyStats
     yearsList: [Int!]!
@@ -307,6 +314,19 @@ export const typeDefs = `#graphql
     competition(id: ID!): Competition
     myCompetitionEntries: [CompetitionEntry!]!
 
+    # Rivals (1v1 Competitions)
+    rivals(status: String): RivalsResult!
+    rival(id: ID!): RivalWithUser
+    pendingRivals: [RivalWithUser!]!
+    rivalStats: RivalStats!
+    searchPotentialRivals(query: String!, limit: Int): [PotentialRival!]!
+
+    # Crews (Team System)
+    myCrew: MyCrewResult
+    crew(id: ID!): CrewWithDetails
+    crewLeaderboard(limit: Int): [CrewLeaderboardEntry!]!
+    searchCrews(query: String!, limit: Int): [Crew!]!
+
     # Buddy (Training Companion)
     buddy: Buddy
     buddyInventory(category: String): [BuddyInventoryItem!]!
@@ -426,6 +446,11 @@ export const typeDefs = `#graphql
     recalculateStats: CharacterStats!
     updateExtendedProfile(input: ExtendedProfileInput!): ExtendedProfile!
 
+    # Body Measurements
+    createBodyMeasurement(input: BodyMeasurementInput!): BodyMeasurement!
+    updateBodyMeasurement(id: ID!, input: BodyMeasurementInput!): BodyMeasurement!
+    deleteBodyMeasurement(id: ID!): Boolean!
+
     # Community
     updatePresence(status: String!): PresenceInfo!
 
@@ -498,6 +523,20 @@ export const typeDefs = `#graphql
     # Competitions
     createCompetition(input: CompetitionInput!): Competition!
     joinCompetition(competitionId: ID!): CompetitionJoinResult!
+
+    # Rivals (1v1 Competitions)
+    challengeRival(opponentId: ID!): RivalWithUser!
+    acceptRivalry(rivalryId: ID!): RivalWithUser!
+    declineRivalry(rivalryId: ID!): Boolean!
+    endRivalry(rivalryId: ID!): Boolean!
+
+    # Crews (Team System)
+    createCrew(input: CreateCrewInput!): Crew!
+    leaveCrew: Boolean!
+    joinCrew(crewId: ID!): CrewMember!
+    inviteToCrew(crewId: ID!, inviteeId: ID!): CrewInvite!
+    acceptCrewInvite(inviteId: ID!): CrewMember!
+    startCrewWar(crewId: ID!, defendingCrewId: ID!, durationDays: Int): CrewWar!
 
     # Onboarding
     updateOnboardingProfile(input: OnboardingProfileInput!): OnboardingProfile!
@@ -1520,6 +1559,108 @@ export const typeDefs = `#graphql
   }
 
   # ============================================
+  # BODY MEASUREMENTS TYPES
+  # ============================================
+  type BodyMeasurement {
+    id: ID!
+    userId: ID!
+    weightKg: Float
+    bodyFatPercentage: Float
+    leanMassKg: Float
+    neckCm: Float
+    shouldersCm: Float
+    chestCm: Float
+    waistCm: Float
+    hipsCm: Float
+    leftBicepCm: Float
+    rightBicepCm: Float
+    leftForearmCm: Float
+    rightForearmCm: Float
+    leftThighCm: Float
+    rightThighCm: Float
+    leftCalfCm: Float
+    rightCalfCm: Float
+    measurementSource: String
+    notes: String
+    measurementDate: DateTime!
+    createdAt: DateTime!
+  }
+
+  type BodyMeasurementsResult {
+    measurements: [BodyMeasurement!]!
+    pagination: PaginationInfo!
+  }
+
+  type BodyMeasurementComparisonField {
+    current: Float
+    past: Float
+    change: Float
+    changePercent: String
+  }
+
+  type BodyMeasurementComparison {
+    weightKg: BodyMeasurementComparisonField
+    bodyFatPercentage: BodyMeasurementComparisonField
+    leanMassKg: BodyMeasurementComparisonField
+    neckCm: BodyMeasurementComparisonField
+    shouldersCm: BodyMeasurementComparisonField
+    chestCm: BodyMeasurementComparisonField
+    waistCm: BodyMeasurementComparisonField
+    hipsCm: BodyMeasurementComparisonField
+    leftBicepCm: BodyMeasurementComparisonField
+    rightBicepCm: BodyMeasurementComparisonField
+    leftForearmCm: BodyMeasurementComparisonField
+    rightForearmCm: BodyMeasurementComparisonField
+    leftThighCm: BodyMeasurementComparisonField
+    rightThighCm: BodyMeasurementComparisonField
+    leftCalfCm: BodyMeasurementComparisonField
+    rightCalfCm: BodyMeasurementComparisonField
+    currentDate: DateTime
+    pastDate: DateTime
+    daysBetween: Int
+  }
+
+  type BodyMeasurementHistoryEntry {
+    measurementDate: DateTime!
+    value: Float!
+  }
+
+  type BodyMeasurementHistoryStats {
+    current: Float
+    min: Float
+    max: Float
+    change: Float
+    changePercent: String
+  }
+
+  type BodyMeasurementHistory {
+    history: [BodyMeasurementHistoryEntry!]!
+    stats: BodyMeasurementHistoryStats
+  }
+
+  input BodyMeasurementInput {
+    weightKg: Float
+    bodyFatPercentage: Float
+    leanMassKg: Float
+    neckCm: Float
+    shouldersCm: Float
+    chestCm: Float
+    waistCm: Float
+    hipsCm: Float
+    leftBicepCm: Float
+    rightBicepCm: Float
+    leftForearmCm: Float
+    rightForearmCm: Float
+    leftThighCm: Float
+    rightThighCm: Float
+    leftCalfCm: Float
+    rightCalfCm: Float
+    measurementSource: String
+    notes: String
+    measurementDate: String!
+  }
+
+  # ============================================
   # STATS TYPES
   # ============================================
   type CharacterStats {
@@ -2386,6 +2527,196 @@ export const typeDefs = `#graphql
     maxParticipants: Int
     entryFee: Int
     isPublic: Boolean
+  }
+
+  # ============================================
+  # RIVALS (1v1) TYPES
+  # ============================================
+  type RivalOpponent {
+    id: ID!
+    username: String!
+    avatar: String
+    archetype: String
+    level: Int
+  }
+
+  type RivalWithUser {
+    id: ID!
+    challengerId: ID!
+    challengedId: ID!
+    status: String!
+    createdAt: DateTime!
+    startedAt: DateTime
+    endedAt: DateTime
+    challengerTU: Float!
+    challengedTU: Float!
+    opponent: RivalOpponent!
+    isChallenger: Boolean!
+    myTU: Float!
+    opponentTU: Float!
+    myLastWorkout: DateTime
+    opponentLastWorkout: DateTime
+    tuDifference: Float!
+    isWinning: Boolean!
+  }
+
+  type RivalsResult {
+    rivals: [RivalWithUser!]!
+    stats: RivalStats!
+  }
+
+  type RivalStats {
+    activeRivals: Int!
+    wins: Int!
+    losses: Int!
+    ties: Int!
+    totalTUEarned: Float!
+    currentStreak: Int!
+    longestStreak: Int!
+  }
+
+  type PotentialRival {
+    id: ID!
+    username: String!
+    avatar: String
+    archetype: String
+    level: Int
+  }
+
+  # ============================================
+  # CREWS TYPES
+  # ============================================
+  type Crew {
+    id: ID!
+    name: String!
+    tag: String!
+    description: String
+    avatar: String
+    color: String!
+    ownerId: ID!
+    memberCount: Int!
+    totalTU: Float!
+    weeklyTU: Float!
+    wins: Int!
+    losses: Int!
+    createdAt: DateTime!
+  }
+
+  type CrewMember {
+    id: ID!
+    crewId: ID!
+    userId: ID!
+    role: String!
+    joinedAt: DateTime!
+    weeklyTU: Float!
+    totalTU: Float!
+    username: String!
+    avatar: String
+    archetype: String
+  }
+
+  type CrewInvite {
+    id: ID!
+    crewId: ID!
+    inviterId: ID!
+    inviteeId: ID!
+    status: String!
+    createdAt: DateTime!
+    expiresAt: DateTime!
+  }
+
+  type CrewWar {
+    id: ID!
+    challengerCrewId: ID!
+    defendingCrewId: ID!
+    status: String!
+    startDate: DateTime!
+    endDate: DateTime!
+    challengerTU: Float!
+    defendingTU: Float!
+    winnerId: ID
+    createdAt: DateTime!
+  }
+
+  type CrewWarBasicInfo {
+    id: ID!
+    name: String!
+    tag: String!
+    avatar: String
+    color: String!
+  }
+
+  type CrewWarWithDetails {
+    id: ID!
+    challengerCrewId: ID!
+    defendingCrewId: ID!
+    status: String!
+    startDate: DateTime!
+    endDate: DateTime!
+    challengerTU: Float!
+    defendingTU: Float!
+    winnerId: ID
+    createdAt: DateTime!
+    challengerCrew: CrewWarBasicInfo!
+    defendingCrew: CrewWarBasicInfo!
+    isChallenger: Boolean!
+    myCrewTU: Float!
+    opponentCrewTU: Float!
+    daysRemaining: Int!
+    isWinning: Boolean!
+  }
+
+  type CrewTopContributor {
+    userId: ID!
+    username: String!
+    avatar: String
+    weeklyTU: Float!
+  }
+
+  type CrewStats {
+    totalMembers: Int!
+    totalTU: Float!
+    weeklyTU: Float!
+    warsWon: Int!
+    warsLost: Int!
+    currentStreak: Int!
+    topContributors: [CrewTopContributor!]!
+  }
+
+  type MyCrewResult {
+    crew: Crew!
+    membership: CrewMember!
+    members: [CrewMember!]!
+    wars: [CrewWarWithDetails!]!
+    stats: CrewStats!
+  }
+
+  type CrewWithDetails {
+    crew: Crew!
+    members: [CrewMember!]!
+    stats: CrewStats!
+  }
+
+  type CrewLeaderboardCrew {
+    id: ID!
+    name: String!
+    tag: String!
+    avatar: String
+    color: String!
+    memberCount: Int!
+    weeklyTU: Float!
+  }
+
+  type CrewLeaderboardEntry {
+    rank: Int!
+    crew: CrewLeaderboardCrew!
+  }
+
+  input CreateCrewInput {
+    name: String!
+    tag: String!
+    description: String
+    color: String
   }
 
   # ============================================
