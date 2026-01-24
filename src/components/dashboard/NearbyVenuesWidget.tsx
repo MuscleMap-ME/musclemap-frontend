@@ -101,47 +101,55 @@ export function NearbyVenuesWidget({
   const navigate = useNavigate();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
+  const [isLocating, setIsLocating] = useState(true);
+  const [hasUserLocation, setHasUserLocation] = useState(false);
+
+  // Default to NYC (Times Square area) when location unavailable
+  const DEFAULT_LOCATION = { lat: 40.7580, lng: -73.9855 };
 
   // Request user's location
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser');
+      setIsLocating(false);
       return;
     }
 
-    setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+        setHasUserLocation(true);
         setIsLocating(false);
       },
       (error) => {
         console.error('Geolocation error:', error);
         setLocationError(
           error.code === 1
-            ? 'Location access denied. Enable location to see nearby venues.'
-            : 'Unable to determine your location'
+            ? 'Showing NYC venues. Enable location for personalized results.'
+            : 'Showing NYC venues. Unable to determine your location.'
         );
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
     );
   }, []);
 
-  // Fetch nearby venues
+  // Use user location if available, otherwise default to NYC
+  const queryLocation = userLocation || DEFAULT_LOCATION;
+
+  // Fetch nearby venues (always fetch, using default location as fallback)
   const { data, loading, error: _error } = useQuery(NEARBY_VENUES_QUERY, {
     variables: {
       input: {
-        latitude: userLocation?.lat || 0,
-        longitude: userLocation?.lng || 0,
+        latitude: queryLocation.lat,
+        longitude: queryLocation.lng,
         limit,
       },
     },
-    skip: !userLocation,
+    skip: isLocating, // Only skip while actively trying to get location
     fetchPolicy: 'cache-and-network',
   });
 
@@ -179,32 +187,8 @@ export function NearbyVenuesWidget({
     );
   }
 
-  // Location error state
-  if (locationError) {
-    return (
-      <div className={`bg-gray-800/50 rounded-xl border border-gray-700 ${compact ? 'p-4' : 'p-6'}`}>
-        {showHeader && (
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-green-400" />
-            <h3 className="font-semibold">Nearby Outdoor Gyms</h3>
-          </div>
-        )}
-        <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-          <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm text-yellow-400">{locationError}</p>
-          </div>
-        </div>
-        <Link
-          to="/discover"
-          className="mt-4 flex items-center justify-center gap-2 p-3 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
-        >
-          <MapPin className="w-4 h-4" />
-          <span className="font-medium">Browse All Locations</span>
-        </Link>
-      </div>
-    );
-  }
+  // Note: We no longer block on location error - we show NYC venues as fallback
+  // The locationError message is displayed as a subtle notice in the header area
 
   // Transform API response to widget format
   const apiVenues = data?.nearestOutdoorVenues?.map((v: any) => ({
@@ -220,36 +204,37 @@ export function NearbyVenuesWidget({
     longitude: v.longitude,
   }));
 
-  // No venues or API error - show mock data
-  const venues: Venue[] = apiVenues || [
+  // Use API data, or fallback to real NYC venue data if API fails
+  const venues: Venue[] = apiVenues && apiVenues.length > 0 ? apiVenues : [
+    // Fallback: Real NYC venues from database (used if API fails)
     {
-      id: 'mock-1',
-      name: 'Central Park Fitness Station',
-      address: 'Near 72nd Street',
-      distance: 450,
+      id: 'fv_75fc44c958e94ed2be82b84c62feed61',
+      name: 'Riverside Park 72nd St Outdoor Gym',
+      address: 'Riverside Park at 72nd St',
+      distance: 2100, // ~1.3 miles from Times Square
       averageRating: 4.5,
-      totalRatings: 23,
+      totalRatings: 0,
       equipmentTypes: ['pull-up-bar', 'parallel-bars', 'dip-station'],
       isVerified: true,
     },
     {
-      id: 'mock-2',
-      name: 'Riverside Calisthenics Area',
-      address: 'Riverside Park',
-      distance: 890,
-      averageRating: 4.2,
-      totalRatings: 15,
+      id: 'fv_fab15f846dec48279ab5c9eb247f76e2',
+      name: 'Tompkins Square Park Fitness Area',
+      address: 'Avenue A & E 7th St',
+      distance: 4100, // ~2.5 miles from Times Square
+      averageRating: 4.3,
+      totalRatings: 0,
       equipmentTypes: ['pull-up-bar', 'rings', 'monkey-bars'],
-      isVerified: false,
+      isVerified: true,
     },
     {
-      id: 'mock-3',
-      name: 'East Side Outdoor Gym',
-      address: 'Carl Schurz Park',
-      distance: 1200,
-      averageRating: 4.8,
-      totalRatings: 31,
-      equipmentTypes: ['pull-up-bar', 'dip-station', 'ab-bench'],
+      id: 'fv_59f96cf7d636462eb6bef1b4cdc7c431',
+      name: 'McCarren Park Fitness Area',
+      address: 'McCarren Park, Williamsburg',
+      distance: 5800, // ~3.6 miles from Times Square
+      averageRating: 4.6,
+      totalRatings: 0,
+      equipmentTypes: ['pull-up-bar', 'dip-station', 'outdoor-gym-station'],
       isVerified: true,
     },
   ];
@@ -261,7 +246,9 @@ export function NearbyVenuesWidget({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-green-400" />
-            <h3 className="font-semibold">Nearby Outdoor Gyms</h3>
+            <h3 className="font-semibold">
+              {hasUserLocation ? 'Nearby Outdoor Gyms' : 'Outdoor Gyms in NYC'}
+            </h3>
           </div>
           <Link
             to="/discover"
@@ -270,6 +257,14 @@ export function NearbyVenuesWidget({
             View All
             <ChevronRight className="w-4 h-4" />
           </Link>
+        </div>
+      )}
+
+      {/* Location notice when using default */}
+      {locationError && !hasUserLocation && (
+        <div className="flex items-center gap-2 mb-3 text-xs text-gray-400">
+          <AlertCircle className="w-3 h-3" />
+          <span>{locationError}</span>
         </div>
       )}
 

@@ -1573,6 +1573,43 @@ export const ECONOMY_HISTORY_QUERY = gql`
   }
 `;
 
+// User Entitlements (subscription/trial status)
+export const MY_ENTITLEMENTS_QUERY = gql`
+  query MyEntitlements {
+    myEntitlements {
+      unlimited
+      reason
+      trialEndsAt
+      subscriptionEndsAt
+      creditBalance
+      creditsVisible
+      daysLeftInTrial
+    }
+  }
+`;
+
+// Detailed wallet info for Wallet page
+export const MY_WALLET_INFO_QUERY = gql`
+  query MyWalletInfo {
+    myWalletInfo {
+      balance
+      lifetimeEarned
+      lifetimeSpent
+      totalTransferredOut
+      totalTransferredIn
+      status
+      vipTier
+      transactions {
+        id
+        type
+        amount
+        action
+        createdAt
+      }
+    }
+  }
+`;
+
 // ============================================
 // COMMUNITY FEED
 // ============================================
@@ -3509,6 +3546,117 @@ export const MY_PROFILE_LEVEL_QUERY = gql`
     me {
       id
       level
+    }
+  }
+`;
+
+// ============================================
+// FULL PROFILE (for Profile page)
+// ============================================
+
+export const MY_FULL_PROFILE_QUERY = gql`
+  query MyFullProfile {
+    myFullProfile {
+      id
+      username
+      displayName
+      avatarUrl
+      avatarId
+      xp
+      level
+      rank
+      wealthTier
+      age
+      gender
+      heightCm
+      weightKg
+      preferredUnits
+      ghostMode
+      leaderboardOptIn
+      aboutMe
+      limitations
+      equipmentInventory
+      weeklyActivity
+      theme
+    }
+  }
+`;
+
+export const MY_AVATARS_QUERY = gql`
+  query MyAvatars {
+    myAvatars {
+      id
+      name
+      rarity
+      unlockLevel
+      imageUrl
+      description
+    }
+  }
+`;
+
+export const MY_THEMES_QUERY = gql`
+  query MyThemes {
+    myThemes {
+      id
+      name
+      rarity
+      unlockLevel
+      colors
+      description
+    }
+  }
+`;
+
+// ============================================
+// HIGH FIVES (ENCOURAGEMENTS)
+// ============================================
+
+export const HIGH_FIVE_STATS_QUERY = gql`
+  query HighFiveStats {
+    highFiveStats {
+      sent
+      received
+      unread
+    }
+  }
+`;
+
+export const HIGH_FIVE_USERS_QUERY = gql`
+  query HighFiveUsers {
+    highFiveUsers {
+      id
+      username
+      level
+      currentArchetype
+      avatarUrl
+    }
+  }
+`;
+
+export const HIGH_FIVES_RECEIVED_QUERY = gql`
+  query HighFivesReceived {
+    highFivesReceived {
+      id
+      type
+      message
+      senderName
+      senderId
+      readAt
+      createdAt
+    }
+  }
+`;
+
+export const HIGH_FIVES_SENT_QUERY = gql`
+  query HighFivesSent {
+    highFivesSent {
+      id
+      type
+      message
+      recipientName
+      recipientId
+      createdAt
     }
   }
 `;

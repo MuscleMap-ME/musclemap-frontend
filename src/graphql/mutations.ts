@@ -2027,3 +2027,66 @@ export const COMPLETE_ONBOARDING_MUTATION = gql`
     }
   }
 `;
+
+// ============================================
+// FULL PROFILE (for Profile page)
+// ============================================
+
+export const UPDATE_MY_FULL_PROFILE_MUTATION = gql`
+  mutation UpdateMyFullProfile($input: FullProfileInput!) {
+    updateMyFullProfile(input: $input) {
+      id
+      username
+      displayName
+      avatarUrl
+      avatarId
+      xp
+      level
+      rank
+      wealthTier
+      age
+      gender
+      heightCm
+      weightKg
+      preferredUnits
+      ghostMode
+      leaderboardOptIn
+      aboutMe
+      limitations
+      equipmentInventory
+      weeklyActivity
+      theme
+    }
+  }
+`;
+
+// ============================================
+// HIGH FIVES (ENCOURAGEMENTS)
+// ============================================
+
+export const SEND_HIGH_FIVE_MUTATION = gql`
+  mutation SendHighFive($input: HighFiveInput!) {
+    sendHighFive(input: $input) {
+      success
+      error
+    }
+  }
+`;
+
+// ============================================
+// WALLET & CREDITS
+// ============================================
+
+export const TRANSFER_CREDITS_BY_USERNAME_MUTATION = gql`
+  mutation TransferCreditsByUsername($input: TransferByUsernameInput!) {
+    transferCreditsByUsername(input: $input) {
+      success
+      error
+      transactionId
+      amount
+      fee
+      newBalance
+      recipientUsername
+    }
+  }
+`;

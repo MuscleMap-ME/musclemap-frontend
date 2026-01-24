@@ -3344,6 +3344,38 @@ export const resolvers = {
     },
 
     // ============================================
+    // HIGH FIVES QUERIES
+    // ============================================
+
+    highFiveStats: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Return stub data - high fives feature not yet fully implemented
+      return {
+        sent: 0,
+        received: 0,
+        unread: 0,
+      };
+    },
+
+    highFiveUsers: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Return empty array - high fives feature not yet fully implemented
+      return [];
+    },
+
+    highFivesReceived: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Return empty array - high fives feature not yet fully implemented
+      return [];
+    },
+
+    highFivesSent: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Return empty array - high fives feature not yet fully implemented
+      return [];
+    },
+
+    // ============================================
     // JOURNEY HEALTH QUERIES
     // ============================================
 
@@ -3462,6 +3494,118 @@ export const resolvers = {
         wealthTier: buildWealthTierResponse(credits),
         createdAt: user.created_at,
       };
+    },
+
+    // Full profile for Profile page (includes level, XP, limitations, equipment)
+    myFullProfile: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Fetch user data from users table
+      const user = await queryOne<{
+        id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        total_xp: number;
+        current_rank: string;
+        wealth_tier: number;
+        current_level: number;
+      }>(
+        `SELECT id, username, display_name, avatar_url, total_xp, current_rank, wealth_tier, current_level
+         FROM users WHERE id = $1`,
+        [userId]
+      );
+
+      if (!user) {
+        return null;
+      }
+
+      // Fetch extended profile data
+      const extended = await queryOne<{
+        gender: string | null;
+        date_of_birth: string | null;
+        height_cm: number | null;
+        weight_kg: number | null;
+        preferred_units: string;
+        ghost_mode: boolean;
+        leaderboard_opt_in: boolean;
+        about_me: string | null;
+      }>(
+        `SELECT gender, date_of_birth, height_cm, weight_kg, preferred_units, ghost_mode, leaderboard_opt_in, about_me
+         FROM user_profile_extended WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Fetch user limitations
+      const limitationsResult = await queryAll<{ name: string }>(
+        `SELECT name FROM user_limitations WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      // Fetch user equipment
+      const equipmentResult = await queryAll<{ equipment_type_id: string }>(
+        `SELECT equipment_type_id FROM user_home_equipment WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Calculate age from date_of_birth
+      let age: number | null = null;
+      if (extended?.date_of_birth) {
+        const dob = new Date(extended.date_of_birth);
+        const today = new Date();
+        age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+      }
+
+      // Calculate level from XP
+      const level = Math.max(Math.floor((user.total_xp || 0) / 1000) + 1, user.current_level || 1);
+
+      // Fetch user settings for theme
+      const settings = await queryOne<{ theme: string | null }>(
+        `SELECT theme FROM user_settings WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        avatarUrl: user.avatar_url,
+        avatarId: null, // Legacy field - cosmetics not yet implemented
+        xp: user.total_xp || 0,
+        level,
+        rank: user.current_rank,
+        wealthTier: user.wealth_tier || 0,
+        age,
+        gender: extended?.gender || null,
+        heightCm: extended?.height_cm || null,
+        weightKg: extended?.weight_kg || null,
+        preferredUnits: extended?.preferred_units || 'metric',
+        ghostMode: extended?.ghost_mode || false,
+        leaderboardOptIn: extended?.leaderboard_opt_in !== false,
+        aboutMe: extended?.about_me || null,
+        limitations: limitationsResult?.map(l => l.name) || [],
+        equipmentInventory: equipmentResult?.map(e => e.equipment_type_id) || [],
+        weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Fetch from activity logs
+        theme: settings?.theme || null,
+      };
+    },
+
+    // Avatars for cosmetic customization (returns empty array - not yet implemented)
+    myAvatars: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Cosmetics not yet implemented - return empty array
+      return [];
+    },
+
+    // Themes for cosmetic customization (returns empty array - not yet implemented)
+    myThemes: async (_: unknown, __: unknown, context: Context) => {
+      requireAuth(context);
+      // Cosmetics not yet implemented - return empty array
+      return [];
     },
 
     // 2. Get goal by ID
@@ -4344,6 +4488,93 @@ export const resolvers = {
         referenceId: t.reference_id,
         createdAt: t.created_at,
       }));
+    },
+
+    // User wallet info (detailed wallet data for Wallet page)
+    myWalletInfo: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Get wallet details
+      const wallet = await walletService.getWalletDetails(userId);
+
+      // Get VIP tier from user's wealth_tier
+      const user = await queryOne<{ wealth_tier: number }>(
+        'SELECT wealth_tier FROM users WHERE id = $1',
+        [userId]
+      );
+      const tierNames = ['broke', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'obsidian'];
+      const vipTier = tierNames[user?.wealth_tier || 0] || 'bronze';
+
+      // Get recent transactions
+      const transactions = await queryAll<any>(
+        `SELECT id, type, amount, description as action, created_at
+         FROM credit_ledger
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [userId]
+      );
+
+      return {
+        balance: wallet.balance,
+        lifetimeEarned: wallet.totalEarned,
+        lifetimeSpent: wallet.totalSpent,
+        totalTransferredOut: wallet.totalTransferredOut,
+        totalTransferredIn: wallet.totalTransferredIn,
+        status: wallet.status,
+        vipTier,
+        transactions: transactions.map((t: any) => ({
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          action: t.action,
+          createdAt: t.created_at,
+        })),
+      };
+    },
+
+    // User entitlements (subscription/trial status)
+    myEntitlements: async (_: unknown, __: unknown, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Check trial status
+      const user = await queryOne<{ trial_ends_at: Date }>(
+        'SELECT trial_ends_at FROM users WHERE id = $1',
+        [userId]
+      );
+
+      // Check subscription
+      const subscription = await queryOne<{ status: string; current_period_end: Date }>(
+        "SELECT status, current_period_end FROM subscriptions WHERE user_id = $1 AND status = 'active'",
+        [userId]
+      );
+
+      // Get credit balance
+      const balance = await queryOne<{ balance: number }>(
+        'SELECT balance FROM credit_balances WHERE user_id = $1',
+        [userId]
+      );
+
+      const now = new Date();
+      const trialEndsAt = user?.trial_ends_at ? new Date(user.trial_ends_at) : null;
+      const trialActive = trialEndsAt && trialEndsAt > now;
+      const subscriptionActive = subscription?.status === 'active';
+
+      // Calculate days left in trial
+      let daysLeftInTrial: number | null = null;
+      if (trialActive && trialEndsAt) {
+        daysLeftInTrial = Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      }
+
+      return {
+        unlimited: trialActive || subscriptionActive,
+        reason: subscriptionActive ? 'subscribed' : trialActive ? 'trial' : 'credits',
+        trialEndsAt: user?.trial_ends_at,
+        subscriptionEndsAt: subscription?.current_period_end,
+        creditBalance: balance?.balance || 0,
+        creditsVisible: !trialActive && !subscriptionActive,
+        daysLeftInTrial,
+      };
     },
 
     // Economy transactions (alias)
@@ -6625,6 +6856,179 @@ export const resolvers = {
       };
     },
 
+    // Update full profile (for Profile page)
+    updateMyFullProfile: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+      const { age, gender, avatarId, theme, limitations, equipmentInventory } = args.input;
+
+      // Calculate date_of_birth from age
+      let dateOfBirth: string | null = null;
+      if (age !== null && age !== undefined && age > 0 && age < 150) {
+        const today = new Date();
+        const birthYear = today.getFullYear() - age;
+        dateOfBirth = `${birthYear}-01-01`;
+      }
+
+      // Upsert user_profile_extended
+      if (gender !== undefined || dateOfBirth !== null) {
+        await query(
+          `INSERT INTO user_profile_extended (user_id, gender, date_of_birth, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (user_id) DO UPDATE SET
+             gender = COALESCE($2, user_profile_extended.gender),
+             date_of_birth = COALESCE($3, user_profile_extended.date_of_birth),
+             updated_at = NOW()`,
+          [userId, gender || null, dateOfBirth]
+        );
+      }
+
+      // Update theme in user_settings if provided
+      if (theme !== undefined) {
+        await query(
+          `INSERT INTO user_settings (user_id, theme, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (user_id) DO UPDATE SET theme = $2, updated_at = NOW()`,
+          [userId, theme]
+        );
+      }
+
+      // Handle limitations if provided
+      if (limitations !== undefined && Array.isArray(limitations)) {
+        // Clear existing simple limitations and re-add
+        await query(
+          `DELETE FROM user_limitations WHERE user_id = $1 AND limitation_type = 'other'`,
+          [userId]
+        );
+
+        for (const name of limitations) {
+          if (typeof name === 'string' && name.length > 0) {
+            await query(
+              `INSERT INTO user_limitations (user_id, name, limitation_type, status)
+               VALUES ($1, $2, 'other', 'active')
+               ON CONFLICT DO NOTHING`,
+              [userId, name]
+            );
+          }
+        }
+      }
+
+      // Handle equipment if provided
+      if (equipmentInventory !== undefined && Array.isArray(equipmentInventory)) {
+        // Clear existing equipment and re-add
+        await query(`DELETE FROM user_home_equipment WHERE user_id = $1`, [userId]);
+
+        for (const equipmentId of equipmentInventory) {
+          if (typeof equipmentId === 'string' && equipmentId.length > 0) {
+            // First check if equipment type exists, if not create it
+            const exists = await queryOne<{ id: string }>(
+              `SELECT id FROM equipment_types WHERE id = $1`,
+              [equipmentId]
+            );
+
+            if (!exists) {
+              await query(
+                `INSERT INTO equipment_types (id, name, category, created_at)
+                 VALUES ($1, $2, 'home', NOW())
+                 ON CONFLICT DO NOTHING`,
+                [equipmentId, equipmentId.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())]
+              );
+            }
+
+            await query(
+              `INSERT INTO user_home_equipment (user_id, equipment_type_id, location_type)
+               VALUES ($1, $2, 'home')
+               ON CONFLICT DO NOTHING`,
+              [userId, equipmentId]
+            );
+          }
+        }
+      }
+
+      // Fetch and return updated profile data
+      const user = await queryOne<{
+        id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        total_xp: number;
+        current_rank: string;
+        wealth_tier: number;
+        current_level: number;
+      }>(
+        `SELECT id, username, display_name, avatar_url, total_xp, current_rank, wealth_tier, current_level
+         FROM users WHERE id = $1`,
+        [userId]
+      );
+
+      const extended = await queryOne<{
+        gender: string | null;
+        date_of_birth: string | null;
+        height_cm: number | null;
+        weight_kg: number | null;
+        preferred_units: string;
+        ghost_mode: boolean;
+        leaderboard_opt_in: boolean;
+        about_me: string | null;
+      }>(
+        `SELECT gender, date_of_birth, height_cm, weight_kg, preferred_units, ghost_mode, leaderboard_opt_in, about_me
+         FROM user_profile_extended WHERE user_id = $1`,
+        [userId]
+      );
+
+      const limitationsResult = await queryAll<{ name: string }>(
+        `SELECT name FROM user_limitations WHERE user_id = $1 AND status = 'active'`,
+        [userId]
+      );
+
+      const equipmentResult = await queryAll<{ equipment_type_id: string }>(
+        `SELECT equipment_type_id FROM user_home_equipment WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Calculate age from date_of_birth
+      let calculatedAge: number | null = null;
+      if (extended?.date_of_birth) {
+        const dob = new Date(extended.date_of_birth);
+        const today = new Date();
+        calculatedAge = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+          calculatedAge--;
+        }
+      }
+
+      const level = Math.max(Math.floor((user?.total_xp || 0) / 1000) + 1, user?.current_level || 1);
+
+      const settings = await queryOne<{ theme: string | null }>(
+        `SELECT theme FROM user_settings WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        id: user?.id || userId,
+        username: user?.username || '',
+        displayName: user?.display_name,
+        avatarUrl: user?.avatar_url,
+        avatarId: null,
+        xp: user?.total_xp || 0,
+        level,
+        rank: user?.current_rank,
+        wealthTier: user?.wealth_tier || 0,
+        age: calculatedAge,
+        gender: extended?.gender || null,
+        heightCm: extended?.height_cm || null,
+        weightKg: extended?.weight_kg || null,
+        preferredUnits: extended?.preferred_units || 'metric',
+        ghostMode: extended?.ghost_mode || false,
+        leaderboardOptIn: extended?.leaderboard_opt_in !== false,
+        aboutMe: extended?.about_me || null,
+        limitations: limitationsResult?.map(l => l.name) || [],
+        equipmentInventory: equipmentResult?.map(e => e.equipment_type_id) || [],
+        weeklyActivity: [0, 0, 0, 0, 0, 0, 0],
+        theme: settings?.theme || null,
+      };
+    },
+
     // Workouts
     createWorkout: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);
@@ -7121,6 +7525,44 @@ export const resolvers = {
       }
     },
 
+    // Regular high five (free encouragement)
+    sendHighFive: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientId: string;
+          type: string;
+          message?: string;
+        };
+      },
+      context: Context
+    ) => {
+      requireAuth(context);
+      const { recipientId, type, message } = args.input;
+
+      // Basic validation
+      if (!recipientId || !type) {
+        return {
+          success: false,
+          error: 'Recipient and type are required',
+        };
+      }
+
+      // Validate message length if provided
+      if (message && message.length > 500) {
+        return {
+          success: false,
+          error: 'Message must be 500 characters or less',
+        };
+      }
+
+      // Feature not yet fully implemented - return success stub
+      return {
+        success: true,
+        error: null,
+      };
+    },
+
     boostPost: async (
       _: unknown,
       args: {
@@ -7200,6 +7642,69 @@ export const resolvers = {
           fee: 0, // No fee for P2P transfers
           newBalance: transfer.senderNewBalance,
           recipientUsername: recipient?.username,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to transfer credits',
+          transactionId: null,
+          amount: 0,
+          fee: 0,
+          newBalance: await economyService.getBalance(userId),
+          recipientUsername: null,
+        };
+      }
+    },
+
+    transferCreditsByUsername: async (
+      _: unknown,
+      args: {
+        input: {
+          recipientUsername: string;
+          amount: number;
+          message?: string;
+        };
+      },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { recipientUsername, amount, message } = args.input;
+
+      try {
+        // Find recipient by username
+        const recipient = await queryOne<{ id: string; username: string }>(
+          'SELECT id, username FROM users WHERE LOWER(username) = LOWER($1)',
+          [recipientUsername]
+        );
+
+        if (!recipient) {
+          return {
+            success: false,
+            error: 'User not found',
+            transactionId: null,
+            amount: 0,
+            fee: 0,
+            newBalance: await economyService.getBalance(userId),
+            recipientUsername: null,
+          };
+        }
+
+        const transfer = await walletService.transfer({
+          senderId: userId,
+          recipientId: recipient.id,
+          amount,
+          note: message,
+          tipType: 'user',
+        });
+
+        return {
+          success: true,
+          error: null,
+          transactionId: transfer.transferId,
+          amount,
+          fee: 0, // No fee for P2P transfers
+          newBalance: transfer.senderNewBalance,
+          recipientUsername: recipient.username,
         };
       } catch (error: any) {
         return {

@@ -21,6 +21,9 @@ export const typeDefs = `#graphql
 
     # Profile
     profile: Profile
+    myFullProfile: FullProfile
+    myAvatars: [Avatar!]!
+    myThemes: [Theme!]!
 
     # Exercises & Muscles
     exercises(search: String, muscleGroup: String, equipment: String, limit: Int): [Exercise!]!
@@ -129,6 +132,8 @@ export const typeDefs = `#graphql
     creditsBalance: Balance
 
     # Enhanced Economy
+    myEntitlements: Entitlements
+    myWalletInfo: WalletInfo
     creditEarningSummary: CreditEarningSummary
     creditEarnEvents(unreadOnly: Boolean, limit: Int): EarnEventsResult
     bonusEventTypes(enabledOnly: Boolean): [BonusEventType!]!
@@ -285,6 +290,12 @@ export const typeDefs = `#graphql
     mascotHighfivePrefs: MascotHighfivePrefs
     mascotPendingSocialActions: [MascotSocialAction!]!
 
+    # High Fives (Encouragements)
+    highFiveStats: HighFiveStats!
+    highFiveUsers: [HighFiveUser!]!
+    highFivesReceived: [HighFiveEncouragement!]!
+    highFivesSent: [HighFiveEncouragement!]!
+
     # Journey Health
     journeyHealth(journeyId: ID!): JourneyHealthScore
     journeyHealthAlerts(journeyId: ID, status: String, limit: Int): [JourneyHealthAlert!]!
@@ -411,6 +422,7 @@ export const typeDefs = `#graphql
 
     # Profile
     updateProfile(input: ProfileInput!): Profile!
+    updateMyFullProfile(input: FullProfileInput!): FullProfile!
 
     # Workouts (batch creation)
     createWorkout(input: WorkoutInput!): WorkoutResult!
@@ -478,8 +490,10 @@ export const typeDefs = `#graphql
     sendTip(input: TipInput!): TipResult!
     sendGift(input: GiftInput!): GiftResult!
     sendSuperHighFive(input: SuperHighFiveInput!): SuperHighFiveResult!
+    sendHighFive(input: HighFiveInput!): HighFiveSendResult!
     boostPost(input: PostBoostInput!): PostBoostResult!
     transferCredits(input: TransferInput!): TransferResult!
+    transferCreditsByUsername(input: TransferByUsernameInput!): TransferResult!
     markEarnEventsShown(eventIds: [ID!]!): Boolean!
 
     # Tips & Milestones
@@ -836,6 +850,100 @@ export const typeDefs = `#graphql
     preferredWorkoutTime: String
     experienceLevel: String
     visibility: String
+  }
+
+  # Full profile data for Profile page (includes level, XP, limitations, equipment)
+  type FullProfile {
+    id: ID!
+    username: String!
+    displayName: String
+    avatarUrl: String
+    avatarId: String
+    xp: Int!
+    level: Int!
+    rank: String
+    wealthTier: Int!
+    age: Int
+    gender: String
+    heightCm: Float
+    weightKg: Float
+    preferredUnits: String!
+    ghostMode: Boolean!
+    leaderboardOptIn: Boolean!
+    aboutMe: String
+    limitations: [String!]!
+    equipmentInventory: [String!]!
+    weeklyActivity: [Int!]!
+    theme: String
+  }
+
+  # Avatar for cosmetic customization
+  type Avatar {
+    id: ID!
+    name: String!
+    rarity: String!
+    unlockLevel: Int!
+    imageUrl: String
+    description: String
+  }
+
+  # Theme for cosmetic customization
+  type Theme {
+    id: ID!
+    name: String!
+    rarity: String!
+    unlockLevel: Int!
+    colors: JSON
+    description: String
+  }
+
+  input FullProfileInput {
+    age: Int
+    gender: String
+    avatarId: String
+    theme: String
+    limitations: [String!]
+    equipmentInventory: [String!]
+  }
+
+  # ============================================
+  # HIGH FIVES (ENCOURAGEMENTS) TYPES
+  # ============================================
+  type HighFiveStats {
+    sent: Int!
+    received: Int!
+    unread: Int!
+  }
+
+  type HighFiveUser {
+    id: ID!
+    username: String!
+    level: Int!
+    currentArchetype: String
+    avatarUrl: String
+  }
+
+  type HighFiveEncouragement {
+    id: ID!
+    type: String!
+    message: String
+    senderName: String
+    senderId: ID
+    recipientName: String
+    recipientId: ID
+    readAt: DateTime
+    createdAt: DateTime!
+  }
+
+  input HighFiveInput {
+    recipientId: ID!
+    type: String!
+    message: String
+  }
+
+  type HighFiveSendResult {
+    success: Boolean!
+    error: String
   }
 
   # ============================================
@@ -1903,9 +2011,40 @@ export const typeDefs = `#graphql
     lifetime: Int!
   }
 
+  # User entitlements (subscription/trial status)
+  type Entitlements {
+    unlimited: Boolean!
+    reason: String!
+    trialEndsAt: DateTime
+    subscriptionEndsAt: DateTime
+    creditBalance: Int!
+    creditsVisible: Boolean!
+    daysLeftInTrial: Int
+  }
+
   type Wallet {
     balance: Balance!
     transactions: [Transaction!]!
+  }
+
+  # Detailed wallet info for Wallet page
+  type WalletInfo {
+    balance: Int!
+    lifetimeEarned: Int!
+    lifetimeSpent: Int!
+    totalTransferredOut: Int!
+    totalTransferredIn: Int!
+    status: String!
+    vipTier: String!
+    transactions: [WalletTransaction!]!
+  }
+
+  type WalletTransaction {
+    id: ID!
+    type: String!
+    amount: Int!
+    action: String
+    createdAt: DateTime!
   }
 
   type Transaction {
@@ -2090,6 +2229,12 @@ export const typeDefs = `#graphql
 
   input TransferInput {
     recipientId: ID!
+    amount: Int!
+    message: String
+  }
+
+  input TransferByUsernameInput {
+    recipientUsername: String!
     amount: Int!
     message: String
   }
