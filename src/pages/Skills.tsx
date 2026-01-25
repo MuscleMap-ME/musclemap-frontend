@@ -247,9 +247,15 @@ const SkillDetailModal = ({ skill, onClose, onLogPractice, onAchieve }) => {
 const SkillTreeView = ({ tree, progress, onLogPractice, onAchieve }) => {
   const [selectedSkill, setSelectedSkill] = useState(null);
 
+  // Use progress data if available, otherwise fall back to tree nodes (for non-logged-in users)
+  const skillNodes = progress.length > 0 ? progress : (tree.nodes || []).map((node: SkillNodeData) => ({
+    ...node,
+    progress: { status: 'locked', practiceMinutes: 0, practiceCount: 0 }
+  }));
+
   // Group skills by tier
-  const tiers = {};
-  progress.forEach((node) => {
+  const tiers: Record<number, SkillNodeData[]> = {};
+  skillNodes.forEach((node: SkillNodeData) => {
     if (!tiers[node.tier]) tiers[node.tier] = [];
     tiers[node.tier].push(node);
   });

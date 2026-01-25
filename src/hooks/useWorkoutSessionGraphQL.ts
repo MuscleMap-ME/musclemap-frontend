@@ -23,6 +23,7 @@ import {
   ABANDON_WORKOUT_SESSION_MUTATION,
   RECOVER_WORKOUT_SESSION_MUTATION,
 } from '../graphql';
+import { storage } from '../lib/storage';
 
 // ============================================
 // TYPES
@@ -298,17 +299,41 @@ export function useWorkoutSessionGraphQL() {
     async (workoutPlan?: any, clientId?: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
       try {
         console.log('[WorkoutSession] Starting session with workoutPlan:', workoutPlan ? 'provided' : 'none');
+        console.log('[WorkoutSession] Auth state:', {
+          hasAuth: !!storage.getItem('musclemap-auth'),
+          timestamp: new Date().toISOString(),
+        });
 
-        const result = await startSessionMutation({
+        const mutationOptions = {
           variables: {
             input: workoutPlan ? { workoutPlan, clientId } : undefined,
           },
-        });
+          // Force network request, no cache
+          fetchPolicy: 'no-cache' as const,
+        };
+
+        console.log('[WorkoutSession] Calling mutation with options:', JSON.stringify(mutationOptions, null, 2));
+
+        // Try to detect if the request is actually being sent
+        const startTime = Date.now();
+        let result;
+        try {
+          result = await startSessionMutation(mutationOptions);
+        } catch (mutationError) {
+          console.error('[WorkoutSession] Mutation threw exception:', {
+            error: mutationError,
+            elapsed: Date.now() - startTime,
+          });
+          throw mutationError;
+        }
+        const elapsed = Date.now() - startTime;
+        console.log('[WorkoutSession] Mutation returned in', elapsed, 'ms');
 
         console.log('[WorkoutSession] Mutation result:', {
           hasData: !!result.data,
           hasErrors: !!result.errors?.length,
           dataKeys: result.data ? Object.keys(result.data) : [],
+          startWorkoutSession: result.data?.startWorkoutSession,
           errors: result.errors,
         });
 
