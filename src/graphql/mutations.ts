@@ -250,6 +250,9 @@ export const LOG_FRONTEND_ERROR_MUTATION = gql`
 // WORKOUT SESSIONS (Real-Time Logging)
 // ============================================
 
+// Note: This mutation is intentionally minimal to avoid exceeding
+// the server's query complexity limit of 500. The full session data
+// is fetched via ACTIVE_WORKOUT_SESSION_QUERY after starting.
 export const START_WORKOUT_SESSION_MUTATION = gql`
   mutation StartWorkoutSession($input: StartWorkoutSessionInput) {
     startWorkoutSession(input: $input) {
@@ -257,68 +260,18 @@ export const START_WORKOUT_SESSION_MUTATION = gql`
         id
         userId
         startedAt
-        pausedAt
-        totalPausedTime
-        lastActivityAt
         currentExerciseIndex
         currentSetIndex
-        sets {
-          id
-          exerciseId
-          exerciseName
-          setNumber
-          reps
-          weightKg
-          rpe
-          rir
-          durationSeconds
-          restSeconds
-          tag
-          tu
-          muscleActivations {
-            muscleId
-            muscleName
-            activation
-            tu
-          }
-          isPRWeight
-          isPRReps
-          isPR1RM
-          notes
-          performedAt
-        }
         totalVolume
         totalReps
-        musclesWorked {
-          muscleId
-          muscleName
-          totalTU
-          setCount
-          percentageOfMax
-        }
-        sessionPRs {
-          exerciseId
-          exerciseName
-          prType
-          newValue
-          previousValue
-          improvementPercent
-          achievedAt
-        }
         estimatedCalories
       }
       setLogged {
         id
-        exerciseId
-        exerciseName
-        tu
       }
       prsAchieved {
         exerciseId
-        exerciseName
         prType
-        newValue
-        previousValue
       }
     }
   }
