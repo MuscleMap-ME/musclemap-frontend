@@ -40,8 +40,10 @@ export const LOGIN_MUTATION = gql`
         xp
         roles
         createdAt
-        archetype
-        onboardingCompletedAt
+        archetype {
+          id
+          name
+        }
       }
     }
   }

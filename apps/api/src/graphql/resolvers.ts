@@ -8168,8 +8168,10 @@ export const resolvers = {
           wealthTier: buildWealthTierResponse(credits),
           roles,
           createdAt: user.created_at,
-          archetype: user.archetype_name,
-          onboardingCompletedAt: user.onboarding_completed_at,
+          archetype: user.current_identity_id ? {
+            id: user.current_identity_id,
+            name: user.archetype_name,
+          } : null,
         },
       };
     },
