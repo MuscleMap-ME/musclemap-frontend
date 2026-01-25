@@ -23,7 +23,7 @@ export default function Login() {
     setError('');
 
     try {
-      const { data } = await loginMutation({
+      const { data, errors } = await loginMutation({
         variables: {
           input: {
             email: sanitizeEmail(form.email),
@@ -32,12 +32,17 @@ export default function Login() {
         },
       });
 
+      // Check for GraphQL errors first
+      if (errors && errors.length > 0) {
+        throw new Error(errors[0].message);
+      }
+
       const result = data?.login;
       const token = result?.token;
       const user = result?.user;
 
       if (!token || !user) {
-        throw new Error('Login response missing token/user.');
+        throw new Error('Login failed. Please check your credentials.');
       }
 
       login(user, token);
