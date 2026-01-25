@@ -12,7 +12,7 @@
  * Mobile-first, touchscreen-optimized, step-by-step workflow.
  */
 
-import React, { useState, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useCallback, Suspense, lazy, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import {
@@ -30,11 +30,19 @@ import {
   History,
   Plus,
   CheckCircle2,
+  Download,
+  Keyboard,
 } from 'lucide-react';
 import { useAuth } from '@/store/authStore';
 import { SafeMotion, SafeAnimatePresence, getIsRestrictive } from '@/utils/safeMotion';
 import { BottomSheet } from '@/components/mobile/BottomSheet';
 import { haptic } from '@/utils/haptics';
+import {
+  SkipLink,
+  ScreenReaderAnnouncer,
+  KeyboardShortcutsHelp,
+  useKeyboardShortcuts,
+} from '@/components/activity-log/AccessibilityFeatures';
 
 // Lazy load heavy components
 const _QuickEntryMethods = lazy(() => import('@/components/activity-log/QuickEntryMethods'));
@@ -45,6 +53,8 @@ const TextImportSheet = lazy(() => import('@/components/activity-log/TextImportS
 const ScreenshotImportSheet = lazy(() => import('@/components/activity-log/ScreenshotImportSheet'));
 const FileImportSheet = lazy(() => import('@/components/activity-log/FileImportSheet'));
 const HealthSyncSheet = lazy(() => import('@/components/activity-log/HealthSyncSheet'));
+const ExportSheet = lazy(() => import('@/components/activity-log/ExportSheet'));
+const OfflineIndicator = lazy(() => import('@/components/activity-log/OfflineIndicator'));
 
 // GraphQL imports
 import { gql } from '@apollo/client/core';
@@ -169,8 +179,12 @@ export default function ActivityLog() {
   const [showScreenshotImport, setShowScreenshotImport] = useState(false);
   const [showFileImport, setShowFileImport] = useState(false);
   const [showHealthSync, setShowHealthSync] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<string>('');
+  const mainContentRef = useRef<HTMLElement>(null);
 
   // GraphQL
   const { data: recentData, loading: recentLoading } = useQuery(RECENT_EXERCISES_QUERY, {
@@ -185,6 +199,28 @@ export default function ActivityLog() {
 
   const [quickLogSet] = useMutation(QUICK_LOG_SET_MUTATION);
   const [quickLogWorkout] = useMutation(QUICK_LOG_WORKOUT_MUTATION);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onNewEntry: () => {
+      setShowExercisePicker(true);
+      setAnnouncement('Exercise picker opened');
+    },
+    onVoice: () => {
+      setActiveMethod('voice');
+      setAnnouncement('Voice input activated');
+    },
+    onPaste: () => {
+      setShowTextImport(true);
+      setAnnouncement('Text import opened');
+    },
+    onSearch: () => {
+      setShowExercisePicker(true);
+      setAnnouncement('Search exercises');
+    },
+    onShowHelp: () => setShowKeyboardHelp(true),
+    disabled: showExercisePicker || showTextImport || showScreenshotImport || showFileImport || showHealthSync || showExport || showKeyboardHelp,
+  });
 
   // Handlers
   const handleMethodSelect = useCallback((method: EntryMethod) => {
@@ -413,6 +449,18 @@ export default function ActivityLog() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white pb-24">
+      {/* Accessibility: Skip Link */}
+      <SkipLink targetId="main-content" />
+
+      {/* Accessibility: Screen Reader Announcements */}
+      <ScreenReaderAnnouncer message={announcement} />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        isOpen={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
+      />
+
       {/* Success Toast */}
       <SafeAnimatePresence>
         {successMessage && (
@@ -434,19 +482,48 @@ export default function ActivityLog() {
           <Link
             to="/workout"
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors min-h-[44px] min-w-[44px]"
+            aria-label="Back to workout"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             <span className="hidden sm:inline">Workout</span>
           </Link>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-400" />
+            <Zap className="w-5 h-5 text-yellow-400" aria-hidden="true" />
             Activity Log
           </h1>
-          <div className="w-[44px]" /> {/* Spacer for centering */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowKeyboardHelp(true)}
+              className="hidden sm:flex items-center gap-1 text-gray-400 hover:text-gray-300 transition-colors min-h-[44px] px-2"
+              title="Keyboard shortcuts (?)"
+              aria-label="Show keyboard shortcuts"
+            >
+              <Keyboard className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <button
+              onClick={() => setShowExport(true)}
+              className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 transition-colors min-h-[44px] min-w-[44px] justify-center"
+              title="Export Data"
+              aria-label="Export workout data"
+            >
+              <Download className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
+        {/* Offline indicator */}
+        <Suspense fallback={null}>
+          <OfflineIndicator className="mt-2 max-w-5xl mx-auto" />
+        </Suspense>
       </header>
 
-      <main className="max-w-lg mx-auto p-4 space-y-6">
+      <main
+        id="main-content"
+        ref={mainContentRef}
+        className="max-w-lg mx-auto p-4 space-y-6"
+        role="main"
+        aria-label="Activity Log main content"
+        tabIndex={-1}
+      >
         {/* Quick Stats Bar */}
         <div className="flex items-center justify-between bg-gray-800/50 rounded-2xl p-4">
           <div className="flex items-center gap-3">
@@ -470,12 +547,12 @@ export default function ActivityLog() {
         </div>
 
         {/* Entry Methods Grid */}
-        <section>
-          <h2 className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <Plus className="w-4 h-4" />
+        <section aria-labelledby="log-activity-heading">
+          <h2 id="log-activity-heading" className="text-sm text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Plus className="w-4 h-4" aria-hidden="true" />
             Log Activity
           </h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3" role="group" aria-label="Workout entry methods">
             {entryMethods.map((method) => {
               const Icon = method.icon;
               return (
@@ -483,20 +560,22 @@ export default function ActivityLog() {
                   key={method.id}
                   onClick={() => method.available && handleMethodSelect(method.id)}
                   disabled={!method.available}
+                  aria-label={`${method.label}: ${method.description}${!method.available ? ' (coming soon)' : ''}`}
+                  aria-disabled={!method.available}
                   className={`
                     relative rounded-2xl p-4 text-center transition-all min-h-[100px]
                     ${method.available
-                      ? `bg-gradient-to-br ${method.color} hover:scale-[1.02] active:scale-[0.98]`
+                      ? `bg-gradient-to-br ${method.color} hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-gray-900`
                       : 'bg-gray-800/50 opacity-50 cursor-not-allowed'
                     }
                   `}
                 >
                   {!method.available && (
-                    <span className="absolute top-2 right-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded-full">
+                    <span className="absolute top-2 right-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded-full" aria-hidden="true">
                       Soon
                     </span>
                   )}
-                  <Icon className="w-6 h-6 mx-auto mb-2" />
+                  <Icon className="w-6 h-6 mx-auto mb-2" aria-hidden="true" />
                   <p className="font-medium text-sm">{method.label}</p>
                   <p className="text-xs opacity-80">{method.description}</p>
                 </button>
@@ -516,15 +595,16 @@ export default function ActivityLog() {
         )}
 
         {/* Recent Exercises */}
-        <section>
+        <section aria-labelledby="recent-exercises-heading">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm text-gray-400 uppercase tracking-wide flex items-center gap-2">
-              <History className="w-4 h-4" />
+            <h2 id="recent-exercises-heading" className="text-sm text-gray-400 uppercase tracking-wide flex items-center gap-2">
+              <History className="w-4 h-4" aria-hidden="true" />
               Recent Exercises
             </h2>
             <button
               onClick={() => setShowExercisePicker(true)}
-              className="text-blue-400 text-sm hover:text-blue-300"
+              className="text-blue-400 text-sm hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400/50 rounded px-1"
+              aria-label="See all exercises"
             >
               See all →
             </button>
@@ -702,6 +782,20 @@ export default function ActivityLog() {
         <Suspense fallback={<div className="h-48 animate-pulse bg-gray-800/50 rounded-xl" />}>
           <HealthSyncSheet
             onClose={() => setShowHealthSync(false)}
+          />
+        </Suspense>
+      </BottomSheet>
+
+      {/* Export Bottom Sheet */}
+      <BottomSheet
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        title="Export Data"
+        snapPoints={[0.8, 0.95]}
+      >
+        <Suspense fallback={<div className="h-48 animate-pulse bg-gray-800/50 rounded-xl" />}>
+          <ExportSheet
+            onClose={() => setShowExport(false)}
           />
         </Suspense>
       </BottomSheet>

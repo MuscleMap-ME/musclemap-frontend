@@ -15,3 +15,17 @@ export { TextImportSheet } from './TextImportSheet';
 export { ScreenshotImportSheet } from './ScreenshotImportSheet';
 export { FileImportSheet } from './FileImportSheet';
 export { HealthSyncSheet } from './HealthSyncSheet';
+
+// Export and data portability
+export { ExportSheet } from './ExportSheet';
+
+// Offline and accessibility
+export { OfflineIndicator } from './OfflineIndicator';
+export {
+  SkipLink,
+  ScreenReaderAnnouncer,
+  KeyboardShortcutsHelp,
+  useKeyboardShortcuts,
+  useFocusOnMount,
+  useRestoreFocus,
+} from './AccessibilityFeatures';
