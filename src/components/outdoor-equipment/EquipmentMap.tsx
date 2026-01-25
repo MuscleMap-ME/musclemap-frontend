@@ -405,17 +405,17 @@ export function EquipmentMap({
 
       {/* Controls */}
       {showControls && (
-        <div className="absolute right-3 top-16 z-10 flex flex-col gap-2">
+        <div className="absolute right-3 top-16 z-[1000] flex flex-col gap-2">
           <button
             onClick={handleLocate}
-            className="bg-white p-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+            className="bg-white p-3 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
             title="My Location"
           >
             <Locate className="w-5 h-5 text-gray-700" />
           </button>
           <button
             onClick={handleResetView}
-            className="bg-white p-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+            className="bg-white p-3 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
             title="Reset View"
           >
             <Layers className="w-5 h-5 text-gray-700" />
@@ -568,6 +568,20 @@ export function EquipmentMap({
         }
         .equipment-popup .leaflet-popup-tip {
           box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        /* Move Leaflet attribution to bottom-left to not cover controls */
+        .leaflet-control-attribution {
+          position: absolute !important;
+          left: 0 !important;
+          right: auto !important;
+          bottom: 0 !important;
+          background: rgba(255,255,255,0.7) !important;
+          font-size: 10px !important;
+          padding: 2px 5px !important;
+        }
+        /* Ensure zoom controls don't interfere */
+        .leaflet-control-zoom {
+          margin-top: 60px !important;
         }
       `}</style>
     </div>

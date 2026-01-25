@@ -6,7 +6,7 @@
  */
 
 import React, { useState, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { SafeMotion } from '@/utils/safeMotion';
 import {
   MapPin,
@@ -16,12 +16,16 @@ import {
   Map as MapIcon,
   Search,
   Star,
-  Navigation,
 } from 'lucide-react';
 
 // Lazy load the heavy map component
 const EquipmentMap = lazy(() =>
   import('@/components/outdoor-equipment/EquipmentMap').then((m) => ({ default: m.EquipmentMap }))
+);
+
+// Lazy load location detail component
+const LocationDetail = lazy(() =>
+  import('@/components/outdoor-equipment/LocationDetail').then((m) => ({ default: m.LocationDetail }))
 );
 
 // Loading skeleton for map
@@ -36,8 +40,25 @@ function MapSkeleton() {
   );
 }
 
+// Loading skeleton for venue detail
+function VenueDetailSkeleton() {
+  return (
+    <div className="h-full bg-white animate-pulse p-6">
+      <div className="h-8 w-3/4 bg-gray-200 rounded mb-4" />
+      <div className="h-4 w-1/2 bg-gray-200 rounded mb-6" />
+      <div className="h-48 bg-gray-200 rounded-lg mb-4" />
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-16 bg-gray-200 rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DiscoverPage() {
   const navigate = useNavigate();
+  const { venueId } = useParams<{ venueId: string }>();
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +70,26 @@ export default function DiscoverPage() {
       navigate(`/discover/venue/${venueId}`);
     }
   };
+
+  // Handle back from venue detail
+  const handleBack = () => {
+    navigate('/discover');
+  };
+
+  // If a venue is selected, show the detail view
+  if (venueId) {
+    return (
+      <div className="h-screen flex flex-col bg-white">
+        <Suspense fallback={<VenueDetailSkeleton />}>
+          <LocationDetail
+            venueId={venueId}
+            onBack={handleBack}
+            className="flex-1 overflow-y-auto"
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-900">
@@ -158,29 +199,7 @@ export default function DiscoverPage() {
           />
         )}
 
-        {/* Quick Actions FAB */}
-        <div className="absolute bottom-24 right-4 flex flex-col gap-2">
-          <button
-            onClick={() => {
-              // Trigger geolocation
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                  (position) => {
-                    console.log('User location:', position.coords);
-                    // Map will handle centering
-                  },
-                  (error) => {
-                    console.error('Geolocation error:', error);
-                  }
-                );
-              }
-            }}
-            className="p-3 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-400 transition-colors"
-            title="Find my location"
-          >
-            <Navigation className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Note: Location button is inside EquipmentMap component */}
       </main>
 
       {/* Bottom Info Bar */}
