@@ -182,9 +182,18 @@ export async function up(): Promise<void> {
   // ============================================
   await query(`
     ALTER TABLE crews
-    ADD COLUMN IF NOT EXISTS challenges_participated INTEGER DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS challenges_won INTEGER DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS current_challenge_id TEXT REFERENCES crew_challenges(id) ON DELETE SET NULL
+    ADD COLUMN IF NOT EXISTS challenges_participated INTEGER DEFAULT 0
+  `);
+
+  await query(`
+    ALTER TABLE crews
+    ADD COLUMN IF NOT EXISTS challenges_won INTEGER DEFAULT 0
+  `);
+
+  // current_challenge_id must be UUID to match crew_challenges.id
+  await query(`
+    ALTER TABLE crews
+    ADD COLUMN IF NOT EXISTS current_challenge_id UUID REFERENCES crew_challenges(id) ON DELETE SET NULL
   `);
 
   // ============================================
