@@ -12655,25 +12655,9 @@ export const resolvers = {
       };
     },
 
-    // Update Messaging Privacy
-    updateMessagingPrivacy: async (
-      _: unknown,
-      args: { enabled: boolean },
-      context: Context
-    ) => {
-      const { userId } = requireAuth(context);
-
-      await query(
-        `INSERT INTO user_privacy_settings (user_id, allow_direct_messages)
-         VALUES ($1, $2)
-         ON CONFLICT (user_id) DO UPDATE SET allow_direct_messages = $2, updated_at = NOW()`,
-        [userId, args.enabled]
-      );
-
-      return {
-        messagingEnabled: args.enabled,
-      };
-    },
+    // Note: updateMessagingPrivacy has been moved to e2ee.resolvers.ts
+    // The E2EE version uses the full UpdateMessagingPrivacyInput and returns the comprehensive MessagingPrivacy type
+    // See: apps/api/src/graphql/e2ee.resolvers.ts
 
     // ============================================
     // ADDITIONAL MISSING MUTATIONS - Added 2026-01-19 (batch 2)

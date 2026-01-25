@@ -1,11 +1,4 @@
-/**
- * GraphQL Schema Definition
- *
- * Complete schema for MuscleMap API - replaces all REST endpoints
- */
-
-export const typeDefs = `#graphql
-  # ============================================
+# ============================================
   # SCALARS
   # ============================================
   scalar DateTime
@@ -8508,4 +8501,3 @@ export const typeDefs = `#graphql
     createdAt: String!
     id: ID!
   }
-`;

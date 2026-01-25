@@ -20,3 +20,22 @@ export type {
   VisualizationPreference,
   MobileVisualizationSettings,
 } from './useMobileVisualization';
+
+// Re-export store hooks for convenience
+export {
+  // UI hooks
+  useToast,
+  useModal,
+  useConfirm,
+  useGlobalLoading,
+  // Workout hooks
+  useRestTimer,
+  useCurrentExercise,
+  useWorkoutMetrics,
+  // Spirit Animal hooks
+  useSpiritAnimalDisplay,
+  useSpiritAnimalCustomizer,
+  // Offline hooks
+  useOfflineStatus,
+  useOfflineQueue,
+} from '@/stores';

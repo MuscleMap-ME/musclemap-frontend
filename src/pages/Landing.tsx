@@ -3,7 +3,13 @@ import { Link as RouterLink } from 'react-router-dom';
 // NOTE: motion import removed - we use SafeMotion exclusively for iOS Lockdown Mode / Brave compatibility
 import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } from '../components/SEO';
 import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
-import { MuscleHeroAnimation } from '../components/landing';
+import {
+  MuscleHeroAnimation,
+  FreeOpenSourceSection,
+  PrivacySecuritySection,
+  NYCLaunchSection,
+  CommunityContributionSection,
+} from '../components/landing';
 
 // Landing page rendering - debug log removed for production
 
@@ -223,12 +229,33 @@ export default function Landing() {
           </RouterLink>
         </SafeMotionDiv>
 
-        {/* Main headline with 3D embossed effect */}
+        {/* Identity Badges */}
+        <SafeMotionDiv
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mt-8 flex flex-wrap justify-center gap-3"
+        >
+          <span className="px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-semibold">
+            100% Free Forever
+          </span>
+          <span className="px-4 py-2 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-semibold">
+            Open Source
+          </span>
+          <span className="px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-400 text-sm font-semibold">
+            Privacy-First
+          </span>
+          <span className="px-4 py-2 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-sm font-semibold">
+            Built in NYC
+          </span>
+        </SafeMotionDiv>
+
+        {/* Main headline with 3D embossed effect - CEP Focused */}
         <SafeMotionH1
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="mt-12 mb-8 text-5xl font-black leading-tight md:text-7xl"
+          className="mt-8 mb-6 text-4xl font-black leading-tight md:text-6xl lg:text-7xl"
           style={{
             background: 'linear-gradient(180deg, #ffffff 0%, #c7d2fe 50%, #818cf8 100%)',
             WebkitBackgroundClip: 'text',
@@ -237,32 +264,35 @@ export default function Landing() {
             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
           }}
         >
-          Your Goal.{' '}
+          The Physics of Your{' '}
           <span
             style={{
               display: 'inline-block',
-              background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 50%, #ec4899 100%)',
+              background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #ec4899 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               filter: 'drop-shadow(0 4px 8px rgba(168, 85, 247, 0.5))',
             }}
           >
-            Your Form.
-          </span>
-          <br />
-          <span
-            style={{
-              display: 'inline-block',
-              background: 'linear-gradient(180deg, #ffffff 0%, #e0e7ff 50%, #a5b4fc 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Your Tribe.
+            Body in Motion
           </span>
         </SafeMotionH1>
 
-        {/* Subtext with glass card effect */}
+        {/* Subheadline - What is CEP */}
+        <SafeMotionDiv
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mb-6 text-center"
+        >
+          <p className="text-lg md:text-xl text-gray-300">
+            The world&apos;s first{' '}
+            <span className="font-bold text-cyan-400">Computational Exercise Physiology</span>{' '}
+            platform
+          </p>
+        </SafeMotionDiv>
+
+        {/* Subtext with glass card effect - Value Props */}
         <SafeMotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -273,19 +303,21 @@ export default function Landing() {
           }}
         >
           <p className="text-lg font-medium text-gray-200 md:text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-            Build the <span className="text-indigo-400 font-bold">Spartan physique</span>—or lose 10 pounds before summer.
+            See exactly <span className="text-cyan-400 font-bold">which muscles are firing</span>—in real-time, with 3D visualization.
             <br className="hidden md:block" />{' '}
-            Train for the <span className="text-purple-400 font-bold">archetype you admire</span>—or the marathon you signed up for.
+            Unlike apps that just count reps, we show you{' '}
+            <span className="text-purple-400 font-bold">the science behind every movement</span>.
           </p>
 
           <div className="mt-4 flex items-center justify-center gap-2">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
-            <span className="text-indigo-400">✦</span>
+            <div className="h-px w-12 bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+            <span className="text-cyan-400">✦</span>
             <div className="h-px w-12 bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
           </div>
 
           <p className="mt-4 text-lg text-gray-300 md:text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-            See every muscle <span className="text-cyan-400 font-semibold">fire</span>. Find your people along the way.
+            <span className="text-emerald-400 font-semibold">100% free</span>. <span className="text-cyan-400 font-semibold">Open source</span>.{' '}
+            <span className="text-purple-400 font-semibold">Community-driven</span>. Find your <span className="text-orange-400 font-semibold">tribe</span>.
           </p>
         </SafeMotionDiv>
 
@@ -1267,6 +1299,18 @@ export default function Landing() {
           </SafeMotionDiv>
         </div>
       </section>
+
+      {/* Free & Open Source Section */}
+      <FreeOpenSourceSection />
+
+      {/* Privacy & Security Section */}
+      <PrivacySecuritySection />
+
+      {/* NYC Launch City Section */}
+      <NYCLaunchSection />
+
+      {/* Community Contribution Section */}
+      <CommunityContributionSection />
 
       {/* Explore Section with Navigation Icons */}
       <section className="relative z-10 pb-20 px-6">

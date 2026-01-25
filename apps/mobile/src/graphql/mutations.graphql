@@ -1,0 +1,264 @@
+# ============================================================================
+# Authentication Mutations
+# ============================================================================
+
+mutation Login($email: String!, $password: String!) {
+  login(email: $email, password: $password) {
+    token
+    user {
+      id
+      username
+      email
+      displayName
+      avatarUrl
+      level
+      xp
+      creditBalance
+      wealthTier
+    }
+  }
+}
+
+mutation Register($email: String!, $password: String!, $username: String!) {
+  register(email: $email, password: $password, username: $username) {
+    token
+    user {
+      id
+      username
+      email
+      displayName
+      avatarUrl
+      level
+      xp
+      creditBalance
+      wealthTier
+    }
+  }
+}
+
+mutation UpdateProfile($input: UpdateProfileInput!) {
+  updateProfile(input: $input) {
+    id
+    displayName
+    bio
+    avatarUrl
+  }
+}
+
+# ============================================================================
+# Workout Mutations
+# ============================================================================
+
+mutation StartWorkout($prescriptionId: ID) {
+  startWorkout(prescriptionId: $prescriptionId) {
+    id
+    startedAt
+    exercises {
+      exercise {
+        id
+        name
+        muscleGroups
+        equipment
+      }
+      sets
+      targetReps
+      targetWeight
+      restSeconds
+    }
+  }
+}
+
+mutation LogSet($input: LogSetInput!) {
+  logSet(input: $input) {
+    id
+    exerciseId
+    setNumber
+    weight
+    reps
+    rpe
+    isPR
+    completedAt
+    creditsEarned
+  }
+}
+
+mutation CompleteWorkout($workoutId: ID!, $input: CompleteWorkoutInput!) {
+  completeWorkout(workoutId: $workoutId, input: $input) {
+    id
+    completedAt
+    duration
+    totalVolume
+    totalSets
+    prs
+    creditsEarned
+    xpEarned
+    leveledUp
+    newAchievements {
+      id
+      name
+      description
+      iconUrl
+      creditReward
+    }
+  }
+}
+
+mutation SkipExercise($workoutId: ID!, $exerciseId: ID!, $reason: String) {
+  skipExercise(workoutId: $workoutId, exerciseId: $exerciseId, reason: $reason) {
+    success
+  }
+}
+
+mutation CancelWorkout($workoutId: ID!) {
+  cancelWorkout(workoutId: $workoutId) {
+    success
+  }
+}
+
+# ============================================================================
+# Credits & Economy Mutations
+# ============================================================================
+
+mutation EarnCredits($amount: Int!, $reason: String!, $sourceType: CreditSourceType!, $sourceId: ID) {
+  earnCredits(amount: $amount, reason: $reason, sourceType: $sourceType, sourceId: $sourceId) {
+    newBalance
+    transaction {
+      id
+      amount
+      type
+      reason
+      createdAt
+    }
+  }
+}
+
+mutation PurchaseCosmetic($cosmeticId: ID!) {
+  purchaseCosmetic(cosmeticId: $cosmeticId) {
+    success
+    newBalance
+    cosmetic {
+      id
+      name
+      type
+    }
+  }
+}
+
+mutation EquipCosmetic($cosmeticId: ID!) {
+  equipCosmetic(cosmeticId: $cosmeticId) {
+    success
+    spiritAnimal {
+      cosmetics
+    }
+  }
+}
+
+# ============================================================================
+# Spirit Animal Mutations
+# ============================================================================
+
+mutation SelectArchetype($archetype: Archetype!) {
+  selectArchetype(archetype: $archetype) {
+    spiritAnimal {
+      species
+      stage
+      xp
+      cosmetics
+    }
+  }
+}
+
+mutation EvolveSpritAnimal {
+  evolveSpiritAnimal {
+    success
+    spiritAnimal {
+      species
+      stage
+      xp
+    }
+    newAchievements {
+      id
+      name
+      creditReward
+    }
+  }
+}
+
+# ============================================================================
+# Social Mutations
+# ============================================================================
+
+mutation SendHighFive($userId: ID!) {
+  sendHighFive(userId: $userId) {
+    success
+    creditsEarned
+  }
+}
+
+mutation JoinCrew($crewId: ID!) {
+  joinCrew(crewId: $crewId) {
+    success
+    crew {
+      id
+      name
+      memberCount
+    }
+  }
+}
+
+mutation LeaveCrew {
+  leaveCrew {
+    success
+  }
+}
+
+mutation CreateCrew($input: CreateCrewInput!) {
+  createCrew(input: $input) {
+    id
+    name
+    description
+    avatarUrl
+  }
+}
+
+mutation StartRivalry($userId: ID!, $challenge: RivalryChallenge!) {
+  startRivalry(userId: $userId, challenge: $challenge) {
+    id
+    challenger {
+      id
+      username
+    }
+    challenged {
+      id
+      username
+    }
+    challenge
+    startsAt
+    endsAt
+  }
+}
+
+# ============================================================================
+# Settings Mutations
+# ============================================================================
+
+mutation UpdateSettings($input: UpdateSettingsInput!) {
+  updateSettings(input: $input) {
+    units
+    theme
+    notifications
+    restTimerDefault
+    soundEnabled
+    hapticsEnabled
+  }
+}
+
+mutation UpdateNotificationPreferences($input: NotificationPreferencesInput!) {
+  updateNotificationPreferences(input: $input) {
+    workoutReminders
+    socialActivity
+    achievements
+    crewUpdates
+    marketing
+  }
+}

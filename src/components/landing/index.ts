@@ -27,3 +27,9 @@ export { default as InteractiveDemo } from './InteractiveDemo';
 export { default as MuscleTrackingDemo } from './MuscleTrackingDemo';
 export { default as RPGProgressionDemo } from './RPGProgressionDemo';
 export { default as WorkoutLogDemo } from './WorkoutLogDemo';
+
+// New landing page sections (2026 revamp)
+export { FreeOpenSourceSection } from './FreeOpenSourceSection';
+export { PrivacySecuritySection } from './PrivacySecuritySection';
+export { NYCLaunchSection } from './NYCLaunchSection';
+export { CommunityContributionSection } from './CommunityContributionSection';

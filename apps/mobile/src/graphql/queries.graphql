@@ -1,0 +1,361 @@
+# ============================================================================
+# User & Profile Queries
+# ============================================================================
+
+query Me {
+  me {
+    id
+    username
+    email
+    displayName
+    avatarUrl
+    level
+    xp
+    creditBalance
+    wealthTier
+    createdAt
+    settings {
+      units
+      theme
+      notifications
+    }
+    spiritAnimal {
+      species
+      stage
+      xp
+      cosmetics
+    }
+    stats {
+      totalWorkouts
+      totalVolume
+      currentStreak
+      longestStreak
+    }
+  }
+}
+
+query Profile($username: String!) {
+  profile(username: $username) {
+    id
+    username
+    displayName
+    avatarUrl
+    level
+    xp
+    wealthTier
+    bio
+    isFollowing
+    isFollowedBy
+    spiritAnimal {
+      species
+      stage
+      cosmetics
+    }
+    stats {
+      totalWorkouts
+      totalVolume
+      currentStreak
+      prsThisMonth
+    }
+  }
+}
+
+# ============================================================================
+# Exercises Queries
+# ============================================================================
+
+query Exercises(
+  $muscleGroup: MuscleGroup
+  $equipment: [Equipment!]
+  $difficulty: Difficulty
+  $limit: Int = 20
+  $cursor: String
+) {
+  exercises(
+    muscleGroup: $muscleGroup
+    equipment: $equipment
+    difficulty: $difficulty
+    limit: $limit
+    cursor: $cursor
+  ) {
+    edges {
+      node {
+        id
+        name
+        muscleGroups
+        secondaryMuscleGroups
+        equipment
+        difficulty
+        instructions
+        videoUrl
+        thumbnailUrl
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query Exercise($id: ID!) {
+  exercise(id: $id) {
+    id
+    name
+    muscleGroups
+    secondaryMuscleGroups
+    equipment
+    difficulty
+    instructions
+    videoUrl
+    thumbnailUrl
+    alternatives {
+      id
+      name
+      equipment
+    }
+    userHistory {
+      lastPerformed
+      estimatedOneRepMax
+      bestSet {
+        weight
+        reps
+        date
+      }
+    }
+  }
+}
+
+# ============================================================================
+# Workout Queries
+# ============================================================================
+
+query TodaysWorkout {
+  todaysWorkout {
+    id
+    type
+    estimatedDuration
+    targetMuscleGroups
+    exercises {
+      exercise {
+        id
+        name
+        muscleGroups
+        equipment
+        thumbnailUrl
+      }
+      sets
+      targetReps
+      targetWeight
+      restSeconds
+      notes
+    }
+  }
+}
+
+query WorkoutHistory($limit: Int = 10, $cursor: String) {
+  workouts(limit: $limit, cursor: $cursor) {
+    edges {
+      node {
+        id
+        startedAt
+        completedAt
+        duration
+        totalVolume
+        totalSets
+        exercises {
+          exercise {
+            id
+            name
+          }
+          completedSets
+        }
+        creditsEarned
+        prs
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# ============================================================================
+# Credits & Economy Queries
+# ============================================================================
+
+query CreditBalance {
+  me {
+    id
+    creditBalance
+    wealthTier
+  }
+}
+
+query CreditTransactions($limit: Int = 20, $cursor: String) {
+  creditTransactions(limit: $limit, cursor: $cursor) {
+    edges {
+      node {
+        id
+        amount
+        type
+        reason
+        createdAt
+        sourceType
+        sourceId
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query CosmeticStore {
+  cosmeticStore {
+    categories {
+      id
+      name
+      items {
+        id
+        name
+        description
+        price
+        type
+        previewUrl
+        isOwned
+        isEquipped
+        requiredTier
+      }
+    }
+  }
+}
+
+# ============================================================================
+# Spirit Animal Queries
+# ============================================================================
+
+query SpiritAnimal {
+  me {
+    id
+    spiritAnimal {
+      species
+      stage
+      xp
+      cosmetics
+      availableCosmetics {
+        id
+        name
+        type
+        previewUrl
+        isOwned
+      }
+    }
+  }
+}
+
+# ============================================================================
+# Social Queries
+# ============================================================================
+
+query Leaderboard($type: LeaderboardType!, $timeframe: Timeframe!, $limit: Int = 50) {
+  leaderboard(type: $type, timeframe: $timeframe, limit: $limit) {
+    entries {
+      rank
+      user {
+        id
+        username
+        avatarUrl
+        level
+        wealthTier
+        spiritAnimal {
+          species
+          stage
+        }
+      }
+      score
+      change
+    }
+    myRank
+    myScore
+  }
+}
+
+query Crews($limit: Int = 20) {
+  crews(limit: $limit) {
+    id
+    name
+    description
+    avatarUrl
+    memberCount
+    maxMembers
+    isJoined
+    weeklyScore
+    rank
+  }
+}
+
+query MyCrew {
+  myCrew {
+    id
+    name
+    description
+    avatarUrl
+    members {
+      id
+      username
+      avatarUrl
+      role
+      weeklyContribution
+    }
+    weeklyScore
+    rank
+    challenges {
+      id
+      title
+      progress
+      target
+      endsAt
+    }
+  }
+}
+
+# ============================================================================
+# Achievements Queries
+# ============================================================================
+
+query Achievements {
+  achievements {
+    categories {
+      id
+      name
+      achievements {
+        id
+        name
+        description
+        iconUrl
+        isUnlocked
+        unlockedAt
+        progress
+        target
+        creditReward
+      }
+    }
+  }
+}
+
+query RecentAchievements($limit: Int = 5) {
+  recentAchievements(limit: $limit) {
+    id
+    name
+    description
+    iconUrl
+    unlockedAt
+    creditReward
+  }
+}

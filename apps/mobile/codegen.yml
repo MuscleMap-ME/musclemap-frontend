@@ -1,0 +1,51 @@
+# GraphQL Codegen Configuration
+# Generates TypeScript types and React hooks from GraphQL schema and operations
+
+# Schema is extracted from apps/api/src/graphql/schema.ts via extract-schema.js
+# Run `pnpm codegen:extract` to update the schema.graphql file
+schema: "src/graphql/schema.graphql"
+documents: "src/**/*.graphql"
+generates:
+  src/generated/graphql.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typescript-react-apollo
+    config:
+      # Generate React hooks for queries and mutations
+      withHooks: true
+      withComponent: false
+      withHOC: false
+
+      # Use the exact types from the schema
+      strictScalars: true
+      scalars:
+        DateTime: string
+        JSON: Record<string, unknown>
+        UUID: string
+
+      # Naming conventions
+      typesPrefix: ''
+      typesSuffix: ''
+      enumsAsTypes: true
+      constEnums: true
+
+      # Apollo-specific settings
+      apolloReactHooksImportFrom: '@apollo/client'
+      apolloClientVersion: 3
+
+      # Add operation result types
+      addOperationExport: true
+      exportFragmentSpreadSubTypes: true
+
+      # Skip typename for cleaner types
+      skipTypename: false
+      nonOptionalTypename: true
+
+      # Mutation return types
+      omitOperationSuffix: false
+      operationResultSuffix: 'Result'
+
+hooks:
+  afterOneFileWrite:
+    - biome format --write
