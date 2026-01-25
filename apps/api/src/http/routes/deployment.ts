@@ -42,6 +42,16 @@ const COMMAND_TIMEOUT = 10 * 60 * 1000; // 10 minutes max
 
 // Whitelisted commands - ONLY these can be executed
 const ALLOWED_COMMANDS: Record<string, { cmd: string; args: string[]; description: string; dangerous?: boolean }> = {
+  'git-stash': {
+    cmd: 'git',
+    args: ['stash'],
+    description: 'Stash local changes',
+  },
+  'git-stash-pop': {
+    cmd: 'git',
+    args: ['stash', 'pop'],
+    description: 'Restore stashed changes',
+  },
   'git-pull': {
     cmd: 'git',
     args: ['pull', 'origin', 'main'],
@@ -133,6 +143,11 @@ const ALLOWED_COMMANDS: Record<string, { cmd: string; args: string[]; descriptio
 
 // Predefined deployment sequences
 const DEPLOY_SEQUENCES: Record<string, { name: string; steps: string[]; description: string }> = {
+  'stash-and-deploy': {
+    name: 'Stash & Full Deploy',
+    steps: ['git-stash', 'git-pull', 'pnpm-install', 'build-all', 'pm2-restart', 'health-check'],
+    description: 'Stash local changes, then complete deployment',
+  },
   'full-deploy': {
     name: 'Full Deployment',
     steps: ['git-pull', 'pnpm-install', 'build-all', 'pm2-restart', 'health-check'],
