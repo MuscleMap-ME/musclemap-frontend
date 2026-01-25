@@ -269,12 +269,25 @@ export class PrescriptionEngine {
   }
 
   /**
+   * Parse comma-separated string to array, handling null/undefined
+   */
+  private parseCommaSeparated(value: string | string[] | null | undefined): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      return value.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  /**
    * Get exercises available based on equipment and location
    */
   private async getAvailableExercises(context: UserContext): Promise<Exercise[]> {
     // Build query to filter by equipment and location
     // Note: equipment_required, equipment_optional, and locations are JSONB arrays
-    const exercises = await queryAll<Exercise>(`
+    // Note: primary_muscles is a comma-separated TEXT string in the database
+    const rawExercises = await queryAll<Exercise>(`
       SELECT
         id, name, type, difficulty, primary_muscles,
         equipment_required, equipment_optional, locations,
@@ -298,7 +311,11 @@ export class PrescriptionEngine {
       DIFFICULTY_BY_EXPERIENCE[context.experienceLevel]?.max || 5,
     ]);
 
-    return exercises;
+    // Parse primary_muscles from comma-separated string to array
+    return rawExercises.map(e => ({
+      ...e,
+      primary_muscles: this.parseCommaSeparated(e.primary_muscles as unknown as string),
+    }));
   }
 
   /**
@@ -907,16 +924,23 @@ export class PrescriptionEngine {
     _context: UserContext
   ): Promise<ScoredExercise[]> {
     // Get muscles being worked
-    const targetMuscles = new Set(mainExercises.flatMap(e => e.primaryMuscles));
+    const targetMuscles = Array.from(new Set(mainExercises.flatMap(e => e.primaryMuscles)));
+
+    if (targetMuscles.length === 0) {
+      return [];
+    }
 
     // Find mobility/warmup exercises for those muscles
+    // Note: primary_muscles is a comma-separated TEXT string, not an array
+    // We use string matching with LIKE patterns
+    const musclePattern = targetMuscles.join('|');
     const warmupExercises = await queryAll<Exercise>(`
       SELECT id, name, type, difficulty, primary_muscles, movement_pattern
       FROM exercises
-      WHERE (type IN ('mobility', 'warmup', 'activation') OR movement_pattern = 'warmup')
-      AND primary_muscles && $1::text[]
+      WHERE (type IN ('mobility', 'warmup', 'activation', 'stretching') OR movement_pattern = 'warmup')
+      AND primary_muscles ~* $1
       LIMIT 4
-    `, [Array.from(targetMuscles)]);
+    `, [musclePattern]);
 
     return warmupExercises.map(e => ({
       exerciseId: e.id,
@@ -937,7 +961,7 @@ export class PrescriptionEngine {
       reps: 10,
       restSeconds: 30,
       notes: 'Warmup - focus on controlled movement',
-      primaryMuscles: e.primary_muscles || [],
+      primaryMuscles: this.parseCommaSeparated(e.primary_muscles as unknown as string),
     }));
   }
 
@@ -948,15 +972,21 @@ export class PrescriptionEngine {
     mainExercises: ScoredExercise[],
     _context: UserContext
   ): Promise<ScoredExercise[]> {
-    const targetMuscles = new Set(mainExercises.flatMap(e => e.primaryMuscles));
+    const targetMuscles = Array.from(new Set(mainExercises.flatMap(e => e.primaryMuscles)));
 
+    if (targetMuscles.length === 0) {
+      return [];
+    }
+
+    // Note: primary_muscles is a comma-separated TEXT string, not an array
+    const musclePattern = targetMuscles.join('|');
     const cooldownExercises = await queryAll<Exercise>(`
       SELECT id, name, type, difficulty, primary_muscles, movement_pattern
       FROM exercises
       WHERE (type IN ('stretching', 'cooldown', 'mobility') OR movement_pattern = 'stretch')
-      AND primary_muscles && $1::text[]
+      AND primary_muscles ~* $1
       LIMIT 3
-    `, [Array.from(targetMuscles)]);
+    `, [musclePattern]);
 
     return cooldownExercises.map(e => ({
       exerciseId: e.id,
@@ -977,7 +1007,7 @@ export class PrescriptionEngine {
       reps: 1,
       restSeconds: 0,
       notes: 'Hold for 30-60 seconds',
-      primaryMuscles: e.primary_muscles || [],
+      primaryMuscles: this.parseCommaSeparated(e.primary_muscles as unknown as string),
     }));
   }
 
