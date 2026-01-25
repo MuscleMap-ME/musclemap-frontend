@@ -324,18 +324,18 @@ export class PrescriptionEngine {
    * Get user's recent workout history
    */
   private async getWorkoutHistory(userId: string): Promise<WorkoutHistory[]> {
+    // Use workout_sets table (not workout_exercises which doesn't exist)
     const history = await queryAll<WorkoutHistory>(`
       SELECT
-        we.exercise_id,
+        ws.exercise_id,
         MAX(w.created_at) as last_performed,
-        COUNT(*) as times_performed,
-        AVG(wf.rpe) as avg_rpe
-      FROM workout_exercises we
-      JOIN workouts w ON w.id = we.workout_id
-      LEFT JOIN workout_feedback wf ON wf.workout_id = w.id
-      WHERE w.user_id = $1
+        COUNT(DISTINCT w.id) as times_performed,
+        AVG(ws.rpe) as avg_rpe
+      FROM workout_sets ws
+      JOIN workouts w ON w.id = ws.workout_id
+      WHERE ws.user_id = $1
       AND w.created_at > NOW() - INTERVAL '30 days'
-      GROUP BY we.exercise_id
+      GROUP BY ws.exercise_id
     `, [userId]);
 
     return history;
@@ -368,14 +368,16 @@ export class PrescriptionEngine {
    * Get muscle training stats for balance detection
    */
   private async getMuscleStats(userId: string): Promise<Record<string, number>> {
+    // Use workout_sets table (not workout_exercises which doesn't exist)
+    // Each row in workout_sets is a single set, so we count sets and sum reps*weight
     const stats = await queryAll<{ muscle_id: string; total_volume: number }>(`
       SELECT
         ea.muscle_id,
-        SUM(we.sets * we.reps * COALESCE(we.weight, 1) * (ea.activation / 100.0)) as total_volume
-      FROM workout_exercises we
-      JOIN workouts w ON w.id = we.workout_id
-      JOIN exercise_activations ea ON ea.exercise_id = we.exercise_id
-      WHERE w.user_id = $1
+        SUM(ws.reps * COALESCE(ws.weight, 1) * (ea.activation / 100.0)) as total_volume
+      FROM workout_sets ws
+      JOIN workouts w ON w.id = ws.workout_id
+      JOIN exercise_activations ea ON ea.exercise_id = ws.exercise_id
+      WHERE ws.user_id = $1
       AND w.created_at > NOW() - INTERVAL '14 days'
       GROUP BY ea.muscle_id
     `, [userId]);
@@ -390,17 +392,37 @@ export class PrescriptionEngine {
 
   /**
    * Get user exercise preferences
+   * Maps preference_type to a numeric score:
+   * - favorite: +20
+   * - avoid/injured/no_equipment/too_difficult: -100 (effectively exclude)
+   * - too_easy: -20 (mild penalty)
    */
   private async getUserPreferences(userId: string): Promise<Record<string, number>> {
-    const prefs = await queryAll<{ exercise_id: string; preference_score: number }>(`
-      SELECT exercise_id, preference_score
+    const prefs = await queryAll<{ exercise_id: string; preference_type: string }>(`
+      SELECT exercise_id, preference_type
       FROM user_exercise_preferences
       WHERE user_id = $1
     `, [userId]);
 
     const prefMap: Record<string, number> = {};
     for (const pref of prefs) {
-      prefMap[pref.exercise_id] = pref.preference_score;
+      // Map preference_type to a numeric score
+      switch (pref.preference_type) {
+        case 'favorite':
+          prefMap[pref.exercise_id] = 20;
+          break;
+        case 'avoid':
+        case 'injured':
+        case 'no_equipment':
+        case 'too_difficult':
+          prefMap[pref.exercise_id] = -100;
+          break;
+        case 'too_easy':
+          prefMap[pref.exercise_id] = -20;
+          break;
+        default:
+          prefMap[pref.exercise_id] = 0;
+      }
     }
 
     return prefMap;
