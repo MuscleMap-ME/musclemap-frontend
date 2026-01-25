@@ -61,7 +61,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS equipment_condition_votes (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      equipment_item_id UUID NOT NULL REFERENCES venue_equipment_items(id) ON DELETE CASCADE,
+      equipment_item_id TEXT NOT NULL REFERENCES venue_equipment_items(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       vote_type TEXT NOT NULL CHECK (vote_type IN ('condition', 'exists', 'removed')),
       vote_value TEXT NOT NULL,
