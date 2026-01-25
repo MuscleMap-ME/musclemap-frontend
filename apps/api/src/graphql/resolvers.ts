@@ -8602,12 +8602,19 @@ export const resolvers = {
     // Workout Sessions (real-time logging)
     startWorkoutSession: async (_: unknown, args: { input?: { workoutPlan?: any; clientId?: string } }, context: Context) => {
       const { userId } = requireAuth(context);
-      const session = await workoutSessionService.startSession(
-        userId,
-        args.input?.workoutPlan,
-        args.input?.clientId
-      );
-      return { session, setLogged: null, prsAchieved: [], muscleUpdate: session.musclesWorked };
+      log.info({ userId, hasInput: !!args.input, hasWorkoutPlan: !!args.input?.workoutPlan }, 'Starting workout session');
+      try {
+        const session = await workoutSessionService.startSession(
+          userId,
+          args.input?.workoutPlan,
+          args.input?.clientId
+        );
+        log.info({ userId, sessionId: session.id }, 'Workout session started successfully');
+        return { session, setLogged: null, prsAchieved: [], muscleUpdate: session.musclesWorked };
+      } catch (error) {
+        log.error({ userId, error }, 'Failed to start workout session');
+        throw error;
+      }
     },
 
     logSet: async (_: unknown, args: { input: any }, context: Context) => {
