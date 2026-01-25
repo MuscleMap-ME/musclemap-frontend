@@ -8127,13 +8127,18 @@ export const resolvers = {
         level: number;
         xp: number;
         created_at: Date;
-        archetype: string | null;
+        current_identity_id: string | null;
+        archetype_name: string | null;
         onboarding_completed_at: Date | null;
       }>(
-        `SELECT id, email, username, display_name, bio, social_links, password_hash, roles,
-                COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp, created_at,
-                archetype, onboarding_completed_at
-         FROM users WHERE email = $1`,
+        `SELECT u.id, u.email, u.username, u.display_name, u.bio, u.social_links, u.password_hash, u.roles,
+                COALESCE(u.current_level, 1) as level, COALESCE(u.total_xp, 0) as xp, u.created_at,
+                u.current_identity_id, a.name as archetype_name,
+                upe.onboarding_completed_at
+         FROM users u
+         LEFT JOIN archetypes a ON u.current_identity_id = a.id
+         LEFT JOIN user_profile_extended upe ON u.id = upe.user_id
+         WHERE u.email = $1`,
         [email]
       );
 
@@ -8163,7 +8168,7 @@ export const resolvers = {
           wealthTier: buildWealthTierResponse(credits),
           roles,
           createdAt: user.created_at,
-          archetype: user.archetype,
+          archetype: user.archetype_name,
           onboardingCompletedAt: user.onboarding_completed_at,
         },
       };
