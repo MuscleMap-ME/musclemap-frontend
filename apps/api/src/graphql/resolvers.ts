@@ -3282,29 +3282,37 @@ export const resolvers = {
     },
 
     // Tips
+    // Note: Database columns are: id, title, content, source, category, subcategory,
+    // trigger_type, trigger_value, display_context, times_shown, times_liked, created_at
     tips: async (_: unknown, args: { context?: string; exerciseId?: string }, _context: Context) => {
-      let sql = `SELECT id, type, title, content, category, exercise_id, priority
+      let sql = `SELECT id, trigger_type, title, content, category, trigger_value
                  FROM tips WHERE 1=1`;
       const params: unknown[] = [];
       let paramIndex = 1;
 
+      if (args.context) {
+        sql += ` AND (display_context = $${paramIndex} OR display_context IS NULL)`;
+        params.push(args.context);
+        paramIndex++;
+      }
+
       if (args.exerciseId) {
-        sql += ` AND (exercise_id = $${paramIndex} OR exercise_id IS NULL)`;
+        sql += ` AND (trigger_value = $${paramIndex} OR trigger_type = 'general')`;
         params.push(args.exerciseId);
         paramIndex++;
       }
 
-      sql += ` ORDER BY priority DESC LIMIT 10`;
+      sql += ` ORDER BY times_shown ASC, RANDOM() LIMIT 10`;
 
       const tips = await queryAll(sql, params);
       return tips.map((t: any) => ({
         id: t.id,
-        type: t.type,
-        title: t.title,
+        type: t.trigger_type || 'general',
+        title: t.title || 'Fitness Tip',
         content: t.content,
         category: t.category,
-        exerciseId: t.exercise_id,
-        priority: t.priority,
+        exerciseId: t.trigger_value,
+        priority: 1,
         seen: false,
       }));
     },

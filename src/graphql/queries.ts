@@ -656,6 +656,8 @@ export const HEALTH_DETAILED_QUERY = gql`
 // WORKOUT SESSIONS (Real-Time Logging)
 // ============================================
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
+// Removed nested arrays: sets.muscleActivations, musclesWorked, sessionPRs
 export const ACTIVE_WORKOUT_SESSION_QUERY = gql`
   query ActiveWorkoutSession {
     activeWorkoutSession {
@@ -678,48 +680,20 @@ export const ACTIVE_WORKOUT_SESSION_QUERY = gql`
         reps
         weightKg
         rpe
-        rir
-        durationSeconds
-        restSeconds
-        tag
         tu
-        muscleActivations {
-          muscleId
-          muscleName
-          activation
-          tu
-        }
         isPRWeight
         isPRReps
         isPR1RM
-        notes
         performedAt
       }
       totalVolume
       totalReps
-      musclesWorked {
-        muscleId
-        muscleName
-        totalTU
-        setCount
-        percentageOfMax
-      }
-      sessionPRs {
-        exerciseId
-        exerciseName
-        prType
-        newValue
-        previousValue
-        improvementPercent
-        achievedAt
-      }
       estimatedCalories
-      clientVersion
-      serverVersion
     }
   }
 `;
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
 export const WORKOUT_SESSION_QUERY = gql`
   query WorkoutSession($id: ID!) {
     workoutSession(id: $id) {
@@ -739,41 +713,14 @@ export const WORKOUT_SESSION_QUERY = gql`
         reps
         weightKg
         rpe
-        rir
-        durationSeconds
-        restSeconds
-        tag
         tu
-        muscleActivations {
-          muscleId
-          muscleName
-          activation
-          tu
-        }
         isPRWeight
         isPRReps
         isPR1RM
-        notes
         performedAt
       }
       totalVolume
       totalReps
-      musclesWorked {
-        muscleId
-        muscleName
-        totalTU
-        setCount
-        percentageOfMax
-      }
-      sessionPRs {
-        exerciseId
-        exerciseName
-        prType
-        newValue
-        previousValue
-        improvementPercent
-        achievedAt
-      }
       estimatedCalories
     }
   }

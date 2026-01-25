@@ -234,7 +234,7 @@ const API_TESTS: APITest[] = [
   {
     name: 'Tips',
     category: 'tips',
-    query: '{ tips(context: "dashboard") { id type title content } }',
+    query: '{ tips(context: "dashboard") { id title content category } }',
     requiresAuth: true,
     expectedFields: ['tips'],
   },

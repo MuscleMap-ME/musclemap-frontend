@@ -106,6 +106,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 // Core feature pages
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Workout = lazy(() => import('./pages/Workout'));
+const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const Journey = lazy(() => import('./pages/Journey'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -472,6 +473,7 @@ function PageTracker() {
 // Common routes to prefetch after authentication
 const AUTHENTICATED_PREFETCH_ROUTES = [
   '/workout',
+  '/log',
   '/exercises',
   '/journey',
   '/community',
@@ -613,6 +615,7 @@ function AppRoutes() {
           <Route path="/discover/contribute" element={<ProtectedRoute name="Discover"><Discover /></ProtectedRoute>} />
           <Route path="/onboarding" element={<ProtectedRoute name="Onboarding"><Onboarding /></ProtectedRoute>} />
           <Route path="/workout" element={<ProtectedRoute name="Workout"><Workout /></ProtectedRoute>} />
+          <Route path="/log" element={<ProtectedRoute name="ActivityLog"><ActivityLog /></ProtectedRoute>} />
           <Route path="/journey" element={<ProtectedRoute name="Journey"><Journey /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute name="Profile"><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute name="Settings"><Settings /></ProtectedRoute>} />

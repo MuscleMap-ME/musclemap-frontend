@@ -110,15 +110,43 @@ The design philosophy: **Appearance simplicity that masks great functionality an
 - "Finish workout"
 
 **Implementation:**
-- Web Speech API for recognition
-- Local command parsing (no server round-trip)
+- **Web Speech API first** (browser-native, free, works offline)
+- Abstraction layer (`ISpeechProvider` interface) for premium API migration later
+- Local command parsing (no server round-trip for basic commands)
 - Visual confirmation before commit
 - Fallback to manual if recognition fails
+
+**Speech Provider Architecture:**
+```typescript
+// Abstraction for easy API swap later
+interface ISpeechProvider {
+  startListening(): void;
+  stopListening(): void;
+  onResult: (transcript: string, confidence: number) => void;
+  onError: (error: Error) => void;
+  isSupported: boolean;
+}
+
+class WebSpeechProvider implements ISpeechProvider { /* Browser native */ }
+class WhisperAPIProvider implements ISpeechProvider { /* Future: OpenAI Whisper */ }
+class DeepgramProvider implements ISpeechProvider { /* Future: Deepgram */ }
+
+// Factory selects provider based on config/feature flag
+const speechProvider = SpeechProviderFactory.create(config.speechProvider);
+```
+
+**Why Web Speech API First:**
+- Zero API costs
+- Works offline (after model download)
+- No latency to external servers
+- Privacy - audio stays on device
+- Easy to A/B test premium APIs later via feature flag
 
 **Components Needed:**
 - `VoiceInputButton` - Floating mic button
 - `VoiceCommandParser` - Parse natural language
 - `VoiceConfirmationModal` - Show parsed result for approval
+- `SpeechProviderFactory` - Select speech implementation
 
 ### 3.3 Screenshot/Image Import
 
@@ -135,14 +163,39 @@ The design philosophy: **Appearance simplicity that masks great functionality an
 
 **Implementation:**
 - Accept images via camera, gallery, clipboard paste
-- Send to backend for OCR + AI parsing
+- **Local ML first** using Tesseract.js (browser-based OCR) + custom regex patterns
+- Abstraction layer (`IOCRProvider` interface) for easy cloud API migration later
 - Return structured workout data
 - User reviews/corrects in editable form
 
+**OCR Provider Architecture:**
+```typescript
+// Abstraction for easy API swap later
+interface IOCRProvider {
+  extractText(image: Blob): Promise<string>;
+  confidence: number;
+}
+
+class TesseractProvider implements IOCRProvider { /* Local ML */ }
+class OpenAIVisionProvider implements IOCRProvider { /* Future: Cloud API */ }
+class GoogleVisionProvider implements IOCRProvider { /* Future: Cloud API */ }
+
+// Factory selects provider based on config/feature flag
+const ocrProvider = OCRProviderFactory.create(config.ocrProvider);
+```
+
+**Why Local ML First:**
+- Zero API costs during development/testing
+- Works offline
+- No rate limits or latency
+- User data stays on device (privacy)
+- Easy to A/B test cloud APIs later via feature flag
+
 **Components Needed:**
 - `ScreenshotImporter` - Camera/gallery/paste interface
-- `ImageToWorkoutService` - Backend AI processing
+- `ImageToWorkoutService` - Backend processing with provider abstraction
 - `ImportReviewEditor` - Edit extracted data
+- `OCRProviderFactory` - Select OCR implementation
 
 ### 3.4 Copy/Paste Text Import
 
@@ -169,28 +222,59 @@ The design philosophy: **Appearance simplicity that masks great functionality an
 
 ### 3.5 CSV/File Import
 
-**Supported Formats:**
-- CSV (Strong, JEFIT, Hevy export formats)
-- JSON (MuscleMap native format)
-- XML (legacy fitness app exports)
+**Supported Formats (All Major Competitors):**
+
+| App | Format | File Extension | Notes |
+|-----|--------|----------------|-------|
+| **Strong** | CSV | `.csv` | Date, Exercise, Weight, Reps, RPE, Notes |
+| **Hevy** | CSV | `.csv` | Similar to Strong, includes workout name |
+| **JEFIT** | CSV/JSON | `.csv`, `.json` | Detailed exercise metadata |
+| **Fitbod** | CSV | `.csv` | Includes predicted 1RM |
+| **FitNotes** | CSV | `.csv` | Android-specific format |
+| **GymBook** | CSV | `.csv` | iOS app format |
+| **Gravitus** | CSV | `.csv` | Powerlifting focus |
+| **RepCount** | JSON | `.json` | Structured workout data |
+| **MuscleMap** | JSON | `.json` | Native format (full fidelity) |
+| **Generic** | CSV | `.csv` | Auto-detect columns |
+| **Apple Health** | XML | `.xml` | HealthKit export |
+| **Google Fit** | JSON | `.json` | Takeout export |
+
+**Import History Options:**
+- 30 days (quick import)
+- 90 days (recent history)
+- 6 months (medium history)
+- 1 year (full recent year)
+- All time (complete history)
 
 **Flow:**
 ```
-[Select File] → [Auto-Detect Format] → [Map Fields] → [Import]
+[Select File] → [Auto-Detect Format] → [Select Date Range] → [Map Fields] → [Preview] → [Import]
 ```
 
 **Features:**
 - Drag-and-drop file upload
-- Format auto-detection
+- **Auto-detect format** from file structure
+- **Date range selector** (30d / 90d / 6mo / 1yr / All)
 - Column mapping UI for unknowns
-- Duplicate detection (skip already-imported)
+- **Preview before import** (show first 10 records)
+- Duplicate detection (skip already-imported via hash)
 - Progress bar for large imports
+- **Undo last import** (within 24 hours)
+
+**Export Formats (Data Portability):**
+- MuscleMap JSON (full fidelity)
+- Strong CSV (for migration to Strong)
+- Generic CSV (universal format)
+- Apple Health XML (for HealthKit import)
 
 **Components Needed:**
 - `FileImportDropzone` - Drag/drop area
-- `FormatDetector` - Identify file format
+- `FormatDetector` - Identify file format from structure
+- `DateRangeSelector` - 30d/90d/6mo/1yr/All buttons
 - `FieldMapper` - Map columns to MuscleMap fields
+- `ImportPreview` - Show sample records before commit
 - `ImportProgressTracker` - Show import progress
+- `ExportFormatPicker` - Select export format
 
 ### 3.6 Health Platform Sync
 
@@ -938,15 +1022,16 @@ apps/api/src/http/routes/
 
 ---
 
-## 10. Open Questions
+## 10. Open Questions (Resolved)
 
-1. **Screenshot AI provider** - Use local ML or cloud API (OpenAI Vision, Google Cloud Vision)?
-2. **Voice recognition** - Web Speech API sufficient or need premium service?
+1. ~~**Screenshot AI provider**~~ **DECIDED: Local ML first (Tesseract.js), abstraction layer for cloud API later**
+2. ~~**Voice recognition**~~ **DECIDED: Web Speech API first, abstraction layer for premium API later**
 3. **Apple Health native** - Require React Native bridge or accept file export workflow?
 4. **Wearable apps** - Phase in native watch apps or defer to platform health sync?
-5. **Import history limit** - How far back to import (30 days? 1 year? All time)?
-6. **Data portability** - Should we support export to competitor formats?
+5. ~~**Import history limit**~~ **DECIDED: Offer 30 days, 90 days, 6 months, 1 year, All Time**
+6. ~~**Data portability**~~ **DECIDED: Support ALL competitor formats + strong CSV export**
 7. **Offline storage limit** - How many workouts to queue offline?
+8. ~~**Input method priority**~~ **DECIDED: All methods matter, organize logically by user journey**
 
 ---
 
@@ -1084,42 +1169,184 @@ NEW components (compose existing):
 
 ---
 
-## 14. Final Prioritized MVP Scope
+## 14. Complete Implementation Phases (All Input Methods)
 
-### Phase 1A: Core Manual Logging (Week 1)
-- [ ] New `/log` route with `ActivityLogPanel`
-- [ ] Compose existing `RealtimeSetLogger` in new context
-- [ ] "Recent exercises" quick-pick (query workout_sets)
-- [ ] Summary view using existing workout complete pattern
+### Input Methods Organized by User Journey
 
-### Phase 1B: Voice Input (Week 2)
-- [ ] `VoiceInputButton` with Web Speech API
-- [ ] Simple regex parser for "225 for 8" patterns
-- [ ] Confirmation modal before save
-- [ ] `voice_commands` table for learning
+| Category | Method | When User Uses It |
+|----------|--------|-------------------|
+| **Instant Entry** | Quick Manual | "I'm at the gym, logging as I go" |
+| **Instant Entry** | Voice | "Hands are chalky, can't type" |
+| **Instant Entry** | Quick Pick | "Same workout as Monday" |
+| **Batch Entry** | Text Paste | "I wrote my workout in Notes app" |
+| **Batch Entry** | Screenshot | "I have a photo of my trainer's plan" |
+| **Bulk Import** | CSV/File | "Switching from Strong/Hevy" |
+| **Bulk Import** | Health Sync | "Import from Apple Health" |
+| **Discovery** | Visual/3D | "What exercises hit this muscle?" |
+| **Structured** | Templates | "Following a program" |
+| **Wearable** | Watch | "Log from my Apple Watch" |
 
-### Phase 2: Text & Clipboard (Week 3-4)
-- [ ] `TextImportModal` bottom sheet
-- [ ] Paste detection and parsing
-- [ ] Support "Bench 3x8 @ 185" format
-- [ ] Preview → Edit → Save flow
+---
 
-### Phase 3: File & Health Sync (Week 5-6)
-- [ ] File upload via existing infrastructure
-- [ ] CSV parser for Strong/JEFIT formats
-- [ ] Extend `healthImportService` for UI
-- [ ] Show connected platforms status
+### Phase 1: Foundation & Instant Entry (Week 1-2)
 
-### Phase 4: Smart Suggestions (Week 7-8)
-- [ ] "Same as Monday" quick-pick
-- [ ] Day-of-week pattern detection
-- [ ] Clone past workout feature
+**Goal:** Fast manual logging + voice for gym use
 
-### Phase 5: Polish (Week 9-10)
-- [ ] Offline queue (IndexedDB)
-- [ ] iOS Lockdown Mode testing
-- [ ] Accessibility audit
-- [ ] Performance optimization
+#### 1A: Core Panel & Manual Entry (Week 1)
+- [ ] Database migration: `voice_commands` table
+- [ ] GraphQL schema: `QuickLogSetInput`, `ActivitySource` enum extensions
+- [ ] New `/log` route with `ActivityLogPanel.tsx`
+- [ ] `QuickEntryMethods.tsx` - 6 input method buttons grid
+- [ ] `ExerciseQuickPicker.tsx` - Search + recent exercises
+- [ ] Compose existing `RealtimeSetLogger` for set entry
+- [ ] `WorkoutSummaryCard.tsx` - Post-workout summary
+- [ ] Integration with TU calculation and credit awarding
+- [ ] SafeMotion wrappers for all animations (iOS Lockdown Mode)
+
+#### 1B: Voice Input (Week 2)
+- [ ] `ISpeechProvider` interface + `SpeechProviderFactory`
+- [ ] `WebSpeechProvider.ts` - Browser native implementation
+- [ ] `VoiceInputButton.tsx` - Mic button with animation
+- [ ] `VoiceCommandParser.ts` - Regex patterns for "225 for 8"
+- [ ] `VoiceConfirmation.tsx` - Parsed result modal
+- [ ] Store voice commands in `voice_commands` table for learning
+- [ ] Fallback to manual entry on recognition failure
+
+---
+
+### Phase 2: Batch Entry (Week 3-4)
+
+**Goal:** Paste text and screenshots for offline-written workouts
+
+#### 2A: Text & Clipboard (Week 3)
+- [ ] `TextImportModal.tsx` - Bottom sheet with paste area
+- [ ] `useClipboardPaste.ts` hook - Detect paste events
+- [ ] `WorkoutTextParser.ts` - Parse multiple formats:
+  - "Bench 3x8 @ 185"
+  - "Squat: 225lbs, 5 reps, 3 sets"
+  - Reddit/forum style lists
+  - Tab-separated values
+- [ ] `ParsePreview.tsx` - Show parsed structure
+- [ ] `ImportReviewEditor.tsx` - Edit before save
+- [ ] Instant preview as user types/pastes
+
+#### 2B: Screenshot Import (Week 4)
+- [ ] `IOCRProvider` interface + `OCRProviderFactory`
+- [ ] `TesseractProvider.ts` - Local ML via Tesseract.js
+- [ ] `ScreenshotImporter.tsx` - Camera/gallery/paste UI
+- [ ] `screenshot-parser.service.ts` - OCR + exercise matching
+- [ ] Confidence scores for each parsed field
+- [ ] Edit/correct flow before save
+- [ ] Image compression before processing
+
+---
+
+### Phase 3: Bulk Import & Health Sync (Week 5-6)
+
+**Goal:** Import history from other apps and health platforms
+
+#### 3A: CSV/File Import (Week 5)
+- [ ] `FileImportDropzone.tsx` - Drag/drop with format detection
+- [ ] `FormatDetector.ts` - Auto-detect Strong/Hevy/JEFIT/etc.
+- [ ] Format parsers for each competitor:
+  - `StrongCSVParser.ts`
+  - `HevyCSVParser.ts`
+  - `JEFITParser.ts`
+  - `FitbodParser.ts`
+  - `FitNotesParser.ts`
+  - `GenericCSVParser.ts`
+- [ ] `DateRangeSelector.tsx` - 30d/90d/6mo/1yr/All buttons
+- [ ] `FieldMapper.tsx` - Map unknown columns
+- [ ] `ImportPreview.tsx` - Show first 10 records
+- [ ] `ImportProgressBar.tsx` - Progress for large imports
+- [ ] Duplicate detection via content hash
+- [ ] `import_jobs` table for tracking bulk imports
+
+#### 3B: Health Platform Sync (Week 6)
+- [ ] `HealthPlatformConnector.tsx` - OAuth flow UI
+- [ ] Extend `healthImportService` with UI layer
+- [ ] Apple Health XML import parser
+- [ ] Google Fit JSON import parser
+- [ ] `SyncSettingsPanel.tsx` - Configure what syncs
+- [ ] `HealthSyncStatus.tsx` - Show connected platforms
+- [ ] Date range selection for imports
+- [ ] Background sync job (pull on app open)
+
+---
+
+### Phase 4: Smart Features & Templates (Week 7-8)
+
+**Goal:** Pattern learning and structured programs
+
+#### 4A: Quick Pick & Suggestions (Week 7)
+- [ ] `QuickPickPanel.tsx` - Large buttons for common workouts
+- [ ] "Same as [Monday/yesterday]" one-tap logging
+- [ ] `pattern-suggester.service.ts` - Day-of-week heuristics
+- [ ] Time-of-day suggestions (morning = cardio?)
+- [ ] `WorkoutCloner.ts` - Clone past workout to new date
+- [ ] Recent workouts quick-access list
+
+#### 4B: Templates & Visual Selection (Week 8)
+- [ ] `TemplateGallery.tsx` - Browse/search templates
+- [ ] `TemplatePreview.tsx` - See routine before starting
+- [ ] `RoutineToWorkout.ts` - Convert template to session
+- [ ] Community templates integration
+- [ ] `InteractiveMuscleSelector.tsx` - Tap 3D body
+- [ ] `MuscleExerciseDrawer.tsx` - Exercises for selected muscle
+- [ ] Extend existing `MuscleVisualization` for interactivity
+
+---
+
+### Phase 5: Export & Data Portability (Week 9)
+
+**Goal:** Users can take their data anywhere
+
+- [ ] `ExportFormatPicker.tsx` - Select export format
+- [ ] Export to MuscleMap JSON (full fidelity)
+- [ ] Export to Strong CSV format
+- [ ] Export to Generic CSV format
+- [ ] Export to Apple Health XML
+- [ ] Date range selection for export
+- [ ] Download as file or share
+- [ ] Scheduled auto-export (optional)
+
+---
+
+### Phase 6: Wearable Integration (Week 10)
+
+**Goal:** Log from Apple Watch / Wear OS
+
+- [ ] `WearableSync.ts` - Real-time data sync service
+- [ ] `WatchWorkoutReceiver.ts` - Process watch data
+- [ ] Apple Watch companion app spec (separate project)
+- [ ] Wear OS companion app spec (separate project)
+- [ ] Push workout plan to watch
+- [ ] Receive logged sets from watch
+- [ ] Sync status indicator in UI
+
+---
+
+### Phase 7: Polish & Optimization (Week 11-12)
+
+**Goal:** Production-ready quality
+
+#### 7A: Offline & Performance (Week 11)
+- [ ] Offline queue in IndexedDB
+- [ ] Optimistic UI updates
+- [ ] Auto-sync when back online
+- [ ] Skeleton loading states
+- [ ] Performance optimization (<100ms interactions)
+- [ ] Bundle size analysis and lazy loading
+
+#### 7B: Quality & Accessibility (Week 12)
+- [ ] iOS Lockdown Mode + Brave testing
+- [ ] Accessibility audit (WCAG 2.1 AA)
+- [ ] Screen reader testing
+- [ ] Haptic feedback implementation
+- [ ] Error recovery flows
+- [ ] Analytics integration
+- [ ] E2E tests for all input methods
+- [ ] Documentation update
 
 ---
 

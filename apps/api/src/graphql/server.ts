@@ -16,6 +16,9 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
 import { presenceTypeDefs } from './presence.resolvers';
+// Activity Log feature (in development - files moved to drafts/)
+// import { activityLogTypeDefs } from './activity-log.schema';
+// import { activityLogResolvers } from './activity-log.resolvers';
 import { createLoaders, createExtendedLoaders, type Loaders, type ExtendedLoaders } from './loaders';
 import { createComplexityLimitRule } from './complexity';
 import { loggers } from '../lib/logger';
@@ -109,7 +112,7 @@ export async function createGraphQLServer(
   // Create executable schema
   const schema = makeExecutableSchema({
     typeDefs: [typeDefs, presenceTypeDefs],
-    resolvers,
+    resolvers: [resolvers],
   });
 
   // Create server plugins

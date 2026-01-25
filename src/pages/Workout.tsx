@@ -1027,6 +1027,15 @@ export default function Workout() {
         >
           Or browse all exercises manually
         </button>
+
+        {/* Quick Log / Import Link */}
+        <Link
+          to="/log"
+          className="w-full mt-3 bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 hover:border-green-500/50 py-3 rounded-xl text-green-400 text-sm flex items-center justify-center gap-2 transition-all"
+        >
+          <span>📋</span>
+          <span>Import or Quick Log a Workout</span>
+        </Link>
       </main>
     </div>
   );
