@@ -8,6 +8,8 @@
  * - Auto-approval when 3+ votes with <2 rejections
  */
 
+// DESTRUCTIVE: down() drops new corroboration tables - these are new tables with no production data yet
+
 import { query } from '../client';
 
 export async function up(): Promise<void> {
