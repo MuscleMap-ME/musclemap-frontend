@@ -320,7 +320,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
    *
    * Also available at: https://musclemap.me/api/docs/plain (static HTML version)
    */
-  fastify.get('/api/docs/plain', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/docs/plain', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const combinedDocs = await buildCombinedDocs();
 
@@ -342,7 +342,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
    * GET /api/docs/plain/index
    * Table of contents as JSON (for programmatic access)
    */
-  fastify.get('/api/docs/plain/index', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/docs/plain/index', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const toc = await buildTableOfContents();
       return reply.send(toc);
@@ -401,7 +401,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
    * GET /api/docs/plain/:path
    * Individual document as plain text
    */
-  fastify.get('/api/docs/plain/*', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/docs/plain/*', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const params = request.params as { '*': string };
       const requestedPath = params['*'];
