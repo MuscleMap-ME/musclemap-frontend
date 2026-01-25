@@ -12348,7 +12348,19 @@ export const resolvers = {
         ...args.input,
       });
 
-      return prescription;
+      // Map the prescription result to match the GraphQL schema
+      return {
+        id: prescription.id,
+        userId,
+        exercises: prescription.exercises,
+        warmup: prescription.warmup,
+        cooldown: prescription.cooldown,
+        targetDuration: args.input.timeAvailable || 30,
+        actualDuration: prescription.totalDuration,
+        muscleCoverage: prescription.muscleCoverage,
+        difficulty: prescription.difficulty,
+        createdAt: prescription.metadata?.generatedAt || new Date().toISOString(),
+      };
     },
 
     // Prescription Engine V3 (Enhanced)
