@@ -1,0 +1,572 @@
+/**
+ * MuscleMap CSS Reset - Knuth-Inspired Foundation
+ *
+ * Based on Donald Knuth's typographic principles:
+ * - Every element has a defined box model
+ * - No unexpected margins or padding
+ * - Sensible inheritance for typography
+ * - Accessibility built-in
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+
+/* ==========================================================================
+   BOX MODEL FOUNDATION
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==========================================================================
+   ROOT ELEMENT
+   ========================================================================== */
+
+html {
+  /* Prevent font size inflation on mobile */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+
+  /* Use parametric base size from tokens */
+  font-size: var(--type-base, 16px);
+
+  /* Smooth scrolling (respects reduced motion via custom property) */
+  scroll-behavior: smooth;
+
+  /* Enable optical sizing for variable fonts */
+  font-optical-sizing: auto;
+
+  /* Set text rendering for maximum legibility */
+  text-rendering: optimizeLegibility;
+
+  /* Prevent horizontal overflow */
+  overflow-x: hidden;
+
+  /* Tab size for code blocks */
+  tab-size: 4;
+
+  /* Font feature settings */
+  font-feature-settings: var(--font-features-body, 'kern' 1, 'liga' 1, 'calt' 1);
+
+  /* Hanging punctuation for proper typography (where supported) */
+  hanging-punctuation: first last;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   BODY ELEMENT
+   ========================================================================== */
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  line-height: var(--line-height-normal, 1.5);
+  font-family: var(--font-body, var(--font-sans, system-ui, sans-serif));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Default background and text colors from tokens */
+  background-color: var(--color-bg, #0a0a0a);
+  color: var(--color-text, #ffffff);
+
+  /* Prevent text selection on double-tap (optional, can be overridden) */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY DEFAULTS
+   ========================================================================== */
+
+/* Headings - Knuth-inspired balanced wrapping */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  font-weight: var(--font-weight-heading, 600);
+  line-height: var(--line-height-tight, 1.25);
+  font-family: var(--font-display, var(--font-sans));
+}
+
+/* Size scale for headings */
+h1 { font-size: var(--type-4xl); }
+h2 { font-size: var(--type-3xl); }
+h3 { font-size: var(--type-2xl); }
+h4 { font-size: var(--type-xl); }
+h5 { font-size: var(--type-lg); }
+h6 { font-size: var(--type-md); }
+
+/* Paragraphs - Knuth-Plass line breaking */
+p {
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  max-width: 65ch; /* Optimal line length for readability */
+}
+
+/* Strong and emphasis */
+strong, b {
+  font-weight: var(--font-weight-bold, 700);
+}
+
+em, i {
+  font-style: italic;
+}
+
+/* Small text */
+small {
+  font-size: var(--type-sm);
+}
+
+/* Links */
+a {
+  color: var(--color-primary, currentColor);
+  text-decoration: underline;
+  text-decoration-skip-ink: auto;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* ==========================================================================
+   LISTS
+   ========================================================================== */
+
+/* Remove list styles - accessibility maintained via ARIA */
+ul, ol {
+  list-style: none;
+}
+
+/* For lists that should show markers, use explicit classes */
+.list-disc { list-style-type: disc; padding-inline-start: 1.5em; }
+.list-decimal { list-style-type: decimal; padding-inline-start: 1.5em; }
+
+/* Description lists */
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+}
+
+dt {
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+dd {
+  margin: 0;
+}
+
+/* ==========================================================================
+   MEDIA ELEMENTS
+   ========================================================================== */
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prevent images from being dragged */
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Video aspect ratio default */
+video {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+/* SVG fill inheritance */
+svg {
+  fill: currentColor;
+}
+
+/* ==========================================================================
+   FORM ELEMENTS
+   ========================================================================== */
+
+/* Inherit fonts for form elements */
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Button reset */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Disabled state */
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Text inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  appearance: none;
+  background-color: transparent;
+  border: var(--input-border, 1px solid var(--color-border));
+  border-radius: var(--input-radius, var(--radius-md));
+  padding: var(--input-padding-y, var(--space-2)) var(--input-padding-x, var(--space-3));
+}
+
+/* Remove inner padding and search decorations in Safari */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/* Remove spinners from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Textarea resize */
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Select */
+select {
+  appearance: none;
+  background-color: transparent;
+  border: var(--input-border, 1px solid var(--color-border));
+  border-radius: var(--input-radius, var(--radius-md));
+  padding: var(--input-padding-y, var(--space-2)) var(--input-padding-x, var(--space-3));
+  padding-right: var(--space-8); /* Room for dropdown arrow */
+}
+
+/* Checkbox and radio */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
+  width: 1em;
+  height: 1em;
+  cursor: pointer;
+}
+
+/* Labels */
+label {
+  cursor: pointer;
+}
+
+/* Fieldset */
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+/* ==========================================================================
+   FOCUS STATES - ACCESSIBILITY
+   ========================================================================== */
+
+/* Focus visible for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--color-primary, #0066FF);
+  outline-offset: 2px;
+}
+
+/* Remove focus for mouse users (but keep for keyboard) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip link (accessibility) */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: white;
+  text-decoration: none;
+  transform: translateY(-100%);
+  transition: transform 0.2s ease-in-out;
+  z-index: var(--z-max);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   TABLE ELEMENTS
+   ========================================================================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+th, td {
+  text-align: start;
+  padding: var(--space-2) var(--space-3);
+}
+
+th {
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+/* ==========================================================================
+   PREFORMATTED TEXT & CODE
+   ========================================================================== */
+
+pre, code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+pre {
+  overflow-x: auto;
+  padding: var(--space-4);
+  background-color: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  tab-size: 2;
+}
+
+code {
+  padding: 0.15em 0.3em;
+  background-color: var(--color-bg-elevated);
+  border-radius: var(--radius-sm);
+}
+
+pre code {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
+kbd {
+  padding: 0.15em 0.4em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-elevated);
+  font-size: 0.85em;
+}
+
+/* ==========================================================================
+   BLOCKQUOTES & CITATIONS
+   ========================================================================== */
+
+blockquote {
+  border-inline-start: 4px solid var(--color-primary);
+  padding-inline-start: var(--space-4);
+  font-style: italic;
+}
+
+cite {
+  font-style: normal;
+  font-size: var(--type-sm);
+  color: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   HORIZONTAL RULES
+   ========================================================================== */
+
+hr {
+  border: none;
+  height: 1px;
+  background-color: var(--color-border);
+  margin-block: var(--space-8);
+}
+
+/* ==========================================================================
+   MISC ELEMENTS
+   ========================================================================== */
+
+/* Details/Summary */
+details {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold, 600);
+  user-select: none;
+}
+
+details[open] summary {
+  margin-bottom: var(--space-4);
+}
+
+/* Mark (highlighted text) */
+mark {
+  background-color: hsla(var(--param-hue-primary, 220), 100%, 50%, 0.3);
+  padding: 0.1em 0.2em;
+  border-radius: var(--radius-sm);
+}
+
+/* Abbreviations */
+abbr[title] {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* Address */
+address {
+  font-style: normal;
+}
+
+/* Selection */
+::selection {
+  background-color: hsla(var(--param-hue-primary, 220), 100%, 50%, 0.3);
+  color: inherit;
+}
+
+/* Placeholder */
+::placeholder {
+  color: var(--color-text-subtle);
+  opacity: 1;
+}
+
+/* ==========================================================================
+   HIDDEN UTILITIES
+   ========================================================================== */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Hidden from everyone */
+[hidden] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   DIALOG / MODAL
+   ========================================================================== */
+
+dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: min(90vw, 500px);
+  max-height: min(90vh, 80vh);
+}
+
+dialog::backdrop {
+  background-color: hsla(0, 0%, 0%, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+/* Fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(1px)) {
+  dialog::backdrop {
+    background-color: hsla(0, 0%, 0%, 0.9);
+  }
+}
+
+/* ==========================================================================
+   PRINT STYLES
+   ========================================================================== */
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+
+  abbr[title]::after {
+    content: " (" attr(title) ")";
+  }
+
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after {
+    content: "";
+  }
+
+  pre {
+    white-space: pre-wrap !important;
+  }
+
+  pre, blockquote {
+    border: 1px solid #999;
+    page-break-inside: avoid;
+  }
+
+  tr, img {
+    page-break-inside: avoid;
+  }
+
+  p, h2, h3 {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+}

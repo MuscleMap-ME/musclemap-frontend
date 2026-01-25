@@ -1,0 +1,475 @@
+/**
+ * MuscleMap Fallback Cascade - Progressive Enhancement
+ *
+ * Implements the 4-tier rendering system using CSS @supports
+ * Features gracefully degrade from FULL → REDUCED → MINIMAL → TEXT-ONLY
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+
+/* ==========================================================================
+   TIER 4: TEXT-ONLY (Base Layer - Always Works)
+   No CSS features required - pure semantic HTML
+   ========================================================================== */
+
+/* Base text-only styles - these work EVERYWHERE */
+.glass-card,
+.glass-button,
+.glass-surface {
+  /* Solid backgrounds as base */
+  background-color: var(--color-bg-elevated, #1a1a1a);
+  color: var(--color-text, #ffffff);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+}
+
+.glass-button {
+  padding: var(--button-padding-y, 0.5rem) var(--button-padding-x, 1rem);
+  cursor: pointer;
+}
+
+.glass-card {
+  padding: var(--card-padding, 1rem);
+}
+
+/* ==========================================================================
+   TIER 3: MINIMAL (Basic CSS Features)
+   Requires: border-radius, box-shadow
+   ========================================================================== */
+
+@supports (border-radius: 1px) and (box-shadow: 0 0 1px black) {
+  .glass-card,
+  .glass-surface {
+    border-radius: var(--card-radius, var(--radius-lg, 8px));
+  }
+
+  .glass-button {
+    border-radius: var(--button-radius, var(--radius-md, 4px));
+  }
+
+  /* Simple shadows for depth */
+  .glass-card {
+    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+  }
+}
+
+/* ==========================================================================
+   TIER 2: REDUCED (No Animations, Limited Effects)
+   Requires: CSS custom properties, transforms
+   Active when: prefers-reduced-motion, iOS+Brave, save-data
+   ========================================================================== */
+
+@supports (--custom: property) and (transform: translateX(1px)) {
+  /* Semi-transparent backgrounds */
+  .glass-card,
+  .glass-surface {
+    background-color: var(--color-surface, hsla(220, 20%, 15%, 0.9));
+  }
+
+  /* Hover states without animation */
+  .glass-button:hover {
+    background-color: var(--color-surface-hover, hsla(220, 20%, 20%, 0.95));
+  }
+
+  .glass-button:active {
+    transform: scale(0.98);
+  }
+
+  /* Interactive hover for cards */
+  .glass-card:hover {
+    border-color: var(--color-border-strong, rgba(255, 255, 255, 0.2));
+  }
+
+  /* Glow effect without animation */
+  .glow {
+    box-shadow: var(--glow-md, 0 0 20px rgba(0, 102, 255, 0.4));
+  }
+}
+
+/* ==========================================================================
+   TIER 1: FULL (All Features)
+   Requires: backdrop-filter, CSS animations
+   ========================================================================== */
+
+@supports (backdrop-filter: blur(1px)) {
+  /* Glassmorphism effect */
+  .glass-card,
+  .glass-surface {
+    background-color: var(--color-surface, hsla(220, 20%, 15%, 0.8));
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  .glass-nav {
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+  }
+
+  /* Light glass variant */
+  .glass-light {
+    background-color: hsla(0, 0%, 100%, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Dark glass variant */
+  .glass-dark {
+    background-color: hsla(0, 0%, 0%, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Frosted glass */
+  .glass-frost {
+    background-color: hsla(220, 30%, 20%, 0.4);
+    backdrop-filter: blur(40px) saturate(120%);
+    -webkit-backdrop-filter: blur(40px) saturate(120%);
+  }
+}
+
+/* Animations only when motion is OK */
+@supports (animation-duration: 1s) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Animated hover states */
+    .glass-card,
+    .glass-button,
+    .glass-surface {
+      transition:
+        background-color var(--duration-fast, 150ms) var(--ease-default, ease),
+        border-color var(--duration-fast, 150ms) var(--ease-default, ease),
+        transform var(--duration-fast, 150ms) var(--ease-default, ease),
+        box-shadow var(--duration-fast, 150ms) var(--ease-default, ease);
+    }
+
+    /* Hover lift effect */
+    .glass-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+    }
+
+    /* Button hover scale */
+    .glass-button:hover {
+      transform: scale(var(--interactive-hover-scale, 1.02));
+    }
+
+    /* Animated glow */
+    .glow-animated {
+      animation: glowPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% {
+        box-shadow: var(--glow-sm, 0 0 10px rgba(0, 102, 255, 0.3));
+      }
+      50% {
+        box-shadow: var(--glow-lg, 0 0 40px rgba(0, 102, 255, 0.5));
+      }
+    }
+
+    /* Fade in animation */
+    .animate-fade-in {
+      animation: fadeIn var(--duration-normal, 300ms) var(--ease-out, ease-out) forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Slide animations */
+    .animate-slide-up {
+      animation: slideUp var(--duration-normal, 300ms) var(--ease-out, ease-out) forwards;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-down {
+      animation: slideDown var(--duration-normal, 300ms) var(--ease-out, ease-out) forwards;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Scale animation */
+    .animate-scale-in {
+      animation: scaleIn var(--duration-fast, 150ms) var(--ease-spring, ease) forwards;
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* Stagger children */
+    .stagger-children > * {
+      animation: fadeIn var(--duration-normal, 300ms) var(--ease-out, ease-out) forwards;
+      opacity: 0;
+    }
+
+    .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+    .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+    .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+    .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+    .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+    .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+    .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+    .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+    .stagger-children > *:nth-child(n + 9) { animation-delay: 400ms; }
+  }
+}
+
+/* ==========================================================================
+   CONTAINER QUERIES (Modern browsers only)
+   ========================================================================== */
+
+@supports (container-type: inline-size) {
+  /* Define container contexts */
+  .container-query {
+    container-type: inline-size;
+  }
+
+  .container-query-name {
+    container-type: inline-size;
+    container-name: card;
+  }
+
+  /* Responsive card layouts based on container width */
+  @container (min-width: 400px) {
+    .cq-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-4);
+    }
+  }
+
+  @container (min-width: 600px) {
+    .cq-card-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @container (min-width: 800px) {
+    .cq-card-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+}
+
+/* ==========================================================================
+   SUBGRID (Very modern browsers)
+   ========================================================================== */
+
+@supports (grid-template-columns: subgrid) {
+  .subgrid-container {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--space-4);
+  }
+
+  .subgrid-item {
+    display: grid;
+    grid-template-columns: subgrid;
+  }
+}
+
+/* Fallback for non-subgrid browsers */
+@supports not (grid-template-columns: subgrid) {
+  .subgrid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+/* ==========================================================================
+   CSS NESTING (Very modern browsers)
+   ========================================================================== */
+
+@supports (selector(&)) {
+  /* Native nesting support available */
+  .supports-nesting::before {
+    content: '';
+  }
+}
+
+/* ==========================================================================
+   COLOR-MIX (Modern color manipulation)
+   ========================================================================== */
+
+@supports (color: color-mix(in srgb, red, blue)) {
+  :root {
+    /* Generate tints and shades dynamically */
+    --color-primary-tint: color-mix(in srgb, var(--color-primary) 80%, white);
+    --color-primary-shade: color-mix(in srgb, var(--color-primary) 80%, black);
+
+    /* Hover states via color mixing */
+    --color-surface-hover-computed: color-mix(
+      in srgb,
+      var(--color-surface) 90%,
+      white
+    );
+  }
+}
+
+/* ==========================================================================
+   HAS SELECTOR (Modern contextual styling)
+   ========================================================================== */
+
+@supports selector(:has(*)) {
+  /* Style parent based on child state */
+  .form-group:has(input:focus) {
+    background-color: var(--color-bg-elevated);
+    border-color: var(--color-primary);
+  }
+
+  .card:has(.badge-new) {
+    border-color: var(--color-primary);
+  }
+
+  /* Empty state detection */
+  .list:has(:not(*)) {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   DATA ATTRIBUTES FOR RENDERING TIERS
+   ========================================================================== */
+
+/* Full tier overrides */
+[data-rendering-tier="full"] {
+  /* All features enabled - defaults apply */
+}
+
+/* Reduced tier - disable animations and blur */
+[data-rendering-tier="reduced"] .glass-card,
+[data-rendering-tier="reduced"] .glass-surface,
+[data-rendering-tier="reduced"] .glass-button {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: var(--color-surface, hsla(220, 20%, 15%, 0.95));
+  transition: none;
+}
+
+[data-rendering-tier="reduced"] .glow,
+[data-rendering-tier="reduced"] .glow-animated {
+  animation: none;
+  box-shadow: none;
+}
+
+/* Minimal tier - flat design */
+[data-rendering-tier="minimal"] .glass-card,
+[data-rendering-tier="minimal"] .glass-surface,
+[data-rendering-tier="minimal"] .glass-button {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: var(--color-bg-elevated, #1a1a1a);
+  box-shadow: none;
+  border: 1px solid var(--color-border);
+  transition: none;
+}
+
+[data-rendering-tier="minimal"] .glow,
+[data-rendering-tier="minimal"] .glow-animated,
+[data-rendering-tier="minimal"] .shadow-lg,
+[data-rendering-tier="minimal"] .shadow-xl {
+  box-shadow: none;
+}
+
+/* Text-only tier - maximum simplicity */
+[data-rendering-tier="text-only"] {
+  --font-sans: system-ui, sans-serif;
+  --font-mono: monospace;
+}
+
+[data-rendering-tier="text-only"] .glass-card,
+[data-rendering-tier="text-only"] .glass-surface {
+  background-color: transparent;
+  backdrop-filter: none;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   PRINT FALLBACKS
+   ========================================================================== */
+
+@media print {
+  .glass-card,
+  .glass-surface,
+  .glass-button {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: white !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+
+  .glow,
+  .glow-animated {
+    box-shadow: none !important;
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   FORCED COLORS MODE (High Contrast)
+   ========================================================================== */
+
+@media (forced-colors: active) {
+  .glass-card,
+  .glass-surface,
+  .glass-button {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: Canvas;
+    color: CanvasText;
+    border: 1px solid ButtonBorder;
+    forced-color-adjust: none;
+  }
+
+  .glass-button {
+    background-color: ButtonFace;
+    color: ButtonText;
+  }
+
+  .glass-button:hover {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  .glow,
+  .glow-animated {
+    box-shadow: none;
+  }
+}

@@ -19,6 +19,12 @@ export { HealthSyncSheet } from './HealthSyncSheet';
 // Export and data portability
 export { ExportSheet } from './ExportSheet';
 
+// Templates
+export { WorkoutTemplatesSheet } from './WorkoutTemplatesSheet';
+
+// Rest Timer
+export { InlineRestTimer, useRestTimer } from './InlineRestTimer';
+
 // Offline and accessibility
 export { OfflineIndicator } from './OfflineIndicator';
 export {

@@ -1355,4 +1355,359 @@ p {
 
 ---
 
-*This master plan transforms MuscleMap from a good fitness app into a universal, timeless experience that embodies the mathematical beauty of Knuth's typographic principles while working flawlessly from screen readers to Vision Pro.*
+## Part XI: Internationalization & Localization (i18n/L10n)
+
+### The Troika: Three Guiding Principles
+
+1. **Maximum Flexibility** — Support any language, writing direction, measurement system
+2. **Maximum User Choice** — Users control every aspect of their experience
+3. **Maximum Performance** — Localization adds zero perceptible latency
+
+### 11.1 Language Support (26+ Languages)
+
+**Target Languages (Phase 1):**
+| Region | Languages |
+|--------|-----------|
+| **Americas** | English (US), English (UK), Spanish, Portuguese (BR), French (CA) |
+| **Europe** | German, French, Italian, Spanish, Portuguese, Dutch, Polish, Swedish, Norwegian, Danish, Finnish |
+| **Middle East** | Arabic, Hebrew, Turkish |
+| **Asia** | Japanese, Korean, Chinese (Simplified), Chinese (Traditional), Hindi, Thai, Vietnamese |
+| **Other** | Russian |
+
+### 11.2 Writing Direction System
+
+**Full bidirectional support with CSS Logical Properties:**
+
+```css
+/* Use logical properties instead of physical */
+.card {
+  /* Instead of margin-left/right, use: */
+  margin-inline-start: var(--space-4);
+  margin-inline-end: var(--space-2);
+
+  /* Instead of padding-top/bottom, use: */
+  padding-block-start: var(--space-3);
+  padding-block-end: var(--space-3);
+
+  /* Instead of left/right for positioning: */
+  inset-inline-start: 0;
+}
+
+/* Direction-aware flexbox */
+.row {
+  display: flex;
+  flex-direction: row; /* Automatically reverses in RTL */
+}
+
+/* Explicit direction control */
+html[dir="rtl"] {
+  --direction-coefficient: -1;
+}
+
+html[dir="ltr"] {
+  --direction-coefficient: 1;
+}
+
+/* For icons/arrows that need manual flipping */
+.directional-icon {
+  transform: scaleX(var(--direction-coefficient, 1));
+}
+```
+
+**Supported Writing Modes:**
+
+| Mode | CSS Value | Languages |
+|------|-----------|-----------|
+| **LTR Horizontal** | `direction: ltr; writing-mode: horizontal-tb;` | English, German, Spanish, etc. |
+| **RTL Horizontal** | `direction: rtl; writing-mode: horizontal-tb;` | Arabic, Hebrew, Persian |
+| **Vertical RTL** | `writing-mode: vertical-rl;` | Japanese (traditional), Chinese (traditional) |
+| **Vertical LTR** | `writing-mode: vertical-lr;` | Mongolian (traditional) |
+
+```typescript
+// Writing direction hook
+function useWritingDirection() {
+  const { locale } = useLocale();
+
+  const config = useMemo(() => {
+    const rtlLocales = ['ar', 'he', 'fa', 'ur'];
+    const verticalLocales = ['ja-vertical', 'zh-vertical', 'mn-vertical'];
+
+    return {
+      dir: rtlLocales.includes(locale) ? 'rtl' : 'ltr',
+      writingMode: verticalLocales.includes(locale) ? 'vertical-rl' : 'horizontal-tb',
+      isRTL: rtlLocales.includes(locale),
+      isVertical: verticalLocales.includes(locale),
+    };
+  }, [locale]);
+
+  return config;
+}
+```
+
+### 11.3 Measurement Systems
+
+**Support for all major systems:**
+
+```typescript
+type MeasurementSystem = 'metric' | 'imperial' | 'custom';
+
+interface MeasurementConfig {
+  system: MeasurementSystem;
+  weight: 'kg' | 'lb' | 'stone';
+  distance: 'km' | 'mi';
+  height: 'cm' | 'ft-in';
+  temperature: 'celsius' | 'fahrenheit';
+  dateFormat: string; // e.g., 'DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'
+  timeFormat: '12h' | '24h';
+  firstDayOfWeek: 0 | 1 | 5 | 6; // Sun, Mon, Fri, Sat
+  numberFormat: {
+    decimal: '.' | ',';
+    thousands: ',' | '.' | ' ' | "'";
+  };
+}
+
+// Presets by region
+const measurementPresets: Record<string, MeasurementConfig> = {
+  'en-US': {
+    system: 'imperial',
+    weight: 'lb',
+    distance: 'mi',
+    height: 'ft-in',
+    temperature: 'fahrenheit',
+    dateFormat: 'MM/DD/YYYY',
+    timeFormat: '12h',
+    firstDayOfWeek: 0,
+    numberFormat: { decimal: '.', thousands: ',' },
+  },
+  'en-GB': {
+    system: 'metric',
+    weight: 'kg', // UK uses kg for gym
+    distance: 'mi', // But miles for distance
+    height: 'ft-in', // And feet-inches for height
+    temperature: 'celsius',
+    dateFormat: 'DD/MM/YYYY',
+    timeFormat: '24h',
+    firstDayOfWeek: 1,
+    numberFormat: { decimal: '.', thousands: ',' },
+  },
+  'de-DE': {
+    system: 'metric',
+    weight: 'kg',
+    distance: 'km',
+    height: 'cm',
+    temperature: 'celsius',
+    dateFormat: 'DD.MM.YYYY',
+    timeFormat: '24h',
+    firstDayOfWeek: 1,
+    numberFormat: { decimal: ',', thousands: '.' },
+  },
+  // ... more presets
+};
+```
+
+### 11.4 Time Zones
+
+**Full timezone support with user override:**
+
+```typescript
+interface TimezoneConfig {
+  timezone: string; // IANA timezone (e.g., 'America/New_York')
+  autoDetect: boolean;
+  showTimezoneInDates: boolean;
+  workoutTimezone: 'local' | 'gym' | 'home'; // Where was the workout done?
+}
+
+// Hook for timezone-aware dates
+function useTimezone() {
+  const { timezone, autoDetect } = useUserPreferences();
+
+  const effectiveTimezone = useMemo(() => {
+    if (autoDetect) {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+    return timezone;
+  }, [timezone, autoDetect]);
+
+  const formatDate = useCallback((date: Date, options?: Intl.DateTimeFormatOptions) => {
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: effectiveTimezone,
+      ...options,
+    }).format(date);
+  }, [effectiveTimezone, locale]);
+
+  return { timezone: effectiveTimezone, formatDate };
+}
+```
+
+### 11.5 Translation Architecture
+
+**Namespace-based loading for performance:**
+
+```typescript
+// Only load translations for current page
+const namespaces = {
+  common: ['buttons', 'navigation', 'errors'],
+  dashboard: ['stats', 'charts', 'goals'],
+  workout: ['exercises', 'sets', 'timer'],
+  settings: ['preferences', 'account', 'display'],
+  social: ['feed', 'messages', 'crews'],
+};
+
+// Lazy load translations per route
+function useTranslations(namespace: keyof typeof namespaces) {
+  const { locale } = useLocale();
+
+  const { data: translations, isLoading } = useQuery({
+    queryKey: ['translations', locale, namespace],
+    queryFn: () => import(`@/locales/${locale}/${namespace}.json`),
+    staleTime: Infinity, // Translations don't change during session
+  });
+
+  return { t: (key: string) => translations?.[key] ?? key, isLoading };
+}
+```
+
+**Translation file structure:**
+
+```
+src/locales/
+├── en/
+│   ├── common.json
+│   ├── dashboard.json
+│   ├── workout.json
+│   └── ...
+├── de/
+│   └── ...
+├── ar/
+│   └── ...
+└── ja/
+    └── ...
+```
+
+### 11.6 Font Support by Script
+
+**Script-specific font stacks:**
+
+```css
+:root {
+  /* Latin scripts (most European languages) */
+  --font-latin: 'Inter var', system-ui, sans-serif;
+
+  /* Arabic script */
+  --font-arabic: 'Noto Sans Arabic', 'Geeza Pro', sans-serif;
+
+  /* Hebrew script */
+  --font-hebrew: 'Noto Sans Hebrew', 'Arial Hebrew', sans-serif;
+
+  /* CJK (Chinese, Japanese, Korean) */
+  --font-cjk: 'Noto Sans CJK', 'Hiragino Sans', 'Microsoft YaHei', sans-serif;
+
+  /* Devanagari (Hindi) */
+  --font-devanagari: 'Noto Sans Devanagari', sans-serif;
+
+  /* Thai */
+  --font-thai: 'Noto Sans Thai', 'Thonburi', sans-serif;
+}
+
+/* Apply based on lang attribute */
+:lang(ar), :lang(fa), :lang(ur) {
+  font-family: var(--font-arabic);
+}
+
+:lang(he) {
+  font-family: var(--font-hebrew);
+}
+
+:lang(ja), :lang(zh), :lang(ko) {
+  font-family: var(--font-cjk);
+}
+
+:lang(hi) {
+  font-family: var(--font-devanagari);
+}
+
+:lang(th) {
+  font-family: var(--font-thai);
+}
+```
+
+### 11.7 User Preference UI
+
+**Settings page structure:**
+
+```tsx
+function LocalizationSettings() {
+  return (
+    <SettingsSection title="Language & Region">
+      {/* Language selector with native names */}
+      <LanguageSelector
+        options={[
+          { value: 'en-US', label: 'English (US)', native: 'English' },
+          { value: 'de-DE', label: 'German', native: 'Deutsch' },
+          { value: 'ja-JP', label: 'Japanese', native: '日本語' },
+          { value: 'ar-SA', label: 'Arabic', native: 'العربية' },
+          // ... 26 languages
+        ]}
+      />
+
+      {/* Time zone */}
+      <TimezoneSelector
+        autoDetect={true}
+        showCurrentTime={true}
+      />
+
+      {/* Measurement system with granular control */}
+      <MeasurementSettings
+        presets={['metric', 'imperial', 'custom']}
+        customOptions={['weight', 'distance', 'height', 'temperature']}
+      />
+
+      {/* Date & time format */}
+      <DateTimeSettings
+        dateFormats={['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']}
+        timeFormats={['12h', '24h']}
+        firstDayOfWeek={['Sunday', 'Monday', 'Friday', 'Saturday']}
+      />
+
+      {/* Number format preview */}
+      <NumberFormatPreview
+        sample={1234567.89}
+      />
+
+      {/* Writing direction (usually auto but can override) */}
+      <WritingDirectionSelector
+        options={['auto', 'ltr', 'rtl']}
+        showPreview={true}
+      />
+    </SettingsSection>
+  );
+}
+```
+
+### 11.8 Implementation Phases for i18n
+
+**Phase 1 (Week 13-14): Infrastructure**
+- [ ] Set up i18n framework (react-i18next or similar)
+- [ ] CSS logical properties migration
+- [ ] RTL layout testing framework
+- [ ] Timezone utility functions
+
+**Phase 2 (Week 15-16): Core Languages**
+- [ ] English (US/UK) baseline
+- [ ] Spanish, French, German, Portuguese
+- [ ] Professional translation for UI strings
+
+**Phase 3 (Week 17-18): Extended Languages**
+- [ ] Arabic, Hebrew (RTL support)
+- [ ] Japanese, Korean, Chinese
+- [ ] Thai, Vietnamese, Hindi
+
+**Phase 4 (Week 19-20): Polish & QA**
+- [ ] Native speaker review
+- [ ] RTL layout fixes
+- [ ] Measurement conversion accuracy
+- [ ] Date/time format validation
+
+---
+
+*This master plan transforms MuscleMap from a good fitness app into a universal, timeless experience that embodies the mathematical beauty of Knuth's typographic principles while working flawlessly from screen readers to Vision Pro, in 26 languages and every writing direction.*

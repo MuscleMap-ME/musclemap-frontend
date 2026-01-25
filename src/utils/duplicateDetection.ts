@@ -276,7 +276,7 @@ export function detectDuplicates(
     checkSets?: boolean;
   } = {}
 ): DuplicateCheckResult {
-  const { threshold = 0.8, checkSets = true } = options;
+  const { threshold = 0.8, checkSets: _checkSets = true } = options;
   const duplicates: DuplicateResult[] = [];
   const suggestions: string[] = [];
 

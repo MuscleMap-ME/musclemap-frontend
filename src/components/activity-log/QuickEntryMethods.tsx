@@ -59,8 +59,7 @@ const ENTRY_METHODS: EntryMethodConfig[] = [
     description: 'OCR import',
     icon: Camera,
     color: 'from-orange-600 to-orange-500',
-    available: false,
-    comingSoon: 'Phase 2',
+    available: true,
   },
   {
     id: 'file',
@@ -68,8 +67,7 @@ const ENTRY_METHODS: EntryMethodConfig[] = [
     description: 'CSV, JSON',
     icon: FileUp,
     color: 'from-cyan-600 to-cyan-500',
-    available: false,
-    comingSoon: 'Phase 3',
+    available: true,
   },
   {
     id: 'health',

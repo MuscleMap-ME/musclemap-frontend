@@ -15,6 +15,7 @@
 | **Separation of Concerns** | Content (data) → Structure (HTML) → Presentation (computed) |
 | **Universal Rendering** | 4 tiers: full → reduced → minimal → text-only |
 | **Progressive Enhancement** | Works everywhere, shines where possible |
+| **The Troika** | Maximum Flexibility, Maximum User Choice, Maximum Performance |
 
 ---
 
@@ -81,6 +82,36 @@
 - [ ] Screen reader testing
 - [ ] Performance profiling
 - [ ] Visual regression tests
+
+### Phase 8: Internationalization Infrastructure (Weeks 17-18)
+- [ ] Set up i18n framework (react-i18next)
+- [ ] CSS logical properties migration
+- [ ] RTL layout support
+- [ ] Timezone utility functions
+- [ ] Measurement system converters
+- [ ] Date/time formatting library
+
+### Phase 9: Core Languages (Weeks 19-20)
+- [ ] English (US/UK) baseline extraction
+- [ ] Spanish translation
+- [ ] French translation
+- [ ] German translation
+- [ ] Portuguese (BR) translation
+
+### Phase 10: Extended Languages (Weeks 21-22)
+- [ ] Arabic (RTL support)
+- [ ] Hebrew (RTL support)
+- [ ] Japanese
+- [ ] Korean
+- [ ] Chinese (Simplified/Traditional)
+- [ ] Additional European languages
+
+### Phase 11: i18n Polish & QA (Weeks 23-24)
+- [ ] Native speaker review for all languages
+- [ ] RTL layout fixes
+- [ ] Measurement conversion accuracy testing
+- [ ] Date/time format validation
+- [ ] Script-specific font loading optimization
 
 ---
 
@@ -217,9 +248,9 @@ pnpm build:intelligent      # Production build
 
 ## Status
 
-**Current Phase:** Planning
+**Current Phase:** Phase 1 - Foundation
 **Started:** 2026-01-25
-**Target Completion:** 16 weeks from start
+**Target Completion:** 24 weeks from start (includes i18n phases)
 
 ---
 

@@ -46,10 +46,28 @@
 
   <!-- Note: API is at /api on same domain, no preconnect needed -->
 
-  <!-- Self-hosted fonts - use prefetch for non-blocking load without console warnings -->
+  <!-- Critical fonts - PRELOAD for instant render (variable fonts) -->
+  <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+
+  <!-- Secondary fonts - PREFETCH for non-blocking background load -->
+  <link rel="prefetch" href="/fonts/jetbrains-mono-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="prefetch" href="/fonts/source-serif-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="prefetch" href="/fonts/latin-modern-roman.woff2" as="font" type="font/woff2" crossorigin>
+
+  <!-- Legacy static fonts - fallback prefetch -->
   <link rel="prefetch" href="/fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="prefetch" href="/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="prefetch" href="/fonts/bebas-neue.woff2" as="font" type="font/woff2" crossorigin>
+
+  <!-- Inline critical @font-face to avoid FOIT -->
+  <style>
+    @font-face {
+      font-family: 'Inter var';
+      src: url('/fonts/inter-var.woff2') format('woff2');
+      font-weight: 100 900;
+      font-display: swap;
+      font-style: normal;
+    }
+  </style>
 
   <!-- App Icons -->
   <link rel="manifest" href="/manifest.json">
