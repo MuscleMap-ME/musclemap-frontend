@@ -53,8 +53,15 @@ export default function Login() {
       // User should go to dashboard if they have an archetype (completed onboarding)
       const hasCompletedOnboarding = !!user.archetype;
       navigate(hasCompletedOnboarding ? '/dashboard' : '/onboarding');
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Login failed'));
+    } catch (err: any) {
+      // Apollo GraphQL errors have a graphQLErrors array
+      const gqlError = err?.graphQLErrors?.[0]?.message;
+      // Network errors have a message property
+      const networkError = err?.networkError?.message;
+      // Standard error message
+      const standardError = err?.message;
+
+      setError(gqlError || networkError || extractErrorMessage(standardError, 'Login failed'));
     }
   };
 
