@@ -343,25 +343,31 @@ export class PrescriptionEngine {
 
   /**
    * Get user's current periodization phase
+   * Returns null if user has no active training cycle (most users won't)
    */
   private async getCurrentTrainingPhase(userId: string): Promise<TrainingPhase | null> {
-    const phase = await queryOne<TrainingPhase>(`
-      SELECT
-        tp.phase_type,
-        tp.volume_modifier,
-        tp.intensity_modifier,
-        tp.recommended_exercise_types as exercise_types
-      FROM training_weeks tw
-      JOIN training_phases tp ON tp.id = tw.phase_id
-      JOIN training_cycles tc ON tc.id = tp.cycle_id
-      WHERE tc.user_id = $1
-      AND tc.status = 'active'
-      AND tw.week_number = (
-        SELECT EXTRACT(WEEK FROM NOW()) - EXTRACT(WEEK FROM tc.start_date) + 1
-      )
-    `, [userId]);
+    try {
+      const phase = await queryOne<TrainingPhase>(`
+        SELECT
+          tp.phase_type,
+          tp.volume_modifier,
+          (tp.intensity_range_low + tp.intensity_range_high) / 2.0 as intensity_modifier,
+          tp.focus_areas as exercise_types
+        FROM training_weeks tw
+        JOIN training_phases tp ON tp.id = tw.phase_id
+        JOIN training_cycles tc ON tc.id = tp.cycle_id
+        WHERE tc.user_id = $1
+        AND tc.status = 'active'
+        AND tw.week_number = (
+          SELECT EXTRACT(WEEK FROM NOW()) - EXTRACT(WEEK FROM tc.start_date) + 1
+        )
+      `, [userId]);
 
-    return phase ?? null;
+      return phase ?? null;
+    } catch {
+      // Most users won't have training cycles set up, so return null gracefully
+      return null;
+    }
   }
 
   /**
