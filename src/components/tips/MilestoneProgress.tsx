@@ -2,12 +2,14 @@
  * MilestoneProgress Component
  *
  * Displays user's milestone progress with progress bars.
+ * Uses GraphQL query instead of REST API.
  */
 
-import React, { useEffect, useState } from 'react';
-import { request } from '../../utils/httpClient';
+import React from 'react';
+import { useQuery } from '@apollo/client/react';
+import { MILESTONES_QUERY } from '../../graphql/queries';
 
-const MILESTONE_ICONS = {
+const MILESTONE_ICONS: Record<string, string> = {
   first_workout: '🎉',
   workouts_10: '🔥',
   workouts_50: '⚡',
@@ -20,8 +22,20 @@ const MILESTONE_ICONS = {
   hours_10: '⏱️',
 };
 
-function MilestoneItem({ milestone }) {
-  const isComplete = !!milestone.completed_at;
+interface Milestone {
+  id: string;
+  name: string;
+  description?: string;
+  threshold: number;
+  currentValue: number;
+  progress: number;
+  completedAt?: string;
+  reward?: number;
+  rewardClaimed?: boolean;
+}
+
+function MilestoneItem({ milestone }: { milestone: Milestone }) {
+  const isComplete = !!milestone.completedAt;
   const icon = MILESTONE_ICONS[milestone.id] || '🏅';
 
   return (
@@ -51,7 +65,7 @@ function MilestoneItem({ milestone }) {
                 />
               </div>
               <div className="text-xs text-gray-500">
-                {milestone.current_value} / {milestone.threshold}
+                {milestone.currentValue} / {milestone.threshold}
               </div>
             </>
           )}
@@ -65,24 +79,12 @@ function MilestoneItem({ milestone }) {
   );
 }
 
-export default function MilestoneProgress({ limit = 6 }) {
-  const [milestones, setMilestones] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function MilestoneProgress({ limit = 6 }: { limit?: number }) {
+  const { data, loading } = useQuery(MILESTONES_QUERY, {
+    fetchPolicy: 'cache-first',
+  });
 
-  useEffect(() => {
-    const fetchMilestones = async () => {
-      try {
-        const response = await request('/milestones');
-        setMilestones(response?.data || []);
-      } catch (error) {
-        console.error('Failed to fetch milestones:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMilestones();
-  }, []);
+  const milestones: Milestone[] = data?.milestones || [];
 
   if (loading) {
     return (
@@ -113,10 +115,10 @@ export default function MilestoneProgress({ limit = 6 }) {
 
   // Sort: incomplete first (by progress desc), then complete (by completion date desc)
   const sorted = [...milestones].sort((a, b) => {
-    if (a.completed_at && !b.completed_at) return 1;
-    if (!a.completed_at && b.completed_at) return -1;
-    if (a.completed_at && b.completed_at) {
-      return new Date(b.completed_at) - new Date(a.completed_at);
+    if (a.completedAt && !b.completedAt) return 1;
+    if (!a.completedAt && b.completedAt) return -1;
+    if (a.completedAt && b.completedAt) {
+      return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
     }
     return b.progress - a.progress;
   });

@@ -16,26 +16,36 @@ import { checkAndPruneStorage, requestPersistentStorage } from './lib/storage-ma
 import { storage } from './lib/storage'
 
 // Ultra-early bootstrap logging
+// Only log to console for routine operations - server logging reserved for errors
 const bootLog = (phase: string, msg: string, error?: unknown) => {
   const errorMsg = error instanceof Error ? error.message : (error ? String(error) : '');
   const fullMessage = `[${phase}] ${msg}${errorMsg ? ': ' + errorMsg : ''}`;
-  console.log('[MM-Boot]', fullMessage);
-  // Send to server (fire and forget)
-  try {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/client-error', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify({
-      type: 'boot_log',
-      message: fullMessage,
-      source: 'main.tsx',
-      line: 0,
-      col: 0,
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      time: new Date().toISOString(),
-      extra: { phase, msg, error: errorMsg }
-    }));
-  } catch { /* ignore */ }
+
+  // In production, only log errors to console to reduce noise
+  if (process.env.NODE_ENV === 'production' && !error) {
+    return; // Skip routine logs in production
+  }
+
+  console.info('[MM-Boot]', fullMessage);
+
+  // Only send actual errors to server, not routine boot logs
+  if (error) {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/client-error', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({
+        type: 'boot_error',
+        message: fullMessage,
+        source: 'main.tsx',
+        line: 0,
+        col: 0,
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        time: new Date().toISOString(),
+        extra: { phase, msg, error: errorMsg }
+      }));
+    } catch { /* ignore */ }
+  }
 };
 
 bootLog('init', 'Module imports completed successfully');

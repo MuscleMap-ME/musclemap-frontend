@@ -16,9 +16,14 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'off', // Disabled - using any is acceptable for flexibility
+      // Type safety rules - CRITICAL for preventing runtime errors
+      '@typescript-eslint/no-explicit-any': 'warn', // Warn on explicit 'any' - use proper types
+      '@typescript-eslint/no-unsafe-assignment': 'off', // TODO: Enable after fixing existing issues
+      '@typescript-eslint/no-unsafe-call': 'off', // TODO: Enable after fixing existing issues
+      '@typescript-eslint/no-unsafe-member-access': 'off', // TODO: Enable after fixing existing issues
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
-      'no-console': 'off',
+      // Console.log rules - warn in development, should be error in production
+      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
     },
   },
   {

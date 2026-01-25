@@ -20,7 +20,10 @@ import {
   X,
   AlertTriangle,
   Dumbbell,
+  HelpCircle,
 } from 'lucide-react';
+import { GeolocationHelper } from '@/components/help/GeolocationHelper';
+import { useGeolocationWithHelp } from '@/hooks/useGeolocationWithHelp';
 
 const GET_VENUE = gql`
   query GetVenue($id: ID!) {
@@ -125,8 +128,26 @@ export function LocationDetail({
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [showVerifySuccess, setShowVerifySuccess] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  // Use the enhanced geolocation hook with help system
+  const {
+    position,
+    error: geoError,
+    loading: isGettingLocation,
+    showHelp,
+    platformInfo,
+    instructionKey,
+    requestLocation,
+    dismissHelp,
+    openHelp,
+    retryLocation,
+    clearError,
+  } = useGeolocationWithHelp({
+    enableHighAccuracy: true,
+    timeout: 15000,
+    maximumAge: 60000,
+  });
 
   const { data, loading, error, refetch } = useQuery(GET_VENUE, {
     variables: { id: venueId },
@@ -136,14 +157,15 @@ export function LocationDetail({
     onCompleted: (data) => {
       if (data.verifyVenue.success) {
         setShowVerifySuccess(true);
-        setGeoError(null);
+        setVerifyError(null);
+        clearError();
         setTimeout(() => setShowVerifySuccess(false), 3000);
         refetch();
       }
     },
     onError: (error) => {
       console.error('Verification error:', error);
-      setGeoError(error.message || 'Failed to verify venue');
+      setVerifyError(error.message || 'Failed to verify venue');
     },
   });
 
@@ -155,56 +177,46 @@ export function LocationDetail({
     },
   });
 
+  // Handle verification with geolocation
   const handleVerify = () => {
-    setGeoError(null);
+    setVerifyError(null);
+    clearError();
 
-    if (!navigator.geolocation) {
-      setGeoError('Your browser does not support location services. Please enable location access to verify this venue.');
+    // If we already have a valid position, use it
+    if (position) {
+      verifyVenue({
+        variables: {
+          venueId,
+          input: {
+            exists: true,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          },
+        },
+      });
       return;
     }
 
-    setIsGettingLocation(true);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setIsGettingLocation(false);
-        verifyVenue({
-          variables: {
-            venueId,
-            input: {
-              exists: true,
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            },
-          },
-        });
-      },
-      (error) => {
-        setIsGettingLocation(false);
-        // Provide user-friendly error messages based on error code
-        let errorMessage = 'Unable to get your location. ';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage += 'Location permission was denied. Please enable location access in your browser settings and try again.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage += 'Location information is unavailable. Please try again or move to an area with better GPS signal.';
-            break;
-          case error.TIMEOUT:
-            errorMessage += 'Location request timed out. Please try again.';
-            break;
-          default:
-            errorMessage += 'Please enable location services and try again.';
-        }
-        setGeoError(errorMessage);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000, // Allow cached location up to 1 minute old
-      }
-    );
+    // Otherwise, request location first
+    requestLocation();
   };
+
+  // When position is obtained, auto-verify
+  React.useEffect(() => {
+    if (position && !verifying && !showVerifySuccess) {
+      // Position just became available, trigger verification
+      verifyVenue({
+        variables: {
+          venueId,
+          input: {
+            exists: true,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          },
+        },
+      });
+    }
+  }, [position]);
 
   const handleReport = () => {
     if (!reportType || !reportDescription) return;
@@ -408,21 +420,47 @@ export function LocationDetail({
           </button>
         </div>
 
-        {/* Geolocation error message */}
-        {geoError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="block text-sm">{geoError}</span>
-              <button
-                onClick={() => setGeoError(null)}
-                className="text-xs text-red-600 underline mt-1"
-              >
-                Dismiss
-              </button>
+        {/* Geolocation error message with help button */}
+        {(geoError || verifyError) && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="block text-sm">{geoError?.message || verifyError}</span>
+                <div className="flex items-center gap-3 mt-2">
+                  {geoError?.type === 'permission_denied' && (
+                    <button
+                      onClick={openHelp}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                      Get Help
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      clearError();
+                      setVerifyError(null);
+                    }}
+                    className="text-xs text-red-600 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Geolocation Help Modal */}
+        <GeolocationHelper
+          isOpen={showHelp}
+          onClose={dismissHelp}
+          onRetry={retryLocation}
+          platformInfo={platformInfo}
+          instructionKey={instructionKey}
+          errorType={geoError?.type}
+        />
 
         {/* Success message */}
         {showVerifySuccess && (

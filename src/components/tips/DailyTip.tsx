@@ -2,33 +2,24 @@
  * DailyTip Component
  *
  * Displays a daily motivational tip on the dashboard.
+ * Uses GraphQL query instead of REST API.
  */
 
-import React, { useEffect, useState } from 'react';
-import { request } from '../../utils/httpClient';
+import React, { useState } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { TIPS_QUERY } from '../../graphql/queries';
 import TipCard from './TipCard';
 
 export default function DailyTip() {
-  const [tip, setTip] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    const fetchTip = async () => {
-      try {
-        const response = await request('/tips?context=dashboard&limit=1');
-        // API returns array, get first item
-        const tips = response?.data || [];
-        setTip(tips[0] || null);
-      } catch (error) {
-        console.error('Failed to fetch daily tip:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data, loading } = useQuery(TIPS_QUERY, {
+    variables: { context: 'dashboard' },
+    fetchPolicy: 'cache-first',
+  });
 
-    fetchTip();
-  }, []);
+  // Get first tip from results
+  const tip = data?.tips?.[0] || null;
 
   if (loading) {
     return (

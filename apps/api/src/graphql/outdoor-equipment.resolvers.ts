@@ -954,6 +954,123 @@ export const outdoorEquipmentQueries = {
     };
   },
 
+  // Get pending equipment suggestions for a venue
+  pendingEquipmentSuggestions: async (_: unknown, { venueId }: { venueId: string }) => {
+    interface SuggestionRow {
+      id: string;
+      venue_id: string;
+      user_id: string;
+      equipment_type: string;
+      quantity: number;
+      condition: string | null;
+      notes: string | null;
+      photo_url: string | null;
+      status: string;
+      support_count: number;
+      reject_count: number;
+      location_verified: boolean;
+      created_at: Date;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+    }
+
+    const rows = await queryAll<SuggestionRow>(`
+      SELECT es.*, u.username, u.display_name, u.avatar_url
+      FROM equipment_suggestions es
+      JOIN users u ON u.id = es.user_id
+      WHERE es.venue_id = $1 AND es.status = 'pending'
+      ORDER BY es.created_at DESC
+    `, [venueId]);
+
+    return rows.map(row => ({
+      id: row.id,
+      venueId: row.venue_id,
+      equipmentType: row.equipment_type,
+      quantity: row.quantity,
+      condition: row.condition,
+      notes: row.notes,
+      photoUrl: row.photo_url,
+      status: row.status,
+      supportCount: row.support_count,
+      rejectCount: row.reject_count,
+      suggestedBy: {
+        id: row.user_id,
+        username: row.username,
+        displayName: row.display_name,
+        avatar: row.avatar_url,
+      },
+      locationVerified: row.location_verified,
+      createdAt: row.created_at,
+    }));
+  },
+
+  // Get consensus data for equipment
+  equipmentConsensus: async (_: unknown, { equipmentItemId }: { equipmentItemId: string }) => {
+    // Get condition votes
+    interface ConditionVoteRow {
+      vote_value: string;
+      count: string;
+    }
+
+    const conditionVotes = await queryAll<ConditionVoteRow>(`
+      SELECT vote_value, COUNT(*) as count
+      FROM equipment_condition_votes
+      WHERE equipment_item_id = $1 AND vote_type = 'condition'
+      GROUP BY vote_value
+      ORDER BY count DESC
+    `, [equipmentItemId]);
+
+    // Get exists votes
+    interface ExistsVoteRow {
+      vote_value: string;
+      count: string;
+    }
+
+    const existsVotes = await queryAll<ExistsVoteRow>(`
+      SELECT vote_value, COUNT(*) as count
+      FROM equipment_condition_votes
+      WHERE equipment_item_id = $1 AND vote_type = 'exists'
+      GROUP BY vote_value
+    `, [equipmentItemId]);
+
+    // Get equipment confidence level
+    const equipment = await queryOne<{
+      confidence_level: string;
+      condition_vote_count: number;
+    }>(
+      `SELECT confidence_level, condition_vote_count FROM venue_equipment_items WHERE id = $1`,
+      [equipmentItemId]
+    );
+
+    // Get last verification
+    const lastVerified = await queryOne<{ created_at: Date }>(
+      `SELECT created_at FROM equipment_condition_votes
+       WHERE equipment_item_id = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [equipmentItemId]
+    );
+
+    const totalConditionVotes = conditionVotes.reduce((sum, v) => sum + parseInt(v.count), 0);
+    const totalExistsVotes = existsVotes.reduce((sum, v) => sum + parseInt(v.count), 0);
+
+    return {
+      totalVotes: totalConditionVotes + totalExistsVotes,
+      conditionVotes: conditionVotes.map(v => ({
+        condition: v.vote_value,
+        count: parseInt(v.count),
+        percentage: totalConditionVotes > 0 ? (parseInt(v.count) / totalConditionVotes) * 100 : 0,
+      })),
+      existsVotes: existsVotes.map(v => ({
+        exists: v.vote_value === 'yes',
+        count: parseInt(v.count),
+        percentage: totalExistsVotes > 0 ? (parseInt(v.count) / totalExistsVotes) * 100 : 0,
+      })),
+      lastVerifiedAt: lastVerified?.created_at || null,
+      confidenceLevel: equipment?.confidence_level || 'unverified',
+    };
+  },
+
   // Find exercises that can be done at a specific venue
   exercisesAtVenue: async (
     _: unknown,
@@ -1256,6 +1373,424 @@ export const outdoorEquipmentMutations = {
       submission: transformSubmission(submission),
       venue: null,
       message: 'Submission rejected',
+    };
+  },
+
+  // ============================================
+  // EQUIPMENT CORROBORATION MUTATIONS
+  // ============================================
+
+  // Suggest new equipment at an existing venue
+  suggestEquipment: async (
+    _: unknown,
+    { venueId, input }: {
+      venueId: string;
+      input: {
+        equipmentType: string;
+        quantity?: number;
+        condition?: string;
+        notes?: string;
+        photoUrl?: string;
+        latitude?: number;
+        longitude?: number;
+      };
+    },
+    context: Context
+  ) => {
+    const { userId } = requireAuth(context);
+
+    // Check venue exists
+    const venue = await queryOne<{ id: string; latitude: string; longitude: string }>(
+      `SELECT id, latitude, longitude FROM fitness_venues WHERE id = $1`,
+      [venueId]
+    );
+
+    if (!venue) {
+      throw new GraphQLError('Venue not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Calculate distance from venue if coordinates provided
+    let distance: number | null = null;
+    let locationVerified = false;
+
+    if (input.latitude && input.longitude) {
+      const venueLat = parseFloat(venue.latitude);
+      const venueLng = parseFloat(venue.longitude);
+      // Haversine formula for distance in meters
+      const R = 6371000; // Earth radius in meters
+      const dLat = (input.latitude - venueLat) * Math.PI / 180;
+      const dLng = (input.longitude - venueLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(venueLat * Math.PI / 180) * Math.cos(input.latitude * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance = R * c;
+      locationVerified = distance <= 500; // Within 500 meters
+    }
+
+    if (!locationVerified) {
+      throw new GraphQLError('You must be within 500 meters of the venue to suggest equipment', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    // Check daily limit (5 suggestions per user per day)
+    const todaySuggestions = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM equipment_suggestions
+       WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
+      [userId]
+    );
+
+    if (parseInt(todaySuggestions?.count || '0') >= 5) {
+      throw new GraphQLError('Daily suggestion limit reached. Try again tomorrow.', {
+        extensions: { code: 'TOO_MANY_REQUESTS' },
+      });
+    }
+
+    // Check for duplicate suggestion
+    const existing = await queryOne(
+      `SELECT id FROM equipment_suggestions
+       WHERE venue_id = $1 AND equipment_type = $2 AND status = 'pending'`,
+      [venueId, input.equipmentType]
+    );
+
+    if (existing) {
+      throw new GraphQLError('A similar equipment suggestion is already pending for this venue', {
+        extensions: { code: 'CONFLICT' },
+      });
+    }
+
+    // Create suggestion
+    const suggestion = await queryOne<{
+      id: string;
+      equipment_type: string;
+      status: string;
+      support_count: number;
+      created_at: Date;
+    }>(
+      `INSERT INTO equipment_suggestions (
+        venue_id, user_id, equipment_type, quantity, condition, notes, photo_url,
+        latitude, longitude, distance_from_venue, location_verified, credits_awarded
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 20)
+      RETURNING id, equipment_type, status, support_count, created_at`,
+      [
+        venueId, userId, input.equipmentType,
+        input.quantity || 1, input.condition || 'good', input.notes || null, input.photoUrl || null,
+        input.latitude, input.longitude, distance, locationVerified,
+      ]
+    );
+
+    // Award credits
+    await queryOne(
+      `UPDATE users SET credit_balance = credit_balance + 20 WHERE id = $1`,
+      [userId]
+    );
+
+    return {
+      success: true,
+      suggestion: {
+        id: suggestion!.id,
+        equipmentType: suggestion!.equipment_type,
+        status: suggestion!.status,
+        supportCount: suggestion!.support_count,
+        createdAt: suggestion!.created_at,
+      },
+      creditsEarned: 20,
+      message: 'Equipment suggestion submitted! Others can now vote to confirm.',
+    };
+  },
+
+  // Vote on an equipment suggestion
+  voteOnSuggestion: async (
+    _: unknown,
+    { suggestionId, support, latitude, longitude }: {
+      suggestionId: string;
+      support: boolean;
+      latitude?: number;
+      longitude?: number;
+    },
+    context: Context
+  ) => {
+    const { userId } = requireAuth(context);
+
+    // Get suggestion and venue info
+    const suggestion = await queryOne<{
+      id: string;
+      venue_id: string;
+      user_id: string;
+      status: string;
+      support_count: number;
+      reject_count: number;
+    }>(
+      `SELECT es.*, fv.latitude as venue_lat, fv.longitude as venue_lng
+       FROM equipment_suggestions es
+       JOIN fitness_venues fv ON fv.id = es.venue_id
+       WHERE es.id = $1`,
+      [suggestionId]
+    );
+
+    if (!suggestion) {
+      throw new GraphQLError('Suggestion not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    if (suggestion.status !== 'pending') {
+      throw new GraphQLError('This suggestion has already been resolved', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    if (suggestion.user_id === userId) {
+      throw new GraphQLError('You cannot vote on your own suggestion', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    // Check if user already voted
+    const existingVote = await queryOne(
+      `SELECT id FROM equipment_suggestion_votes WHERE suggestion_id = $1 AND user_id = $2`,
+      [suggestionId, userId]
+    );
+
+    if (existingVote) {
+      throw new GraphQLError('You have already voted on this suggestion', {
+        extensions: { code: 'CONFLICT' },
+      });
+    }
+
+    // Calculate distance if coordinates provided
+    let distance: number | null = null;
+    let locationVerified = false;
+
+    if (latitude && longitude) {
+      const suggestionData = suggestion as unknown as { venue_lat: string; venue_lng: string };
+      const venueLat = parseFloat(suggestionData.venue_lat);
+      const venueLng = parseFloat(suggestionData.venue_lng);
+      const R = 6371000;
+      const dLat = (latitude - venueLat) * Math.PI / 180;
+      const dLng = (longitude - venueLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(venueLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance = R * c;
+      locationVerified = distance <= 500;
+    }
+
+    // Insert vote (trigger will update counts and check auto-approval)
+    await queryOne(
+      `INSERT INTO equipment_suggestion_votes (
+        suggestion_id, user_id, vote_type, latitude, longitude, distance_from_venue, location_verified
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [suggestionId, userId, support ? 'support' : 'reject', latitude, longitude, distance, locationVerified]
+    );
+
+    // Award credits for voting
+    await queryOne(
+      `UPDATE users SET credit_balance = credit_balance + 5 WHERE id = $1`,
+      [userId]
+    );
+
+    // Get updated suggestion
+    const updated = await queryOne<{
+      id: string;
+      status: string;
+      support_count: number;
+      reject_count: number;
+    }>(
+      `SELECT id, status, support_count, reject_count FROM equipment_suggestions WHERE id = $1`,
+      [suggestionId]
+    );
+
+    return {
+      success: true,
+      suggestion: {
+        id: updated!.id,
+        status: updated!.status,
+        supportCount: updated!.support_count,
+        rejectCount: updated!.reject_count,
+      },
+      creditsEarned: 5,
+    };
+  },
+
+  // Vote on equipment condition
+  voteEquipmentCondition: async (
+    _: unknown,
+    { equipmentItemId, condition, latitude, longitude }: {
+      equipmentItemId: string;
+      condition: string;
+      latitude?: number;
+      longitude?: number;
+    },
+    context: Context
+  ) => {
+    const { userId } = requireAuth(context);
+
+    // Validate condition
+    const validConditions = ['excellent', 'good', 'fair', 'poor', 'broken'];
+    if (!validConditions.includes(condition)) {
+      throw new GraphQLError('Invalid condition value', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    // Get equipment item and venue
+    const equipment = await queryOne<{
+      id: string;
+      venue_id: string;
+      condition: string;
+      consensus_condition: string;
+      condition_vote_count: number;
+      confidence_level: string;
+    }>(
+      `SELECT vei.*, fv.latitude as venue_lat, fv.longitude as venue_lng
+       FROM venue_equipment_items vei
+       JOIN fitness_venues fv ON fv.id = vei.venue_id
+       WHERE vei.id = $1`,
+      [equipmentItemId]
+    );
+
+    if (!equipment) {
+      throw new GraphQLError('Equipment not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Calculate distance if coordinates provided
+    let distance: number | null = null;
+    let locationVerified = false;
+
+    if (latitude && longitude) {
+      const equipmentData = equipment as unknown as { venue_lat: string; venue_lng: string };
+      const venueLat = parseFloat(equipmentData.venue_lat);
+      const venueLng = parseFloat(equipmentData.venue_lng);
+      const R = 6371000;
+      const dLat = (latitude - venueLat) * Math.PI / 180;
+      const dLng = (longitude - venueLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(venueLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance = R * c;
+      locationVerified = distance <= 500;
+    }
+
+    // Upsert vote (trigger will update consensus)
+    await queryOne(
+      `INSERT INTO equipment_condition_votes (
+        equipment_item_id, user_id, vote_type, vote_value, latitude, longitude,
+        distance_from_venue, location_verified, credits_awarded
+      ) VALUES ($1, $2, 'condition', $3, $4, $5, $6, $7, 5)
+      ON CONFLICT (equipment_item_id, user_id, vote_type)
+      DO UPDATE SET vote_value = $3, latitude = $4, longitude = $5,
+                    distance_from_venue = $6, location_verified = $7`,
+      [equipmentItemId, userId, condition, latitude, longitude, distance, locationVerified]
+    );
+
+    // Award credits
+    await queryOne(
+      `UPDATE users SET credit_balance = credit_balance + 5 WHERE id = $1`,
+      [userId]
+    );
+
+    // Get updated equipment
+    const updated = await queryOne<{
+      id: string;
+      condition: string;
+      consensus_condition: string;
+      condition_vote_count: number;
+      confidence_level: string;
+    }>(
+      `SELECT id, condition, consensus_condition, condition_vote_count, confidence_level
+       FROM venue_equipment_items WHERE id = $1`,
+      [equipmentItemId]
+    );
+
+    return {
+      success: true,
+      equipment: {
+        id: updated!.id,
+        condition: updated!.condition,
+        consensusCondition: updated!.consensus_condition,
+        verificationCount: updated!.condition_vote_count,
+        confidenceLevel: updated!.confidence_level,
+      },
+      creditsEarned: 5,
+    };
+  },
+
+  // Report equipment as removed or broken
+  reportEquipmentRemoved: async (
+    _: unknown,
+    { equipmentItemId, reason, latitude, longitude }: {
+      equipmentItemId: string;
+      reason?: string;
+      latitude?: number;
+      longitude?: number;
+    },
+    context: Context
+  ) => {
+    const { userId } = requireAuth(context);
+
+    // Get equipment item
+    const equipment = await queryOne<{ id: string; venue_id: string }>(
+      `SELECT vei.*, fv.latitude as venue_lat, fv.longitude as venue_lng
+       FROM venue_equipment_items vei
+       JOIN fitness_venues fv ON fv.id = vei.venue_id
+       WHERE vei.id = $1`,
+      [equipmentItemId]
+    );
+
+    if (!equipment) {
+      throw new GraphQLError('Equipment not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Calculate distance
+    let distance: number | null = null;
+    let locationVerified = false;
+
+    if (latitude && longitude) {
+      const equipmentData = equipment as unknown as { venue_lat: string; venue_lng: string };
+      const venueLat = parseFloat(equipmentData.venue_lat);
+      const venueLng = parseFloat(equipmentData.venue_lng);
+      const R = 6371000;
+      const dLat = (latitude - venueLat) * Math.PI / 180;
+      const dLng = (longitude - venueLng) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(venueLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance = R * c;
+      locationVerified = distance <= 500;
+    }
+
+    // Record the removal vote
+    await queryOne(
+      `INSERT INTO equipment_condition_votes (
+        equipment_item_id, user_id, vote_type, vote_value, notes, latitude, longitude,
+        distance_from_venue, location_verified, credits_awarded
+      ) VALUES ($1, $2, 'removed', 'yes', $3, $4, $5, $6, $7, 15)
+      ON CONFLICT (equipment_item_id, user_id, vote_type)
+      DO UPDATE SET vote_value = 'yes', notes = $3`,
+      [equipmentItemId, userId, reason, latitude, longitude, distance, locationVerified]
+    );
+
+    // Award credits
+    await queryOne(
+      `UPDATE users SET credit_balance = credit_balance + 15 WHERE id = $1`,
+      [userId]
+    );
+
+    return {
+      success: true,
+      creditsEarned: 15,
+      message: 'Thank you for reporting. We\'ll verify this with other users.',
     };
   },
 };

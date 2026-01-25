@@ -569,7 +569,13 @@ export default function Workout() {
   useEffect(() => {
     if (mode === 'manual' && exercisesData?.exercises) {
       // Normalize primaryMuscles from comma-separated string to array
-      const normalized = exercisesData.exercises.map((ex: any) => ({
+      interface ExerciseData {
+        id: string;
+        name: string;
+        primaryMuscles?: string | string[];
+        [key: string]: unknown;
+      }
+      const normalized = exercisesData.exercises.map((ex: ExerciseData) => ({
         ...ex,
         primary_muscles: typeof ex.primaryMuscles === 'string'
           ? ex.primaryMuscles.split(',').map((m: string) => m.trim()).filter(Boolean)
@@ -613,9 +619,15 @@ export default function Workout() {
       setMode('workout');
 
       // Start a GraphQL workout session
+      interface PrescriptionExercise {
+        exerciseId?: string;
+        name?: string;
+        sets?: number;
+        reps?: number | string;
+      }
       const exercises = (prescriptionData.exercises || [])
-        .filter((e: any) => e.exerciseId)
-        .map((e: any) => ({
+        .filter((e: PrescriptionExercise) => e.exerciseId)
+        .map((e: PrescriptionExercise) => ({
           exerciseId: e.exerciseId,
           name: e.name,
           plannedSets: e.sets || 3,
@@ -631,8 +643,9 @@ export default function Workout() {
           setError(`Session start issue: ${sessionResult.error || 'Unknown error'}. Click "Start Session Now" to retry.`);
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate workout. Try different constraints.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate workout. Try different constraints.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -657,12 +670,9 @@ export default function Workout() {
 
   // Start session from current prescription (for when exercises exist but no session)
   const handleStartSessionNow = useCallback(async () => {
-    console.log('[Workout] handleStartSessionNow called');
-
     // If we have a prescription, start with the exercise list
     if (prescription) {
       const allExercises = getAllPrescribedExercises();
-      console.log('[Workout] All exercises from prescription:', allExercises.length);
 
       const exercises = allExercises
         .filter(e => e.id || e.exerciseId)
@@ -673,12 +683,8 @@ export default function Workout() {
           plannedReps: typeof e.reps === 'number' ? e.reps : 10,
         }));
 
-      console.log('[Workout] Filtered exercises with IDs:', exercises.length, exercises.map(e => e.exerciseId).slice(0, 3));
-
       if (exercises.length > 0) {
-        console.log('[Workout] Calling startSession with exercises...');
         const result = await startSession(exercises);
-        console.log('[Workout] startSession result:', result);
         if (!result.success) {
           console.error('[Workout] Session start failed:', result.error);
           setError(result.error || 'Failed to start workout session. Please try again.');
@@ -688,9 +694,7 @@ export default function Workout() {
     }
 
     // No prescription or no exercises - start an empty session
-    console.log('[Workout] Starting empty session (no prescription)');
     const result = await startSession();
-    console.log('[Workout] Empty session result:', result);
     if (!result.success) {
       console.error('[Workout] Empty session failed:', result.error);
       setError(result.error || 'Failed to start workout session. Please try again.');
@@ -1159,9 +1163,9 @@ export default function Workout() {
           {/* Workout Tools Panel - Collapsible */}
           <WorkoutToolsPanel
             currentExercise={currentExercise}
-            onWeightCalculated={(weight) => {
+            onWeightCalculated={(_weight) => {
               // Can be used to pre-fill weight in set logger
-              console.log('Calculated weight:', weight);
+              // TODO: Auto-fill weight in the current set form
             }}
           />
 

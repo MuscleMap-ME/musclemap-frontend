@@ -114,6 +114,11 @@ const FIELD_COMPLEXITY: Record<string, number> = {
   'Query.globalStats': 30,
   'Query.analytics': 40,
 
+  // Outdoor venues (equipment array is expensive)
+  'Query.nearestOutdoorVenues': 50,
+  'Query.outdoorVenues': 30,
+  'OutdoorVenue.equipment': 15,
+
   // User profile (includes relations)
   'Query.user': 10,
   'Query.me': 5,

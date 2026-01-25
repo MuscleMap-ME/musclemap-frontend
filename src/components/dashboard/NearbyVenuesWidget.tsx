@@ -24,6 +24,8 @@ import {
 import { gql } from '@apollo/client/core';
 
 // GraphQL query for nearby venues
+// Note: Simplified to avoid exceeding query complexity limit of 500
+// Removed nested equipment array which causes high complexity
 const NEARBY_VENUES_QUERY = gql`
   query NearestOutdoorVenues($input: NearestVenuesInput!) {
     nearestOutdoorVenues(input: $input) {
@@ -36,12 +38,6 @@ const NEARBY_VENUES_QUERY = gql`
       isVerified
       latitude
       longitude
-      equipment {
-        equipmentType {
-          slug
-          name
-        }
-      }
     }
   }
 `;
@@ -191,14 +187,25 @@ export function NearbyVenuesWidget({
   // The locationError message is displayed as a subtle notice in the header area
 
   // Transform API response to widget format
-  const apiVenues = data?.nearestOutdoorVenues?.map((v: any) => ({
+  interface VenueResponse {
+    id: string;
+    name: string;
+    address?: string;
+    distance?: number;
+    averageRating?: number;
+    totalRatings?: number;
+    isVerified?: boolean;
+    latitude?: number;
+    longitude?: number;
+  }
+  const apiVenues = data?.nearestOutdoorVenues?.map((v: VenueResponse) => ({
     id: v.id,
     name: v.name,
     address: v.address,
     distance: v.distance || 0,
     averageRating: v.averageRating,
     totalRatings: v.totalRatings,
-    equipmentTypes: v.equipment?.map((e: any) => e.equipmentType?.slug) || [],
+    equipmentTypes: [], // Equipment not fetched in simplified query to reduce complexity
     isVerified: v.isVerified,
     latitude: v.latitude,
     longitude: v.longitude,

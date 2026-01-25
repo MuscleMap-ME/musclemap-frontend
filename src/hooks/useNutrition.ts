@@ -1,19 +1,22 @@
 /**
  * Nutrition Hooks
  *
- * React hooks for nutrition API operations
+ * React hooks for nutrition API operations.
+ * Uses GraphQL for dashboard, REST for other operations (to be migrated).
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@apollo/client/react';
 import { useNutritionStore } from '../store/nutritionStore';
 import { useAuthStore } from '../store/authStore';
+import { NUTRITION_DASHBOARD_QUERY } from '../graphql/queries';
 
 const API_BASE = '/api';
 
 /**
- * Helper to make authenticated API calls
+ * Helper to make authenticated API calls (for non-GraphQL operations)
  */
-async function fetchAPI(endpoint, options = {}) {
+async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = useAuthStore.getState().token;
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -21,7 +24,7 @@ async function fetchAPI(endpoint, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: token ? `Bearer ${token}` : '',
-      ...options.headers,
+      ...((options.headers as Record<string, string>) || {}),
     },
   });
 
@@ -34,7 +37,7 @@ async function fetchAPI(endpoint, options = {}) {
 }
 
 /**
- * Hook for loading nutrition dashboard
+ * Hook for loading nutrition dashboard (uses GraphQL)
  */
 export function useNutritionDashboard() {
   const {
@@ -51,18 +54,36 @@ export function useNutritionDashboard() {
     archetypeProfile,
   } = useNutritionStore();
 
+  const { refetch } = useQuery(NUTRITION_DASHBOARD_QUERY, {
+    skip: true, // Don't auto-fetch, we'll call load() manually
+    fetchPolicy: 'network-only',
+    onCompleted: (data) => {
+      if (data?.nutritionDashboard) {
+        loadDashboard(data.nutritionDashboard);
+      }
+    },
+    onError: (err) => {
+      // Silently fail - nutrition is optional
+      setError(err.message);
+    },
+  });
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const dashboard = await fetchAPI('/me/nutrition');
-      loadDashboard(dashboard);
-    } catch (err) {
-      setError(err.message);
+      const result = await refetch();
+      if (result.data?.nutritionDashboard) {
+        loadDashboard(result.data.nutritionDashboard);
+      }
+    } catch (err: unknown) {
+      // Silently fail - nutrition is optional
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load nutrition';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [loadDashboard, setLoading, setError]);
+  }, [loadDashboard, setLoading, setError, refetch]);
 
   return {
     load,

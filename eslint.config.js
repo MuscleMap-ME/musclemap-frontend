@@ -54,7 +54,10 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
-      'no-console': 'off',
+      // Type safety rules - CRITICAL for preventing runtime errors
+      '@typescript-eslint/no-explicit-any': 'warn', // Warn on explicit 'any' - use proper types
+      // Console.log rules - warn in development
+      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
       // Discourage barrel imports for better tree-shaking
       // Import directly from source files instead of index.ts
       // NOTE: This is intentionally set to 'off' because the barrel files

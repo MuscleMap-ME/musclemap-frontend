@@ -5,8 +5,7 @@ import SEO, { getOrganizationSchema, getWebsiteSchema, getSoftwareAppSchema } fr
 import { useShouldLoadHeavyContent, useAnimationSettings } from '../hooks/useNetworkStatus';
 import { MuscleHeroAnimation } from '../components/landing';
 
-// Log that Landing page is rendering (for iOS Brave debugging)
-console.log('[Landing] Component rendering');
+// Landing page rendering - debug log removed for production
 
 // Import reusable SafeMotion utilities for iOS Lockdown Mode / Brave compatibility
 import { SafeMotion } from '../utils/safeMotion';
@@ -87,22 +86,7 @@ function MuscleMapStaticFallback() {
 }
 
 export default function Landing() {
-  // Track that Landing actually mounted
-  useEffect(() => {
-    console.log('[Landing] Component mounted');
-    // Send to server for iOS debugging
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/client-error', true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(JSON.stringify({
-        type: 'component_mount',
-        message: '[Landing] Component mounted',
-        source: 'Landing.tsx',
-        time: new Date().toISOString()
-      }));
-    } catch { /* ignore */ }
-  }, []);
+  // Landing page mounted - debug logging removed for production
 
   // Only load the heavy D3 visualization when it's in view
   const [muscleMapRef, isMuscleMapInView] = useInView();

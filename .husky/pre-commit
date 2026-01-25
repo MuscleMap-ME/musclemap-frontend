@@ -3,35 +3,162 @@
 #
 # This hook runs automatically before every commit to ensure code quality.
 # To bypass (not recommended): git commit --no-verify
+#
+# THREE GATES ENFORCEMENT:
+# Gate 1: Compile (TypeScript + Lint)
+# Gate 2: Verify (Build succeeds)
+# Gate 3: Prove (Tests pass)
 
 # Skip in CI environments
 if [ "$CI" = "true" ]; then
     exit 0
 fi
 
-echo "🔍 Running pre-commit checks..."
+echo "🔍 Running pre-commit quality gates..."
+echo "======================================="
 
-# Run lint-staged for staged files
+# Get staged TypeScript/JavaScript files
+STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$' || true)
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1a: TypeScript Check
+# ═══════════════════════════════════════════════════════════════
 echo ""
-echo "📝 Linting staged files..."
+echo "📘 Gate 1a: TypeScript check..."
+pnpm typecheck
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ GATE 1a FAILED: TypeScript errors found"
+    echo "   Fix all type errors before committing."
+    exit 1
+fi
+echo "✅ Gate 1a passed"
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1b: Lint Check
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "📝 Gate 1b: Lint check..."
 npx lint-staged
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ GATE 1b FAILED: Lint errors found"
+    echo "   Fix all lint errors before committing."
+    exit 1
+fi
+echo "✅ Gate 1b passed"
 
-# Run migration validation (fast)
+# ═══════════════════════════════════════════════════════════════
+# GATE 1c: Check for 'any' types in staged files
+# ═══════════════════════════════════════════════════════════════
 echo ""
-echo "🗄️  Validating migrations..."
+echo "🔒 Gate 1c: Checking for 'any' types in staged files..."
+if [ -n "$STAGED_TS_FILES" ]; then
+    # Check for explicit 'any' type annotations (: any, as any, <any>)
+    ANY_VIOLATIONS=$(echo "$STAGED_TS_FILES" | xargs grep -n ": any\b\|: any;\|: any,\|as any\b\|<any>" 2>/dev/null || true)
+    if [ -n "$ANY_VIOLATIONS" ]; then
+        echo ""
+        echo "⚠️  WARNING: Found 'any' types in staged files:"
+        echo "$ANY_VIOLATIONS"
+        echo ""
+        echo "   Consider using proper types instead of 'any'."
+        echo "   (Allowing commit, but please fix these later)"
+    fi
+fi
+echo "✅ Gate 1c passed"
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1d: Check for console.log in staged files
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "🚫 Gate 1d: Checking for console.log..."
+if [ -n "$STAGED_TS_FILES" ]; then
+    # Exclude test files and config files
+    CONSOLE_VIOLATIONS=$(echo "$STAGED_TS_FILES" | grep -v "\.test\.\|\.spec\.\|config\." | xargs grep -n "console\.log" 2>/dev/null || true)
+    if [ -n "$CONSOLE_VIOLATIONS" ]; then
+        echo ""
+        echo "⚠️  WARNING: Found console.log in staged files:"
+        echo "$CONSOLE_VIOLATIONS"
+        echo ""
+        echo "   Consider removing or using proper logging."
+        echo "   (Allowing commit, but please remove before deploy)"
+    fi
+fi
+echo "✅ Gate 1d passed"
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1e: Check for duplicate routes
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "🛤️  Gate 1e: Checking for duplicate routes..."
+if [ -f ./scripts/check-duplicate-routes.sh ]; then
+    chmod +x ./scripts/check-duplicate-routes.sh
+    ./scripts/check-duplicate-routes.sh 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ GATE 1e FAILED: Duplicate routes detected"
+        echo "   Fix route conflicts before committing."
+        exit 1
+    fi
+fi
+echo "✅ Gate 1e passed"
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1f: Migration validation
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "🗄️  Gate 1f: Validating migrations..."
 if [ -f ./scripts/deployment/validate-migrations.sh ]; then
     chmod +x ./scripts/deployment/validate-migrations.sh
     ./scripts/deployment/validate-migrations.sh
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ GATE 1f FAILED: Migration validation failed"
+        echo "   Fix migration issues before committing."
+        exit 1
+    fi
 fi
+echo "✅ Gate 1f passed"
 
-# Run TypeScript check (cached for speed)
+# ═══════════════════════════════════════════════════════════════
+# GATE 1g: Check for common anti-patterns
+# ═══════════════════════════════════════════════════════════════
 echo ""
-echo "📘 TypeScript check..."
-if [ -f ./scripts/pre-deploy-check.sh ]; then
-    ./scripts/pre-deploy-check.sh --fast 2>/dev/null || pnpm typecheck
-else
-    pnpm typecheck
+echo "🐛 Gate 1g: Checking for common anti-patterns..."
+if [ -n "$STAGED_TS_FILES" ]; then
+    # Check for JSON.parse on JSONB columns (common mistake)
+    JSONB_VIOLATIONS=$(echo "$STAGED_TS_FILES" | xargs grep -n "JSON\.parse.*\(result\|row\|record\)\." 2>/dev/null || true)
+    if [ -n "$JSONB_VIOLATIONS" ]; then
+        echo ""
+        echo "⚠️  WARNING: Possible JSONB parsing error:"
+        echo "$JSONB_VIOLATIONS"
+        echo ""
+        echo "   PostgreSQL JSONB columns return objects, not strings."
+        echo "   Remove JSON.parse() if the column is JSONB type."
+    fi
+
+    # Check for SQL string interpolation (security risk)
+    SQL_INJECTION=$(echo "$STAGED_TS_FILES" | xargs grep -n "SELECT.*\\\${.*}\\|INSERT.*\\\${.*}\\|UPDATE.*\\\${.*}\\|DELETE.*\\\${.*}" 2>/dev/null || true)
+    if [ -n "$SQL_INJECTION" ]; then
+        echo ""
+        echo "🚨 CRITICAL: Possible SQL injection vulnerability:"
+        echo "$SQL_INJECTION"
+        echo ""
+        echo "   Never use string interpolation in SQL queries."
+        echo "   Use parameterized queries instead."
+        exit 1
+    fi
 fi
+echo "✅ Gate 1g passed"
 
 echo ""
-echo "✅ Pre-commit checks passed!"
+echo "═══════════════════════════════════════════════════════════════"
+echo "✅ ALL QUALITY GATES PASSED"
+echo "═══════════════════════════════════════════════════════════════"
+echo ""
+echo "REMINDER: Before claiming this change is 'done':"
+echo "  1. Build the project: pnpm build:intelligent"
+echo "  2. Run the specific code you wrote"
+echo "  3. Verify the output matches expected"
+echo "  4. Test edge cases (empty, null, errors)"
+echo ""

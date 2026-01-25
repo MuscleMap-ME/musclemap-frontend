@@ -813,19 +813,14 @@ export const PROFILE_QUERY = gql`
 // MESSAGING
 // ============================================
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
+// Removed nested arrays (participants, typingUsers) which cause high complexity
 export const CONVERSATIONS_QUERY = gql`
   query Conversations($tab: String) {
     conversations(tab: $tab) {
       id
       type
       name
-      participants {
-        userId
-        username
-        displayName
-        avatarUrl
-        lastActiveAt
-      }
       lastMessage {
         id
         content
@@ -836,12 +831,6 @@ export const CONVERSATIONS_QUERY = gql`
       unreadCount
       starred
       archivedAt
-      disappearingTtl
-      typingUsers {
-        userId
-        username
-        avatarUrl
-      }
       createdAt
       updatedAt
     }
@@ -1544,12 +1533,15 @@ export const MARTIAL_ARTS_PRACTICE_HISTORY_QUERY = gql`
 // WALLET & ECONOMY
 // ============================================
 
+// Note: Wallet type has balance.credits, balance.pending, balance.lifetime (nested)
 export const ECONOMY_WALLET_QUERY = gql`
   query EconomyWallet {
     economyWallet {
-      credits
-      pending
-      lifetime
+      balance {
+        credits
+        pending
+        lifetime
+      }
       transactions {
         id
         type
@@ -4256,6 +4248,189 @@ export const LOCATION_DETAILS_QUERY = gql`
         upvotes
         createdAt
       }
+    }
+  }
+`;
+
+// ============================================
+// MILESTONES
+// ============================================
+
+export const MILESTONES_QUERY = gql`
+  query Milestones {
+    milestones {
+      id
+      name
+      description
+      threshold
+      currentValue
+      progress
+      completedAt
+      reward
+      rewardClaimed
+    }
+  }
+`;
+
+// ============================================
+// NUTRITION DASHBOARD
+// ============================================
+
+export const NUTRITION_DASHBOARD_QUERY = gql`
+  query NutritionDashboard {
+    nutritionDashboard {
+      enabled
+      preferences {
+        caloriesEnabled
+        macrosEnabled
+        micronutrientsEnabled
+        waterTrackingEnabled
+        mealRemindersEnabled
+      }
+      goals {
+        dailyCalories
+        proteinGrams
+        carbsGrams
+        fatGrams
+        fiberGrams
+        waterLiters
+      }
+      todaySummary {
+        date
+        calories
+        protein
+        carbs
+        fat
+        fiber
+        water
+        mealsLogged
+      }
+      streaks {
+        currentStreak
+        longestStreak
+        lastLogDate
+      }
+    }
+  }
+`;
+
+// ============================================
+// EQUIPMENT CORROBORATION
+// ============================================
+
+export const PENDING_EQUIPMENT_SUGGESTIONS_QUERY = gql`
+  query PendingEquipmentSuggestions($venueId: ID!) {
+    pendingEquipmentSuggestions(venueId: $venueId) {
+      id
+      venueId
+      equipmentType
+      quantity
+      condition
+      notes
+      photoUrl
+      status
+      supportCount
+      rejectCount
+      suggestedBy {
+        id
+        username
+        displayName
+        avatar
+      }
+      locationVerified
+      createdAt
+    }
+  }
+`;
+
+export const EQUIPMENT_CONSENSUS_QUERY = gql`
+  query EquipmentConsensus($equipmentItemId: ID!) {
+    equipmentConsensus(equipmentItemId: $equipmentItemId) {
+      totalVotes
+      conditionVotes {
+        condition
+        count
+        percentage
+      }
+      existsVotes {
+        exists
+        count
+        percentage
+      }
+      lastVerifiedAt
+      confidenceLevel
+    }
+  }
+`;
+
+export const SUGGEST_EQUIPMENT_MUTATION = gql`
+  mutation SuggestEquipment($venueId: ID!, $input: EquipmentSuggestionInput!) {
+    suggestEquipment(venueId: $venueId, input: $input) {
+      success
+      suggestion {
+        id
+        equipmentType
+        status
+        supportCount
+        createdAt
+      }
+      creditsEarned
+      message
+    }
+  }
+`;
+
+export const VOTE_ON_SUGGESTION_MUTATION = gql`
+  mutation VoteOnSuggestion($suggestionId: ID!, $support: Boolean!, $latitude: Float, $longitude: Float) {
+    voteOnSuggestion(suggestionId: $suggestionId, support: $support, latitude: $latitude, longitude: $longitude) {
+      success
+      suggestion {
+        id
+        status
+        supportCount
+        rejectCount
+      }
+      creditsEarned
+    }
+  }
+`;
+
+export const VOTE_EQUIPMENT_CONDITION_MUTATION = gql`
+  mutation VoteEquipmentCondition($equipmentItemId: ID!, $condition: String!, $latitude: Float, $longitude: Float) {
+    voteEquipmentCondition(equipmentItemId: $equipmentItemId, condition: $condition, latitude: $latitude, longitude: $longitude) {
+      success
+      equipment {
+        id
+        condition
+        consensusCondition
+        verificationCount
+        confidenceLevel
+      }
+      creditsEarned
+    }
+  }
+`;
+
+export const REPORT_EQUIPMENT_REMOVED_MUTATION = gql`
+  mutation ReportEquipmentRemoved($equipmentItemId: ID!, $reason: String, $latitude: Float, $longitude: Float) {
+    reportEquipmentRemoved(equipmentItemId: $equipmentItemId, reason: $reason, latitude: $latitude, longitude: $longitude) {
+      success
+      creditsEarned
+      message
+    }
+  }
+`;
+
+export const OUTDOOR_EQUIPMENT_TYPES_QUERY = gql`
+  query OutdoorEquipmentTypes {
+    outdoorEquipmentTypes {
+      id
+      name
+      slug
+      category
+      description
+      iconName
+      muscleGroups
     }
   }
 `;

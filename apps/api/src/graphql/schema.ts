@@ -346,6 +346,12 @@ export const typeDefs = `#graphql
     """Find exercises that can be done at a specific venue based on available equipment"""
     exercisesAtVenue(venueId: ID!, muscleGroup: String, limit: Int): [Exercise!]!
 
+    # Equipment Corroboration
+    """Get pending equipment suggestions for a venue"""
+    pendingEquipmentSuggestions(venueId: ID!): [EquipmentSuggestion!]!
+    """Get consensus data for equipment condition"""
+    equipmentConsensus(equipmentItemId: ID!): EquipmentConsensus
+
     # Venue Exercise Records & Community Analytics
     """Get records at a specific venue"""
     venueRecords(venueId: ID!, exerciseId: ID, recordType: RecordType, limit: Int, cursor: String): VenueRecordConnection!
@@ -825,6 +831,16 @@ export const typeDefs = `#graphql
     verifyEquipment(venueId: ID!, input: EquipmentVerifyInput!): VenueVerifyResult!
     uploadVenuePhoto(venueId: ID!, input: VenuePhotoInput!): VenuePhotoResult!
     reportVenueIssue(venueId: ID!, input: VenueReportInput!): VenueReportResult!
+
+    # Equipment Corroboration
+    """Suggest new equipment at an existing venue"""
+    suggestEquipment(venueId: ID!, input: EquipmentSuggestionInput!): EquipmentSuggestionResult!
+    """Vote to support or reject an equipment suggestion"""
+    voteOnSuggestion(suggestionId: ID!, support: Boolean!, latitude: Float, longitude: Float): SuggestionVoteResult!
+    """Vote on equipment condition"""
+    voteEquipmentCondition(equipmentItemId: ID!, condition: String!, latitude: Float, longitude: Float): ConditionVoteResult!
+    """Report equipment as removed or broken"""
+    reportEquipmentRemoved(equipmentItemId: ID!, reason: String, latitude: Float, longitude: Float): EquipmentRemovedResult!
 
     # Venue Exercise Records
     """Claim a record at a venue"""
@@ -6315,6 +6331,121 @@ export const typeDefs = `#graphql
     submission: VenueSubmission
     venue: OutdoorVenue
     message: String
+  }
+
+  # ============================================
+  # EQUIPMENT CORROBORATION / SUGGESTIONS
+  # ============================================
+
+  """User suggestion for new equipment at an existing venue"""
+  type EquipmentSuggestion {
+    id: ID!
+    venueId: ID!
+    equipmentType: String!
+    quantity: Int!
+    condition: String
+    notes: String
+    photoUrl: String
+    status: String!
+    supportCount: Int!
+    rejectCount: Int!
+    suggestedBy: User
+    locationVerified: Boolean!
+    createdAt: DateTime!
+  }
+
+  """Vote on an equipment condition"""
+  type EquipmentConditionVote {
+    equipmentItemId: ID!
+    voteType: String!
+    voteValue: String!
+    userId: ID!
+    locationVerified: Boolean!
+    createdAt: DateTime!
+  }
+
+  """Consensus data for equipment"""
+  type EquipmentConsensus {
+    totalVotes: Int!
+    conditionVotes: [ConditionVoteCount!]!
+    existsVotes: [ExistsVoteCount!]!
+    lastVerifiedAt: DateTime
+    confidenceLevel: String!
+  }
+
+  type ConditionVoteCount {
+    condition: String!
+    count: Int!
+    percentage: Float!
+  }
+
+  type ExistsVoteCount {
+    exists: Boolean!
+    count: Int!
+    percentage: Float!
+  }
+
+  """Result of suggesting equipment"""
+  type EquipmentSuggestionResult {
+    success: Boolean!
+    suggestion: EquipmentSuggestionInfo
+    creditsEarned: Int!
+    message: String
+  }
+
+  type EquipmentSuggestionInfo {
+    id: ID!
+    equipmentType: String!
+    status: String!
+    supportCount: Int!
+    createdAt: DateTime!
+  }
+
+  """Result of voting on a suggestion"""
+  type SuggestionVoteResult {
+    success: Boolean!
+    suggestion: SuggestionVoteInfo
+    creditsEarned: Int!
+  }
+
+  type SuggestionVoteInfo {
+    id: ID!
+    status: String!
+    supportCount: Int!
+    rejectCount: Int!
+  }
+
+  """Result of voting on equipment condition"""
+  type ConditionVoteResult {
+    success: Boolean!
+    equipment: EquipmentConditionInfo
+    creditsEarned: Int!
+  }
+
+  type EquipmentConditionInfo {
+    id: ID!
+    condition: String
+    consensusCondition: String
+    verificationCount: Int!
+    confidenceLevel: String
+  }
+
+  """Result of reporting equipment as removed"""
+  type EquipmentRemovedResult {
+    success: Boolean!
+    creditsEarned: Int!
+    message: String
+  }
+
+  """Input for suggesting new equipment"""
+  input EquipmentSuggestionInput {
+    equipmentType: String!
+    quantity: Int
+    condition: String
+    notes: String
+    photoUrl: String
+    latitude: Float
+    longitude: Float
   }
 
   # ============================================
