@@ -660,6 +660,44 @@ export const typeDefs = `#graphql
     nearbyLocations(lat: Float!, lng: Float!, type: String, limit: Int): [Location!]!
     searchLocations(query: String!, type: String, limit: Int): [Location!]!
     location(id: ID!): LocationDetails
+
+    # Social / Activity Feed (Phase 1 Community Features)
+    """Get the activity feed (your own or followed users)"""
+    activityFeed(cursor: String, limit: Int, filter: ActivityFeedFilter): ActivityFeedResult!
+    """Get a single activity item by ID"""
+    activityItem(id: ID!): ActivityItem
+    """Get users you're following"""
+    following(userId: ID, cursor: String, limit: Int): FollowListResult!
+    """Get users who follow you/a user"""
+    followers(userId: ID, cursor: String, limit: Int): FollowListResult!
+    """Get feed preferences"""
+    feedPreferences: FeedPreferences!
+    """Suggested users to follow based on similar interests"""
+    suggestedUsers(limit: Int): [SuggestedUser!]!
+
+    # Workout Buddies (Phase 2 Community Features)
+    """Get your workout buddy preferences"""
+    buddyPreferences: WorkoutBuddyPreferences
+    """Get your active buddy pairs"""
+    myBuddies: [WorkoutBuddyPair!]!
+    """Get pending buddy invites"""
+    buddyInvites: BuddyInvitesResult!
+    """Get buddy suggestions based on preferences"""
+    buddySuggestions(limit: Int): [BuddySuggestion!]!
+    """Get check-ins for a buddy pair"""
+    buddyCheckIns(buddyPairId: ID!, date: String): [BuddyCheckIn!]!
+    """Get messages with a buddy"""
+    buddyMessages(buddyPairId: ID!, cursor: String, limit: Int): BuddyMessagesResult!
+
+    # Crew Challenges (Phase 3 Community Features)
+    """Get active crew challenges"""
+    crewChallenges(crewId: ID, status: String): [CrewChallenge!]!
+    """Get a specific crew challenge"""
+    crewChallenge(id: ID!): CrewChallenge
+    """Get crew chat messages"""
+    crewChatMessages(crewId: ID!, cursor: String, limit: Int): CrewChatResult!
+    """Get crew achievements"""
+    crewAchievements(crewId: ID!): [CrewAchievement!]!
   }
 
   type Mutation {
@@ -1043,6 +1081,56 @@ export const typeDefs = `#graphql
     createLocation(input: LocationInput!): Location!
     rateLocation(locationId: ID!, input: LocationRatingInput!): LocationRating!
     voteLocationComment(commentId: ID!, vote: Int!): LocationComment!
+
+    # Social / Activity Feed (Phase 1 Community Features)
+    """Follow a user"""
+    followUser(userId: ID!): FollowResult!
+    """Unfollow a user"""
+    unfollowUser(userId: ID!): Boolean!
+    """Post a comment on an activity"""
+    postActivityComment(activityId: ID!, content: String!, parentId: ID): ActivityComment!
+    """Delete your comment"""
+    deleteActivityComment(commentId: ID!): Boolean!
+    """Update feed preferences"""
+    updateFeedPreferences(input: FeedPreferencesInput!): FeedPreferences!
+    """Share an activity to your feed"""
+    shareActivity(input: ShareActivityInput!): ActivityItem!
+
+    # Workout Buddies (Phase 2 Community Features)
+    """Update buddy matching preferences"""
+    updateBuddyPreferences(input: BuddyPreferencesInput!): WorkoutBuddyPreferences!
+    """Send a buddy invite"""
+    sendBuddyInvite(recipientId: ID!, message: String): BuddyInvite!
+    """Accept a buddy invite"""
+    acceptBuddyInvite(inviteId: ID!): WorkoutBuddyPair!
+    """Decline a buddy invite"""
+    declineBuddyInvite(inviteId: ID!): Boolean!
+    """End a buddy partnership"""
+    endBuddyPair(buddyPairId: ID!): Boolean!
+    """Post a check-in to your buddy"""
+    postBuddyCheckIn(input: BuddyCheckInInput!): BuddyCheckIn!
+    """Send a message to your buddy"""
+    sendBuddyMessage(buddyPairId: ID!, content: String!, messageType: String): BuddyMessage!
+    """Mark buddy messages as read"""
+    markBuddyMessagesRead(buddyPairId: ID!): Boolean!
+
+    # Crew Challenges (Phase 3 Community Features)
+    """Create a crew challenge"""
+    createCrewChallenge(input: CrewChallengeInput!): CrewChallenge!
+    """Update a crew challenge"""
+    updateCrewChallenge(id: ID!, input: CrewChallengeInput!): CrewChallenge!
+    """Cancel a crew challenge"""
+    cancelCrewChallenge(id: ID!): Boolean!
+    """Contribute to a crew challenge"""
+    contributeToChallenge(challengeId: ID!, workoutId: ID!, value: Float!): ChallengeContribution!
+    """Send a message in crew chat"""
+    sendCrewChatMessage(crewId: ID!, content: String!, messageType: String, replyToId: ID): CrewChatMessage!
+    """React to a crew chat message"""
+    reactToCrewMessage(messageId: ID!, reaction: String!): CrewChatMessage!
+    """Pin/unpin a crew chat message"""
+    togglePinCrewMessage(messageId: ID!): CrewChatMessage!
+    """Mark crew chat as read"""
+    markCrewChatRead(crewId: ID!): Boolean!
 
     # QA Session Logging (for passive testing)
     """Log QA session events - no auth required for testing logged-out flows"""
@@ -2430,6 +2518,382 @@ export const typeDefs = `#graphql
     archetype: Float!
     level: Float!
     workouts: Float!
+  }
+
+  # ============================================
+  # SOCIAL / ACTIVITY FEED TYPES (Phase 1 Community Features)
+  # ============================================
+  """Activity feed item"""
+  type ActivityItem {
+    id: ID!
+    userId: ID!
+    user: UserSummary!
+    activityType: String!
+    referenceId: ID
+    referenceType: String
+    data: JSON!
+    visibility: String!
+    highFiveCount: Int!
+    commentCount: Int!
+    hasHighFived: Boolean!
+    comments: [ActivityComment!]
+    createdAt: DateTime!
+  }
+
+  """Activity feed result with pagination"""
+  type ActivityFeedResult {
+    items: [ActivityItem!]!
+    nextCursor: String
+    hasMore: Boolean!
+  }
+
+  """Filter for activity feed"""
+  input ActivityFeedFilter {
+    activityTypes: [String!]
+    userId: ID
+    followedOnly: Boolean
+  }
+
+  """Comment on an activity item"""
+  type ActivityComment {
+    id: ID!
+    activityId: ID!
+    userId: ID!
+    user: UserSummary!
+    content: String!
+    parentId: ID
+    createdAt: DateTime!
+  }
+
+  """Follow/follower list item"""
+  type FollowListItem {
+    id: ID!
+    user: UserSummary!
+    followedAt: DateTime!
+    isFollowingBack: Boolean!
+  }
+
+  """Follow list result with pagination"""
+  type FollowListResult {
+    items: [FollowListItem!]!
+    nextCursor: String
+    total: Int!
+  }
+
+  """Result of follow action"""
+  type FollowResult {
+    success: Boolean!
+    isFollowing: Boolean!
+  }
+
+  """Feed preferences for customization"""
+  type FeedPreferences {
+    showWorkouts: Boolean!
+    showPrs: Boolean!
+    showAchievements: Boolean!
+    showStreaks: Boolean!
+    showGoals: Boolean!
+    showChallenges: Boolean!
+    showLevelUps: Boolean!
+    showHighFives: Boolean!
+    notifyHighFives: Boolean!
+    notifyNewFollowers: Boolean!
+    notifyBuddyActivity: Boolean!
+    notifyCrewActivity: Boolean!
+    pushEnabled: Boolean!
+    pushHighFives: Boolean!
+    pushAchievements: Boolean!
+    pushBuddyReminders: Boolean!
+  }
+
+  """Input for updating feed preferences"""
+  input FeedPreferencesInput {
+    showWorkouts: Boolean
+    showPrs: Boolean
+    showAchievements: Boolean
+    showStreaks: Boolean
+    showGoals: Boolean
+    showChallenges: Boolean
+    showLevelUps: Boolean
+    showHighFives: Boolean
+    notifyHighFives: Boolean
+    notifyNewFollowers: Boolean
+    notifyBuddyActivity: Boolean
+    notifyCrewActivity: Boolean
+    pushEnabled: Boolean
+    pushHighFives: Boolean
+    pushAchievements: Boolean
+    pushBuddyReminders: Boolean
+  }
+
+  """Input for sharing an activity"""
+  input ShareActivityInput {
+    activityType: String!
+    referenceId: ID
+    referenceType: String
+    data: JSON
+    visibility: String
+  }
+
+  """Suggested user to follow"""
+  type SuggestedUser {
+    user: UserSummary!
+    reason: String!
+    commonInterests: [String!]!
+    mutualFollowers: Int!
+  }
+
+  """Minimal user info for social features"""
+  type UserSummary {
+    id: ID!
+    username: String!
+    displayName: String
+    avatar: String
+    level: Int!
+    archetypeName: String
+  }
+
+  # ============================================
+  # WORKOUT BUDDY TYPES (Phase 2 Community Features)
+  # ============================================
+  """Workout buddy preferences"""
+  type WorkoutBuddyPreferences {
+    id: ID!
+    isLookingForBuddy: Boolean!
+    preferredWorkoutTypes: [String!]!
+    preferredTimes: [String!]!
+    preferredDays: [Int!]!
+    fitnessLevel: String!
+    matchSimilarLevel: Boolean!
+    wantsDailyCheckins: Boolean!
+    wantsWorkoutReminders: Boolean!
+    openToVirtualWorkouts: Boolean!
+    openToInPerson: Boolean!
+    city: String
+    timezone: String
+    maxDistanceKm: Int
+    goals: [String!]!
+  }
+
+  """Input for buddy preferences"""
+  input BuddyPreferencesInput {
+    isLookingForBuddy: Boolean
+    preferredWorkoutTypes: [String!]
+    preferredTimes: [String!]
+    preferredDays: [Int!]
+    fitnessLevel: String
+    matchSimilarLevel: Boolean
+    wantsDailyCheckins: Boolean
+    wantsWorkoutReminders: Boolean
+    openToVirtualWorkouts: Boolean
+    openToInPerson: Boolean
+    city: String
+    timezone: String
+    latitude: Float
+    longitude: Float
+    maxDistanceKm: Int
+    goals: [String!]
+  }
+
+  """Active buddy pair"""
+  type WorkoutBuddyPair {
+    id: ID!
+    buddy: UserSummary!
+    status: String!
+    compatibilityScore: Float
+    matchReasons: [String!]!
+    currentStreak: Int!
+    longestStreak: Int!
+    lastMutualActivity: DateTime
+    totalWorkoutsTogether: Int!
+    totalCheckIns: Int!
+    highFivesExchanged: Int!
+    createdAt: DateTime!
+    unreadMessages: Int!
+  }
+
+  """Buddy invite"""
+  type BuddyInvite {
+    id: ID!
+    sender: UserSummary!
+    recipient: UserSummary!
+    message: String
+    status: String!
+    compatibilityScore: Float
+    matchReasons: [String!]!
+    createdAt: DateTime!
+    expiresAt: DateTime
+  }
+
+  """Result for buddy invites query"""
+  type BuddyInvitesResult {
+    received: [BuddyInvite!]!
+    sent: [BuddyInvite!]!
+  }
+
+  """Buddy suggestion"""
+  type BuddySuggestion {
+    user: UserSummary!
+    compatibilityScore: Float!
+    matchReasons: [String!]!
+    distanceKm: Float
+    overlappingWorkouts: Boolean!
+    overlappingTimes: Boolean!
+    overlappingGoals: Boolean!
+  }
+
+  """Buddy check-in"""
+  type BuddyCheckIn {
+    id: ID!
+    buddyPairId: ID!
+    userId: ID!
+    user: UserSummary!
+    checkInType: String!
+    message: String
+    moodRating: Int
+    workoutId: ID
+    checkInDate: String!
+    createdAt: DateTime!
+  }
+
+  """Input for buddy check-in"""
+  input BuddyCheckInInput {
+    buddyPairId: ID!
+    checkInType: String!
+    message: String
+    moodRating: Int
+    workoutId: ID
+  }
+
+  """Buddy message"""
+  type BuddyMessage {
+    id: ID!
+    buddyPairId: ID!
+    senderId: ID!
+    sender: UserSummary!
+    content: String!
+    messageType: String!
+    metadata: JSON
+    isRead: Boolean!
+    readAt: DateTime
+    createdAt: DateTime!
+  }
+
+  """Buddy messages result with pagination"""
+  type BuddyMessagesResult {
+    messages: [BuddyMessage!]!
+    nextCursor: String
+    hasMore: Boolean!
+  }
+
+  # ============================================
+  # CREW CHALLENGE TYPES (Phase 3 Community Features)
+  # ============================================
+  """Crew challenge"""
+  type CrewChallenge {
+    id: ID!
+    crewId: ID!
+    crew: CrewSummary!
+    createdBy: UserSummary!
+    challengeType: String!
+    opponentCrewId: ID
+    opponentCrew: CrewSummary
+    title: String!
+    description: String
+    imageUrl: String
+    metricType: String!
+    goalValue: Float
+    currentValue: Float!
+    progress: Float!
+    startsAt: DateTime!
+    endsAt: DateTime!
+    status: String!
+    winnerCrewId: ID
+    rewards: JSON
+    myContribution: Float
+    topContributors: [ChallengeContributor!]!
+    createdAt: DateTime!
+  }
+
+  """Input for crew challenge"""
+  input CrewChallengeInput {
+    crewId: ID!
+    challengeType: String!
+    opponentCrewId: ID
+    title: String!
+    description: String
+    imageUrl: String
+    metricType: String!
+    goalValue: Float
+    startsAt: DateTime!
+    endsAt: DateTime!
+    rewards: JSON
+  }
+
+  """Challenge contribution"""
+  type ChallengeContribution {
+    id: ID!
+    challengeId: ID!
+    userId: ID!
+    crewId: ID!
+    workoutId: ID
+    contributionValue: Float!
+    createdAt: DateTime!
+  }
+
+  """Challenge contributor summary"""
+  type ChallengeContributor {
+    user: UserSummary!
+    contribution: Float!
+    rank: Int!
+  }
+
+  """Crew achievement"""
+  type CrewAchievement {
+    id: ID!
+    crewId: ID!
+    achievementKey: String!
+    title: String!
+    description: String
+    iconUrl: String
+    rarity: String!
+    targetValue: Float
+    achievedValue: Float
+    earnedAt: DateTime!
+  }
+
+  """Crew chat message"""
+  type CrewChatMessage {
+    id: ID!
+    crewId: ID!
+    userId: ID!
+    user: UserSummary!
+    content: String!
+    messageType: String!
+    metadata: JSON
+    replyTo: CrewChatMessage
+    reactions: JSON
+    isPinned: Boolean!
+    isDeleted: Boolean!
+    createdAt: DateTime!
+    editedAt: DateTime
+  }
+
+  """Crew chat result with pagination"""
+  type CrewChatResult {
+    messages: [CrewChatMessage!]!
+    nextCursor: String
+    hasMore: Boolean!
+    unreadCount: Int!
+  }
+
+  """Crew summary for challenges"""
+  type CrewSummary {
+    id: ID!
+    name: String!
+    avatarUrl: String
+    memberCount: Int!
+    level: Int
   }
 
   # ============================================

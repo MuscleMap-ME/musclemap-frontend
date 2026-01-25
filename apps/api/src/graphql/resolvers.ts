@@ -103,6 +103,10 @@ import {
   presenceSubscriptions,
   presenceTypeResolvers,
 } from './presence.resolvers';
+import {
+  socialQueryResolvers,
+  socialMutationResolvers,
+} from './social.resolvers';
 
 const log = loggers.core;
 
@@ -14349,3 +14353,7 @@ Object.assign(resolvers.Query, presenceQueries);
 Object.assign(resolvers.Mutation, presenceMutations);
 Object.assign(resolvers.Subscription, presenceSubscriptions);
 Object.assign(resolvers, presenceTypeResolvers);
+
+// Merge social/community resolvers into Query and Mutation
+Object.assign(resolvers.Query, socialQueryResolvers);
+Object.assign(resolvers.Mutation, socialMutationResolvers);
