@@ -8127,9 +8127,12 @@ export const resolvers = {
         level: number;
         xp: number;
         created_at: Date;
+        archetype: string | null;
+        onboarding_completed_at: Date | null;
       }>(
         `SELECT id, email, username, display_name, bio, social_links, password_hash, roles,
-                COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp, created_at
+                COALESCE(current_level, 1) as level, COALESCE(total_xp, 0) as xp, created_at,
+                archetype, onboarding_completed_at
          FROM users WHERE email = $1`,
         [email]
       );
@@ -8160,6 +8163,8 @@ export const resolvers = {
           wealthTier: buildWealthTierResponse(credits),
           roles,
           createdAt: user.created_at,
+          archetype: user.archetype,
+          onboardingCompletedAt: user.onboarding_completed_at,
         },
       };
     },
