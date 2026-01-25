@@ -198,27 +198,28 @@ export async function up(): Promise<void> {
 
   // ============================================
   // MATERIALIZED VIEW: Crew Leaderboard
+  // Uses actual crews table columns: avatar (not avatar_url), total_tu (not total_xp)
   // ============================================
   await query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS mv_crew_leaderboard AS
     SELECT
       c.id,
       c.name,
-      c.avatar_url,
+      c.avatar,
       c.member_count,
-      c.total_xp,
-      c.level,
+      c.total_tu,
+      c.weekly_tu,
+      c.wins,
       c.challenges_won,
-      RANK() OVER (ORDER BY c.total_xp DESC) AS xp_rank,
+      RANK() OVER (ORDER BY c.total_tu DESC) AS tu_rank,
       RANK() OVER (ORDER BY c.challenges_won DESC) AS challenges_rank
     FROM crews c
-    WHERE c.visibility = 'public'
-      AND c.member_count > 0
-    ORDER BY c.total_xp DESC
+    WHERE c.member_count > 0
+    ORDER BY c.total_tu DESC
   `);
 
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_crew_leaderboard_id ON mv_crew_leaderboard(id)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_mv_crew_leaderboard_xp_rank ON mv_crew_leaderboard(xp_rank)`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_mv_crew_leaderboard_tu_rank ON mv_crew_leaderboard(tu_rank)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_mv_crew_leaderboard_challenges_rank ON mv_crew_leaderboard(challenges_rank)`);
 }
 
