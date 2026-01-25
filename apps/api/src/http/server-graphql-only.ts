@@ -337,6 +337,46 @@ export async function createServer(): Promise<FastifyInstance> {
     return reply.status(200).send({ received: true });
   });
 
+  // Frontend Logger - unauthenticated log collection from browser
+  app.post('/api/trace/frontend-log', async (request, reply) => {
+    const { entries } = request.body as { entries?: Array<{
+      level?: string;
+      type?: string;
+      data?: Record<string, unknown>;
+      sessionId?: string;
+      url?: string;
+      userId?: string | null;
+      timestamp?: string;
+    }> };
+
+    if (!entries || !Array.isArray(entries)) {
+      return reply.status(400).send({ error: 'Invalid request body' });
+    }
+
+    // Log each entry
+    for (const entry of entries) {
+      const level = entry.level || 'info';
+      const logMethod = level === 'error' ? log.error.bind(log) :
+                        level === 'warn' ? log.warn.bind(log) :
+                        level === 'debug' ? log.debug.bind(log) :
+                        log.info.bind(log);
+
+      logMethod({
+        frontendLog: true,
+        type: entry.type || 'unknown',
+        data: entry.data || {},
+        sessionId: entry.sessionId,
+        url: entry.url,
+        userId: entry.userId,
+        clientTimestamp: entry.timestamp,
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
+      }, `[Frontend] ${entry.type || 'log'}`);
+    }
+
+    return reply.status(200).send({ received: true, count: entries.length });
+  });
+
   // ============================================
   // GRAPHQL - THE PRIMARY DATA INTERFACE
   // All application data flows through here
