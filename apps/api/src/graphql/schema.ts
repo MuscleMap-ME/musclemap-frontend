@@ -3833,11 +3833,11 @@ export const typeDefs = `#graphql
     score: Float!
     classification: String!
     recommendedIntensity: Float!
-    factors: RecoveryFactors!
+    factors: RecoveryFactorsV3!
   }
 
-  """Individual recovery factors"""
-  type RecoveryFactors {
+  """Individual recovery factors for prescription v3"""
+  type RecoveryFactorsV3 {
     sleepQuality: Float!
     muscleReadiness: Float!
     stressLevel: Float!
