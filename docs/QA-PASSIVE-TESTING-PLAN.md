@@ -9,7 +9,7 @@
 ### 1. Deploy (Claude does this once)
 ```bash
 pnpm build:intelligent && \
-rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/ && \
+rsync -rvz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/ && \
 ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:packages && pnpm build:api && cd apps/api && pnpm db:migrate && pm2 restart musclemap --silent"
 ```
 

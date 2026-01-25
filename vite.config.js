@@ -483,6 +483,22 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
+        // ═══════════════════════════════════════════════════════════════
+        // RSYNC DELTA OPTIMIZATION: Stable, content-based output
+        // These settings ensure the same source produces the same bytes,
+        // maximizing rsync delta transfer efficiency (KB instead of MB)
+        // ═══════════════════════════════════════════════════════════════
+        hashCharacters: 'base36',  // Shorter, content-based hashes
+        // Consistent code generation for reproducible builds
+        generatedCode: {
+          constBindings: true,    // Use const instead of var
+          arrowFunctions: true,   // Consistent function syntax
+          objectShorthand: true,  // Consistent object property syntax
+          reservedNamesAsProps: true,  // Don't mangle reserved names
+        },
+        hoistTransitiveImports: true,  // Consistent module ordering
+        compact: true,  // Minimize wrapper code variations
+        // ═══════════════════════════════════════════════════════════════
         // Strategic chunk splitting for optimal caching and loading
         // Chunks are split by usage pattern and load priority
         manualChunks(id) {

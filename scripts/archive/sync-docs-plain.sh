@@ -26,7 +26,7 @@ if [ ! -d "$SOURCE_DIR" ]; then
 fi
 
 # Sync files (excluding any hidden files, preserving index.html)
-rsync -av --delete \
+rsync -rv --delete \
   --exclude='.*' \
   --exclude='index.html' \
   "$SOURCE_DIR/" "$TARGET_DIR/"

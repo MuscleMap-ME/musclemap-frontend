@@ -22,7 +22,6 @@ mutation Login($input: LoginInput!) {
       }
       createdAt
       roles
-      archetype
     }
   }
 }
@@ -102,33 +101,23 @@ mutation UpdateProfile($input: ProfileInput!) {
 mutation UpdateMyFullProfile($input: FullProfileInput!) {
   updateMyFullProfile(input: $input) {
     id
-    userId
+    username
     displayName
-    bio
-    bioRichJson
-    avatar
-    avatars {
-      id
-      url
-      isActive
-    }
-    location
-    website
-    socialLinks
-    fitnessGoals
-    preferredWorkoutTime
-    experienceLevel
-    visibility
-    wealthTier {
-      tier
-      name
-      color
-      icon
-      progressPercent
-      creditsToNext
-    }
-    creditBalance
-    updatedAt
+    avatarUrl
+    avatarId
+    xp
+    level
+    rank
+    wealthTier
+    age
+    gender
+    heightCm
+    weightKg
+    preferredUnits
+    ghostMode
+    leaderboardOptIn
+    aboutMe
+    theme
   }
 }
 
@@ -149,11 +138,13 @@ mutation StartWorkoutSession($input: StartWorkoutSessionInput) {
         exerciseId
         exerciseName
         setNumber
-        weight
+        weightKg
         reps
         rpe
-        isPR
-        createdAt
+        isPRWeight
+        isPRReps
+        isPR1RM
+        performedAt
       }
       totalVolume
       totalReps
@@ -174,13 +165,15 @@ mutation LogSet($input: LogSetInput!) {
         exerciseId
         exerciseName
         setNumber
-        weight
+        weightKg
         reps
         rpe
-        duration
+        durationSeconds
         notes
-        isPR
-        createdAt
+        isPRWeight
+        isPRReps
+        isPR1RM
+        performedAt
       }
       totalVolume
       totalReps
@@ -188,14 +181,14 @@ mutation LogSet($input: LogSetInput!) {
       musclesWorked {
         muscleId
         muscleName
-        activationLevel
-        sets
+        totalTU
+        setCount
       }
       sessionPRs {
         exerciseId
         exerciseName
         prType
-        value
+        newValue
         previousValue
       }
       clientVersion
@@ -206,11 +199,12 @@ mutation LogSet($input: LogSetInput!) {
       exerciseId
       exerciseName
       setNumber
-      weight
+      weightKg
       reps
       rpe
-      isPR
-      createdAt
+      isPRWeight
+      isPRReps
+      performedAt
     }
   }
 }
@@ -221,13 +215,15 @@ mutation UpdateSet($input: UpdateSetInput!) {
     exerciseId
     exerciseName
     setNumber
-    weight
+    weightKg
     reps
     rpe
-    duration
+    durationSeconds
     notes
-    isPR
-    createdAt
+    isPRWeight
+    isPRReps
+    isPR1RM
+    performedAt
   }
 }
 
@@ -281,37 +277,42 @@ mutation CompleteWorkoutSession($input: CompleteWorkoutSessionInput!) {
       duration
       notes
       totalTU
-      characterStats {
-        strength
-        endurance
-        agility
-        vitality
-        focus
-      }
       createdAt
     }
-    stats {
-      totalSets
-      totalReps
+    session {
+      id
       totalVolume
-      duration
-      prsAchieved
-      musclesWorked
-      caloriesBurned
+      totalReps
+      estimatedCalories
     }
-    rewards {
-      xpEarned
-      creditsEarned
-      achievementsUnlocked {
-        id
-        name
-        description
-        icon
-        xpReward
-        creditReward
-      }
-      levelUp
-      newLevel
+    totalTU
+    totalVolume
+    totalSets
+    totalReps
+    duration
+    muscleBreakdown {
+      muscleId
+      muscleName
+      totalTU
+      setCount
+    }
+    prsAchieved {
+      exerciseId
+      exerciseName
+      prType
+      newValue
+      previousValue
+    }
+    creditsCharged
+    xpEarned
+    levelUp
+    achievements {
+      id
+      name
+      description
+      icon
+      rarity
+      unlockedAt
     }
   }
 }
@@ -330,11 +331,12 @@ mutation RecoverWorkoutSession($archivedSessionId: ID!) {
       exerciseId
       exerciseName
       setNumber
-      weight
+      weightKg
       reps
       rpe
-      isPR
-      createdAt
+      isPRWeight
+      isPRReps
+      performedAt
     }
     totalVolume
     totalReps
@@ -358,14 +360,14 @@ mutation CreateGoal($input: GoalInput!) {
     title
     description
     status
-    startDate
-    targetDate
+    deadline
     milestones {
       id
-      target
+      goalId
       title
-      reached
-      reachedAt
+      target
+      achieved
+      achievedAt
     }
     createdAt
   }
@@ -382,15 +384,14 @@ mutation UpdateGoal($id: ID!, $input: GoalInput!) {
     title
     description
     status
-    startDate
-    targetDate
-    completedAt
+    deadline
     milestones {
       id
-      target
+      goalId
       title
-      reached
-      reachedAt
+      target
+      achieved
+      achievedAt
     }
     updatedAt
   }
@@ -405,11 +406,10 @@ mutation RecordGoalProgress($id: ID!, $input: GoalProgressInput!) {
     id
     current
     status
-    completedAt
     milestones {
       id
-      reached
-      reachedAt
+      achieved
+      achievedAt
     }
     updatedAt
   }
@@ -421,12 +421,22 @@ mutation RecordGoalProgress($id: ID!, $input: GoalProgressInput!) {
 
 mutation SelectArchetype($archetypeId: ID!) {
   selectArchetype(archetypeId: $archetypeId) {
-    user {
+    success
+    archetype {
       id
-      archetype
+      name
+      description
+      icon
     }
-    archetypeName
-    bonusDescription
+    journey {
+      userId
+      currentLevel
+      currentXP
+      xpToNextLevel
+      totalXP
+      completedMilestones
+      unlockedAbilities
+    }
   }
 }
 
@@ -439,11 +449,14 @@ mutation RecalculateStats {
     strength
     endurance
     agility
-    vitality
-    focus
-    totalTU
-    archetypeBonus
-    updatedAt
+    flexibility
+    balance
+    mentalFocus
+    totalWorkouts
+    totalExercises
+    currentStreak
+    longestStreak
+    lastWorkoutAt
   }
 }
 
@@ -457,114 +470,19 @@ mutation ChargeCredits($input: ChargeInput!) {
     newBalance
     transaction {
       id
-      amount
       type
-      category
+      amount
       description
       createdAt
+      metadata
     }
-  }
-}
-
-mutation SendTip($input: TipInput!) {
-  sendTip(input: $input) {
-    success
-    transaction {
-      id
-      amount
-      type
-      description
-      createdAt
-    }
-    newBalance
-    recipientNotified
-  }
-}
-
-mutation SendGift($input: GiftInput!) {
-  sendGift(input: $input) {
-    success
-    transaction {
-      id
-      amount
-      type
-      description
-      createdAt
-    }
-    newBalance
-    giftDetails {
-      giftType
-      recipientId
-      message
-    }
-  }
-}
-
-mutation TransferCredits($input: TransferInput!) {
-  transferCredits(input: $input) {
-    success
-    transaction {
-      id
-      amount
-      type
-      description
-      createdAt
-    }
-    newBalance
-    recipientNewBalance
-  }
-}
-
-mutation TransferCreditsByUsername($input: TransferByUsernameInput!) {
-  transferCreditsByUsername(input: $input) {
-    success
-    transaction {
-      id
-      amount
-      type
-      description
-      createdAt
-    }
-    newBalance
-    recipientNewBalance
   }
 }
 
 mutation SendHighFive($input: HighFiveInput!) {
   sendHighFive(input: $input) {
     success
-    highFive {
-      id
-      fromUserId
-      toUserId
-      workoutId
-      message
-      isSuper
-      createdAt
-    }
-    notified
-  }
-}
-
-mutation SendSuperHighFive($input: SuperHighFiveInput!) {
-  sendSuperHighFive(input: $input) {
-    success
-    highFive {
-      id
-      fromUserId
-      toUserId
-      amount
-      message
-      isSuper
-      createdAt
-    }
-    transaction {
-      id
-      amount
-      type
-      createdAt
-    }
-    newBalance
+    error
   }
 }
 
@@ -576,7 +494,14 @@ mutation CreateConversation($type: String!, $participantIds: [ID!]!) {
   createConversation(type: $type, participantIds: $participantIds) {
     id
     type
-    participantIds
+    name
+    participants {
+      userId
+      username
+      displayName
+      avatarUrl
+      role
+    }
     createdAt
     updatedAt
   }
@@ -587,21 +512,17 @@ mutation SendMessage($conversationId: ID!, $content: String!, $replyToId: ID) {
     id
     conversationId
     senderId
+    senderUsername
+    senderDisplayName
     content
-    replyToId
-    createdAt
-    editedAt
-  }
-}
-
-mutation EditMessage($messageId: ID!, $content: String!) {
-  editMessage(messageId: $messageId, content: $content) {
-    message {
+    contentType
+    replyTo {
       id
       content
-      editedAt
+      senderName
     }
-    success
+    createdAt
+    editedAt
   }
 }
 
@@ -610,139 +531,13 @@ mutation MarkConversationRead($conversationId: ID!) {
 }
 
 # ============================================================================
-# Progress Photo Mutations
-# ============================================================================
-
-mutation CreateProgressPhoto($input: ProgressPhotoInput!) {
-  createProgressPhoto(input: $input) {
-    id
-    userId
-    imageUrl
-    takenAt
-    bodyWeight
-    notes
-    measurements
-    visibility
-    createdAt
-  }
-}
-
-mutation UpdateProgressPhoto($id: ID!, $input: ProgressPhotoUpdateInput!) {
-  updateProgressPhoto(id: $id, input: $input) {
-    id
-    notes
-    measurements
-    visibility
-    updatedAt
-  }
-}
-
-mutation DeleteProgressPhoto($id: ID!) {
-  deleteProgressPhoto(id: $id)
-}
-
-# ============================================================================
-# Body Measurement Mutations
-# ============================================================================
-
-mutation CreateBodyMeasurement($input: BodyMeasurementInput!) {
-  createBodyMeasurement(input: $input) {
-    id
-    userId
-    type
-    value
-    unit
-    measuredAt
-    notes
-    createdAt
-  }
-}
-
-mutation UpdateBodyMeasurement($id: ID!, $input: BodyMeasurementInput!) {
-  updateBodyMeasurement(id: $id, input: $input) {
-    id
-    type
-    value
-    unit
-    measuredAt
-    notes
-    updatedAt
-  }
-}
-
-mutation DeleteBodyMeasurement($id: ID!) {
-  deleteBodyMeasurement(id: $id)
-}
-
-# ============================================================================
-# Equipment & Limitations Mutations
-# ============================================================================
-
-mutation UpdateHomeEquipment($equipmentIds: [ID!]!) {
-  updateHomeEquipment(equipmentIds: $equipmentIds) {
-    id
-    userId
-    equipmentId
-    equipmentName
-    createdAt
-  }
-}
-
-mutation AddHomeEquipment($equipmentId: ID!) {
-  addHomeEquipment(equipmentId: $equipmentId) {
-    id
-    userId
-    equipmentId
-    equipmentName
-    createdAt
-  }
-}
-
-mutation RemoveHomeEquipment($equipmentId: ID!) {
-  removeHomeEquipment(equipmentId: $equipmentId)
-}
-
-mutation CreateLimitation($input: LimitationInput!) {
-  createLimitation(input: $input) {
-    id
-    userId
-    type
-    description
-    affectedMuscles
-    affectedExercises
-    severity
-    isTemporary
-    expectedEndDate
-    createdAt
-  }
-}
-
-mutation UpdateLimitation($id: ID!, $input: LimitationInput!) {
-  updateLimitation(id: $id, input: $input) {
-    id
-    type
-    description
-    affectedMuscles
-    affectedExercises
-    severity
-    isTemporary
-    expectedEndDate
-    updatedAt
-  }
-}
-
-mutation DeleteLimitation($id: ID!) {
-  deleteLimitation(id: $id)
-}
-
-# ============================================================================
 # Presence Mutations
 # ============================================================================
 
 mutation UpdatePresence($status: String!) {
   updatePresence(status: $status) {
-    userId
-    status
+    online
     lastSeen
+    status
   }
 }

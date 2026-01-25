@@ -34,18 +34,16 @@ generates:
       apolloReactHooksImportFrom: '@apollo/client'
       apolloClientVersion: 3
 
-      # Add operation result types
-      addOperationExport: true
-      exportFragmentSpreadSubTypes: true
+      # Don't export operation document nodes separately (avoids duplicates)
+      addOperationExport: false
+      exportFragmentSpreadSubTypes: false
 
       # Skip typename for cleaner types
       skipTypename: false
       nonOptionalTypename: true
 
-      # Mutation return types
-      omitOperationSuffix: false
-      operationResultSuffix: 'Result'
+      # Mutation return types - avoid duplicate suffix
+      omitOperationSuffix: true
+      operationResultSuffix: ''
 
-hooks:
-  afterOneFileWrite:
-    - biome format --write
+# Format the generated file manually with: pnpm biome format --write src/generated/graphql.ts

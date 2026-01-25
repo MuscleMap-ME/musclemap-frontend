@@ -121,8 +121,8 @@ curl https://musclemap.me/health
 # 1. Build locally
 pnpm build:intelligent
 
-# 2. Rsync dist to server
-rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+# 2. Rsync dist to server (delta transfer - only sends changed bytes)
+rsync -rvz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
 
 # 3. Update server (packages + API only)
 ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && git pull && pnpm install && pnpm build:packages && pnpm build:api && pm2 restart musclemap --silent"
@@ -137,7 +137,7 @@ When only frontend files changed:
 
 ```bash
 pnpm build:intelligent && \
-rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/ && \
+rsync -rvz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/ && \
 ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 
@@ -405,7 +405,7 @@ ssh -p 2222 root@musclemap.me "cd /var/www/musclemap.me && pnpm build"
 
 # ALWAYS do this instead:
 pnpm build:intelligent  # Build locally
-rsync -avz -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
+rsync -rvz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/
 ssh -p 2222 root@musclemap.me "pm2 restart musclemap --silent"
 ```
 

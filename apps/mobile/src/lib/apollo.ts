@@ -10,17 +10,16 @@
 import {
   ApolloClient,
   InMemoryCache,
+  NormalizedCacheObject,
   createHttpLink,
   from,
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persistCache, AsyncStorageWrapper } from 'apollo3-cache-persist';
 import * as SecureStore from 'expo-secure-store';
-
-// These imports will be available after pnpm install
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { persistCache, AsyncStorageWrapper } from 'apollo3-cache-persist';
 
 const TOKEN_KEY = 'musclemap_token';
 

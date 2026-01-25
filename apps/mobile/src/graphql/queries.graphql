@@ -1,5 +1,5 @@
 # ============================================================================
-# User & Profile Queries
+# Core User Queries
 # ============================================================================
 
 query Me {
@@ -23,7 +23,6 @@ query Me {
     }
     createdAt
     roles
-    archetype
   }
 }
 
@@ -55,47 +54,26 @@ query MyProfile {
 query MyFullProfile {
   myFullProfile {
     id
-    userId
+    username
     displayName
-    bio
-    bioRichJson
-    avatar
-    avatars {
-      id
-      url
-      isActive
-    }
-    location
-    website
-    socialLinks
-    fitnessGoals
-    preferredWorkoutTime
-    experienceLevel
-    visibility
-    wealthTier {
-      tier
-      name
-      color
-      icon
-      progressPercent
-      creditsToNext
-    }
-    creditBalance
-    progressPhotos {
-      id
-      imageUrl
-      takenAt
-      notes
-    }
-    workoutStats {
-      totalWorkouts
-      totalVolume
-      currentStreak
-      longestStreak
-      weeklyWorkouts
-    }
-    createdAt
-    updatedAt
+    avatarUrl
+    avatarId
+    xp
+    level
+    rank
+    wealthTier
+    age
+    gender
+    heightCm
+    weightKg
+    preferredUnits
+    ghostMode
+    leaderboardOptIn
+    aboutMe
+    limitations
+    equipmentInventory
+    weeklyActivity
+    theme
   }
 }
 
@@ -130,7 +108,7 @@ query Exercises(
   }
 }
 
-query Exercise($id: ID!) {
+query GetExercise($id: ID!) {
   exercise(id: $id) {
     id
     name
@@ -144,28 +122,6 @@ query Exercise($id: ID!) {
     tips
     imageUrl
     videoUrl
-  }
-}
-
-query ExerciseHistory($exerciseIds: [ID!]!) {
-  exerciseHistory(exerciseIds: $exerciseIds) {
-    exerciseId
-    lastPerformed
-    totalSets
-    totalReps
-    totalVolume
-    estimatedOneRepMax
-    personalRecords {
-      type
-      value
-      achievedAt
-    }
-    recentSets {
-      weight
-      reps
-      rpe
-      performedAt
-    }
   }
 }
 
@@ -188,18 +144,11 @@ query MyWorkouts($limit: Int = 10, $offset: Int = 0) {
     duration
     notes
     totalTU
-    characterStats {
-      strength
-      endurance
-      agility
-      vitality
-      focus
-    }
     createdAt
   }
 }
 
-query Workout($id: ID!) {
+query GetWorkout($id: ID!) {
   workout(id: $id) {
     id
     userId
@@ -214,13 +163,6 @@ query Workout($id: ID!) {
     duration
     notes
     totalTU
-    characterStats {
-      strength
-      endurance
-      agility
-      vitality
-      focus
-    }
     createdAt
   }
 }
@@ -228,14 +170,15 @@ query Workout($id: ID!) {
 query MyWorkoutStats {
   myWorkoutStats {
     totalWorkouts
-    totalVolume
+    totalExercises
+    totalSets
+    totalReps
+    totalWeight
+    averageWorkoutDuration
     currentStreak
     longestStreak
-    weeklyWorkouts
-    favoriteExercise
-    lastWorkoutAt
-    thisWeekVolume
-    lastWeekVolume
+    thisWeek
+    thisMonth
   }
 }
 
@@ -259,13 +202,19 @@ query ActiveWorkoutSession {
       exerciseId
       exerciseName
       setNumber
-      weight
+      weightKg
       reps
       rpe
-      duration
+      rir
+      durationSeconds
+      restSeconds
+      tag
       notes
-      isPR
-      createdAt
+      tu
+      isPRWeight
+      isPRReps
+      isPR1RM
+      performedAt
     }
     totalVolume
     totalReps
@@ -273,15 +222,18 @@ query ActiveWorkoutSession {
     musclesWorked {
       muscleId
       muscleName
-      activationLevel
-      sets
+      totalTU
+      setCount
+      percentageOfMax
     }
     sessionPRs {
       exerciseId
       exerciseName
       prType
-      value
+      newValue
       previousValue
+      improvementPercent
+      achievedAt
     }
     restTimerRemaining
     restTimerTotalDuration
@@ -291,68 +243,16 @@ query ActiveWorkoutSession {
   }
 }
 
-query WorkoutSession($id: ID!) {
-  workoutSession(id: $id) {
-    id
-    userId
-    startedAt
-    pausedAt
-    totalPausedTime
-    lastActivityAt
-    workoutPlan
-    currentExerciseIndex
-    currentSetIndex
-    sets {
-      id
-      exerciseId
-      exerciseName
-      setNumber
-      weight
-      reps
-      rpe
-      duration
-      notes
-      isPR
-      createdAt
-    }
-    totalVolume
-    totalReps
-    estimatedCalories
-    musclesWorked {
-      muscleId
-      muscleName
-      activationLevel
-      sets
-    }
-    sessionPRs {
-      exerciseId
-      exerciseName
-      prType
-      value
-      previousValue
-    }
-    clientVersion
-    serverVersion
-  }
-}
-
 query RecoverableSessions($limit: Int = 5) {
   recoverableSessions(limit: $limit) {
-    sessionId
+    id
     startedAt
-    lastActivityAt
-    exerciseCount
-    setCount
-    duration
-  }
-}
-
-query WorkoutMuscleBreakdown($sessionId: ID!) {
-  workoutMuscleBreakdown(sessionId: $sessionId) {
-    muscleId
-    muscleName
-    activationLevel
-    sets
+    archivedAt
+    archiveReason
+    setsLogged
+    totalVolume
+    musclesWorked
+    canRecover
   }
 }
 
@@ -362,31 +262,29 @@ query WorkoutMuscleBreakdown($sessionId: ID!) {
 
 query EconomyWallet {
   economyWallet {
-    userId
-    credits
-    wealthTier
-    tierProgress {
-      tier
-      name
-      color
-      icon
-      progressPercent
-      creditsToNext
+    balance {
+      credits
+      pending
+      lifetime
     }
-    lastUpdated
+    transactions {
+      id
+      type
+      amount
+      description
+      createdAt
+    }
   }
 }
 
-query EconomyTransactions($limit: Int = 20, $offset: Int = 0) {
-  economyTransactions(limit: $limit, offset: $offset) {
+query EconomyTransactions($limit: Int = 20) {
+  economyTransactions(limit: $limit) {
     id
-    userId
-    amount
     type
-    category
+    amount
     description
-    metadata
     createdAt
+    metadata
   }
 }
 
@@ -394,74 +292,73 @@ query EconomyTransactions($limit: Int = 20, $offset: Int = 0) {
 # Social Queries
 # ============================================================================
 
-query StatLeaderboard($stat: String!, $period: String!, $limit: Int = 50) {
-  statLeaderboard(stat: $stat, period: $period, limit: $limit) {
+query StatLeaderboard($stat: String, $scope: String, $scopeValue: String, $limit: Int = 50, $afterRank: Int) {
+  statLeaderboard(stat: $stat, scope: $scope, scopeValue: $scopeValue, limit: $limit, afterRank: $afterRank) {
     entries {
-      rank
       userId
       username
-      avatar
-      value
-      wealthTier
+      avatarUrl
+      statValue
+      rank
+      gender
+      country
+      state
+      city
     }
-    myRank
-    myValue
-    totalParticipants
+    total
+    nextCursor
   }
 }
 
 query MyCrew {
   myCrew {
-    isMember
     crew {
       id
       name
       tag
       description
-      avatarUrl
-      bannerUrl
-      memberCount
-      maxMembers
-      isPrivate
-      createdAt
-      stats {
-        totalWorkouts
-        weeklyWorkouts
-        totalVolume
-        avgMemberLevel
-      }
-    }
-    members {
-      userId
-      username
       avatar
+      color
+      ownerId
+      memberCount
+      totalTU
+      weeklyTU
+      wins
+      losses
+      createdAt
+    }
+    membership {
+      id
+      crewId
+      userId
       role
       joinedAt
-      weeklyWorkouts
-      weeklyVolume
+      weeklyTU
+      totalTU
+      username
+      avatar
+      archetype
     }
-    myRole
-  }
-}
-
-query CrewLeaderboard($period: String!, $limit: Int = 20) {
-  crewLeaderboard(period: $period, limit: $limit) {
-    entries {
-      rank
+    members {
+      id
       crewId
-      crewName
-      crewTag
-      crewAvatar
-      value
-      memberCount
+      userId
+      role
+      joinedAt
+      weeklyTU
+      totalTU
+      username
+      avatar
+      archetype
     }
-    myCrew {
-      rank
-      crewId
-      crewName
-      value
+    stats {
+      totalMembers
+      totalTU
+      weeklyTU
+      warsWon
+      warsLost
+      currentStreak
     }
-    totalCrews
   }
 }
 
@@ -469,35 +366,24 @@ query CrewLeaderboard($period: String!, $limit: Int = 20) {
 # Achievements Queries
 # ============================================================================
 
-query Achievements {
-  achievements {
-    id
-    key
-    name
-    description
-    category
-    icon
-    tier
-    xpReward
-    creditReward
-    requirement
-    isUnlocked
-    unlockedAt
-    progress
-  }
-}
-
-query RecentAchievements($limit: Int = 5) {
-  recentAchievements(limit: $limit) {
-    id
-    key
-    name
-    description
-    icon
-    tier
-    xpReward
-    creditReward
-    unlockedAt
+query MyAchievements($category: String, $limit: Int, $offset: Int) {
+  myAchievements(category: $category, limit: $limit, offset: $offset) {
+    achievements {
+      id
+      achievementKey
+      achievementName
+      achievementDescription
+      achievementIcon
+      category
+      points
+      rarity
+      creditsEarned
+      xpEarned
+      isVerified
+      witnessUsername
+      earnedAt
+    }
+    total
   }
 }
 
@@ -505,8 +391,8 @@ query RecentAchievements($limit: Int = 5) {
 # Goals Queries
 # ============================================================================
 
-query MyGoals($status: String) {
-  myGoals(status: $status) {
+query Goals {
+  goals {
     id
     userId
     type
@@ -516,23 +402,21 @@ query MyGoals($status: String) {
     title
     description
     status
-    startDate
-    targetDate
-    completedAt
-    metadata
+    deadline
     milestones {
       id
-      target
+      goalId
       title
-      reached
-      reachedAt
+      target
+      achieved
+      achievedAt
     }
     createdAt
     updatedAt
   }
 }
 
-query Goal($id: ID!) {
+query GetGoal($id: ID!) {
   goal(id: $id) {
     id
     userId
@@ -543,67 +427,27 @@ query Goal($id: ID!) {
     title
     description
     status
-    startDate
-    targetDate
-    completedAt
-    metadata
+    deadline
     milestones {
       id
-      target
+      goalId
       title
-      reached
-      reachedAt
+      target
+      achieved
+      achievedAt
     }
     createdAt
     updatedAt
   }
 }
 
-query GoalSuggestions($limit: Int = 5) {
-  goalSuggestions(limit: $limit) {
+query GoalSuggestions {
+  goalSuggestions {
     type
     target
     unit
     title
     description
-    reason
-    confidence
-  }
-}
-
-# ============================================================================
-# Character Stats Queries
-# ============================================================================
-
-query MyCharacterStats {
-  myCharacterStats {
-    userId
-    level
-    xp
-    xpToNextLevel
-    strength
-    endurance
-    agility
-    vitality
-    focus
-    totalTU
-    archetypeBonus
-    updatedAt
-  }
-}
-
-query CharacterLeaderboard($stat: String!, $limit: Int = 50) {
-  characterLeaderboard(stat: $stat, limit: $limit) {
-    entries {
-      rank
-      userId
-      username
-      avatar
-      level
-      value
-      archetype
-    }
-    myRank
-    totalParticipants
+    reasoning
   }
 }

@@ -21,8 +21,10 @@ import {
   Users,
   ShoppingCart,
   Sparkles,
-  type LucideIcon,
 } from '@tamagui/lucide-icons';
+
+// Icon component type inferred from one of the icons
+type IconComponent = typeof Dumbbell;
 
 // ============================================================================
 // Types
@@ -58,7 +60,7 @@ export interface CreditTransactionProps {
 // Transaction type configurations
 const TRANSACTION_CONFIG: Record<
   TransactionType,
-  { icon: LucideIcon; color: string; bgColor: string }
+  { icon: IconComponent; color: string; bgColor: string }
 > = {
   workout: {
     icon: Dumbbell,

@@ -178,7 +178,7 @@ fi
 
 # Step 7a: Rsync dist folder to server
 echo -e "${BLUE}   → Syncing dist folder...${NC}"
-if ! rsync -avz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/; then
+if ! rsync -rvz --delete -e "ssh -p 2222" dist/ root@musclemap.me:/var/www/musclemap.me/dist/; then
     echo -e "${RED}❌ Rsync failed!${NC}"
     if [ -n "$DEPLOY_ID" ] && [ -f "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" ]; then
         npx tsx "$MAIN_REPO/scripts/deployment/deployment-tracker.ts" update "$DEPLOY_ID" "failed" 2>/dev/null || true
