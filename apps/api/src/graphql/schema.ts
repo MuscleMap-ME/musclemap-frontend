@@ -12,6 +12,175 @@ export const typeDefs = `#graphql
   scalar JSON
 
   # ============================================
+  # COMMON ENUMS (Stroustrup: "Type safety through enums")
+  # ============================================
+
+  """Generic status for most entities"""
+  enum Status {
+    active
+    inactive
+    pending
+    completed
+    cancelled
+    archived
+    deleted
+  }
+
+  """Workout session status"""
+  enum WorkoutSessionStatus {
+    active
+    paused
+    completed
+    abandoned
+  }
+
+  """Goal status"""
+  enum GoalStatus {
+    active
+    completed
+    paused
+    abandoned
+  }
+
+  """Competition status"""
+  enum CompetitionStatus {
+    upcoming
+    active
+    completed
+    cancelled
+  }
+
+  """Rivalry status"""
+  enum RivalryStatus {
+    pending
+    active
+    completed
+    declined
+    cancelled
+  }
+
+  """Enrollment status (programs, classes)"""
+  enum EnrollmentStatus {
+    active
+    paused
+    completed
+    dropped
+  }
+
+  """Conversation type"""
+  enum ConversationType {
+    direct
+    group
+    crew
+    community
+  }
+
+  """User presence status"""
+  enum PresenceStatus {
+    online
+    away
+    busy
+    offline
+  }
+
+  """Equipment condition"""
+  enum EquipmentCondition {
+    excellent
+    good
+    fair
+    poor
+    broken
+    removed
+  }
+
+  """Difficulty level"""
+  enum DifficultyLevel {
+    beginner
+    intermediate
+    advanced
+    expert
+  }
+
+  """Leaderboard type"""
+  enum LeaderboardType {
+    daily
+    weekly
+    monthly
+    allTime
+    archetype
+    crew
+  }
+
+  """Feed item type"""
+  enum FeedItemType {
+    workout
+    achievement
+    milestone
+    goal
+    social
+    system
+  }
+
+  """Transaction type"""
+  enum TransactionType {
+    earn
+    spend
+    transfer
+    reward
+    purchase
+    refund
+  }
+
+  """Issue status"""
+  enum IssueStatus {
+    open
+    in_progress
+    resolved
+    closed
+    wont_fix
+  }
+
+  """Issue type"""
+  enum IssueType {
+    bug
+    feature
+    improvement
+    question
+    feedback
+  }
+
+  """Trainer status"""
+  enum TrainerStatus {
+    pending
+    verified
+    suspended
+    inactive
+  }
+
+  """Class status"""
+  enum ClassStatus {
+    scheduled
+    in_progress
+    completed
+    cancelled
+  }
+
+  """Verification status"""
+  enum AchievementVerificationStatus {
+    pending
+    approved
+    rejected
+    expired
+  }
+
+  """Submission status (venues, content)"""
+  enum SubmissionStatus {
+    pending
+    approved
+    rejected
+  }
+
+  # ============================================
   # COMMON PAGINATION TYPES
   # ============================================
   """Standard Relay-style pagination info"""

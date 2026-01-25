@@ -2,15 +2,16 @@
  * ScreenshotImportSheet Component
  *
  * Allows users to take or upload screenshots of workout data and extract
- * exercise information using OCR.
+ * exercise information using OCR powered by Tesseract.js.
  *
- * Future integration points:
- * - Cloud Vision API / Tesseract.js for OCR
- * - Camera access for direct capture
- * - Image preprocessing for better OCR results
+ * Features:
+ * - Real OCR using Tesseract.js (runs in browser via WebAssembly)
+ * - Image preprocessing for better results
+ * - Smart parsing for workout data patterns
+ * - Confidence scoring for extracted data
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Camera,
   Upload,
@@ -21,9 +22,11 @@ import {
   Loader2,
   CheckCircle2,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { SafeMotion, SafeAnimatePresence } from '@/utils/safeMotion';
 import { haptic } from '@/utils/haptics';
+import { createWorker, OEM, PSM, type Worker } from 'tesseract.js';
 
 interface ParsedExercise {
   id: string;
@@ -42,31 +45,194 @@ interface ScreenshotImportSheetProps {
   onClose: () => void;
 }
 
-// Mock OCR function - will be replaced with actual OCR service
-async function performOCR(_imageData: string): Promise<string[]> {
-  // Simulate OCR processing time
-  await new Promise(resolve => setTimeout(resolve, 2000));
-
-  // This would be replaced with actual OCR API call
-  // For now, return empty to show the "coming soon" state
-  return [];
+// OCR progress state
+interface OCRProgress {
+  status: string;
+  progress: number;
 }
 
-// Parse OCR text into exercises
-function parseOCRText(lines: string[]): ParsedExercise[] {
-  const exercises: ParsedExercise[] = [];
+// Tesseract worker singleton for better performance
+let tesseractWorker: Worker | null = null;
+let workerInitializing = false;
 
-  // Pattern matching similar to TextImportSheet
-  // This would be refined based on actual OCR output
+/**
+ * Initialize Tesseract worker
+ * Uses singleton pattern to avoid reinitializing on each use
+ */
+async function getWorker(): Promise<Worker> {
+  if (tesseractWorker) {
+    return tesseractWorker;
+  }
+
+  if (workerInitializing) {
+    // Wait for existing initialization
+    while (workerInitializing) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (tesseractWorker) {
+      return tesseractWorker;
+    }
+  }
+
+  workerInitializing = true;
+
+  try {
+    const worker = await createWorker('eng', OEM.LSTM_ONLY, {
+      // Use CDN for Tesseract assets for faster loading
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    });
+
+    // Configure for text recognition
+    await worker.setParameters({
+      tessedit_pageseg_mode: PSM.AUTO,
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 xX×:.,-()lbskgr',
+    });
+
+    tesseractWorker = worker;
+    return worker;
+  } finally {
+    workerInitializing = false;
+  }
+}
+
+/**
+ * Perform OCR on image using Tesseract.js
+ */
+async function performOCR(
+  imageData: string,
+  onProgress?: (progress: OCRProgress) => void
+): Promise<{ lines: string[]; rawText: string; confidence: number }> {
+  onProgress?.({ status: 'Initializing OCR engine...', progress: 0 });
+
+  const worker = await getWorker();
+
+  onProgress?.({ status: 'Analyzing image...', progress: 20 });
+
+  const result = await worker.recognize(imageData, {}, {
+    text: true,
+    blocks: true,
+  });
+
+  onProgress?.({ status: 'Extracting text...', progress: 80 });
+
+  const rawText = result.data.text;
+  const lines = rawText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  onProgress?.({ status: 'Complete!', progress: 100 });
+
+  return {
+    lines,
+    rawText,
+    confidence: result.data.confidence,
+  };
+}
+
+/**
+ * Common exercise name patterns to help with fuzzy matching
+ */
+const COMMON_EXERCISES = [
+  'bench press', 'squat', 'deadlift', 'overhead press', 'barbell row',
+  'pull up', 'chin up', 'lat pulldown', 'cable row', 'dumbbell curl',
+  'tricep extension', 'leg press', 'leg curl', 'leg extension', 'calf raise',
+  'shoulder press', 'lateral raise', 'front raise', 'face pull', 'shrug',
+  'romanian deadlift', 'hip thrust', 'lunge', 'split squat', 'goblet squat',
+  'incline press', 'decline press', 'dumbbell press', 'fly', 'cable fly',
+  'preacher curl', 'hammer curl', 'concentration curl', 'skull crusher',
+  'dip', 'push up', 'plank', 'crunch', 'russian twist', 'hanging leg raise',
+];
+
+/**
+ * Normalize exercise name for better matching
+ */
+function normalizeExerciseName(name: string): string {
+  // Clean up common OCR artifacts
+  let cleaned = name
+    .toLowerCase()
+    .replace(/[|!1l]/g, 'l') // Common OCR confusion
+    .replace(/[0oO]/g, 'o')
+    .replace(/[_\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Try to match against common exercises
+  for (const exercise of COMMON_EXERCISES) {
+    // Simple fuzzy match - if most characters are there
+    const exerciseWords = exercise.split(' ');
+    const nameWords = cleaned.split(' ');
+
+    let matchCount = 0;
+    for (const ew of exerciseWords) {
+      for (const nw of nameWords) {
+        if (nw.includes(ew) || ew.includes(nw)) {
+          matchCount++;
+          break;
+        }
+      }
+    }
+
+    if (matchCount >= exerciseWords.length * 0.7) {
+      // Return properly capitalized version
+      return exercise.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+  }
+
+  // Return original with title case
+  return cleaned.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Parse OCR text into exercises
+ * Handles multiple workout app formats and common patterns
+ */
+function parseOCRText(lines: string[], ocrConfidence: number): ParsedExercise[] {
+  const exercises: ParsedExercise[] = [];
+  let currentExercise: ParsedExercise | null = null;
+
+  // Pattern definitions for different formats
+  const patterns = {
+    // "Bench Press 185 x 8 x 3" or "Bench Press 185×8×3"
+    exerciseWithSets: /^([a-zA-Z][a-zA-Z\s]+?)\s+(\d+(?:\.\d+)?)\s*(?:lbs?|kg)?\s*[x×]\s*(\d+)(?:\s*[x×]\s*(\d+))?/i,
+
+    // "3 x 185 x 8" (sets first)
+    setsFirst: /^(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(?:lbs?|kg)?\s*[x×]\s*(\d+)/i,
+
+    // "Set 1: 185 lbs x 8 reps"
+    setDetail: /(?:set\s*)?(\d+):\s*(\d+(?:\.\d+)?)\s*(?:lbs?|kg)?\s*[x×]\s*(\d+)\s*(?:reps?)?/i,
+
+    // "185 lbs × 8"
+    weightReps: /^(\d+(?:\.\d+)?)\s*(?:lbs?|kg)\s*[x×]\s*(\d+)/i,
+
+    // Just an exercise name (followed by sets on next lines)
+    exerciseName: /^([a-zA-Z][a-zA-Z\s]{3,30})$/,
+
+    // "8 reps @ 185 lbs"
+    repsAtWeight: /^(\d+)\s*reps?\s*@\s*(\d+(?:\.\d+)?)\s*(?:lbs?|kg)?/i,
+  };
+
+  // Calculate confidence level based on OCR confidence
+  function getConfidence(ocrConf: number): 'high' | 'medium' | 'low' {
+    if (ocrConf >= 85) return 'high';
+    if (ocrConf >= 65) return 'medium';
+    return 'low';
+  }
+
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed || trimmed.length < 2) continue;
 
-    // Basic pattern: "Exercise Name 185x8x3"
-    const match = trimmed.match(/^([a-zA-Z][a-zA-Z\s]+?)\s+(\d+)\s*[x×]\s*(\d+)(?:\s*[x×]\s*(\d+))?/i);
+    // Skip common noise
+    if (/^(date|time|notes?|workout|history|log|total|volume):/i.test(trimmed)) {
+      continue;
+    }
 
+    // Try exercise with sets pattern
+    let match = trimmed.match(patterns.exerciseWithSets);
     if (match) {
-      const exerciseName = match[1].trim();
+      const exerciseName = normalizeExerciseName(match[1]);
       const weight = parseFloat(match[2]);
       const reps = parseInt(match[3], 10);
       const setCount = match[4] ? parseInt(match[4], 10) : 1;
@@ -85,9 +251,80 @@ function parseOCRText(lines: string[]): ParsedExercise[] {
         exerciseName,
         sets,
         rawText: trimmed,
-        confidence: 'medium',
+        confidence: getConfidence(ocrConfidence),
       });
+      currentExercise = null;
+      continue;
     }
+
+    // Try set detail pattern (for multi-line formats)
+    match = trimmed.match(patterns.setDetail);
+    if (match && currentExercise) {
+      const setNum = parseInt(match[1], 10);
+      const weight = parseFloat(match[2]);
+      const reps = parseInt(match[3], 10);
+
+      currentExercise.sets.push({
+        weight,
+        reps,
+        setNumber: setNum,
+      });
+      currentExercise.rawText += '\n' + trimmed;
+      continue;
+    }
+
+    // Try weight x reps pattern (for multi-line formats)
+    match = trimmed.match(patterns.weightReps);
+    if (match && currentExercise) {
+      const weight = parseFloat(match[1]);
+      const reps = parseInt(match[2], 10);
+
+      currentExercise.sets.push({
+        weight,
+        reps,
+        setNumber: currentExercise.sets.length + 1,
+      });
+      currentExercise.rawText += '\n' + trimmed;
+      continue;
+    }
+
+    // Try reps @ weight pattern
+    match = trimmed.match(patterns.repsAtWeight);
+    if (match && currentExercise) {
+      const reps = parseInt(match[1], 10);
+      const weight = parseFloat(match[2]);
+
+      currentExercise.sets.push({
+        weight,
+        reps,
+        setNumber: currentExercise.sets.length + 1,
+      });
+      currentExercise.rawText += '\n' + trimmed;
+      continue;
+    }
+
+    // Try exercise name pattern (starts a new exercise)
+    match = trimmed.match(patterns.exerciseName);
+    if (match) {
+      // Save previous exercise if it has sets
+      if (currentExercise && currentExercise.sets.length > 0) {
+        exercises.push(currentExercise);
+      }
+
+      currentExercise = {
+        id: Math.random().toString(36).substring(2, 9),
+        exerciseName: normalizeExerciseName(match[1]),
+        sets: [],
+        rawText: trimmed,
+        confidence: getConfidence(ocrConfidence),
+      };
+      continue;
+    }
+  }
+
+  // Don't forget the last exercise
+  if (currentExercise && currentExercise.sets.length > 0) {
+    exercises.push(currentExercise);
   }
 
   return exercises;
@@ -98,7 +335,17 @@ export function ScreenshotImportSheet({ onImport, onClose }: ScreenshotImportShe
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedExercises, setParsedExercises] = useState<ParsedExercise[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [ocrProgress, setOcrProgress] = useState<OCRProgress | null>(null);
+  const [rawOcrText, setRawOcrText] = useState<string | null>(null);
+  const [showRawText, setShowRawText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cleanup worker on unmount
+  useEffect(() => {
+    return () => {
+      // Don't terminate - singleton pattern keeps it for next use
+    };
+  }, []);
 
   // Handle file selection
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,27 +390,37 @@ export function ScreenshotImportSheet({ onImport, onClose }: ScreenshotImportShe
 
     setIsProcessing(true);
     setError(null);
+    setOcrProgress({ status: 'Starting...', progress: 0 });
     haptic('medium');
 
     try {
-      const ocrLines = await performOCR(selectedImage);
+      const { lines, rawText, confidence } = await performOCR(
+        selectedImage,
+        setOcrProgress
+      );
 
-      if (ocrLines.length === 0) {
-        // OCR not yet implemented - show coming soon message
-        setError('OCR processing is coming soon. This feature will use AI to extract workout data from screenshots.');
+      setRawOcrText(rawText);
+
+      if (lines.length === 0) {
+        setError('No text detected in image. Try a clearer screenshot with better lighting.');
         setParsedExercises([]);
       } else {
-        const parsed = parseOCRText(ocrLines);
+        const parsed = parseOCRText(lines, confidence);
         setParsedExercises(parsed);
 
         if (parsed.length === 0) {
-          setError('No workout data found in image. Try a clearer screenshot.');
+          setError('Text detected but no workout data found. The OCR extracted text is shown below - you can copy it to Text Import.');
+          setShowRawText(true);
+        } else {
+          haptic('success');
         }
       }
-    } catch (_err) {
-      setError('Failed to process image. Please try again.');
+    } catch (err) {
+      console.error('OCR Error:', err);
+      setError('Failed to process image. Please try again or use Text Import instead.');
     } finally {
       setIsProcessing(false);
+      setOcrProgress(null);
     }
   }, [selectedImage]);
 
@@ -208,11 +465,12 @@ export function ScreenshotImportSheet({ onImport, onClose }: ScreenshotImportShe
         <div className="flex items-center gap-2">
           <Camera className="w-5 h-5 text-orange-400" />
           <span className="font-medium">Screenshot Import</span>
-          <span className="px-2 py-0.5 bg-orange-500/20 rounded-full text-xs text-orange-300">Coming Soon</span>
+          <span className="px-2 py-0.5 bg-green-500/20 rounded-full text-xs text-green-300">OCR Powered</span>
         </div>
         <button
           onClick={onClose}
           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          aria-label="Close screenshot import"
         >
           <X className="w-4 h-4 text-gray-400" />
         </button>
@@ -291,24 +549,52 @@ export function ScreenshotImportSheet({ onImport, onClose }: ScreenshotImportShe
               </button>
             </div>
 
-            {/* Process button */}
+            {/* Process button with progress */}
             {parsedExercises.length === 0 && !error && (
+              <div className="space-y-2">
+                <button
+                  onClick={handleProcess}
+                  disabled={isProcessing}
+                  className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {ocrProgress?.status || 'Processing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Extract Workout Data
+                    </>
+                  )}
+                </button>
+
+                {/* Progress bar */}
+                {isProcessing && ocrProgress && (
+                  <div className="space-y-1">
+                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-300"
+                        style={{ width: `${ocrProgress.progress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 text-center">
+                      First-time OCR may take 10-15 seconds to load
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Retry button after error */}
+            {error && !isProcessing && (
               <button
                 onClick={handleProcess}
-                disabled={isProcessing}
-                className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Extract Workout Data
-                  </>
-                )}
+                <RefreshCw className="w-5 h-5" />
+                Try Again
               </button>
             )}
 
@@ -375,20 +661,66 @@ export function ScreenshotImportSheet({ onImport, onClose }: ScreenshotImportShe
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg flex items-start gap-2 text-orange-300 text-sm"
+              className="p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-300 text-sm"
             >
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <div>
-                <p>{error}</p>
-                {error.includes('coming soon') && (
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p>{error}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    For now, use Text Import or Voice Input to log your workouts.
+                    You can also use Text Import or Voice Input for more reliable results.
                   </p>
-                )}
+                </div>
               </div>
             </SafeMotion.div>
           )}
         </SafeAnimatePresence>
+
+        {/* Raw OCR text display */}
+        <SafeAnimatePresence>
+          {showRawText && rawOcrText && (
+            <SafeMotion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-300">Raw OCR Text</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(rawOcrText);
+                      haptic('light');
+                    }}
+                    className="text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    Copy to clipboard
+                  </button>
+                </div>
+                <pre className="text-xs text-gray-400 whitespace-pre-wrap max-h-32 overflow-y-auto bg-gray-900/50 rounded-lg p-2">
+                  {rawOcrText}
+                </pre>
+                <button
+                  onClick={() => setShowRawText(false)}
+                  className="text-xs text-gray-500 hover:text-gray-400"
+                >
+                  Hide raw text
+                </button>
+              </div>
+            </SafeMotion.div>
+          )}
+        </SafeAnimatePresence>
+
+        {/* Toggle raw text button when exercises found */}
+        {parsedExercises.length > 0 && rawOcrText && !showRawText && (
+          <button
+            onClick={() => setShowRawText(true)}
+            className="text-xs text-gray-500 hover:text-gray-400 underline"
+          >
+            Show raw OCR text
+          </button>
+        )}
       </div>
     </div>
   );

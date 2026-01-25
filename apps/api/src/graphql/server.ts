@@ -3,12 +3,13 @@
  *
  * Configures Apollo Server 4 with Fastify integration and all optimizations:
  * - Query depth limiting
- * - Query complexity limiting
+ * - Query complexity limiting with X-Query-Complexity header
  * - Response caching
  * - DataLoader integration
+ * - Stroustrup/Knuth principles: type safety, zero-overhead abstraction, measurement
  */
 
-import { ApolloServer } from '@apollo/server';
+import { ApolloServer, type ApolloServerPlugin } from '@apollo/server';
 import { fastifyApolloDrainPlugin } from '@as-integrations/fastify';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import depthLimit from 'graphql-depth-limit';
@@ -20,7 +21,7 @@ import { presenceTypeDefs } from './presence.resolvers';
 // import { activityLogTypeDefs } from './activity-log.schema';
 // import { activityLogResolvers } from './activity-log.resolvers';
 import { createLoaders, createExtendedLoaders, type Loaders, type ExtendedLoaders } from './loaders';
-import { createComplexityLimitRule } from './complexity';
+import { createComplexityLimitRule, analyzeComplexity, getComplexityLimit } from './complexity';
 import { loggers } from '../lib/logger';
 import { optionalAuth } from '../http/routes/auth';
 
@@ -60,6 +61,17 @@ export interface GraphQLContext {
     delete: (key: string) => boolean;
     clear: () => void;
   };
+
+  /**
+   * Query complexity (calculated during execution).
+   * Used for X-Query-Complexity header.
+   */
+  complexity?: number;
+
+  /**
+   * Maximum allowed complexity for this request.
+   */
+  maxComplexity?: number;
 }
 
 interface ServerConfig {
@@ -116,12 +128,43 @@ export async function createGraphQLServer(
   });
 
   // Create server plugins
-  const plugins: any[] = [];
+  const plugins: ApolloServerPlugin<GraphQLContext>[] = [];
 
   // Add drain plugin for graceful shutdown
   if (fastify) {
     plugins.push(fastifyApolloDrainPlugin(fastify));
   }
+
+  // Add complexity tracking plugin (Knuth principle: measure, don't guess)
+  plugins.push({
+    async requestDidStart() {
+      return {
+        async didResolveOperation({ request, document, contextValue, schema: resolvedSchema }) {
+          // Calculate complexity for this operation
+          const result = analyzeComplexity(
+            resolvedSchema,
+            document,
+            request.variables || {},
+            request.operationName || undefined
+          );
+
+          // Store in context for header response
+          contextValue.complexity = result.complexity;
+          contextValue.maxComplexity = result.maxAllowed;
+
+          // Log high complexity queries for monitoring
+          if (result.complexity > result.maxAllowed * 0.7) {
+            log.warn({
+              operationName: request.operationName,
+              complexity: result.complexity,
+              maxAllowed: result.maxAllowed,
+              breakdown: result.breakdown,
+            }, 'High complexity query');
+          }
+        },
+      };
+    },
+  });
 
   // Create Apollo Server with depth and complexity limits
   const server = new ApolloServer<GraphQLContext>({
@@ -267,6 +310,13 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
     if (response.body.kind === 'single') {
       // Set proper content type
       reply.header('Content-Type', 'application/json');
+
+      // Add X-Query-Complexity header (Knuth principle: measure, don't guess)
+      if (context.complexity !== undefined) {
+        reply.header('X-Query-Complexity', context.complexity.toString());
+        reply.header('X-Query-Complexity-Max', (context.maxComplexity || 500).toString());
+      }
+
       return response.body.singleResult;
     }
 
@@ -311,6 +361,13 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
 
     if (response.body.kind === 'single') {
       reply.header('Content-Type', 'application/json');
+
+      // Add X-Query-Complexity header
+      if (context.complexity !== undefined) {
+        reply.header('X-Query-Complexity', context.complexity.toString());
+        reply.header('X-Query-Complexity-Max', (context.maxComplexity || 500).toString());
+      }
+
       return response.body.singleResult;
     }
 

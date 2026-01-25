@@ -106,40 +106,160 @@ const DEFAULT_CONFIG: ComplexityConfig = {
 /**
  * Per-field complexity overrides.
  * Define expensive operations with higher costs.
+ *
+ * Stroustrup principle: "Zero-overhead abstraction" - only pay for what you use
+ * Knuth principle: "Measure, don't guess" - costs based on actual database impact
  */
 const FIELD_COMPLEXITY: Record<string, number> = {
-  // Expensive aggregations
+  // ============================================
+  // EXPENSIVE AGGREGATIONS (30-50)
+  // ============================================
   'Query.leaderboard': 50,
+  'Query.leaderboards': 50,
+  'Query.statLeaderboard': 50,
   'Query.communityStats': 30,
+  'Query.publicCommunityStats': 30,
   'Query.globalStats': 30,
   'Query.analytics': 40,
+  'Query.yearInReview': 40,
+  'Query.yearlyStats': 35,
+  'Query.monthlyTrends': 35,
+  'Query.allTimeTuLeaderboard': 50,
+  'Query.progressVelocity': 30,
+  'Query.projectedMilestones': 30,
 
-  // Outdoor venues (equipment array is expensive)
-  'Query.nearestOutdoorVenues': 50,
+  // ============================================
+  // OUTDOOR VENUES (equipment array multiplies)
+  // ============================================
+  'Query.nearestOutdoorVenues': 40,
   'Query.outdoorVenues': 30,
-  'OutdoorVenue.equipment': 15,
+  'Query.venuesByBorough': 30,
+  'Query.venueMapClusters': 25,
+  'Query.venueMapGeoJSON': 30,
+  'OutdoorVenue.equipment': 10,
+  'OutdoorVenue.photos': 5,
+  'OutdoorVenue.ratings': 10,
 
-  // User profile (includes relations)
+  // ============================================
+  // USER PROFILE (includes relations)
+  // ============================================
   'Query.user': 10,
   'Query.me': 5,
+  'Query.profile': 8,
+  'Query.myFullProfile': 15,
+  'Query.extendedProfile': 20,
   'User.workouts': 20,
   'User.achievements': 15,
   'User.followers': 20,
   'User.following': 20,
+  'User.stats': 10,
 
-  // Workout data
+  // ============================================
+  // WORKOUTS (sets array can be large)
+  // ============================================
   'Query.workouts': 25,
+  'Query.myWorkouts': 25,
+  'Query.workout': 15,
+  'Query.workoutSession': 20,
+  'Query.activeWorkoutSession': 15,
+  'Query.recoverableSessions': 15,
   'Workout.sets': 5,
   'Workout.exercises': 10,
+  'WorkoutSession.sets': 8,
+  'WorkoutSession.exercises': 10,
+  'Set.muscleActivations': 3,
 
-  // Exercise library
+  // ============================================
+  // EXERCISES
+  // ============================================
   'Query.exercises': 15,
+  'Query.exercise': 5,
+  'Query.exerciseHistory': 20,
   'Exercise.muscles': 5,
   'Exercise.variations': 10,
+  'Exercise.alternatives': 10,
 
-  // Real-time (always expensive)
+  // ============================================
+  // MESSAGING (participants/messages multiply)
+  // ============================================
+  'Query.conversations': 30,
+  'Query.conversationMessages': 20,
+  'Conversation.participants': 10,
+  'Conversation.messages': 15,
+  'Conversation.typingUsers': 5,
+
+  // ============================================
+  // ECONOMY (transactions can be large)
+  // ============================================
+  'Query.economyWallet': 10,
+  'Query.economyHistory': 15,
+  'Query.economyTransactions': 15,
+  'Query.transactionHistory': 20,
+  'Wallet.transactions': 10,
+
+  // ============================================
+  // SOCIAL/COMMUNITY
+  // ============================================
+  'Query.communityFeed': 30,
+  'Query.highFiveUsers': 15,
+  'Query.rivals': 20,
+  'Query.pendingRivals': 15,
+  'Query.myCrew': 20,
+  'Query.crewLeaderboard': 30,
+  'Crew.members': 10,
+
+  // ============================================
+  // TRAINING PROGRAMS
+  // ============================================
+  'Query.trainingPrograms': 25,
+  'Query.trainingProgram': 15,
+  'Query.myEnrollments': 20,
+  'TrainingProgram.weeks': 10,
+  'TrainingProgram.workouts': 15,
+
+  // ============================================
+  // NUTRITION (meals can have many items)
+  // ============================================
+  'Query.nutritionDashboard': 25,
+  'Query.nutritionHistory': 20,
+  'Query.mealsByDate': 15,
+  'Query.recipes': 20,
+  'MealLog.items': 5,
+  'Recipe.ingredients': 5,
+
+  // ============================================
+  // COLLECTIONS (many items)
+  // ============================================
+  'Query.collectionItems': 25,
+  'Query.collectionSets': 20,
+  'Query.collectionSetDetail': 15,
+  'CollectionSet.items': 10,
+
+  // ============================================
+  // MARKETPLACE
+  // ============================================
+  'Query.marketplaceListings': 30,
+  'Query.marketplaceStats': 20,
+
+  // ============================================
+  // ACHIEVEMENTS
+  // ============================================
+  'Query.achievementDefinitions': 20,
+  'Query.myAchievements': 25,
+
+  // ============================================
+  // MASCOT (many nested features)
+  // ============================================
+  'Query.mascotTimeline': 15,
+  'Query.mascotShop': 15,
+  'Query.mascotGeneratedPrograms': 20,
+
+  // ============================================
+  // REAL-TIME (always expensive)
+  // ============================================
   'Subscription.presence': 100,
   'Subscription.liveWorkout': 100,
+  'Subscription.messages': 50,
 };
 
 // ============================================
