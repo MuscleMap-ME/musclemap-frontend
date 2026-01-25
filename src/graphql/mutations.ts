@@ -957,13 +957,30 @@ export const GENERATE_PRESCRIPTION_MUTATION = gql`
         name
         sets
         reps
-        weight
+        restSeconds
+        notes
+        primaryMuscles
+      }
+      warmup {
+        exerciseId
+        name
+        sets
+        reps
         restSeconds
         notes
       }
-      targetMuscles
+      cooldown {
+        exerciseId
+        name
+        sets
+        reps
+        restSeconds
+        notes
+      }
+      muscleCoverage
       difficulty
-      estimatedDuration
+      targetDuration
+      actualDuration
       createdAt
     }
   }

@@ -492,6 +492,11 @@ export const typeDefs = `#graphql
     register(input: RegisterInput!): AuthPayload!
     login(input: LoginInput!): AuthPayload!
 
+    # Password Management
+    changePassword(input: ChangePasswordInput!): ChangePasswordResult!
+    requestPasswordReset(email: String!): RequestPasswordResetResult!
+    resetPassword(input: ResetPasswordInput!): ResetPasswordResult!
+
     # Profile
     updateProfile(input: ProfileInput!): Profile!
     updateMyFullProfile(input: FullProfileInput!): FullProfile!
@@ -919,6 +924,31 @@ export const typeDefs = `#graphql
   input LoginInput {
     email: String!
     password: String!
+  }
+
+  input ChangePasswordInput {
+    currentPassword: String!
+    newPassword: String!
+  }
+
+  input ResetPasswordInput {
+    token: String!
+    newPassword: String!
+  }
+
+  type ChangePasswordResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type RequestPasswordResetResult {
+    success: Boolean!
+    message: String!
+  }
+
+  type ResetPasswordResult {
+    success: Boolean!
+    message: String!
   }
 
   # ============================================

@@ -108,7 +108,10 @@ export default function Login() {
             <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="you@example.com" required />
           </div>
           <div>
-            <label className="block text-gray-300 text-sm mb-1">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-gray-300 text-sm">Password</label>
+              <Link to="/forgot-password" className="text-blue-400 hover:text-blue-300 text-sm">Forgot password?</Link>
+            </div>
             <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="Your password" required />
           </div>
           <button type="submit" disabled={loading} className="w-full p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-lg disabled:opacity-50">

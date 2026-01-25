@@ -8176,6 +8176,135 @@ export const resolvers = {
       };
     },
 
+    // Password Management
+    changePassword: async (
+      _: unknown,
+      args: { input: { currentPassword: string; newPassword: string } },
+      context: Context
+    ) => {
+      const { userId } = requireAuth(context);
+      const { currentPassword, newPassword } = args.input;
+
+      // Validate new password
+      if (newPassword.length < 8) {
+        throw new GraphQLError('Password must be at least 8 characters', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Get current password hash
+      const user = await queryOne<{ password_hash: string }>(
+        'SELECT password_hash FROM users WHERE id = $1',
+        [userId]
+      );
+
+      if (!user) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'NOT_FOUND' },
+        });
+      }
+
+      // Verify current password
+      if (!verifyPassword(currentPassword, user.password_hash)) {
+        throw new GraphQLError('Current password is incorrect', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Hash and save new password
+      const newHash = hashPassword(newPassword);
+      await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, userId]);
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    },
+
+    requestPasswordReset: async (_: unknown, args: { email: string }) => {
+      const { email } = args;
+
+      // Find user by email
+      const user = await queryOne<{ id: string; email: string; username: string }>(
+        'SELECT id, email, username FROM users WHERE email = $1',
+        [email.toLowerCase().trim()]
+      );
+
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return {
+          success: true,
+          message: 'If an account with that email exists, a password reset link has been sent.',
+        };
+      }
+
+      // Generate secure token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+      // Invalidate any existing tokens for this user
+      await query(
+        'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+        [user.id]
+      );
+
+      // Save new token
+      await query(
+        `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+         VALUES ($1, $2, $3)`,
+        [user.id, token, expiresAt]
+      );
+
+      // TODO: Send email with reset link
+      // For now, log the reset link (in production, this would send an email)
+      const resetLink = `https://musclemap.me/reset-password?token=${token}`;
+      console.log(`[PASSWORD RESET] User ${user.email} requested reset. Link: ${resetLink}`);
+
+      // In a real app, you would use an email service here:
+      // await emailService.sendPasswordReset(user.email, user.username, resetLink);
+
+      return {
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.',
+      };
+    },
+
+    resetPassword: async (_: unknown, args: { input: { token: string; newPassword: string } }) => {
+      const { token, newPassword } = args.input;
+
+      // Validate new password
+      if (newPassword.length < 8) {
+        throw new GraphQLError('Password must be at least 8 characters', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Find valid token
+      const resetToken = await queryOne<{ id: string; user_id: string; expires_at: Date }>(
+        `SELECT id, user_id, expires_at FROM password_reset_tokens
+         WHERE token = $1 AND used_at IS NULL AND expires_at > NOW()`,
+        [token]
+      );
+
+      if (!resetToken) {
+        throw new GraphQLError('Invalid or expired reset token', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
+
+      // Hash and save new password
+      const newHash = hashPassword(newPassword);
+      await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, resetToken.user_id]);
+
+      // Mark token as used
+      await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetToken.id]);
+
+      return {
+        success: true,
+        message: 'Password reset successfully. You can now log in with your new password.',
+      };
+    },
+
     // Profile
     updateProfile: async (_: unknown, args: { input: any }, context: Context) => {
       const { userId } = requireAuth(context);

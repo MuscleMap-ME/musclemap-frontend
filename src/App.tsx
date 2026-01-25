@@ -99,6 +99,8 @@ import './lib/memory-debug';
 const Landing = safeLazy('Landing', () => import('./pages/Landing'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 // Core feature pages
@@ -577,6 +579,8 @@ function AppRoutes() {
           <Route path="/" element={<ErrorBoundary name="Landing"><Landing /></ErrorBoundary>} />
           <Route path="/login" element={<ErrorBoundary name="Login"><Login /></ErrorBoundary>} />
           <Route path="/signup" element={<ErrorBoundary name="Signup"><Signup /></ErrorBoundary>} />
+          <Route path="/forgot-password" element={<ErrorBoundary name="ForgotPassword"><ForgotPassword /></ErrorBoundary>} />
+          <Route path="/reset-password" element={<ErrorBoundary name="ResetPassword"><ResetPassword /></ErrorBoundary>} />
           <Route path="/design-system" element={<ErrorBoundary name="DesignSystem"><DesignSystem /></ErrorBoundary>} />
           <Route path="/ui-showcase" element={<ErrorBoundary name="UIShowcase"><UIShowcase /></ErrorBoundary>} />
           <Route path="/features" element={<ErrorBoundary name="Features"><Features /></ErrorBoundary>} />
