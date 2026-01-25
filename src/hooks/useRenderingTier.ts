@@ -14,6 +14,14 @@ import { useState, useEffect } from 'react';
 
 export type RenderingTier = 'full' | 'reduced' | 'minimal' | 'text-only';
 
+// Enum-like object for use in comparisons
+export const RenderingTier = {
+  FULL: 'full' as const,
+  REDUCED: 'reduced' as const,
+  MINIMAL: 'minimal' as const,
+  TEXT_ONLY: 'text-only' as const,
+} as const;
+
 export interface RenderingCapabilities {
   tier: RenderingTier;
   supportsBlur: boolean;

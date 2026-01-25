@@ -1,0 +1,702 @@
+/**
+ * MuscleMap Box-and-Glue Layout System
+ *
+ * Inspired by Donald Knuth's TeX layout algorithm:
+ * - Boxes: Fixed-size content containers
+ * - Glue: Flexible spacing that stretches/shrinks
+ * - Penalties: Constraints for line/page breaks
+ *
+ * Implemented with CSS Grid, Flexbox, and Container Queries.
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+
+/* ==========================================================================
+   CONTAINER SYSTEM
+   ========================================================================== */
+
+/* Base container - full width with horizontal padding */
+.container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--container-padding, var(--space-4));
+}
+
+/* Container sizes */
+.container-xs {
+  max-width: 20rem; /* 320px */
+}
+
+.container-sm {
+  max-width: 24rem; /* 384px */
+}
+
+.container-md {
+  max-width: 28rem; /* 448px */
+}
+
+.container-lg {
+  max-width: 32rem; /* 512px */
+}
+
+.container-xl {
+  max-width: 36rem; /* 576px */
+}
+
+.container-2xl {
+  max-width: 42rem; /* 672px */
+}
+
+.container-3xl {
+  max-width: 48rem; /* 768px */
+}
+
+.container-4xl {
+  max-width: 56rem; /* 896px */
+}
+
+.container-5xl {
+  max-width: 64rem; /* 1024px */
+}
+
+.container-6xl {
+  max-width: 72rem; /* 1152px */
+}
+
+.container-7xl {
+  max-width: 80rem; /* 1280px */
+}
+
+.container-prose {
+  max-width: 65ch;
+}
+
+.container-wide {
+  max-width: 80ch;
+}
+
+.container-full {
+  max-width: none;
+}
+
+/* ==========================================================================
+   BOX-AND-GLUE FLEXBOX UTILITIES
+   ========================================================================== */
+
+/* Glue: Flexible spacing that distributes space */
+.glue {
+  flex: 1 1 var(--glue-ideal, var(--space-4));
+  min-width: var(--glue-min, var(--space-2));
+  max-width: var(--glue-max, var(--space-8));
+}
+
+/* Glue sizes */
+.glue-xs {
+  --glue-ideal: var(--space-1);
+  --glue-min: 0;
+  --glue-max: var(--space-2);
+}
+
+.glue-sm {
+  --glue-ideal: var(--space-2);
+  --glue-min: var(--space-1);
+  --glue-max: var(--space-4);
+}
+
+.glue-md {
+  --glue-ideal: var(--space-4);
+  --glue-min: var(--space-2);
+  --glue-max: var(--space-8);
+}
+
+.glue-lg {
+  --glue-ideal: var(--space-8);
+  --glue-min: var(--space-4);
+  --glue-max: var(--space-16);
+}
+
+.glue-xl {
+  --glue-ideal: var(--space-16);
+  --glue-min: var(--space-8);
+  --glue-max: var(--space-32);
+}
+
+/* Infinitely stretchable glue (fills all available space) */
+.glue-fill {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+}
+
+/* Box: Fixed-size container */
+.box {
+  flex: 0 0 auto;
+}
+
+/* Box with content-based sizing */
+.box-fit {
+  flex: 0 1 auto;
+}
+
+/* Horizontal line (row) */
+.hbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+/* Vertical line (column) */
+.vbox {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Center content in both axes */
+.center-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   STACK LAYOUT (Vertical Rhythm)
+   ========================================================================== */
+
+/* Stack: Vertical layout with consistent spacing */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap, var(--space-4));
+}
+
+.stack > * {
+  margin-block: 0;
+}
+
+/* Stack spacing variants */
+.stack-xs { --stack-gap: var(--space-1); }
+.stack-sm { --stack-gap: var(--space-2); }
+.stack-md { --stack-gap: var(--space-4); }
+.stack-lg { --stack-gap: var(--space-6); }
+.stack-xl { --stack-gap: var(--space-8); }
+.stack-2xl { --stack-gap: var(--space-12); }
+.stack-3xl { --stack-gap: var(--space-16); }
+
+/* Stack with dividers */
+.stack-divided > * + * {
+  border-block-start: 1px solid var(--color-border);
+  padding-block-start: var(--stack-gap, var(--space-4));
+}
+
+/* ==========================================================================
+   CLUSTER LAYOUT (Horizontal Wrapping)
+   ========================================================================== */
+
+/* Cluster: Horizontal layout that wraps */
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cluster-gap, var(--space-3));
+  align-items: center;
+}
+
+/* Cluster spacing variants */
+.cluster-xs { --cluster-gap: var(--space-1); }
+.cluster-sm { --cluster-gap: var(--space-2); }
+.cluster-md { --cluster-gap: var(--space-3); }
+.cluster-lg { --cluster-gap: var(--space-4); }
+.cluster-xl { --cluster-gap: var(--space-6); }
+
+/* Cluster alignment */
+.cluster-start { justify-content: flex-start; }
+.cluster-center { justify-content: center; }
+.cluster-end { justify-content: flex-end; }
+.cluster-between { justify-content: space-between; }
+.cluster-around { justify-content: space-around; }
+.cluster-evenly { justify-content: space-evenly; }
+
+/* ==========================================================================
+   SPLIT LAYOUT (Two Items, Space Between)
+   ========================================================================== */
+
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--split-gap, var(--space-4));
+  justify-content: space-between;
+  align-items: center;
+}
+
+.split > * {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   SIDEBAR LAYOUT
+   ========================================================================== */
+
+/* Sidebar: Main content with sticky sidebar */
+.sidebar-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sidebar-gap, var(--space-6));
+}
+
+.sidebar-layout > :first-child {
+  flex-basis: var(--sidebar-width, 16rem);
+  flex-grow: 1;
+}
+
+.sidebar-layout > :last-child {
+  flex-basis: 0;
+  flex-grow: 999;
+  min-width: var(--sidebar-min-content, 50%);
+}
+
+/* Sidebar on the right */
+.sidebar-layout-end {
+  flex-direction: row-reverse;
+}
+
+/* ==========================================================================
+   GRID LAYOUTS
+   ========================================================================== */
+
+/* Auto-grid: Responsive grid with minimum column width */
+.auto-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(var(--grid-min, 16rem), 100%), 1fr)
+  );
+  gap: var(--grid-gap, var(--space-4));
+}
+
+/* Grid minimum column widths */
+.auto-grid-xs { --grid-min: 10rem; }
+.auto-grid-sm { --grid-min: 14rem; }
+.auto-grid-md { --grid-min: 18rem; }
+.auto-grid-lg { --grid-min: 22rem; }
+.auto-grid-xl { --grid-min: 28rem; }
+
+/* Fixed column grids */
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+.grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+/* Subgrid (where supported) */
+@supports (grid-template-columns: subgrid) {
+  .subgrid {
+    display: grid;
+    grid-template-columns: subgrid;
+  }
+
+  .subgrid-rows {
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+}
+
+/* Subgrid fallback */
+@supports not (grid-template-columns: subgrid) {
+  .subgrid {
+    display: contents;
+  }
+}
+
+/* ==========================================================================
+   ASPECT RATIO BOXES
+   ========================================================================== */
+
+.aspect-square { aspect-ratio: 1 / 1; }
+.aspect-video { aspect-ratio: 16 / 9; }
+.aspect-portrait { aspect-ratio: 3 / 4; }
+.aspect-landscape { aspect-ratio: 4 / 3; }
+.aspect-wide { aspect-ratio: 21 / 9; }
+.aspect-golden { aspect-ratio: 1.618 / 1; }
+
+/* ==========================================================================
+   CONTAINER QUERIES
+   ========================================================================== */
+
+/* Mark element as a container */
+.container-query {
+  container-type: inline-size;
+}
+
+.container-query-size {
+  container-type: size;
+}
+
+/* Container breakpoints */
+@container (min-width: 20rem) {
+  .cq\:grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .cq\:hbox { flex-direction: row; }
+  .cq\:show { display: block; }
+  .cq\:hide { display: none; }
+}
+
+@container (min-width: 30rem) {
+  .cq-md\:grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .cq-md\:hbox { flex-direction: row; }
+}
+
+@container (min-width: 40rem) {
+  .cq-lg\:grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .cq-lg\:sidebar { flex-direction: row; }
+}
+
+/* Container fallback for unsupported browsers */
+@supports not (container-type: inline-size) {
+  .container-query {
+    contain: layout style;
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE LAYOUT UTILITIES
+   ========================================================================== */
+
+/* Mobile-first responsive stack/cluster */
+@media (max-width: 39.999rem) {
+  .sm\:stack {
+    flex-direction: column;
+  }
+
+  .sm\:full {
+    width: 100%;
+  }
+}
+
+@media (min-width: 40rem) {
+  .md\:hbox {
+    flex-direction: row;
+  }
+
+  .md\:grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 64rem) {
+  .lg\:grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .lg\:grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ==========================================================================
+   WRITING DIRECTION UTILITIES (Logical Properties)
+   ========================================================================== */
+
+/* Margin utilities using logical properties */
+.mbs-0 { margin-block-start: 0; }
+.mbs-1 { margin-block-start: var(--space-1); }
+.mbs-2 { margin-block-start: var(--space-2); }
+.mbs-4 { margin-block-start: var(--space-4); }
+.mbs-6 { margin-block-start: var(--space-6); }
+.mbs-8 { margin-block-start: var(--space-8); }
+
+.mbe-0 { margin-block-end: 0; }
+.mbe-1 { margin-block-end: var(--space-1); }
+.mbe-2 { margin-block-end: var(--space-2); }
+.mbe-4 { margin-block-end: var(--space-4); }
+.mbe-6 { margin-block-end: var(--space-6); }
+.mbe-8 { margin-block-end: var(--space-8); }
+
+.mis-0 { margin-inline-start: 0; }
+.mis-1 { margin-inline-start: var(--space-1); }
+.mis-2 { margin-inline-start: var(--space-2); }
+.mis-4 { margin-inline-start: var(--space-4); }
+.mis-auto { margin-inline-start: auto; }
+
+.mie-0 { margin-inline-end: 0; }
+.mie-1 { margin-inline-end: var(--space-1); }
+.mie-2 { margin-inline-end: var(--space-2); }
+.mie-4 { margin-inline-end: var(--space-4); }
+.mie-auto { margin-inline-end: auto; }
+
+/* Padding utilities using logical properties */
+.pbs-0 { padding-block-start: 0; }
+.pbs-1 { padding-block-start: var(--space-1); }
+.pbs-2 { padding-block-start: var(--space-2); }
+.pbs-4 { padding-block-start: var(--space-4); }
+.pbs-6 { padding-block-start: var(--space-6); }
+.pbs-8 { padding-block-start: var(--space-8); }
+
+.pbe-0 { padding-block-end: 0; }
+.pbe-1 { padding-block-end: var(--space-1); }
+.pbe-2 { padding-block-end: var(--space-2); }
+.pbe-4 { padding-block-end: var(--space-4); }
+.pbe-6 { padding-block-end: var(--space-6); }
+.pbe-8 { padding-block-end: var(--space-8); }
+
+.pis-0 { padding-inline-start: 0; }
+.pis-1 { padding-inline-start: var(--space-1); }
+.pis-2 { padding-inline-start: var(--space-2); }
+.pis-4 { padding-inline-start: var(--space-4); }
+
+.pie-0 { padding-inline-end: 0; }
+.pie-1 { padding-inline-end: var(--space-1); }
+.pie-2 { padding-inline-end: var(--space-2); }
+.pie-4 { padding-inline-end: var(--space-4); }
+
+/* Block and inline shorthand */
+.mb-0 { margin-block: 0; }
+.mb-1 { margin-block: var(--space-1); }
+.mb-2 { margin-block: var(--space-2); }
+.mb-4 { margin-block: var(--space-4); }
+.mb-6 { margin-block: var(--space-6); }
+.mb-8 { margin-block: var(--space-8); }
+
+.mi-0 { margin-inline: 0; }
+.mi-auto { margin-inline: auto; }
+
+.pb-0 { padding-block: 0; }
+.pb-1 { padding-block: var(--space-1); }
+.pb-2 { padding-block: var(--space-2); }
+.pb-4 { padding-block: var(--space-4); }
+.pb-6 { padding-block: var(--space-6); }
+.pb-8 { padding-block: var(--space-8); }
+
+.pi-0 { padding-inline: 0; }
+.pi-1 { padding-inline: var(--space-1); }
+.pi-2 { padding-inline: var(--space-2); }
+.pi-4 { padding-inline: var(--space-4); }
+.pi-6 { padding-inline: var(--space-6); }
+.pi-8 { padding-inline: var(--space-8); }
+
+/* ==========================================================================
+   SCROLL CONTAINERS
+   ========================================================================== */
+
+/* Horizontal scroll container */
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Vertical scroll container */
+.scroll-y {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar but keep functionality */
+.scroll-hidden {
+  scrollbar-width: none;
+}
+
+.scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Snap scrolling */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+}
+
+.scroll-snap-y {
+  scroll-snap-type: y mandatory;
+}
+
+.scroll-snap-start {
+  scroll-snap-align: start;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+}
+
+/* ==========================================================================
+   SAFE AREA INSETS (Mobile)
+   ========================================================================== */
+
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ==========================================================================
+   RENDERING TIER FALLBACKS
+   ========================================================================== */
+
+/* Minimal tier: Simpler layouts */
+[data-rendering-tier='minimal'] {
+  /* Disable container queries */
+  .container-query {
+    container-type: normal;
+  }
+
+  /* Simplify gap calculations */
+  --grid-gap: var(--space-4);
+  --stack-gap: var(--space-4);
+  --cluster-gap: var(--space-3);
+}
+
+/* Text-only tier: Linear layout */
+[data-rendering-tier='text-only'] {
+  .auto-grid,
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    display: block;
+  }
+
+  .auto-grid > *,
+  .grid-2 > *,
+  .grid-3 > *,
+  .grid-4 > * {
+    margin-bottom: var(--space-4);
+  }
+
+  .hbox {
+    flex-direction: column;
+  }
+
+  .sidebar-layout {
+    display: block;
+  }
+}
+
+/* ==========================================================================
+   PRINT LAYOUT
+   ========================================================================== */
+
+@media print {
+  .container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .auto-grid {
+    display: block;
+  }
+
+  .auto-grid > * {
+    margin-bottom: 1em;
+    page-break-inside: avoid;
+  }
+
+  .scroll-x,
+  .scroll-y {
+    overflow: visible;
+  }
+}
+
+/* ==========================================================================
+   ANIMATIONS FOR UI COMPONENTS
+   ========================================================================== */
+
+/* Skeleton shimmer animation - FULL tier only */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, rgb(229 231 235)) 0%,
+    var(--skeleton-highlight, rgb(243 244 246)) 50%,
+    var(--skeleton-base, rgb(229 231 235)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+:root.dark .skeleton-shimmer {
+  --skeleton-base: rgb(55 65 81);
+  --skeleton-highlight: rgb(75 85 99);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scale in animation (for modals) */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide down animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Disable animations for reduced motion or lower tiers */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background: var(--skeleton-base, rgb(229 231 235));
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+[data-rendering-tier='reduced'],
+[data-rendering-tier='minimal'],
+[data-rendering-tier='text-only'] {
+  .skeleton-shimmer {
+    animation: none;
+    background: var(--skeleton-base, rgb(229 231 235));
+  }
+}

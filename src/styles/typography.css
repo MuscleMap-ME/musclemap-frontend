@@ -1,0 +1,544 @@
+/**
+ * MuscleMap Knuth-Inspired Typography System
+ *
+ * Based on Donald Knuth's typographic principles from TeX:
+ * - Optimal line breaking (text-wrap: pretty)
+ * - Balanced headlines (text-wrap: balance)
+ * - Proper optical sizing for variable fonts
+ * - Hanging punctuation where supported
+ * - Micro-typography features (ligatures, kerning, etc.)
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+
+/* ==========================================================================
+   TEXT HIERARCHY
+   ========================================================================== */
+
+/* Hero text - Display at maximum size */
+.text-hero {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: var(--text-hero);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  font-feature-settings: var(--font-features-heading);
+}
+
+/* Title - Section titles */
+.text-title {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: var(--text-title);
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  font-feature-settings: var(--font-features-heading);
+}
+
+/* Heading - Subsection headings */
+.text-heading {
+  font-family: var(--font-sans);
+  font-size: var(--text-heading);
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* Subheading */
+.text-subheading {
+  font-family: var(--font-sans);
+  font-size: var(--text-subheading);
+  font-weight: 500;
+  line-height: var(--line-height-snug);
+  letter-spacing: -0.01em;
+}
+
+/* Body text - Default paragraph style */
+.text-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: var(--line-height-normal);
+  text-wrap: pretty;
+  font-feature-settings: var(--font-features-body);
+  max-width: 65ch; /* Optimal reading width */
+}
+
+/* Caption - Small descriptive text */
+.text-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 400;
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+/* Micro - Smallest legible text */
+.text-micro {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: 500; /* Slightly heavier for legibility at small sizes */
+  line-height: var(--line-height-tight);
+  color: var(--color-text-subtle);
+  letter-spacing: 0.01em;
+}
+
+/* ==========================================================================
+   DATA & NUMERIC TYPOGRAPHY
+   ========================================================================== */
+
+/* Data display - For statistics and metrics */
+.text-data {
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+  font-weight: 500;
+  font-feature-settings: var(--font-features-data);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Large data display - For hero metrics */
+.text-data-hero {
+  font-family: var(--font-mono);
+  font-size: var(--text-hero);
+  font-weight: 700;
+  font-feature-settings: var(--font-features-data);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Percentage display */
+.text-percentage {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--font-features-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Time display (workout timers, rest timers) */
+.text-timer {
+  font-family: var(--font-mono);
+  font-size: var(--type-2xl);
+  font-weight: 600;
+  font-feature-settings: var(--font-features-data);
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0.05em;
+}
+
+/* Weight/reps display */
+.text-weight {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-feature-settings: var(--font-features-data);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ==========================================================================
+   SPECIAL TEXT STYLES
+   ========================================================================== */
+
+/* Code/technical text */
+.text-code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  font-feature-settings: var(--font-features-code);
+  background: var(--color-bg-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+/* Label text (form labels, metadata) */
+.text-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* Overline (small caps above titles) */
+.text-overline {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-primary);
+}
+
+/* Quote/Blockquote */
+.text-quote {
+  font-family: var(--font-serif);
+  font-size: var(--type-lg);
+  font-style: italic;
+  line-height: var(--line-height-relaxed);
+  border-inline-start: 4px solid var(--color-primary);
+  padding-inline-start: var(--space-4);
+}
+
+/* Mathematical notation (for TU calculations) */
+.text-math {
+  font-family: var(--font-math);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   PROSE STYLES (Long-form content)
+   ========================================================================== */
+
+.prose {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text);
+  max-width: 65ch;
+}
+
+.prose > * + * {
+  margin-block-start: var(--space-4);
+}
+
+.prose h1 {
+  font-family: var(--font-display);
+  font-size: var(--type-3xl);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  margin-block-start: var(--space-8);
+  margin-block-end: var(--space-4);
+  letter-spacing: -0.02em;
+}
+
+.prose h2 {
+  font-family: var(--font-display);
+  font-size: var(--type-2xl);
+  font-weight: 600;
+  line-height: var(--line-height-tight);
+  margin-block-start: var(--space-8);
+  margin-block-end: var(--space-3);
+  letter-spacing: -0.01em;
+}
+
+.prose h3 {
+  font-family: var(--font-sans);
+  font-size: var(--type-xl);
+  font-weight: 600;
+  line-height: var(--line-height-snug);
+  margin-block-start: var(--space-6);
+  margin-block-end: var(--space-2);
+}
+
+.prose h4 {
+  font-family: var(--font-sans);
+  font-size: var(--type-lg);
+  font-weight: 600;
+  line-height: var(--line-height-snug);
+  margin-block-start: var(--space-4);
+  margin-block-end: var(--space-2);
+}
+
+.prose p {
+  text-wrap: pretty;
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+.prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.prose a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.prose ul,
+.prose ol {
+  padding-inline-start: 1.5em;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li + li {
+  margin-block-start: var(--space-2);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-bg-elevated);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+.prose pre {
+  background: var(--color-bg-elevated);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-block: var(--space-4);
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.prose blockquote {
+  font-style: italic;
+  border-inline-start: 4px solid var(--color-primary);
+  padding-inline-start: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.prose hr {
+  border: none;
+  height: 1px;
+  background: var(--color-border);
+  margin-block: var(--space-8);
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: var(--space-4);
+}
+
+.prose th,
+.prose td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+}
+
+.prose th {
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   OPENTYPE FEATURE TOGGLES
+   ========================================================================== */
+
+/* Ligatures */
+.ligatures-none {
+  font-feature-settings: 'liga' 0;
+  font-variant-ligatures: none;
+}
+
+.ligatures-common {
+  font-feature-settings: 'liga' 1, 'clig' 1;
+  font-variant-ligatures: common-ligatures;
+}
+
+.ligatures-discretionary {
+  font-feature-settings: 'liga' 1, 'dlig' 1;
+  font-variant-ligatures: common-ligatures discretionary-ligatures;
+}
+
+/* Numeric styles */
+.nums-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.nums-proportional {
+  font-variant-numeric: proportional-nums;
+}
+
+.nums-lining {
+  font-variant-numeric: lining-nums;
+}
+
+.nums-oldstyle {
+  font-variant-numeric: oldstyle-nums;
+}
+
+.nums-slashed-zero {
+  font-variant-numeric: slashed-zero;
+}
+
+.nums-ordinal {
+  font-variant-numeric: ordinal;
+}
+
+.nums-fractions {
+  font-variant-numeric: diagonal-fractions;
+}
+
+/* Small caps */
+.small-caps {
+  font-variant-caps: small-caps;
+}
+
+.all-small-caps {
+  font-variant-caps: all-small-caps;
+}
+
+/* Stylistic sets (if font supports them) */
+.ss01 { font-feature-settings: 'ss01' 1; }
+.ss02 { font-feature-settings: 'ss02' 1; }
+.ss03 { font-feature-settings: 'ss03' 1; }
+
+/* ==========================================================================
+   OPTICAL SIZING
+   ========================================================================== */
+
+/* Optical sizing is enabled by default in fonts.css */
+/* These classes allow manual control if needed */
+
+.optical-size-auto {
+  font-optical-sizing: auto;
+}
+
+.optical-size-none {
+  font-optical-sizing: none;
+}
+
+/* ==========================================================================
+   TEXT ALIGNMENT UTILITIES
+   ========================================================================== */
+
+.text-start { text-align: start; }
+.text-end { text-align: end; }
+.text-center { text-align: center; }
+.text-justify { text-align: justify; }
+
+/* ==========================================================================
+   TEXT WRAP UTILITIES
+   ========================================================================== */
+
+.text-balance { text-wrap: balance; }
+.text-pretty { text-wrap: pretty; }
+.text-nowrap { text-wrap: nowrap; white-space: nowrap; }
+.text-wrap { text-wrap: wrap; }
+
+/* ==========================================================================
+   TRUNCATION UTILITIES
+   ========================================================================== */
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.line-clamp-4 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+/* ==========================================================================
+   ACCESSIBILITY: READING WIDTH CONTROL
+   ========================================================================== */
+
+.max-w-prose { max-width: 65ch; }
+.max-w-narrow { max-width: 45ch; }
+.max-w-wide { max-width: 80ch; }
+
+/* ==========================================================================
+   SELECTION STYLES
+   ========================================================================== */
+
+::selection {
+  background: hsla(var(--param-hue-primary, 220), 100%, 50%, 0.3);
+  color: inherit;
+}
+
+/* ==========================================================================
+   RENDERING TIER FALLBACKS
+   ========================================================================== */
+
+/* Reduced tier: Simpler fonts */
+[data-rendering-tier='reduced'] {
+  --font-display: var(--font-sans);
+  --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+/* Minimal tier: System fonts only */
+[data-rendering-tier='minimal'] {
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: ui-monospace, monospace;
+  --font-display: system-ui, -apple-system, sans-serif;
+}
+
+/* Text-only tier: Maximum simplicity */
+[data-rendering-tier='text-only'] {
+  --font-sans: sans-serif;
+  --font-serif: serif;
+  --font-mono: monospace;
+  --font-display: sans-serif;
+}
+
+/* High contrast mode adjustments */
+[data-contrast='high'] .text-caption,
+[data-contrast='high'] .text-micro {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   PRINT TYPOGRAPHY
+   ========================================================================== */
+
+@media print {
+  body {
+    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    font-size: 12pt;
+    line-height: 1.4;
+    color: black;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    page-break-after: avoid;
+  }
+
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  code, pre {
+    font-size: 10pt;
+  }
+}

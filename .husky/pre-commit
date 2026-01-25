@@ -121,10 +121,31 @@ fi
 echo "✅ Gate 1f passed"
 
 # ═══════════════════════════════════════════════════════════════
-# GATE 1g: Check for common anti-patterns
+# GATE 1g: Check for Knex imports in migrations
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "🐛 Gate 1g: Checking for common anti-patterns..."
+echo "🔧 Gate 1g: Checking for Knex imports in migrations..."
+STAGED_MIGRATIONS=$(echo "$STAGED_TS_FILES" | grep "migrations/" | grep -v "_TEMPLATE" || true)
+if [ -n "$STAGED_MIGRATIONS" ]; then
+    KNEX_VIOLATIONS=$(echo "$STAGED_MIGRATIONS" | xargs grep -l "from 'knex'\|from \"knex\"" 2>/dev/null || true)
+    if [ -n "$KNEX_VIOLATIONS" ]; then
+        echo ""
+        echo "❌ GATE 1g FAILED: Knex imports found in migrations:"
+        echo "$KNEX_VIOLATIONS"
+        echo ""
+        echo "   This project uses raw SQL, not Knex."
+        echo "   Use: import { query } from '../client';"
+        echo "   See: apps/api/src/db/migrations/_TEMPLATE.ts"
+        exit 1
+    fi
+fi
+echo "✅ Gate 1g passed"
+
+# ═══════════════════════════════════════════════════════════════
+# GATE 1h: Check for common anti-patterns
+# ═══════════════════════════════════════════════════════════════
+echo ""
+echo "🐛 Gate 1h: Checking for common anti-patterns..."
 if [ -n "$STAGED_TS_FILES" ]; then
     # Check for JSON.parse on JSONB columns (common mistake)
     JSONB_VIOLATIONS=$(echo "$STAGED_TS_FILES" | xargs grep -n "JSON\.parse.*\(result\|row\|record\)\." 2>/dev/null || true)
@@ -149,7 +170,7 @@ if [ -n "$STAGED_TS_FILES" ]; then
         exit 1
     fi
 fi
-echo "✅ Gate 1g passed"
+echo "✅ Gate 1h passed"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"

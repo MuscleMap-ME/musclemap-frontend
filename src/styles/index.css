@@ -1,4 +1,17 @@
 @import "tailwindcss";
+
+/* ============================================
+   KNUTH-INSPIRED DESIGN SYSTEM (The Troika)
+   Maximum Flexibility, Maximum User Choice, Maximum Performance
+   ============================================ */
+@import './reset.css';
+@import './fonts.css';
+@import './parametric-tokens.css';
+@import './typography.css';
+@import './layout.css';
+@import './fallback-cascade.css';
+
+/* Existing styles */
 @import './archetype-cards.css';
 
 /*

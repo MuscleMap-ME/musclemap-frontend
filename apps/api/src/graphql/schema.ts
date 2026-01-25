@@ -674,6 +674,12 @@ export const typeDefs = `#graphql
     feedPreferences: FeedPreferences!
     """Suggested users to follow based on similar interests"""
     suggestedUsers(limit: Int): [SuggestedUser!]!
+    """Suggested users to follow (alternative query name for compatibility)"""
+    suggestedFollows(limit: Int): [SuggestedUser!]!
+    """Check if you're following a specific user"""
+    isFollowing(userId: ID!): Boolean!
+    """Get comments on an activity item"""
+    activityComments(activityId: ID!, cursor: String, limit: Int): ActivityCommentsResult!
 
     # Workout Buddies (Phase 2 Community Features)
     """Get your workout buddy preferences"""
@@ -684,6 +690,8 @@ export const typeDefs = `#graphql
     buddyInvites: BuddyInvitesResult!
     """Get buddy suggestions based on preferences"""
     buddySuggestions(limit: Int): [BuddySuggestion!]!
+    """Get potential buddy matches based on compatibility"""
+    potentialBuddyMatches(limit: Int): [BuddyMatch!]!
     """Get check-ins for a buddy pair"""
     buddyCheckIns(buddyPairId: ID!, date: String): [BuddyCheckIn!]!
     """Get messages with a buddy"""
@@ -698,6 +706,8 @@ export const typeDefs = `#graphql
     crewChatMessages(crewId: ID!, cursor: String, limit: Int): CrewChatResult!
     """Get crew achievements"""
     crewAchievements(crewId: ID!): [CrewAchievement!]!
+    """Get unread message count for a crew"""
+    crewUnreadCount(crewId: ID!): Int!
   }
 
   type Mutation {
@@ -1105,10 +1115,14 @@ export const typeDefs = `#graphql
     acceptBuddyInvite(inviteId: ID!): WorkoutBuddyPair!
     """Decline a buddy invite"""
     declineBuddyInvite(inviteId: ID!): Boolean!
+    """Respond to a buddy invite (accept or decline)"""
+    respondToBuddyInvite(inviteId: ID!, accept: Boolean!): BuddyInviteResponse!
     """End a buddy partnership"""
     endBuddyPair(buddyPairId: ID!): Boolean!
     """Post a check-in to your buddy"""
     postBuddyCheckIn(input: BuddyCheckInInput!): BuddyCheckIn!
+    """Send a check-in to your buddy (alternative name)"""
+    sendBuddyCheckIn(buddyPairId: ID!, checkInType: String!, message: String, moodRating: Int, workoutId: ID): BuddyCheckIn!
     """Send a message to your buddy"""
     sendBuddyMessage(buddyPairId: ID!, content: String!, messageType: String): BuddyMessage!
     """Mark buddy messages as read"""
@@ -1127,6 +1141,10 @@ export const typeDefs = `#graphql
     sendCrewChatMessage(crewId: ID!, content: String!, messageType: String, replyToId: ID): CrewChatMessage!
     """React to a crew chat message"""
     reactToCrewMessage(messageId: ID!, reaction: String!): CrewChatMessage!
+    """Pin a crew chat message"""
+    pinCrewMessage(messageId: ID!): CrewChatMessage!
+    """Delete a crew chat message"""
+    deleteCrewMessage(messageId: ID!): Boolean!
     """Pin/unpin a crew chat message"""
     togglePinCrewMessage(messageId: ID!): CrewChatMessage!
     """Mark crew chat as read"""
@@ -2565,6 +2583,13 @@ export const typeDefs = `#graphql
     createdAt: DateTime!
   }
 
+  """Result for activity comments query"""
+  type ActivityCommentsResult {
+    items: [ActivityComment!]!
+    nextCursor: String
+    total: Int!
+  }
+
   """Follow/follower list item"""
   type FollowListItem {
     id: ID!
@@ -2740,6 +2765,26 @@ export const typeDefs = `#graphql
     overlappingWorkouts: Boolean!
     overlappingTimes: Boolean!
     overlappingGoals: Boolean!
+  }
+
+  """Buddy match from potential matches view"""
+  type BuddyMatch {
+    user: UserSummary!
+    compatibilityScore: Float!
+    matchReasons: [String!]!
+    sameLevel: Boolean!
+    overlappingWorkouts: Boolean!
+    overlappingTimes: Boolean!
+    overlappingGoals: Boolean!
+    bothVirtualOk: Boolean!
+    distanceKm: Float
+  }
+
+  """Response from buddy invite action"""
+  type BuddyInviteResponse {
+    success: Boolean!
+    invite: BuddyInvite
+    buddyPair: WorkoutBuddyPair
   }
 
   """Buddy check-in"""

@@ -423,3 +423,53 @@ export {
   Managed3DContainer,
   Lazy3DLoader,
 } from '../components/virtual';
+
+// ============================================
+// KNUTH-INSPIRED DESIGN SYSTEM (Rendering Tiers & Preferences)
+// ============================================
+
+/**
+ * Rendering tier detection for the 4-tier progressive enhancement system:
+ * - full: All effects, animations, glassmorphism
+ * - reduced: Styling but no animations (prefers-reduced-motion, iOS+Brave, save-data)
+ * - minimal: Basic CSS, no effects (old browsers, low-end devices)
+ * - text-only: Pure semantic HTML (screen readers, Lynx, no CSS)
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+export {
+  useRenderingTier,
+  useCurrentTier,
+  useShouldAnimate,
+  useShouldUseGlass,
+  useShouldUse3D,
+  getTierStatic,
+  RenderingTier, // Export the constant object for comparisons
+} from './useRenderingTier';
+export type {
+  RenderingTier as RenderingTierType, // Type export for type annotations
+  RenderingCapabilities,
+} from './useRenderingTier';
+
+/**
+ * User preferences management for the parametric design system.
+ * Handles display, locale (26 languages), measurement units, and accessibility settings.
+ * Persists to localStorage and applies to DOM as CSS custom properties.
+ */
+export {
+  useUserPreferences,
+} from './useUserPreferences';
+export type {
+  UserPreferences,
+  DisplayPreferences,
+  LocalePreferences,
+  MeasurementPreferences,
+  AccessibilityPreferences,
+  SupportedLocale,
+  WeightUnit,
+  DistanceUnit,
+  TemperatureUnit,
+  TimeFormat,
+  DateFormat,
+  WritingDirection,
+} from '../types/userPreferences';
