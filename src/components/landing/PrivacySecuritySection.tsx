@@ -139,12 +139,12 @@ export function PrivacySecuritySection() {
 
             <div className="flex flex-col items-center p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
               <span className="text-2xl mb-2">🔓</span>
-              <span className="text-sm text-emerald-400 font-medium text-center">Decrypted on<br/>recipient's device</span>
+              <span className="text-sm text-emerald-400 font-medium text-center">Decrypted on<br/>recipient&apos;s device</span>
             </div>
           </div>
 
           <p className="text-center text-gray-400 text-sm">
-            Private keys never leave your device. Even we can't read your messages.
+            Private keys never leave your device. Even we can&apos;t read your messages.
           </p>
         </SafeMotionDiv>
 

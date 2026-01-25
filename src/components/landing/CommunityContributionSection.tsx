@@ -127,7 +127,7 @@ export function CommunityContributionSection() {
                 transition={{ duration: 0.4, delay: index * 0.05 }}
               >
                 <Component
-                  {...(linkProps as any)}
+                  {...(linkProps as Record<string, unknown>)}
                   className={`block ${colors.bg} ${colors.border} ${colors.hoverBorder} border rounded-xl p-5 transition-all hover:scale-[1.02] group`}
                 >
                   <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{way.icon}</div>
