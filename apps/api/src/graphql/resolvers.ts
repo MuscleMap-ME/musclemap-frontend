@@ -13794,6 +13794,93 @@ export const resolvers = {
       };
     },
 
+    // QA Session Logging (for passive testing)
+    logQAEvents: async (
+      _: unknown,
+      args: {
+        input: {
+          sessionId: string;
+          userAgent?: string;
+          events: Array<{
+            eventType: string;
+            eventData: Record<string, unknown>;
+            url?: string;
+            timestamp: string;
+          }>;
+        };
+      },
+      context: Context
+    ) => {
+      // No auth required - allows testing logged-out flows
+      const userId = context.user?.userId || null;
+      const { sessionId, userAgent, events } = args.input;
+
+      if (!events || events.length === 0) {
+        return { success: true, count: 0, sessionId };
+      }
+
+      // Batch insert all events
+      const insertValues: any[] = [];
+      const placeholders: string[] = [];
+      let paramIndex = 1;
+
+      for (const event of events) {
+        placeholders.push(
+          `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`
+        );
+        insertValues.push(
+          sessionId,
+          userId,
+          event.eventType,
+          JSON.stringify(event.eventData),
+          event.url || null,
+          userAgent || null
+        );
+      }
+
+      try {
+        await query(
+          `INSERT INTO qa_session_logs (session_id, user_id, event_type, event_data, url, user_agent)
+           VALUES ${placeholders.join(', ')}`,
+          insertValues
+        );
+
+        // Log errors specifically for immediate alerting
+        const errorEvents = events.filter((e) =>
+          ['js_error', 'promise_rejection', 'console_error', 'graphql_error', 'network_error'].includes(e.eventType)
+        );
+
+        if (errorEvents.length > 0) {
+          log.warn(
+            {
+              sessionId,
+              userId,
+              errorCount: errorEvents.length,
+              errors: errorEvents.map((e) => ({
+                type: e.eventType,
+                message: (e.eventData as any).message?.substring(0, 200),
+                url: e.url,
+              })),
+            },
+            'QA session errors logged'
+          );
+        }
+
+        return {
+          success: true,
+          count: events.length,
+          sessionId,
+        };
+      } catch (err) {
+        log.error({ err, sessionId, eventCount: events.length }, 'Failed to log QA events');
+        return {
+          success: false,
+          count: 0,
+          sessionId,
+        };
+      }
+    },
+
     // Community - Update Presence
     updatePresence: async (_: unknown, args: { status: string }, context: Context) => {
       const { userId } = requireAuth(context);

@@ -874,6 +874,10 @@ export const typeDefs = `#graphql
     createLocation(input: LocationInput!): Location!
     rateLocation(locationId: ID!, input: LocationRatingInput!): LocationRating!
     voteLocationComment(commentId: ID!, vote: Int!): LocationComment!
+
+    # QA Session Logging (for passive testing)
+    """Log QA session events - no auth required for testing logged-out flows"""
+    logQAEvents(input: QALogInput!): QALogResult!
   }
 
   type Subscription {
@@ -7322,5 +7326,66 @@ export const typeDefs = `#graphql
     crowdLevel: Int
     cleanliness: Int
     comment: String
+  }
+
+  # ============================================
+  # QA SESSION LOGGING (Passive Testing)
+  # ============================================
+
+  """Input for logging QA session events"""
+  input QALogInput {
+    """Unique session ID for grouping events"""
+    sessionId: String!
+    """User agent string"""
+    userAgent: String
+    """Array of events to log"""
+    events: [QAEventInput!]!
+  }
+
+  """Individual QA event input"""
+  input QAEventInput {
+    """Event type (js_error, graphql_error, navigation, interaction, etc.)"""
+    eventType: String!
+    """Event data as JSON"""
+    eventData: JSON!
+    """URL where event occurred"""
+    url: String
+    """ISO timestamp of the event"""
+    timestamp: String!
+  }
+
+  """Result of logging QA events"""
+  type QALogResult {
+    """Whether the events were logged successfully"""
+    success: Boolean!
+    """Number of events logged"""
+    count: Int!
+    """Session ID for reference"""
+    sessionId: String!
+  }
+
+  """QA session summary for analysis"""
+  type QASessionSummary {
+    sessionId: String!
+    userId: ID
+    startedAt: DateTime!
+    endedAt: DateTime
+    totalEvents: Int!
+    errorCount: Int!
+    warningCount: Int!
+    navigationCount: Int!
+    interactionCount: Int!
+  }
+
+  """QA event log entry"""
+  type QALogEntry {
+    id: ID!
+    sessionId: String!
+    userId: ID
+    eventType: String!
+    eventData: JSON!
+    url: String
+    userAgent: String
+    createdAt: DateTime!
   }
 `;

@@ -21,6 +21,7 @@ import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 import { initializeCachePersistence, clearPersistedCache } from '../lib/apollo-persist';
 import { storage } from '../lib/storage';
+import { logGraphQLError, isQASessionActive } from '../services/qaSessionLogger';
 
 // ============================================
 // CACHE SIZE LIMITS
@@ -137,8 +138,33 @@ const retryLink = new RetryLink({
 
 /**
  * Error Link - handles GraphQL and network errors
+ * Also logs errors to QA session if active for passive testing
  */
-const errorLink = onError(({ graphQLErrors, networkError: _networkError, operation: _operation }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+  // Log GraphQL errors to QA session for passive testing
+  if (isQASessionActive() && graphQLErrors && graphQLErrors.length > 0) {
+    logGraphQLError(
+      operation.operationName || 'unknown',
+      operation.query.definitions[0]?.kind === 'OperationDefinition'
+        ? (operation.query.definitions[0] as { operation: string }).operation
+        : 'unknown',
+      graphQLErrors.map((err) => ({
+        message: err.message,
+        path: err.path as string[] | undefined,
+        extensions: err.extensions as Record<string, unknown> | undefined,
+      }))
+    );
+  }
+
+  // Log network errors to QA session
+  if (isQASessionActive() && networkError) {
+    logGraphQLError(
+      operation.operationName || 'unknown',
+      'network',
+      [{ message: networkError.message }]
+    );
+  }
+
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
       const { extensions } = err;

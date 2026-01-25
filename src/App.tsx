@@ -16,6 +16,7 @@ const CommandPalette = lazy(() => import('./components/command/CommandPalette'))
 import { usePrefetchRoutes } from './components/PrefetchLink';
 import logger from './utils/logger';
 import { trackPageView } from './lib/analytics';
+import { initQALogger, isQASessionActive, getQASessionId } from './services/qaSessionLogger';
 
 // ============================================
 // ULTRA-EARLY ERROR TRACKING FOR iOS DEBUGGING
@@ -796,6 +797,13 @@ function ConditionalAICoach() {
 
 export default function App() {
   useEffect(() => {
+    // Initialize QA Session Logger (checks for ?qa=start param)
+    // This enables passive testing - all errors/interactions are logged to GraphQL
+    initQALogger();
+    if (isQASessionActive()) {
+      console.log('[App] QA Session active:', getQASessionId());
+    }
+
     // Track that App component mounted successfully
     console.log('[App] Component mounting');
     try {

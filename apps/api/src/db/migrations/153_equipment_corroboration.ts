@@ -17,7 +17,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS equipment_suggestions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      venue_id UUID NOT NULL REFERENCES fitness_venues(id) ON DELETE CASCADE,
+      venue_id TEXT NOT NULL REFERENCES fitness_venues(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       equipment_type TEXT NOT NULL,
       quantity INTEGER DEFAULT 1,
