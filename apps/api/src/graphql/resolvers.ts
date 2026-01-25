@@ -2207,12 +2207,12 @@ export const resolvers = {
         [userId]
       );
 
-      // Get sleep data
+      // Get sleep data (sleep_duration_minutes is stored, convert to hours)
       const sleepData = await queryOne<any>(
-        `SELECT COALESCE(duration_hours, 0) as sleep_hours
+        `SELECT COALESCE(sleep_duration_minutes / 60.0, 0) as sleep_hours
          FROM sleep_logs
-         WHERE user_id = $1 AND DATE(sleep_end) = CURRENT_DATE
-         ORDER BY sleep_end DESC LIMIT 1`,
+         WHERE user_id = $1 AND DATE(wake_time) = CURRENT_DATE
+         ORDER BY wake_time DESC LIMIT 1`,
         [userId]
       );
 
@@ -2229,9 +2229,9 @@ export const resolvers = {
       );
 
       const weeklySleep = await queryOne<any>(
-        `SELECT COALESCE(AVG(duration_hours), 0) as avg_sleep_hours
+        `SELECT COALESCE(AVG(sleep_duration_minutes / 60.0), 0) as avg_sleep_hours
          FROM sleep_logs
-         WHERE user_id = $1 AND sleep_end >= CURRENT_DATE - INTERVAL '7 days'`,
+         WHERE user_id = $1 AND wake_time >= CURRENT_DATE - INTERVAL '7 days'`,
         [userId]
       );
 
