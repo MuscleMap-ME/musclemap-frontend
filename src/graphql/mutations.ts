@@ -277,6 +277,8 @@ export const START_WORKOUT_SESSION_MUTATION = gql`
   }
 `;
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
+// Full session data should be fetched separately via ACTIVE_WORKOUT_SESSION_QUERY
 export const LOG_SET_MUTATION = gql`
   mutation LogSet($input: LogSetInput!) {
     logSet(input: $input) {
@@ -285,47 +287,8 @@ export const LOG_SET_MUTATION = gql`
         totalVolume
         totalReps
         estimatedCalories
-        musclesWorked {
-          muscleId
-          muscleName
-          totalTU
-          setCount
-          percentageOfMax
-        }
-        sessionPRs {
-          exerciseId
-          exerciseName
-          prType
-          newValue
-          previousValue
-          improvementPercent
-          achievedAt
-        }
-        sets {
-          id
-          exerciseId
-          exerciseName
-          setNumber
-          reps
-          weightKg
-          rpe
-          rir
-          durationSeconds
-          restSeconds
-          tag
-          tu
-          muscleActivations {
-            muscleId
-            muscleName
-            activation
-            tu
-          }
-          isPRWeight
-          isPRReps
-          isPR1RM
-          notes
-          performedAt
-        }
+        currentExerciseIndex
+        currentSetIndex
       }
       setLogged {
         id
@@ -335,36 +298,22 @@ export const LOG_SET_MUTATION = gql`
         reps
         weightKg
         rpe
-        rir
-        durationSeconds
-        restSeconds
-        tag
         tu
-        muscleActivations {
-          muscleId
-          muscleName
-          activation
-          tu
-        }
         isPRWeight
         isPRReps
         isPR1RM
-        notes
         performedAt
       }
       prsAchieved {
         exerciseId
-        exerciseName
         prType
         newValue
-        previousValue
-        improvementPercent
-        achievedAt
       }
     }
   }
 `;
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
 export const UPDATE_SET_MUTATION = gql`
   mutation UpdateSet($input: UpdateSetInput!) {
     updateSet(input: $input) {
@@ -375,21 +324,10 @@ export const UPDATE_SET_MUTATION = gql`
       reps
       weightKg
       rpe
-      rir
-      durationSeconds
-      restSeconds
-      tag
       tu
-      muscleActivations {
-        muscleId
-        muscleName
-        activation
-        tu
-      }
       isPRWeight
       isPRReps
       isPR1RM
-      notes
       performedAt
     }
   }
@@ -421,6 +359,7 @@ export const RESUME_WORKOUT_SESSION_MUTATION = gql`
   }
 `;
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
 export const COMPLETE_WORKOUT_SESSION_MUTATION = gql`
   mutation CompleteWorkoutSession($input: CompleteWorkoutSessionInput!) {
     completeWorkoutSession(input: $input) {
@@ -430,48 +369,15 @@ export const COMPLETE_WORKOUT_SESSION_MUTATION = gql`
       }
       session {
         id
-        sets {
-          id
-          exerciseId
-          exerciseName
-          setNumber
-          reps
-          weightKg
-          tu
-        }
       }
       totalTU
       totalVolume
       totalSets
       totalReps
       duration
-      muscleBreakdown {
-        muscleId
-        muscleName
-        totalTU
-        setCount
-        percentageOfMax
-      }
-      prsAchieved {
-        exerciseId
-        exerciseName
-        prType
-        newValue
-        previousValue
-        improvementPercent
-        achievedAt
-      }
       creditsCharged
       xpEarned
       levelUp
-      achievements {
-        id
-        name
-        description
-        icon
-        rarity
-        unlockedAt
-      }
     }
   }
 `;
@@ -482,60 +388,18 @@ export const ABANDON_WORKOUT_SESSION_MUTATION = gql`
   }
 `;
 
+// Note: Simplified to avoid exceeding query complexity limit of 500
+// Full session data should be fetched via ACTIVE_WORKOUT_SESSION_QUERY after recovery
 export const RECOVER_WORKOUT_SESSION_MUTATION = gql`
   mutation RecoverWorkoutSession($archivedSessionId: ID!) {
     recoverWorkoutSession(archivedSessionId: $archivedSessionId) {
       id
       userId
       startedAt
-      pausedAt
-      totalPausedTime
-      lastActivityAt
       currentExerciseIndex
       currentSetIndex
-      sets {
-        id
-        exerciseId
-        exerciseName
-        setNumber
-        reps
-        weightKg
-        rpe
-        rir
-        durationSeconds
-        restSeconds
-        tag
-        tu
-        muscleActivations {
-          muscleId
-          muscleName
-          activation
-          tu
-        }
-        isPRWeight
-        isPRReps
-        isPR1RM
-        notes
-        performedAt
-      }
       totalVolume
       totalReps
-      musclesWorked {
-        muscleId
-        muscleName
-        totalTU
-        setCount
-        percentageOfMax
-      }
-      sessionPRs {
-        exerciseId
-        exerciseName
-        prType
-        newValue
-        previousValue
-        improvementPercent
-        achievedAt
-      }
       estimatedCalories
     }
   }

@@ -1,43 +1,45 @@
 /**
  * ExerciseTip Component
  *
- * Fetches and displays a contextual tip for the current exercise.
+ * Fetches and displays a contextual tip for the current exercise using GraphQL.
  */
 
 import React, { useEffect, useState } from 'react';
-import { request } from '../../utils/httpClient';
+import { useQuery } from '@apollo/client/react';
+import { TIPS_QUERY } from '../../graphql/queries';
 import TipCard from './TipCard';
 
-export default function ExerciseTip({ exerciseId, delay = 2000 }) {
-  const [tip, setTip] = useState(null);
+interface ExerciseTipProps {
+  exerciseId?: string;
+  delay?: number;
+}
+
+export default function ExerciseTip({ exerciseId, delay = 2000 }: ExerciseTipProps) {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (!exerciseId) return;
+  const { data, loading } = useQuery(TIPS_QUERY, {
+    variables: { exerciseId },
+    skip: !exerciseId,
+    fetchPolicy: 'cache-first',
+  });
 
+  // Get the first tip for this exercise
+  const tip = data?.tips?.[0] || null;
+
+  useEffect(() => {
     // Reset state when exercise changes
-    setTip(null);
     setVisible(false);
     setDismissed(false);
 
-    const fetchTip = async () => {
-      try {
-        const response = await request(`/tips/exercise/${exerciseId}`);
-        if (response?.data) {
-          setTip(response.data);
-          // Show tip after delay to not interrupt the user immediately
-          setTimeout(() => setVisible(true), delay);
-        }
-      } catch (error) {
-        console.error('Failed to fetch exercise tip:', error);
-      }
-    };
+    if (tip) {
+      // Show tip after delay to not interrupt the user immediately
+      const timer = setTimeout(() => setVisible(true), delay);
+      return () => clearTimeout(timer);
+    }
+  }, [exerciseId, tip, delay]);
 
-    fetchTip();
-  }, [exerciseId, delay]);
-
-  if (!tip || !visible || dismissed) {
+  if (loading || !tip || !visible || dismissed) {
     return null;
   }
 

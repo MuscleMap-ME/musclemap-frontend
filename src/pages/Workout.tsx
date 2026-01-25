@@ -344,6 +344,8 @@ export default function Workout() {
     recoverableSessions: graphqlRecoverableSessions,
     totalSets,
     registerCallbacks,
+    logSet,
+    getSetsForExercise,
   } = useWorkoutSessionGraphQL();
 
   // GraphQL queries and mutations for workout functionality
@@ -452,8 +454,21 @@ export default function Workout() {
 
   // Get all exercises from prescription (main + warmup + cooldown)
   // Wrapped in useCallback so it can be used in other useCallback hooks
+  // IMPORTANT: Normalizes exerciseId to id for consistent handling throughout the component
   const getAllPrescribedExercises = useCallback(() => {
     if (!prescription) return [];
+
+    // Normalize exercise data - ensure 'id' is set from 'exerciseId' if needed
+    const normalizeExercise = (e: Record<string, unknown>, phase: string) => {
+      const exerciseId = (e.id || e.exerciseId) as string | undefined;
+      return {
+        ...e,
+        id: exerciseId, // Ensure 'id' is always set if exerciseId exists
+        exerciseId: exerciseId, // Keep exerciseId for compatibility
+        phase,
+      };
+    };
+
     const all: Array<{
       id?: string;
       exerciseId?: string;
@@ -470,9 +485,9 @@ export default function Workout() {
       secondary_muscles?: string[];
       isActivity?: boolean;
     }> = [];
-    if (prescription.warmup) all.push(...prescription.warmup.map((e: unknown) => ({ ...(e as object), phase: 'warmup' })));
-    if (prescription.exercises) all.push(...prescription.exercises.map((e: unknown) => ({ ...(e as object), phase: 'main' })));
-    if (prescription.cooldown) all.push(...prescription.cooldown.map((e: unknown) => ({ ...(e as object), phase: 'cooldown' })));
+    if (prescription.warmup) all.push(...prescription.warmup.map((e: unknown) => normalizeExercise(e as Record<string, unknown>, 'warmup')));
+    if (prescription.exercises) all.push(...prescription.exercises.map((e: unknown) => normalizeExercise(e as Record<string, unknown>, 'main')));
+    if (prescription.cooldown) all.push(...prescription.cooldown.map((e: unknown) => normalizeExercise(e as Record<string, unknown>, 'cooldown')));
     return all;
   }, [prescription]);
 
@@ -1209,9 +1224,9 @@ export default function Workout() {
           )}
 
           {/* Contextual Tip */}
-          {currentExercise && (
+          {currentExercise && (currentExercise.id || currentExercise.exerciseId) && (
             <div className="mb-6">
-              <ExerciseTip exerciseId={currentExercise.exerciseId} delay={1500} />
+              <ExerciseTip exerciseId={currentExercise.id || currentExercise.exerciseId} delay={1500} />
             </div>
           )}
 
@@ -1306,9 +1321,29 @@ export default function Workout() {
                 Previous
               </button>
               <button
-                onClick={() => {
-                  // Mark exercise as done if not already logged, then move to next
+                onClick={async () => {
+                  // Check if any sets have been logged for this exercise via RealtimeSetLogger
+                  const serverSets = getSetsForExercise(currentExercise.id!);
                   const alreadyLogged = logged.some(e => e.id === currentExercise.id);
+
+                  // If no sets logged to server and we have an active session, log a default set
+                  if (serverSets.length === 0 && activeSession && currentExercise.id) {
+                    const defaultReps = typeof currentExercise.reps === 'number' ? currentExercise.reps : 10;
+                    const plannedSets = currentExercise.sets || 3;
+
+                    // Log all planned sets with default values (0 weight = bodyweight)
+                    for (let i = 0; i < plannedSets; i++) {
+                      await logSet({
+                        sessionId: activeSession.id,
+                        exerciseId: currentExercise.id,
+                        setNumber: i + 1,
+                        reps: defaultReps,
+                        weightKg: 0, // Default to bodyweight
+                      });
+                    }
+                  }
+
+                  // Mark exercise as done in local state
                   if (!alreadyLogged) {
                     setLogged(prev => [...prev, {
                       id: currentExercise.id,
