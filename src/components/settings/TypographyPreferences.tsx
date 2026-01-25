@@ -95,8 +95,8 @@ const bodyFontOptions = [
   { value: 'opendyslexic', label: 'OpenDyslexic' },
 ];
 
-// Mono font options
-const monoFontOptions = [
+// Mono font options (reserved for future use)
+const _monoFontOptions = [
   { value: 'jetbrains', label: 'JetBrains Mono (Default)' },
   { value: 'system', label: 'System Mono' },
 ];

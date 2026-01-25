@@ -91,7 +91,7 @@ export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       position = 'start',
       gap = 'md',
       minContentWidth = 50,
-      contentFirst = true,
+      contentFirst: _contentFirst = true,
       className,
       style,
       children,

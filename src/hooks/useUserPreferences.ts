@@ -10,7 +10,7 @@
  * - Handles system preference detection
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type {
   UserPreferences,
   DisplayPreferences,
@@ -171,8 +171,8 @@ function loadFromStorage(): UserPreferences | null {
 
     // Check schema version for migrations
     if (parsed.schemaVersion !== SCHEMA_VERSION) {
-      // TODO: Implement migration logic
-      console.log('[UserPreferences] Schema version mismatch, using defaults');
+      // Schema version mismatch, using defaults
+      console.info('[UserPreferences] Schema version mismatch, using defaults');
       return null;
     }
 
@@ -350,7 +350,7 @@ export function useUserPreferences(): UseUserPreferencesReturn {
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const contrastQuery = window.matchMedia('(prefers-contrast: more)');
 
-    const handleColorScheme = (e: MediaQueryListEvent) => {
+    const handleColorScheme = (_e: MediaQueryListEvent) => {
       setPreferences((prev) => {
         if (prev.display.colorScheme === 'system') {
           // Just trigger re-render - we don't actually store system value
@@ -603,7 +603,6 @@ export function useUserPreferences(): UseUserPreferencesReturn {
 
   const applyLocalePreset = useCallback((locale: SupportedLocale) => {
     const measurements = getMeasurementPresetForLocale(locale);
-    const localeInfo = SUPPORTED_LOCALES.find((l) => l.code === locale);
 
     setPreferences((prev) => ({
       ...prev,

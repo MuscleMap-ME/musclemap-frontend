@@ -175,7 +175,7 @@ export function RenderingTierSelector({
 
       {/* Help Text */}
       <p className="text-xs text-neutral-500 dark:text-neutral-500">
-        This setting is saved locally and applies immediately. Choose "Auto-Detect" to let the system
+        This setting is saved locally and applies immediately. Choose &quot;Auto-Detect&quot; to let the system
         optimize for your device.
       </p>
     </div>
