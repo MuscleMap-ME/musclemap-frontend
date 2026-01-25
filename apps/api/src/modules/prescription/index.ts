@@ -273,6 +273,7 @@ export class PrescriptionEngine {
    */
   private async getAvailableExercises(context: UserContext): Promise<Exercise[]> {
     // Build query to filter by equipment and location
+    // Note: equipment_required, equipment_optional, and locations are JSONB arrays
     const exercises = await queryAll<Exercise>(`
       SELECT
         id, name, type, difficulty, primary_muscles,
@@ -282,18 +283,18 @@ export class PrescriptionEngine {
       FROM exercises
       WHERE (
         equipment_required IS NULL
-        OR equipment_required = '{}'
-        OR equipment_required <@ $1::text[]
+        OR equipment_required = '[]'::jsonb
+        OR equipment_required <@ $1::jsonb
       )
       AND (
         locations IS NULL
-        OR locations = '{}'
-        OR $2 = ANY(locations)
+        OR locations = '[]'::jsonb
+        OR locations @> $2::jsonb
       )
       AND difficulty <= $3
     `, [
-      context.equipment,
-      context.location,
+      JSON.stringify(context.equipment),
+      JSON.stringify([context.location]),
       DIFFICULTY_BY_EXPERIENCE[context.experienceLevel]?.max || 5,
     ]);
 
