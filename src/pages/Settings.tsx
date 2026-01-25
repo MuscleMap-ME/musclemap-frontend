@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
+import { gql } from '@apollo/client/core';
 import { RestTimerSettings } from '../components/workout/RestTimerSettings';
 import { EquipmentSelector, UnitToggle } from '../components/settings';
 import JourneyManagement from '../components/settings/JourneyManagement';
@@ -15,6 +16,15 @@ import {
   UPDATE_SETTINGS_MUTATION,
   UPDATE_MESSAGING_PRIVACY_MUTATION,
 } from '../graphql/mutations';
+
+const CHANGE_PASSWORD_MUTATION = gql`
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input) {
+      success
+      message
+    }
+  }
+`;
 
 // Types
 interface UserSettings {
@@ -447,7 +457,154 @@ export default function Settings() {
             </Link>
           </div>
         </section>
+
+        {/* Account Security */}
+        <AccountSecuritySection />
       </main>
     </div>
+  );
+}
+
+// Password Change Component
+function AccountSecuritySection() {
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [changePassword, { loading }] = useMutation(CHANGE_PASSWORD_MUTATION);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (form.newPassword !== form.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    if (form.newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      const { data } = await changePassword({
+        variables: {
+          input: {
+            currentPassword: form.currentPassword,
+            newPassword: form.newPassword,
+          },
+        },
+      });
+
+      if (data?.changePassword?.success) {
+        setSuccess('Password changed successfully!');
+        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setTimeout(() => {
+          setIsChangingPassword(false);
+          setSuccess('');
+        }, 2000);
+      }
+    } catch (err: any) {
+      const gqlError = err?.graphQLErrors?.[0]?.message;
+      setError(gqlError || 'Failed to change password');
+    }
+  };
+
+  return (
+    <section className="bg-gray-800 rounded-2xl p-4">
+      <h2 className="font-bold mb-4">🔐 Account Security</h2>
+
+      {!isChangingPassword ? (
+        <button
+          onClick={() => setIsChangingPassword(true)}
+          className="w-full p-4 bg-gray-700/50 rounded-xl hover:bg-gray-700 transition-colors text-left"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔑</span>
+              <div>
+                <div className="font-medium">Change Password</div>
+                <div className="text-sm text-gray-400">Update your account password</div>
+              </div>
+            </div>
+            <span className="text-gray-400">→</span>
+          </div>
+        </button>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-300 text-sm">
+              {success}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Current Password</label>
+            <input
+              type="password"
+              value={form.currentPassword}
+              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">New Password</label>
+            <input
+              type="password"
+              value={form.newPassword}
+              onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              placeholder="At least 8 characters"
+              minLength={8}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              value={form.confirmPassword}
+              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              placeholder="Re-enter new password"
+              minLength={8}
+              required
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsChangingPassword(false);
+                setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setError('');
+              }}
+              className="flex-1 p-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 p-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold rounded-lg disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }

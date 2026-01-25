@@ -42,10 +42,12 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Handle venue selection
-  const handleVenueSelect = (venue: { id: string; name: string }) => {
-    // Navigate to venue detail page or show modal
-    navigate(`/discover/venue/${venue.id}`);
+  // Handle venue selection - EquipmentMap passes venueId as string
+  const handleVenueSelect = (venueId: string) => {
+    // Navigate to venue detail page
+    if (venueId) {
+      navigate(`/discover/venue/${venueId}`);
+    }
   };
 
   return (
@@ -228,7 +230,7 @@ function ListView({
   onVenueSelect,
 }: {
   searchQuery: string;
-  onVenueSelect: (venue: { id: string; name: string }) => void;
+  onVenueSelect: (venueId: string) => void;
 }) {
   // This would query venues and display as a list
   // TODO: Use _searchQuery to filter venues
@@ -239,7 +241,7 @@ function ListView({
         {Array.from({ length: 10 }).map((_, i) => (
           <button
             key={i}
-            onClick={() => onVenueSelect({ id: `venue-${i}`, name: `Park ${i + 1}` })}
+            onClick={() => onVenueSelect(`venue-${i}`)}
             className="w-full p-4 bg-gray-800/50 border border-gray-700 rounded-xl text-left hover:border-gray-600 transition-colors"
           >
             <div className="flex items-start justify-between">
