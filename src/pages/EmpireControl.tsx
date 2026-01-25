@@ -1208,8 +1208,20 @@ export default function EmpireControl() {
     return () => clearInterval(interval);
   }, [fetchMetrics]);
 
-  // Check if user is owner
-  if (!user?.is_admin && !user?.is_owner && !user?.roles?.includes('admin') && !user?.roles?.includes('owner')) {
+  // Check if user has admin/owner access
+  // Normalize roles to always be an array for consistent checking
+  const userRoles = Array.isArray(user?.roles) ? user.roles :
+    (typeof user?.roles === 'string' ? [user.roles] : []);
+
+  const hasAdminAccess =
+    user?.is_admin === true ||
+    user?.is_owner === true ||
+    user?.isAdmin === true ||
+    user?.isOwner === true ||
+    userRoles.includes('admin') ||
+    userRoles.includes('owner');
+
+  if (!hasAdminAccess) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
         <div className="text-center">
