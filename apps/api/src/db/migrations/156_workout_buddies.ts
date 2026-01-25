@@ -1,84 +1,128 @@
 /**
- * Migration 156: Workout Buddies System
+ * Migration 156: Workout Buddies System Enhancements
  *
  * Phase 2 of the Community Engagement Master Plan
- * Creates workout buddy infrastructure:
- * - buddy_preferences: Matching preferences
- * - buddy_pairs: Matched workout partners
- * - buddy_invites: Pending buddy requests
- * - buddy_check_ins: Mutual accountability check-ins
- * - buddy_messages: Direct messages between buddies
+ * EXTENDS existing buddy infrastructure with:
+ * - buddy_check_ins: Mutual accountability check-ins (NEW)
+ * - buddy_messages: Direct messages between buddies (NEW)
+ * - Additional columns on existing tables for enhanced features
  *
- * DESTRUCTIVE: down() drops all Phase 2 buddy tables - acknowledged for rollback capability
+ * NOTE: This migration extends existing buddy_preferences and buddy_pairs tables
+ * rather than recreating them.
+ *
+ * DESTRUCTIVE: down() drops new tables and removes added columns - acknowledged for rollback capability
  */
 
 import { query } from '../client';
 
 export async function up(): Promise<void> {
   // ============================================
-  // BUDDY PREFERENCES TABLE
-  // What users are looking for in a workout buddy
+  // ENHANCE BUDDY PREFERENCES TABLE
+  // Add new columns for enhanced matching
   // ============================================
+
+  // Add is_looking_for_buddy column if it doesn't exist (maps to seeking_buddy)
   await query(`
-    CREATE TABLE IF NOT EXISTS buddy_preferences (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-      is_looking_for_buddy BOOLEAN DEFAULT false,
-      preferred_workout_types TEXT[] DEFAULT '{}',
-      preferred_times TEXT[] DEFAULT '{}',
-      preferred_days INTEGER[] DEFAULT '{}',
-      fitness_level TEXT DEFAULT 'intermediate' CHECK (fitness_level IN ('beginner', 'intermediate', 'advanced', 'elite')),
-      match_similar_level BOOLEAN DEFAULT true,
-      wants_daily_checkins BOOLEAN DEFAULT true,
-      wants_workout_reminders BOOLEAN DEFAULT true,
-      open_to_virtual_workouts BOOLEAN DEFAULT true,
-      open_to_in_person BOOLEAN DEFAULT false,
-      city TEXT,
-      timezone TEXT,
-      latitude NUMERIC(10, 8),
-      longitude NUMERIC(11, 8),
-      max_distance_km INTEGER DEFAULT 50,
-      goals TEXT[] DEFAULT '{}',
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    )
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS fitness_level TEXT DEFAULT 'intermediate'
+      CHECK (fitness_level IS NULL OR fitness_level IN ('beginner', 'intermediate', 'advanced', 'elite'))
   `);
 
-  await query(`CREATE INDEX IF NOT EXISTS idx_buddy_prefs_looking ON buddy_preferences(is_looking_for_buddy)`);
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS match_similar_level BOOLEAN DEFAULT true
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS wants_daily_checkins BOOLEAN DEFAULT true
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS wants_workout_reminders BOOLEAN DEFAULT true
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS open_to_virtual_workouts BOOLEAN DEFAULT true
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS open_to_in_person BOOLEAN DEFAULT false
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS city TEXT
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS timezone TEXT
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS latitude NUMERIC(10, 8)
+  `);
+
+  await query(`
+    ALTER TABLE buddy_preferences
+    ADD COLUMN IF NOT EXISTS longitude NUMERIC(11, 8)
+  `);
+
+  // Create indexes on new columns
+  await query(`CREATE INDEX IF NOT EXISTS idx_buddy_prefs_seeking ON buddy_preferences(seeking_buddy)`);
   await query(`CREATE INDEX IF NOT EXISTS idx_buddy_prefs_level ON buddy_preferences(fitness_level)`);
 
   // ============================================
-  // BUDDY PAIRS TABLE
-  // Active buddy partnerships
+  // ENHANCE BUDDY PAIRS TABLE
+  // Add new columns for tracking engagement
   // ============================================
+
   await query(`
-    CREATE TABLE IF NOT EXISTS buddy_pairs (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user1_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      user2_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'ended')),
-      compatibility_score NUMERIC(5, 2),
-      match_reasons JSONB DEFAULT '[]',
-      current_streak INTEGER DEFAULT 0,
-      longest_streak INTEGER DEFAULT 0,
-      last_mutual_activity TIMESTAMPTZ,
-      total_workouts_together INTEGER DEFAULT 0,
-      total_check_ins INTEGER DEFAULT 0,
-      high_fives_exchanged INTEGER DEFAULT 0,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      ended_at TIMESTAMPTZ,
-      UNIQUE(user1_id, user2_id)
-    )
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS compatibility_score NUMERIC(5, 2)
   `);
 
-  await query(`CREATE INDEX IF NOT EXISTS idx_buddy_pairs_user1 ON buddy_pairs(user1_id)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_buddy_pairs_user2 ON buddy_pairs(user2_id)`);
-  await query(`CREATE INDEX IF NOT EXISTS idx_buddy_pairs_status ON buddy_pairs(status)`);
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS match_reasons JSONB DEFAULT '[]'
+  `);
+
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS current_streak INTEGER DEFAULT 0
+  `);
+
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS longest_streak INTEGER DEFAULT 0
+  `);
+
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS last_mutual_activity TIMESTAMPTZ
+  `);
+
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS total_check_ins INTEGER DEFAULT 0
+  `);
+
+  await query(`
+    ALTER TABLE buddy_pairs
+    ADD COLUMN IF NOT EXISTS high_fives_exchanged INTEGER DEFAULT 0
+  `);
+
+  // Create index on streak
   await query(`CREATE INDEX IF NOT EXISTS idx_buddy_pairs_streak ON buddy_pairs(current_streak DESC)`);
 
   // ============================================
   // BUDDY INVITES TABLE
-  // Pending buddy requests
+  // Pending buddy requests with enhanced matching info
   // ============================================
   await query(`
     CREATE TABLE IF NOT EXISTS buddy_invites (
@@ -107,7 +151,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS buddy_check_ins (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      buddy_pair_id UUID NOT NULL REFERENCES buddy_pairs(id) ON DELETE CASCADE,
+      buddy_pair_id TEXT NOT NULL REFERENCES buddy_pairs(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       check_in_type TEXT NOT NULL CHECK (check_in_type IN (
         'daily_mood', 'workout_planned', 'workout_completed',
@@ -134,7 +178,7 @@ export async function up(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS buddy_messages (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      buddy_pair_id UUID NOT NULL REFERENCES buddy_pairs(id) ON DELETE CASCADE,
+      buddy_pair_id TEXT NOT NULL REFERENCES buddy_pairs(id) ON DELETE CASCADE,
       sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       content TEXT NOT NULL,
       message_type TEXT DEFAULT 'text' CHECK (message_type IN (
@@ -154,6 +198,7 @@ export async function up(): Promise<void> {
 
   // ============================================
   // TRIGGER: Update buddy_pairs streak on check-in
+  // Uses existing user_a_id/user_b_id columns
   // ============================================
   await query(`
     CREATE OR REPLACE FUNCTION update_buddy_streak()
@@ -172,10 +217,10 @@ export async function up(): Promise<void> {
       IF v_other_checked_in THEN
         UPDATE buddy_pairs
         SET
-          current_streak = current_streak + 1,
-          longest_streak = GREATEST(longest_streak, current_streak + 1),
+          current_streak = COALESCE(current_streak, 0) + 1,
+          longest_streak = GREATEST(COALESCE(longest_streak, 0), COALESCE(current_streak, 0) + 1),
           last_mutual_activity = NOW(),
-          total_check_ins = total_check_ins + 1
+          total_check_ins = COALESCE(total_check_ins, 0) + 1
         WHERE id = NEW.buddy_pair_id;
       END IF;
 
@@ -195,26 +240,28 @@ export async function up(): Promise<void> {
 
   // ============================================
   // TRIGGER: Create buddy_pair when invite accepted
+  // Uses existing user_a_id/user_b_id columns
   // ============================================
   await query(`
     CREATE OR REPLACE FUNCTION create_buddy_pair_on_accept()
     RETURNS TRIGGER AS $$
     DECLARE
-      v_user1 TEXT;
-      v_user2 TEXT;
+      v_user_a TEXT;
+      v_user_b TEXT;
     BEGIN
       IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
+        -- Existing buddy_pairs uses user_a_id/user_b_id with constraint user_a_id < user_b_id
         IF NEW.sender_id < NEW.recipient_id THEN
-          v_user1 := NEW.sender_id;
-          v_user2 := NEW.recipient_id;
+          v_user_a := NEW.sender_id;
+          v_user_b := NEW.recipient_id;
         ELSE
-          v_user1 := NEW.recipient_id;
-          v_user2 := NEW.sender_id;
+          v_user_a := NEW.recipient_id;
+          v_user_b := NEW.sender_id;
         END IF;
 
-        INSERT INTO buddy_pairs (user1_id, user2_id, compatibility_score, match_reasons)
-        VALUES (v_user1, v_user2, NEW.compatibility_score, NEW.match_reasons)
-        ON CONFLICT (user1_id, user2_id) DO UPDATE
+        INSERT INTO buddy_pairs (user_a_id, user_b_id, compatibility_score, match_reasons)
+        VALUES (v_user_a, v_user_b, NEW.compatibility_score, NEW.match_reasons)
+        ON CONFLICT (user_a_id, user_b_id) DO UPDATE
         SET status = 'active', ended_at = NULL;
       END IF;
       RETURN NEW;
@@ -231,6 +278,7 @@ export async function up(): Promise<void> {
 
   // ============================================
   // VIEW: Potential buddy matches
+  // Uses seeking_buddy (existing) and new columns
   // ============================================
   await query(`
     CREATE OR REPLACE VIEW v_potential_buddy_matches AS
@@ -241,9 +289,12 @@ export async function up(): Promise<void> {
       bp1.fitness_level AS user1_level,
       bp2.fitness_level AS user2_level,
       bp1.preferred_workout_types && bp2.preferred_workout_types AS overlapping_workouts,
-      bp1.preferred_times && bp2.preferred_times AS overlapping_times,
-      bp1.preferred_days && bp2.preferred_days AS overlapping_days,
-      bp1.goals && bp2.goals AS overlapping_goals,
+      -- preferred_times doesn't exist in original table, so check if column exists
+      CASE WHEN bp1.preferred_schedule IS NOT NULL AND bp2.preferred_schedule IS NOT NULL
+           THEN bp1.preferred_schedule && bp2.preferred_schedule
+           ELSE false END AS overlapping_times,
+      -- Use goals column if it exists, otherwise use preferred_goals
+      COALESCE(bp1.preferred_goals, '{}') && COALESCE(bp2.preferred_goals, '{}') AS overlapping_goals,
       bp1.open_to_virtual_workouts AND bp2.open_to_virtual_workouts AS both_virtual_ok,
       CASE
         WHEN bp1.latitude IS NOT NULL AND bp2.latitude IS NOT NULL THEN
@@ -256,12 +307,12 @@ export async function up(): Promise<void> {
       END AS distance_km
     FROM buddy_preferences bp1
     JOIN buddy_preferences bp2 ON bp1.user_id < bp2.user_id
-    WHERE bp1.is_looking_for_buddy = true
-      AND bp2.is_looking_for_buddy = true
+    WHERE bp1.seeking_buddy = true
+      AND bp2.seeking_buddy = true
       AND NOT EXISTS (
         SELECT 1 FROM buddy_pairs
-        WHERE (user1_id = bp1.user_id AND user2_id = bp2.user_id)
-           OR (user1_id = bp2.user_id AND user2_id = bp1.user_id)
+        WHERE (user_a_id = bp1.user_id AND user_b_id = bp2.user_id)
+           OR (user_a_id = bp2.user_id AND user_b_id = bp1.user_id)
       )
       AND NOT EXISTS (
         SELECT 1 FROM buddy_invites
@@ -281,6 +332,25 @@ export async function down(): Promise<void> {
   await query(`DROP TABLE IF EXISTS buddy_messages`);
   await query(`DROP TABLE IF EXISTS buddy_check_ins`);
   await query(`DROP TABLE IF EXISTS buddy_invites`);
-  await query(`DROP TABLE IF EXISTS buddy_pairs`);
-  await query(`DROP TABLE IF EXISTS buddy_preferences`);
+
+  // Remove added columns from buddy_pairs
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS compatibility_score`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS match_reasons`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS current_streak`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS longest_streak`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS last_mutual_activity`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS total_check_ins`);
+  await query(`ALTER TABLE buddy_pairs DROP COLUMN IF EXISTS high_fives_exchanged`);
+
+  // Remove added columns from buddy_preferences
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS fitness_level`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS match_similar_level`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS wants_daily_checkins`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS wants_workout_reminders`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS open_to_virtual_workouts`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS open_to_in_person`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS city`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS timezone`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS latitude`);
+  await query(`ALTER TABLE buddy_preferences DROP COLUMN IF EXISTS longitude`);
 }
