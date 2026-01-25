@@ -138,6 +138,9 @@ export async function createGraphQLServer(
   // Add complexity tracking plugin (Knuth principle: measure, don't guess)
   plugins.push({
     async requestDidStart() {
+      let queryComplexity: number | undefined;
+      let queryMaxComplexity: number | undefined;
+
       return {
         async didResolveOperation({ request, document, contextValue, schema: resolvedSchema }) {
           // Calculate complexity for this operation
@@ -151,6 +154,8 @@ export async function createGraphQLServer(
           // Store in context for header response
           contextValue.complexity = result.complexity;
           contextValue.maxComplexity = result.maxAllowed;
+          queryComplexity = result.complexity;
+          queryMaxComplexity = result.maxAllowed;
 
           // Log high complexity queries for monitoring
           if (result.complexity > result.maxAllowed * 0.7) {
@@ -160,6 +165,18 @@ export async function createGraphQLServer(
               maxAllowed: result.maxAllowed,
               breakdown: result.breakdown,
             }, 'High complexity query');
+          }
+        },
+
+        async willSendResponse({ response }) {
+          // Add complexity to response extensions
+          if (queryComplexity !== undefined && response.body.kind === 'single') {
+            const singleResult = response.body.singleResult;
+            singleResult.extensions = {
+              ...singleResult.extensions,
+              complexity: queryComplexity,
+              maxComplexity: queryMaxComplexity,
+            };
           }
         },
       };
@@ -312,9 +329,14 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
       reply.header('Content-Type', 'application/json');
 
       // Add X-Query-Complexity header (Knuth principle: measure, don't guess)
-      if (context.complexity !== undefined) {
-        reply.header('X-Query-Complexity', context.complexity.toString());
-        reply.header('X-Query-Complexity-Max', (context.maxComplexity || 500).toString());
+      // Check both context and extensions for complexity
+      const complexity = context.complexity ??
+        (response.body.singleResult.extensions as any)?.complexity;
+      const maxComplexity = context.maxComplexity ?? 500;
+
+      if (complexity !== undefined) {
+        reply.header('X-Query-Complexity', complexity.toString());
+        reply.header('X-Query-Complexity-Max', maxComplexity.toString());
       }
 
       return response.body.singleResult;
@@ -363,9 +385,13 @@ export async function registerGraphQLRoutes(app: FastifyInstance): Promise<void>
       reply.header('Content-Type', 'application/json');
 
       // Add X-Query-Complexity header
-      if (context.complexity !== undefined) {
-        reply.header('X-Query-Complexity', context.complexity.toString());
-        reply.header('X-Query-Complexity-Max', (context.maxComplexity || 500).toString());
+      const complexity = context.complexity ??
+        (response.body.singleResult.extensions as any)?.complexity;
+      const maxComplexity = context.maxComplexity ?? 500;
+
+      if (complexity !== undefined) {
+        reply.header('X-Query-Complexity', complexity.toString());
+        reply.header('X-Query-Complexity-Max', maxComplexity.toString());
       }
 
       return response.body.singleResult;

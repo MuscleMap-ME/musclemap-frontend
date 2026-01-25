@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   FileJson,
   FileText,
+  Printer,
   Calendar,
   CheckCircle2,
   X,
@@ -28,12 +29,13 @@ import {
 } from 'lucide-react';
 import { SafeMotion, SafeAnimatePresence } from '@/utils/safeMotion';
 import { haptic } from '@/utils/haptics';
+import { jsPDF } from 'jspdf';
 
 interface ExportSheetProps {
   onClose: () => void;
 }
 
-type ExportFormat = 'csv' | 'json' | 'strong';
+type ExportFormat = 'csv' | 'json' | 'strong' | 'pdf';
 type DateRange = '7d' | '30d' | '90d' | 'all' | 'custom';
 
 const WORKOUT_HISTORY_QUERY = gql`
@@ -183,6 +185,165 @@ function formatJSON(sessions: Array<{
   }, null, 2);
 }
 
+// Generate PDF workout report
+function generatePDF(
+  sessions: Array<{
+    startedAt: string;
+    endedAt?: string;
+    totalTU: number;
+    sets: Array<{
+      exerciseName: string;
+      weightKg: number;
+      reps: number;
+      setNumber: number;
+    }>;
+  }>,
+  stats: {
+    sessions: number;
+    sets: number;
+    reps: number;
+    volume: number;
+    exercises: number;
+  }
+): jsPDF {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  let yPos = 20;
+
+  // Helper to add new page if needed
+  const checkPageBreak = (height: number) => {
+    if (yPos + height > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
+
+  // Title
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MuscleMap Workout Report', margin, yPos);
+  yPos += 10;
+
+  // Date range
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  const dateRange = sessions.length > 0
+    ? `${new Date(sessions[sessions.length - 1]?.startedAt).toLocaleDateString()} - ${new Date(sessions[0]?.startedAt).toLocaleDateString()}`
+    : 'No workouts';
+  doc.text(`Generated: ${new Date().toLocaleDateString()} | Period: ${dateRange}`, margin, yPos);
+  yPos += 15;
+
+  // Summary Stats Box
+  doc.setFillColor(240, 240, 240);
+  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 35, 3, 3, 'F');
+  yPos += 10;
+
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Summary', margin + 5, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const statText = `${stats.sessions} Workouts  |  ${stats.sets} Sets  |  ${stats.exercises} Exercises  |  ${stats.volume.toLocaleString()} lbs Total Volume`;
+  doc.text(statText, margin + 5, yPos);
+  yPos += 25;
+
+  // Group sessions by week
+  const sessionsByWeek = new Map<string, typeof sessions>();
+  for (const session of sessions) {
+    const date = new Date(session.startedAt);
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - date.getDay());
+    const weekKey = weekStart.toISOString().split('T')[0];
+
+    if (!sessionsByWeek.has(weekKey)) {
+      sessionsByWeek.set(weekKey, []);
+    }
+    sessionsByWeek.get(weekKey)!.push(session);
+  }
+
+  // Workout details
+  for (const session of sessions.slice(0, 20)) { // Limit to 20 sessions for PDF size
+    checkPageBreak(60);
+
+    // Session header
+    const sessionDate = new Date(session.startedAt);
+    const duration = session.endedAt
+      ? Math.round((new Date(session.endedAt).getTime() - sessionDate.getTime()) / 60000)
+      : 0;
+
+    doc.setFillColor(59, 130, 246); // Blue
+    doc.roundedRect(margin, yPos, pageWidth - margin * 2, 8, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(
+      `${sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${duration > 0 ? ` - ${duration} min` : ''}`,
+      margin + 3,
+      yPos + 6
+    );
+    yPos += 12;
+
+    // Group sets by exercise
+    const exerciseMap = new Map<string, Array<{ weight: number; reps: number }>>();
+    for (const set of session.sets) {
+      if (!exerciseMap.has(set.exerciseName)) {
+        exerciseMap.set(set.exerciseName, []);
+      }
+      exerciseMap.get(set.exerciseName)!.push({
+        weight: Math.round(set.weightKg * 2.205),
+        reps: set.reps,
+      });
+    }
+
+    // Exercise rows
+    doc.setTextColor(0, 0, 0);
+    for (const [exerciseName, sets] of exerciseMap) {
+      checkPageBreak(10);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(exerciseName, margin + 3, yPos);
+
+      doc.setFont('helvetica', 'normal');
+      const setsText = sets.map((s) => `${s.weight}×${s.reps}`).join('  ');
+      doc.text(setsText, margin + 80, yPos);
+      yPos += 7;
+    }
+
+    yPos += 5;
+  }
+
+  // Footer with more sessions note
+  if (sessions.length > 20) {
+    checkPageBreak(15);
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`+ ${sessions.length - 20} more workouts not shown (use CSV for full data)`, margin, yPos);
+    yPos += 10;
+  }
+
+  // Page numbers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Page ${i} of ${pageCount}  |  MuscleMap`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    );
+  }
+
+  return doc;
+}
+
 // Trigger file download
 function downloadFile(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
@@ -210,6 +371,13 @@ const formatOptions = [
     description: 'Developer-friendly',
     icon: FileJson,
     color: 'text-yellow-400',
+  },
+  {
+    id: 'pdf' as const,
+    name: 'PDF Report',
+    description: 'Printable workout summary',
+    icon: Printer,
+    color: 'text-red-400',
   },
   {
     id: 'strong' as const,
@@ -302,22 +470,27 @@ export function ExportSheet({ onClose }: ExportSheetProps) {
           content = formatCSV(filteredSessions);
           filename = `musclemap-export-${timestamp}.csv`;
           mimeType = 'text/csv';
+          downloadFile(content, filename, mimeType);
           break;
         case 'json':
           content = formatJSON(filteredSessions);
           filename = `musclemap-export-${timestamp}.json`;
           mimeType = 'application/json';
+          downloadFile(content, filename, mimeType);
+          break;
+        case 'pdf':
+          const pdf = generatePDF(filteredSessions, stats);
+          pdf.save(`musclemap-report-${timestamp}.pdf`);
           break;
         case 'strong':
           content = formatStrongCSV(filteredSessions);
           filename = `musclemap-strong-export-${timestamp}.csv`;
           mimeType = 'text/csv';
+          downloadFile(content, filename, mimeType);
           break;
         default:
           throw new Error('Invalid format');
       }
-
-      downloadFile(content, filename, mimeType);
       setExportSuccess(true);
       haptic('success');
 
@@ -329,7 +502,7 @@ export function ExportSheet({ onClose }: ExportSheetProps) {
     } finally {
       setIsExporting(false);
     }
-  }, [filteredSessions, selectedFormat]);
+  }, [filteredSessions, selectedFormat, stats]);
 
   return (
     <div className="bg-gradient-to-br from-indigo-600/20 to-violet-600/20 border border-indigo-500/30 rounded-2xl p-4 max-h-[80vh] flex flex-col">
