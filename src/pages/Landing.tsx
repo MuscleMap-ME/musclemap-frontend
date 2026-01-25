@@ -861,6 +861,195 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Prescription Engine v3 - Computational Exercise Physiology */}
+      <section className="relative z-10 py-20 px-6 border-t border-white/5 overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-5xl mx-auto relative">
+          <SafeMotionDiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-12"
+          >
+            {/* Exclusive Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 mb-6">
+              <span className="text-lg">🧬</span>
+              <span className="text-cyan-400 font-semibold text-sm">Industry First • Prescription Engine v3.0</span>
+            </div>
+
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #ec4899 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Computational Exercise Physiology
+              </span>
+              <br />
+              <span className="text-2xl md:text-3xl text-gray-300">
+                Workouts Engineered by Science
+              </span>
+            </h2>
+
+            <p className="text-gray-400 max-w-3xl mx-auto text-lg">
+              While other apps give you generic templates, MuscleMap&apos;s <span className="text-cyan-400 font-semibold">Prescription Engine v3</span> uses
+              <span className="text-purple-400 font-semibold"> 16 scoring factors</span> across{' '}
+              <span className="text-pink-400 font-semibold">232+ exercises</span> to generate workouts{' '}
+              <span className="text-white font-semibold">personalized to your unique biomechanics</span>.
+            </p>
+          </SafeMotionDiv>
+
+          {/* The 16 Factors Grid */}
+          <SafeMotionDiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-12"
+          >
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">16-Factor Intelligent Scoring</h3>
+              <p className="text-sm text-gray-500">Every exercise evaluated against YOUR profile</p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { icon: '🎯', label: 'Goal Effectiveness', color: 'purple' },
+                { icon: '🦴', label: 'Biomechanical Fit', color: 'cyan' },
+                { icon: '💤', label: 'Recovery State', color: 'blue' },
+                { icon: '📈', label: 'Progression Ready', color: 'green' },
+                { icon: '🏋️', label: 'Equipment Match', color: 'orange' },
+                { icon: '⚡', label: 'Skill Appropriate', color: 'yellow' },
+                { icon: '❤️', label: 'User Preference', color: 'pink' },
+                { icon: '🔄', label: 'Movement Balance', color: 'indigo' },
+                { icon: '🛡️', label: 'Injury Prevention', color: 'red' },
+                { icon: '🧠', label: 'CNS Load Model', color: 'violet' },
+                { icon: '⏱️', label: 'Time Efficiency', color: 'emerald' },
+                { icon: '📊', label: 'Performance History', color: 'sky' },
+                { icon: '🔬', label: 'Research Backing', color: 'fuchsia' },
+                { icon: '🏃', label: 'Joint Stress Safe', color: 'amber' },
+                { icon: '🎭', label: 'Variety Optimization', color: 'lime' },
+                { icon: '📅', label: 'Periodization Align', color: 'rose' },
+              ].map((factor, i) => (
+                <SafeMotionDiv
+                  key={factor.label}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 + i * 0.03 }}
+                  className={`p-3 rounded-xl bg-${factor.color}-500/10 border border-${factor.color}-500/20 hover:border-${factor.color}-500/40 transition-colors`}
+                  style={{
+                    backgroundColor: `rgba(var(--color-${factor.color}), 0.1)`,
+                    borderColor: `rgba(var(--color-${factor.color}), 0.2)`,
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{factor.icon}</span>
+                    <span className="text-xs font-medium text-gray-300">{factor.label}</span>
+                  </div>
+                </SafeMotionDiv>
+              ))}
+            </div>
+          </SafeMotionDiv>
+
+          {/* Key Differentiators */}
+          <SafeMotionDiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="grid md:grid-cols-3 gap-6 mb-12"
+          >
+            {/* Biomechanics */}
+            <div className="rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-transparent p-6">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">🦴</span>
+              </div>
+              <h3 className="font-bold text-white text-lg mb-2">Biomechanical Personalization</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Your limb proportions, mobility profile, and frame size determine which exercises maximize YOUR muscle activation.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 rounded bg-cyan-500/10 text-cyan-400 text-xs">Femur Length</span>
+                <span className="px-2 py-1 rounded bg-cyan-500/10 text-cyan-400 text-xs">Arm Span</span>
+                <span className="px-2 py-1 rounded bg-cyan-500/10 text-cyan-400 text-xs">Mobility</span>
+              </div>
+            </div>
+
+            {/* Recovery Modeling */}
+            <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent p-6">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">🧠</span>
+              </div>
+              <h3 className="font-bold text-white text-lg mb-2">Exercise-Specific Recovery</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Every exercise has unique CNS load and recovery demands. We model soreness curves and recommend optimal rest.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 text-xs">CNS Load</span>
+                <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 text-xs">Soreness Model</span>
+                <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 text-xs">Recovery Hours</span>
+              </div>
+            </div>
+
+            {/* Adaptive Learning */}
+            <div className="rounded-2xl border border-pink-500/20 bg-gradient-to-br from-pink-500/10 to-transparent p-6">
+              <div className="w-12 h-12 rounded-xl bg-pink-500/20 flex items-center justify-center mb-4">
+                <span className="text-2xl">🔮</span>
+              </div>
+              <h3 className="font-bold text-white text-lg mb-2">Adaptive Learning System</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                The engine learns from YOUR feedback. Exercises you love get prioritized. Ones you skip get substituted.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 rounded bg-pink-500/10 text-pink-400 text-xs">Preference Model</span>
+                <span className="px-2 py-1 rounded bg-pink-500/10 text-pink-400 text-xs">Feedback Loop</span>
+                <span className="px-2 py-1 rounded bg-pink-500/10 text-pink-400 text-xs">Weight Adaptation</span>
+              </div>
+            </div>
+          </SafeMotionDiv>
+
+          {/* Stats Highlight */}
+          <SafeMotionDiv
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.7 }}
+            className="rounded-2xl border border-white/10 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 p-8"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+              <div>
+                <div className="text-4xl font-black text-cyan-400">16</div>
+                <div className="text-sm text-gray-400">Scoring Factors</div>
+              </div>
+              <div>
+                <div className="text-4xl font-black text-purple-400">232+</div>
+                <div className="text-sm text-gray-400">Exercises</div>
+              </div>
+              <div>
+                <div className="text-4xl font-black text-pink-400">18</div>
+                <div className="text-sm text-gray-400">Movement Patterns</div>
+              </div>
+              <div>
+                <div className="text-4xl font-black text-green-400">∞</div>
+                <div className="text-sm text-gray-400">Personalization</div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-white/5 text-center">
+              <p className="text-sm text-gray-500">
+                <span className="text-cyan-400 font-semibold">MuscleMap Prescription Engine v3</span> — The most advanced workout generation system ever built for consumers.
+                <br />
+                <span className="text-gray-600">No other fitness app comes close.</span>
+              </p>
+            </div>
+          </SafeMotionDiv>
+        </div>
+      </section>
+
       {/* Open Source & Community Section */}
       <section className="relative z-10 py-20 px-6 border-t border-white/5">
         <div className="max-w-5xl mx-auto">

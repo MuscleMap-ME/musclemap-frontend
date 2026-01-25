@@ -1,11 +1,40 @@
 # Prescription Engine v3.0 - Master Architecture Plan
 
+## 🧬 The Science of Perfect Workouts
+
+**MuscleMap's Prescription Engine v3.0 is the most advanced computational exercise physiology system ever built for a consumer fitness application.**
+
+While other apps give you generic workouts or simple "leg day / push day" templates, MuscleMap leverages the full power of computational exercise science to generate prescriptions that are:
+
+- **Biomechanically personalized** to YOUR body proportions (limb lengths, mobility, strength curves)
+- **Recovery-aware** with exercise-specific CNS load modeling and muscle group fatigue tracking
+- **Research-backed** with evidence-based effectiveness ratings from peer-reviewed studies
+- **Continuously learning** from your feedback to become more accurate over time
+- **Intelligently ordered** with optimal exercise sequencing and superset pairing
+
+### Why This Matters
+
+Traditional fitness apps use static workout templates or simple randomization. The Prescription Engine v3.0 uses **16 distinct scoring factors** evaluated against **232+ exercises** classified into **18 movement patterns**, considering your:
+
+| Factor | What It Considers |
+|--------|-------------------|
+| Biomechanical Fit | Your limb proportions, mobility limitations, frame size |
+| Recovery State | CNS load, muscle fatigue, sleep quality, stress levels |
+| Goal Effectiveness | Research-backed ratings for strength, hypertrophy, power, endurance |
+| Progression Readiness | Your skill level with each movement, consecutive success sessions |
+| Equipment & Environment | What you have access to, noise levels, space requirements |
+| User Preferences | Exercises you enjoy, movements you consistently skip |
+
+**No other fitness app does this.** MuscleMap is pioneering computational exercise physiology for the masses.
+
+---
+
 ## Executive Summary
 
-This document outlines a comprehensive redesign of the MuscleMap Prescription Engine to transform it from a basic scoring system into an intelligent, learning, research-backed exercise recommendation platform.
+This document outlines the comprehensive architecture of the MuscleMap Prescription Engine v3.0, transforming it from a basic scoring system into an intelligent, learning, research-backed exercise recommendation platform.
 
-**Current State (v2.0):** 8-factor scoring algorithm with 86 exercises
-**Target State (v3.0):** Multi-dimensional AI-assisted engine with 500+ exercises, personalized to biomechanics, learning from feedback, and backed by exercise science research
+**Previous State (v2.0):** 8-factor scoring algorithm with 86 exercises
+**Current State (v3.0):** Multi-dimensional AI-assisted engine with 232+ exercises, personalized to biomechanics, learning from feedback, and backed by exercise science research
 
 ---
 
