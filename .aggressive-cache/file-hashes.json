@@ -459,7 +459,7 @@
   "src/fixtures/exercises.ts": "5d39cf80a36496464f6626d99a581e2a",
   "src/fixtures/users.ts": "a7888b26b18fd143c51d531a9ea084d4",
   "src/fixtures/workouts.ts": "7da63045dfd00cacae5c258e5522efe5",
-  "src/graphql/client.ts": "e4f8f8f5d45a1deacf84523372688ddd",
+  "src/graphql/client.ts": "226120f18de3e8d7eedfefd6a6389ec5",
   "src/graphql/fragments.ts": "f981b473c1beb2390a750bed35eabfd8",
   "src/graphql/index.ts": "863017695da868f202abaf5f76d89a57",
   "src/graphql/mutations.ts": "7619ea3155acaaf76042db4fa0c1587f",

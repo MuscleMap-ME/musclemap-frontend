@@ -15,8 +15,7 @@
  * - Memory monitoring and warnings
  */
 
-import { ApolloClient, InMemoryCache, from } from '@apollo/client/core';
-import { BatchHttpLink } from '@apollo/client/link/batch-http';
+import { ApolloClient, InMemoryCache, from, HttpLink } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
@@ -51,26 +50,6 @@ const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const SLOW_NETWORK_TIMEOUT = 60000; // 60 seconds for slow connections
 
 /**
- * Detect connection quality and return appropriate batch interval
- * Slower connections get longer intervals to batch more requests
- */
-function getAdaptiveBatchInterval(): number {
-  const connection = (navigator as unknown as { connection?: { effectiveType?: string } }).connection;
-  if (!connection?.effectiveType) return 20;
-
-  switch (connection.effectiveType) {
-    case 'slow-2g':
-    case '2g':
-      return 500; // Wait longer to batch more requests on slow connections
-    case '3g':
-      return 100;
-    case '4g':
-    default:
-      return 20;
-  }
-}
-
-/**
  * Get timeout based on connection quality
  */
 function getAdaptiveTimeout(): number {
@@ -102,15 +81,12 @@ function fetchWithTimeout(uri: RequestInfo | URL, options?: RequestInit): Promis
 }
 
 /**
- * Batch HTTP Link - batches multiple GraphQL requests into one HTTP request
- * This reduces round trips which is critical for high-latency connections
+ * HTTP Link - standard GraphQL HTTP transport
+ * Note: Batching disabled because server doesn't support batch requests format
  */
-const httpLink = new BatchHttpLink({
+const httpLink = new HttpLink({
   uri: '/api/graphql',
   credentials: 'include',
-  batchMax: 10, // Max 10 queries per batch
-  batchInterval: getAdaptiveBatchInterval(),
-  batchDebounce: true, // Debounce batches for even better grouping
   fetch: fetchWithTimeout, // Use timeout-enabled fetch
 });
 
