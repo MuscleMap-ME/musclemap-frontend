@@ -344,6 +344,30 @@ export const typeDefs = `#graphql
     searchMessages(query: String!, conversationId: ID, limit: Int, offset: Int): SearchMessagesResponse!
     searchUsers(query: String!, limit: Int): [SearchUserResult!]!
 
+    # E2EE (End-to-End Encryption)
+    """Get my encryption key bundle"""
+    myKeyBundle: KeyBundle
+    """Get another user's public key bundle for E2EE"""
+    userKeyBundle(userId: ID!): PublicKeyBundle
+    """Get all my registered devices"""
+    myDevices: [DeviceInfo!]!
+    """Get encrypted messages in a conversation"""
+    encryptedMessages(conversationId: ID!, limit: Int, cursor: MessageCursorInput): EncryptedMessagesResult!
+    """Get my content preferences and age verification status"""
+    myContentPreferences: ContentPreferences
+    """Get my messaging privacy settings"""
+    myMessagingPrivacy: MessagingPrivacy
+    """Get my trust score"""
+    myTrustScore: TrustScore
+    """Check if I can message a specific user"""
+    canMessageUser(targetUserId: ID!): CanMessageResult!
+    """Check if a conversation can be upgraded to E2EE"""
+    canUpgradeToE2EE(conversationId: ID!): CanUpgradeResult!
+    """Get encrypted file metadata"""
+    encryptedFileMetadata(fileId: ID!): EncryptedFileMetadata
+    """Get pending message requests"""
+    messageRequests(status: MessageRequestStatus): [MessageRequest!]!
+
     # Issues & Roadmap
     issues(status: Int, type: Int, labelSlug: String, search: String, sortBy: String, limit: Int, offset: Int): IssuesResult!
     issue(id: ID!): Issue
@@ -829,6 +853,42 @@ export const typeDefs = `#graphql
     blockUser(userId: ID!): Boolean!
     unblockUser(userId: ID!): Boolean!
 
+    # E2EE (End-to-End Encryption)
+    """Register encryption keys for E2EE"""
+    registerEncryptionKeys(input: RegisterKeysInput!): E2EEResult!
+    """Upload additional one-time prekeys"""
+    uploadOneTimePreKeys(input: UploadPreKeysInput!): E2EECountResult!
+    """Rotate signed prekey"""
+    rotateSignedPreKey(input: RotateSignedPreKeyInput!): E2EEResult!
+    """Remove a device from E2EE"""
+    removeDevice(deviceId: String!): E2EEResult!
+    """Send an encrypted message"""
+    sendEncryptedMessage(input: SendEncryptedMessageInput!): EncryptedMessage!
+    """Mark encrypted message as delivered"""
+    markEncryptedMessageDelivered(messageId: ID!): E2EEResult!
+    """Mark encrypted message as read"""
+    markEncryptedMessageRead(messageId: ID!): E2EEResult!
+    """Delete encrypted message"""
+    deleteEncryptedMessage(messageId: ID!): E2EEResult!
+    """Request file upload URL (returns presigned R2 URL)"""
+    requestFileUpload(input: RequestFileUploadInput!): FileUploadToken!
+    """Confirm file upload after uploading to R2"""
+    confirmFileUpload(input: ConfirmFileUploadInput!): EncryptedFileMetadata!
+    """Get presigned download URL for a file"""
+    getFileDownloadUrl(fileId: ID!): FileDownloadResult!
+    """Update content preferences"""
+    updateContentPreferences(input: UpdateContentPreferencesInput!): ContentPreferences!
+    """Verify age (self-declaration)"""
+    verifyAge(input: VerifyAgeInput!): AgeVerificationResult!
+    """Update messaging privacy settings"""
+    updateMessagingPrivacy(input: UpdateMessagingPrivacyInput!): MessagingPrivacy!
+    """Respond to message request"""
+    respondToMessageRequest(requestId: ID!, accept: Boolean!): MessageRequestResult!
+    """Report encrypted content"""
+    reportEncryptedContent(input: ReportEncryptedContentInput!): ContentReportResult!
+    """Upgrade conversation to E2EE"""
+    upgradeToE2EE(conversationId: ID!): E2EEResult!
+
     # Issues
     createIssue(input: IssueInput!): Issue!
     updateIssue(id: ID!, input: IssueUpdateInput!): Issue!
@@ -1163,6 +1223,20 @@ export const typeDefs = `#graphql
     # Messaging
     messageReceived(conversationId: ID): Message!
     conversationUpdated: Conversation!
+
+    # E2EE Messaging
+    """Subscribe to encrypted messages in a conversation"""
+    encryptedMessageReceived(conversationId: ID!): EncryptedMessage!
+    """Subscribe to E2EE key events (new device, rotation)"""
+    e2eeKeyEvent(userId: ID!): E2EEKeyEvent!
+  }
+
+  """E2EE key event (device added, key rotated)"""
+  type E2EEKeyEvent {
+    type: String!
+    userId: ID!
+    deviceId: String
+    timestamp: DateTime!
   }
 
   # ============================================
@@ -8065,5 +8139,372 @@ export const typeDefs = `#graphql
     url: String
     userAgent: String
     createdAt: DateTime!
+  }
+
+  # ============================================
+  # E2EE (END-TO-END ENCRYPTION) TYPES
+  # ============================================
+
+  """Age verification levels"""
+  enum AgeVerificationLevel {
+    none
+    self_declared
+    payment_verified
+    id_verified
+  }
+
+  """Who can message/send content"""
+  enum MessagingPermission {
+    everyone
+    followers
+    mutual_followers
+    friends
+    nobody
+  }
+
+  """NSFW classification levels"""
+  enum NsfwClassification {
+    safe
+    suggestive
+    nsfw
+    explicit
+  }
+
+  """Trust levels based on score"""
+  enum TrustLevel {
+    untrusted
+    poor
+    fair
+    good
+    excellent
+  }
+
+  """Message request status"""
+  enum MessageRequestStatus {
+    pending
+    accepted
+    declined
+    blocked
+  }
+
+  """Content report types"""
+  enum ContentReportType {
+    spam
+    harassment
+    illegal_content
+    csam
+    non_consensual
+    impersonation
+    other
+  }
+
+  """User's encryption key bundle for E2EE"""
+  type KeyBundle {
+    userId: ID!
+    deviceId: String
+    deviceName: String
+    deviceType: String
+    identityKey: String!
+    signedPreKey: String!
+    signedPreKeySignature: String!
+    hasOneTimePreKey: Boolean
+    prekeyCount: Int
+    createdAt: DateTime
+    updatedAt: DateTime
+  }
+
+  """Public key bundle for initiating E2EE with a user"""
+  type PublicKeyBundle {
+    userId: ID!
+    identityKey: String!
+    signedPreKey: String!
+    signedPreKeySignature: String!
+    hasOneTimePreKey: Boolean!
+  }
+
+  """Device info for multi-device support"""
+  type DeviceInfo {
+    id: String!
+    name: String
+    type: String
+    lastActive: DateTime
+    createdAt: DateTime!
+  }
+
+  """Encrypted message (server cannot read content)"""
+  type EncryptedMessage {
+    id: ID!
+    conversationId: ID!
+    senderId: ID!
+    sender: User
+    """Base64 encoded encrypted payload"""
+    encryptedPayload: String!
+    messageType: String!
+    replyToId: ID
+    fileIds: [ID!]
+    files: [EncryptedFileMetadata!]
+    receipts: [MessageReceipt!]
+    deletedAt: DateTime
+    createdAt: DateTime!
+  }
+
+  """Paginated encrypted messages result"""
+  type EncryptedMessagesResult {
+    messages: [EncryptedMessage!]!
+    hasMore: Boolean!
+    cursor: MessageCursor
+  }
+
+  """Cursor for message pagination"""
+  type MessageCursor {
+    createdAt: String!
+    id: ID!
+  }
+
+  """Message delivery/read receipt"""
+  type MessageReceipt {
+    messageId: ID!
+    userId: ID!
+    deliveredAt: DateTime
+    readAt: DateTime
+  }
+
+  """Encrypted file metadata (content stored externally)"""
+  type EncryptedFileMetadata {
+    id: ID!
+    uploaderId: ID!
+    uploader: User
+    """Base64 encoded encrypted metadata (filename, size, etc.)"""
+    encryptedMetadata: String!
+    """Base64 encoded encrypted symmetric key"""
+    encryptedKey: String!
+    mimeType: String!
+    fileSize: Int!
+    """Hash of encrypted content for integrity verification"""
+    contentHash: String!
+    """NSFW classification (classified client-side)"""
+    nsfwClassification: NsfwClassification!
+    """External storage URL (R2/IPFS)"""
+    storageUrl: String!
+    expiresAt: DateTime
+    createdAt: DateTime!
+  }
+
+  """File upload token and presigned URL"""
+  type FileUploadToken {
+    token: String!
+    uploadUrl: String!
+    expiresAt: DateTime!
+    maxSize: Int!
+  }
+
+  """User's content preferences and age verification"""
+  type ContentPreferences {
+    userId: ID!
+    ageVerificationLevel: AgeVerificationLevel!
+    dateOfBirth: String
+    isMinor: Boolean!
+    adultContentEnabled: Boolean!
+    nsfwWarningsEnabled: Boolean!
+    autoBlurNsfw: Boolean!
+    lastVerifiedAt: DateTime
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  """User's messaging privacy settings"""
+  type MessagingPrivacy {
+    userId: ID!
+    allowMessagesFrom: MessagingPermission!
+    allowFileAttachments: MessagingPermission!
+    allowVoiceMessages: MessagingPermission!
+    readReceiptsEnabled: Boolean!
+    typingIndicatorsEnabled: Boolean!
+    onlineStatusVisible: Boolean!
+    lastSeenVisible: Boolean!
+    blockedUserIds: [ID!]
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  """User's trust score for anti-abuse"""
+  type TrustScore {
+    userId: ID!
+    score: Int!
+    trustLevel: TrustLevel!
+    accountAgeScore: Int!
+    verificationScore: Int!
+    activityScore: Int!
+    reportScore: Int!
+    positiveInteractionsScore: Int!
+    lastCalculatedAt: DateTime!
+  }
+
+  """Ability to message a specific user"""
+  type CanMessageResult {
+    canMessage: Boolean!
+    reason: String
+    requiresRequest: Boolean!
+  }
+
+  """Ability to upgrade conversation to E2EE"""
+  type CanUpgradeResult {
+    canUpgrade: Boolean!
+    missingUsers: [ID!]
+  }
+
+  """Message request from non-friend/follower"""
+  type MessageRequest {
+    id: ID!
+    senderId: ID!
+    senderUsername: String!
+    senderDisplayName: String
+    senderAvatarUrl: String
+    message: String
+    status: MessageRequestStatus!
+    createdAt: DateTime!
+    respondedAt: DateTime
+  }
+
+  """Age verification result"""
+  type AgeVerificationResult {
+    success: Boolean!
+    verificationLevel: AgeVerificationLevel!
+    isMinor: Boolean!
+    restrictionsApplied: Boolean!
+    message: String
+  }
+
+  """Simple success result"""
+  type E2EEResult {
+    success: Boolean!
+  }
+
+  """Success result with count"""
+  type E2EECountResult {
+    success: Boolean!
+    count: Int!
+  }
+
+  """Message request response result"""
+  type MessageRequestResult {
+    success: Boolean!
+    conversationId: ID
+  }
+
+  """Content report result"""
+  type ContentReportResult {
+    success: Boolean!
+    reportId: ID!
+  }
+
+  """File download URL result"""
+  type FileDownloadResult {
+    url: String!
+  }
+
+  # ============================================
+  # E2EE INPUT TYPES
+  # ============================================
+
+  """Input for registering encryption keys"""
+  input RegisterKeysInput {
+    deviceId: String!
+    deviceName: String
+    deviceType: String
+    identityKey: String!
+    signedPreKey: String!
+    signedPreKeyId: Int!
+    signedPreKeySignature: String!
+    oneTimePreKeys: [OneTimePreKeyInput!]
+  }
+
+  """One-time prekey input"""
+  input OneTimePreKeyInput {
+    id: Int!
+    key: String!
+  }
+
+  """Input for uploading more one-time prekeys"""
+  input UploadPreKeysInput {
+    deviceId: String!
+    preKeys: [OneTimePreKeyInput!]!
+  }
+
+  """Input for rotating signed prekey"""
+  input RotateSignedPreKeyInput {
+    deviceId: String!
+    signedPreKey: String!
+    signedPreKeyId: Int!
+    signedPreKeySignature: String!
+  }
+
+  """Input for sending encrypted message"""
+  input SendEncryptedMessageInput {
+    conversationId: ID!
+    """Base64 encoded encrypted payload"""
+    encryptedPayload: String!
+    messageType: String
+    replyToId: ID
+    fileIds: [ID!]
+  }
+
+  """Input for requesting file upload"""
+  input RequestFileUploadInput {
+    fileName: String!
+    fileSize: Int!
+    mimeType: String!
+    """Base64 encoded encrypted metadata"""
+    encryptedMetadata: String!
+    nsfwClassification: NsfwClassification
+  }
+
+  """Input for confirming file upload"""
+  input ConfirmFileUploadInput {
+    uploadToken: String!
+    """Base64 encoded encrypted symmetric key"""
+    encryptedKey: String!
+    """Hash of encrypted content"""
+    contentHash: String!
+  }
+
+  """Input for updating content preferences"""
+  input UpdateContentPreferencesInput {
+    adultContentEnabled: Boolean
+    nsfwWarningsEnabled: Boolean
+    autoBlurNsfw: Boolean
+  }
+
+  """Input for age verification"""
+  input VerifyAgeInput {
+    birthDate: String!
+    consentToTerms: Boolean!
+  }
+
+  """Input for messaging privacy settings"""
+  input UpdateMessagingPrivacyInput {
+    allowMessagesFrom: MessagingPermission
+    allowFileAttachments: MessagingPermission
+    allowVoiceMessages: MessagingPermission
+    readReceiptsEnabled: Boolean
+    typingIndicatorsEnabled: Boolean
+    onlineStatusVisible: Boolean
+    lastSeenVisible: Boolean
+  }
+
+  """Input for reporting encrypted content"""
+  input ReportEncryptedContentInput {
+    messageId: ID
+    fileId: ID
+    reportType: ContentReportType!
+    description: String
+    """Optional: decrypted evidence for severe violations"""
+    decryptedEvidence: String
+  }
+
+  """Cursor input for message pagination"""
+  input MessageCursorInput {
+    createdAt: String!
+    id: ID!
   }
 `;

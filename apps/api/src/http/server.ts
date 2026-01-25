@@ -147,6 +147,9 @@ import { registerVenuesRoutes } from './routes/venues';
 // Deployment management (for Claude Code remote deploys)
 import { registerDeploymentRoutes } from './routes/deployment';
 
+// E2EE (End-to-End Encryption) file upload routes
+import e2eeUploadsRoutes from './routes/e2ee-uploads';
+
 // Public plain text documentation (for AI assistants and screen readers)
 import { registerDocsPlainRoutes } from './routes/docs-plain';
 
@@ -717,6 +720,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Engagement metrics and notification triggers (admin/analytics)
     await api.register(engagementMetricsRoutes, { prefix: '/engagement' });
+
+    // E2EE (End-to-End Encryption) file upload routes
+    await api.register(e2eeUploadsRoutes, { prefix: '/e2ee' });
 
     // ========================================
     // USER PREFERENCES & CUSTOMIZATION

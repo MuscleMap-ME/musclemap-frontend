@@ -107,6 +107,12 @@ import {
   socialQueryResolvers,
   socialMutationResolvers,
 } from './social.resolvers';
+import {
+  e2eeQueries,
+  e2eeMutations,
+  e2eeSubscriptions,
+  e2eeTypeResolvers,
+} from './e2ee.resolvers';
 
 const log = loggers.core;
 
@@ -14357,3 +14363,9 @@ Object.assign(resolvers, presenceTypeResolvers);
 // Merge social/community resolvers into Query and Mutation
 Object.assign(resolvers.Query, socialQueryResolvers);
 Object.assign(resolvers.Mutation, socialMutationResolvers);
+
+// Merge E2EE (End-to-End Encryption) resolvers into Query, Mutation, and Subscription
+Object.assign(resolvers.Query, e2eeQueries);
+Object.assign(resolvers.Mutation, e2eeMutations);
+Object.assign(resolvers.Subscription, e2eeSubscriptions);
+Object.assign(resolvers, e2eeTypeResolvers);
