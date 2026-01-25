@@ -663,6 +663,10 @@ export const typeDefs = `#graphql
     # Prescription
     generatePrescription(input: PrescriptionInput!): Prescription!
 
+    # Prescription V3 (Enhanced Engine)
+    generatePrescriptionV3(input: PrescriptionInputV3!): PrescriptionV3!
+    submitPrescriptionFeedback(input: PrescriptionFeedbackInput!): FeedbackSubmissionResult!
+
     # Privacy
     updatePrivacy(input: PrivacyInput!): PrivacySettings!
     enableMinimalistMode: PrivacySettings!
@@ -3715,6 +3719,179 @@ export const typeDefs = `#graphql
     location: String!
     equipment: [String!]
     goals: [String!]!
+  }
+
+  # ============================================
+  # PRESCRIPTION V3 TYPES (Enhanced Engine)
+  # ============================================
+
+  """Prescription V3 result with enhanced metadata and scoring"""
+  type PrescriptionV3 {
+    id: ID!
+    exercises: [PrescribedExerciseV3!]!
+    supersets: [SupersetPair!]
+    warmup: [WarmupExercise!]
+    cooldown: [CooldownExercise!]
+    targetDuration: Int!
+    actualDuration: Int!
+    muscleCoverage: JSON!
+    periodizationPhase: String
+    difficulty: String!
+    metadata: PrescriptionMetadata!
+    createdAt: DateTime!
+  }
+
+  """Enhanced prescribed exercise with scoring and load details"""
+  type PrescribedExerciseV3 {
+    exerciseId: ID!
+    name: String!
+    type: String!
+    movementPattern: String!
+    score: Float!
+    scoreBreakdown: ScoreBreakdown!
+    sets: Int!
+    reps: String!
+    rpe: Float
+    percentOf1RM: Float
+    restSeconds: Int!
+    tempo: String
+    primaryMuscles: [String!]!
+    secondaryMuscles: [String!]!
+    notes: String
+    substitutes: [ExerciseSubstitute!]!
+    reasoning: String!
+  }
+
+  """Score breakdown showing contribution of each factor"""
+  type ScoreBreakdown {
+    equipmentMatch: Float!
+    goalEffectiveness: Float!
+    muscleTargetMatch: Float!
+    biomechanicalFit: Float!
+    skillAppropriate: Float!
+    userPreference: Float!
+    performanceHistory: Float!
+    recoveryAppropriate: Float!
+    injurySafe: Float!
+    jointStressAcceptable: Float!
+    periodizationAlignment: Float!
+    varietyOptimization: Float!
+    movementPatternBalance: Float!
+    progressionOpportunity: Float!
+    timeEfficiency: Float!
+    equipmentOptimization: Float!
+    totalScore: Float!
+  }
+
+  """Superset pairing information"""
+  type SupersetPair {
+    exercise1Index: Int!
+    exercise2Index: Int!
+    pairingType: String!
+    restBetween: Int!
+  }
+
+  """Warmup exercise with specific instructions"""
+  type WarmupExercise {
+    exerciseId: ID!
+    name: String!
+    category: String!
+    duration: Int
+    reps: Int
+    notes: String
+  }
+
+  """Cooldown/stretching exercise"""
+  type CooldownExercise {
+    exerciseId: ID!
+    name: String!
+    category: String!
+    duration: Int!
+    targetMuscles: [String!]!
+  }
+
+  """Exercise substitute recommendation"""
+  type ExerciseSubstitute {
+    exerciseId: ID!
+    name: String!
+    reason: String!
+    scoreDifference: Float!
+  }
+
+  """Prescription generation metadata"""
+  type PrescriptionMetadata {
+    algorithmVersion: String!
+    generatedAt: DateTime!
+    factorsConsidered: [String!]!
+    recoveryScore: Float
+    cacheHit: Boolean!
+    generationTimeMs: Int!
+  }
+
+  """User recovery score information"""
+  type RecoveryScoreV3 {
+    score: Float!
+    classification: String!
+    recommendedIntensity: Float!
+    factors: RecoveryFactors!
+  }
+
+  """Individual recovery factors"""
+  type RecoveryFactors {
+    sleepQuality: Float!
+    muscleReadiness: Float!
+    stressLevel: Float!
+    previousWorkoutIntensity: Float!
+  }
+
+  """Input for generating V3 prescription"""
+  input PrescriptionInputV3 {
+    timeAvailable: Int!
+    location: String!
+    equipment: [String!]!
+    goals: [String!]!
+    targetMuscles: [String!]
+    excludeMuscles: [String!]
+    maxExercises: Int
+    includeWarmup: Boolean
+    includeCooldown: Boolean
+    includeSupersets: Boolean
+    preferredIntensity: String
+    experienceLevel: String
+    trainingPhase: String
+  }
+
+  """Input for submitting prescription feedback"""
+  input PrescriptionFeedbackInput {
+    prescriptionId: ID!
+    exerciseFeedback: [ExerciseFeedbackInput!]!
+    overallDifficulty: Int
+    overallEnjoyment: Int
+    wouldRepeat: Boolean
+    completionPercent: Float
+    notes: String
+  }
+
+  """Feedback for individual exercise"""
+  input ExerciseFeedbackInput {
+    exerciseId: ID!
+    completed: Boolean!
+    actualSets: Int
+    actualReps: Int
+    actualWeight: Float
+    perceivedDifficulty: Int
+    enjoymentRating: Int
+    jointDiscomfort: String
+    formRating: Int
+    wouldSubstitute: Boolean
+    notes: String
+  }
+
+  """Result of feedback submission"""
+  type FeedbackSubmissionResult {
+    success: Boolean!
+    weightsUpdated: Boolean!
+    newPreferences: JSON
   }
 
   # ============================================

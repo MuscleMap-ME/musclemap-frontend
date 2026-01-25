@@ -55,6 +55,7 @@ import {
   STAGE_THRESHOLDS as _STAGE_THRESHOLDS,
 } from '../modules/mascot';
 import { prescriptionEngine } from '../modules/prescription';
+import { prescriptionEngineV3, feedbackCollector, learningSystem } from '../modules/prescription-v3';
 import { workoutSessionService } from '../modules/workout-sessions';
 import { privacyService } from '../modules/community';
 import { virtualHangoutsService } from '../modules/community/virtual-hangouts.service';
@@ -12348,6 +12349,118 @@ export const resolvers = {
       });
 
       return prescription;
+    },
+
+    // Prescription Engine V3 (Enhanced)
+    generatePrescriptionV3: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Build user context from input and database
+      const userProfile = await queryOne<any>(`
+        SELECT level, experience_points, goals, equipment, preferred_intensity
+        FROM users u
+        LEFT JOIN user_profile_extended upe ON u.id = upe.user_id
+        WHERE u.id = $1
+      `, [userId]);
+
+      // Get user biomechanics if available
+      const biomechanics = await queryOne<any>(`
+        SELECT * FROM user_biomechanics WHERE user_id = $1
+      `, [userId]);
+
+      // Build the v3 request with properly typed context
+      const prescription = await prescriptionEngineV3.prescribe({
+        userContext: {
+          userId,
+          goals: args.input.goals || userProfile?.goals || ['general_fitness'],
+          equipment: args.input.equipment || userProfile?.equipment || [],
+          timeAvailable: args.input.timeAvailable,
+          location: args.input.location || 'gym',
+          currentPhase: args.input.trainingPhase,
+          biomechanics: biomechanics ? {
+            userId,
+            heightCm: biomechanics.height_cm,
+            weightKg: biomechanics.weight_kg,
+            armSpanCm: biomechanics.arm_span_cm,
+            femurLengthRelative: biomechanics.femur_length_relative,
+            torsoLengthRelative: biomechanics.torso_length_relative,
+            frameSize: biomechanics.frame_size,
+            somatotype: biomechanics.somatotype,
+            mobilityProfile: biomechanics.mobility_profile || {},
+            strengthCurveAnomalies: biomechanics.strength_curve_anomalies || {},
+          } : undefined,
+          trainingProfile: {
+            userId,
+            trainingAgeYears: userProfile?.level ? Math.floor(userProfile.level / 10) : 1,
+            experienceLevel: args.input.experienceLevel || (userProfile?.level > 20 ? 'advanced' : userProfile?.level > 10 ? 'intermediate' : 'beginner'),
+            technicalProficiency: {},
+            strengthLevels: {},
+            lifetimeWorkouts: userProfile?.experience_points ? Math.floor(userProfile.experience_points / 100) : 0,
+            averageSessionsPerWeek: 3,
+            longestConsistentStreak: 0,
+            currentStreak: 0,
+            preferredExerciseStyles: [],
+            dislikedExercises: [],
+            preferredRepRanges: { min: 8, max: 12 },
+            preferredSessionDuration: args.input.timeAvailable,
+          },
+        },
+        targetMuscles: args.input.targetMuscles,
+        excludeMuscles: args.input.excludeMuscles,
+        maxExercises: args.input.maxExercises,
+        includeWarmup: args.input.includeWarmup ?? true,
+        includeCooldown: args.input.includeCooldown ?? true,
+        includeSupersets: args.input.includeSupersets ?? true,
+        preferredIntensity: args.input.preferredIntensity,
+      });
+
+      return prescription;
+    },
+
+    // Submit Prescription Feedback (for learning system)
+    submitPrescriptionFeedback: async (_: unknown, args: { input: any }, context: Context) => {
+      const { userId } = requireAuth(context);
+
+      // Map input to the PrescriptionFeedback type
+      const feedback = {
+        prescriptionId: args.input.prescriptionId,
+        userId,
+        exercisesPrescribed: args.input.exerciseFeedback?.length || 0,
+        exercisesCompleted: args.input.exerciseFeedback?.filter((ef: any) => ef.completed).length || 0,
+        exercisesSkipped: args.input.exerciseFeedback?.filter((ef: any) => !ef.completed).length || 0,
+        exercisesSubstituted: 0,
+        substitutions: [],
+        overallDifficultyRating: args.input.overallDifficulty || 3,
+        estimatedTimeMinutes: 60,
+        actualTimeMinutes: Math.round((args.input.completionPercent || 100) * 0.6),
+        fatigueAtEnd: args.input.overallDifficulty || 3,
+        overallSatisfaction: args.input.overallEnjoyment || 3,
+        wouldRepeat: args.input.wouldRepeat ?? true,
+        freeTextFeedback: args.input.notes,
+        exerciseFeedback: args.input.exerciseFeedback?.map((ef: any) => ({
+          exerciseId: ef.exerciseId,
+          tooEasy: (ef.perceivedDifficulty || 3) < 2,
+          tooHard: (ef.perceivedDifficulty || 3) > 4,
+          causedPain: !!ef.jointDiscomfort,
+          wouldDoAgain: !ef.wouldSubstitute,
+        })) || [],
+        createdAt: new Date(),
+      };
+
+      // Store feedback via feedback collector
+      await feedbackCollector.storeFeedback(feedback);
+
+      // Update user weights based on feedback
+      const weightsUpdated = await learningSystem.updateUserWeights(userId);
+
+      // Get updated preferences
+      const newPreferences = await learningSystem.getUserWeights(userId);
+
+      return {
+        success: true,
+        weightsUpdated,
+        newPreferences,
+      };
     },
 
     // Preview Workout (TU/XP calculation before save)
