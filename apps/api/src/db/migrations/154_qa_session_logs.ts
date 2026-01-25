@@ -18,7 +18,7 @@ export async function migrate(): Promise<void> {
     CREATE TABLE IF NOT EXISTS qa_session_logs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       session_id TEXT NOT NULL,
-      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       event_type TEXT NOT NULL,
       event_data JSONB NOT NULL DEFAULT '{}',
       url TEXT,
