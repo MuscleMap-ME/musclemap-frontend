@@ -356,7 +356,7 @@ export function registerDocsPlainRoutes(fastify: FastifyInstance): void {
    * GET /api/docs/plain/index.txt
    * Table of contents as plain text
    */
-  fastify.get('/api/docs/plain/index.txt', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/docs/plain/index.txt', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const toc = await buildTableOfContents();
 
