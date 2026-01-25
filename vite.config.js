@@ -154,10 +154,9 @@ function useSyncExternalStoreFix() {
   return {
     name: 'use-sync-external-store-fix',
     enforce: 'pre',
-    resolveId(id, importer) {
+    resolveId(id) {
       // Direct virtual module matches
       if (virtualModules[id]) {
-        console.log(`[use-sync-external-store-fix] Intercepting: ${id}`);
         return '\0' + id;
       }
 
@@ -165,14 +164,11 @@ function useSyncExternalStoreFix() {
       if (id.includes('use-sync-external-store')) {
         // Determine which virtual module to use based on the path
         if (id.includes('with-selector')) {
-          console.log(`[use-sync-external-store-fix] Redirecting with-selector: ${id}`);
           return '\0use-sync-external-store/shim/with-selector';
         }
         if (id.includes('shim')) {
-          console.log(`[use-sync-external-store-fix] Redirecting shim: ${id}`);
           return '\0use-sync-external-store/shim';
         }
-        console.log(`[use-sync-external-store-fix] Redirecting base: ${id}`);
         return '\0use-sync-external-store';
       }
 
@@ -182,7 +178,6 @@ function useSyncExternalStoreFix() {
       if (id.startsWith('\0')) {
         const realId = id.slice(1);
         if (virtualModules[realId]) {
-          console.log(`[use-sync-external-store-fix] Loading virtual: ${realId}`);
           return virtualModules[realId];
         }
       }
