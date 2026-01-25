@@ -89,8 +89,23 @@ const ALLOWED_COMMANDS: Record<string, { cmd: string; args: string[]; descriptio
   },
   'build-all': {
     cmd: 'pnpm',
-    args: ['run', 'build:all'],
-    description: 'Build everything',
+    args: ['run', 'build:intelligent'],
+    description: 'Build everything (with intelligent caching and locking)',
+  },
+  'build-intelligent': {
+    cmd: 'pnpm',
+    args: ['run', 'build:intelligent'],
+    description: 'Intelligent cached build (content-hash based)',
+  },
+  'build-intelligent-staged': {
+    cmd: 'pnpm',
+    args: ['run', 'build:intelligent', '--staged'],
+    description: 'Staged build for low memory (packages→api→frontend)',
+  },
+  'daemon-build': {
+    cmd: 'pnpm',
+    args: ['run', 'daemon:build'],
+    description: 'Build via daemon (queued, handles concurrency)',
   },
   'pm2-restart': {
     cmd: 'pm2',
@@ -145,13 +160,13 @@ const ALLOWED_COMMANDS: Record<string, { cmd: string; args: string[]; descriptio
 const DEPLOY_SEQUENCES: Record<string, { name: string; steps: string[]; description: string }> = {
   'stash-and-deploy': {
     name: 'Stash & Full Deploy',
-    steps: ['git-stash', 'git-pull', 'pnpm-install', 'build-all', 'pm2-restart', 'health-check'],
-    description: 'Stash local changes, then complete deployment',
+    steps: ['git-stash', 'git-pull', 'pnpm-install', 'build-intelligent', 'pm2-restart', 'health-check'],
+    description: 'Stash local changes, then complete deployment (with intelligent caching)',
   },
   'full-deploy': {
     name: 'Full Deployment',
-    steps: ['git-pull', 'pnpm-install', 'build-all', 'pm2-restart', 'health-check'],
-    description: 'Complete deployment: pull, install, build, restart',
+    steps: ['git-pull', 'pnpm-install', 'build-intelligent', 'pm2-restart', 'health-check'],
+    description: 'Complete deployment with intelligent caching and build locking',
   },
   'quick-deploy': {
     name: 'Quick Deploy (API only)',
@@ -161,7 +176,7 @@ const DEPLOY_SEQUENCES: Record<string, { name: string; steps: string[]; descript
   'frontend-deploy': {
     name: 'Frontend Deploy',
     steps: ['git-pull', 'build-frontend'],
-    description: 'Build frontend only (static files)',
+    description: 'Build frontend only (uses intelligent caching)',
   },
   'safe-check': {
     name: 'Pre-deploy Check',
@@ -172,6 +187,11 @@ const DEPLOY_SEQUENCES: Record<string, { name: string; steps: string[]; descript
     name: 'System Status',
     steps: ['pm2-status', 'health-check', 'disk-usage', 'memory-usage'],
     description: 'Check overall system health',
+  },
+  'daemon-deploy': {
+    name: 'Daemon Deploy (Concurrent-Safe)',
+    steps: ['git-pull', 'pnpm-install', 'daemon-build', 'pm2-restart', 'health-check'],
+    description: 'Full deployment via build daemon (handles concurrent requests)',
   },
 };
 
