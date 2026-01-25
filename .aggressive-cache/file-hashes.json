@@ -327,7 +327,7 @@
   "src/components/outdoor-equipment/AddLocation.tsx": "8b386aa7b6666651ad90ae2a9a20ffe5",
   "src/components/outdoor-equipment/EquipmentMap.tsx": "a4550718710a4c74edc1de10ced509dc",
   "src/components/outdoor-equipment/EquipmentSelector.tsx": "24f65f8fc3750909db7b42c2731a17fe",
-  "src/components/outdoor-equipment/LocationDetail.tsx": "63287f968f4414f7c96bd99ea338c0c8",
+  "src/components/outdoor-equipment/LocationDetail.tsx": "24bdccdadee09f295f1429343b16acba",
   "src/components/outdoor-equipment/index.ts": "914bd902af8f5ac776573e17ced98386",
   "src/components/profile/WealthTierBadge.tsx": "74ba0f5e15ae89f95b56a7778c024ce6",
   "src/components/profile/index.ts": "6839c8e934d457798b8ac44d8be81c6c",
