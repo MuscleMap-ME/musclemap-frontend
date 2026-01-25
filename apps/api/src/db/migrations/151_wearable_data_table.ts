@@ -67,9 +67,10 @@ export async function migrate(): Promise<void> {
     `);
 
     // Unique constraint: one record per user per day per source
+    // Use expression index with COALESCE to handle the DATE function properly
     await db.query(`
       CREATE UNIQUE INDEX idx_wearable_data_user_source_date
-      ON wearable_data(user_id, source, DATE(recorded_at))
+      ON wearable_data(user_id, source, (recorded_at::date))
     `);
 
     log.info('Created wearable_data table with indexes');
