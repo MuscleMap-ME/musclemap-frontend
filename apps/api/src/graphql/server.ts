@@ -22,8 +22,10 @@ import { presenceTypeDefs } from './presence.resolvers';
 // import { activityLogResolvers } from './activity-log.resolvers';
 import { createLoaders, createExtendedLoaders, type Loaders, type ExtendedLoaders } from './loaders';
 import { createComplexityLimitRule, analyzeComplexity, getComplexityLimit } from './complexity';
+import { createTracingPlugin } from './tracing-plugin';
 import { loggers } from '../lib/logger';
 import { optionalAuth } from '../http/routes/auth';
+import { contextFromHeaders, type TraceContext } from '../lib/tracing';
 
 const log = loggers.core;
 
@@ -72,6 +74,11 @@ export interface GraphQLContext {
    * Maximum allowed complexity for this request.
    */
   maxComplexity?: number;
+
+  /**
+   * Distributed tracing context for this request.
+   */
+  traceContext?: TraceContext;
 }
 
 interface ServerConfig {
@@ -134,6 +141,9 @@ export async function createGraphQLServer(
   if (fastify) {
     plugins.push(fastifyApolloDrainPlugin(fastify));
   }
+
+  // Add distributed tracing plugin
+  plugins.push(createTracingPlugin());
 
   // Add complexity tracking plugin (Knuth principle: measure, don't guess)
   plugins.push({
@@ -248,6 +258,19 @@ export function createContext(req: FastifyRequest): GraphQLContext {
       }
     : undefined;
 
+  // Extract trace context from request headers
+  const traceContext = contextFromHeaders({
+    'x-trace-id': req.headers['x-trace-id'] as string | undefined,
+    'x-span-id': req.headers['x-span-id'] as string | undefined,
+    'x-parent-span-id': req.headers['x-parent-span-id'] as string | undefined,
+    'x-session-id': req.headers['x-session-id'] as string | undefined,
+  });
+
+  // If user is authenticated, attach userId to trace context
+  if (user?.userId) {
+    traceContext.userId = user.userId;
+  }
+
   // Create extended loaders (some are user-scoped)
   const baseExtendedLoaders = createExtendedLoaders();
   const extendedLoaders: ExtendedLoaders = {
@@ -285,6 +308,7 @@ export function createContext(req: FastifyRequest): GraphQLContext {
       delete: (key: string) => requestCache.delete(key),
       clear: () => requestCache.clear(),
     },
+    traceContext,
   };
 }
 

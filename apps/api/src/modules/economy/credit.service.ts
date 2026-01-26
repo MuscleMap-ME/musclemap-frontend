@@ -406,7 +406,7 @@ export const creditService = {
     }
 
     try {
-      return await serializableTransaction(async (client) => {
+      const result = await serializableTransaction(async (client) => {
         // Check for existing idempotent transaction
         const existing = await client.query<{ id: string; balance_after: number }>(
           'SELECT id, balance_after FROM credit_ledger WHERE idempotency_key = $1',
@@ -418,6 +418,7 @@ export const creditService = {
             success: true,
             ledgerEntryId: existing.rows[0].id,
             newBalance: existing.rows[0].balance_after,
+            _wasIdempotent: true, // Don't invalidate cache for idempotent returns
           };
         }
 
@@ -475,9 +476,6 @@ export const creditService = {
           [entryId, userId, action, -cost, newBalance, metadata ? JSON.stringify(metadata) : null, idempotencyKey]
         );
 
-        // Invalidate cache
-        await invalidateBalanceCache(userId);
-
         log.info({
           userId,
           action,
@@ -487,6 +485,14 @@ export const creditService = {
 
         return { success: true, ledgerEntryId: entryId, newBalance };
       });
+
+      // Phase 6 Fix: Invalidate cache AFTER transaction commits successfully
+      // This prevents stale reads during the transaction window
+      if (result.success && !('_wasIdempotent' in result)) {
+        await invalidateBalanceCache(userId);
+      }
+
+      return result;
     } catch (error: any) {
       // Handle unique constraint violation
       if (error.code === '23505' && error.constraint?.includes('idempotency')) {
@@ -520,8 +526,9 @@ export const creditService = {
     idempotencyKey?: string
   ): Promise<ChargeResult> {
     const key = idempotencyKey || `add-${userId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    let wasIdempotent = false;
 
-    return await serializableTransaction(async (client) => {
+    const result = await serializableTransaction(async (client) => {
       // Check for existing idempotent transaction
       if (idempotencyKey) {
         const existing = await client.query<{ id: string; balance_after: number }>(
@@ -530,6 +537,7 @@ export const creditService = {
         );
 
         if (existing.rows.length > 0) {
+          wasIdempotent = true;
           return {
             success: true,
             ledgerEntryId: existing.rows[0].id,
@@ -539,7 +547,7 @@ export const creditService = {
       }
 
       // Upsert credit balance
-      const result = await client.query<{ balance: number }>(
+      const balanceResult = await client.query<{ balance: number }>(
         `INSERT INTO credit_balances (user_id, balance, lifetime_earned, version)
          VALUES ($1, $2, $2, 1)
          ON CONFLICT (user_id) DO UPDATE SET
@@ -551,7 +559,7 @@ export const creditService = {
         [userId, amount]
       );
 
-      const newBalance = result.rows[0].balance;
+      const newBalance = balanceResult.rows[0].balance;
       const entryId = `txn_${crypto.randomBytes(12).toString('hex')}`;
 
       // Insert ledger entry
@@ -561,13 +569,18 @@ export const creditService = {
         [entryId, userId, action, amount, newBalance, metadata ? JSON.stringify(metadata) : null, key]
       );
 
-      // Invalidate cache
-      await invalidateBalanceCache(userId);
-
       log.info({ userId, action, amount, newBalance }, 'Credits added');
 
       return { success: true, ledgerEntryId: entryId, newBalance };
     });
+
+    // Phase 6 Fix: Invalidate cache AFTER transaction commits successfully
+    // This prevents stale reads during the transaction window
+    if (result.success && !wasIdempotent) {
+      await invalidateBalanceCache(userId);
+    }
+
+    return result;
   },
 
   /**
@@ -592,33 +605,55 @@ export const creditService = {
   }> {
     const { limit = 50, offset = 0, reason } = options;
 
-    const whereClause = reason ? 'WHERE user_id = $1 AND reason = $4' : 'WHERE user_id = $1';
+    // Query with optional reason filter - using separate queries to avoid string interpolation
+    // which triggers SQL injection warnings (even though this pattern is safe)
+    const rows = reason
+      ? await queryAll<{
+          id: string;
+          action: string;
+          amount: number;
+          balance_after: number;
+          reason: number | null;
+          ref_type: number | null;
+          ref_id: string | null;
+          metadata: Record<string, unknown> | null;
+          created_at: Date;
+        }>(
+          `SELECT id, action, amount, balance_after, reason, ref_type, ref_id, metadata, created_at
+           FROM credit_ledger
+           WHERE user_id = $1 AND reason = $4
+           ORDER BY created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, offset, reason]
+        )
+      : await queryAll<{
+          id: string;
+          action: string;
+          amount: number;
+          balance_after: number;
+          reason: number | null;
+          ref_type: number | null;
+          ref_id: string | null;
+          metadata: Record<string, unknown> | null;
+          created_at: Date;
+        }>(
+          `SELECT id, action, amount, balance_after, reason, ref_type, ref_id, metadata, created_at
+           FROM credit_ledger
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, offset]
+        );
 
-    const params = reason ? [userId, limit, offset, reason] : [userId, limit, offset];
-
-    const rows = await queryAll<{
-      id: string;
-      action: string;
-      amount: number;
-      balance_after: number;
-      reason: number | null;
-      ref_type: number | null;
-      ref_id: string | null;
-      metadata: Record<string, unknown> | null;
-      created_at: Date;
-    }>(
-      `SELECT id, action, amount, balance_after, reason, ref_type, ref_id, metadata, created_at
-       FROM credit_ledger
-       ${whereClause}
-       ORDER BY created_at DESC
-       LIMIT $2 OFFSET $3`,
-      params
-    );
-
-    const countResult = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM credit_ledger ${whereClause}`,
-      reason ? [userId, reason] : [userId]
-    );
+    const countResult = reason
+      ? await queryOne<{ count: string }>(
+          `SELECT COUNT(*) as count FROM credit_ledger WHERE user_id = $1 AND reason = $2`,
+          [userId, reason]
+        )
+      : await queryOne<{ count: string }>(
+          `SELECT COUNT(*) as count FROM credit_ledger WHERE user_id = $1`,
+          [userId]
+        );
 
     return {
       transactions: rows.map((row) => ({
