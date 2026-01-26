@@ -1,0 +1,68 @@
+{
+  "name": "@musclemap.me/buildnet",
+  "version": "1.0.0",
+  "description": "TypeScript client for BuildNet - High-performance build orchestration system",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./ffi": {
+      "types": "./dist/ffi.d.ts",
+      "import": "./dist/ffi.mjs",
+      "require": "./dist/ffi.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "buildnet",
+    "build",
+    "orchestration",
+    "monorepo",
+    "incremental",
+    "caching",
+    "musclemap"
+  ],
+  "author": "MuscleMap <hello@musclemap.me>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeanpaulniko/musclemap.git",
+    "directory": "packages/buildnet"
+  },
+  "homepage": "https://musclemap.me/buildnet",
+  "bugs": {
+    "url": "https://github.com/jeanpaulniko/musclemap/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
