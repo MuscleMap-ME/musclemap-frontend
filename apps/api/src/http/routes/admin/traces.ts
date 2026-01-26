@@ -93,7 +93,7 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
    * GET /api/admin/traces
    * List traces with filtering and pagination.
    */
-  app.get('/api/admin/traces', async (request: FastifyRequest<{ Querystring: ListTracesQuery }>, reply: FastifyReply) => {
+  app.get('/admin/traces', async (request: FastifyRequest<{ Querystring: ListTracesQuery }>, reply: FastifyReply) => {
     if (!requireAdmin(request, reply)) return;
 
     const {
@@ -145,7 +145,7 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
    * GET /api/admin/traces/stats
    * Get trace statistics for the dashboard.
    */
-  app.get('/api/admin/traces/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/admin/traces/stats', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireAdmin(request, reply)) return;
 
     try {
@@ -164,7 +164,7 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
    * GET /api/admin/traces/:traceId
    * Get a single trace with all its spans.
    */
-  app.get('/api/admin/traces/:traceId', async (request: FastifyRequest<{ Params: GetTraceParams }>, reply: FastifyReply) => {
+  app.get('/admin/traces/:traceId', async (request: FastifyRequest<{ Params: GetTraceParams }>, reply: FastifyReply) => {
     if (!requireAdmin(request, reply)) return;
 
     const { traceId } = request.params;
@@ -191,7 +191,7 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
    * DELETE /api/admin/traces/cleanup
    * Delete traces older than specified days.
    */
-  app.delete('/api/admin/traces/cleanup', async (request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply) => {
+  app.delete('/admin/traces/cleanup', async (request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply) => {
     if (!requireAdmin(request, reply)) return;
 
     const days = parseInt(request.query.days || '7', 10);
@@ -224,7 +224,7 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
    * Receive frontend spans (batched).
    * This endpoint does not require admin auth - it's for the frontend to submit traces.
    */
-  app.post('/api/trace-log', async (request: FastifyRequest<{ Body: TraceLogBody }>, reply: FastifyReply) => {
+  app.post('/trace-log', async (request: FastifyRequest<{ Body: TraceLogBody }>, reply: FastifyReply) => {
     const { spans } = request.body || {};
 
     if (!spans || !Array.isArray(spans)) {
