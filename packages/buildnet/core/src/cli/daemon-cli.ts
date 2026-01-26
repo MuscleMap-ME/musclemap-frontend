@@ -377,7 +377,7 @@ async function serverList(args: string[], ctx: CliContext): Promise<void> {
         console.log(
           '  ' +
           resource.name.padEnd(20) +
-          resource.address.padEnd(25) +
+          (resource.address ?? 'N/A').padEnd(25) +
           status.padEnd(22) +
           `${resource.cpu_cores ?? 0}`.padEnd(8) +
           `${resource.memory_gb ?? 0} GB`
@@ -880,10 +880,12 @@ async function main(): Promise<void> {
   }
 
   // Create state backend
-  const state = await createStateBackend({
-    backend: 'memory',
+  const stateConfig = {
+    backend: 'memory' as const,
     memory: { max_entries: 100000 },
-  });
+  };
+  const state = createStateBackend('memory', stateConfig);
+  await state.connect();
 
   const ctx: CliContext = {
     config,

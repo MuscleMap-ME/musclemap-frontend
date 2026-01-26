@@ -17,7 +17,7 @@ import { hostname } from 'node:os';
 import type { Lock, StateBackend, StateCapabilities } from '../types/index.js';
 
 // Dynamic import for better-sqlite3 (optional dependency)
-let Database: typeof import('better-sqlite3').default | undefined;
+let Database: ((filename: string, options?: import('better-sqlite3').DatabaseOptions) => import('better-sqlite3').Database) | undefined;
 
 try {
   const betterSqlite3 = await import('better-sqlite3');
@@ -133,7 +133,7 @@ export class SQLiteBackend implements StateBackend {
 
   private config: SQLiteBackendConfig;
   private dbPath: string;
-  private db: import('better-sqlite3').Database | null = null;
+  private db: ReturnType<typeof Database> | null = null;
   private connected = false;
   private subscriptions: Map<string, Set<(message: string) => void>> = new Map();
   private pollInterval: NodeJS.Timeout | null = null;
@@ -149,15 +149,15 @@ export class SQLiteBackend implements StateBackend {
   private lockFailureCount = 0;
 
   // Prepared statements (lazy initialized)
-  private stmtGet: import('better-sqlite3').Statement | null = null;
-  private stmtSet: import('better-sqlite3').Statement | null = null;
-  private stmtDel: import('better-sqlite3').Statement | null = null;
-  private stmtKeys: import('better-sqlite3').Statement | null = null;
-  private stmtAcquireLock: import('better-sqlite3').Statement | null = null;
-  private stmtReleaseLock: import('better-sqlite3').Statement | null = null;
-  private stmtCheckLock: import('better-sqlite3').Statement | null = null;
-  private stmtPublish: import('better-sqlite3').Statement | null = null;
-  private stmtPoll: import('better-sqlite3').Statement | null = null;
+  private stmtGet: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtSet: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtDel: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtKeys: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtAcquireLock: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtReleaseLock: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtCheckLock: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtPublish: import('better-sqlite3').Statement<unknown[]> | null = null;
+  private stmtPoll: import('better-sqlite3').Statement<unknown[]> | null = null;
 
   constructor(config: SQLiteBackendConfig) {
     this.config = config;
@@ -436,6 +436,11 @@ export class SQLiteBackend implements StateBackend {
       this.writeCount++;
       this.totalWriteLatency += performance.now() - start;
     }
+  }
+
+  /** Alias for del() for API consistency */
+  async delete(key: string): Promise<void> {
+    return this.del(key);
   }
 
   async keys(pattern: string): Promise<string[]> {

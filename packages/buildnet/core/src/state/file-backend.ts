@@ -173,6 +173,33 @@ export class FileBackend implements StateBackend {
     this.dirty = true;
   }
 
+  /** Alias for del() for API consistency */
+  async delete(key: string): Promise<void> {
+    return this.del(key);
+  }
+
+  /**
+   * Set a key only if it doesn't exist (atomic operation).
+   * Returns true if the key was set, false if it already existed.
+   */
+  async setIfNotExists(key: string, value: string, ttlMs?: number): Promise<boolean> {
+    const existing = this.data.get(key);
+
+    // Check if key exists and is not expired
+    if (existing) {
+      if (!existing.expires || existing.expires >= Date.now()) {
+        return false; // Key exists and is valid
+      }
+      // Key is expired, remove it
+      this.data.delete(key);
+      this.dirty = true;
+    }
+
+    // Key doesn't exist or was expired, set it
+    await this.set(key, value, ttlMs);
+    return true;
+  }
+
   async keys(pattern: string): Promise<string[]> {
     // Convert glob pattern to regex
     const regexPattern = pattern

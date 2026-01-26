@@ -389,6 +389,11 @@ export class MongoDBBackend implements StateBackend {
     }
   }
 
+  /** Alias for del() for API consistency */
+  async delete(key: string): Promise<void> {
+    return this.del(key);
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (!this.kvCollection) return [];
 

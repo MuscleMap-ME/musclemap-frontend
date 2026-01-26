@@ -506,17 +506,35 @@ const ProtectedRoute = ({ children, name }) => {
 const AdminRoute = ({ children, name }) => {
   const { user, loading, hasHydrated } = useAuth();
 
+  // Normalize roles to always be an array for consistent checking
+  // Using useMemo to avoid creating new array reference on each render
+  const userRoles = React.useMemo(() => {
+    if (Array.isArray(user?.roles)) return user.roles;
+    if (typeof user?.roles === 'string') return [user.roles];
+    return [];
+  }, [user?.roles]);
+
+  // Check multiple property formats for admin access
+  const hasAdminAccess = React.useMemo(() =>
+    user?.is_admin === true ||
+    user?.is_owner === true ||
+    user?.isAdmin === true ||
+    user?.isOwner === true ||
+    userRoles.includes('admin') ||
+    userRoles.includes('owner'),
+  [user?.is_admin, user?.is_owner, user?.isAdmin, user?.isOwner, userRoles]);
+
   useEffect(() => {
     if (!loading) {
-      logger.info('admin_route_access', { route: name, userId: user?.id, isAdmin: user?.is_admin });
+      logger.info('admin_route_access', { route: name, userId: user?.id, isAdmin: hasAdminAccess, roles: userRoles });
     }
-  }, [loading, user, name]);
+  }, [loading, user?.id, name, hasAdminAccess, userRoles]);
 
   // Wait for auth store to fully hydrate before making auth decisions
   if (loading || !hasHydrated) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!user.is_admin) {
-    logger.warn('admin_access_denied', { userId: user.id, route: name });
+  if (!hasAdminAccess) {
+    logger.warn('admin_access_denied', { userId: user.id, route: name, roles: userRoles });
     return <Navigate to="/dashboard" replace />;
   }
 

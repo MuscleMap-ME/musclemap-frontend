@@ -20,6 +20,11 @@ declare module 'mongodb' {
     w?: number | 'majority';
     j?: boolean;
     wtimeoutMS?: number;
+    writeConcern?: {
+      w?: number | 'majority';
+      j?: boolean;
+      wtimeout?: number;
+    };
   }
 
   export interface Document {
@@ -46,6 +51,7 @@ declare module 'mongodb' {
 
   export interface UpdateOptions {
     upsert?: boolean;
+    returnDocument?: 'before' | 'after';
   }
 
   export interface DeleteResult {
@@ -72,6 +78,20 @@ declare module 'mongodb' {
     hasNext(): Promise<boolean>;
     next(): Promise<TSchema | null>;
     close(): Promise<void>;
+    sort(sort: { [key: string]: 1 | -1 }): FindCursor<TSchema>;
+    project<T = Document>(projection: { [key: string]: 0 | 1 }): FindCursor<T>;
+  }
+
+  export interface ChangeStreamInsertDocument<TSchema = Document> {
+    operationType: 'insert';
+    fullDocument?: TSchema;
+    [key: string]: unknown;
+  }
+
+  export interface ChangeStream<TSchema = Document> {
+    on(event: 'change', listener: (change: ChangeStreamInsertDocument<TSchema>) => void): this;
+    on(event: 'error', listener: (error: Error) => void): this;
+    close(): Promise<void>;
   }
 
   export interface Collection<TSchema = Document> {
@@ -83,15 +103,43 @@ declare module 'mongodb' {
       update: UpdateFilter<TSchema>,
       options?: UpdateOptions
     ): Promise<UpdateResult>;
+    replaceOne(
+      filter: Filter<TSchema>,
+      replacement: TSchema,
+      options?: UpdateOptions
+    ): Promise<UpdateResult>;
+    findOneAndUpdate(
+      filter: Filter<TSchema>,
+      update: UpdateFilter<TSchema>,
+      options?: UpdateOptions
+    ): Promise<TSchema | null>;
     deleteOne(filter: Filter<TSchema>): Promise<DeleteResult>;
     deleteMany(filter: Filter<TSchema>): Promise<DeleteResult>;
     countDocuments(filter?: Filter<TSchema>): Promise<number>;
-    createIndex(keys: { [key: string]: 1 | -1 }, options?: { unique?: boolean }): Promise<string>;
+    createIndex(keys: { [key: string]: 1 | -1 }, options?: { unique?: boolean; expireAfterSeconds?: number }): Promise<string>;
+    watch<T = TSchema>(
+      pipeline?: object[],
+      options?: { fullDocument?: 'updateLookup' }
+    ): ChangeStream<T>;
+  }
+
+  export interface DbStats {
+    db: string;
+    collections: number;
+    objects: number;
+    avgObjSize: number;
+    dataSize: number;
+    storageSize: number;
+    indexes: number;
+    indexSize: number;
+    [key: string]: unknown;
   }
 
   export interface Db {
+    databaseName: string;
     collection<TSchema = Document>(name: string): Collection<TSchema>;
     command(command: Document): Promise<Document>;
+    stats(): Promise<DbStats>;
   }
 
   export class MongoClient {

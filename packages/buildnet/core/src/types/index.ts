@@ -396,6 +396,12 @@ export interface StateBackend {
   delete(key: string): Promise<void>;
   keys(pattern: string): Promise<string[]>;
 
+  /**
+   * Set a key only if it doesn't exist (atomic operation).
+   * Returns true if the key was set, false if it already existed.
+   */
+  setIfNotExists?(key: string, value: string, ttlMs?: number): Promise<boolean>;
+
   acquireLock(resource: string, ttlMs: number): Promise<Lock | null>;
   releaseLock(lock: Lock): Promise<void>;
   extendLock(lock: Lock, ttlMs: number): Promise<boolean>;

@@ -6,15 +6,32 @@
  */
 
 declare module 'better-sqlite3' {
-  interface Statement<BindParameters extends unknown[] = unknown[]> {
-    run(...params: BindParameters): Database.RunResult;
+  export interface Statement<BindParameters extends unknown[] = unknown[]> {
+    run(...params: BindParameters): RunResult;
     get(...params: BindParameters): unknown;
     all(...params: BindParameters): unknown[];
     iterate(...params: BindParameters): IterableIterator<unknown>;
     bind(...params: BindParameters): this;
   }
 
-  interface Database {
+  export interface RunResult {
+    changes: number;
+    lastInsertRowid: number | bigint;
+  }
+
+  export interface BackupMetadata {
+    totalPages: number;
+    remainingPages: number;
+  }
+
+  export interface DatabaseOptions {
+    readonly?: boolean;
+    fileMustExist?: boolean;
+    timeout?: number;
+    verbose?: (message?: unknown, ...additionalArgs: unknown[]) => void;
+  }
+
+  export interface Database {
     readonly name: string;
     readonly open: boolean;
     readonly inTransaction: boolean;
@@ -55,29 +72,10 @@ declare module 'better-sqlite3' {
     ): this;
 
     loadExtension(path: string): this;
-    backup(destinationFile: string): Promise<Database.BackupMetadata>;
+    backup(destinationFile: string): Promise<BackupMetadata>;
   }
 
-  namespace Database {
-    interface RunResult {
-      changes: number;
-      lastInsertRowid: number | bigint;
-    }
+  function Database(filename: string, options?: DatabaseOptions): Database;
 
-    interface BackupMetadata {
-      totalPages: number;
-      remainingPages: number;
-    }
-
-    interface Options {
-      readonly?: boolean;
-      fileMustExist?: boolean;
-      timeout?: number;
-      verbose?: (message?: unknown, ...additionalArgs: unknown[]) => void;
-    }
-  }
-
-  function Database(filename: string, options?: Database.Options): Database;
-
-  export = Database;
+  export default Database;
 }

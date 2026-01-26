@@ -137,6 +137,11 @@ export class DragonflyBackend implements StateBackend {
     await this.client.del(this.prefixKey(key));
   }
 
+  /** Alias for del() for API consistency */
+  async delete(key: string): Promise<void> {
+    return this.del(key);
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (!this.client) throw new Error('Not connected');
 
