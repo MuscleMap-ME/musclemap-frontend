@@ -13,9 +13,9 @@
     }
   },
   "scripts": {
-    "build": "bun run ../../scripts/bun-build-package.ts .",
+    "build": "bun ../../scripts/bun-build-package.ts .",
     "build:tsc": "tsc",
-    "dev": "bun run ../../scripts/bun-build-package.ts . --watch",
+    "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

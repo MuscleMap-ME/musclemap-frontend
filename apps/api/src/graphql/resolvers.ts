@@ -162,7 +162,7 @@ function hashPassword(password: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const log = loggers.get('auth');
+  const log = loggers.auth;
   const [salt, hash] = stored.split(':');
   if (!salt || !hash) {
     log.error({ storedLength: stored?.length }, 'verifyPassword: Invalid stored format - missing salt or hash');
