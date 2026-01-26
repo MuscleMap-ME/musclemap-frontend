@@ -4,7 +4,13 @@
  * Provides trace context management and automatic trace header injection
  * for Apollo Client requests. Traces are batched and sent to the backend
  * for storage and analysis.
+ *
+ * NOTE: Tracing is currently DISABLED due to backend database issues.
+ * Set TRACING_ENABLED to true once the backend is fixed.
  */
+
+// Disable tracing until backend SQLite issues are resolved
+const TRACING_ENABLED = false;
 
 // ============================================
 // TYPES
@@ -166,6 +172,11 @@ export function startSpan(
   operationType: FrontendSpan['operationType'],
   attributes?: Record<string, unknown>
 ): string {
+  // Return early if tracing is disabled
+  if (!TRACING_ENABLED) {
+    return generateSpanId();
+  }
+
   const context = currentTraceContext || createRootTrace();
   const span: FrontendSpan = {
     id: generateSpanId(),
@@ -231,6 +242,9 @@ function scheduleBatch(): void {
  * Flush pending spans to the backend.
  */
 export async function flushSpans(): Promise<void> {
+  // Skip if tracing is disabled
+  if (!TRACING_ENABLED) return;
+
   if (pendingSpans.length === 0) return;
 
   // Take all completed spans
@@ -244,7 +258,7 @@ export async function flushSpans(): Promise<void> {
   pendingSpans.push(...remaining);
 
   try {
-    const response = await fetch('/api/trace-log', {
+    const response = await fetch('/api/trace/frontend-log', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -254,25 +268,21 @@ export async function flushSpans(): Promise<void> {
     });
 
     if (!response.ok) {
-      console.warn('[Tracing] Failed to submit spans:', response.status);
+      // Silently fail - don't spam the console
     }
-  } catch (error) {
-    console.warn('[Tracing] Failed to submit spans:', error);
-    // Re-add failed spans to retry later (up to a limit)
-    if (pendingSpans.length < BATCH_SIZE * 2) {
-      pendingSpans.push(...completedSpans);
-    }
+  } catch {
+    // Silently fail - don't spam the console or retry
   }
 }
 
-// Flush on page unload
-if (typeof window !== 'undefined') {
+// Flush on page unload (only if tracing is enabled)
+if (typeof window !== 'undefined' && TRACING_ENABLED) {
   window.addEventListener('beforeunload', () => {
     // Use sendBeacon for reliable delivery on page unload
     const completedSpans = pendingSpans.filter((s) => s.status !== 'in_progress');
     if (completedSpans.length > 0 && navigator.sendBeacon) {
       navigator.sendBeacon(
-        '/api/trace-log',
+        '/api/trace/frontend-log',
         JSON.stringify({ spans: completedSpans })
       );
     }
