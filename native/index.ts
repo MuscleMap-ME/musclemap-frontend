@@ -96,12 +96,13 @@ function initializeNativeModules(): void {
       const ffi = ffiModule;
 
       ratelimitLib = ffi.Library(RATELIMIT_LIB_PATH, {
-        ratelimiter_create: ['pointer', ['int', 'int']],
-        ratelimiter_destroy: ['void', ['pointer']],
-        ratelimiter_check: ['int', ['pointer', 'string', 'int']],
-        ratelimiter_remaining: ['int', ['pointer', 'string']],
-        ratelimiter_reset: ['void', ['pointer', 'string']],
-        ratelimiter_clear: ['void', ['pointer']],
+        // Note: C functions are named ratelimit_* not ratelimiter_*
+        ratelimit_create: ['pointer', ['size_t', 'uint32']],
+        ratelimit_destroy: ['void', ['pointer']],
+        ratelimit_check: ['int', ['pointer', 'uint64', 'uint32']],
+        ratelimit_remaining: ['int', ['pointer', 'uint64']],
+        ratelimit_reset_user: ['int', ['pointer', 'uint64']],
+        ratelimit_clear_all: ['int', ['pointer']],
       });
 
       nativeRatelimitAvailable = true;
@@ -432,19 +433,32 @@ class JSRateLimiter {
 }
 
 /**
+ * Simple string hash to uint64 for rate limiter user ID
+ */
+function hashStringToUint64(str: string): bigint {
+  let hash = BigInt(5381);
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << BigInt(5)) + hash) ^ BigInt(str.charCodeAt(i));
+  }
+  return hash & BigInt('0xFFFFFFFFFFFFFFFF'); // Ensure it fits in uint64
+}
+
+/**
  * Native rate limiter using FFI
  */
 class NativeRateLimiter {
   private handle: any;
   private readonly limit: number;
   private readonly windowSeconds: number;
+  private readonly capacity: number = 10000; // Default capacity
 
   constructor(limit: number, windowSeconds: number = 60) {
     this.limit = limit;
     this.windowSeconds = windowSeconds;
 
     if (ratelimitLib) {
-      this.handle = ratelimitLib.ratelimiter_create(limit, windowSeconds);
+      // ratelimit_create(capacity, limit) - capacity is number of slots
+      this.handle = ratelimitLib.ratelimit_create(this.capacity, limit);
     }
   }
 
@@ -452,31 +466,36 @@ class NativeRateLimiter {
     if (!this.handle || !ratelimitLib) {
       return true; // Fail open if native not available
     }
-    return ratelimitLib.ratelimiter_check(this.handle, userId, count) !== 0;
+    const userIdHash = hashStringToUint64(userId);
+    // ratelimit_check returns 1 if allowed, 0 if denied, -1 on error
+    return ratelimitLib.ratelimit_check(this.handle, userIdHash, count) === 1;
   }
 
   remaining(userId: string): number {
     if (!this.handle || !ratelimitLib) {
       return this.limit;
     }
-    return ratelimitLib.ratelimiter_remaining(this.handle, userId);
+    const userIdHash = hashStringToUint64(userId);
+    const remaining = ratelimitLib.ratelimit_remaining(this.handle, userIdHash);
+    return remaining >= 0 ? remaining : this.limit;
   }
 
   reset(userId: string): void {
     if (this.handle && ratelimitLib) {
-      ratelimitLib.ratelimiter_reset(this.handle, userId);
+      const userIdHash = hashStringToUint64(userId);
+      ratelimitLib.ratelimit_reset_user(this.handle, userIdHash);
     }
   }
 
   clear(): void {
     if (this.handle && ratelimitLib) {
-      ratelimitLib.ratelimiter_clear(this.handle);
+      ratelimitLib.ratelimit_clear_all(this.handle);
     }
   }
 
   destroy(): void {
     if (this.handle && ratelimitLib) {
-      ratelimitLib.ratelimiter_destroy(this.handle);
+      ratelimitLib.ratelimit_destroy(this.handle);
       this.handle = null;
     }
   }

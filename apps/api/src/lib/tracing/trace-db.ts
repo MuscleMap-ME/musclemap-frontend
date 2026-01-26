@@ -176,6 +176,7 @@ export function updateTrace(traceId: string, updates: {
 
 /**
  * Insert a span record.
+ * Automatically creates a placeholder trace if the trace_id doesn't exist.
  */
 export function insertSpan(span: {
   id: string;
@@ -193,6 +194,14 @@ export function insertSpan(span: {
   events?: unknown[];
 }): void {
   const database = getTraceDb();
+
+  // Ensure the parent trace exists (auto-create if needed)
+  // This prevents foreign key constraint failures
+  database.prepare(`
+    INSERT OR IGNORE INTO traces (id, root_operation, started_at, status)
+    VALUES (?, ?, ?, 'in_progress')
+  `).run(span.traceId, span.operationName, span.startedAt);
+
   database.prepare(`
     INSERT OR IGNORE INTO spans
     (id, trace_id, parent_span_id, operation_name, operation_type, service,

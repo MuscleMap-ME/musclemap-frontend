@@ -630,23 +630,48 @@ export async function registerMiscRoutes(app: FastifyInstance) {
     });
   });
 
-  // Trace/logging endpoint
+  // Trace/logging endpoint - stores frontend spans in SQLite
   app.post('/trace/frontend-log', async (request, reply) => {
-    const body = request.body as { entries?: any[] };
-    // Log each frontend entry with full details for debugging
+    const body = request.body as { spans?: any[]; entries?: any[] };
+
+    // Handle spans from frontend tracing system
+    if (body?.spans && body.spans.length > 0) {
+      try {
+        const { insertSpan } = await import('../../lib/tracing/trace-db');
+        for (const span of body.spans) {
+          insertSpan({
+            id: span.id,
+            traceId: span.traceId,
+            parentSpanId: span.parentSpanId,
+            operationName: span.operationName,
+            operationType: span.operationType,
+            service: 'frontend',
+            startedAt: span.startedAt,
+            endedAt: span.endedAt,
+            durationMs: span.durationMs,
+            status: span.status || 'completed',
+            errorMessage: span.errorMessage,
+            attributes: span.attributes,
+            events: [],
+          });
+        }
+        log.debug({ count: body.spans.length }, 'frontend-spans-stored');
+      } catch (err) {
+        log.error({ error: err }, 'frontend-spans-store-error');
+      }
+    }
+
+    // Handle legacy log entries (backwards compatibility)
     if (body?.entries) {
       for (const entry of body.entries) {
         if (entry.level === 'error') {
           log.error({ requestId: request.id, frontendEntry: entry }, 'frontend-error');
         } else {
-          log.info({ requestId: request.id, frontendEntry: entry }, 'frontend-log-entry');
+          log.debug({ requestId: request.id, frontendEntry: entry }, 'frontend-log-entry');
         }
       }
     }
-    log.info({
-      requestId: request.id,
-      count: body?.entries?.length,
-    }, 'frontend-log');
+
     return reply.status(204).send();
   });
 

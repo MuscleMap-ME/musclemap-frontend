@@ -9,8 +9,8 @@
  * Set TRACING_ENABLED to true once the backend is fixed.
  */
 
-// Disable tracing until backend SQLite issues are resolved
-const TRACING_ENABLED = false;
+// Enable frontend tracing - spans are sent to backend for storage
+const TRACING_ENABLED = true;
 
 // ============================================
 // TYPES
