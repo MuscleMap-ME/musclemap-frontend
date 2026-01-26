@@ -1,0 +1,16 @@
+[package]
+name = "musclemap-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+js-sys.workspace = true
+thiserror.workspace = true

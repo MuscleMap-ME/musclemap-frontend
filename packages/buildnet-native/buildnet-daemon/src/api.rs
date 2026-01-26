@@ -596,8 +596,9 @@ async fn events_stream(
 
     let event_stream = stream.filter_map(|result| {
         result.ok().map(|event| {
+            // Send as default event (no named event type) so frontend onmessage receives it
+            // The event_type is included in the JSON payload for the frontend to distinguish
             Ok(Event::default()
-                .event(&event.event_type)
                 .json_data(&event)
                 .unwrap())
         })
