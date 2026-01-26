@@ -1,1 +1,0 @@
-{"version":"4.0.16","results":[[":src/tests/apiClient.test.ts",{"duration":605.8327079999999,"failed":false}],[":src/tests/httpClient.test.ts",{"duration":4.038457999999991,"failed":false}],[":src/tests/errors.test.ts",{"duration":1.2113329999997404,"failed":false}]]}

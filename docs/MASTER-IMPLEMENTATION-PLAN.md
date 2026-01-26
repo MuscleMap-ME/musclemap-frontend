@@ -189,12 +189,18 @@ interface Scorecard {
 
 ### 3.2 Data Integrity Fixes (Phase 2 - Days 2-3)
 
-| ID | Issue | Location | Fix |
-|----|-------|----------|-----|
-| INT-001 | Clock sensitivity | wallet.service.ts | Add time buffer |
-| INT-002 | Race condition | crews.service.ts:44 | Atomic insert |
-| INT-003 | No earning caps | earning.service.ts | Add defaults |
-| INT-004 | Stats race | stats.service.ts | Optimistic locking |
+| ID | Issue | Location | Fix | Status |
+|----|-------|----------|-----|--------|
+| INT-001 | Clock sensitivity | wallet.service.ts | Add time buffer | ✅ VERIFIED - 60-second buffer at reset boundaries (lines 685-740) |
+| INT-002 | Race condition | crews.service.ts:44 | Atomic insert | ✅ VERIFIED - Uses transaction with FOR UPDATE + ON CONFLICT DO NOTHING |
+| INT-003 | No earning caps | earning.service.ts | Add defaults | ✅ VERIFIED - Has DEFAULT_MAX_PER_DAY, ABSOLUTE_MAX_PER_DAY=100, MAX_CREDITS_PER_AWARD=10000 |
+| INT-004 | Stats race | stats.service.ts | Optimistic locking | ✅ VERIFIED - Version field + FOR UPDATE + retry loop with MAX_RETRIES=3 |
+
+**Phase 2 Verification (2026-01-26):**
+- INT-001: wallet.service.ts:685-740 implements `checkTransferRateLimit()` with 60-second BUFFER_SECONDS to prevent clock sensitivity at reset boundaries
+- INT-002: crews/service.ts uses `transaction()` wrapper with `FOR UPDATE` row lock and `ON CONFLICT (user_id) DO NOTHING` as safety net
+- INT-003: earning.service.ts:39-89 defines comprehensive caps: DEFAULT_MAX_PER_DAY per action type, FALLBACK_MAX_PER_DAY=20, ABSOLUTE_MAX_PER_DAY=100, MAX_CREDITS_PER_AWARD=10000, MAX_XP_PER_AWARD=5000
+- INT-004: stats/index.ts:231-348 implements full optimistic locking with version field, FOR UPDATE lock, version check on update, retry loop with exponential backoff
 
 ### 3.3 Logic Fixes (Phase 3 - Days 4-5)
 
