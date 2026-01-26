@@ -69,7 +69,7 @@ This document provides a complete technical overview of the MuscleMap production
            │              │
            ▼              ▼
 ┌─────────────────┐  ┌─────────────────┐
-│   PGBOUNCER     │  │     REDIS       │
+│   PGBOUNCER     │  │   DRAGONFLYDB   │
 │  127.0.0.1:6432 │  │  127.0.0.1:6379 │
 │  Transaction    │  │  Caching +      │
 │  Pooling        │  │  Sessions       │
@@ -119,7 +119,7 @@ This document provides a complete technical overview of the MuscleMap production
 ├─────────────────────────────────────────────────────────┤
 │ OS + System        │  ~300 MB                           │
 │ PostgreSQL         │  ~200 MB (shared_buffers: 128MB)   │
-│ Redis              │  ~50 MB (currently 2MB used)       │
+│ DragonflyDB        │  ~20-50 MB (80% less than Redis)   │
 │ PgBouncer          │  ~20 MB                            │
 │ Caddy              │  ~50 MB                            │
 │ Bun API            │  ~200-300 MB per instance          │
@@ -172,7 +172,7 @@ This document provides a complete technical overview of the MuscleMap production
 |-----------|---------|---------|
 | PostgreSQL | 17.7 | Primary database |
 | PgBouncer | Latest | Connection pooling |
-| Redis | 8.0.2 | Caching, sessions, rate limiting |
+| DragonflyDB | 1.36.0 | Caching, sessions, rate limiting (Redis-compatible, 25x faster) |
 
 ### Web Server & Security
 | Component | Version | Purpose |
@@ -198,7 +198,7 @@ This document provides a complete technical overview of the MuscleMap production
 | 2019 | 127.0.0.1 | Caddy Admin API | Internal |
 | 3001 | 127.0.0.1 | Bun API | Internal |
 | 5432 | 127.0.0.1 | PostgreSQL | Internal |
-| 6379 | 127.0.0.1 | Redis | Internal |
+| 6379 | 127.0.0.1 | DragonflyDB | Internal |
 | 6432 | 127.0.0.1 | PgBouncer | Internal |
 
 **Security Design:**
@@ -315,35 +315,43 @@ Node.js App (multiple instances)
 
 ## 6. Caching Strategy
 
-### Redis Configuration
+### DragonflyDB Configuration
 
 | Parameter | Value |
 |-----------|-------|
-| Version | 8.0.2 |
+| Version | 1.36.0 |
 | Binding | 127.0.0.1:6379 |
-| Current Memory | 1.87 MB |
-| Peak Memory | 1.96 MB |
-| Max Memory | Unlimited (no eviction) |
-| Persistence | AOF + RDB |
+| Max Memory | 512 MB (LRU eviction) |
+| Threads | 2 (multi-threaded, unlike Redis) |
+| Persistence | RDB snapshots (hourly) |
 
-### Persistence Strategy
+**Why DragonflyDB over Redis:**
+- **25x faster** performance than Redis
+- **80% less memory** usage
+- **Multi-threaded** architecture (Redis is single-threaded)
+- **Wire-compatible** with Redis (drop-in replacement, uses ioredis client)
+- Active development with modern features
+
+### Configuration
 
 ```ini
-# RDB Snapshots (point-in-time recovery)
-save 3600 1      # Every hour if 1+ key changed
-save 300 100     # Every 5 min if 100+ keys changed
-save 60 10000    # Every minute if 10000+ keys changed
-
-# AOF (Append-Only File) for durability
-appendonly yes
-appendfsync everysec  # Sync every second (balance of speed/safety)
+# /etc/dragonfly/dragonfly.conf
+--bind=127.0.0.1
+--port=6379
+--maxmemory=512mb
+--cache_mode=true
+--dir=/var/lib/dragonfly
+--dbfilename=dump
+--snapshot_cron=0 * * * *
+--proactor_threads=2
 ```
 
-**Data Stored in Redis:**
+**Data Stored in DragonflyDB:**
 - Session tokens (JWT refresh tokens)
 - Rate limiting counters
 - GraphQL query caching (APQ)
 - Temporary computation results
+- BullMQ job queues
 - Feature flags (future)
 
 ### Multi-Layer Cache Strategy
@@ -392,7 +400,7 @@ appendfsync everysec  # Sync every second (balance of speed/safety)
 ┌─────────────────────────────────────────────────────────┐
 │                    APPLICATION                           │
 ├─────────────────────────────────────────────────────────┤
-│ L3: Redis Cache                                          │
+│ L3: DragonflyDB Cache                                    │
 │     • GraphQL persisted queries (APQ)                    │
 │     • Rate limit counters                                │
 │     • Session data                                       │
@@ -1101,7 +1109,7 @@ pg_pool_idle_connections
 pg_pool_waiting_clients
 pg_query_duration_seconds
 
-# Redis
+# DragonflyDB (Redis-compatible metrics)
 redis_connected
 redis_memory_used_bytes
 
@@ -1126,7 +1134,7 @@ graphql_cache_hits_total
 | PM2 error | /var/www/musclemap.me/logs/error.log |
 | PostgreSQL | /var/log/postgresql/ |
 | PgBouncer | /var/log/postgresql/pgbouncer.log |
-| Redis | systemd journal |
+| DragonflyDB | /var/log/dragonfly/ + systemd journal |
 
 ---
 
@@ -1137,8 +1145,7 @@ graphql_cache_hits_total
 | Data | Method | Frequency | Retention |
 |------|--------|-----------|-----------|
 | PostgreSQL | pg_dump | Daily | 30 days |
-| Redis RDB | Snapshot | Hourly | 7 days |
-| Redis AOF | Append log | Continuous | 7 days |
+| DragonflyDB | RDB Snapshot | Hourly | 7 days |
 | Code | Git (GitHub) | On push | Forever |
 | Config | Git | On push | Forever |
 
@@ -1153,14 +1160,14 @@ pg_restore -d musclemap /backups/musclemap_YYYYMMDD.dump
 pg_basebackup + WAL replay
 ```
 
-**Redis Recovery:**
+**DragonflyDB Recovery:**
 ```bash
-# Redis recovers automatically from AOF on restart
-systemctl restart redis-server
+# DragonflyDB recovers automatically from RDB snapshot on restart
+systemctl restart dragonfly
 
-# Or restore from RDB
-cp /backups/dump.rdb /var/lib/redis/
-systemctl restart redis-server
+# Or restore from backup
+cp /backups/dump /var/lib/dragonfly/
+systemctl restart dragonfly
 ```
 
 **Application Recovery:**
@@ -1218,7 +1225,7 @@ pm2 logs musclemap --lines 50          # View recent logs
 
 # Database
 sudo -u postgres psql musclemap         # Direct DB access
-redis-cli                               # Redis CLI
+redis-cli                               # DragonflyDB CLI (Redis-compatible)
 
 # Caddy
 caddy reload --config /etc/caddy/Caddyfile
@@ -1239,7 +1246,7 @@ pm2 start ecosystem.config.cjs --env production
 | Caddy config | /etc/caddy/Caddyfile |
 | PostgreSQL config | /etc/postgresql/17/main/postgresql.conf |
 | PgBouncer config | /etc/pgbouncer/pgbouncer.ini |
-| Redis config | /etc/redis/redis.conf |
+| DragonflyDB config | /etc/dragonfly/dragonfly.conf |
 | PM2 config | /var/www/musclemap.me/ecosystem.config.cjs |
 
 ---
@@ -1266,10 +1273,15 @@ pm2 start ecosystem.config.cjs --env production
 **Rationale:** Cost-effective, simpler operations, sufficient for current scale
 **Trade-offs:** Single point of failure, limited horizontal scaling
 
-### ADR-005: Redis for Sessions
-**Decision:** Store sessions in Redis instead of PostgreSQL
-**Rationale:** Lower latency, automatic expiration, reduces DB load
-**Trade-offs:** Additional service to manage, data loss risk (mitigated by AOF)
+### ADR-005: DragonflyDB for Sessions
+**Decision:** Store sessions in DragonflyDB instead of PostgreSQL
+**Rationale:** Lower latency, automatic expiration, reduces DB load, 25x faster than Redis
+**Trade-offs:** Additional service to manage, data loss risk (mitigated by hourly RDB snapshots)
+
+### ADR-006: DragonflyDB over Redis
+**Decision:** Use DragonflyDB instead of Redis for caching and sessions
+**Rationale:** 25x faster performance, 80% less memory, multi-threaded, wire-compatible
+**Trade-offs:** Newer project with smaller community, but rapidly maturing
 
 ---
 
