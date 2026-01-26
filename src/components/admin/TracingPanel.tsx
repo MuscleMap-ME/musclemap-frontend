@@ -15,7 +15,6 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  ChevronDown,
   ChevronRight,
   Clock,
   Database,
@@ -456,7 +455,7 @@ export default function TracingPanel() {
 
   // Auto-refresh
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(10000);
+  const [refreshInterval, _setRefreshInterval] = useState(10000);
 
   // Fetch stats
   const fetchStats = useCallback(async () => {

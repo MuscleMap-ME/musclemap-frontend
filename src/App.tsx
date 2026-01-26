@@ -45,7 +45,7 @@ const trackAppError = (phase: string, error: unknown, extra?: Record<string, unk
 
 // Log provider initialization
 const logProviderInit = (name: string) => {
-  console.log(`[Provider] ${name} initializing`);
+  console.info(`[Provider] ${name} initializing`);
 };
 
 // Safe lazy loader that catches and reports errors
@@ -73,6 +73,7 @@ import { PluginProvider, PluginThemeProvider, usePluginRoutes } from './plugins'
 
 // UI/UX Enhancement Components
 import { ContextualTipProvider } from './components/tips';
+import { TraceProvider } from './contexts/TraceContext';
 const SpotlightTourRenderer = lazy(() => import('./components/tour/SpotlightTour').then(m => ({ default: m.SpotlightTourRenderer })));
 
 // Transition System
@@ -268,7 +269,7 @@ function NavigationProgress({ isNavigating }) {
 function PageSkeleton() {
   // Track that skeleton is being shown (iOS Brave debugging)
   useEffect(() => {
-    console.log('[PageSkeleton] Showing loading skeleton');
+    console.info('[PageSkeleton] Showing loading skeleton');
     try {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/client-error', true);
@@ -576,7 +577,7 @@ function AppRoutes() {
 
   // Track that AppRoutes is rendering (iOS Brave debugging)
   useEffect(() => {
-    console.log('[AppRoutes] Component mounted, location:', location.pathname);
+    console.info('[AppRoutes] Component mounted, location:', location.pathname);
     try {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/client-error', true);
@@ -829,11 +830,11 @@ export default function App() {
     // This enables passive testing - all errors/interactions are logged to GraphQL
     initQALogger();
     if (isQASessionActive()) {
-      console.log('[App] QA Session active:', getQASessionId());
+      console.info('[App] QA Session active:', getQASessionId());
     }
 
     // Track that App component mounted successfully
-    console.log('[App] Component mounting');
+    console.info('[App] Component mounting');
     try {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/client-error', true);
@@ -892,6 +893,8 @@ export default function App() {
             <MotionProvider>
               <ErrorBoundary name="BrowserRouter" onError={(err) => trackAppError('ErrorBoundary:BrowserRouter', err)}>
               <BrowserRouter>
+                <ErrorBoundary name="TraceProvider" onError={(err) => trackAppError('ErrorBoundary:TraceProvider', err)}>
+                <TraceProvider>
                 <ErrorBoundary name="TransitionProvider" onError={(err) => trackAppError('ErrorBoundary:TransitionProvider', err)}>
                 <TransitionProvider showProgressBar>
                 <ErrorBoundary name="UserProvider" onError={(err) => trackAppError('ErrorBoundary:UserProvider', err)}>
@@ -954,6 +957,8 @@ export default function App() {
                 </UserProvider>
                 </ErrorBoundary>
                 </TransitionProvider>
+                </ErrorBoundary>
+                </TraceProvider>
                 </ErrorBoundary>
               </BrowserRouter>
               </ErrorBoundary>
