@@ -1,1 +1,1 @@
-{"version":"4.0.16","results":[[":src/tests/apiClient.test.ts",{"duration":604.76575,"failed":false}],[":src/tests/httpClient.test.ts",{"duration":4.180707999999868,"failed":false}],[":src/tests/errors.test.ts",{"duration":1.1654170000001614,"failed":false}]]}
+{"version":"4.0.16","results":[[":src/tests/apiClient.test.ts",{"duration":605.5364169999998,"failed":false}],[":src/tests/httpClient.test.ts",{"duration":5.220832999999857,"failed":false}],[":src/tests/errors.test.ts",{"duration":1.8127920000001723,"failed":false}]]}

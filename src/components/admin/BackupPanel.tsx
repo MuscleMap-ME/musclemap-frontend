@@ -475,15 +475,25 @@ export default function BackupPanel() {
     setLoading(false);
   }, [fetchBackups, fetchSchedule, fetchJobStatus]);
 
+  // Error state for displaying messages
+  const [error, setError] = useState<string | null>(null);
+
   // Create backup
   const createBackup = useCallback(async () => {
     setCreateLoading(true);
+    setError(null);
     try {
+      const headers = getAuthHeader();
+      if (!headers.Authorization) {
+        setError('Not authenticated. Please log in again.');
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeader(),
+          ...headers,
         },
         body: JSON.stringify({ type: 'full', compress: true }),
       });
@@ -492,8 +502,16 @@ export default function BackupPanel() {
         // Refresh job status and backups list
         fetchJobStatus();
         setTimeout(fetchBackups, 2000);
+        setError(null);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errorMsg = data.error?.message || `Request failed with status ${res.status}`;
+        setError(errorMsg);
+        console.error('Backup creation failed:', errorMsg);
       }
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create backup';
+      setError(errorMsg);
       console.error('Failed to create backup:', err);
     } finally {
       setCreateLoading(false);
@@ -681,6 +699,20 @@ export default function BackupPanel() {
           </button>
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+          <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <span className="text-sm text-red-400">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto text-red-400 hover:text-red-300"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

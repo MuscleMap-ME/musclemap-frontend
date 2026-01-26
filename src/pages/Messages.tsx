@@ -6,6 +6,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store/authStore';
 import { sanitizeText } from '../utils/sanitize';
+import { GlassSurface } from '../components/glass/GlassSurface';
+import { GlassNav, GlassSidebar, GlassMobileNav } from '../components/glass/GlassNav';
+import { MeshBackground } from '../components/glass/MeshBackground';
 import {
   CONVERSATIONS_QUERY,
   CONVERSATION_MESSAGES_QUERY,
@@ -158,6 +161,75 @@ interface ScheduledMessage {
   scheduledFor: string;
   conversationId: string;
   conversationName?: string;
+}
+
+// GraphQL response types (camelCase from server)
+interface GQLParticipant {
+  userId: string;
+  username: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  lastActiveAt?: string | null;
+}
+
+interface GQLLastMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+  senderId: string;
+}
+
+interface GQLConversation {
+  id: string;
+  type: string;
+  name?: string | null;
+  participants: GQLParticipant[];
+  lastMessage?: GQLLastMessage | null;
+  lastMessageAt?: string | null;
+  unreadCount: number;
+  starred?: boolean;
+  archivedAt?: string | null;
+  disappearingTtl?: number | null;
+  typingUsers?: GQLTypingUser[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GQLTypingUser {
+  userId: string;
+  username: string;
+  avatarUrl?: string | null;
+}
+
+interface GQLReplyTo {
+  id: string;
+  content: string;
+  senderName: string;
+}
+
+interface GQLReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+  userReacted: boolean;
+}
+
+interface GQLMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderUsername?: string | null;
+  senderDisplayName?: string | null;
+  content: string;
+  contentType?: string | null;
+  replyTo?: GQLReplyTo | null;
+  reactions?: GQLReaction[];
+  pinnedAt?: string | null;
+  editedAt?: string | null;
+  editCount?: number | null;
+  deliveredAt?: string | null;
+  readAt?: string | null;
+  createdAt: string;
 }
 
 // ============================================
@@ -1296,21 +1368,31 @@ export default function Messages() {
     }
   );
 
-  const conversations: Conversation[] = (conversationsData?.conversations || []).map((c: any) => {
-    const otherParticipant = c.participants?.find((p: any) => p.userId !== currentUserId);
+  const conversations: Conversation[] = (conversationsData?.conversations || []).map((c: GQLConversation) => {
+    const otherParticipant = c.participants?.find((p: GQLParticipant) => p.userId !== currentUserId);
     return {
       id: c.id,
-      type: c.type,
-      name: c.name,
+      type: c.type as 'direct' | 'group',
+      name: c.name ?? undefined,
       display_name: c.name || otherParticipant?.displayName || otherParticipant?.username || 'Unknown',
       last_message: c.lastMessage?.content,
       last_activity_at: c.lastMessageAt || c.createdAt,
       unread_count: c.unreadCount || 0,
-      participants: c.participants,
+      participants: c.participants?.map((p: GQLParticipant) => ({
+        userId: p.userId,
+        username: p.username,
+        displayName: p.displayName ?? undefined,
+        avatarUrl: p.avatarUrl ?? undefined,
+        lastActiveAt: p.lastActiveAt ?? undefined,
+      })) || [],
       starred: c.starred,
       archived: c.archivedAt !== null,
-      disappearing_ttl: c.disappearingTtl,
-      typing_users: c.typingUsers || [],
+      disappearing_ttl: c.disappearingTtl ?? undefined,
+      typing_users: c.typingUsers?.map((t: GQLTypingUser) => ({
+        userId: t.userId,
+        username: t.username,
+        avatarUrl: t.avatarUrl ?? undefined,
+      })) || [],
     };
   });
 
@@ -1325,16 +1407,21 @@ export default function Messages() {
     }
   );
 
-  const messages: Message[] = (messagesData?.conversationMessages || []).map((m: any) => ({
+  const messages: Message[] = (messagesData?.conversationMessages || []).map((m: GQLMessage) => ({
     id: m.id,
     content: m.content,
     sender_id: m.senderId === currentUserId ? 'me' : m.senderId,
-    sender_name: m.senderId === currentUserId ? 'You' : (m.sender?.displayName || m.sender?.username || 'Unknown'),
+    sender_name: m.senderId === currentUserId ? 'You' : (m.senderDisplayName || m.senderUsername || 'Unknown'),
     created_at: m.createdAt,
-    edited_at: m.editedAt,
-    edit_count: m.editCount,
-    reactions: m.reactions,
-    pinned_at: m.pinnedAt,
+    edited_at: m.editedAt ?? undefined,
+    edit_count: m.editCount ?? undefined,
+    reactions: m.reactions?.map((r: GQLReaction) => ({
+      emoji: r.emoji,
+      count: r.count,
+      users: r.users,
+      userReacted: r.userReacted,
+    })),
+    pinned_at: m.pinnedAt ?? undefined,
     reply_to: m.replyTo ? { id: m.replyTo.id, content: m.replyTo.content, sender_name: m.replyTo.senderName } : undefined,
     status: m.readAt ? 'read' : m.deliveredAt ? 'delivered' : 'sent',
   }));
@@ -1367,7 +1454,7 @@ export default function Messages() {
   );
 
   const presenceMap: Record<string, 'online' | 'away' | 'offline'> = {};
-  (presenceData?.userPresence || []).forEach((p: any) => {
+  (presenceData?.userPresence || []).forEach((p: { userId: string; status: 'online' | 'away' | 'offline' }) => {
     presenceMap[p.userId] = p.status;
   });
 
@@ -1507,8 +1594,9 @@ export default function Messages() {
 
       setNewMessage('');
       setReplyingTo(null);
-    } catch (err: any) {
-      setSendError(err.message || 'Failed to send message');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+      setSendError(errorMessage);
       setTimeout(() => setSendError(''), 5000);
     }
   };
@@ -1620,8 +1708,9 @@ export default function Messages() {
           participants: [],
         } as Conversation);
       }
-    } catch (err: any) {
-      setSendError(err.message || 'Cannot start conversation');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Cannot start conversation';
+      setSendError(errorMessage);
       setTimeout(() => setSendError(''), 3000);
     }
   };
@@ -1683,49 +1772,56 @@ export default function Messages() {
   // ============================================
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex">
-      {/* Sidebar */}
-      <div className={clsx(
-        'w-full md:w-80 lg:w-96 border-r border-white/5 flex flex-col',
-        activeConversation ? 'hidden md:flex' : 'flex'
-      )}>
-        {/* Header */}
-        <div className="p-4 border-b border-white/5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Link to="/dashboard" className="p-2 -ml-2 rounded-xl hover:bg-white/5">
-                <Icons.Back />
-              </Link>
-              <h1 className="text-xl font-semibold">Messages</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowSearch(true)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
-                title="Search messages"
-              >
-                <Icons.Search />
-              </button>
-              <button
-                onClick={() => setShowScheduled(true)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
-                title="Scheduled messages"
-              >
-                <Icons.Clock />
-              </button>
-              <button
-                onClick={() => setShowNewChat(true)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
-                title="New message"
-              >
-                <Icons.Plus />
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-950 text-white">
+      <MeshBackground />
+      <GlassNav />
+      <GlassSidebar />
 
-          {/* Search */}
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+      <main className="lg:pl-64 pt-16 pb-24 lg:pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex gap-6 h-[calc(100vh-10rem)]">
+            {/* Conversation List Panel */}
+            <GlassSurface className={clsx(
+              'w-full md:w-80 lg:w-96 flex flex-col overflow-hidden',
+              activeConversation ? 'hidden md:flex' : 'flex'
+            )}>
+              {/* Header */}
+              <div className="p-4 border-b border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Link to="/dashboard" className="p-2 -ml-2 rounded-xl hover:bg-white/10 transition-colors">
+                      <Icons.Back />
+                    </Link>
+                    <h1 className="text-xl font-semibold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">Messages</h1>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowSearch(true)}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
+                      title="Search messages"
+                    >
+                      <Icons.Search />
+                    </button>
+                    <button
+                      onClick={() => setShowScheduled(true)}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all border border-white/5"
+                      title="Scheduled messages"
+                    >
+                      <Icons.Clock />
+                    </button>
+                    <button
+                      onClick={() => setShowNewChat(true)}
+                      className="p-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 transition-all border border-violet-500/30"
+                      title="New message"
+                    >
+                      <Icons.Plus />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
               <Icons.Search />
             </div>
             <input
@@ -1826,23 +1922,23 @@ export default function Messages() {
                 );
               })
           )}
-        </div>
-      </div>
+            </div>
+          </GlassSurface>
 
-      {/* Chat Area */}
-      <div className={clsx(
-        'flex-1 flex flex-col relative',
-        !activeConversation ? 'hidden md:flex' : 'flex'
-      )}>
-        {activeConversation ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 -ml-2 rounded-xl hover:bg-white/5">
-                  <Icons.Back />
-                </button>
-                <div className="relative">
+          {/* Chat Area */}
+          <GlassSurface className={clsx(
+            'flex-1 flex flex-col overflow-hidden',
+            !activeConversation ? 'hidden md:flex' : 'flex'
+          )}>
+            {activeConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="p-4 border-b border-white/10 flex items-center justify-between backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setActiveConversation(null)} className="md:hidden p-2 -ml-2 rounded-xl hover:bg-white/10 transition-colors">
+                      <Icons.Back />
+                    </button>
+                    <div className="relative">
                   <div className={clsx(
                     'w-10 h-10 rounded-full flex items-center justify-center',
                     activeConversation.type === 'group' ? 'bg-violet-500/20' : 'bg-white/10'
@@ -2103,17 +2199,22 @@ export default function Messages() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-white/10">
                 <Icons.User />
               </div>
-              <h2 className="text-xl font-semibold mb-2">Select a conversation</h2>
+              <h2 className="text-xl font-semibold mb-2 bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">Select a conversation</h2>
               <p className="text-gray-400">Choose from your existing conversations or start a new one</p>
             </div>
           </div>
-        )}
+            )}
+          </GlassSurface>
+        </div>
       </div>
+    </main>
 
-      {/* Modals */}
+    <GlassMobileNav />
+
+    {/* Modals */}
       <AnimatePresence>
         {showNewChat && (
           <motion.div

@@ -293,6 +293,7 @@
 
   /* ============================================
      Z-INDEX LAYERS
+     Tooltips should be above most UI elements
      ============================================ */
 
   --z-base: 0;
@@ -303,7 +304,7 @@
   --z-modal: 400;
   --z-popover: 500;
   --z-toast: 600;
-  --z-tooltip: 700;
+  --z-tooltip: 9500; /* Must be high to show above modals, tours, etc. */
 
   /* ============================================
      TYPOGRAPHY

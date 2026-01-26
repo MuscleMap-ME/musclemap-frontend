@@ -1,6 +1,18 @@
 {
   "dist": [
     {
+      "hash": "d01205f8db18527f",
+      "timestamp": "2026-01-26T14:49:17.328Z",
+      "pid": 41099,
+      "hostname": "MacBook-Pro-M2-13.local"
+    },
+    {
+      "hash": "bc3811fedb28ca37",
+      "timestamp": "2026-01-26T14:44:26.713Z",
+      "pid": 35342,
+      "hostname": "MacBook-Pro-M2-13.local"
+    },
+    {
       "hash": "4dbfe5de232b5f56",
       "timestamp": "2026-01-26T14:40:50.825Z",
       "pid": 25426,
@@ -16,18 +28,6 @@
       "hash": "7a0e4e7833bdc177",
       "timestamp": "2026-01-26T05:56:22.915Z",
       "pid": 6975,
-      "hostname": "MacBook-Pro-M2-13.local"
-    },
-    {
-      "hash": "b2adf85d163d2506",
-      "timestamp": "2026-01-26T05:07:30.433Z",
-      "pid": 65925,
-      "hostname": "MacBook-Pro-M2-13.local"
-    },
-    {
-      "hash": "a7a1ec4db584fc28",
-      "timestamp": "2026-01-26T04:57:43.194Z",
-      "pid": 53892,
       "hostname": "MacBook-Pro-M2-13.local"
     }
   ]

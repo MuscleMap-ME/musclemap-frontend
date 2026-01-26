@@ -813,14 +813,21 @@ export const PROFILE_QUERY = gql`
 // MESSAGING
 // ============================================
 
-// Note: Simplified to avoid exceeding query complexity limit of 500
-// Removed nested arrays (participants, typingUsers) which cause high complexity
+// Note: participants is required for displaying usernames in conversation list
+// typingUsers removed to reduce complexity (fetched separately when needed)
 export const CONVERSATIONS_QUERY = gql`
   query Conversations($tab: String) {
     conversations(tab: $tab) {
       id
       type
       name
+      participants {
+        userId
+        username
+        displayName
+        avatarUrl
+        lastActiveAt
+      }
       lastMessage {
         id
         content

@@ -27,6 +27,7 @@ import React, {
   useId,
   useMemo,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useHelp } from './HelpProvider';
@@ -369,94 +370,97 @@ export default function HelpTooltip({
         )}
       </button>
 
-      {/* Tooltip Portal */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            ref={tooltipRef}
-            id={tooltipId}
-            role="tooltip"
-            variants={tooltipVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className={clsx(
-              'fixed z-[var(--z-tooltip)]',
-              'w-72 max-w-[calc(100vw-32px)]',
-              'p-3 rounded-lg',
-              // Glass styling
-              'bg-[var(--glass-white-10)] backdrop-blur-xl',
-              'border border-[var(--border-medium)]',
-              'shadow-[var(--shadow-glass-lg)]'
-            )}
-            style={{
-              top: position.top,
-              left: position.left,
-            }}
-          >
-            {/* Arrow indicator */}
-            <div
+      {/* Tooltip Portal - renders to document.body to avoid clipping */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              ref={tooltipRef}
+              id={tooltipId}
+              role="tooltip"
+              variants={tooltipVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className={clsx(
-                'absolute w-2 h-2 rotate-45',
-                'bg-[var(--glass-white-10)] border-[var(--border-medium)]',
-                position.placement === 'bottom' && '-top-1 border-l border-t',
-                position.placement === 'top' && '-bottom-1 border-r border-b',
-                position.placement === 'left' && '-right-1 border-r border-t',
-                position.placement === 'right' && '-left-1 border-l border-b'
+                'fixed z-[var(--z-tooltip)]',
+                'w-72 max-w-[calc(100vw-32px)]',
+                'p-3 rounded-lg',
+                // Glass styling
+                'bg-[var(--glass-white-10)] backdrop-blur-xl',
+                'border border-[var(--border-medium)]',
+                'shadow-[var(--shadow-glass-lg)]'
               )}
               style={{
-                left: position.placement === 'bottom' || position.placement === 'top' ? '50%' : undefined,
-                top: position.placement === 'left' || position.placement === 'right' ? '50%' : undefined,
-                transform: `translate(-50%, ${position.placement === 'top' ? '50%' : position.placement === 'bottom' ? '-50%' : '0'})`,
+                top: position.top,
+                left: position.left,
               }}
-            />
+            >
+              {/* Arrow indicator */}
+              <div
+                className={clsx(
+                  'absolute w-2 h-2 rotate-45',
+                  'bg-[var(--glass-white-10)] border-[var(--border-medium)]',
+                  position.placement === 'bottom' && '-top-1 border-l border-t',
+                  position.placement === 'top' && '-bottom-1 border-r border-b',
+                  position.placement === 'left' && '-right-1 border-r border-t',
+                  position.placement === 'right' && '-left-1 border-l border-b'
+                )}
+                style={{
+                  left: position.placement === 'bottom' || position.placement === 'top' ? '50%' : undefined,
+                  top: position.placement === 'left' || position.placement === 'right' ? '50%' : undefined,
+                  transform: `translate(-50%, ${position.placement === 'top' ? '50%' : position.placement === 'bottom' ? '-50%' : '0'})`,
+                }}
+              />
 
-            {/* Content */}
-            <div className="relative">
-              {/* Term title */}
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
-                {helpContent.term}
-              </h4>
+              {/* Content */}
+              <div className="relative">
+                {/* Term title */}
+                <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                  {helpContent.term}
+                </h4>
 
-              {/* Explanation */}
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                {helpContent.explanation}
-              </p>
+                {/* Explanation */}
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                  {helpContent.explanation}
+                </p>
 
-              {/* Learn more link */}
-              {helpContent.learnMoreUrl && (
-                <a
-                  href={helpContent.learnMoreUrl}
-                  className={clsx(
-                    'inline-flex items-center gap-1 mt-2',
-                    'text-xs font-medium text-[var(--brand-blue-400)]',
-                    'hover:text-[var(--brand-blue-300)] transition-colors'
-                  )}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Learn more
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
+                {/* Learn more link */}
+                {helpContent.learnMoreUrl && (
+                  <a
+                    href={helpContent.learnMoreUrl}
+                    className={clsx(
+                      'inline-flex items-center gap-1 mt-2',
+                      'text-xs font-medium text-[var(--brand-blue-400)]',
+                      'hover:text-[var(--brand-blue-300)] transition-colors'
+                    )}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <path
-                      d="M4.5 3L7.5 6L4.5 9"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </a>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    Learn more
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M4.5 3L7.5 6L4.5 9"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }
