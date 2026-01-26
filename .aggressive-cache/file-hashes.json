@@ -493,7 +493,7 @@
   "src/graphql/fragments.ts": "f981b473c1beb2390a750bed35eabfd8",
   "src/graphql/index.ts": "863017695da868f202abaf5f76d89a57",
   "src/graphql/mutations.ts": "ab5d566abaf5b9c9b34bf21ec8acb995",
-  "src/graphql/queries.ts": "551ae4841a4477547538e47c9d283884",
+  "src/graphql/queries.ts": "06214ca5b0f9da8d28e50e50e26e50fb",
   "src/hooks/index.ts": "9b1f3990c8dcf9f82d736dfa7a5cecd3",
   "src/hooks/use3DMemoryManager.ts": "af1d697f35004b9bab7ee2734bb94598",
   "src/hooks/useAdaptiveLoading.ts": "13465473c903050e51541869d09e7253",

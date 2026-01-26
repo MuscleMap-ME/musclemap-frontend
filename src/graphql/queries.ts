@@ -4297,13 +4297,13 @@ export const NUTRITION_DASHBOARD_QUERY = gql`
       }
       todaySummary {
         date
-        calories
-        protein
-        carbs
-        fat
-        fiber
-        water
-        mealsLogged
+        totalCalories
+        totalProteinG
+        totalCarbsG
+        totalFatG
+        totalFiberG
+        waterMl
+        mealCount
       }
       streaks {
         currentLoggingStreak
