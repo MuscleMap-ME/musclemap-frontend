@@ -61,7 +61,7 @@ This document provides a complete technical overview of the MuscleMap production
             /metrics│                       │
                     ▼                       ▼
 ┌──────────────────────────────┐   ┌─────────────────────┐
-│     NODE.JS API SERVER       │   │   STATIC ASSETS     │
+│     BUN API SERVER           │   │   STATIC ASSETS     │
 │  (Fastify + GraphQL)         │   │   /var/www/.../dist │
 │  127.0.0.1:3001              │   │                     │
 └──────────────────────────────┘   └─────────────────────┘
@@ -101,7 +101,7 @@ This document provides a complete technical overview of the MuscleMap production
 **Observations:**
 - The EPYC 9354P is a server-grade processor with excellent IPC
 - 2 cores is sufficient for current load but limits parallelism
-- Node.js cluster mode can utilize both cores effectively
+- Bun uses fork mode (2 instances) to utilize both cores
 - CPU is rarely the bottleneck; memory and I/O are more constrained
 
 ### Memory
@@ -122,7 +122,7 @@ This document provides a complete technical overview of the MuscleMap production
 │ Redis              │  ~50 MB (currently 2MB used)       │
 │ PgBouncer          │  ~20 MB                            │
 │ Caddy              │  ~50 MB                            │
-│ Node.js API        │  ~300-500 MB per instance          │
+│ Bun API            │  ~200-300 MB per instance          │
 │ Bug Hunter         │  ~500-800 MB (Playwright)          │
 │ Build processes    │  ~2-4 GB (temporary)               │
 │ Buffer/Cache       │  ~1-2 GB                           │
@@ -131,7 +131,7 @@ This document provides a complete technical overview of the MuscleMap production
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Critical Constraint:** Vite builds require ~4GB RAM. Must stop PM2 processes before building on the server.
+**Critical Constraint:** Vite builds require ~4GB RAM. Build on dev machine and rsync dist/ to server (never build frontend on server).
 
 ### Storage
 | Property | Value |
@@ -163,9 +163,9 @@ This document provides a complete technical overview of the MuscleMap production
 ### Runtime & Languages
 | Component | Version | Purpose |
 |-----------|---------|---------|
-| Node.js | 20.19.2 LTS | API server runtime |
+| Bun | 1.3.6+ | API server runtime (faster than Node.js) |
 | pnpm | 10.26.2 | Package manager |
-| TypeScript | 5.x | Type-safe development |
+| TypeScript | 5.x | Type-safe development (Bun runs TS natively) |
 
 ### Databases & Caching
 | Component | Version | Purpose |
@@ -182,7 +182,7 @@ This document provides a complete technical overview of the MuscleMap production
 ### Process Management
 | Component | Version | Purpose |
 |-----------|---------|---------|
-| PM2 | Latest | Node.js process management |
+| PM2 | Latest | Bun/Rust process management |
 | systemd | System | Service management |
 
 ---
@@ -196,7 +196,7 @@ This document provides a complete technical overview of the MuscleMap production
 | 80 | 0.0.0.0 | Caddy (HTTP→HTTPS redirect) | Public |
 | 443 | 0.0.0.0 | Caddy (HTTPS) | Public |
 | 2019 | 127.0.0.1 | Caddy Admin API | Internal |
-| 3001 | 127.0.0.1 | Node.js API | Internal |
+| 3001 | 127.0.0.1 | Bun API | Internal |
 | 5432 | 127.0.0.1 | PostgreSQL | Internal |
 | 6379 | 127.0.0.1 | Redis | Internal |
 | 6432 | 127.0.0.1 | PgBouncer | Internal |

@@ -190,7 +190,7 @@ const retryLink = new RetryLink({
  * Also logs errors to QA session if active for passive testing
  * Also completes tracing spans with error status
  */
-const errorLink = onError(({ graphQLErrors, networkError, operation, response }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   // End the tracing span with error if present
   const context = operation.getContext();
   if (context?.spanId) {
@@ -227,9 +227,20 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, response })
 
       // Handle authentication errors
       if (extensions?.code === 'UNAUTHENTICATED') {
-        // Clear auth and redirect to login (using resilient storage)
-        storage.removeItem('musclemap-auth');
-        window.location.href = '/login';
+        // Don't redirect for login/register mutations - let the component handle the error
+        const operationName = operation.operationName?.toLowerCase() || '';
+        const isAuthOperation = operationName === 'login' || operationName === 'register';
+
+        // Also don't redirect if we're already on the login page
+        const isOnLoginPage = typeof window !== 'undefined' &&
+          (window.location.pathname === '/login' || window.location.pathname === '/signup');
+
+        if (!isAuthOperation && !isOnLoginPage) {
+          // Clear auth and redirect to login (using resilient storage)
+          storage.removeItem('musclemap-auth');
+          window.location.href = '/login';
+        }
+        // Otherwise, let the component handle the error naturally
       }
     }
   }
@@ -488,7 +499,7 @@ export function garbageCollectCache(): { collected: number } {
     // Apollo's gc() returns the number of unreachable objects removed
     const result = cache.gc();
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Apollo GC] Collected ${result.length} unreachable cache entries`);
+      console.info(`[Apollo GC] Collected ${result.length} unreachable cache entries`);
     }
     return { collected: result.length };
   } catch (error) {
