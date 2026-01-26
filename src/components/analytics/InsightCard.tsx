@@ -20,26 +20,30 @@ export interface InsightCardProps {
   className?: string;
 }
 
-const typeStyles: Record<InsightType, { gradient: string; border: string; iconBg: string }> = {
+const typeStyles: Record<InsightType, { gradient: string; border: string; iconBg: string; bgBase: string }> = {
   positive: {
-    gradient: 'from-emerald-500/20 to-teal-500/20',
-    border: 'border-emerald-500/30',
-    iconBg: 'bg-emerald-500/20',
+    gradient: 'from-emerald-500/40 to-teal-500/30',
+    border: 'border-emerald-500/50',
+    iconBg: 'bg-emerald-500/30',
+    bgBase: 'bg-emerald-950/60',
   },
   warning: {
-    gradient: 'from-amber-500/20 to-orange-500/20',
-    border: 'border-amber-500/30',
-    iconBg: 'bg-amber-500/20',
+    gradient: 'from-amber-500/40 to-orange-500/30',
+    border: 'border-amber-500/50',
+    iconBg: 'bg-amber-500/30',
+    bgBase: 'bg-amber-950/60',
   },
   info: {
-    gradient: 'from-blue-500/20 to-cyan-500/20',
-    border: 'border-blue-500/30',
-    iconBg: 'bg-blue-500/20',
+    gradient: 'from-blue-500/40 to-cyan-500/30',
+    border: 'border-blue-500/50',
+    iconBg: 'bg-blue-500/30',
+    bgBase: 'bg-blue-950/60',
   },
   neutral: {
-    gradient: 'from-slate-500/20 to-gray-500/20',
-    border: 'border-slate-500/30',
-    iconBg: 'bg-slate-500/20',
+    gradient: 'from-slate-500/40 to-gray-500/30',
+    border: 'border-slate-500/50',
+    iconBg: 'bg-slate-500/30',
+    bgBase: 'bg-slate-900/60',
   },
 };
 
@@ -66,9 +70,11 @@ export const InsightCard: React.FC<InsightCardProps> = ({
 
   return (
     <div
-      className={`rounded-xl bg-gradient-to-r ${styles.gradient} border ${styles.border} p-4 ${className}`}
+      className={`relative overflow-hidden rounded-xl ${styles.bgBase} backdrop-blur-md border ${styles.border} p-4 ${className}`}
     >
-      <div className="flex items-start gap-3">
+      {/* Gradient overlay */}
+      <div className={`absolute inset-0 rounded-xl bg-gradient-to-r ${styles.gradient} pointer-events-none`} />
+      <div className="relative flex items-start gap-3">
         {icon && (
           <div className={`w-10 h-10 rounded-lg ${styles.iconBg} flex items-center justify-center text-xl flex-shrink-0`}>
             {icon}

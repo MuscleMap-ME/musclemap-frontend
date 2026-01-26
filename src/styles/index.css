@@ -176,6 +176,10 @@
   --prismatic-4: rgba(100, 150, 255, 0.3);
   --prismatic-5: rgba(200, 100, 255, 0.3);
 
+  /* Glass surface semantic aliases (used by components) */
+  --surface-glass: var(--glass-white-8);
+  --border-glow: rgba(255, 255, 255, 0.2);
+
   /* ============================================
      BLUR & GLASS PROPERTIES
      ============================================ */
