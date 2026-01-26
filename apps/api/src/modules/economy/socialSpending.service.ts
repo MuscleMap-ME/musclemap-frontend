@@ -224,7 +224,7 @@ export const socialSpendingService = {
     const totalCost = item.priceCredits + giftFee;
 
     // Charge sender
-    const idempotencyKey = `gift-${senderId}-${recipientId}-${itemSku}-${Date.now()}`;
+    const idempotencyKey = `gift-${senderId}-${recipientId}-${itemSku}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const chargeResult = await creditService.charge({
       userId: senderId,
       action: 'social.gift',
@@ -371,7 +371,7 @@ export const socialSpendingService = {
     const cost = SUPER_HIGH_FIVE_COSTS[type];
 
     // Charge sender
-    const idempotencyKey = `shf-${senderId}-${recipientId}-${type}-${Date.now()}`;
+    const idempotencyKey = `shf-${senderId}-${recipientId}-${type}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const chargeResult = await creditService.charge({
       userId: senderId,
       action: `social.high_five_${type}`,
@@ -433,7 +433,7 @@ export const socialSpendingService = {
     }
 
     // Charge user
-    const idempotencyKey = `boost-${userId}-${targetType}-${targetId}-${Date.now()}`;
+    const idempotencyKey = `boost-${userId}-${targetType}-${targetId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const chargeResult = await creditService.charge({
       userId,
       action: 'social.post_boost',

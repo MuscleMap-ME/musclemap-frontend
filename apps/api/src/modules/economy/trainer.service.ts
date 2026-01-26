@@ -707,7 +707,7 @@ export const trainerService = {
         amount: classData.creditsPerStudent,
         action: 'class_enrollment',
         metadata: { classId, classTitle: classData.title },
-        idempotencyKey: `class_enrollment:${userId}:${classId}:${Date.now()}`,
+        idempotencyKey: `class_enrollment:${userId}:${classId}:${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
       });
 
       paymentTxId = chargeResult.ledgerEntryId;

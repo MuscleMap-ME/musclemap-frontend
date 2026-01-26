@@ -281,7 +281,7 @@ export const storeService = {
 
     // Process purchase
     const inventoryId = `inv_${crypto.randomBytes(12).toString('hex')}`;
-    const idempotencyKey = `purchase-${userId}-${sku}-${Date.now()}`;
+    const idempotencyKey = `purchase-${userId}-${sku}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
     try {
       const result = await serializableTransaction(async (client) => {
