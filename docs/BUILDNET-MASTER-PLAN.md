@@ -14,6 +14,10 @@ BuildNet is a **high-performance native build orchestration system** with:
 - **Remote control via SMS/Email** for headless operation
 - **Resource monitoring** (CPU, memory, disk, cluster nodes)
 - **Historical reporting** with scheduled delivery
+- **Distributed build orchestration** across multiple servers
+- **Visual resource management** (CPU cores, RAM, storage tiers)
+- **Intelligent work distribution** with latency-aware scheduling
+- **Storage tier optimization** (RAM disk, NVMe, SSD, HDD, network)
 
 ## Current Status (Completed)
 
@@ -473,6 +477,297 @@ remote_control:
 
 ---
 
+## Phase 10: Resource Management & Distributed Builds
+
+> **Detailed documentation:** See [BUILDNET-RESOURCE-MANAGEMENT.md](./BUILDNET-RESOURCE-MANAGEMENT.md)
+
+### 10.1 CPU Core Management
+
+**Performance Normalization (BPU - BuildNet Performance Units):**
+- 1 BPU = Intel Core i5-10400 @ 2.9GHz single-threaded reference
+- Automatic benchmarking on first run
+- Per-core performance profiling (P-cores vs E-cores)
+- NUMA topology awareness for memory locality
+
+```yaml
+resources:
+  cpu:
+    cores:
+      - id: 0
+        physical_id: 0
+        performance_bpu: 1.45
+        type: "performance"
+        assigned_to: null
+      - id: 1
+        physical_id: 0
+        performance_bpu: 0.72
+        type: "efficiency"
+        assigned_to: "build-queue-1"
+
+    allocation:
+      default: "all"           # Use all cores by default
+      reserved_for_system: 1   # Keep 1 core for OS
+      strategy: "performance"  # performance, balanced, efficiency
+```
+
+**Core Assignment:**
+- Assign specific cores to build tasks
+- Priority-based core allocation
+- Automatic load balancing
+- Core affinity for cache optimization
+
+### 10.2 Storage Tier System
+
+**Tier Hierarchy:**
+| Tier | Type | Typical Speed | Use Case |
+|------|------|---------------|----------|
+| 0 | RAM Disk (tmpfs) | 10+ GB/s | Hot caches, temp files |
+| 1 | NVMe SSD | 3-7 GB/s | Active builds, artifacts |
+| 2 | SATA SSD | 500-550 MB/s | Warm cache, backups |
+| 3 | HDD | 100-200 MB/s | Cold storage, archives |
+| 4 | Network (NFS/S3) | Variable | Shared artifacts |
+
+**Storage Configuration:**
+```yaml
+storage:
+  tiers:
+    - tier: 0
+      name: "RAM Cache"
+      path: "/dev/shm/buildnet"
+      type: "ramdisk"
+      capacity_mb: 2048
+      measured_speed_mbps: 12500
+      latency_us: 0.1
+
+    - tier: 1
+      name: "NVMe Primary"
+      path: "/var/buildnet/cache"
+      type: "nvme"
+      capacity_mb: 102400
+      measured_speed_mbps: 6800
+      latency_us: 10
+
+    - tier: 2
+      name: "SSD Archive"
+      path: "/mnt/ssd/buildnet"
+      type: "ssd"
+      capacity_mb: 512000
+      measured_speed_mbps: 520
+      latency_us: 50
+```
+
+**Automatic Tier Selection:**
+- Place hot artifacts in fastest available tier
+- Demote cold artifacts to slower tiers
+- Size-based placement (large files to HDD)
+- Access pattern analysis
+
+### 10.3 Distributed Build Orchestration
+
+**Cluster Architecture:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     BuildNet Coordinator                        │
+│                    (Primary Control Node)                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│   │  Worker A   │    │  Worker B   │    │  Worker C   │        │
+│   │  4 cores    │    │  8 cores    │    │  16 cores   │        │
+│   │  6.2 BPU    │    │  12.8 BPU   │    │  28.4 BPU   │        │
+│   │  NVMe+SSD   │    │  NVMe only  │    │  RAM+NVMe   │        │
+│   └─────────────┘    └─────────────┘    └─────────────┘        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Distribution Strategies:**
+| Strategy | Description | Best For |
+|----------|-------------|----------|
+| `smart` | AI-based optimal distribution | General use |
+| `round_robin` | Equal distribution to all nodes | Consistent workloads |
+| `least_loaded` | Send to least busy node | Variable workloads |
+| `fastest` | Send to highest BPU node | Time-critical builds |
+| `locality` | Keep related files together | Large monorepos |
+
+**Task Partitioning:**
+- **Package-level**: Distribute entire packages to different nodes
+- **File-level**: Split large package builds across nodes
+- **Hybrid**: Packages distributed, hot files cached locally
+
+### 10.4 Network Topology & Latency
+
+**Latency Measurement:**
+```yaml
+network:
+  topology:
+    coordinator:
+      address: "10.0.1.1:9876"
+      location: "us-east-1"
+
+    workers:
+      - name: "worker-a"
+        address: "10.0.1.10:9877"
+        location: "us-east-1"
+        latency_to_coordinator_ms: 0.5
+        bandwidth_mbps: 10000
+
+      - name: "worker-b"
+        address: "10.0.2.10:9877"
+        location: "us-west-2"
+        latency_to_coordinator_ms: 45
+        bandwidth_mbps: 1000
+```
+
+**Latency-Aware Scheduling:**
+- Measure real-time latency between all nodes
+- Route latency-sensitive tasks to nearby nodes
+- Batch large transfers during low-activity periods
+- Predict transfer times for scheduling
+
+### 10.5 Configuration Profiles
+
+**Speed Priority:**
+```yaml
+profiles:
+  speed:
+    name: "Maximum Speed"
+    description: "Minimize build time at any cost"
+    cpu_strategy: "all_cores"
+    storage_preference: "fastest"
+    distribution: "fastest"
+    network_preference: "lowest_latency"
+    cache_policy: "aggressive"
+```
+
+**Bandwidth Saver:**
+```yaml
+profiles:
+  bandwidth_saver:
+    name: "Bandwidth Saver"
+    description: "Minimize network transfer"
+    cpu_strategy: "local_only"
+    storage_preference: "local"
+    distribution: "locality"
+    network_preference: "minimize_transfer"
+    cache_policy: "aggressive_local"
+```
+
+**Cost Optimized:**
+```yaml
+profiles:
+  cost_optimized:
+    name: "Cost Optimized"
+    description: "Use cheapest resources"
+    cpu_strategy: "efficiency_cores"
+    storage_preference: "cheapest"
+    distribution: "least_loaded"
+    network_preference: "batch_transfers"
+    cache_policy: "minimal"
+```
+
+### 10.6 Visual Management Interfaces
+
+**Web UI Tabs:**
+
+1. **Overview Dashboard**
+   - Real-time cluster status
+   - Active builds progress
+   - Resource utilization gauges
+   - Quick action buttons
+
+2. **Nodes Tab**
+   - Visual node cards with specs
+   - Per-node CPU/RAM/disk meters
+   - Drag-to-assign tasks
+   - Node health indicators
+
+3. **Storage Tab**
+   - Tier comparison chart
+   - Capacity/usage breakdown
+   - Speed benchmark results
+   - File browser per tier
+
+4. **Topology Tab**
+   - Interactive network graph
+   - Latency heatmap
+   - Bandwidth flow visualization
+   - Connection status indicators
+
+5. **Queue Tab**
+   - Build queue management
+   - Drag-to-reorder
+   - Priority adjustment
+   - Resource allocation per build
+
+**CLI Interface:**
+```bash
+# Resource discovery
+buildnetd resources list
+buildnetd resources benchmark
+
+# CPU management
+buildnetd cpu cores
+buildnetd cpu assign --core 0 --task build-123
+buildnetd cpu profile
+
+# Storage management
+buildnetd storage tiers
+buildnetd storage benchmark
+buildnetd storage optimize
+
+# Cluster management
+buildnetd cluster status
+buildnetd cluster nodes
+buildnetd cluster add-worker <address>
+buildnetd cluster remove-worker <name>
+
+# Distribution
+buildnetd distribute --strategy smart
+buildnetd queue list
+buildnetd queue add --package api --priority high
+
+# Profiles
+buildnetd profile list
+buildnetd profile use speed
+buildnetd profile create custom.yaml
+```
+
+### 10.7 Build Queue System
+
+**Queue Configuration:**
+```yaml
+queue:
+  max_concurrent: 4
+  priority_levels:
+    - name: "critical"
+      weight: 100
+      max_wait_secs: 10
+    - name: "high"
+      weight: 50
+      max_wait_secs: 60
+    - name: "normal"
+      weight: 10
+      max_wait_secs: 300
+    - name: "low"
+      weight: 1
+      max_wait_secs: 3600
+
+  scheduling:
+    algorithm: "weighted_fair"
+    preemption: true
+    starvation_prevention: true
+```
+
+**Queue Management:**
+- Add builds with priority
+- Reorder queue visually
+- Cancel/pause builds
+- Resource reservation
+- ETA calculation
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -534,6 +829,50 @@ remote_control:
 │                                                │                              │
 │   Slack /buildnet ──► Events Webhook ─────────┴──► Execute ──► Response      │
 │                                                                               │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                     Resource Management Architecture                           │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │                    Resource Discovery Engine                          │    │
+│  │  CPU Profiler ──► Core Topology ──► BPU Benchmark ──► Assignment     │    │
+│  │  (sysinfo)       (NUMA aware)      (normalized)      (per-task)      │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                     │
+│  ┌──────────────────────────────────────┴────────────────────────────────┐   │
+│  │                         Storage Tier Manager                           │   │
+│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   ┌─────────┐  │   │
+│  │  │ Tier 0      │    │ Tier 1      │    │ Tier 2      │   │ Tier 3  │  │   │
+│  │  │ RAM Disk    │◄──►│ NVMe SSD    │◄──►│ SATA SSD    │◄─►│ HDD     │  │   │
+│  │  │ 10+ GB/s    │    │ 3-7 GB/s    │    │ 500 MB/s    │   │ 150MB/s │  │   │
+│  │  │ Hot Cache   │    │ Build Files │    │ Warm Cache  │   │ Archive │  │   │
+│  │  └─────────────┘    └─────────────┘    └─────────────┘   └─────────┘  │   │
+│  └────────────────────────────────────────────────────────────────────────┘   │
+│                                                                               │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                      Distributed Build Cluster                                 │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌───────────────────────────────────────────────────────────────────────┐  │
+│   │                        Cluster Coordinator                             │  │
+│   │  Task Scheduler │ Load Balancer │ Latency Monitor │ Fault Handler     │  │
+│   └───────────────────────────────────────────────────────────────────────┘  │
+│                                         │                                     │
+│        ┌────────────────────────────────┼────────────────────────────────┐   │
+│        │                                │                                │   │
+│        ▼                                ▼                                ▼   │
+│   ┌─────────┐                     ┌─────────┐                     ┌─────────┐│
+│   │Worker A │◄────── 0.5ms ──────►│ Coord.  │◄────── 45ms ──────►│Worker B ││
+│   │ 4 cores │                     │         │                     │ 8 cores ││
+│   │ 6.2 BPU │                     │         │                     │12.8 BPU ││
+│   │NVMe+SSD │                     │         │                     │NVMe     ││
+│   └─────────┘                     └─────────┘                     └─────────┘│
+│        │                                                               │      │
+│        └───────────────────── 50ms latency ────────────────────────────┘      │
+│                                                                               │
+│   Distribution: smart │ round_robin │ fastest │ locality                      │
+│   Partitioning: package │ file │ hybrid                                       │
+│                                                                               │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -574,6 +913,14 @@ remote_control:
 24. Separate repository
 25. npm/cargo package publishing
 26. Community plugins
+27. **CPU core discovery & BPU benchmarking**
+28. **Storage tier management (RAM/NVMe/SSD/HDD)**
+29. **Distributed build orchestration**
+30. **Cluster coordinator & worker nodes**
+31. **Latency-aware task scheduling**
+32. **Visual resource management UI**
+33. **Build queue with priority levels**
+34. **Configuration profiles (speed/bandwidth/cost)**
 
 ---
 
@@ -601,10 +948,18 @@ packages/buildnet-native/
 │       │   │   └── push.rs             # Firebase push
 │       │   ├── commands.rs             # Remote command handler
 │       │   └── reports.rs              # Report generator
-│       └── monitoring/                 # Resource monitoring (NEW)
-│           ├── mod.rs                  # Monitor coordinator
-│           ├── system.rs               # CPU/memory/disk
-│           └── cluster.rs              # Node health
+│       ├── monitoring/                 # Resource monitoring (NEW)
+│       │   ├── mod.rs                  # Monitor coordinator
+│       │   ├── system.rs               # CPU/memory/disk
+│       │   └── cluster.rs              # Node health
+│       └── resources/                  # Resource management (NEW)
+│           ├── mod.rs                  # Resource manager entry
+│           ├── cpu.rs                  # CPU discovery, BPU benchmarking
+│           ├── storage.rs              # Storage tiers, benchmarking
+│           ├── network.rs              # Latency measurement, topology
+│           ├── cluster.rs              # Distributed coordination
+│           ├── scheduler.rs            # Task distribution strategies
+│           └── queue.rs                # Priority build queue
 ├── buildnet-daemon/                    # HTTP daemon
 │   ├── src/
 │   │   ├── main.rs                     # CLI entry
@@ -619,16 +974,26 @@ packages/buildnet-native/
 .buildnet/
 ├── config.json                         # Package configuration
 ├── notifications.yaml                  # Notification config (NEW)
+├── resources.yaml                      # Resource management config (NEW)
+├── profiles/                           # Configuration profiles (NEW)
+│   ├── speed.yaml                      # Maximum speed profile
+│   ├── bandwidth_saver.yaml            # Minimize network transfer
+│   └── cost_optimized.yaml             # Use cheapest resources
 ├── state.db                            # SQLite state database
+├── resources.db                        # Resource state (NEW)
 ├── events.db                           # Event/command log (NEW)
 ├── cache/                              # Artifact cache directory
-└── reports/                            # Generated reports (NEW)
+├── reports/                            # Generated reports (NEW)
+└── benchmarks/                         # Benchmark results (NEW)
+    ├── cpu_cores.json                  # Per-core BPU measurements
+    └── storage_tiers.json              # Storage speed benchmarks
 ```
 
 ## Documentation
 
 - [BuildNet Master Plan](./BUILDNET-MASTER-PLAN.md) - This document
 - [BuildNet Notification System](./BUILDNET-NOTIFICATION-SYSTEM.md) - Detailed notification docs
+- [BuildNet Resource Management](./BUILDNET-RESOURCE-MANAGEMENT.md) - Distributed builds & resources
 - [BuildNet API Reference](./BUILDNET-API.md) - REST/WebSocket API
 - [BuildNet Configuration](./BUILDNET-CONFIG.md) - Configuration options
 
