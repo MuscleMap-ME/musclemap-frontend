@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "buildnet": "./dist/cli/daemon-cli.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -32,7 +35,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs');const f='dist/cli/daemon-cli.js';const c=fs.readFileSync(f,'utf8');fs.writeFileSync(f,'#!/usr/bin/env node\\n'+c.replace(/^#!.*\\n/,''));fs.chmodSync(f,'755')\"",
     "watch": "tsc -w",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint src/",
