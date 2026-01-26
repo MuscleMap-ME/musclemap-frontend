@@ -13,7 +13,7 @@ export async function initTU(): Promise<void> {
     const mod = await import('../../pkg/musclemap_tu/musclemap_tu.js');
     await mod.default?.();
     // Test that it actually works
-    mod.tu_calculate_simple(new Float32Array([50]), new Uint32Array([1]), new Float32Array([1.0]), 1, 1);
+    mod.tu_calculate_simple(new Float32Array([50]), new Int32Array([1]), new Float32Array([1.0]), 1, 1);
     wasmModule = mod;
   } catch (e) {
     console.warn('[tu] WASM module not available, using JS fallback');

@@ -50,6 +50,7 @@ let nativeModules: {
 // Try to load native modules
 try {
   // Dynamic import to handle module resolution
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const native = require('@musclemap/native');
   nativeModules = {
     tu_calculate: native.tu_calculate,
