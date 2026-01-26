@@ -244,7 +244,7 @@ export async function flushSpans(): Promise<void> {
   pendingSpans.push(...remaining);
 
   try {
-    const response = await fetch('/api/trace-log', {
+    const response = await fetch('/api/trace/frontend-log', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -272,7 +272,7 @@ if (typeof window !== 'undefined') {
     const completedSpans = pendingSpans.filter((s) => s.status !== 'in_progress');
     if (completedSpans.length > 0 && navigator.sendBeacon) {
       navigator.sendBeacon(
-        '/api/trace-log',
+        '/api/trace/frontend-log',
         JSON.stringify({ spans: completedSpans })
       );
     }
