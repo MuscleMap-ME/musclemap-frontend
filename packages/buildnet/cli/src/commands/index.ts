@@ -14,14 +14,12 @@ export {
 export {
   listNodesCommand,
   showNodeCommand,
-  type NodeCommandOptions,
 } from './node.js';
 
 export {
   listBundlersCommand,
   switchBundlerCommand,
-  showActiveBundlerCommand,
-  type BundlerCommandOptions,
+  activeBundlerCommand,
 } from './bundler.js';
 
 export {
@@ -29,7 +27,6 @@ export {
   enablePluginCommand,
   disablePluginCommand,
   showPluginCommand,
-  type PluginCommandOptions,
 } from './plugin.js';
 
 export {

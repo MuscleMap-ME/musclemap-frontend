@@ -14,12 +14,10 @@ import type { Lock, StateBackend, StateCapabilities } from '../types/index.js';
 
 // Dynamic import for mongodb (optional dependency)
 let MongoClient: typeof import('mongodb').MongoClient | undefined;
-let Collection: typeof import('mongodb').Collection | undefined;
 
 try {
   const mongodb = await import('mongodb');
   MongoClient = mongodb.MongoClient;
-  Collection = mongodb.Collection;
 } catch {
   // mongodb not installed
 }
@@ -236,9 +234,11 @@ export class MongoDBBackend implements StateBackend {
         { fullDocument: 'updateLookup' },
       );
 
-      this.changeStream.on('change', (change: import('mongodb').ChangeStreamInsertDocument<PubSubDocument>) => {
-        if (change.operationType === 'insert' && change.fullDocument) {
-          const { channel, message } = change.fullDocument;
+      this.changeStream.on('change', (change) => {
+        // Type assertion since we know this is from PubSubDocument collection
+        const doc = change as { operationType: string; fullDocument?: PubSubDocument };
+        if (doc.operationType === 'insert' && doc.fullDocument) {
+          const { channel, message } = doc.fullDocument;
           const subscribers = this.subscriptions.get(channel);
           if (subscribers) {
             for (const callback of subscribers) {
@@ -394,6 +394,45 @@ export class MongoDBBackend implements StateBackend {
     return this.del(key);
   }
 
+  /**
+   * Set a key only if it doesn't exist (atomic operation).
+   * Uses MongoDB's insertOne which throws on duplicate key.
+   */
+  async setIfNotExists(key: string, value: string, ttlMs?: number): Promise<boolean> {
+    if (!this.kvCollection) return false;
+
+    const start = this.metricsEnabled ? performance.now() : 0;
+    const now = new Date();
+
+    const doc: KVDocument = {
+      _id: key,
+      value,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (ttlMs) {
+      doc.expiresAt = new Date(now.getTime() + ttlMs);
+    }
+
+    try {
+      await this.kvCollection.insertOne(doc);
+
+      if (this.metricsEnabled) {
+        this.writeCount++;
+        this.totalWriteLatency += performance.now() - start;
+      }
+
+      return true;
+    } catch (error) {
+      // Duplicate key error means key already exists
+      if ((error as { code?: number }).code === 11000) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (!this.kvCollection) return [];
 
@@ -423,7 +462,7 @@ export class MongoDBBackend implements StateBackend {
       this.totalReadLatency += performance.now() - start;
     }
 
-    return docs.map((d) => d._id);
+    return docs.map((d) => d._id as string);
   }
 
   async acquireLock(resource: string, ttlMs: number): Promise<Lock | null> {

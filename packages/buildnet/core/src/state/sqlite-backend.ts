@@ -17,11 +17,12 @@ import { hostname } from 'node:os';
 import type { Lock, StateBackend, StateCapabilities } from '../types/index.js';
 
 // Dynamic import for better-sqlite3 (optional dependency)
-let Database: ((filename: string, options?: import('better-sqlite3').DatabaseOptions) => import('better-sqlite3').Database) | undefined;
+type DatabaseConstructor = new (filename: string, options?: import('better-sqlite3').DatabaseOptions) => import('better-sqlite3').Database;
+let DatabaseClass: DatabaseConstructor | undefined;
 
 try {
   const betterSqlite3 = await import('better-sqlite3');
-  Database = betterSqlite3.default;
+  DatabaseClass = betterSqlite3.default as unknown as DatabaseConstructor;
 } catch {
   // better-sqlite3 not installed
 }
@@ -133,7 +134,7 @@ export class SQLiteBackend implements StateBackend {
 
   private config: SQLiteBackendConfig;
   private dbPath: string;
-  private db: ReturnType<typeof Database> | null = null;
+  private db: import('better-sqlite3').Database | null = null;
   private connected = false;
   private subscriptions: Map<string, Set<(message: string) => void>> = new Map();
   private pollInterval: NodeJS.Timeout | null = null;
@@ -192,7 +193,7 @@ export class SQLiteBackend implements StateBackend {
   }
 
   async connect(): Promise<void> {
-    if (!Database) {
+    if (!DatabaseClass) {
       throw new Error(
         'SQLite backend requires better-sqlite3 package. Install with: pnpm add better-sqlite3',
       );
@@ -205,7 +206,7 @@ export class SQLiteBackend implements StateBackend {
     }
 
     // Open database
-    this.db = new Database(this.dbPath);
+    this.db = new DatabaseClass(this.dbPath);
 
     // Configure database
     this.configurePragmas();
@@ -441,6 +442,36 @@ export class SQLiteBackend implements StateBackend {
   /** Alias for del() for API consistency */
   async delete(key: string): Promise<void> {
     return this.del(key);
+  }
+
+  /**
+   * Set a key only if it doesn't exist (atomic operation).
+   * Uses SQLite's INSERT OR IGNORE which is atomic.
+   */
+  async setIfNotExists(key: string, value: string, ttlMs?: number): Promise<boolean> {
+    if (!this.db) return false;
+
+    const start = this.metricsEnabled ? performance.now() : 0;
+    const now = Date.now();
+    const expiresAt = ttlMs ? now + ttlMs : null;
+
+    // First, clean up any expired entry with the same key
+    this.db.prepare('DELETE FROM kv_store WHERE key = ? AND expires_at IS NOT NULL AND expires_at < ?').run(key, now);
+
+    // Try to insert (will fail silently if key exists)
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO kv_store (key, value, expires_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(key, value, expiresAt, now, now);
+
+    if (this.metricsEnabled) {
+      this.writeCount++;
+      this.totalWriteLatency += performance.now() - start;
+    }
+
+    return result.changes > 0;
   }
 
   async keys(pattern: string): Promise<string[]> {

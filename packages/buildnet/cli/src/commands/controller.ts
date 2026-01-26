@@ -78,7 +78,7 @@ export async function startControllerCommand(
   if (stateConfig.backend === 'auto') {
     stateBackend = await autoDetectBackend(stateConfig, logger);
   } else {
-    stateBackend = createBackend(stateConfig.backend, stateConfig, logger);
+    stateBackend = createBackend(stateConfig.backend as 'dragonfly' | 'redis' | 'file' | 'memory' | 'sqlite' | 'mongodb', stateConfig);
   }
 
   await stateBackend.connect();

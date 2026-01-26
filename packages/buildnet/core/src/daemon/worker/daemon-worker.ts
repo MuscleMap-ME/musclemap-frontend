@@ -160,14 +160,26 @@ export class DaemonWorker extends EventEmitter {
 
     // Attempt atomic claim
     const claimKey = `work:${bundleId}:claimed`;
-    const claimed = await this.state.setIfNotExists(
-      claimKey,
-      JSON.stringify({
-        worker_id: this.config.worker_id,
-        claimed_at: new Date().toISOString(),
-      }),
-      300000 // 5 minute TTL
-    );
+    const claimValue = JSON.stringify({
+      worker_id: this.config.worker_id,
+      claimed_at: new Date().toISOString(),
+    });
+
+    let claimed: boolean;
+
+    if (this.state.setIfNotExists) {
+      // Prefer atomic setIfNotExists if available
+      claimed = await this.state.setIfNotExists(claimKey, claimValue, 300000);
+    } else {
+      // Fallback: check-then-set (not perfectly atomic but works for single-node)
+      const existing = await this.state.get(claimKey);
+      if (existing) {
+        claimed = false;
+      } else {
+        await this.state.set(claimKey, claimValue, 300000);
+        claimed = true;
+      }
+    }
 
     if (!claimed) {
       return false;
@@ -393,9 +405,11 @@ export class DaemonWorker extends EventEmitter {
   }
 
   private async broadcastGossip(message: GossipMessage): Promise<void> {
-    // Store in gossip channel
-    const channel = `gossip:${message.type}`;
-    await this.state.publish(channel, JSON.stringify(message));
+    // Store in gossip channel (if pub/sub is available)
+    if (this.state.publish) {
+      const channel = `gossip:${message.type}`;
+      await this.state.publish(channel, JSON.stringify(message));
+    }
   }
 
   private async releaseClaim(bundleId: string): Promise<void> {

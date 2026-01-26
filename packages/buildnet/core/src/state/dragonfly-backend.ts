@@ -142,6 +142,27 @@ export class DragonflyBackend implements StateBackend {
     return this.del(key);
   }
 
+  /**
+   * Set a key only if it doesn't exist (atomic operation).
+   * Uses Redis SET NX command which is atomic.
+   */
+  async setIfNotExists(key: string, value: string, ttlMs?: number): Promise<boolean> {
+    if (!this.client) throw new Error('Not connected');
+
+    const prefixedKey = this.prefixKey(key);
+
+    // SET with NX (only if not exists) and optionally PX (expiry in ms)
+    // This works for both with and without TTL
+    const args: [string, string, ...string[]] = [prefixedKey, value];
+    if (ttlMs !== undefined && ttlMs > 0) {
+      args.push('PX', String(ttlMs));
+    }
+    args.push('NX');
+
+    const result = await this.client.set(...args);
+    return result === 'OK';
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (!this.client) throw new Error('Not connected');
 

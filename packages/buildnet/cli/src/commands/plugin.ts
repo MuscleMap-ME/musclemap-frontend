@@ -13,22 +13,25 @@ export async function listPluginsCommand(
   controller: BuildController,
 ): Promise<void> {
   const pluginLoader = controller.getPluginLoader();
-  const plugins = pluginLoader.list();
+  const pluginNames = pluginLoader.list();
 
   console.log('\n🔌 Plugins\n');
 
-  if (plugins.length === 0) {
+  if (pluginNames.length === 0) {
     console.log('   No plugins loaded');
   } else {
     console.log('   Name            Version  Hook         Enabled');
     console.log('   ─────────────────────────────────────────────');
 
-    for (const plugin of plugins) {
-      const hooks = Object.keys(plugin.plugin.hooks).join(', ');
+    for (const name of pluginNames) {
+      const plugin = pluginLoader.get(name);
+      if (!plugin) continue;
+
+      const hooks = Object.keys(plugin.hooks).join(', ') || 'none';
       const enabled = plugin.enabled ? '✅' : '❌';
 
       console.log(
-        `   ${plugin.name.padEnd(15)} ${plugin.plugin.version.padEnd(8)} ${hooks.padEnd(12)} ${enabled}`,
+        `   ${plugin.name.padEnd(15)} ${plugin.version.padEnd(8)} ${hooks.padEnd(12)} ${enabled}`,
       );
     }
   }
@@ -57,8 +60,8 @@ export async function enablePluginCommand(
     console.error(`❌ Plugin ${pluginName} not found`);
 
     console.log('\nAvailable plugins:');
-    for (const plugin of pluginLoader.list()) {
-      console.log(`   - ${plugin.name}`);
+    for (const name of pluginLoader.list()) {
+      console.log(`   - ${name}`);
     }
 
     process.exit(1);
@@ -107,15 +110,15 @@ export async function showPluginCommand(
 
   console.log('\n🔌 Plugin Details\n');
   console.log(`   Name:        ${loaded.name}`);
-  console.log(`   Version:     ${loaded.plugin.version}`);
+  console.log(`   Version:     ${loaded.version}`);
   console.log(`   Enabled:     ${loaded.enabled ? 'Yes' : 'No'}`);
-  console.log(`   Hot-swap:    ${loaded.plugin.hotSwappable ? 'Yes' : 'No'}`);
+  console.log(`   Hot-swap:    ${loaded.hotSwappable ? 'Yes' : 'No'}`);
 
-  const hooks = Object.keys(loaded.plugin.hooks);
+  const hooks = Object.keys(loaded.hooks);
   console.log(`   Hooks:       ${hooks.join(', ') || 'none'}`);
 
-  if (loaded.plugin.dependencies?.length) {
-    console.log(`   Dependencies: ${loaded.plugin.dependencies.join(', ')}`);
+  if (loaded.dependencies?.length) {
+    console.log(`   Dependencies: ${loaded.dependencies.join(', ')}`);
   }
 
   console.log();

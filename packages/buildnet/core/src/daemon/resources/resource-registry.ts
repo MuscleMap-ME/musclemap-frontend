@@ -345,7 +345,10 @@ export class ResourceRegistry extends EventEmitter {
       if (!r.capabilities) return false;
       const cap = r.capabilities[capability];
       if (value === undefined) return cap !== undefined;
-      if (Array.isArray(cap)) return cap.includes(value);
+      if (Array.isArray(cap)) {
+        // Type-safe includes check for arrays
+        return (cap as unknown[]).includes(value);
+      }
       return cap === value;
     });
   }
