@@ -49,6 +49,11 @@ let rankLib: any = null;
 // ============================================
 
 /**
+ * Detect if running under Bun runtime
+ */
+const isBun = typeof (globalThis as any).Bun !== 'undefined';
+
+/**
  * Try to load FFI modules and native libraries
  */
 function initializeNativeModules(): void {
@@ -58,7 +63,14 @@ function initializeNativeModules(): void {
     return;
   }
 
-  // Try to load ffi-napi and ref-napi
+  // Bun has its own FFI system (bun:ffi), but for now use JS fallback
+  // Native ffi-napi/ref-napi modules don't work with Bun
+  if (isBun) {
+    console.log('[native] Running under Bun runtime - using JS fallback (Bun FFI support coming soon)');
+    return;
+  }
+
+  // Try to load ffi-napi and ref-napi (Node.js only)
   try {
     ffiModule = require('ffi-napi');
     refModule = require('ref-napi');
