@@ -14,6 +14,7 @@ import { useQuery, useMutation } from '@apollo/client/react';
 import { useAuth } from '../store';
 import {
   PT_TESTS_BY_INSTITUTION_QUERY,
+  PT_TEST_QUERY,
   MY_ARCHETYPE_PT_TEST_QUERY,
   PT_TEST_RESULTS_QUERY,
   RECORD_PT_TEST_RESULT_MUTATION,
@@ -148,21 +149,12 @@ function PTTestCard({
         </div>
         <Icons.ChevronRight className="w-5 h-5 text-[var(--text-quaternary)]" />
       </div>
-      {test.components && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {test.components.slice(0, 3).map(comp => (
-            <span
-              key={comp.id}
-              className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-tertiary)]"
-            >
-              {comp.name}
-            </span>
-          ))}
-          {test.components.length > 3 && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-tertiary)]">
-              +{test.components.length - 3} more
-            </span>
-          )}
+      {/* Show category badge - components fetched separately when test is selected */}
+      {test.category && (
+        <div className="mt-3">
+          <span className="px-2 py-0.5 rounded-full text-xs bg-[var(--glass-white-10)] text-[var(--text-tertiary)] capitalize">
+            {test.category.replace(/_/g, ' ')}
+          </span>
         </div>
       )}
     </motion.button>
@@ -497,15 +489,8 @@ export default function PTTests() {
   const [activeTab, setActiveTab] = useState('tests');
 
   // GraphQL Queries - PT tests list is public data
-  const { data: testsData, loading: testsLoading, error: testsError, networkStatus, refetch: refetchTests } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
-    fetchPolicy: 'network-only', // Force network request to bypass any cache issues
-    notifyOnNetworkStatusChange: true,
-    onError: (err) => {
-      console.error('[PTTests] GraphQL error:', err.message, err.graphQLErrors, err.networkError);
-    },
-    onCompleted: (data) => {
-      console.info('[PTTests] Query completed:', data ? 'got data' : 'no data');
-    },
+  const { data: testsData, loading: testsLoading } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
+    fetchPolicy: 'cache-and-network',
   });
 
   const { data: archetypeTestData } = useQuery(MY_ARCHETYPE_PT_TEST_QUERY, {
@@ -516,6 +501,13 @@ export default function PTTests() {
   const { data: resultsData, refetch: refetchResults } = useQuery(PT_TEST_RESULTS_QUERY, {
     variables: { limit: 20 },
     skip: !isAuthenticated,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // Fetch selected test details (includes components)
+  const { data: selectedTestData, loading: selectedTestLoading } = useQuery(PT_TEST_QUERY, {
+    variables: { id: selectedTest?.id },
+    skip: !selectedTest?.id,
     fetchPolicy: 'cache-and-network',
   });
 
@@ -543,16 +535,13 @@ export default function PTTests() {
     return resultsData?.ptTestResults || [];
   }, [resultsData]);
 
-  // Debug effect - will remove after fixing
-  useEffect(() => {
-    console.info('[PTTests] Query state:', {
-      testsLoading,
-      testsData: testsData ? JSON.stringify(testsData).slice(0, 200) : 'null',
-      testsError: testsError?.message || 'none',
-      byInstitution: testsData?.ptTestsByInstitution?.byInstitution ? 'present' : 'null',
-      institutionCount: Object.keys(testsByInstitution).length,
-    });
-  }, [testsLoading, testsData, testsError, testsByInstitution]);
+  // Selected test with full details (including components)
+  const selectedTestWithDetails: PTTest | null = useMemo(() => {
+    if (selectedTestData?.ptTest) {
+      return selectedTestData.ptTest;
+    }
+    return selectedTest;
+  }, [selectedTestData, selectedTest]);
 
   // Handlers
   const handleRecordResult = useCallback(
@@ -667,32 +656,11 @@ export default function PTTests() {
               <div className="grid lg:grid-cols-2 gap-6">
                 {/* Test List */}
                 <div className="space-y-4">
-                  {/* Debug info - visible on page */}
-                  {Object.keys(testsByInstitution).length === 0 && (
-                    <div className="p-4 bg-yellow-500/20 rounded-lg text-yellow-200 text-sm space-y-2">
-                      <div><strong>Debug:</strong> No tests loaded.</div>
-                      <div>testsData: {testsData ? 'present' : 'null'}</div>
-                      <div>byInstitution: {testsData?.ptTestsByInstitution?.byInstitution ? 'present' : 'null'}</div>
-                      <div>loading: {testsLoading ? 'true' : 'false'}</div>
-                      <div>networkStatus: {networkStatus} (1=loading, 4=ready, 7=refetch)</div>
-                      {testsError && (
-                        <div className="text-red-300">
-                          <strong>Error:</strong> {testsError.message}
-                          {testsError.graphQLErrors?.map((e, i) => (
-                            <div key={i}>GraphQL: {e.message}</div>
-                          ))}
-                          {testsError.networkError && (
-                            <div>Network: {String(testsError.networkError)}</div>
-                          )}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => refetchTests()}
-                        className="mt-2 px-3 py-1 bg-blue-500 rounded text-white text-xs"
-                      >
-                        Force Refetch
-                      </button>
-                    </div>
+                  {Object.keys(testsByInstitution).length === 0 && !testsLoading && (
+                    <GlassSurface className="p-8 text-center" depth="subtle">
+                      <Icons.Shield className="w-12 h-12 mx-auto mb-3 text-[var(--text-quaternary)]" />
+                      <p className="text-[var(--text-tertiary)]">No fitness tests available</p>
+                    </GlassSurface>
                   )}
                   {Object.entries(testsByInstitution).map(([institution, institutionTests]) => (
                     <div key={institution}>
@@ -716,10 +684,17 @@ export default function PTTests() {
                 {/* Test Detail */}
                 <div className="lg:sticky lg:top-24 lg:h-fit">
                   {selectedTest ? (
-                    <PTTestDetail
-                      test={selectedTest}
-                      onRecordResult={handleOpenRecordModal}
-                    />
+                    selectedTestLoading ? (
+                      <GlassSurface className="p-12 text-center" depth="subtle">
+                        <div className="w-8 h-8 mx-auto border-2 border-[var(--brand-blue-500)] border-t-transparent rounded-full animate-spin" />
+                        <p className="mt-4 text-[var(--text-tertiary)]">Loading test details...</p>
+                      </GlassSurface>
+                    ) : (
+                      <PTTestDetail
+                        test={selectedTestWithDetails || selectedTest}
+                        onRecordResult={handleOpenRecordModal}
+                      />
+                    )
                   ) : (
                     <GlassSurface className="p-12 text-center" depth="subtle">
                       <Icons.Shield className="w-16 h-16 mx-auto mb-4 text-[var(--text-quaternary)]" />
