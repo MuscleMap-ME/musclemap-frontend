@@ -434,13 +434,15 @@ class JSRateLimiter {
 
 /**
  * Simple string hash to uint64 for rate limiter user ID
+ * Returns as string for ref-napi uint64 compatibility
  */
-function hashStringToUint64(str: string): bigint {
+function hashStringToUint64(str: string): string {
   let hash = BigInt(5381);
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << BigInt(5)) + hash) ^ BigInt(str.charCodeAt(i));
   }
-  return hash & BigInt('0xFFFFFFFFFFFFFFFF'); // Ensure it fits in uint64
+  // ref-napi requires uint64 as string representation
+  return (hash & BigInt('0xFFFFFFFFFFFFFFFF')).toString();
 }
 
 /**
