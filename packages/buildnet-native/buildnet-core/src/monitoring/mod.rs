@@ -169,13 +169,15 @@ impl ResourceMonitor {
 
     /// Get current resource usage
     pub fn get_usage(&self) -> ResourceUsage {
-        use sysinfo::{System, SystemExt, CpuExt, DiskExt};
+        use sysinfo::{System, Disks};
 
         let mut sys = System::new_all();
         sys.refresh_all();
 
-        // CPU usage
-        let cpu_percent = sys.global_cpu_info().cpu_usage() as f64;
+        // CPU usage - average across all CPUs
+        let cpu_percent = sys.cpus().iter()
+            .map(|c| c.cpu_usage() as f64)
+            .sum::<f64>() / sys.cpus().len().max(1) as f64;
 
         // Memory usage
         let memory_used = sys.used_memory();
@@ -187,8 +189,8 @@ impl ResourceMonitor {
         };
 
         // Disk usage
-        let disk: Vec<DiskUsage> = sys
-            .disks()
+        let disks = Disks::new_with_refreshed_list();
+        let disk: Vec<DiskUsage> = disks
             .iter()
             .filter(|d| {
                 let mount = d.mount_point().to_string_lossy();

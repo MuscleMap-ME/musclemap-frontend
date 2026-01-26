@@ -151,15 +151,15 @@ impl Default for WorkerCapabilities {
 impl WorkerCapabilities {
     /// Create capabilities from system info
     pub fn from_system() -> Self {
-        use sysinfo::{System, SystemExt, DiskExt};
+        use sysinfo::{System, Disks};
 
         let mut sys = System::new_all();
         sys.refresh_all();
 
         let cpu_cores = sys.cpus().len();
         let memory_bytes = sys.total_memory();
-        let disk_bytes = sys.disks()
-            .iter()
+        let disks = Disks::new_with_refreshed_list();
+        let disk_bytes = disks.iter()
             .map(|d| d.available_space())
             .max()
             .unwrap_or(0);

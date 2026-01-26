@@ -1,6 +1,7 @@
 //! System monitoring utilities
 
 use serde::Serialize;
+use sysinfo::{System, Pid};
 
 /// System information
 #[derive(Debug, Clone, Serialize)]
@@ -24,16 +25,14 @@ pub struct SystemInfo {
 impl SystemInfo {
     /// Get current system information
     pub fn current() -> Self {
-        use sysinfo::{System, SystemExt, CpuExt};
-
         let mut sys = System::new_all();
         sys.refresh_all();
 
         Self {
-            hostname: sys.host_name().unwrap_or_else(|| "unknown".into()),
-            os: sys.name().unwrap_or_else(|| "unknown".into()),
-            os_version: sys.os_version().unwrap_or_else(|| "unknown".into()),
-            kernel_version: sys.kernel_version().unwrap_or_else(|| "unknown".into()),
+            hostname: System::host_name().unwrap_or_else(|| "unknown".into()),
+            os: System::name().unwrap_or_else(|| "unknown".into()),
+            os_version: System::os_version().unwrap_or_else(|| "unknown".into()),
+            kernel_version: System::kernel_version().unwrap_or_else(|| "unknown".into()),
             cpu_count: sys.cpus().len(),
             total_memory: sys.total_memory(),
             cpu_brand: sys.cpus().first().map(|c| c.brand().to_string()).unwrap_or_else(|| "unknown".into()),
@@ -57,13 +56,11 @@ pub struct ProcessInfo {
 impl ProcessInfo {
     /// Get current process information
     pub fn current() -> Self {
-        use sysinfo::{ProcessExt, System, SystemExt, Pid};
-
         let mut sys = System::new_all();
         sys.refresh_all();
 
         let pid = std::process::id();
-        let process = sys.process(Pid::from(pid as usize));
+        let process = sys.process(Pid::from_u32(pid));
 
         match process {
             Some(p) => Self {

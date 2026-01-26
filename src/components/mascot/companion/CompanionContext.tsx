@@ -2,6 +2,8 @@
  * CompanionContext
  *
  * Provides state management for the user's personal companion creature.
+ * Uses GraphQL via Apollo Client for all data operations.
+ *
  * Handles:
  * - Companion state (stage, XP, cosmetics, abilities)
  * - Upgrades and purchasing
@@ -17,13 +19,102 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { useQuery, useMutation } from '@apollo/client/react';
+import {
+  MASCOT_STATE_QUERY,
+  MASCOT_SHOP_QUERY,
+  MASCOT_PENDING_REACTIONS_QUERY,
+} from '@/graphql/queries';
+import {
+  UPDATE_MASCOT_NICKNAME_MUTATION,
+  UPDATE_MASCOT_SETTINGS_MUTATION,
+  PURCHASE_MASCOT_COSMETIC_MUTATION,
+  EQUIP_MASCOT_COSMETIC_MUTATION,
+  MARK_MASCOT_REACTIONS_SEEN_MUTATION,
+} from '@/graphql/mutations';
 
-const CompanionContext = createContext(null);
+interface MascotProgression {
+  currentXp: number;
+  prevStageXp: number;
+  nextStageXp: number;
+  progressPercent: number;
+  isMaxStage: boolean;
+}
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+interface MascotState {
+  id: string;
+  userId: string;
+  nickname: string | null;
+  stage: number;
+  xp: number;
+  progression: MascotProgression;
+  isVisible: boolean;
+  isMinimized: boolean;
+  soundsEnabled: boolean;
+  tipsEnabled: boolean;
+  createdAt: string;
+}
+
+interface MascotCosmetic {
+  id: string;
+  itemKey: string;
+  name: string;
+  description?: string;
+  slot: string;
+  rarity: string;
+  price: number;
+  requiredStage?: number;
+  assetUrl?: string;
+}
+
+interface MascotShopItem {
+  slotNumber: number;
+  cosmetic: MascotCosmetic;
+  discountPercent: number;
+  finalPrice: number;
+  expiresAt?: string;
+  owned: boolean;
+}
+
+interface MascotReaction {
+  id: string;
+  eventId: string;
+  reactionType: string;
+  emotionLevel: number;
+  message: string;
+  animationType: string;
+  soundEffect?: string;
+  xpAwarded: number;
+  createdAt: string;
+}
+
+interface CompanionContextType {
+  // State
+  state: MascotState | null;
+  stageName: string;
+  upgradesData: { balance: number; upgrades: MascotShopItem[] };
+  events: MascotReaction[];
+  reaction: MascotReaction | null;
+  panelOpen: boolean;
+  loading: boolean;
+  error: Error | null;
+  reducedMotion: boolean;
+
+  // Actions
+  setPanelOpen: (open: boolean) => void;
+  updateSettings: (settings: { isVisible?: boolean; isMinimized?: boolean; soundsEnabled?: boolean; tipsEnabled?: boolean }) => Promise<void>;
+  setNickname: (nickname: string) => Promise<{ success: boolean; error?: string }>;
+  purchaseUpgrade: (upgradeId: string) => Promise<{ success: boolean; error?: string; upgrade?: MascotCosmetic }>;
+  equipCosmetic: (slot: string, upgradeId: string) => Promise<{ success: boolean; error?: string }>;
+  showReaction: (event: MascotReaction) => void;
+  getNextTip: () => Promise<{ tip: string | null; reason: string }>;
+  refetch: () => Promise<void>;
+}
+
+const CompanionContext = createContext<CompanionContextType | null>(null);
 
 // Stage progression thresholds
-const STAGE_NAMES = {
+const STAGE_NAMES: Record<number, string> = {
   1: 'Baby',
   2: 'Adolescent',
   3: 'Capable',
@@ -32,14 +123,9 @@ const STAGE_NAMES = {
   6: 'Magnificent',
 };
 
-export function CompanionProvider({ children }) {
-  const [state, setState] = useState(null);
-  const [upgradesData, setUpgradesData] = useState({ balance: 0, upgrades: [] });
-  const [events, setEvents] = useState([]);
-  const [reaction, setReaction] = useState(null);
+export function CompanionProvider({ children }: { children: React.ReactNode }) {
+  const [reaction, setReaction] = useState<MascotReaction | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Check for reduced motion preference
   const reducedMotion = useMemo(() => {
@@ -47,224 +133,194 @@ export function CompanionProvider({ children }) {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Auth headers
-  const getHeaders = useCallback(() => {
-    const token = localStorage.getItem('musclemap_token');
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    };
-  }, []);
+  // Fetch companion state via GraphQL
+  const {
+    data: stateData,
+    loading: stateLoading,
+    error: stateError,
+    refetch: refetchState,
+  } = useQuery(MASCOT_STATE_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !localStorage.getItem('musclemap_token'),
+  });
 
-  // Fetch companion state
-  const fetchState = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/state`, {
-        headers: getHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setState(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch companion state:', err);
-      setError(err);
-    }
-  }, [getHeaders]);
+  // Fetch shop items via GraphQL
+  const {
+    data: shopData,
+    loading: shopLoading,
+    refetch: refetchShop,
+  } = useQuery(MASCOT_SHOP_QUERY, {
+    fetchPolicy: 'cache-and-network',
+    skip: !localStorage.getItem('musclemap_token'),
+  });
 
-  // Fetch available upgrades
-  const fetchUpgrades = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/upgrades`, {
-        headers: getHeaders(),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUpgradesData(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch upgrades:', err);
-    }
-  }, [getHeaders]);
+  // Fetch pending reactions via GraphQL
+  const {
+    data: reactionsData,
+    refetch: refetchReactions,
+  } = useQuery(MASCOT_PENDING_REACTIONS_QUERY, {
+    variables: { limit: 5 },
+    fetchPolicy: 'cache-and-network',
+    skip: !localStorage.getItem('musclemap_token') || !stateData?.mascot?.isVisible,
+    pollInterval: 30000, // Poll every 30 seconds
+  });
 
-  // Fetch recent events (for reactions)
-  const fetchEvents = useCallback(async () => {
-    if (!state?.is_visible) return;
+  // Mutations
+  const [updateNicknameMutation] = useMutation(UPDATE_MASCOT_NICKNAME_MUTATION);
+  const [updateSettingsMutation] = useMutation(UPDATE_MASCOT_SETTINGS_MUTATION);
+  const [purchaseCosmeticMutation] = useMutation(PURCHASE_MASCOT_COSMETIC_MUTATION);
+  const [equipCosmeticMutation] = useMutation(EQUIP_MASCOT_COSMETIC_MUTATION);
+  const [markReactionsSeenMutation] = useMutation(MARK_MASCOT_REACTIONS_SEEN_MUTATION);
 
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/mascot/companion/events/recent?unreacted_only=true&limit=5`,
-        { headers: getHeaders() }
-      );
+  // Extract state from query response
+  const state = stateData?.mascot || null;
+  const loading = stateLoading || shopLoading;
+  const error = stateError || null;
 
-      if (res.ok) {
-        const data = await res.json();
-        const newEvents = data.data || [];
+  // Extract events from reactions query - memoized to prevent useMemo dependency issues
+  const events = useMemo(
+    () => reactionsData?.mascotPendingReactions || [],
+    [reactionsData?.mascotPendingReactions]
+  );
 
-        if (newEvents.length > 0) {
-          setEvents((prev) => [...newEvents, ...prev].slice(0, 20));
+  // Handle new reactions
+  useEffect(() => {
+    if (events.length > 0 && !reducedMotion && state?.isVisible) {
+      // Show reaction for first pending event
+      showReaction(events[0]);
 
-          // Show reaction for first unreacted event
-          if (!reducedMotion) {
-            showReaction(newEvents[0]);
-          }
-
-          // Mark events as reacted
-          await fetch(`${API_BASE}/api/mascot/companion/events/mark-reacted`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ eventIds: newEvents.map((e) => e.id) }),
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch events:', err);
+      // Mark reactions as seen
+      const reactionIds = events.map((e: MascotReaction) => e.id);
+      markReactionsSeenMutation({
+        variables: { reactionIds },
+      }).catch(console.error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getHeaders, state?.is_visible, reducedMotion]);
+  }, [events.length, reducedMotion, state?.isVisible]);
 
   // Show a reaction animation
-  const showReaction = useCallback((event) => {
+  const showReaction = useCallback((event: MascotReaction) => {
     setReaction(event);
     setTimeout(() => setReaction(null), 3500);
   }, []);
 
   // Update settings
-  const updateSettings = useCallback(async (settings) => {
+  const updateSettings = useCallback(async (settings: {
+    isVisible?: boolean;
+    isMinimized?: boolean;
+    soundsEnabled?: boolean;
+    tipsEnabled?: boolean;
+  }) => {
     try {
-      await fetch(`${API_BASE}/api/mascot/companion/settings`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(settings),
+      await updateSettingsMutation({
+        variables: { input: settings },
+        optimisticResponse: {
+          updateMascotSettings: {
+            ...state,
+            ...settings,
+            __typename: 'MascotState',
+          },
+        },
       });
-      setState((prev) => ({ ...prev, ...settings }));
     } catch (err) {
       console.error('Failed to update settings:', err);
       throw err;
     }
-  }, [getHeaders]);
+  }, [updateSettingsMutation, state]);
 
   // Set nickname
-  const setNickname = useCallback(async (nickname) => {
+  const setNickname = useCallback(async (nickname: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/nickname`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({ nickname }),
+      const { data } = await updateNicknameMutation({
+        variables: { nickname },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setState((prev) => ({ ...prev, nickname: data.data.nickname }));
+      if (data?.updateMascotNickname) {
         return { success: true };
       }
 
-      const error = await res.json();
-      return { success: false, error: error.error?.message };
+      return { success: false, error: 'Failed to update nickname' };
     } catch (err) {
       console.error('Failed to set nickname:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: (err as Error).message };
     }
-  }, [getHeaders]);
+  }, [updateNicknameMutation]);
 
   // Purchase upgrade
-  const purchaseUpgrade = useCallback(async (upgradeId) => {
+  const purchaseUpgrade = useCallback(async (upgradeId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/upgrades/${upgradeId}/purchase`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({}),
+      const { data } = await purchaseCosmeticMutation({
+        variables: { cosmeticId: upgradeId },
       });
 
-      const data = await res.json();
+      if (data?.purchaseMascotCosmetic?.success) {
+        await refetchState();
+        await refetchShop();
 
-      if (res.ok) {
-        await fetchState();
-        await fetchUpgrades();
-        showReaction({ event_type: 'upgrade_purchased', event_data: data.data });
-        return { success: true, upgrade: data.data.upgrade };
+        // Show reaction for purchase
+        showReaction({
+          id: `purchase-${upgradeId}`,
+          eventId: upgradeId,
+          reactionType: 'upgrade_purchased',
+          emotionLevel: 5,
+          message: 'New cosmetic acquired!',
+          animationType: 'celebrate',
+          xpAwarded: 0,
+          createdAt: new Date().toISOString(),
+        });
+
+        return { success: true, upgrade: data.purchaseMascotCosmetic.cosmetic };
       }
 
-      return { success: false, error: data.error?.message || 'Purchase failed' };
+      return {
+        success: false,
+        error: data?.purchaseMascotCosmetic?.error || 'Purchase failed',
+      };
     } catch (err) {
       console.error('Failed to purchase upgrade:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: (err as Error).message };
     }
-  }, [getHeaders, fetchState, fetchUpgrades, showReaction]);
+  }, [purchaseCosmeticMutation, refetchState, refetchShop, showReaction]);
 
   // Equip cosmetic
-  const equipCosmetic = useCallback(async (slot, upgradeId) => {
+  const equipCosmetic = useCallback(async (slot: string, upgradeId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/cosmetics/equip`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ slot, upgradeId }),
+      const { data } = await equipCosmeticMutation({
+        variables: { cosmeticId: upgradeId, slot },
       });
 
-      if (res.ok) {
-        await fetchState();
+      if (data?.equipMascotCosmetic) {
+        await refetchState();
         return { success: true };
       }
 
-      const error = await res.json();
-      return { success: false, error: error.error?.message };
+      return { success: false, error: 'Failed to equip cosmetic' };
     } catch (err) {
       console.error('Failed to equip cosmetic:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: (err as Error).message };
     }
-  }, [getHeaders, fetchState]);
+  }, [equipCosmeticMutation, refetchState]);
 
-  // Get next tip
+  // Get next tip - simplified, could be enhanced with a dedicated query
   const getNextTip = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/mascot/companion/tips/next`, {
-        headers: getHeaders(),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        return data.data;
-      }
-
-      return { tip: null, reason: 'error' };
-    } catch (err) {
-      console.error('Failed to get tip:', err);
-      return { tip: null, reason: 'error' };
-    }
-  }, [getHeaders]);
+    // Tips are now part of reactions, return empty for now
+    // This could be enhanced with a dedicated mascotNextTip query
+    return { tip: null, reason: 'no_tips_available' };
+  }, []);
 
   // Refetch all data
-  const refetch = useCallback(() => {
-    return Promise.all([fetchState(), fetchUpgrades()]);
-  }, [fetchState, fetchUpgrades]);
-
-  // Initial load
-  useEffect(() => {
-    const token = localStorage.getItem('musclemap_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    Promise.all([fetchState(), fetchUpgrades()])
-      .finally(() => setLoading(false));
-  }, [fetchState, fetchUpgrades]);
-
-  // Poll for events periodically
-  useEffect(() => {
-    if (!state?.is_visible) return;
-
-    // Initial fetch
-    fetchEvents();
-
-    // Poll every 30 seconds
-    const interval = setInterval(fetchEvents, 30000);
-
-    return () => clearInterval(interval);
-  }, [state?.is_visible, fetchEvents]);
+  const refetch = useCallback(async () => {
+    await Promise.all([refetchState(), refetchShop(), refetchReactions()]);
+  }, [refetchState, refetchShop, refetchReactions]);
 
   // Computed values
   const stageName = state ? STAGE_NAMES[state.stage] || 'Unknown' : '';
+
+  // Transform shop data to match expected format
+  const upgradesData = useMemo(() => ({
+    balance: 0, // Balance comes from user economy, not companion
+    upgrades: shopData?.mascotShop || [],
+  }), [shopData]);
 
   const value = useMemo(() => ({
     // State

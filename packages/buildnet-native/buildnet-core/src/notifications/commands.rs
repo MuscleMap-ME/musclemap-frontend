@@ -264,7 +264,15 @@ impl RemoteControlManager {
 
     /// Create a confirmation request
     pub async fn request_confirmation(&self, cmd: ParsedCommand, sender_id: &str) -> String {
-        let confirmation_id = format!("{:08x}", rand::random::<u32>());
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Generate a pseudo-random confirmation ID using current time and sender
+        let mut hasher = DefaultHasher::new();
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0).hash(&mut hasher);
+        sender_id.hash(&mut hasher);
+        let confirmation_id = format!("{:08x}", hasher.finish() as u32);
+
         let mut pending = self.pending_confirmations.write().await;
         pending.insert(
             confirmation_id.clone(),

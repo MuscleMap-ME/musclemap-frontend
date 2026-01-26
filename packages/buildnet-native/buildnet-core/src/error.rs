@@ -73,6 +73,24 @@ pub enum BuildNetError {
 
     #[error("Distributed build error: {0}")]
     Distributed(String),
+
+    #[error("Replication error: {0}")]
+    Replication(String),
+
+    #[error("Failover error: {0}")]
+    Failover(String),
+
+    #[error("Recovery error: {0}")]
+    Recovery(String),
+
+    #[error("REAPI error: {0}")]
+    Reapi(String),
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    #[error("Invalid command: {0}")]
+    InvalidCommand(String),
 }
 
 impl From<r2d2::Error> for BuildNetError {

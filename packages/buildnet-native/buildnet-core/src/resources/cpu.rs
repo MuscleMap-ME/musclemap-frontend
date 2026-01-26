@@ -149,14 +149,26 @@ impl CpuManager {
     /// Set process priority based on tier
     #[cfg(unix)]
     pub fn set_process_priority(&self, pid: u32, tier: CpuTier) -> std::io::Result<()> {
-        use nix::sys::resource::{setpriority, Priority, Which};
-        use nix::unistd::Pid;
+        use std::process::Command;
 
         let nice_value = tier.nice_value();
-        setpriority(Which::Process, Pid::from_raw(pid as i32), nice_value)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-        Ok(())
+        // Use renice command to set priority
+        let output = Command::new("renice")
+            .args(["-n", &nice_value.to_string(), "-p", &pid.to_string()])
+            .output()?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            // Non-critical failure - process will run with default priority
+            tracing::debug!(
+                "Could not set process priority for pid {}: {}",
+                pid,
+                String::from_utf8_lossy(&output.stderr)
+            );
+            Ok(())
+        }
     }
 
     #[cfg(not(unix))]

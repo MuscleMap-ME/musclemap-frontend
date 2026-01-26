@@ -2187,3 +2187,93 @@ export const VOTE_LOCATION_COMMENT_MUTATION = gql`
     }
   }
 `;
+
+// ============================================
+// MASCOT / COMPANION
+// ============================================
+
+export const UPDATE_MASCOT_NICKNAME_MUTATION = gql`
+  mutation UpdateMascotNickname($nickname: String!) {
+    updateMascotNickname(nickname: $nickname) {
+      id
+      nickname
+      stage
+      xp
+      isVisible
+      isMinimized
+      soundsEnabled
+      tipsEnabled
+    }
+  }
+`;
+
+export const UPDATE_MASCOT_SETTINGS_MUTATION = gql`
+  mutation UpdateMascotSettings($input: MascotSettingsInput!) {
+    updateMascotSettings(input: $input) {
+      id
+      nickname
+      stage
+      xp
+      isVisible
+      isMinimized
+      soundsEnabled
+      tipsEnabled
+    }
+  }
+`;
+
+export const PURCHASE_MASCOT_COSMETIC_MUTATION = gql`
+  mutation PurchaseMascotCosmetic($cosmeticId: ID!) {
+    purchaseMascotCosmetic(cosmeticId: $cosmeticId) {
+      success
+      error
+      cosmetic {
+        id
+        itemKey
+        name
+        slot
+        rarity
+        price
+      }
+      newBalance
+    }
+  }
+`;
+
+export const EQUIP_MASCOT_COSMETIC_MUTATION = gql`
+  mutation EquipMascotCosmetic($cosmeticId: ID!, $slot: String!) {
+    equipMascotCosmetic(cosmeticId: $cosmeticId, slot: $slot) {
+      skin { id itemKey name slot assetUrl }
+      eyes { id itemKey name slot assetUrl }
+      outfit { id itemKey name slot assetUrl }
+      accessory { id itemKey name slot assetUrl }
+      aura { id itemKey name slot assetUrl }
+      trail { id itemKey name slot assetUrl }
+      emoteVictory { id itemKey name slot assetUrl }
+      emoteDefeat { id itemKey name slot assetUrl }
+      emoteIdle { id itemKey name slot assetUrl }
+    }
+  }
+`;
+
+export const UNEQUIP_MASCOT_COSMETIC_MUTATION = gql`
+  mutation UnequipMascotCosmetic($slot: String!) {
+    unequipMascotCosmetic(slot: $slot) {
+      skin { id itemKey name slot assetUrl }
+      eyes { id itemKey name slot assetUrl }
+      outfit { id itemKey name slot assetUrl }
+      accessory { id itemKey name slot assetUrl }
+      aura { id itemKey name slot assetUrl }
+      trail { id itemKey name slot assetUrl }
+      emoteVictory { id itemKey name slot assetUrl }
+      emoteDefeat { id itemKey name slot assetUrl }
+      emoteIdle { id itemKey name slot assetUrl }
+    }
+  }
+`;
+
+export const MARK_MASCOT_REACTIONS_SEEN_MUTATION = gql`
+  mutation MarkMascotReactionsSeen($reactionIds: [ID!]!) {
+    markMascotReactionsSeen(reactionIds: $reactionIds)
+  }
+`;

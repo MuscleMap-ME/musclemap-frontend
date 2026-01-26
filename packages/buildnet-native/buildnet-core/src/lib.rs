@@ -10,6 +10,8 @@
 //! - Resource monitoring and metrics export
 //! - Distributed build orchestration
 //! - Template system with hot-swapping
+//! - High availability with failover and replication
+//! - REAPI compatibility for enterprise builds
 
 pub mod state;
 pub mod cache;
@@ -25,6 +27,8 @@ pub mod distributed;
 pub mod templates;
 pub mod integrations;
 pub mod sessions;
+pub mod redundancy;
+pub mod reapi;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -39,6 +43,8 @@ pub use distributed::{DistributedOrchestrator, WorkerNode, BuildTask};
 pub use templates::{TemplateEngine, BuildTemplate};
 pub use integrations::{GitHubClient, MuscleMapClient};
 pub use sessions::{SessionManager, UserSession, AuthLevel};
+pub use redundancy::{RedundancyCoordinator, FailoverManager, CheckpointManager};
+pub use reapi::{ExecutionService, ContentAddressableStorage, ActionCache};
 
 /// BuildNet version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

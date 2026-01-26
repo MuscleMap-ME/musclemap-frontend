@@ -266,8 +266,7 @@ impl ReportGenerator {
         let cached_builds = builds
             .iter()
             .filter(|b| {
-                b.tier.as_deref() == Some("InstantSkip") ||
-                b.tier.as_deref() == Some("CacheRestore")
+                matches!(b.status, BuildStatus::Cached | BuildStatus::Skipped)
             })
             .count() as u64;
 
@@ -280,6 +279,7 @@ impl ReportGenerator {
         let total_build_time_ms: u64 = builds
             .iter()
             .filter_map(|b| b.duration_ms)
+            .filter_map(|d| if d >= 0 { Some(d as u64) } else { None })
             .sum();
 
         let avg_build_time_ms = if total_builds > 0 {
@@ -289,17 +289,17 @@ impl ReportGenerator {
         };
 
         // Estimate time saved by caching
-        let instant_skips = builds
+        let skipped_builds = builds
             .iter()
-            .filter(|b| b.tier.as_deref() == Some("InstantSkip"))
+            .filter(|b| matches!(b.status, BuildStatus::Skipped))
             .count() as u64;
-        let cache_restores = builds
+        let cached_restores = builds
             .iter()
-            .filter(|b| b.tier.as_deref() == Some("CacheRestore"))
+            .filter(|b| matches!(b.status, BuildStatus::Cached))
             .count() as u64;
 
-        let time_saved_ms = instant_skips * self.full_build_time_estimate_ms +
-            cache_restores * (self.full_build_time_estimate_ms - 2000); // Cache restore takes ~2s
+        let time_saved_ms = skipped_builds * self.full_build_time_estimate_ms +
+            cached_restores * (self.full_build_time_estimate_ms - 2000); // Cache restore takes ~2s
 
         ReportSummary {
             total_builds,
@@ -336,24 +336,23 @@ impl ReportGenerator {
                     .filter(|b| matches!(b.status, BuildStatus::Failed))
                     .count() as u64;
 
-                let total_time: u64 = builds.iter().filter_map(|b| b.duration_ms).sum();
+                let total_time: i64 = builds.iter().filter_map(|b| b.duration_ms).sum();
                 let avg_build_time_ms = if total_builds > 0 {
-                    total_time / total_builds
+                    (total_time / total_builds as i64).max(0) as u64
                 } else {
                     0
                 };
 
-                // Find most common tier
-                let mut tier_counts: HashMap<String, u64> = HashMap::new();
+                // Find most common status (used as tier equivalent)
+                let mut status_counts: HashMap<String, u64> = HashMap::new();
                 for build in &builds {
-                    if let Some(tier) = &build.tier {
-                        *tier_counts.entry(tier.clone()).or_default() += 1;
-                    }
+                    let status_str = format!("{:?}", build.status);
+                    *status_counts.entry(status_str).or_default() += 1;
                 }
-                let most_common_tier = tier_counts
+                let most_common_tier = status_counts
                     .into_iter()
                     .max_by_key(|(_, count)| *count)
-                    .map(|(tier, _)| tier)
+                    .map(|(status, _)| status)
                     .unwrap_or_else(|| "Unknown".to_string());
 
                 PackageStats {
@@ -375,9 +374,9 @@ impl ReportGenerator {
         let mut distribution: HashMap<String, u64> = HashMap::new();
 
         for build in builds {
-            if let Some(tier) = &build.tier {
-                *distribution.entry(tier.clone()).or_default() += 1;
-            }
+            // Use status as tier equivalent
+            let status_str = format!("{:?}", build.status);
+            *distribution.entry(status_str).or_default() += 1;
         }
 
         distribution
@@ -447,14 +446,14 @@ impl ReportGenerator {
             "stable"
         }.to_string();
 
-        let first_avg_time: u64 = first_half
-            .iter()
-            .filter_map(|b| b.duration_ms)
-            .sum::<u64>() / first_half.len().max(1) as u64;
-        let second_avg_time: u64 = second_half
-            .iter()
-            .filter_map(|b| b.duration_ms)
-            .sum::<u64>() / second_half.len().max(1) as u64;
+        let first_avg_time: u64 = {
+            let sum: i64 = first_half.iter().filter_map(|b| b.duration_ms).sum();
+            (sum / first_half.len().max(1) as i64).max(0) as u64
+        };
+        let second_avg_time: u64 = {
+            let sum: i64 = second_half.iter().filter_map(|b| b.duration_ms).sum();
+            (sum / second_half.len().max(1) as i64).max(0) as u64
+        };
 
         let build_time_trend = if second_avg_time < first_avg_time.saturating_sub(first_avg_time / 10) {
             "improving"
@@ -474,11 +473,11 @@ impl ReportGenerator {
 
         let first_cache_rate = first_half
             .iter()
-            .filter(|b| b.tier.as_deref() == Some("InstantSkip") || b.tier.as_deref() == Some("CacheRestore"))
+            .filter(|b| matches!(b.status, BuildStatus::Cached | BuildStatus::Skipped))
             .count() as f64 / first_half.len() as f64;
         let second_cache_rate = second_half
             .iter()
-            .filter(|b| b.tier.as_deref() == Some("InstantSkip") || b.tier.as_deref() == Some("CacheRestore"))
+            .filter(|b| matches!(b.status, BuildStatus::Cached | BuildStatus::Skipped))
             .count() as f64 / second_half.len() as f64;
 
         let cache_hit_rate_trend = if second_cache_rate > first_cache_rate + 0.05 {

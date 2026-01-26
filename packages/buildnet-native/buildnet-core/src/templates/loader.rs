@@ -2,13 +2,15 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::future::Future;
 use std::sync::Arc;
 use chrono::{DateTime, Utc};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, EventKind};
+use notify::{RecommendedWatcher, RecursiveMode, EventKind, Watcher};
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
-use super::{BuildTemplate, TemplateError, TemplateRegistry};
+use super::{BuildTemplate, TemplateRegistry};
 use crate::Result;
 
 /// Template source
@@ -79,31 +81,33 @@ impl TemplateLoader {
     }
 
     /// Load templates from a directory
-    async fn load_from_directory(&self, dir: &Path) -> Result<usize> {
-        let mut count = 0;
+    fn load_from_directory<'a>(&'a self, dir: &'a Path) -> Pin<Box<dyn Future<Output = Result<usize>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut count = 0;
 
-        let mut entries = tokio::fs::read_dir(dir).await?;
+            let mut entries = tokio::fs::read_dir(dir).await?;
 
-        while let Some(entry) = entries.next_entry().await? {
-            let path = entry.path();
+            while let Some(entry) = entries.next_entry().await? {
+                let path = entry.path();
 
-            if path.is_file() {
-                let ext = path.extension().and_then(|e| e.to_str());
+                if path.is_file() {
+                    let ext = path.extension().and_then(|e| e.to_str());
 
-                if matches!(ext, Some("json") | Some("yaml") | Some("yml") | Some("toml")) {
-                    if let Err(e) = self.load_template_file(&path).await {
-                        tracing::warn!("Failed to load template {:?}: {}", path, e);
-                    } else {
-                        count += 1;
+                    if matches!(ext, Some("json") | Some("yaml") | Some("yml") | Some("toml")) {
+                        if let Err(e) = self.load_template_file(&path).await {
+                            tracing::warn!("Failed to load template {:?}: {}", path, e);
+                        } else {
+                            count += 1;
+                        }
                     }
+                } else if path.is_dir() {
+                    // Recursively load subdirectories
+                    count += self.load_from_directory(&path).await?;
                 }
-            } else if path.is_dir() {
-                // Recursively load subdirectories
-                count += self.load_from_directory(&path).await?;
             }
-        }
 
-        Ok(count)
+            Ok(count)
+        })
     }
 
     /// Load a single template file

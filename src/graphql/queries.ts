@@ -4434,3 +4434,123 @@ export const OUTDOOR_EQUIPMENT_TYPES_QUERY = gql`
     }
   }
 `;
+
+// ============================================
+// MASCOT / COMPANION
+// ============================================
+
+export const MASCOT_STATE_QUERY = gql`
+  query MascotState {
+    mascot {
+      id
+      userId
+      nickname
+      stage
+      xp
+      progression {
+        currentXp
+        prevStageXp
+        nextStageXp
+        progressPercent
+        isMaxStage
+      }
+      isVisible
+      isMinimized
+      soundsEnabled
+      tipsEnabled
+      createdAt
+    }
+  }
+`;
+
+export const MASCOT_SHOP_QUERY = gql`
+  query MascotShop {
+    mascotShop {
+      slotNumber
+      cosmetic {
+        id
+        itemKey
+        name
+        description
+        slot
+        rarity
+        price
+        requiredStage
+        assetUrl
+      }
+      discountPercent
+      finalPrice
+      expiresAt
+      owned
+    }
+  }
+`;
+
+export const MASCOT_WARDROBE_QUERY = gql`
+  query MascotWardrobe {
+    mascotWardrobe {
+      inventory {
+        id
+        cosmetic {
+          id
+          itemKey
+          name
+          description
+          slot
+          rarity
+          price
+          requiredStage
+          assetUrl
+        }
+        acquiredAt
+        acquiredMethod
+        isFavorite
+        isNew
+      }
+      presets {
+        id
+        name
+        icon
+        loadout {
+          skin { id itemKey name slot assetUrl }
+          eyes { id itemKey name slot assetUrl }
+          outfit { id itemKey name slot assetUrl }
+          accessory { id itemKey name slot assetUrl }
+          aura { id itemKey name slot assetUrl }
+          trail { id itemKey name slot assetUrl }
+          emoteVictory { id itemKey name slot assetUrl }
+          emoteDefeat { id itemKey name slot assetUrl }
+          emoteIdle { id itemKey name slot assetUrl }
+        }
+        createdAt
+      }
+      currentLoadout {
+        skin { id itemKey name slot assetUrl }
+        eyes { id itemKey name slot assetUrl }
+        outfit { id itemKey name slot assetUrl }
+        accessory { id itemKey name slot assetUrl }
+        aura { id itemKey name slot assetUrl }
+        trail { id itemKey name slot assetUrl }
+        emoteVictory { id itemKey name slot assetUrl }
+        emoteDefeat { id itemKey name slot assetUrl }
+        emoteIdle { id itemKey name slot assetUrl }
+      }
+    }
+  }
+`;
+
+export const MASCOT_PENDING_REACTIONS_QUERY = gql`
+  query MascotPendingReactions($limit: Int) {
+    mascotPendingReactions(limit: $limit) {
+      id
+      eventId
+      reactionType
+      emotionLevel
+      message
+      animationType
+      soundEffect
+      xpAwarded
+      createdAt
+    }
+  }
+`;

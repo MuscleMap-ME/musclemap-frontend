@@ -82,11 +82,10 @@ export default function MinimapWidget({
                 <motion.circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={10}
                   fill="none"
                   stroke={pos.color}
                   strokeWidth={1}
-                  strokeOpacity={0.5}
+                  initial={{ r: 8, opacity: 0.5 }}
                   animate={{ r: [8, 12, 8], opacity: [0.5, 0.2, 0.5] }}
                   transition={{ repeat: Infinity, duration: 1.5 }}
                 />
