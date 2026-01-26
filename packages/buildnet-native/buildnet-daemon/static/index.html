@@ -912,7 +912,6 @@
           <thead>
             <tr>
               <th>Package</th>
-              <th>Tier</th>
               <th>Status</th>
               <th>Duration</th>
               <th>Source Hash</th>
@@ -920,7 +919,7 @@
             </tr>
           </thead>
           <tbody id="recent-builds-body">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1015,9 +1014,8 @@
         <table class="history-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>#</th>
               <th>Package</th>
-              <th>Tier</th>
               <th>Status</th>
               <th>Duration</th>
               <th>Source Hash</th>
@@ -1026,7 +1024,7 @@
             </tr>
           </thead>
           <tbody id="full-history-body">
-            <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1394,8 +1392,7 @@
       const recentBuilds = builds.slice(-10).reverse();
       tbody.innerHTML = recentBuilds.map(b => `
         <tr>
-          <td>${b.package_name || '-'}</td>
-          <td><span class="package-tier ${getTierClass(b.tier)}">${b.tier || '-'}</span></td>
+          <td>${b.package || '-'}</td>
           <td><span class="status-badge ${getStatusClass(b.status)}">${b.status || '-'}</span></td>
           <td>${formatDuration(b.duration_ms)}</td>
           <td style="font-family: monospace; font-size: 11px;">${b.source_hash ? b.source_hash.substring(0, 8) : '-'}</td>
@@ -1414,8 +1411,7 @@
       tbody.innerHTML = builds.slice().reverse().map((b, i) => `
         <tr>
           <td>${builds.length - i}</td>
-          <td>${b.package_name || '-'}</td>
-          <td><span class="package-tier ${getTierClass(b.tier)}">${b.tier || '-'}</span></td>
+          <td>${b.package || '-'}</td>
           <td><span class="status-badge ${getStatusClass(b.status)}">${b.status || '-'}</span></td>
           <td>${formatDuration(b.duration_ms)}</td>
           <td style="font-family: monospace; font-size: 11px;">${b.source_hash ? b.source_hash.substring(0, 8) : '-'}</td>
@@ -1696,10 +1692,10 @@
       // Build Times by Package
       const packageTimes = {};
       filteredBuilds.forEach(b => {
-        if (!packageTimes[b.package_name]) {
-          packageTimes[b.package_name] = [];
+        if (!packageTimes[b.package]) {
+          packageTimes[b.package] = [];
         }
-        packageTimes[b.package_name].push(b.duration_ms || 0);
+        packageTimes[b.package].push(b.duration_ms || 0);
       });
       const avgTimes = Object.entries(packageTimes).map(([pkg, times]) => ({
         package: pkg,
@@ -1756,10 +1752,10 @@
 
       const packageTimes = {};
       filteredBuilds.forEach(b => {
-        if (!packageTimes[b.package_name]) {
-          packageTimes[b.package_name] = [];
+        if (!packageTimes[b.package]) {
+          packageTimes[b.package] = [];
         }
-        packageTimes[b.package_name].push(b.duration_ms || 0);
+        packageTimes[b.package].push(b.duration_ms || 0);
       });
 
       const calcTimes = Object.entries(packageTimes).map(([pkg, times]) => {
@@ -1851,7 +1847,7 @@
       // Frequency chart
       const packageCounts = {};
       filteredBuilds.forEach(b => {
-        packageCounts[b.package_name] = (packageCounts[b.package_name] || 0) + 1;
+        packageCounts[b.package] = (packageCounts[b.package] || 0) + 1;
       });
       const sortedPackages = Object.entries(packageCounts).sort((a, b) => b[1] - a[1]);
       charts.frequency.data.labels = sortedPackages.map(p => p[0]);
@@ -1872,7 +1868,7 @@
       const csv = [
         'ID,Package,Tier,Status,Duration (ms),Source Hash,Output Hash,Timestamp',
         ...buildHistory.map((b, i) =>
-          `${i + 1},"${b.package_name}","${b.tier}","${b.status}",${b.duration_ms || 0},"${b.source_hash || ''}","${b.output_hash || ''}","${b.started_at}"`
+          `${i + 1},"${b.package}","${b.tier}","${b.status}",${b.duration_ms || 0},"${b.source_hash || ''}","${b.output_hash || ''}","${b.started_at}"`
         )
       ].join('\n');
 
