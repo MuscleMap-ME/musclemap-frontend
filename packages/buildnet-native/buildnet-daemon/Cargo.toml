@@ -1,0 +1,31 @@
+[package]
+name = "buildnet-daemon"
+version.workspace = true
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+description = "BuildNet daemon - native build orchestration service"
+
+[[bin]]
+name = "buildnetd"
+path = "src/main.rs"
+
+[dependencies]
+buildnet-core = { path = "../buildnet-core" }
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+hyper.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+nix.workspace = true
+daemonize.workspace = true
+anyhow.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio-stream.workspace = true
+reqwest.workspace = true

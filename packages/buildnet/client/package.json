@@ -1,0 +1,38 @@
+{
+  "name": "@musclemap.me/buildnet-client",
+  "version": "0.1.0",
+  "description": "TypeScript client for BuildNet native daemon",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./bun-ffi": {
+      "import": "./dist/bun-ffi.js",
+      "types": "./dist/bun-ffi.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "buildnet",
+    "build",
+    "orchestration",
+    "native"
+  ],
+  "author": "MuscleMap Team",
+  "license": "MIT"
+}

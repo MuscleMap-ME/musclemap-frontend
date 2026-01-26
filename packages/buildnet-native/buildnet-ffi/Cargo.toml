@@ -1,0 +1,33 @@
+[package]
+name = "buildnet-ffi"
+version.workspace = true
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+description = "FFI bindings for BuildNet - Node.js, Python, and C ABI support"
+
+[lib]
+name = "buildnet_ffi"
+crate-type = ["cdylib"]
+
+[dependencies]
+buildnet-core = { path = "../buildnet-core" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+napi = { workspace = true, optional = true }
+napi-derive = { workspace = true, optional = true }
+pyo3 = { workspace = true, optional = true }
+
+[build-dependencies]
+napi-build = "2.1"
+
+[features]
+default = ["node"]
+node = ["napi", "napi-derive"]
+python = ["pyo3"]
+c-abi = []
