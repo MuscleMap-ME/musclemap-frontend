@@ -1,0 +1,430 @@
+# BuildNet Configuration
+# Distributed build system with hot-swappable bundlers and plugins
+#
+# For full documentation, see: https://github.com/musclemap/buildnet
+
+version: "1.0.0"
+
+# =============================================================================
+# Controller Configuration
+# =============================================================================
+controller:
+  id: "buildnet-controller"
+  listen:
+    grpc: "0.0.0.0:9900"
+    http: "0.0.0.0:9901"
+    websocket: "0.0.0.0:9902"
+
+  heartbeat:
+    interval_ms: 5000
+    timeout_ms: 15000
+    max_missed: 3
+
+  scheduler:
+    process_interval_ms: 1000
+    heartbeat_timeout_ms: 15000
+    max_retries: 3
+
+# =============================================================================
+# State Backend Configuration
+# =============================================================================
+state:
+  # Backend selection: "dragonfly" | "redis" | "file" | "memory" | "auto"
+  # "auto" will try backends in order: dragonfly -> redis -> file -> memory
+  backend: "auto"
+
+  # DragonflyDB / Redis configuration (recommended for multi-node)
+  dragonfly:
+    url: "${DRAGONFLY_URL:-dragonfly://localhost:6379}"
+    prefix: "buildnet:"
+    connect_timeout_ms: 3000
+
+  # File-based backend (single-node, persistent)
+  file:
+    path: ".buildnet-state/"
+    lock_file: ".buildnet-state/.lock"
+    sync_interval_ms: 1000
+
+  # Memory backend (single-node, volatile)
+  memory:
+    max_entries: 10000
+
+  # Fallback chain when using "auto"
+  fallback_chain:
+    - "dragonfly"
+    - "file"
+    - "memory"
+
+# =============================================================================
+# Worker Nodes
+# =============================================================================
+nodes:
+  # Production VPS (lower capacity, always online)
+  production-vps:
+    host: "example.com"
+    port: 9910
+    ssh_port: 2222
+
+    resources:
+      cpu_cores: 2
+      memory_gb: 8
+      disk_gb: 100
+      normalization:
+        cpu_factor: 1.0
+        memory_factor: 1.0
+        io_factor: 0.8
+
+    constraints:
+      pm2_safe_mode: true      # Never stop PM2
+      max_concurrent_builds: 1  # Memory limited
+      force_staged: true        # Use staged builds
+      max_build_memory_gb: 4    # Leave room for services
+
+    capabilities:
+      - "packages"
+      - "api"
+      - "frontend"
+      - "deploy"
+
+    sync:
+      method: "rsync"
+      paths:
+        - "dist/"
+        - "packages/*/dist/"
+        - "apps/api/dist/"
+
+  # Development machine (high capacity)
+  dev-macbook:
+    host: "localhost"
+    port: 9910
+
+    resources:
+      cpu_cores: 10
+      memory_gb: 32
+      disk_gb: 500
+      normalization:
+        cpu_factor: 2.5
+        memory_factor: 4.0
+        io_factor: 3.0
+
+    constraints:
+      max_concurrent_builds: 3
+      force_staged: false
+      max_build_memory_gb: 16
+
+    capabilities:
+      - "packages"
+      - "api"
+      - "frontend"
+      - "native"       # Can compile C modules
+      - "typecheck"
+      - "test"
+
+    preferred_for:
+      - "frontend"
+      - "full-rebuild"
+
+# =============================================================================
+# Bundler Configuration
+# =============================================================================
+bundlers:
+  # Active bundler (can be switched at runtime)
+  active: "vite-rolldown"
+
+  # Available bundlers
+  available:
+    vite-rolldown:
+      enabled: true
+      package: "vite@^6.0.0"
+      config: "vite.config.js"
+      priority: 1
+
+    rspack:
+      enabled: true
+      package: "@rspack/core@^1.0.0"
+      config: "rspack.config.js"
+      priority: 2
+      requires: []
+
+    esbuild:
+      enabled: true
+      package: "esbuild@^0.20.0"
+      priority: 3
+
+    turbopack:
+      enabled: false  # Experimental
+      package: "turbopack@latest"
+      config: "turbopack.json"
+      requires: ["next"]
+
+    webpack:
+      enabled: false  # Legacy
+      package: "webpack@^5.0.0"
+      config: "webpack.config.js"
+
+  # Fallback chain if primary fails
+  fallback_chain:
+    - "vite-rolldown"
+    - "rspack"
+    - "esbuild"
+
+  # Auto-selection rules
+  auto_select:
+    ci_environment: "esbuild"       # Fast for CI
+    development: "vite-rolldown"    # Best DX
+    has_webpack_config: "rspack"    # Webpack migration
+
+# =============================================================================
+# Plugin Configuration
+# =============================================================================
+plugins:
+  core:
+    typecheck:
+      enabled: true
+      hook: "pre-build"
+      command: "pnpm typecheck"
+      fail_on_error: true
+
+    lint:
+      enabled: true
+      hook: "pre-build"
+      command: "pnpm lint"
+      fail_on_error: false  # Warnings OK
+
+    clean:
+      enabled: false
+      hook: "pre-build"
+      command: "rm -rf dist/"
+
+    compress:
+      enabled: true
+      hook: "post-build"
+      config:
+        algorithms:
+          - "gzip"
+          - "brotli"
+        threshold_kb: 10
+
+    sourcemaps:
+      enabled: false
+      hook: "post-build"
+      config:
+        upload_to: "sentry"
+
+    notify:
+      enabled: true
+      hook: "deploy"
+      config:
+        channels:
+          - "slack"
+
+  # Directory for custom plugins
+  custom_dir: "scripts/buildnet-plugins/"
+
+  # Remote plugins from npm
+  remote: []
+
+# =============================================================================
+# Build Tasks
+# =============================================================================
+tasks:
+  packages:
+    description: "Build workspace packages"
+    command: "pnpm build:packages"
+    estimated_duration_s: 30
+    memory_required_gb: 1
+    parallelizable: true
+
+  api:
+    description: "Build API server"
+    command: "pnpm -C apps/api build"
+    estimated_duration_s: 45
+    memory_required_gb: 2
+    depends_on:
+      - "packages"
+
+  frontend:
+    description: "Build Vite frontend"
+    command: "pnpm build"
+    estimated_duration_s: 120
+    memory_required_gb: 4
+    depends_on:
+      - "packages"
+
+  full:
+    description: "Full build (all components)"
+    subtasks:
+      - "packages"
+      - "api"
+      - "frontend"
+
+  intelligent:
+    description: "Intelligent cached build"
+    command: "node scripts/intelligent-cache.mjs"
+    adaptive: true
+
+# =============================================================================
+# Resilience Configuration
+# =============================================================================
+resilience:
+  failover:
+    enabled: true
+    detection_time_ms: 10000
+    recovery_time_ms: 30000
+
+  degradation:
+    levels:
+      - name: "optimal"
+        description: "All nodes healthy, full parallelization"
+        min_nodes: 2
+
+      - name: "reduced"
+        description: "Some nodes degraded, limited parallelization"
+        min_nodes: 1
+        actions:
+          - "disable_parallel_builds"
+          - "increase_timeouts"
+
+      - name: "local_only"
+        description: "Remote nodes unavailable, local builds only"
+        min_nodes: 0
+        fallback_node: "localhost"
+        actions:
+          - "use_staged_builds"
+          - "disable_compression"
+
+      - name: "emergency"
+        description: "Critical failure, minimal builds"
+        actions:
+          - "skip_optional_steps"
+          - "cache_only_mode"
+          - "alert_admin"
+
+    policies:
+      node_unreachable:
+        action: "retry_then_failover"
+        retry_count: 3
+        retry_delay_ms: 2000
+        then: "failover_to_next"
+
+      build_oom:
+        action: "retry_with_staged"
+        max_retries: 2
+
+      lock_timeout:
+        action: "steal_lock_if_stale"
+        stale_threshold_ms: 300000
+
+# =============================================================================
+# Sync Configuration
+# =============================================================================
+sync:
+  method: "rsync"
+  options:
+    compress: true
+    delete: true
+    exclude:
+      - "node_modules/"
+      - ".git/"
+      - "*.log"
+
+  artifacts:
+    frontend:
+      source: "dist/"
+      destinations:
+        - "production-vps:/var/www/app/dist/"
+    packages:
+      source: "packages/*/dist/"
+      destinations:
+        - "production-vps:/var/www/app/packages/"
+    api:
+      source: "apps/api/dist/"
+      destinations:
+        - "production-vps:/var/www/app/apps/api/dist/"
+
+# =============================================================================
+# Monitoring Configuration
+# =============================================================================
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9903
+
+  alerts:
+    slack_webhook: "${SLACK_WEBHOOK_URL}"
+    email:
+      - "alerts@example.com"
+
+  metrics:
+    - "build_duration_seconds"
+    - "build_queue_length"
+    - "node_health_status"
+    - "cache_hit_ratio"
+    - "memory_usage_bytes"
+    - "failover_events_total"
+
+# =============================================================================
+# Auditing Configuration
+# =============================================================================
+auditing:
+  enabled: true
+  events:
+    builds:
+      - "build_requested"
+      - "build_queued"
+      - "build_started"
+      - "build_completed"
+      - "build_failed"
+    assets:
+      - "node_selected"
+      - "bundler_invoked"
+      - "plugin_executed"
+    config:
+      - "config_reloaded"
+      - "plugin_enabled"
+      - "bundler_switched"
+    security:
+      - "auth_success"
+      - "auth_failure"
+
+  retention:
+    hot_storage: "7d"
+    warm_storage: "90d"
+    cold_storage: "7y"
+
+  destinations:
+    - type: "file"
+      path: "/var/log/buildnet/audit.jsonl"
+      rotate: "daily"
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logs:
+  format: "jsonl"
+  levels:
+    default: "info"
+    production: "warn"
+    debug: "debug"
+  outputs:
+    console:
+      enabled: true
+      level: "info"
+      format: "pretty"
+    file:
+      enabled: true
+      path: "/var/log/buildnet/buildnet.log"
+      max_size: "100MB"
+      max_files: 10
+      compress: true
+  retention:
+    hot:
+      duration: "7d"
+      storage: "local"
+    warm:
+      duration: "30d"
+      storage: "compressed"
+      compression: "gzip"
+    cold:
+      duration: "1y"
+      storage: "archive"

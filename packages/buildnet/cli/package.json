@@ -1,0 +1,46 @@
+{
+  "name": "@buildnet/cli",
+  "version": "1.0.0",
+  "description": "BuildNet CLI - Distributed build system command-line interface",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "buildnet": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@buildnet/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "build",
+    "bundler",
+    "distributed",
+    "cli",
+    "vite",
+    "rspack",
+    "esbuild"
+  ],
+  "author": "MuscleMap",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/musclemap/buildnet.git",
+    "directory": "packages/cli"
+  }
+}
