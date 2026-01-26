@@ -720,7 +720,7 @@
   "src/utils/xr.ts": "bdbb4df3217d8c96943063325e646dd5",
   "vite.config.js": "c5059cc15e5ab34ce1e091b166641243",
   "package.json": "a8306d5899fc3f48d87802a9be2653be",
-  "pnpm-lock.yaml": "21b680910d5ce68d59f3947c206235ea",
+  "pnpm-lock.yaml": "f22208ee83e8b0f5ab769dc62c42cf74",
   "tailwind.config.js": "c7379a32eb562ff3ba706ec7f88777c7",
   "postcss.config.js": "6b5c4cb81230b2fed05f0216b775c0f5",
   "public/analytics-preview.html": "1dad66bebfc95806a29e87f919407946",

@@ -1,0 +1,16 @@
+{
+  "dist": [
+    {
+      "hash": "85a7af9a8f4c9ae2",
+      "timestamp": "2026-01-26T01:52:08.562Z",
+      "pid": 31053,
+      "hostname": "MacBook-Pro-M2-13.local"
+    },
+    {
+      "hash": "13d6c8b8578014a0",
+      "timestamp": "2026-01-26T01:50:38.806Z",
+      "pid": 30926,
+      "hostname": "MacBook-Pro-M2-13.local"
+    }
+  ]
+}

@@ -1,10 +1,13 @@
 {
-  "version": 2,
-  "overallHash": "fa60e592bd3fd7603bfce991ec02d367364d005b9ece087761dacabebe4132a5",
-  "lockfileHash": "21b680910d5ce68d",
-  "gitCommitHash": "fbb90b628ad9",
-  "lastBuild": "2026-01-26T01:02:50.688Z",
-  "tier": 2,
+  "version": 3,
+  "overallHash": "8df7da77fc6173c6805fb41eaa8ef9b22a7b02c993a7edcf1fdff719c89b2f32",
+  "lockfileHash": "f22208ee83e8b0f5",
+  "gitCommitHash": "8e28f4810403",
+  "distArtifactHash": "85a7af9a8f4c9ae2",
+  "lastBuild": "2026-01-26T01:53:04.944Z",
+  "tier": 1,
   "fileCount": 827,
-  "changes": 1
+  "changes": 0,
+  "hostname": "MacBook-Pro-M2-13.local",
+  "pid": 35353
 }
