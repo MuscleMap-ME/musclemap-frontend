@@ -6,10 +6,14 @@ BuildNet is a **high-performance native build orchestration system** with:
 - Native Rust binary for 10-100x faster builds
 - Self-hosted web control panel
 - Multi-user concurrent access without performance degradation
-- Multiple control vectors (CLI, API, Web, External Agents)
+- Multiple control vectors (CLI, API, Web, SMS, Email, External Agents)
 - Hot-swappable resources and templates
 - Real-time audit logging and live viewing
 - Automated redundancies and fault tolerance
+- **Multi-channel notification system** (SMS, Email, Slack, Discord, Webhooks)
+- **Remote control via SMS/Email** for headless operation
+- **Resource monitoring** (CPU, memory, disk, cluster nodes)
+- **Historical reporting** with scheduled delivery
 
 ## Current Status (Completed)
 
@@ -194,30 +198,194 @@ hooks:
 
 ---
 
-## Phase 5: Monitoring & Observability
+## Phase 5: Notification System & Remote Control
 
-### 5.1 Real-time Activity Dashboard
+> **Detailed documentation:** See [BUILDNET-NOTIFICATION-SYSTEM.md](./BUILDNET-NOTIFICATION-SYSTEM.md)
+
+### 5.1 Event Types & Notifications
+
+**Build Events:**
+| Event | Description | Default Priority |
+|-------|-------------|------------------|
+| `build.started` | Build process initiated | Low |
+| `build.completed` | Build finished successfully | Medium |
+| `build.failed` | Build encountered errors | High |
+| `build.cached` | Build skipped (cache hit) | Low |
+
+**Resource Events:**
+| Event | Description | Default Priority |
+|-------|-------------|------------------|
+| `resource.cpu.high` | CPU usage exceeds threshold | High |
+| `resource.memory.high` | Memory usage exceeds threshold | High |
+| `resource.disk.low` | Disk space below threshold | Critical |
+
+**System Events:**
+| Event | Description | Default Priority |
+|-------|-------------|------------------|
+| `daemon.started` | BuildNet daemon started | Medium |
+| `daemon.stopped` | BuildNet daemon stopped | High |
+| `node.joined` | Worker node joined cluster | Medium |
+| `node.failed` | Worker node health check failed | Critical |
+| `plugin.loaded` | Plugin loaded successfully | Low |
+
+### 5.2 Notification Channels
+
+```yaml
+notifications:
+  channels:
+    sms:
+      enabled: true
+      provider: twilio
+      recipients:
+        - phone: "+1234567890"
+          events: ["build.failed", "daemon.*", "*.critical"]
+
+    email:
+      enabled: true
+      provider: smtp
+      recipients:
+        - email: "devops@example.com"
+          format: "html"
+
+    slack:
+      enabled: true
+      default_channel: "#buildnet"
+
+    discord:
+      enabled: true
+      guild_id: "123456789"
+
+    webhooks:
+      - url: "https://api.example.com/events"
+        events: ["*"]
+
+    telegram:
+      enabled: true
+      allowed_users: ["123456789"]
+
+    push:
+      enabled: true
+      provider: firebase
+```
+
+### 5.3 Remote Control via SMS/Email
+
+**Available Commands:**
+| Command | Description | Auth Level |
+|---------|-------------|------------|
+| `STATUS` | Get current daemon status | Read |
+| `BUILD [pkg]` | Trigger build | Build |
+| `CANCEL [id]` | Cancel build | Build |
+| `CACHE CLEAR` | Clear build cache | Admin |
+| `REPORT daily` | Generate daily report | Read |
+| `NODE LIST` | List cluster nodes | Read |
+| `PLUGIN LIST` | List loaded plugins | Read |
+| `STOP` | Stop daemon (requires confirmation) | Admin |
+
+**SMS Example:**
+```
+You: STATUS
+BuildNet: 🟢 Running | Builds: 47 | Cache: 4.2MB | Nodes: 3 online
+```
+
+**Email Example:**
+- Subject: `[BUILDNET] BUILD api`
+- BuildNet replies with build status
+
+### 5.4 Resource Monitoring
+
+```yaml
+monitoring:
+  resources:
+    cpu:
+      warning: 70
+      critical: 90
+
+    memory:
+      warning_percent: 70
+      critical_percent: 90
+
+    disk:
+      paths:
+        - path: "/var/www/musclemap.me"
+          warning: 80
+          critical: 95
+
+  cluster:
+    health_check_interval_secs: 30
+    max_node_failures: 3
+```
+
+### 5.5 Historical Reports
+
+**Report Types:**
+- **Summary**: Quick overview of build activity
+- **Detailed**: Build-by-build analysis with error details
+- **Analytics**: Trend analysis with charts and insights
+
+**Scheduled Reports:**
+```yaml
+reports:
+  scheduled:
+    - name: "Daily Summary"
+      cron: "0 9 * * *"
+      recipients: ["email:devops@example.com", "sms:+1234567890"]
+
+    - name: "Weekly Report"
+      cron: "0 9 * * 1"
+      type: "detailed"
+      recipients: ["email:team@example.com"]
+```
+
+### 5.6 Configuration Options
+
+```yaml
+notifications:
+  settings:
+    # Deduplication window
+    dedup_window_secs: 300
+
+    # Rate limiting
+    rate_limit:
+      max_per_minute: 10
+      max_per_hour: 100
+
+    # Quiet hours
+    quiet_hours:
+      enabled: true
+      start: "22:00"
+      end: "08:00"
+      exceptions: ["*.critical"]
+
+remote_control:
+  authentication:
+    api_keys:
+      - key: "${BUILDNET_API_KEY}"
+        permissions: ["*"]
+    sms:
+      allowed_numbers: ["+1234567890"]
+      require_confirmation: true
+```
+
+---
+
+## Phase 6: Monitoring & Observability
+
+### 6.1 Real-time Activity Dashboard
 - Active builds with progress bars
 - Build queue visualization
 - Resource utilization (CPU, memory, disk)
 - Network traffic monitoring
 - Error rate graphs
 
-### 5.2 Audit Logging
+### 6.2 Audit Logging
 - Every action logged with timestamp, user, details
 - Searchable audit log
 - Export to external systems (Elasticsearch, Loki)
 - Retention policies
 - Compliance reporting
 
-### 5.3 Alerting
-- Build failure notifications
-- Cache size thresholds
-- Performance degradation alerts
-- Custom webhook integrations
-- Email/Slack/Discord notifications
-
-### 5.4 Metrics Export
+### 6.3 Metrics Export
 - Prometheus metrics endpoint
 - Grafana dashboard templates
 - OpenTelemetry integration
@@ -226,23 +394,23 @@ hooks:
 
 ---
 
-## Phase 6: Redundancy & Reliability
+## Phase 7: Redundancy & Reliability
 
-### 6.1 High Availability
+### 7.1 High Availability
 - Primary/secondary daemon setup
 - Automatic failover
 - State replication
 - Load balancing
 - Health checks with auto-recovery
 
-### 6.2 Backup & Recovery
+### 7.2 Backup & Recovery
 - Automatic state backups
 - Cache artifact backups
 - Point-in-time recovery
 - Cross-region replication
 - Disaster recovery procedures
 
-### 6.3 Performance Optimization
+### 7.3 Performance Optimization
 - Connection pooling
 - Request batching
 - Lazy loading
@@ -251,16 +419,16 @@ hooks:
 
 ---
 
-## Phase 7: GitHub Integration
+## Phase 8: GitHub Integration
 
-### 7.1 GitHub App
+### 8.1 GitHub App
 - Repository webhooks
 - Pull request builds
 - Status checks
 - Commit status updates
 - Release automation
 
-### 7.2 Actions Integration
+### 8.2 Actions Integration
 ```yaml
 # .github/workflows/build.yml
 - name: BuildNet Build
@@ -271,7 +439,7 @@ hooks:
     packages: all
 ```
 
-### 7.3 Deployment Pipeline
+### 8.3 Deployment Pipeline
 - Build → Test → Deploy workflow
 - Environment promotion (dev → staging → prod)
 - Rollback capabilities
@@ -280,23 +448,23 @@ hooks:
 
 ---
 
-## Phase 8: MuscleMap Integration
+## Phase 9: MuscleMap Integration
 
-### 8.1 Dedicated Page
+### 9.1 Dedicated Page
 - `/tools/buildnet` on musclemap.me
 - Documentation and tutorials
 - Live demo environment
 - Download links
 - Community forum
 
-### 8.2 Separate Repository
+### 9.2 Separate Repository
 - `github.com/musclemap/buildnet`
 - Standalone package on npm/cargo
 - CI/CD with GitHub Actions
 - Automated releases
 - Community contributions
 
-### 8.3 Documentation
+### 9.3 Documentation
 - Getting started guide
 - API reference
 - Configuration guide
@@ -308,37 +476,65 @@ hooks:
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     BuildNet Control Plane                       │
-├─────────────┬─────────────┬─────────────┬─────────────┬─────────┤
-│   Web UI    │   CLI       │  REST API   │  Node SDK   │ Agents  │
-│   (React)   │  (Clap)     │  (Axum)     │  (TS)       │  (JWT)  │
-└──────┬──────┴──────┬──────┴──────┬──────┴──────┬──────┴────┬────┘
-       │             │             │             │           │
-       └─────────────┴─────────────┴─────────────┴───────────┘
-                                   │
-                     ┌─────────────┴─────────────┐
-                     │     BuildNet Daemon       │
-                     │     (Rust Native)         │
-                     ├───────────────────────────┤
-                     │  ┌─────────────────────┐  │
-                     │  │   Build Orchestrator │  │
-                     │  └──────────┬──────────┘  │
-                     │             │              │
-                     │  ┌──────────┴──────────┐  │
-                     │  │                     │  │
-                     │  ▼                     ▼  │
-                     │ State Manager    Artifact Cache │
-                     │ (SQLite WAL)     (Blake3 Hash)  │
-                     └───────────────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │                    │                    │
-              ▼                    ▼                    ▼
-         ┌─────────┐         ┌─────────┐         ┌─────────┐
-         │ Package │         │ Package │         │ Package │
-         │ shared  │◄────────│  core   │◄────────│   api   │
-         └─────────┘         └─────────┘         └─────────┘
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                           BuildNet Control Plane                               │
+├───────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬───────┤
+│  Web UI   │   CLI   │   API   │   SDK   │   SMS   │  Email  │  Slack  │ Agents│
+│  (React)  │ (Clap)  │ (Axum)  │  (TS)   │(Twilio) │ (SMTP)  │  (Bot)  │ (JWT) │
+└─────┬─────┴────┬────┴────┬────┴────┬────┴────┬────┴────┬────┴────┬────┴───┬───┘
+      │          │         │         │         │         │         │        │
+      └──────────┴─────────┴─────────┴─────────┴─────────┴─────────┴────────┘
+                                          │
+                        ┌─────────────────┴─────────────────┐
+                        │         BuildNet Daemon           │
+                        │         (Rust Native)             │
+                        ├───────────────────────────────────┤
+                        │                                   │
+                        │  ┌─────────────────────────────┐  │
+                        │  │      Build Orchestrator      │  │
+                        │  └──────────────┬──────────────┘  │
+                        │                 │                 │
+                        │  ┌──────────────┼──────────────┐  │
+                        │  │              │              │  │
+                        │  ▼              ▼              ▼  │
+                        │ State      Artifact     Notification │
+                        │ Manager      Cache        Router   │
+                        │ (SQLite)   (Blake3)    (Channels) │
+                        └───────────────────────────────────┘
+                                          │
+           ┌──────────────────────────────┼──────────────────────────────┐
+           │                              │                              │
+           ▼                              ▼                              ▼
+    ┌────────────┐                 ┌────────────┐                 ┌────────────┐
+    │  Packages  │                 │  Cluster   │                 │  Reports   │
+    │ shared,api │                 │   Nodes    │                 │  Storage   │
+    └────────────┘                 └────────────┘                 └────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                          Notification Flow                                     │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   Build Event ──► Event Bus ──► Notification Router ──┬──► SMS (Twilio)      │
+│                        │              │               ├──► Email (SMTP)      │
+│                        │              │               ├──► Slack             │
+│                        │              │               ├──► Discord           │
+│                        │              │               ├──► Telegram          │
+│                        ▼              ▼               ├──► Push (FCM)        │
+│                   Event Log    Rate Limiter           └──► Webhooks          │
+│                   (SQLite)     Deduplication                                 │
+│                               Quiet Hours                                    │
+│                                                                               │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                          Remote Control Flow                                   │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   SMS "BUILD api" ──► Inbound Webhook ──► Command Parser ──► Auth Check      │
+│                                                │                              │
+│   Email [BUILDNET] ──► IMAP Polling ──────────┤                              │
+│                                                │                              │
+│   Slack /buildnet ──► Events Webhook ─────────┴──► Execute ──► Response      │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -356,18 +552,28 @@ hooks:
 6. Multi-tab dashboard layout
 7. CLI enhancements (watch mode)
 8. Node.js SDK with TypeScript types
+9. **Webhook notification channel**
+10. **Basic email notifications (SMTP)**
 
 ### Medium-term (Next Quarter)
-9. User authentication
-10. External agent support
-11. Template system
-12. GitHub App integration
+11. User authentication
+12. External agent support
+13. Template system
+14. **SMS notifications (Twilio)**
+15. **Remote control via SMS**
+16. **Resource monitoring alerts**
+17. **Historical reports (summary)**
 
 ### Long-term (Future)
-13. High availability setup
-14. Separate repository
-15. npm/cargo package publishing
-16. Community plugins
+18. GitHub App integration
+19. High availability setup
+20. **Slack/Discord bot integration**
+21. **Advanced analytics reports**
+22. **Cluster node monitoring**
+23. **Plugin lifecycle notifications**
+24. Separate repository
+25. npm/cargo package publishing
+26. Community plugins
 
 ---
 
@@ -383,12 +589,28 @@ packages/buildnet-native/
 │       ├── cache.rs                    # Artifact cache
 │       ├── hasher.rs                   # xxHash3 + Blake3
 │       ├── builder.rs                  # Build orchestration
-│       └── config.rs                   # Configuration
+│       ├── config.rs                   # Configuration
+│       ├── notifications/              # Notification system (NEW)
+│       │   ├── mod.rs                  # Notification router
+│       │   ├── channels/               # Channel implementations
+│       │   │   ├── sms.rs              # Twilio SMS
+│       │   │   ├── email.rs            # SMTP/SendGrid
+│       │   │   ├── slack.rs            # Slack integration
+│       │   │   ├── discord.rs          # Discord integration
+│       │   │   ├── webhook.rs          # Generic webhooks
+│       │   │   └── push.rs             # Firebase push
+│       │   ├── commands.rs             # Remote command handler
+│       │   └── reports.rs              # Report generator
+│       └── monitoring/                 # Resource monitoring (NEW)
+│           ├── mod.rs                  # Monitor coordinator
+│           ├── system.rs               # CPU/memory/disk
+│           └── cluster.rs              # Node health
 ├── buildnet-daemon/                    # HTTP daemon
 │   ├── src/
 │   │   ├── main.rs                     # CLI entry
 │   │   ├── api.rs                      # Axum routes
-│   │   └── cli.rs                      # Clap commands
+│   │   ├── cli.rs                      # Clap commands
+│   │   └── webhooks.rs                 # Inbound webhooks (NEW)
 │   └── static/
 │       └── index.html                  # Web control panel
 └── buildnet-ffi/                       # FFI bindings
@@ -396,9 +618,19 @@ packages/buildnet-native/
 
 .buildnet/
 ├── config.json                         # Package configuration
+├── notifications.yaml                  # Notification config (NEW)
 ├── state.db                            # SQLite state database
-└── cache/                              # Artifact cache directory
+├── events.db                           # Event/command log (NEW)
+├── cache/                              # Artifact cache directory
+└── reports/                            # Generated reports (NEW)
 ```
+
+## Documentation
+
+- [BuildNet Master Plan](./BUILDNET-MASTER-PLAN.md) - This document
+- [BuildNet Notification System](./BUILDNET-NOTIFICATION-SYSTEM.md) - Detailed notification docs
+- [BuildNet API Reference](./BUILDNET-API.md) - REST/WebSocket API
+- [BuildNet Configuration](./BUILDNET-CONFIG.md) - Configuration options
 
 ---
 
