@@ -17,9 +17,12 @@ import {
   getErrorStats,
   getErrorContext,
   getTraceDb,
+  getTracingConfig,
+  updateTracingConfig,
   type TraceQueryOptions,
   type TraceRecord,
   type SpanRecord,
+  type TracingConfig,
 } from '../../../lib/tracing';
 import { loggers } from '../../../lib/logger';
 
@@ -962,6 +965,52 @@ export async function registerTraceRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(500).send({
         error: 'Internal Server Error',
         message: 'Failed to check alerts',
+      });
+    }
+  });
+
+  // ============================================
+  // CONFIGURATION ENDPOINTS
+  // ============================================
+
+  /**
+   * GET /api/admin/traces/config
+   * Get tracing configuration.
+   */
+  app.get('/admin/traces/config', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!requireAdmin(request, reply)) return;
+
+    try {
+      const config = getTracingConfig();
+      return config;
+    } catch (error) {
+      log.error({ error }, 'Failed to get tracing config');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to get tracing config',
+      });
+    }
+  });
+
+  /**
+   * PUT /api/admin/traces/config
+   * Update tracing configuration.
+   */
+  app.put('/admin/traces/config', async (request: FastifyRequest<{
+    Body: Partial<TracingConfig>;
+  }>, reply: FastifyReply) => {
+    if (!requireAdmin(request, reply)) return;
+
+    try {
+      const updates = request.body || {};
+      const config = updateTracingConfig(updates);
+      log.info({ config, updates }, 'Tracing config updated');
+      return config;
+    } catch (error) {
+      log.error({ error }, 'Failed to update tracing config');
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Failed to update tracing config',
       });
     }
   });

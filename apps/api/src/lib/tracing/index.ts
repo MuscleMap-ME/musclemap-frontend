@@ -83,4 +83,8 @@ export {
   getRecentErrors,
   getErrorStats,
   getErrorContext,
+  // Configuration
+  getTracingConfig,
+  updateTracingConfig,
+  type TracingConfig,
 } from './trace-db';

@@ -5,7 +5,7 @@
  * Spans represent individual operations within a trace (e.g., database queries, HTTP calls).
  */
 
-import { insertSpan } from './trace-db';
+import { insertSpan, getTracingConfig } from './trace-db';
 import {
   getTraceContext,
   createChildContext,
@@ -41,6 +41,26 @@ interface ActiveSpan {
 
 const activeSpans = new Map<string, ActiveSpan>();
 
+// Cache config to avoid DB lookups on every span
+let cachedConfig: { backendEnabled: boolean; sampleRate: number } | null = null;
+let configCacheTime = 0;
+const CONFIG_CACHE_TTL = 5000; // 5 seconds
+
+function isBackendTracingEnabled(): boolean {
+  const now = Date.now();
+  if (!cachedConfig || now - configCacheTime > CONFIG_CACHE_TTL) {
+    try {
+      const config = getTracingConfig();
+      cachedConfig = { backendEnabled: config.backendEnabled, sampleRate: config.sampleRate };
+      configCacheTime = now;
+    } catch {
+      // If config fetch fails, default to enabled
+      return true;
+    }
+  }
+  return cachedConfig.backendEnabled;
+}
+
 /**
  * Start a new span for an operation.
  * Returns the span ID which should be used to end the span.
@@ -51,6 +71,11 @@ export function startSpan(
   service: Service,
   attributes: SpanAttributes = {}
 ): string {
+  // Check if backend tracing is enabled
+  if (!isBackendTracingEnabled()) {
+    return generateSpanId(); // Return dummy ID but don't record
+  }
+
   const context = getTraceContext();
 
   // If no context, we're not in a traced request - still record the span

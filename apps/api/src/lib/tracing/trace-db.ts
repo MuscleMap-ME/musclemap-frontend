@@ -105,7 +105,82 @@ function initializeSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_spans_parent_span_id ON spans(parent_span_id);
     CREATE INDEX IF NOT EXISTS idx_spans_operation_type ON spans(operation_type);
     CREATE INDEX IF NOT EXISTS idx_spans_started_at ON spans(started_at);
+
+    -- Tracing configuration table
+    CREATE TABLE IF NOT EXISTS tracing_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER DEFAULT (strftime('%s','now') * 1000)
+    );
+
+    -- Insert default config values if not present
+    INSERT OR IGNORE INTO tracing_config (key, value) VALUES ('backend_enabled', 'true');
+    INSERT OR IGNORE INTO tracing_config (key, value) VALUES ('frontend_enabled', 'true');
+    INSERT OR IGNORE INTO tracing_config (key, value) VALUES ('sample_rate', '1.0');
   `);
+}
+
+// ============================================
+// TRACING CONFIGURATION
+// ============================================
+
+export interface TracingConfig {
+  backendEnabled: boolean;
+  frontendEnabled: boolean;
+  sampleRate: number;
+}
+
+/**
+ * Get the current tracing configuration.
+ */
+export function getTracingConfig(): TracingConfig {
+  const database = getTraceDb();
+  const rows = database.prepare('SELECT key, value FROM tracing_config').all() as Array<{ key: string; value: string }>;
+
+  const config: Record<string, string> = {};
+  for (const row of rows) {
+    config[row.key] = row.value;
+  }
+
+  return {
+    backendEnabled: config.backend_enabled !== 'false',
+    frontendEnabled: config.frontend_enabled !== 'false',
+    sampleRate: parseFloat(config.sample_rate || '1.0'),
+  };
+}
+
+/**
+ * Update tracing configuration.
+ */
+export function updateTracingConfig(updates: Partial<TracingConfig>): TracingConfig {
+  const database = getTraceDb();
+  const now = Date.now();
+
+  if (updates.backendEnabled !== undefined) {
+    database.prepare('INSERT OR REPLACE INTO tracing_config (key, value, updated_at) VALUES (?, ?, ?)').run(
+      'backend_enabled',
+      updates.backendEnabled ? 'true' : 'false',
+      now
+    );
+  }
+
+  if (updates.frontendEnabled !== undefined) {
+    database.prepare('INSERT OR REPLACE INTO tracing_config (key, value, updated_at) VALUES (?, ?, ?)').run(
+      'frontend_enabled',
+      updates.frontendEnabled ? 'true' : 'false',
+      now
+    );
+  }
+
+  if (updates.sampleRate !== undefined) {
+    database.prepare('INSERT OR REPLACE INTO tracing_config (key, value, updated_at) VALUES (?, ?, ?)').run(
+      'sample_rate',
+      updates.sampleRate.toString(),
+      now
+    );
+  }
+
+  return getTracingConfig();
 }
 
 /**

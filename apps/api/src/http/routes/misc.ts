@@ -637,25 +637,30 @@ export async function registerMiscRoutes(app: FastifyInstance) {
     // Handle spans from frontend tracing system
     if (body?.spans && body.spans.length > 0) {
       try {
-        const { insertSpan } = await import('../../lib/tracing/trace-db');
-        for (const span of body.spans) {
-          insertSpan({
-            id: span.id,
-            traceId: span.traceId,
-            parentSpanId: span.parentSpanId,
-            operationName: span.operationName,
-            operationType: span.operationType,
-            service: 'frontend',
-            startedAt: span.startedAt,
-            endedAt: span.endedAt,
-            durationMs: span.durationMs,
-            status: span.status || 'completed',
-            errorMessage: span.errorMessage,
-            attributes: span.attributes,
-            events: [],
-          });
+        const { insertSpan, getTracingConfig } = await import('../../lib/tracing/trace-db');
+        const config = getTracingConfig();
+
+        // Only store if frontend tracing is enabled
+        if (config.frontendEnabled) {
+          for (const span of body.spans) {
+            insertSpan({
+              id: span.id,
+              traceId: span.traceId,
+              parentSpanId: span.parentSpanId,
+              operationName: span.operationName,
+              operationType: span.operationType,
+              service: 'frontend',
+              startedAt: span.startedAt,
+              endedAt: span.endedAt,
+              durationMs: span.durationMs,
+              status: span.status || 'completed',
+              errorMessage: span.errorMessage,
+              attributes: span.attributes,
+              events: [],
+            });
+          }
+          log.debug({ count: body.spans.length }, 'frontend-spans-stored');
         }
-        log.debug({ count: body.spans.length }, 'frontend-spans-stored');
       } catch (err) {
         log.error({ error: err }, 'frontend-spans-store-error');
       }

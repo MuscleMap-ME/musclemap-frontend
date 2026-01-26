@@ -37,14 +37,73 @@ import {
   Layers,
   Loader2,
   Map,
+  Power,
   RefreshCw,
   Search,
   Server,
+  Settings,
   User,
   X,
   Zap,
 } from 'lucide-react';
 import GlassSurface from '../glass/GlassSurface';
+
+// ============================================
+// TRACING CONFIG TYPES & HOOK
+// ============================================
+
+interface TracingConfig {
+  backendEnabled: boolean;
+  frontendEnabled: boolean;
+  sampleRate: number;
+}
+
+function useTracingConfig() {
+  const [config, setConfig] = useState<TracingConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const fetchConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/traces/config');
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tracing config:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateConfig = useCallback(async (updates: Partial<TracingConfig>) => {
+    setUpdating(true);
+    try {
+      const res = await fetch('/api/admin/traces/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConfig(data);
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to update tracing config:', error);
+    } finally {
+      setUpdating(false);
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    fetchConfig();
+  }, [fetchConfig]);
+
+  return { config, loading, updating, updateConfig, refetch: fetchConfig };
+}
 
 // ============================================
 // CONSTANTS
@@ -1340,6 +1399,9 @@ export default function TracingPanel() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [activeView, setActiveView] = useState('traces');
 
+  // Tracing config (on/off toggle)
+  const { config: tracingConfig, updating: configUpdating, updateConfig } = useTracingConfig();
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState('day');
@@ -1501,6 +1563,69 @@ export default function TracingPanel() {
           </button>
         </div>
       </div>
+
+      {/* Tracing Power Controls */}
+      {tracingConfig && (
+        <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-gray-400" />
+            <span className="text-sm font-medium text-gray-300">Tracing Controls</span>
+          </div>
+
+          {/* Backend Tracing Toggle */}
+          <button
+            onClick={() => updateConfig({ backendEnabled: !tracingConfig.backendEnabled })}
+            disabled={configUpdating}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+              ${tracingConfig.backendEnabled
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'}
+              ${configUpdating ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <Power className={`w-4 h-4 ${configUpdating ? 'animate-pulse' : ''}`} />
+            Backend: {tracingConfig.backendEnabled ? 'ON' : 'OFF'}
+          </button>
+
+          {/* Frontend Tracing Toggle */}
+          <button
+            onClick={() => updateConfig({ frontendEnabled: !tracingConfig.frontendEnabled })}
+            disabled={configUpdating}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+              ${tracingConfig.frontendEnabled
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'}
+              ${configUpdating ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <Power className={`w-4 h-4 ${configUpdating ? 'animate-pulse' : ''}`} />
+            Frontend: {tracingConfig.frontendEnabled ? 'ON' : 'OFF'}
+          </button>
+
+          {/* Sample Rate Display */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 text-sm text-gray-400">
+            <span>Sample Rate:</span>
+            <span className="text-white font-mono">{Math.round(tracingConfig.sampleRate * 100)}%</span>
+          </div>
+
+          {/* Status Indicator */}
+          <div className="ml-auto flex items-center gap-2 text-sm">
+            {tracingConfig.backendEnabled || tracingConfig.frontendEnabled ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400">Tracing Active</span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="text-red-400">Tracing Disabled</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* View Tabs */}
       <div className="flex flex-wrap gap-2">
