@@ -240,8 +240,8 @@ impl ExecutionService {
         Ok(false)
     }
 
-    /// Execute a queued action
-    async fn execute_action(&self, id: &str) {
+    /// Execute a queued action (internal implementation for spawning)
+    async fn execute_action_internal(&self, id: &str) {
         // Increment active count
         {
             let mut count = self.active_count.write();
@@ -300,12 +300,17 @@ impl ExecutionService {
             *count -= 1;
         }
 
-        // Process queue
-        self.process_queue().await;
+        // Process queue (synchronous call)
+        self.process_queue();
+    }
+
+    /// Execute a queued action (public wrapper)
+    pub async fn execute_action(&self, id: &str) {
+        self.execute_action_internal(id).await;
     }
 
     /// Process queued executions
-    async fn process_queue(&self) {
+    fn process_queue(&self) {
         loop {
             let can_execute = {
                 let active = self.active_count.read();
@@ -328,8 +333,9 @@ impl ExecutionService {
             if let Some(queued) = next {
                 let id = queued.id.clone();
                 let this = self.clone_for_spawn();
-                tokio::spawn(async move {
-                    this.execute_action(&id).await;
+                // Spawn the task and let it run independently
+                let _ = tokio::task::spawn(async move {
+                    this.execute_action_internal(&id).await;
                 });
             } else {
                 break;

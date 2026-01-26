@@ -273,7 +273,7 @@
   "src/components/mascot/cockatrice/cockatriceMessages.ts": "d7ba2436569a852c0949eeda53a75666",
   "src/components/mascot/cockatrice/index.ts": "326cc7cb1f49e2980418f7f71e49234b",
   "src/components/mascot/companion/CompanionCharacter.tsx": "e2c0383d73a5ddd0eea0040bdaf95832",
-  "src/components/mascot/companion/CompanionContext.tsx": "5960016bbc3e48e5a8e8454385084da2",
+  "src/components/mascot/companion/CompanionContext.tsx": "15c8728f90a78c146cd148c75a47ab58",
   "src/components/mascot/companion/CompanionDock.tsx": "72cde6bd95a298f2065e13a414d5f9a3",
   "src/components/mascot/companion/CompanionPanel.tsx": "d0bc69d84ab99c1760708745c6392bc1",
   "src/components/mascot/companion/CompanionProgress.tsx": "dff26694d6db0ea721b9206724481227",

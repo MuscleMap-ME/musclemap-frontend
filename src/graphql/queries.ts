@@ -4306,9 +4306,11 @@ export const NUTRITION_DASHBOARD_QUERY = gql`
         mealsLogged
       }
       streaks {
-        currentStreak
-        longestStreak
-        lastLogDate
+        currentLoggingStreak
+        longestLoggingStreak
+        currentGoalStreak
+        longestGoalStreak
+        lastLoggedAt
       }
     }
   }
@@ -4545,11 +4547,13 @@ export const MASCOT_PENDING_REACTIONS_QUERY = gql`
       id
       eventId
       reactionType
-      emotionLevel
       message
-      animationType
+      emote
+      animation
+      duration
+      intensity
       soundEffect
-      xpAwarded
+      shown
       createdAt
     }
   }

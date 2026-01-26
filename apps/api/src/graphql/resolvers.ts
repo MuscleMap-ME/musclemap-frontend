@@ -5423,7 +5423,32 @@ export const resolvers = {
     economyWallet: async (_: unknown, __: unknown, context: Context) => {
       const { userId } = requireAuth(context);
       const wallet = await walletService.getWalletDetails(userId);
-      return wallet;
+
+      // Fetch recent transactions
+      const transactions = await queryAll<{ id: string; event_type: string; credits: number; description: string; created_at: Date }>(
+        `SELECT id, event_type, credits, description, created_at
+         FROM credit_ledger
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 10`,
+        [userId]
+      );
+
+      // Map to GraphQL Wallet type
+      return {
+        balance: {
+          credits: wallet.balance ?? 0,
+          pending: 0, // No pending system yet
+          lifetime: wallet.totalEarned ?? 0,
+        },
+        transactions: transactions.map((tx) => ({
+          id: tx.id,
+          type: tx.event_type,
+          amount: tx.credits,
+          description: tx.description || tx.event_type.replace(/_/g, ' '),
+          createdAt: tx.created_at,
+        })),
+      };
     },
 
     // Economy transaction history

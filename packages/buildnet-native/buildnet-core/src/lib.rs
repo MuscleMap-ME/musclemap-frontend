@@ -12,6 +12,7 @@
 //! - Template system with hot-swapping
 //! - High availability with failover and replication
 //! - REAPI compatibility for enterprise builds
+//! - Native Cargo/Rust build support
 
 pub mod state;
 pub mod cache;
@@ -29,6 +30,7 @@ pub mod integrations;
 pub mod sessions;
 pub mod redundancy;
 pub mod reapi;
+pub mod cargo;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -45,6 +47,7 @@ pub use integrations::{GitHubClient, MuscleMapClient};
 pub use sessions::{SessionManager, UserSession, AuthLevel};
 pub use redundancy::{RedundancyCoordinator, FailoverManager, CheckpointManager};
 pub use reapi::{ExecutionService, ContentAddressableStorage, ActionCache};
+pub use cargo::{CargoBuilder, CargoBuildOptions, CargoBuildResult, CargoProfile, CargoWorkspace};
 
 /// BuildNet version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

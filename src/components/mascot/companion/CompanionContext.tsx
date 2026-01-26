@@ -80,11 +80,13 @@ interface MascotReaction {
   id: string;
   eventId: string;
   reactionType: string;
-  emotionLevel: number;
   message: string;
-  animationType: string;
+  emote: string;
+  animation: string;
+  duration: number;
+  intensity: number;
   soundEffect?: string;
-  xpAwarded: number;
+  shown: boolean;
   createdAt: string;
 }
 
@@ -262,10 +264,12 @@ export function CompanionProvider({ children }: { children: React.ReactNode }) {
           id: `purchase-${upgradeId}`,
           eventId: upgradeId,
           reactionType: 'upgrade_purchased',
-          emotionLevel: 5,
           message: 'New cosmetic acquired!',
-          animationType: 'celebrate',
-          xpAwarded: 0,
+          emote: '🎉',
+          animation: 'celebrate',
+          duration: 3000,
+          intensity: 1.0,
+          shown: false,
           createdAt: new Date().toISOString(),
         });
 

@@ -198,7 +198,8 @@ impl StateReplicator {
 
         // Trim old entries (keep last 1000)
         if log.len() > 1000 {
-            log.drain(0..log.len() - 1000);
+            let excess = log.len() - 1000;
+            log.drain(0..excess);
         }
 
         entry
