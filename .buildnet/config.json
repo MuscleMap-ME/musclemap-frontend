@@ -1,5 +1,5 @@
 {
-  "project_root": "/var/www/musclemap.me",
+  "project_root": ".",
   "db_path": ".buildnet/state.db",
   "cache_path": ".buildnet/cache",
   "http_port": 9876,
@@ -56,6 +56,14 @@
       "dependencies": ["shared", "core"],
       "sources": ["apps/api/src/**/*.ts"],
       "output_dir": "apps/api/dist"
+    },
+    {
+      "name": "frontend",
+      "path": ".",
+      "build_cmd": "pnpm build:vite",
+      "dependencies": ["shared", "core", "client", "ui"],
+      "sources": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.css", "index.html", "vite.config.js"],
+      "output_dir": "dist"
     }
   ]
 }

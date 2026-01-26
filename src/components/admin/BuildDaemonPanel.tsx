@@ -1,12 +1,12 @@
 /**
- * Build Daemon Panel - Live Build Monitoring
+ * BuildNet Panel - High-Performance Rust Build System
  *
- * Real-time view of the build daemon with:
- * - Live streaming logs with WebSocket
+ * Real-time view of BuildNet Native with:
+ * - Live streaming events via SSE (Server-Sent Events)
  * - Build queue status
  * - Build history
- * - Daemon controls (start/stop/build)
- * - Chronologically sorted logs with filtering
+ * - Daemon controls (build/force)
+ * - Cache statistics
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -27,76 +27,62 @@ import {
   Zap,
   ChevronDown,
   ChevronRight,
+  Package,
+  HardDrive,
 } from 'lucide-react';
 
-// Configuration - Use proxied routes through Caddy
-// The build daemon runs on localhost:9876 (HTTP) and localhost:9877 (WS)
-// but is proxied through Caddy at /api/build-daemon/*
+// Configuration - BuildNet Native runs on port 9876
+// Proxied through Caddy at /buildnet/*
 const getApiBaseUrl = () => {
-  // In production, use the same origin with /api/build-daemon prefix
-  // In development, connect directly to localhost
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return `${window.location.origin}/api/build-daemon`;
+    return `${window.location.origin}/buildnet`;
   }
   return 'http://localhost:9876';
 };
 
-const getWsBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/api/build-daemon/ws`;
-  }
-  return 'ws://localhost:9877';
-};
-
-// Types
-interface BuildJob {
+// Types matching BuildNet Native API
+interface Build {
   id: string;
-  type: string;
-  source: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  queuedAt?: number;
-  startedAt?: number;
-  completedAt?: number;
-  duration?: number;
-  result?: {
-    tier: number;
-    code: number;
-  };
-  error?: string;
+  package: string;
+  source_hash: string;
+  output_hash: string | null;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number;
+  error: string | null;
 }
 
-interface DaemonStatus {
+interface BuildNetStatus {
   status: string;
-  hostname: string;
-  uptime: number;
-  wsClients: number;
-  build: {
-    queueLength: number;
-    currentBuild: BuildJob | null;
-    history: BuildJob[];
+  version: string;
+  project_root: string;
+  packages: string[];
+  state_stats: {
+    total_builds: number;
+    cached_builds: number;
+    failed_builds: number;
+    cached_files: number;
+    artifacts: number;
   };
+}
+
+interface CacheStats {
+  cached_files: number;
+  artifacts: number;
+  total_size_bytes?: number;
 }
 
 interface LogEntry {
   timestamp: string;
   level: string;
   msg: string;
-  jobId?: string;
-  [key: string]: unknown;
+  package?: string;
 }
 
-// Tier badges
-const tierBadges: Record<number, { label: string; color: string }> = {
-  0: { label: 'INSTANT', color: 'text-green-400 bg-green-500/20' },
-  1: { label: 'RESTORE', color: 'text-cyan-400 bg-cyan-500/20' },
-  2: { label: 'INCREMENTAL', color: 'text-yellow-400 bg-yellow-500/20' },
-  3: { label: 'FULL', color: 'text-purple-400 bg-purple-500/20' },
-};
-
-// Status colors (reserved for future enhanced status display)
-const _statusColors: Record<string, string> = {
-  queued: 'text-blue-400',
+// Status colors for build states
+const statusColors: Record<string, string> = {
+  pending: 'text-blue-400',
   running: 'text-yellow-400 animate-pulse',
   completed: 'text-green-400',
   failed: 'text-red-400',
@@ -105,7 +91,9 @@ const _statusColors: Record<string, string> = {
 export default function BuildDaemonPanel() {
   // State
   const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState<DaemonStatus | null>(null);
+  const [status, setStatus] = useState<BuildNetStatus | null>(null);
+  const [builds, setBuilds] = useState<Build[]>([]);
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [output, setOutput] = useState<string>('');
   const [filter, setFilter] = useState<string>('');
@@ -116,7 +104,7 @@ export default function BuildDaemonPanel() {
   const [error, setError] = useState<string | null>(null);
 
   // Refs
-  const wsRef = useRef<WebSocket | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const logsRef = useRef<HTMLDivElement>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -129,103 +117,106 @@ export default function BuildDaemonPanel() {
         const data = await response.json();
         setStatus(data);
         setError(null);
+        setConnected(true);
       } else {
-        throw new Error('Daemon not responding');
+        throw new Error('BuildNet not responding');
       }
     } catch (_err) {
       setStatus(null);
-      setError('Daemon not running');
+      setConnected(false);
+      setError('BuildNet not running');
     }
   }, []);
 
-  // Connect to WebSocket
-  const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  // Fetch build history
+  const fetchBuilds = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/builds`);
+      if (response.ok) {
+        const data = await response.json();
+        setBuilds(data);
+      }
+    } catch (_err) {
+      // Silently fail - status will show the error
+    }
+  }, []);
+
+  // Fetch cache statistics
+  const fetchCacheStats = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/cache/stats`);
+      if (response.ok) {
+        const data = await response.json();
+        setCacheStats(data);
+      }
+    } catch (_err) {
+      // Silently fail
+    }
+  }, []);
+
+  // Connect to SSE events stream
+  const connectSSE = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
 
     try {
-      const ws = new WebSocket(getWsBaseUrl());
+      const eventSource = new EventSource(`${getApiBaseUrl()}/events`);
 
-      ws.onopen = () => {
+      eventSource.onopen = () => {
         setConnected(true);
         setError(null);
-        console.log('[BuildDaemon] WebSocket connected');
+        console.info('[BuildNet] SSE connected');
       };
 
-      ws.onmessage = (event) => {
+      eventSource.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
 
-          switch (msg.type) {
-            case 'connected':
-              setStatus(prev => prev ? { ...prev, ...msg.status } : null);
-              break;
+          // Add to logs
+          const logEntry: LogEntry = {
+            timestamp: new Date().toISOString(),
+            level: msg.level || 'info',
+            msg: msg.message || JSON.stringify(msg),
+            package: msg.package,
+          };
+          setLogs(prev => [logEntry, ...prev].slice(0, 500));
 
-            case 'queued':
-            case 'started':
-            case 'completed':
-            case 'failed':
-              setStatus(prev => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  build: {
-                    ...prev.build,
-                    currentBuild: msg.type === 'started' ? msg.job :
-                      msg.type === 'completed' || msg.type === 'failed' ? null : prev.build.currentBuild,
-                    history: msg.type === 'completed' || msg.type === 'failed'
-                      ? [msg.job, ...prev.build.history.slice(0, 9)]
-                      : prev.build.history,
-                  },
-                };
-              });
-              if (msg.type === 'completed' || msg.type === 'failed') {
-                setBuilding(false);
-              }
-              // Add to logs
-              setLogs(prev => [{
-                timestamp: new Date().toISOString(),
-                level: msg.type === 'failed' ? 'error' : 'info',
-                msg: `Build ${msg.type}: ${msg.job?.id?.slice(0, 8)}`,
-                jobId: msg.job?.id,
-              }, ...prev].slice(0, 1000));
-              break;
-
-            case 'output':
-              setOutput(prev => prev + msg.text);
-              break;
-
-            default:
-              console.log('[BuildDaemon] Unknown message type:', msg.type);
+          // Handle specific event types
+          if (msg.type === 'build_started') {
+            setBuilding(true);
+            setOutput('');
+          } else if (msg.type === 'build_completed' || msg.type === 'build_failed') {
+            setBuilding(false);
+            fetchBuilds();
+            fetchStatus();
+          } else if (msg.type === 'build_output') {
+            setOutput(prev => prev + (msg.output || msg.text || '') + '\n');
           }
         } catch (e) {
-          console.error('[BuildDaemon] Failed to parse message:', e);
+          console.error('[BuildNet] Failed to parse SSE message:', e);
         }
       };
 
-      ws.onclose = () => {
+      eventSource.onerror = () => {
         setConnected(false);
-        wsRef.current = null;
-        console.log('[BuildDaemon] WebSocket closed');
+        eventSourceRef.current = null;
+        console.info('[BuildNet] SSE disconnected');
 
         // Attempt reconnect
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
-            connectWebSocket();
-          }, 3000);
+            connectSSE();
+          }, 5000);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('[BuildDaemon] WebSocket error:', error);
-        setError('WebSocket connection failed');
-      };
-
-      wsRef.current = ws;
+      eventSourceRef.current = eventSource;
     } catch (_err) {
-      setError('Failed to connect to daemon');
+      setError('Failed to connect to BuildNet events');
     }
-  }, []);
+  }, [fetchBuilds, fetchStatus]);
 
   // Request a build
   const requestBuild = useCallback(async (force = false) => {
@@ -241,16 +232,46 @@ export default function BuildDaemonPanel() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to queue build');
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to queue build');
       }
 
       const data = await response.json();
-      console.log('[BuildDaemon] Build queued:', data);
+      console.info('[BuildNet] Build queued:', data);
+
+      // Add to output
+      setOutput(`Build started for packages: ${data.packages?.join(', ') || 'all'}\n`);
+
+      // Refresh status after a moment
+      setTimeout(() => {
+        fetchStatus();
+        fetchBuilds();
+      }, 1000);
     } catch (err) {
       setBuilding(false);
       setError(`Build request failed: ${err}`);
     }
-  }, []);
+  }, [fetchStatus, fetchBuilds]);
+
+  // Clear cache
+  const clearCache = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/cache/clear`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        fetchCacheStats();
+        setLogs(prev => [{
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          msg: 'Cache cleared successfully',
+        }, ...prev]);
+      }
+    } catch (_err) {
+      setError('Failed to clear cache');
+    }
+  }, [fetchCacheStats]);
 
   // Auto-scroll effect
   useEffect(() => {
@@ -259,22 +280,27 @@ export default function BuildDaemonPanel() {
     }
   }, [output, autoScroll]);
 
-  // Initial fetch and WebSocket connection
+  // Initial fetch and SSE connection
   useEffect(() => {
     fetchStatus();
-    connectWebSocket();
+    fetchBuilds();
+    fetchCacheStats();
+    connectSSE();
 
     // Refresh status periodically
-    const statusInterval = setInterval(fetchStatus, 5000);
+    const statusInterval = setInterval(() => {
+      fetchStatus();
+      fetchBuilds();
+    }, 10000);
 
     return () => {
       clearInterval(statusInterval);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      wsRef.current?.close();
+      eventSourceRef.current?.close();
     };
-  }, [fetchStatus, connectWebSocket]);
+  }, [fetchStatus, fetchBuilds, fetchCacheStats, connectSSE]);
 
   // Filter logs
   const filteredLogs = logs.filter(log => {
@@ -290,24 +316,37 @@ export default function BuildDaemonPanel() {
     return `${(ms / 60000).toFixed(1)}m`;
   };
 
+  // Format bytes
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+  };
+
+  // Count running builds
+  const runningBuilds = builds.filter(b => b.status === 'running').length;
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-          <h2 className="text-xl font-bold text-white">Build Daemon</h2>
+          <h2 className="text-xl font-bold text-white">BuildNet Native</h2>
           {connected ? (
             <Wifi className="w-5 h-5 text-green-400" />
           ) : (
             <WifiOff className="w-5 h-5 text-red-400" />
+          )}
+          {status?.version && (
+            <span className="text-xs text-gray-500">v{status.version}</span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => requestBuild(false)}
-            disabled={building || !status}
+            disabled={building}
             className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg flex items-center gap-2 disabled:opacity-50"
           >
             {building ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -315,7 +354,7 @@ export default function BuildDaemonPanel() {
           </button>
           <button
             onClick={() => requestBuild(true)}
-            disabled={building || !status}
+            disabled={building}
             className="px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg flex items-center gap-2 disabled:opacity-50"
           >
             <Zap className="w-4 h-4" />
@@ -342,38 +381,80 @@ export default function BuildDaemonPanel() {
       )}
 
       {/* Status Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <GlassSurface className="p-4">
           <div className="text-sm text-gray-400 mb-1">Status</div>
           <div className={`text-xl font-bold ${status ? 'text-green-400' : 'text-red-400'}`}>
-            {status ? 'Running' : 'Offline'}
+            {status?.status === 'running' ? 'Running' : 'Offline'}
           </div>
         </GlassSurface>
 
         <GlassSurface className="p-4">
-          <div className="text-sm text-gray-400 mb-1">Queue</div>
+          <div className="text-sm text-gray-400 mb-1">Total Builds</div>
           <div className="text-xl font-bold text-white">
-            {status?.build.queueLength ?? '-'}
+            {status?.state_stats.total_builds ?? '-'}
           </div>
         </GlassSurface>
 
         <GlassSurface className="p-4">
-          <div className="text-sm text-gray-400 mb-1">Current Build</div>
-          <div className="text-xl font-bold">
-            {status?.build.currentBuild ? (
-              <span className="text-yellow-400 animate-pulse">
-                {status.build.currentBuild.id.slice(0, 8)}
+          <div className="text-sm text-gray-400 mb-1">Cached</div>
+          <div className="text-xl font-bold text-cyan-400">
+            {status?.state_stats.cached_builds ?? '-'}
+          </div>
+        </GlassSurface>
+
+        <GlassSurface className="p-4">
+          <div className="text-sm text-gray-400 mb-1">Failed</div>
+          <div className="text-xl font-bold text-red-400">
+            {status?.state_stats.failed_builds ?? '-'}
+          </div>
+        </GlassSurface>
+      </div>
+
+      {/* Packages & Cache */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <GlassSurface className="p-4">
+          <div className="flex items-center gap-2 text-gray-300 mb-3">
+            <Package className="w-4 h-4" />
+            <span className="font-medium">Packages</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {status?.packages.map(pkg => (
+              <span key={pkg} className="px-2 py-1 bg-white/5 rounded text-sm text-gray-300">
+                {pkg}
               </span>
-            ) : (
-              <span className="text-gray-500">None</span>
-            )}
+            )) ?? <span className="text-gray-500">No packages</span>}
           </div>
         </GlassSurface>
 
         <GlassSurface className="p-4">
-          <div className="text-sm text-gray-400 mb-1">Uptime</div>
-          <div className="text-xl font-bold text-white">
-            {status ? `${(status.uptime / 60).toFixed(0)}m` : '-'}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-gray-300">
+              <HardDrive className="w-4 h-4" />
+              <span className="font-medium">Cache</span>
+            </div>
+            <button
+              onClick={clearCache}
+              className="px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Files:</span>{' '}
+              <span className="text-white">{cacheStats?.cached_files ?? status?.state_stats.cached_files ?? 0}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Artifacts:</span>{' '}
+              <span className="text-white">{cacheStats?.artifacts ?? status?.state_stats.artifacts ?? 0}</span>
+            </div>
+            {cacheStats?.total_size_bytes && (
+              <div className="col-span-2">
+                <span className="text-gray-500">Size:</span>{' '}
+                <span className="text-white">{formatBytes(cacheStats.total_size_bytes)}</span>
+              </div>
+            )}
           </div>
         </GlassSurface>
       </div>
@@ -384,6 +465,11 @@ export default function BuildDaemonPanel() {
           <div className="flex items-center gap-2 text-gray-300">
             <Terminal className="w-4 h-4" />
             <span className="font-medium">Build Output</span>
+            {runningBuilds > 0 && (
+              <span className="text-yellow-400 text-xs animate-pulse">
+                ({runningBuilds} running)
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -422,56 +508,53 @@ export default function BuildDaemonPanel() {
             <Clock className="w-4 h-4" />
             <span className="font-medium">Build History</span>
             <span className="text-gray-500 text-sm">
-              ({status?.build.history.length ?? 0} builds)
+              ({builds.length} builds)
             </span>
           </div>
           {showHistory ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
 
         {showHistory && (
-          <div className="divide-y divide-white/5">
-            {status?.build.history.length === 0 ? (
+          <div className="divide-y divide-white/5 max-h-96 overflow-auto">
+            {builds.length === 0 ? (
               <div className="px-4 py-8 text-center text-gray-500">
                 No build history yet
               </div>
             ) : (
-              status?.build.history.map((job) => (
-                <div key={job.id} className={`px-4 py-3 ${job.status === 'failed' ? 'bg-red-500/5' : ''}`}>
+              builds.slice(0, 20).map((build) => (
+                <div key={build.id} className={`px-4 py-3 ${build.status === 'failed' ? 'bg-red-500/5' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {job.status === 'completed' ? (
+                      {build.status === 'completed' ? (
                         <CheckCircle className="w-4 h-4 text-green-400" />
-                      ) : (
+                      ) : build.status === 'failed' ? (
                         <AlertCircle className="w-4 h-4 text-red-400" />
+                      ) : build.status === 'running' ? (
+                        <Loader2 className="w-4 h-4 text-yellow-400 animate-spin" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-blue-400" />
                       )}
                       <span className="font-mono text-sm text-gray-300">
-                        {job.id.slice(0, 8)}
+                        {build.package}
                       </span>
-                      {job.status === 'failed' ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium text-red-400 bg-red-500/20">
-                          FAILED
-                        </span>
-                      ) : job.result?.tier !== undefined && (
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${tierBadges[job.result.tier]?.color}`}>
-                          {tierBadges[job.result.tier]?.label ?? `T${job.result.tier}`}
-                        </span>
-                      )}
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[build.status]}`}>
+                        {build.status.toUpperCase()}
+                      </span>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <span>{job.source}</span>
-                      {job.duration && (
-                        <span className="text-gray-500">{formatDuration(job.duration)}</span>
+                      {build.duration_ms > 0 && (
+                        <span className="text-gray-500">{formatDuration(build.duration_ms)}</span>
                       )}
-                      {job.completedAt && (
+                      {build.completed_at && (
                         <span className="text-gray-600 text-xs">
-                          {new Date(job.completedAt).toLocaleTimeString()}
+                          {new Date(build.completed_at).toLocaleTimeString()}
                         </span>
                       )}
                     </div>
                   </div>
-                  {job.status === 'failed' && job.error && (
+                  {build.status === 'failed' && build.error && (
                     <div className="mt-2 text-xs text-red-400/80 font-mono truncate pl-7">
-                      {job.error}
+                      {build.error.split('\n')[0]}
                     </div>
                   )}
                 </div>
@@ -538,6 +621,9 @@ export default function BuildDaemonPanel() {
                 }`}>
                   [{log.level}]
                 </span>
+                {log.package && (
+                  <span className="text-purple-400 flex-shrink-0">[{log.package}]</span>
+                )}
                 <span className="text-gray-300 break-all">{log.msg}</span>
               </div>
             ))

@@ -23,6 +23,8 @@ pub mod monitoring;
 pub mod resources;
 pub mod distributed;
 pub mod templates;
+pub mod integrations;
+pub mod sessions;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -35,6 +37,8 @@ pub use monitoring::{ResourceMonitor, MetricsExporter};
 pub use resources::{ResourceManager, CpuTier, StorageTier};
 pub use distributed::{DistributedOrchestrator, WorkerNode, BuildTask};
 pub use templates::{TemplateEngine, BuildTemplate};
+pub use integrations::{GitHubClient, MuscleMapClient};
+pub use sessions::{SessionManager, UserSession, AuthLevel};
 
 /// BuildNet version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

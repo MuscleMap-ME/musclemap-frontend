@@ -117,7 +117,7 @@ const NAV_SECTIONS = [
   { id: 'scheduler', label: 'Scheduler', icon: Calendar },
   { id: 'env', label: 'Environment', icon: FileCode },
   { id: 'deploy', label: 'Deployments', icon: Rocket, link: '/empire/deploy' },
-  { id: 'build-daemon', label: 'Build Daemon', icon: Zap },
+  { id: 'build-daemon', label: 'BuildNet', icon: Zap },
   { id: 'commands', label: 'Command Center', icon: Terminal, link: '/empire/commands' },
   { id: 'realtime-metrics', label: 'Real-time Metrics', icon: Activity },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle },

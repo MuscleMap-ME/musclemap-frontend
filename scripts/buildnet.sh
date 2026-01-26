@@ -116,9 +116,10 @@ buildnet_health() {
     local status
     status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
 
-    if [ "$status" = "healthy" ]; then
+    # Handle various status values that indicate healthy
+    if [ "$status" = "healthy" ] || [ "$status" = "ok" ] || [ "$status" = "running" ]; then
         local uptime
-        uptime=$(echo "$response" | jq -r '.uptime // "unknown"' 2>/dev/null)
+        uptime=$(echo "$response" | jq -r '.uptime // .uptime_secs // "unknown"' 2>/dev/null)
         success "BuildNet is healthy (uptime: $uptime)"
         return 0
     else
