@@ -17,7 +17,7 @@
  *   - Supports ESM and CJS dual output
  */
 
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import { join, resolve, basename } from 'path';
 import { execSync, spawn } from 'child_process';
 
@@ -182,12 +182,14 @@ async function buildWithBun(
   const Bun = globalThis.Bun;
 
   // Build with Bun
+  // CRITICAL: Do NOT use splitting: true - it causes duplicate exports bug in Bun
+  // Each entry point should be built independently
   const buildResult = await Bun.build({
     entrypoints: entryPoints,
     outdir: distDir,
     target: 'node',
     format: isESM ? 'esm' : 'cjs',
-    splitting: entryPoints.length > 1,
+    splitting: false, // DISABLED - causes duplicate export statements
     sourcemap: sourcemap ? 'external' : 'none',
     minify: minify,
     external: [
@@ -212,14 +214,37 @@ async function buildWithBun(
   }
 
   // Generate TypeScript declarations using tsc
+  // CRITICAL: Use --noEmit false to override any tsconfig settings, and explicitly disable JS output
+  // The --emitDeclarationOnly flag should only emit .d.ts files, but we add extra safety
   log('Generating type declarations...');
-  const tscResult = await runCommand('npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist', absPath);
+  const tscResult = await runCommand(
+    'npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist --noEmit false',
+    absPath
+  );
 
   if (tscResult.exitCode !== 0) {
     // Try without declarationMap if it fails
-    const fallbackResult = await runCommand('npx tsc --emitDeclarationOnly --declaration --outDir dist', absPath);
+    const fallbackResult = await runCommand(
+      'npx tsc --emitDeclarationOnly --declaration --outDir dist --noEmit false',
+      absPath
+    );
     if (fallbackResult.exitCode !== 0) {
       warn('Type declaration generation had issues (continuing anyway)');
+    }
+  }
+
+  // Safety check: Verify no duplicate exports in output files
+  const jsFiles = readdirSync(distDir).filter(f => f.endsWith('.js'));
+  for (const file of jsFiles) {
+    const content = readFileSync(join(distDir, file), 'utf-8');
+    const exportMatches = content.match(/^export \{[^}]+\};$/gm);
+    if (exportMatches && exportMatches.length > 1) {
+      error(`CORRUPTION DETECTED: ${file} has ${exportMatches.length} export statements!`);
+      error('This indicates tsc overwrote bun output. Rebuilding with tsc only...');
+      // Fall back to pure tsc build
+      await runCommand(`rm -rf "${distDir}"`);
+      await buildWithTsc(absPath);
+      return;
     }
   }
 
