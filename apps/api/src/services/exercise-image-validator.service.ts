@@ -5,12 +5,15 @@
  * 1. NSFW Detection - Block inappropriate content
  * 2. Exercise Verification - Check if image shows the correct exercise
  *
- * Uses existing nsfwjs integration + heuristic checks for exercise verification
+ * Uses existing nsfwjs integration + heuristic checks for exercise verification.
+ *
+ * On Bun runtime: Basic validation only (NSFW detection returns 'review')
+ * On Node.js: Full validation with NSFW detection and image stats
  */
 
 import { classifyImage, ModerationResult } from '../lib/nsfw-detector';
 import { loggers } from '../lib/logger';
-import sharp from 'sharp';
+import { getImageMetadata, isFullProcessingAvailable } from '../lib/sharp-compat';
 
 const log = loggers.api;
 
@@ -144,6 +147,8 @@ export async function validateExerciseImage(
 
 /**
  * Validate basic image properties
+ *
+ * Works on both Bun and Node.js runtimes using sharp-compat
  */
 async function validateBasicImageProperties(
   imageBuffer: Buffer
@@ -151,7 +156,10 @@ async function validateBasicImageProperties(
   const notes: string[] = [];
 
   try {
-    const metadata = await sharp(imageBuffer).metadata();
+    // Get metadata using runtime-appropriate method
+    const metadata = isFullProcessingAvailable()
+      ? await (await import('sharp')).default(imageBuffer).metadata()
+      : await getImageMetadata(imageBuffer);
 
     // Check dimensions
     if (!metadata.width || !metadata.height) {
@@ -191,7 +199,7 @@ async function validateBasicImageProperties(
     }
 
     // Check format
-    const allowedFormats = ['jpeg', 'png', 'webp', 'heif', 'heic'];
+    const allowedFormats = ['jpeg', 'png', 'webp', 'heif', 'heic', 'gif'];
     if (!metadata.format || !allowedFormats.includes(metadata.format)) {
       return {
         valid: false,
@@ -212,6 +220,9 @@ async function validateBasicImageProperties(
  * This is a heuristic-based check. For more accurate verification,
  * we could integrate a vision API (like Claude's vision) to confirm
  * the image shows the specified exercise.
+ *
+ * On Bun runtime: Basic checks only (no image stats)
+ * On Node.js: Full heuristic checks including color analysis
  */
 async function verifyExerciseContent(
   imageBuffer: Buffer,
@@ -221,7 +232,10 @@ async function verifyExerciseContent(
   let score = 0.5; // Default neutral score
 
   try {
-    const metadata = await sharp(imageBuffer).metadata();
+    // Get metadata using runtime-appropriate method
+    const metadata = isFullProcessingAvailable()
+      ? await (await import('sharp')).default(imageBuffer).metadata()
+      : await getImageMetadata(imageBuffer);
 
     // Check for reasonable image characteristics for exercise photos
 
@@ -250,18 +264,23 @@ async function verifyExerciseContent(
       notes.push('JPEG format (likely photo)');
     }
 
-    // 4. Look at image statistics for photo-like characteristics
-    const stats = await sharp(imageBuffer)
-      .stats();
+    // 4. Look at image statistics for photo-like characteristics (Node.js only)
+    if (isFullProcessingAvailable()) {
+      const sharp = (await import('sharp')).default;
+      const stats = await sharp(imageBuffer).stats();
 
-    // Photos typically have a reasonable range of colors (not flat)
-    const avgStdDev = stats.channels.reduce((sum, ch) => sum + ch.stdev, 0) / stats.channels.length;
-    if (avgStdDev > 30) {
-      score += 0.1;
-      notes.push('Good color variation (photo-like)');
-    } else if (avgStdDev < 15) {
-      score -= 0.1;
-      notes.push('Low color variation (may be graphic/icon)');
+      // Photos typically have a reasonable range of colors (not flat)
+      const avgStdDev = stats.channels.reduce((sum, ch) => sum + ch.stdev, 0) / stats.channels.length;
+      if (avgStdDev > 30) {
+        score += 0.1;
+        notes.push('Good color variation (photo-like)');
+      } else if (avgStdDev < 15) {
+        score -= 0.1;
+        notes.push('Low color variation (may be graphic/icon)');
+      }
+    } else {
+      // Bun runtime - skip stats check, assume reasonable
+      notes.push('Color analysis skipped (Bun runtime)');
     }
 
     // Clamp score between 0 and 1

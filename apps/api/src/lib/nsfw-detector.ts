@@ -5,13 +5,17 @@
  * Supports lazy loading of the TensorFlow model to reduce startup time.
  *
  * Uses TensorFlow.js WASM backend for Bun compatibility.
- * Image decoding is handled by sharp instead of tf.node.decodeImage.
+ * Image decoding is handled by sharp (Node.js only - NSFW detection
+ * is unavailable on Bun runtime due to sharp native binding requirements).
  */
 
 import { loggers } from './logger';
-import sharp from 'sharp';
+import { decodeImageToRGB, isFullProcessingAvailable } from './sharp-compat';
 
 const log = loggers.core;
+
+// Detect Bun runtime
+const isBun = typeof (globalThis as any).Bun !== 'undefined';
 
 // Classification thresholds
 const THRESHOLDS = {
@@ -83,8 +87,11 @@ async function loadModel(): Promise<any> {
 }
 
 /**
- * Decode image buffer to raw pixel data using sharp
+ * Decode image buffer to raw pixel data using sharp-compat
  * Returns { data: Uint8Array, width: number, height: number, channels: 3 }
+ *
+ * Note: This function is only available on Node.js runtime.
+ * On Bun, NSFW detection is unavailable and will return 'review' status.
  */
 async function decodeImageWithSharp(imageBuffer: Buffer): Promise<{
   data: Uint8Array;
@@ -92,33 +99,29 @@ async function decodeImageWithSharp(imageBuffer: Buffer): Promise<{
   height: number;
   channels: 3;
 }> {
-  // Use sharp to decode and get raw pixel data
-  const image = sharp(imageBuffer);
-  const metadata = await image.metadata();
-
-  if (!metadata.width || !metadata.height) {
-    throw new Error('Could not read image dimensions');
-  }
-
-  // Convert to RGB (3 channels) and get raw pixel data
-  const { data, info } = await image
-    .removeAlpha() // Remove alpha channel if present (convert to RGB)
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  return {
-    data: new Uint8Array(data),
-    width: info.width,
-    height: info.height,
-    channels: 3,
-  };
+  // Use sharp-compat which handles runtime detection
+  return decodeImageToRGB(imageBuffer);
 }
 
 /**
  * Classify an image buffer for NSFW content
+ *
+ * On Bun runtime: Returns 'review' status (NSFW detection unavailable)
+ * On Node.js: Full NSFWJS classification
  */
 export async function classifyImage(imageBuffer: Buffer): Promise<ModerationResult> {
   const startTime = Date.now();
+
+  // Check if NSFW detection is available (requires sharp for image decoding)
+  if (!isFullProcessingAvailable()) {
+    log.warn('NSFW detection unavailable on Bun runtime - flagging for manual review');
+    return {
+      status: 'review',
+      reason: 'NSFW detection unavailable on this runtime',
+      scores: {},
+      processingTimeMs: Date.now() - startTime,
+    };
+  }
 
   try {
     // Load model if needed
@@ -129,7 +132,7 @@ export async function classifyImage(imageBuffer: Buffer): Promise<ModerationResu
       throw new Error('TensorFlow not initialized');
     }
 
-    // Decode image using sharp
+    // Decode image using sharp (Node.js only)
     let imageData;
     try {
       imageData = await decodeImageWithSharp(imageBuffer);

@@ -6,15 +6,26 @@
  * - Convert to WebP format
  * - Generate thumbnails
  * - Strip EXIF metadata for privacy
+ *
+ * Uses lazy-loaded sharp to support Bun runtime.
+ * On Bun: Image processing is degraded (returns original).
+ * On Node.js: Full sharp processing with native performance.
  */
 
-import sharp from 'sharp';
 import { loggers } from '../lib/logger';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import {
+  getImageMetadata,
+  processImage,
+  isFullProcessingAvailable,
+} from '../lib/sharp-compat';
 
 const log = loggers.api;
+
+// Detect Bun runtime for logging
+const isBun = typeof (globalThis as any).Bun !== 'undefined';
 
 // Image processing constants
 const MAX_WIDTH = 800;
@@ -49,62 +60,100 @@ export interface SavedImage {
  * - Converts to WebP format
  * - Strips EXIF metadata
  * - Generates a thumbnail
+ *
+ * On Bun runtime: Returns minimally processed images (degraded mode)
  */
 export async function processExerciseImage(buffer: Buffer): Promise<ProcessedImage> {
   const originalSize = buffer.length;
 
-  // Get image metadata
-  const metadata = await sharp(buffer).metadata();
+  // Check if full processing is available (Node.js with sharp)
+  if (isFullProcessingAvailable()) {
+    // Use native sharp for full processing
+    const sharp = (await import('sharp')).default;
 
-  if (!metadata.width || !metadata.height) {
-    throw new Error('Could not read image dimensions');
+    const metadata = await sharp(buffer).metadata();
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Could not read image dimensions');
+    }
+
+    // Process main image
+    const processed = await sharp(buffer)
+      .rotate() // Auto-rotate based on EXIF
+      .resize(MAX_WIDTH, MAX_HEIGHT, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer({ resolveWithObject: true });
+
+    // Generate thumbnail
+    const thumbnail = await sharp(buffer)
+      .rotate()
+      .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
+        fit: 'cover',
+        position: 'center',
+      })
+      .webp({ quality: 75 })
+      .toBuffer({ resolveWithObject: true });
+
+    log.info(`Image processed: ${originalSize} → ${processed.info.size} bytes (${Math.round((1 - processed.info.size / originalSize) * 100)}% reduction)`);
+
+    return {
+      processedBuffer: processed.data,
+      thumbnailBuffer: thumbnail.data,
+      width: processed.info.width,
+      height: processed.info.height,
+      thumbnailWidth: thumbnail.info.width,
+      thumbnailHeight: thumbnail.info.height,
+      format: 'webp',
+      originalSize,
+      processedSize: processed.info.size,
+      thumbnailSize: thumbnail.info.size,
+    };
+  } else {
+    // Bun runtime - degraded mode, return original
+    log.warn('Image processing running in degraded mode (Bun runtime)');
+
+    const metadata = await getImageMetadata(buffer);
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Could not read image dimensions');
+    }
+
+    return {
+      processedBuffer: buffer,
+      thumbnailBuffer: buffer,
+      width: metadata.width,
+      height: metadata.height,
+      thumbnailWidth: metadata.width,
+      thumbnailHeight: metadata.height,
+      format: 'webp',
+      originalSize,
+      processedSize: buffer.length,
+      thumbnailSize: buffer.length,
+    };
   }
-
-  // Process main image
-  const processed = await sharp(buffer)
-    .rotate() // Auto-rotate based on EXIF
-    .resize(MAX_WIDTH, MAX_HEIGHT, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: WEBP_QUALITY })
-    .toBuffer({ resolveWithObject: true });
-
-  // Generate thumbnail
-  const thumbnail = await sharp(buffer)
-    .rotate()
-    .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
-      fit: 'cover',
-      position: 'center',
-    })
-    .webp({ quality: 75 })
-    .toBuffer({ resolveWithObject: true });
-
-  log.info(`Image processed: ${originalSize} → ${processed.info.size} bytes (${Math.round((1 - processed.info.size / originalSize) * 100)}% reduction)`);
-
-  return {
-    processedBuffer: processed.data,
-    thumbnailBuffer: thumbnail.data,
-    width: processed.info.width,
-    height: processed.info.height,
-    thumbnailWidth: thumbnail.info.width,
-    thumbnailHeight: thumbnail.info.height,
-    format: 'webp',
-    originalSize,
-    processedSize: processed.info.size,
-    thumbnailSize: thumbnail.info.size,
-  };
 }
 
 /**
  * Validate image before processing
+ *
+ * On Bun runtime: Uses basic validation (file size, magic bytes)
+ * On Node.js: Full sharp validation including format and dimensions
  */
 export async function validateImage(buffer: Buffer): Promise<{ valid: boolean; error?: string }> {
   try {
-    const metadata = await sharp(buffer).metadata();
+    // Check file size first (max 10MB) - works on both runtimes
+    if (buffer.length > 10 * 1024 * 1024) {
+      return { valid: false, error: 'Image too large. Maximum size is 10MB' };
+    }
+
+    // Get metadata using runtime-appropriate method
+    const metadata = isFullProcessingAvailable()
+      ? await (await import('sharp')).default(buffer).metadata()
+      : await getImageMetadata(buffer);
 
     // Check format
-    const allowedFormats = ['jpeg', 'jpg', 'png', 'webp', 'heif', 'heic'];
+    const allowedFormats = ['jpeg', 'jpg', 'png', 'webp', 'heif', 'heic', 'gif'];
     if (!metadata.format || !allowedFormats.includes(metadata.format)) {
       return { valid: false, error: `Invalid format: ${metadata.format}. Allowed: ${allowedFormats.join(', ')}` };
     }
@@ -115,11 +164,6 @@ export async function validateImage(buffer: Buffer): Promise<{ valid: boolean; e
     }
     if (metadata.width < 200 || metadata.height < 200) {
       return { valid: false, error: 'Image too small. Minimum size is 200x200 pixels' };
-    }
-
-    // Check file size (max 10MB)
-    if (buffer.length > 10 * 1024 * 1024) {
-      return { valid: false, error: 'Image too large. Maximum size is 10MB' };
     }
 
     return { valid: true };
@@ -222,6 +266,9 @@ export async function deleteImages(filename: string): Promise<void> {
 
 /**
  * Get image info from file
+ *
+ * On Bun runtime: Uses basic metadata extraction
+ * On Node.js: Full sharp metadata
  */
 export async function getImageInfo(filePath: string): Promise<{
   width: number;
@@ -231,7 +278,12 @@ export async function getImageInfo(filePath: string): Promise<{
 } | null> {
   try {
     const buffer = await fs.readFile(filePath);
-    const metadata = await sharp(buffer).metadata();
+
+    // Get metadata using runtime-appropriate method
+    const metadata = isFullProcessingAvailable()
+      ? await (await import('sharp')).default(buffer).metadata()
+      : await getImageMetadata(buffer);
+
     return {
       width: metadata.width || 0,
       height: metadata.height || 0,
