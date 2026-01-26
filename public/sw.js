@@ -1,5 +1,5 @@
 /**
- * MuscleMap Service Worker v3
+ * MuscleMap Service Worker v4
  *
  * Advanced PWA functionality with:
  * - Multi-strategy caching (cache-first, network-first, stale-while-revalidate)
@@ -12,7 +12,7 @@
  * - Conflict resolution support
  */
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `musclemap-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `musclemap-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `musclemap-api-${CACHE_VERSION}`;
@@ -746,6 +746,16 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Skip Server-Sent Events (SSE) - they cannot be cached and are streaming responses
+  if (url.pathname.endsWith('/events') || event.request.headers.get('Accept') === 'text/event-stream') {
+    return;
+  }
+
+  // Skip BuildNet daemon requests - they have their own caching
+  if (url.pathname.startsWith('/buildnet/')) {
     return;
   }
 
