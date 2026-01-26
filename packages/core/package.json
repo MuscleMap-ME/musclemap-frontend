@@ -5,8 +5,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "bun run ../../scripts/bun-build-package.ts .",
+    "build:tsc": "tsc",
+    "dev": "bun run ../../scripts/bun-build-package.ts . --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern .",

@@ -4,11 +4,12 @@
   "description": "MuscleMap API Server",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "dev:bun": "bun --watch src/index.ts",
-    "build": "pnpm run check:routes && tsc",
-    "start": "node dist/index.js",
-    "start:bun": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "dev:node": "tsx watch src/index.ts",
+    "build": "pnpm run check:routes && echo 'Bun runs TypeScript directly - no build needed'",
+    "build:tsc": "pnpm run check:routes && tsc",
+    "start": "bun src/index.ts",
+    "start:node": "node dist/index.js",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -16,11 +17,11 @@
     "test": "vitest run",
     "test:integrity": "vitest run src/tests/data-integrity.test.ts",
     "test:coverage": "vitest --coverage",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts",
+    "db:migrate": "bun src/db/migrate.ts",
+    "db:seed": "bun src/db/seed.ts",
     "test:watch": "vitest",
     "test:unit": "vitest run",
-    "check:routes": "tsx scripts/check-routes.ts"
+    "check:routes": "bun scripts/check-routes.ts"
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",

@@ -162,21 +162,21 @@ function hashPassword(password: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
+  const log = loggers.get('auth');
   const [salt, hash] = stored.split(':');
   if (!salt || !hash) {
-    console.error('[AUTH DEBUG] verifyPassword: Invalid stored format - missing salt or hash');
+    log.error({ storedLength: stored?.length }, 'verifyPassword: Invalid stored format - missing salt or hash');
     return false;
   }
-  console.info('[AUTH DEBUG] verifyPassword: salt length:', salt.length, 'hash length:', hash.length);
+  log.info({ saltLength: salt.length, hashLength: hash.length }, 'verifyPassword: parsing stored hash');
   const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  console.info('[AUTH DEBUG] verifyPassword: computed hash length:', verifyHash.length);
-  console.info('[AUTH DEBUG] verifyPassword: hashes match (non-timing-safe):', hash === verifyHash);
+  log.info({ computedHashLength: verifyHash.length, hashesMatchUnsafe: hash === verifyHash }, 'verifyPassword: computed hash');
   try {
     const result = crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
-    console.info('[AUTH DEBUG] verifyPassword: timingSafeEqual result:', result);
+    log.info({ timingSafeResult: result }, 'verifyPassword: timingSafeEqual result');
     return result;
   } catch (err) {
-    console.error('[AUTH DEBUG] verifyPassword: timingSafeEqual threw:', err);
+    log.error({ err }, 'verifyPassword: timingSafeEqual threw');
     return false;
   }
 }

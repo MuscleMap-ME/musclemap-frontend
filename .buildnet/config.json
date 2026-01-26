@@ -4,58 +4,67 @@
   "cache_path": ".buildnet/cache",
   "http_port": 9876,
   "socket_path": "/tmp/buildnet.sock",
-  "max_concurrent_builds": 2,
+  "max_concurrent_builds": 4,
   "watch_debounce_ms": 100,
-  "build_timeout_secs": 600,
+  "build_timeout_secs": 300,
   "verbose": false,
+  "runtime": "bun",
   "packages": [
     {
       "name": "shared",
       "path": "packages/shared",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run build",
       "dependencies": [],
       "sources": ["packages/shared/src/**/*.ts"],
-      "output_dir": "packages/shared/dist"
+      "output_dir": "packages/shared/dist",
+      "estimated_time_ms": 500
     },
     {
       "name": "core",
       "path": "packages/core",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run build",
       "dependencies": ["shared"],
       "sources": ["packages/core/src/**/*.ts"],
-      "output_dir": "packages/core/dist"
+      "output_dir": "packages/core/dist",
+      "estimated_time_ms": 500
     },
     {
       "name": "plugin-sdk",
       "path": "packages/plugin-sdk",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run build",
       "dependencies": ["shared", "core"],
       "sources": ["packages/plugin-sdk/src/**/*.ts"],
-      "output_dir": "packages/plugin-sdk/dist"
+      "output_dir": "packages/plugin-sdk/dist",
+      "estimated_time_ms": 500
     },
     {
       "name": "client",
       "path": "packages/client",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run build",
       "dependencies": ["shared", "core"],
       "sources": ["packages/client/src/**/*.ts"],
-      "output_dir": "packages/client/dist"
+      "output_dir": "packages/client/dist",
+      "estimated_time_ms": 1000
     },
     {
       "name": "ui",
       "path": "packages/ui",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run build",
       "dependencies": ["shared", "core"],
       "sources": ["packages/ui/src/**/*.ts", "packages/ui/src/**/*.tsx"],
-      "output_dir": "packages/ui/dist"
+      "output_dir": "packages/ui/dist",
+      "estimated_time_ms": 1000
     },
     {
       "name": "api",
       "path": "apps/api",
-      "build_cmd": "pnpm build",
+      "build_cmd": "bun run check:routes",
       "dependencies": ["shared", "core"],
       "sources": ["apps/api/src/**/*.ts"],
-      "output_dir": "apps/api/dist"
+      "output_dir": null,
+      "skip_build": true,
+      "note": "Bun runs TypeScript directly - only route validation needed",
+      "estimated_time_ms": 100
     },
     {
       "name": "frontend",
@@ -63,7 +72,8 @@
       "build_cmd": "pnpm build:vite",
       "dependencies": ["shared", "core", "client", "ui"],
       "sources": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.css", "index.html", "vite.config.js"],
-      "output_dir": "dist"
+      "output_dir": "dist",
+      "estimated_time_ms": 30000
     }
   ]
 }
