@@ -104,7 +104,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 /**
  * Base styles applied to all buttons
- * Uses CSS custom properties from parametric-tokens.css
+ * Uses CSS custom properties from tokens.css
  */
 const BASE_STYLES = `
   inline-flex items-center justify-center gap-2

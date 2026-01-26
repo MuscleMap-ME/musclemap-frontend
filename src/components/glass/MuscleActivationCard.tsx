@@ -12,7 +12,7 @@ import { GlassCard } from './GlassSurface';
 
 /**
  * Muscle group color/glow mapping
- * These correspond to the CSS custom properties in design-tokens.css
+ * These correspond to the CSS custom properties in tokens.css
  */
 const MUSCLE_GROUPS = {
   chest: {

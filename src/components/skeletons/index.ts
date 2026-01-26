@@ -8,7 +8,7 @@
  * - Smooth left-to-right shimmer wave animation
  * - Multiple animation types: shimmer, wave, pulse, none
  * - Respects prefers-reduced-motion (static gray if reduced motion)
- * - Uses CSS variables from design-tokens.css for consistent styling
+ * - Uses CSS variables from tokens.css for consistent styling
  * - All components include aria-hidden="true" for accessibility
  *
  * @example

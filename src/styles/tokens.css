@@ -1,0 +1,571 @@
+/**
+ * MuscleMap Consolidated Design Tokens
+ * =====================================
+ *
+ * SINGLE SOURCE OF TRUTH for all CSS custom properties.
+ *
+ * This file is the single source of truth, consolidating:
+ * - Brand colors (primary blue, pulse magenta)
+ * - Parametric design system (Knuth-inspired)
+ * - Semantic colors and glass effects
+ * - Typography, spacing, and animation tokens
+ *
+ * Architecture:
+ * 1. PARAMETRIC BASE - User-adjustable foundation parameters
+ * 2. BRAND COLORS - Logo-derived color palette
+ * 3. SEMANTIC COLORS - Contextual color applications
+ * 4. TYPOGRAPHY - Font stacks, sizes, and features
+ * 5. SPACING - Consistent spacing scale
+ * 6. EFFECTS - Shadows, blurs, glows
+ * 7. ANIMATION - Timing and easing
+ * 8. Z-INDEX - Layer management
+ * 9. COMPONENT TOKENS - Semantic component values
+ *
+ * The Troika: Maximum Flexibility, Maximum User Choice, Maximum Performance
+ */
+
+/* ==========================================================================
+   1. PARAMETRIC BASE PARAMETERS
+   User-adjustable "knobs" - all other values derive from these
+   ========================================================================== */
+
+:root {
+  /* Typography Parameters */
+  --param-base-size: 16;
+  --param-scale-ratio: 1.25; /* Minor Third */
+  --param-line-height: 1.5;
+  --param-paragraph-spacing: 1.5;
+
+  /* Density Parameters */
+  --param-density: 1; /* 0.8 = compact, 1 = normal, 1.2 = comfortable */
+  --param-base-spacing: 4;
+
+  /* Color Parameters (HSL for manipulation) */
+  --param-hue-primary: 220;
+  --param-saturation: 100;
+  --param-lightness: 50;
+
+  /* Motion Parameters */
+  --param-motion-scale: 1; /* 0 = no motion, 1 = normal, 2 = enhanced */
+  --param-duration-base: 200;
+
+  /* Contrast Parameter */
+  --param-contrast: 1; /* 1 = normal, 1.5 = high contrast */
+
+  /* Rendering Tier Indicators (set by JS) */
+  --rendering-tier: 'full';
+  --supports-blur: 1;
+  --supports-animations: 1;
+  --supports-3d: 1;
+
+  /* Writing Direction */
+  --direction: ltr;
+  --direction-coefficient: 1;
+
+  /* ==========================================================================
+     2. BRAND COLORS - Extracted from Logo
+     ========================================================================== */
+
+  /* Primary Blue Spectrum (Logo Background) */
+  --brand-blue-50: #e6f0ff;
+  --brand-blue-100: #b3d4ff;
+  --brand-blue-200: #80b8ff;
+  --brand-blue-300: #4d9cff;
+  --brand-blue-400: #1a80ff;
+  --brand-blue-500: #0066ff;  /* Logo primary */
+  --brand-blue-600: #0052cc;
+  --brand-blue-700: #003d99;
+  --brand-blue-800: #002966;
+  --brand-blue-900: #001433;
+
+  /* Magenta/Coral Spectrum (Logo Accent - "Pulse") */
+  --brand-pulse-50: #ffe6ec;
+  --brand-pulse-100: #ffb3c4;
+  --brand-pulse-200: #ff809c;
+  --brand-pulse-300: #ff4d74;
+  --brand-pulse-400: #ff1a4c;
+  --brand-pulse-500: #ff3366;  /* Logo accent */
+  --brand-pulse-600: #cc2952;
+  --brand-pulse-700: #991f3d;
+  --brand-pulse-800: #661429;
+  --brand-pulse-900: #330a14;
+
+  /* ==========================================================================
+     3. SEMANTIC COLORS
+     ========================================================================== */
+
+  /* Void/Background - Deep space that glass floats on */
+  --void-pure: #000000;
+  --void-deep: #050508;
+  --void-base: #0a0a0f;
+  --void-elevated: #0f0f15;
+  --void-surface: #14141c;
+
+  /* Glass Surface Colors (with transparency) */
+  --glass-white-3: rgba(255, 255, 255, 0.03);
+  --glass-white-5: rgba(255, 255, 255, 0.05);
+  --glass-white-8: rgba(255, 255, 255, 0.08);
+  --glass-white-10: rgba(255, 255, 255, 0.10);
+  --glass-white-15: rgba(255, 255, 255, 0.15);
+  --glass-white-20: rgba(255, 255, 255, 0.20);
+  --glass-white-30: rgba(255, 255, 255, 0.30);
+
+  /* Brand Glass - Blue tinted glass surfaces */
+  --glass-brand-subtle: rgba(0, 102, 255, 0.05);
+  --glass-brand-light: rgba(0, 102, 255, 0.10);
+  --glass-brand-medium: rgba(0, 102, 255, 0.15);
+  --glass-brand-strong: rgba(0, 102, 255, 0.25);
+
+  /* Pulse Glass - For activation states */
+  --glass-pulse-subtle: rgba(255, 51, 102, 0.05);
+  --glass-pulse-light: rgba(255, 51, 102, 0.10);
+  --glass-pulse-medium: rgba(255, 51, 102, 0.20);
+  --glass-pulse-strong: rgba(255, 51, 102, 0.35);
+
+  /* Muscle Activation Colors (Bioluminescent) */
+  --muscle-chest: #ef4444;
+  --muscle-chest-glow: rgba(239, 68, 68, 0.6);
+  --muscle-back: #3b82f6;
+  --muscle-back-glow: rgba(59, 130, 246, 0.6);
+  --muscle-shoulders: #f97316;
+  --muscle-shoulders-glow: rgba(249, 115, 22, 0.6);
+  --muscle-arms: #8b5cf6;
+  --muscle-arms-glow: rgba(139, 92, 246, 0.6);
+  --muscle-legs: #22c55e;
+  --muscle-legs-glow: rgba(34, 197, 94, 0.6);
+  --muscle-core: #eab308;
+  --muscle-core-glow: rgba(234, 179, 8, 0.6);
+  --muscle-cardio: #ec4899;
+  --muscle-cardio-glow: rgba(236, 72, 153, 0.6);
+
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-quaternary: rgba(255, 255, 255, 0.35);
+  --text-disabled: rgba(255, 255, 255, 0.25);
+
+  /* Text Effects */
+  --text-glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --text-glass-glow: 0 0 20px rgba(255, 255, 255, 0.1);
+
+  /* Border Colors */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --border-luminous: rgba(255, 255, 255, 0.25);
+  --border-brand-glow: rgba(0, 102, 255, 0.5);
+  --border-pulse-glow: rgba(255, 51, 102, 0.5);
+
+  /* Prismatic Border Gradient Stops */
+  --prismatic-1: rgba(255, 100, 100, 0.3);
+  --prismatic-2: rgba(255, 200, 100, 0.3);
+  --prismatic-3: rgba(100, 255, 200, 0.3);
+  --prismatic-4: rgba(100, 150, 255, 0.3);
+  --prismatic-5: rgba(200, 100, 255, 0.3);
+
+  /* Parametric Colors (HSL-computed) */
+  --color-primary: hsl(var(--param-hue-primary), calc(var(--param-saturation) * 1%), calc(var(--param-lightness) * 1%));
+  --color-primary-light: hsl(var(--param-hue-primary), calc(var(--param-saturation) * 0.8 * 1%), calc((var(--param-lightness) + 20) * 1%));
+  --color-primary-dark: hsl(var(--param-hue-primary), calc(var(--param-saturation) * 1%), calc((var(--param-lightness) - 15) * 1%));
+  --color-text: hsl(0, 0%, calc((100 - 10 * var(--param-contrast)) * 1%));
+  --color-text-muted: hsl(0, 0%, calc((100 - 40 * var(--param-contrast)) * 1%));
+  --color-text-subtle: hsl(0, 0%, calc((100 - 60 * var(--param-contrast)) * 1%));
+  --color-bg: hsl(var(--param-hue-primary), 10%, 5%);
+  --color-bg-elevated: hsl(var(--param-hue-primary), 10%, 8%);
+  --color-bg-overlay: hsl(var(--param-hue-primary), 10%, 12%);
+  --color-surface: hsla(var(--param-hue-primary), 20%, 15%, 0.8);
+  --color-surface-hover: hsla(var(--param-hue-primary), 20%, 20%, 0.85);
+  --color-surface-active: hsla(var(--param-hue-primary), 20%, 25%, 0.9);
+  --color-border: hsla(var(--param-hue-primary), 30%, 50%, 0.2);
+  --color-border-strong: hsla(var(--param-hue-primary), 30%, 50%, 0.4);
+
+  /* ==========================================================================
+     4. TYPOGRAPHY
+     ========================================================================== */
+
+  /* Font Stacks (Variable fonts with fallbacks) */
+  --font-sans: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Latin Modern', 'Source Serif var', Georgia, 'Times New Roman', serif;
+  --font-display: 'Source Serif var', 'Bebas Neue', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+  --font-mono: 'JetBrains Mono var', 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
+  --font-math: 'Latin Modern', 'STIX Two Math', 'Cambria Math', serif;
+  --font-body: var(--font-sans);
+
+  /* OpenType Feature Settings */
+  --font-features-body: 'kern' 1, 'liga' 1, 'calt' 1;
+  --font-features-data: 'kern' 1, 'tnum' 1, 'lnum' 1;
+  --font-features-heading: 'kern' 1, 'liga' 1, 'dlig' 1;
+  --font-features-code: 'kern' 1, 'liga' 0, 'calt' 0;
+
+  /* Parametric Type Scale */
+  --type-base: calc(var(--param-base-size) * 1px);
+  --type-xs: calc(var(--type-base) / var(--param-scale-ratio) / var(--param-scale-ratio));
+  --type-sm: calc(var(--type-base) / var(--param-scale-ratio));
+  --type-md: var(--type-base);
+  --type-lg: calc(var(--type-base) * var(--param-scale-ratio));
+  --type-xl: calc(var(--type-base) * var(--param-scale-ratio) * var(--param-scale-ratio));
+  --type-2xl: calc(var(--type-base) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio));
+  --type-3xl: calc(var(--type-base) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio));
+  --type-4xl: calc(var(--type-base) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio) * var(--param-scale-ratio));
+
+  /* Static Text Sizes (fallback) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+
+  /* Semantic Text Sizes */
+  --text-hero: var(--type-4xl);
+  --text-title: var(--type-3xl);
+  --text-heading: var(--type-2xl);
+  --text-subheading: var(--type-xl);
+  --text-body: var(--type-md);
+  --text-caption: var(--type-sm);
+  --text-micro: var(--type-xs);
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+  --font-weight-heading: 600;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Letter Spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* Line Heights */
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+  --line-height-tight: calc(var(--param-line-height) - 0.25);
+  --line-height-normal: var(--param-line-height);
+  --line-height-snug: calc(var(--param-line-height) - 0.125);
+  --line-height-relaxed: calc(var(--param-line-height) + 0.125);
+
+  /* ==========================================================================
+     5. SPACING SCALE
+     ========================================================================== */
+
+  /* Parametric Spacing Unit */
+  --space-unit: calc(var(--param-base-spacing) * var(--param-density) * 1px);
+
+  /* Static Spacing Scale */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-28: 112px;
+  --space-32: 128px;
+  --space-36: 144px;
+  --space-40: 160px;
+  --space-44: 176px;
+  --space-48: 192px;
+  --space-52: 208px;
+  --space-56: 224px;
+  --space-60: 240px;
+  --space-64: 256px;
+  --space-72: 288px;
+  --space-80: 320px;
+  --space-96: 384px;
+
+  /* Box-and-Glue Flexible Spacing */
+  --glue-min: calc(var(--space-unit) * 0.5);
+  --glue-ideal: var(--space-unit);
+  --glue-max: calc(var(--space-unit) * 2);
+
+  /* ==========================================================================
+     6. EFFECTS - Blur, Shadows, Glows
+     ========================================================================== */
+
+  /* Backdrop Blur Intensities */
+  --blur-none: 0px;
+  --blur-xs: 4px;
+  --blur-sm: 8px;
+  --blur-md: 12px;
+  --blur-lg: 16px;
+  --blur-xl: 24px;
+  --blur-2xl: 32px;
+  --blur-3xl: 48px;
+
+  /* Glass Noise Texture Opacity */
+  --noise-subtle: 0.02;
+  --noise-light: 0.04;
+  --noise-medium: 0.06;
+
+  /* Shadows - Unified naming (use --shadow-*) */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+  /* Legacy aliases (for backwards compatibility) */
+  --shadow-glass-sm: var(--shadow-sm);
+  --shadow-glass-md: var(--shadow-md);
+  --shadow-glass-lg: var(--shadow-lg);
+  --shadow-glass-xl: var(--shadow-xl);
+
+  /* Inner Glows for Glass Surfaces */
+  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.08);
+  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.12);
+
+  /* Outer Glow Halos */
+  --glow-brand-sm: 0 0 10px rgba(0, 102, 255, 0.3);
+  --glow-brand-md: 0 0 20px rgba(0, 102, 255, 0.4);
+  --glow-brand-lg: 0 0 30px rgba(0, 102, 255, 0.5);
+  --glow-pulse-sm: 0 0 10px rgba(255, 51, 102, 0.3);
+  --glow-pulse-md: 0 0 20px rgba(255, 51, 102, 0.4);
+  --glow-pulse-lg: 0 0 30px rgba(255, 51, 102, 0.5);
+
+  /* Parametric Glows */
+  --glow-sm: 0 0 10px hsla(var(--param-hue-primary), 100%, 50%, 0.3);
+  --glow-md: 0 0 20px hsla(var(--param-hue-primary), 100%, 50%, 0.4);
+  --glow-lg: 0 0 40px hsla(var(--param-hue-primary), 100%, 50%, 0.5);
+
+  /* Specular Highlight */
+  --specular-edge: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%);
+
+  /* ==========================================================================
+     7. BORDER RADIUS
+     ========================================================================== */
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;   /* Logo primary radius */
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+  /* ==========================================================================
+     8. ANIMATION & TIMING
+     ========================================================================== */
+
+  /* Static Duration Scale */
+  --duration-instant: 50ms;
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+  --duration-slowest: 800ms;
+
+  /* Easing Functions */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring-soft: cubic-bezier(0.22, 0.68, 0.35, 1.2);
+  --ease-spring-bounce: cubic-bezier(0.34, 2.0, 0.64, 1);
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ==========================================================================
+     9. Z-INDEX LAYERS
+     ========================================================================== */
+
+  --z-below: -1;
+  --z-base: 0;
+  --z-raised: 10;
+  --z-elevated: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+  --z-fixed: 1200;
+  --z-max: 9999;
+
+  /* ==========================================================================
+     10. COMPONENT TOKENS
+     ========================================================================== */
+
+  /* Interactive States */
+  --interactive-hover-scale: 1.02;
+  --interactive-active-scale: 0.98;
+  --interactive-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
+
+  /* Card Component */
+  --card-padding: var(--space-4);
+  --card-radius: var(--radius-lg);
+  --card-shadow: var(--shadow-lg);
+
+  /* Button Component */
+  --button-padding-x: var(--space-4);
+  --button-padding-y: var(--space-2);
+  --button-radius: var(--radius-md);
+
+  /* Input Component */
+  --input-padding-x: var(--space-3);
+  --input-padding-y: var(--space-2);
+  --input-radius: var(--radius-md);
+  --input-border: 1px solid var(--color-border);
+
+  /* Layout Tokens */
+  --container-max: 1280px;
+  --container-padding: var(--space-4);
+  --section-spacing: var(--space-16);
+  --component-gap: var(--space-4);
+}
+
+/* ==========================================================================
+   DENSITY PRESETS
+   ========================================================================== */
+
+[data-density='compact'] {
+  --param-density: 0.8;
+  --param-base-size: 14;
+}
+
+[data-density='normal'] {
+  --param-density: 1;
+  --param-base-size: 16;
+}
+
+[data-density='comfortable'] {
+  --param-density: 1.2;
+  --param-base-size: 18;
+}
+
+/* ==========================================================================
+   MOTION PRESETS
+   ========================================================================== */
+
+[data-motion='none'] {
+  --param-motion-scale: 0;
+}
+
+[data-motion='reduced'] {
+  --param-motion-scale: 0.3;
+}
+
+[data-motion='normal'] {
+  --param-motion-scale: 1;
+}
+
+[data-motion='enhanced'] {
+  --param-motion-scale: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion]) {
+    --param-motion-scale: 0;
+  }
+}
+
+/* ==========================================================================
+   CONTRAST PRESETS
+   ========================================================================== */
+
+[data-contrast='normal'] {
+  --param-contrast: 1;
+}
+
+[data-contrast='high'] {
+  --param-contrast: 1.5;
+}
+
+@media (prefers-contrast: more) {
+  :root:not([data-contrast]) {
+    --param-contrast: 1.5;
+  }
+}
+
+/* ==========================================================================
+   RENDERING TIER FALLBACKS
+   ========================================================================== */
+
+[data-rendering-tier='reduced'] {
+  --supports-blur: 0;
+  --supports-animations: 0;
+  --color-surface: hsla(var(--param-hue-primary), 20%, 15%, 0.95);
+}
+
+[data-rendering-tier='minimal'] {
+  --supports-blur: 0;
+  --supports-animations: 0;
+  --supports-3d: 0;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+  --glow-sm: none;
+  --glow-md: none;
+  --glow-lg: none;
+  --color-surface: hsl(var(--param-hue-primary), 20%, 15%);
+}
+
+[data-rendering-tier='text-only'] {
+  --supports-blur: 0;
+  --supports-animations: 0;
+  --supports-3d: 0;
+  --font-sans: sans-serif;
+  --font-serif: serif;
+  --font-mono: monospace;
+  --font-display: sans-serif;
+}
+
+/* ==========================================================================
+   DATA-SAVE MODE
+   ========================================================================== */
+
+@media (prefers-reduced-data: reduce) {
+  :root {
+    --supports-3d: 0;
+    --supports-blur: 0;
+  }
+}
+
+/* ==========================================================================
+   RTL SUPPORT
+   ========================================================================== */
+
+[dir='rtl'] {
+  --direction: rtl;
+  --direction-coefficient: -1;
+}

@@ -1,0 +1,597 @@
+/**
+ * MuscleMap Consolidated Animation Keyframes
+ * ==========================================
+ *
+ * SINGLE SOURCE OF TRUTH for all CSS keyframe animations.
+ * Prevents duplicate keyframe definitions across files.
+ *
+ * Categories:
+ * 1. ENTRANCE ANIMATIONS - Elements appearing
+ * 2. EXIT ANIMATIONS - Elements disappearing
+ * 3. ATTENTION ANIMATIONS - Drawing attention
+ * 4. BACKGROUND ANIMATIONS - Ambient effects
+ * 5. LOADING ANIMATIONS - Progress indicators
+ * 6. SPECIAL EFFECTS - Glows, prismatic, etc.
+ */
+
+/* ==========================================================================
+   1. ENTRANCE ANIMATIONS
+   ========================================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Alias for backwards compatibility */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleInBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Staggered entrance for lists */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   2. EXIT ANIMATIONS
+   ========================================================================== */
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeOutUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fadeOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ==========================================================================
+   3. ATTENTION ANIMATIONS
+   ========================================================================== */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.15);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.15);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+/* ==========================================================================
+   4. BACKGROUND ANIMATIONS
+   ========================================================================== */
+
+/* Mesh gradient drift for hero sections */
+@keyframes mesh-drift {
+  0%, 100% {
+    --mesh-x-1: 20%;
+    --mesh-y-1: 20%;
+    --mesh-x-2: 80%;
+    --mesh-y-2: 10%;
+    --mesh-x-3: 60%;
+    --mesh-y-3: 80%;
+  }
+  33% {
+    --mesh-x-1: 40%;
+    --mesh-y-1: 30%;
+    --mesh-x-2: 70%;
+    --mesh-y-2: 25%;
+    --mesh-x-3: 30%;
+    --mesh-y-3: 70%;
+  }
+  66% {
+    --mesh-x-1: 25%;
+    --mesh-y-1: 45%;
+    --mesh-x-2: 85%;
+    --mesh-y-2: 15%;
+    --mesh-x-3: 50%;
+    --mesh-y-3: 85%;
+  }
+}
+
+/* Gradient animation */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ==========================================================================
+   5. LOADING ANIMATIONS
+   ========================================================================== */
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Alias for liquid shimmer */
+@keyframes liquid-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes progressIndeterminate {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+/* ==========================================================================
+   6. SPECIAL EFFECTS
+   ========================================================================== */
+
+/* Breathing glow for logo/pulse elements */
+@keyframes glow-breathe {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 51, 102, 0.5);
+  }
+}
+
+/* Muscle activation glow */
+@keyframes glow-activate {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Prismatic border shift */
+@keyframes prismatic-shift {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Neon flicker effect */
+@keyframes neonFlicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 1;
+  }
+  20%, 24%, 55% {
+    opacity: 0.6;
+  }
+}
+
+/* Float effect */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Ripple effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Ring expand */
+@keyframes ringExpand {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+/* Entrance animations */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown 0.4s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-out forwards;
+  opacity: 1;
+}
+
+/* Attention animations */
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Loading animations */
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Special effects */
+.animate-glow-breathe {
+  animation: glow-breathe 3s ease-in-out infinite;
+}
+
+.animate-prismatic {
+  animation: prismatic-shift 8s linear infinite;
+}
+
+/* Stagger delay utilities */
+.animate-delay-75 { animation-delay: 75ms; }
+.animate-delay-100 { animation-delay: 100ms; }
+.animate-delay-150 { animation-delay: 150ms; }
+.animate-delay-200 { animation-delay: 200ms; }
+.animate-delay-300 { animation-delay: 300ms; }
+.animate-delay-500 { animation-delay: 500ms; }
+.animate-delay-700 { animation-delay: 700ms; }
+.animate-delay-1000 { animation-delay: 1000ms; }
+
+/* Duration utilities */
+.animate-duration-75 { animation-duration: 75ms; }
+.animate-duration-100 { animation-duration: 100ms; }
+.animate-duration-150 { animation-duration: 150ms; }
+.animate-duration-200 { animation-duration: 200ms; }
+.animate-duration-300 { animation-duration: 300ms; }
+.animate-duration-500 { animation-duration: 500ms; }
+.animate-duration-700 { animation-duration: 700ms; }
+.animate-duration-1000 { animation-duration: 1000ms; }
+
+/* ==========================================================================
+   REDUCED MOTION SUPPORT
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-fadeIn,
+  .animate-fadeInUp,
+  .animate-fadeInDown,
+  .animate-scaleIn,
+  .animate-slideInRight,
+  .animate-slideInLeft {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-pulse,
+  .animate-bounce,
+  .animate-spin,
+  .animate-float,
+  .animate-shimmer,
+  .animate-glow-breathe,
+  .animate-prismatic {
+    animation: none;
+  }
+}
