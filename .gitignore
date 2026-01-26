@@ -87,3 +87,4 @@ scripts/add-approved-command.sh
 
 # GraphQL schema baseline
 .graphql-baseline/
+.aggressive-cache/artifacts/
