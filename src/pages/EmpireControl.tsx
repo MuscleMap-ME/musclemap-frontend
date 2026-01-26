@@ -1155,7 +1155,7 @@ export default function EmpireControl() {
       await Promise.all([
         fetchMetrics(),
         fetchUsers(),
-        fetchUserStats(),
+        _fetchUserStats(),
         fetchEconomyStats(),
         fetchMessages(),
         fetchFeedbackStats(),

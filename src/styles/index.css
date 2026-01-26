@@ -99,13 +99,14 @@
   --void-surface: #14141c;
 
   /* Glass Surface Colors (with transparency) */
-  --glass-white-3: rgba(255, 255, 255, 0.03);
-  --glass-white-5: rgba(255, 255, 255, 0.05);
-  --glass-white-8: rgba(255, 255, 255, 0.08);
-  --glass-white-10: rgba(255, 255, 255, 0.10);
-  --glass-white-15: rgba(255, 255, 255, 0.15);
-  --glass-white-20: rgba(255, 255, 255, 0.20);
-  --glass-white-30: rgba(255, 255, 255, 0.30);
+  /* Increased opacity values for better visibility on dark backgrounds */
+  --glass-white-3: rgba(255, 255, 255, 0.08);
+  --glass-white-5: rgba(255, 255, 255, 0.12);
+  --glass-white-8: rgba(255, 255, 255, 0.15);
+  --glass-white-10: rgba(255, 255, 255, 0.18);
+  --glass-white-15: rgba(255, 255, 255, 0.22);
+  --glass-white-20: rgba(255, 255, 255, 0.28);
+  --glass-white-30: rgba(255, 255, 255, 0.38);
 
   /* Brand Glass - Blue tinted glass surfaces */
   --glass-brand-subtle: rgba(0, 102, 255, 0.05);
@@ -157,10 +158,11 @@
      BORDER COLORS
      ============================================ */
 
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.20);
+  /* Increased border opacity for better visibility */
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-default: rgba(255, 255, 255, 0.15);
+  --border-medium: rgba(255, 255, 255, 0.20);
+  --border-strong: rgba(255, 255, 255, 0.30);
 
   /* Luminous borders (for active/hover states) */
   --border-luminous: rgba(255, 255, 255, 0.25);
@@ -203,10 +205,10 @@
   --shadow-glass-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glass-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
 
-  /* Inner glows for glass surfaces */
-  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.05);
-  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.08);
-  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.12);
+  /* Inner glows for glass surfaces - enhanced for visibility */
+  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.18);
+  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.25);
 
   /* Outer glow halos for interactive elements */
   --glow-brand-sm: 0 0 10px rgba(0, 102, 255, 0.3);
@@ -418,6 +420,9 @@
   backdrop-filter: blur(var(--blur-sm));
   -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--border-subtle);
+  box-shadow:
+    var(--inner-glow-subtle),
+    var(--shadow-glass-sm);
 }
 
 .glass-medium {
