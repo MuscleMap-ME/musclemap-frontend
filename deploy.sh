@@ -162,8 +162,8 @@ fi
 echo -e "${BLUE}🔧 Building locally...${NC}"
 echo -e "${YELLOW}   Building on local machine (server has limited RAM)${NC}"
 
-# Build locally using intelligent cache
-if ! pnpm build:intelligent; then
+# Build locally using BuildNet Native (falls back to intelligent-cache if unavailable)
+if ! ./scripts/buildnet.sh build; then
     echo -e "${RED}❌ Local build failed!${NC}"
     exit 1
 fi

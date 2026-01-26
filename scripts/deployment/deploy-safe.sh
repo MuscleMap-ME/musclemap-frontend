@@ -213,12 +213,12 @@ fi
 # =====================================================
 # STEP 3: Build
 # =====================================================
-log_step 3 $TOTAL_STEPS "Building application..."
+log_step 3 $TOTAL_STEPS "Building application via BuildNet Native..."
 
 if [ "$DRY_RUN" = true ]; then
-    echo "  Would run: pnpm build:intelligent"
+    echo "  Would run: ./scripts/buildnet.sh build"
 else
-    if ! pnpm build:intelligent; then
+    if ! ./scripts/buildnet.sh build; then
         log "RED" "  ❌ Build failed"
         exit 1
     fi
@@ -284,8 +284,8 @@ else
         git reset --hard origin/main
         echo '📦 Installing dependencies...'
         pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-        echo '🔨 Building...'
-        pnpm build:intelligent
+        echo '🔨 Building via BuildNet Native...'
+        ./scripts/buildnet.sh build
         echo '✅ Deployment complete'
     "; then
         log "RED" "  ❌ Deployment failed"

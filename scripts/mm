@@ -104,7 +104,7 @@ cmd_build() {
     echo ""
     msg_step "Building Project"
     cd "$PROJECT_ROOT"
-    pnpm build:intelligent
+    ./scripts/buildnet.sh build
     msg_success "Build complete"
 }
 
@@ -469,8 +469,8 @@ menu_quick_actions() {
                 msg_step "Full Deploy Cycle"
                 msg_info "[1/4] Running pre-deploy checks..."
                 "$SCRIPT_DIR/pre-deploy-check.sh" --fast || { msg_error "Checks failed"; press_continue; continue; }
-                msg_info "[2/4] Building..."
-                pnpm build:intelligent || { msg_error "Build failed"; press_continue; continue; }
+                msg_info "[2/4] Building via BuildNet Native..."
+                ./scripts/buildnet.sh build || { msg_error "Build failed"; press_continue; continue; }
                 msg_info "[3/4] Deploying..."
                 "$SCRIPT_DIR/deploy-branch.sh" --deploy || { msg_error "Deploy failed"; press_continue; continue; }
                 msg_info "[4/4] Verifying..."

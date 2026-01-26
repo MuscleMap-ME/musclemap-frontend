@@ -8,8 +8,8 @@
  * To switch back to hybrid mode (not recommended), change the import below.
  */
 
-// Pure GraphQL Architecture (RECOMMENDED)
-export { createServer, startServer } from './server-graphql-only';
+// Full Server with REST + GraphQL (for admin and operational endpoints)
+export { createServer, startServer } from './server';
 
-// Legacy Hybrid Architecture (deprecated - kept for reference)
-// export { createServer, startServer } from './server';
+// Pure GraphQL Architecture (for minimal REST footprint)
+// export { createServer, startServer } from './server-graphql-only';

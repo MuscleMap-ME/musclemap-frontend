@@ -238,7 +238,24 @@ else
     echo -e "${GREEN}✓${NC}"
 fi
 
-echo -e "\n${BLUE}3. Build Checks${NC}"
+echo -e "\n${BLUE}3. BuildNet & Build Checks${NC}"
+
+# BuildNet status
+echo -n "  Checking BuildNet Native status... "
+if curl -s --connect-timeout 2 http://localhost:9876/health >/dev/null 2>&1; then
+    BUILDNET_STATUS=$(curl -s http://localhost:9876/health | jq -r '.status // "unknown"' 2>/dev/null)
+    if [ "$BUILDNET_STATUS" = "healthy" ]; then
+        echo -e "${GREEN}✓ BuildNet is running${NC}"
+    else
+        echo -e "${YELLOW}⚠️  BuildNet status: $BUILDNET_STATUS${NC}"
+        ((WARNINGS++))
+    fi
+elif curl -s --connect-timeout 2 https://musclemap.me/buildnet/health >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ BuildNet available via production${NC}"
+else
+    echo -e "${YELLOW}⚠️  BuildNet not running (fallback will be used)${NC}"
+    ((WARNINGS++))
+fi
 
 # Build
 BUILD_RESULT=$(grep "^BUILD|" "$RESULTS_FILE" | cut -d'|' -f2)

@@ -3,25 +3,61 @@
 # MuscleMap Memory-Safe Build Orchestrator
 # =============================================================================
 #
-# This script solves the following problems on the 8GB RAM VPS:
-# 1. Prevents concurrent builds via file locking
-# 2. Stops PM2 before build to free ~1GB memory
-# 3. Stages builds by memory requirement (packages -> API -> frontend)
-# 4. Sets proper NODE_OPTIONS for Vite's high memory usage
-# 5. Moves compression to post-build to reduce peak memory
-# 6. Automatically restarts PM2 after successful build
-# 7. INCREMENTAL BUILDS: Skips unchanged packages to save time
+# DEPRECATED: This script now redirects to BuildNet Native (./scripts/buildnet.sh)
 #
-# Usage:
-#   ./scripts/build-safe.sh              # Incremental build with PM2 management
-#   ./scripts/build-safe.sh --force      # Force rebuild everything
-#   ./scripts/build-safe.sh --no-pm2     # Build only (don't touch PM2)
-#   ./scripts/build-safe.sh --packages   # Build packages only
-#   ./scripts/build-safe.sh --frontend   # Build frontend only
+# BuildNet Native is a Rust-based build daemon that provides:
+# - 10-100x faster builds with content-addressed caching
+# - Automatic fallback to intelligent-cache.mjs if daemon unavailable
+# - No PM2 interruption required
+# - SQLite state persistence with WAL mode
+# - HTTP API for build coordination
+#
+# Legacy options are still accepted but redirected to BuildNet:
+#   ./scripts/build-safe.sh              → ./scripts/buildnet.sh build
+#   ./scripts/build-safe.sh --force      → ./scripts/buildnet.sh build --force
+#   ./scripts/build-safe.sh --packages   → ./scripts/buildnet.sh build
+#   ./scripts/build-safe.sh --frontend   → ./scripts/buildnet.sh build
 #
 # =============================================================================
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if --legacy flag is passed to use legacy behavior
+USE_LEGACY=false
+for arg in "$@"; do
+    if [[ "$arg" == "--legacy" ]]; then
+        USE_LEGACY=true
+        break
+    fi
+done
+
+# Redirect to BuildNet unless --legacy is specified
+if [[ "$USE_LEGACY" != "true" ]]; then
+    FORCE=""
+    for arg in "$@"; do
+        case $arg in
+            --force)
+                FORCE="--force"
+                ;;
+            --help)
+                echo "DEPRECATED: Use ./scripts/buildnet.sh instead"
+                echo ""
+                exec "$SCRIPT_DIR/buildnet.sh" --help
+                ;;
+        esac
+    done
+
+    echo "==> Redirecting to BuildNet Native (./scripts/buildnet.sh)"
+    echo "    (Use --legacy to run the old memory-safe orchestrator)"
+    echo ""
+    exec "$SCRIPT_DIR/buildnet.sh" build $FORCE
+fi
+
+# =============================================================================
+# LEGACY BUILD ORCHESTRATOR (only runs with --legacy flag)
+# =============================================================================
 
 # Configuration
 LOCK_FILE="/tmp/musclemap-build.lock"

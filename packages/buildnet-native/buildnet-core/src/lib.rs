@@ -6,6 +6,10 @@
 //! - File watching with debouncing
 //! - Parallel build execution
 //! - Cross-runtime IPC via MessagePack
+//! - Multi-channel notifications (Slack, Discord, Email, SMS, Webhooks)
+//! - Resource monitoring and metrics export
+//! - Distributed build orchestration
+//! - Template system with hot-swapping
 
 pub mod state;
 pub mod cache;
@@ -14,6 +18,11 @@ pub mod builder;
 pub mod hasher;
 pub mod config;
 pub mod error;
+pub mod notifications;
+pub mod monitoring;
+pub mod resources;
+pub mod distributed;
+pub mod templates;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -21,6 +30,11 @@ pub use cache::ArtifactCache;
 pub use watcher::FileWatcher;
 pub use builder::BuildOrchestrator;
 pub use config::Config;
+pub use notifications::{NotificationRouter, NotificationChannel, BuildNetEvent, Priority};
+pub use monitoring::{ResourceMonitor, MetricsExporter};
+pub use resources::{ResourceManager, CpuTier, StorageTier};
+pub use distributed::{DistributedOrchestrator, WorkerNode, BuildTask};
+pub use templates::{TemplateEngine, BuildTemplate};
 
 /// BuildNet version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

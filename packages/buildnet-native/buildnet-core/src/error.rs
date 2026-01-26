@@ -49,6 +49,30 @@ pub enum BuildNetError {
 
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
+
+    #[error("Notification error: {0}")]
+    Notification(String),
+
+    #[error("Monitoring error: {0}")]
+    Monitoring(String),
+
+    #[error("Resource error: {0}")]
+    Resource(String),
+
+    #[error("Authentication error: {0}")]
+    Auth(String),
+
+    #[error("Rate limit exceeded: {0}")]
+    RateLimited(String),
+
+    #[error("Template error: {0}")]
+    Template(String),
+
+    #[error("GitHub API error: {0}")]
+    GitHub(String),
+
+    #[error("Distributed build error: {0}")]
+    Distributed(String),
 }
 
 impl From<r2d2::Error> for BuildNetError {
