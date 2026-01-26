@@ -67,11 +67,11 @@ pub fn create_router(
 
         // Build operations
         .route("/build", post(build_all))
-        .route("/build/:package", post(build_package))
+        .route("/build/{package}", post(build_package))
 
         // Build history
         .route("/builds", get(list_builds))
-        .route("/builds/:id", get(get_build))
+        .route("/builds/{id}", get(get_build))
 
         // Cache operations
         .route("/cache/stats", get(cache_stats))
