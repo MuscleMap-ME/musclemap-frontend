@@ -290,8 +290,22 @@ export default function BuildDaemonPanel() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to queue build');
+        // Try to parse as JSON for structured error
+        let errorMessage = 'Failed to queue build';
+        try {
+          const errorData = await response.json();
+          if (errorData.code === 'BUILD_IN_PROGRESS') {
+            // More friendly message for concurrent builds
+            errorMessage = errorData.hint || 'A build is already in progress. Please wait for it to complete.';
+          } else {
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          }
+        } catch {
+          // Fallback to text if not JSON
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -307,7 +321,8 @@ export default function BuildDaemonPanel() {
       }, 1000);
     } catch (err) {
       setBuilding(false);
-      setError(`Build request failed: ${err}`);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      setError(errorMsg);
     }
   }, [fetchStatus, fetchBuilds]);
 
@@ -429,12 +444,27 @@ export default function BuildDaemonPanel() {
         </div>
       </div>
 
-      {/* Error Banner */}
+      {/* Error/Info Banner */}
       {error && (
-        <div className="px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-300">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto">
+        <div className={`px-4 py-3 rounded-lg flex items-start gap-3 ${
+          error.includes('already in progress') || error.includes('Please wait')
+            ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-300'
+            : 'bg-red-500/20 border border-red-500/30 text-red-300'
+        }`}>
+          {error.includes('already in progress') || error.includes('Please wait') ? (
+            <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+          ) : (
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <span>{error}</span>
+            {(error.includes('already in progress') || error.includes('Please wait')) && (
+              <p className="text-xs mt-1 opacity-75">
+                Check the Build History section below to monitor the current build&#39;s progress.
+              </p>
+            )}
+          </div>
+          <button onClick={() => setError(null)} className="flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>

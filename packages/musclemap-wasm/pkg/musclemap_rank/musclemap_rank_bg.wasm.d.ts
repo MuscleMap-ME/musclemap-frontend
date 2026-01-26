@@ -1,0 +1,36 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_get_rankentry_index: (a: number) => number;
+export const __wbg_get_rankentry_percentile: (a: number) => number;
+export const __wbg_get_rankentry_rank: (a: number) => number;
+export const __wbg_get_rankentry_score: (a: number) => number;
+export const __wbg_get_rankresult_count: (a: number) => number;
+export const __wbg_get_rankresult_native: (a: number) => number;
+export const __wbg_rankentry_free: (a: number, b: number) => void;
+export const __wbg_rankresult_free: (a: number, b: number) => void;
+export const __wbg_set_rankentry_index: (a: number, b: number) => void;
+export const __wbg_set_rankentry_percentile: (a: number, b: number) => void;
+export const __wbg_set_rankentry_rank: (a: number, b: number) => void;
+export const __wbg_set_rankentry_score: (a: number, b: number) => void;
+export const __wbg_set_rankresult_count: (a: number, b: number) => void;
+export const __wbg_set_rankresult_native: (a: number, b: number) => void;
+export const rank_calculate: (a: number, b: number) => [number, number];
+export const rank_calculate_full: (a: number, b: number) => [number, number, number];
+export const rank_competition: (a: number, b: number) => [number, number];
+export const rank_dense: (a: number, b: number) => [number, number];
+export const rank_find: (a: number, b: number, c: number) => number;
+export const rank_percentiles: (a: number, b: number) => [number, number];
+export const rank_sort_indices: (a: number, b: number) => [number, number];
+export const rank_stats: (a: number, b: number) => [number, number, number];
+export const rank_top_n: (a: number, b: number, c: number) => [number, number, number];
+export const rankentry_new: (a: number, b: number, c: number, d: number) => number;
+export const rankresult_new: (a: number, b: number) => number;
+export const __wbg_set_rankresult_duration_ms: (a: number, b: number) => void;
+export const __wbg_get_rankresult_duration_ms: (a: number) => number;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

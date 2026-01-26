@@ -3800,13 +3800,10 @@ export const PT_TESTS_BY_INSTITUTION_QUERY = gql`
         name
         description
         institution
-        components
         scoringMethod
         maxScore
         passingScore
         testFrequency
-        sourceUrl
-        lastUpdated
         category
       }
       byInstitution
@@ -3821,7 +3818,14 @@ export const PT_TEST_QUERY = gql`
       name
       description
       institution
-      components
+      components {
+        id
+        name
+        type
+        durationSeconds
+        distanceMiles
+        description
+      }
       scoringMethod
       maxScore
       passingScore
@@ -3840,7 +3844,14 @@ export const MY_ARCHETYPE_PT_TEST_QUERY = gql`
       name
       description
       institution
-      components
+      components {
+        id
+        name
+        type
+        durationSeconds
+        distanceMiles
+        description
+      }
       scoringMethod
       maxScore
       passingScore

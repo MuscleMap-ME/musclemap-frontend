@@ -1,0 +1,80 @@
+{
+  "name": "@musclemap.me/wasm",
+  "version": "0.1.0",
+  "description": "High-performance WebAssembly modules for MuscleMap",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./geo": {
+      "types": "./dist/geo/index.d.ts",
+      "import": "./dist/geo/index.js"
+    },
+    "./tu": {
+      "types": "./dist/tu/index.d.ts",
+      "import": "./dist/tu/index.js"
+    },
+    "./rank": {
+      "types": "./dist/rank/index.d.ts",
+      "import": "./dist/rank/index.js"
+    },
+    "./ratelimit": {
+      "types": "./dist/ratelimit/index.d.ts",
+      "import": "./dist/ratelimit/index.js"
+    },
+    "./scoring": {
+      "types": "./dist/scoring/index.d.ts",
+      "import": "./dist/scoring/index.js"
+    },
+    "./load": {
+      "types": "./dist/load/index.d.ts",
+      "import": "./dist/load/index.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto/index.d.ts",
+      "import": "./dist/crypto/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "pkg"
+  ],
+  "scripts": {
+    "build:wasm": "./scripts/build-wasm.sh",
+    "build:ts": "tsc",
+    "build": "pnpm build:wasm && pnpm build:ts",
+    "clean": "rm -rf dist pkg target",
+    "test": "cargo test --workspace",
+    "test:wasm": "wasm-pack test --node",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "rust",
+    "fitness",
+    "geohash",
+    "cryptography",
+    "musclemap"
+  ],
+  "author": "MuscleMap <dev@musclemap.me>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeanpaulniko/musclemap",
+    "directory": "packages/musclemap-wasm"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

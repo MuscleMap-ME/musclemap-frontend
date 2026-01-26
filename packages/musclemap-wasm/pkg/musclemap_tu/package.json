@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-tu",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance Training Unit (TU) calculator for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_tu_bg.wasm",
+    "musclemap_tu.js",
+    "musclemap_tu.d.ts"
+  ],
+  "main": "musclemap_tu.js",
+  "types": "musclemap_tu.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

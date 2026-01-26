@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-geo",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance geohash and distance calculations for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_geo_bg.wasm",
+    "musclemap_geo.js",
+    "musclemap_geo.d.ts"
+  ],
+  "main": "musclemap_geo.js",
+  "types": "musclemap_geo.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

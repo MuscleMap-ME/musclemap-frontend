@@ -178,7 +178,7 @@ impl BuildOrchestrator {
 
         if !lock_acquired {
             return Err(BuildNetError::LockFailed(format!(
-                "Could not acquire lock for package {}",
+                "Package '{}' is already being built. Please wait for the current build to complete.",
                 package.name
             )));
         }

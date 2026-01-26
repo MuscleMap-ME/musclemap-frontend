@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-rank",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance leaderboard ranking calculations for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_rank_bg.wasm",
+    "musclemap_rank.js",
+    "musclemap_rank.d.ts"
+  ],
+  "main": "musclemap_rank.js",
+  "types": "musclemap_rank.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

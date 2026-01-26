@@ -639,15 +639,50 @@ impl From<buildnet_core::BuildNetError> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
-        let (status, message) = match self {
-            AppError::Internal(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+        let (status, code, message, hint) = match &self {
+            AppError::Internal(e) => {
+                // Check for specific error types and provide helpful messages
+                let err_str = e.to_string();
+                if err_str.contains("Build in progress") || err_str.contains("already being built") {
+                    (
+                        StatusCode::CONFLICT, // 409 Conflict
+                        "BUILD_IN_PROGRESS",
+                        err_str,
+                        Some("Another build is currently running. The build will complete automatically - check the Build History section for status."),
+                    )
+                } else if err_str.contains("Build failed") {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "BUILD_FAILED",
+                        err_str,
+                        Some("Check the build output and logs for details."),
+                    )
+                } else {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "INTERNAL_ERROR",
+                        err_str,
+                        None,
+                    )
+                }
+            }
+            AppError::NotFound(msg) => (
+                StatusCode::NOT_FOUND,
+                "NOT_FOUND",
+                msg.clone(),
+                None,
+            ),
         };
 
-        let body = Json(serde_json::json!({
+        let mut body = serde_json::json!({
             "error": message,
-        }));
+            "code": code,
+        });
 
-        (status, body).into_response()
+        if let Some(hint_text) = hint {
+            body["hint"] = serde_json::json!(hint_text);
+        }
+
+        (status, Json(body)).into_response()
     }
 }

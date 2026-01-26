@@ -1,0 +1,1 @@
+/Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/target/wasm32-unknown-unknown/release/libmusclemap_crypto.rlib: /Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/crates/core/src/lib.rs /Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/crates/crypto/src/lib.rs

@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-crypto",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "Cryptographic operations for MuscleMap E2EE - SHA-256, Ed25519, HMAC",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_crypto_bg.wasm",
+    "musclemap_crypto.js",
+    "musclemap_crypto.d.ts"
+  ],
+  "main": "musclemap_crypto.js",
+  "types": "musclemap_crypto.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

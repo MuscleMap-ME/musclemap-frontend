@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-load",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance load prescription calculator with RPE tables for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_load_bg.wasm",
+    "musclemap_load.js",
+    "musclemap_load.d.ts"
+  ],
+  "main": "musclemap_load.js",
+  "types": "musclemap_load.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

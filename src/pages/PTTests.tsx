@@ -497,8 +497,15 @@ export default function PTTests() {
   const [activeTab, setActiveTab] = useState('tests');
 
   // GraphQL Queries - PT tests list is public data
-  const { data: testsData, loading: testsLoading } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
-    fetchPolicy: 'cache-and-network',
+  const { data: testsData, loading: testsLoading, error: testsError, networkStatus, refetch: refetchTests } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
+    fetchPolicy: 'network-only', // Force network request to bypass any cache issues
+    notifyOnNetworkStatusChange: true,
+    onError: (err) => {
+      console.error('[PTTests] GraphQL error:', err.message, err.graphQLErrors, err.networkError);
+    },
+    onCompleted: (data) => {
+      console.info('[PTTests] Query completed:', data ? 'got data' : 'no data');
+    },
   });
 
   const { data: archetypeTestData } = useQuery(MY_ARCHETYPE_PT_TEST_QUERY, {
@@ -540,11 +547,12 @@ export default function PTTests() {
   useEffect(() => {
     console.info('[PTTests] Query state:', {
       testsLoading,
-      testsData: testsData ? 'present' : 'null',
+      testsData: testsData ? JSON.stringify(testsData).slice(0, 200) : 'null',
+      testsError: testsError?.message || 'none',
       byInstitution: testsData?.ptTestsByInstitution?.byInstitution ? 'present' : 'null',
       institutionCount: Object.keys(testsByInstitution).length,
     });
-  }, [testsLoading, testsData, testsByInstitution]);
+  }, [testsLoading, testsData, testsError, testsByInstitution]);
 
   // Handlers
   const handleRecordResult = useCallback(
@@ -659,6 +667,33 @@ export default function PTTests() {
               <div className="grid lg:grid-cols-2 gap-6">
                 {/* Test List */}
                 <div className="space-y-4">
+                  {/* Debug info - visible on page */}
+                  {Object.keys(testsByInstitution).length === 0 && (
+                    <div className="p-4 bg-yellow-500/20 rounded-lg text-yellow-200 text-sm space-y-2">
+                      <div><strong>Debug:</strong> No tests loaded.</div>
+                      <div>testsData: {testsData ? 'present' : 'null'}</div>
+                      <div>byInstitution: {testsData?.ptTestsByInstitution?.byInstitution ? 'present' : 'null'}</div>
+                      <div>loading: {testsLoading ? 'true' : 'false'}</div>
+                      <div>networkStatus: {networkStatus} (1=loading, 4=ready, 7=refetch)</div>
+                      {testsError && (
+                        <div className="text-red-300">
+                          <strong>Error:</strong> {testsError.message}
+                          {testsError.graphQLErrors?.map((e, i) => (
+                            <div key={i}>GraphQL: {e.message}</div>
+                          ))}
+                          {testsError.networkError && (
+                            <div>Network: {String(testsError.networkError)}</div>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => refetchTests()}
+                        className="mt-2 px-3 py-1 bg-blue-500 rounded text-white text-xs"
+                      >
+                        Force Refetch
+                      </button>
+                    </div>
+                  )}
                   {Object.entries(testsByInstitution).map(([institution, institutionTests]) => (
                     <div key={institution}>
                       <h3 className="text-sm font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-3">

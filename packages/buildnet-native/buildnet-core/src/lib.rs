@@ -13,6 +13,9 @@
 //! - High availability with failover and replication
 //! - REAPI compatibility for enterprise builds
 //! - Native Cargo/Rust build support
+//! - Automatic resource discovery (CPU, RAM, storage, tools, runtimes)
+//! - Performance benchmarking and classification
+//! - Resource pooling across distributed nodes
 
 pub mod state;
 pub mod cache;
@@ -31,6 +34,7 @@ pub mod sessions;
 pub mod redundancy;
 pub mod reapi;
 pub mod cargo;
+pub mod discovery;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -48,6 +52,13 @@ pub use sessions::{SessionManager, UserSession, AuthLevel};
 pub use redundancy::{RedundancyCoordinator, FailoverManager, CheckpointManager};
 pub use reapi::{ExecutionService, ContentAddressableStorage, ActionCache};
 pub use cargo::{CargoBuilder, CargoBuildOptions, CargoBuildResult, CargoProfile, CargoWorkspace};
+pub use discovery::{
+    ResourceScanner, NodeResources, ScanConfig,
+    BenchmarkRunner, BenchmarkResults, StoragePerformance,
+    ToolScanner, Tool, ToolCapability,
+    RuntimeScanner, Runtime, RuntimeRequirement,
+    CpuArchitecture, MemoryType, StorageClass, CpuInfo, MemoryInfo, StorageVolume, NetworkInterface,
+};
 
 /// BuildNet version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

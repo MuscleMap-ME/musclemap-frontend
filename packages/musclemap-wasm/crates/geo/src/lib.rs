@@ -223,18 +223,24 @@ pub fn geohash_decode(hash: &str) -> Result<DecodedCoords, JsValue> {
         }
 
         for bit in (0..5).rev() {
-            let (range, _) = if is_lng {
-                (&mut lng_range, lng_range)
+            let mid = if is_lng {
+                (lng_range.0 + lng_range.1) / 2.0
             } else {
-                (&mut lat_range, lat_range)
+                (lat_range.0 + lat_range.1) / 2.0
             };
 
-            let mid = (range.0 + range.1) / 2.0;
-
-            if val & (1 << bit) != 0 {
-                range.0 = mid;
+            if is_lng {
+                if val & (1 << bit) != 0 {
+                    lng_range.0 = mid;
+                } else {
+                    lng_range.1 = mid;
+                }
             } else {
-                range.1 = mid;
+                if val & (1 << bit) != 0 {
+                    lat_range.0 = mid;
+                } else {
+                    lat_range.1 = mid;
+                }
             }
 
             is_lng = !is_lng;
@@ -484,8 +490,17 @@ mod tests {
 
     #[test]
     fn test_optimal_precision() {
-        assert_eq!(optimal_precision(5_000_000.0), 1);
-        assert_eq!(optimal_precision(1000.0), 6);
+        // 5,009,400m = precision 1, so 5,100,000m should be 1
+        assert_eq!(optimal_precision(5_100_000.0), 1);
+        // 5,000,000m < 5,009,400m, so should be precision 2
+        assert_eq!(optimal_precision(5_000_000.0), 2);
+        // 1000m < 1222.99m (precision 6), so should be 7
+        assert_eq!(optimal_precision(1000.0), 7);
+        // 1300m >= 1222.99m, so should be 6
+        assert_eq!(optimal_precision(1300.0), 6);
+        // 10m > 4.78m (precision 9), so should be 9
         assert_eq!(optimal_precision(10.0), 9);
+        // 3m < 4.78m (precision 9), so should be 10
+        assert_eq!(optimal_precision(3.0), 10);
     }
 }

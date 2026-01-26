@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-ratelimit",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance sliding window rate limiter for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_ratelimit_bg.wasm",
+    "musclemap_ratelimit.js",
+    "musclemap_ratelimit.d.ts"
+  ],
+  "main": "musclemap_ratelimit.js",
+  "types": "musclemap_ratelimit.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "musclemap-scoring",
+  "type": "module",
+  "collaborators": [
+    "MuscleMap <dev@musclemap.me>"
+  ],
+  "description": "High-performance 16-factor exercise prescription scoring engine for MuscleMap",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "musclemap_scoring_bg.wasm",
+    "musclemap_scoring.js",
+    "musclemap_scoring.d.ts"
+  ],
+  "main": "musclemap_scoring.js",
+  "types": "musclemap_scoring.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

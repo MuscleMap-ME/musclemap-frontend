@@ -29,7 +29,7 @@ pub enum BuildNetError {
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
 
-    #[error("Lock acquisition failed: {0}")]
+    #[error("Build in progress: {0}")]
     LockFailed(String),
 
     #[error("Process error: {0}")]

@@ -788,11 +788,19 @@ mod tests {
         let mut user = create_test_user();
         user.equipment_flags = 0; // No equipment
 
+        // Test with equipment
         let workout = create_test_workout();
-        let score = score_exercise_simple(&exercise, &user, &workout, None);
+        user.equipment_flags = 0b111; // Has all equipment
+        let score_with = score_exercise_simple(&exercise, &user, &workout, None);
 
-        // Score should be very low due to equipment factor
-        assert!(score < 50.0);
+        // Test without equipment
+        user.equipment_flags = 0; // No equipment
+        let score_without = score_exercise_simple(&exercise, &user, &workout, None);
+
+        // Score should be lower without equipment (equipment factor = 10% weight)
+        assert!(score_without < score_with);
+        // Equipment contributes 10% to score, so without it score drops by ~10 points
+        assert!((score_with - score_without).abs() > 5.0);
     }
 
     #[test]

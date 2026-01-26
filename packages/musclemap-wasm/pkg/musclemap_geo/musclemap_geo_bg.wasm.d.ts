@@ -1,0 +1,37 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_boundingbox_free: (a: number, b: number) => void;
+export const __wbg_decodedcoords_free: (a: number, b: number) => void;
+export const __wbg_get_boundingbox_max_lat: (a: number) => number;
+export const __wbg_get_boundingbox_max_lng: (a: number) => number;
+export const __wbg_get_boundingbox_min_lat: (a: number) => number;
+export const __wbg_get_boundingbox_min_lng: (a: number) => number;
+export const __wbg_set_boundingbox_max_lat: (a: number, b: number) => void;
+export const __wbg_set_boundingbox_max_lng: (a: number, b: number) => void;
+export const __wbg_set_boundingbox_min_lat: (a: number, b: number) => void;
+export const __wbg_set_boundingbox_min_lng: (a: number, b: number) => void;
+export const bounding_box: (a: number, b: number, c: number) => number;
+export const boundingbox_contains: (a: number, b: number, c: number) => number;
+export const boundingbox_new: (a: number, b: number, c: number, d: number) => number;
+export const filter_within_radius: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+export const geohash_decode: (a: number, b: number) => [number, number, number];
+export const geohash_encode: (a: number, b: number, c: number) => [number, number, number, number];
+export const geohash_encode_batch: (a: number, b: number, c: number) => [number, number, number, number];
+export const geohash_neighbors: (a: number, b: number) => [number, number, number, number];
+export const haversine_batch: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+export const is_within_radius: (a: number, b: number, c: number, d: number, e: number) => number;
+export const optimal_precision: (a: number) => number;
+export const __wbg_set_decodedcoords_lat: (a: number, b: number) => void;
+export const __wbg_set_decodedcoords_lng: (a: number, b: number) => void;
+export const haversine_meters: (a: number, b: number, c: number, d: number) => number;
+export const decodedcoords_new: (a: number, b: number) => number;
+export const __wbg_get_decodedcoords_lat: (a: number) => number;
+export const __wbg_get_decodedcoords_lng: (a: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __externref_drop_slice: (a: number, b: number) => void;
+export const __wbindgen_start: () => void;

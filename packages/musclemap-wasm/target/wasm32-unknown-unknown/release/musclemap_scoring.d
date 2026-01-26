@@ -1,0 +1,1 @@
+/Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/target/wasm32-unknown-unknown/release/musclemap_scoring.wasm: /Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/crates/core/src/lib.rs /Users/jeanpaulniko/Public/musclemap.me/packages/musclemap-wasm/crates/scoring/src/lib.rs
