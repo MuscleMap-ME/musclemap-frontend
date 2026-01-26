@@ -91,10 +91,34 @@ pub enum BuildNetError {
 
     #[error("Invalid command: {0}")]
     InvalidCommand(String),
+
+    #[error("Network error: {0}")]
+    Network(String),
+
+    #[error("Configuration error: {0}")]
+    Config(String),
+
+    #[error("Discovery error: {0}")]
+    Discovery(String),
+
+    #[error("Election error: {0}")]
+    Election(String),
+
+    #[error("State error: {0}")]
+    State(String),
+
+    #[error("Ledger error: {0}")]
+    Ledger(String),
 }
 
 impl From<r2d2::Error> for BuildNetError {
     fn from(err: r2d2::Error) -> Self {
         BuildNetError::Pool(err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for BuildNetError {
+    fn from(err: reqwest::Error) -> Self {
+        BuildNetError::Network(err.to_string())
     }
 }

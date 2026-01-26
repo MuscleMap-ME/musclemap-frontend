@@ -51,6 +51,13 @@ rand = "0.8"
 # Tempfile for benchmark tests
 tempfile = "3.10"
 
+# WebSocket for P2P networking
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+
+# SHA-256 for Merkle tree
+sha2 = "0.10"
+
 [lib]
 name = "buildnet_core"
 crate-type = ["lib", "staticlib", "cdylib"]

@@ -5,9 +5,8 @@
 use super::*;
 use crate::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use sysinfo::{CpuExt, DiskExt, NetworkExt, System, SystemExt};
+use sysinfo::{Disks, Networks, System};
 
 /// Configuration for resource scanning
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +138,8 @@ pub struct ResourceScanner {
     node_id: String,
     config: ScanConfig,
     system: System,
+    disks: Disks,
+    networks: Networks,
 }
 
 impl ResourceScanner {
@@ -148,6 +149,8 @@ impl ResourceScanner {
             node_id,
             config,
             system: System::new_all(),
+            disks: Disks::new_with_refreshed_list(),
+            networks: Networks::new_with_refreshed_list(),
         }
     }
 
@@ -155,6 +158,8 @@ impl ResourceScanner {
     pub async fn scan_all(&mut self) -> Result<NodeResources> {
         // Refresh system information
         self.system.refresh_all();
+        self.disks.refresh();
+        self.networks.refresh();
 
         let mut resources = NodeResources::new(self.node_id.clone());
 
@@ -208,7 +213,6 @@ impl ResourceScanner {
     /// Scan CPU information
     fn scan_cpu(&self) -> CpuInfo {
         let cpus = self.system.cpus();
-        let global_cpu = self.system.global_cpu_info();
 
         let physical_cores = self.system.physical_core_count().unwrap_or(cpus.len());
         let logical_cores = cpus.len();
@@ -216,8 +220,8 @@ impl ResourceScanner {
         // Get CPU model from first CPU
         let model = cpus.first().map(|c| c.brand().to_string()).unwrap_or_default();
 
-        // Get frequency
-        let frequency_mhz = global_cpu.frequency() as u32;
+        // Get frequency from first CPU
+        let frequency_mhz = cpus.first().map(|c| c.frequency() as u32).unwrap_or(0);
 
         // Get vendor
         let vendor = cpus
@@ -300,7 +304,7 @@ impl ResourceScanner {
     async fn scan_storage(&self) -> Vec<StorageVolume> {
         let mut volumes = Vec::new();
 
-        for disk in self.system.disks() {
+        for disk in self.disks.iter() {
             let path = disk.mount_point().to_path_buf();
 
             // Skip if we can't access this path
@@ -309,11 +313,10 @@ impl ResourceScanner {
             }
 
             // Skip virtual filesystems
-            let fs_type = disk.file_system();
-            let fs_str = String::from_utf8_lossy(fs_type);
+            let fs_type = disk.file_system().to_string_lossy();
             if ["proc", "sysfs", "devfs", "tmpfs", "devtmpfs"]
                 .iter()
-                .any(|&vfs| fs_str.contains(vfs))
+                .any(|&vfs| fs_type.contains(vfs))
             {
                 continue;
             }
@@ -340,7 +343,7 @@ impl ResourceScanner {
                 available_bytes,
                 storage_class,
                 mount_point: disk.mount_point().to_string_lossy().to_string(),
-                filesystem: fs_str.to_string(),
+                filesystem: fs_type.to_string(),
                 is_system,
                 read_speed_mbps: None,
                 write_speed_mbps: None,
@@ -354,7 +357,7 @@ impl ResourceScanner {
                 if let Ok(metadata) = tokio::fs::metadata(path).await {
                     if metadata.is_dir() {
                         // Get disk info for this path
-                        if let Some(disk) = self.system.disks().iter().find(|d| {
+                        if let Some(disk) = self.disks.iter().find(|d| {
                             path.starts_with(d.mount_point())
                         }) {
                             volumes.push(StorageVolume {
@@ -363,7 +366,7 @@ impl ResourceScanner {
                                 available_bytes: disk.available_space(),
                                 storage_class: StorageClass::Unknown,
                                 mount_point: disk.mount_point().to_string_lossy().to_string(),
-                                filesystem: String::from_utf8_lossy(disk.file_system()).to_string(),
+                                filesystem: disk.file_system().to_string_lossy().to_string(),
                                 is_system: false,
                                 read_speed_mbps: None,
                                 write_speed_mbps: None,
@@ -380,10 +383,9 @@ impl ResourceScanner {
 
     /// Scan network interfaces
     fn scan_network(&self) -> Vec<NetworkInterface> {
-        let networks = self.system.networks();
         let mut interfaces = Vec::new();
 
-        for (name, data) in networks {
+        for (name, data) in self.networks.iter() {
             // Skip loopback
             if name == "lo" || name.starts_with("lo") {
                 continue;

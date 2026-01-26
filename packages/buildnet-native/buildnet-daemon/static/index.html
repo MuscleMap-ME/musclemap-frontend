@@ -1,2150 +1,2182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BuildNet Master Control Panel</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <style>
-    :root {
-      --bg-primary: #0a0a0f;
-      --bg-secondary: #12121a;
-      --bg-tertiary: #1a1a25;
-      --bg-quaternary: #22222f;
-      --text-primary: #ffffff;
-      --text-secondary: #a0a0b0;
-      --text-muted: #606070;
-      --accent: #0066ff;
-      --accent-light: #3388ff;
-      --accent-glow: rgba(0, 102, 255, 0.3);
-      --success: #00cc66;
-      --success-light: #00ff88;
-      --warning: #ffaa00;
-      --warning-light: #ffcc44;
-      --error: #ff4444;
-      --error-light: #ff6666;
-      --purple: #8855ff;
-      --cyan: #00cccc;
-      --border: rgba(255, 255, 255, 0.1);
-      --border-hover: rgba(255, 255, 255, 0.2);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      line-height: 1.6;
-    }
-
-    .container {
-      max-width: 1800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    /* Header */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 0;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-icon {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--accent), #0044cc);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      box-shadow: 0 0 30px var(--accent-glow);
-    }
-
-    .logo h1 {
-      font-size: 26px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #fff, #aaa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .logo h1 span {
-      font-size: 12px;
-      background: var(--accent);
-      -webkit-background-clip: unset;
-      -webkit-text-fill-color: unset;
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-
-    .header-controls {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      flex-wrap: wrap;
-    }
-
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      background: var(--bg-secondary);
-      border-radius: 25px;
-      border: 1px solid var(--border);
-    }
-
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--success);
-      animation: pulse 2s infinite;
-    }
-
-    .status-dot.error { background: var(--error); }
-    .status-dot.warning { background: var(--warning); }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 204, 102, 0.4); }
-      50% { opacity: 0.8; box-shadow: 0 0 10px 3px rgba(0, 204, 102, 0.2); }
-    }
-
-    /* Navigation Tabs */
-    .nav-tabs {
-      display: flex;
-      gap: 5px;
-      background: var(--bg-secondary);
-      padding: 5px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      margin-bottom: 25px;
-      overflow-x: auto;
-    }
-
-    .nav-tab {
-      padding: 10px 20px;
-      background: transparent;
-      border: none;
-      border-radius: 6px;
-      color: var(--text-secondary);
-      font-family: inherit;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .nav-tab:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-    }
-
-    .nav-tab.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    /* Time Period Selector */
-    .time-selector {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg-secondary);
-      padding: 8px 15px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-
-    .time-selector label {
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
-    .time-selector select {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text-primary);
-      padding: 6px 10px;
-      font-family: inherit;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    /* Section Headers */
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 30px 0 15px;
-    }
-
-    .section-title {
-      font-size: 18px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .section-title .icon {
-      font-size: 20px;
-    }
-
-    /* Grid Layouts */
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-bottom: 25px;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-bottom: 25px;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-      margin-bottom: 25px;
-    }
-
-    .grid-2-1 {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-      margin-bottom: 25px;
-    }
-
-    /* Cards */
-    .card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      transition: all 0.3s ease;
-    }
-
-    .card:hover {
-      border-color: var(--border-hover);
-    }
-
-    .card.interactive:hover {
-      border-color: var(--accent);
-      box-shadow: 0 0 30px var(--accent-glow);
-      transform: translateY(-2px);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-
-    .card-title {
-      font-size: 12px;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .card-value {
-      font-size: 32px;
-      font-weight: 700;
-    }
-
-    .card-value.small {
-      font-size: 20px;
-    }
-
-    .card-value.success { color: var(--success); }
-    .card-value.warning { color: var(--warning); }
-    .card-value.error { color: var(--error); }
-    .card-value.accent { color: var(--accent); }
-
-    .card-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 5px;
-    }
-
-    .card-change {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 4px;
-    }
-
-    .card-change.up {
-      background: rgba(0, 204, 102, 0.2);
-      color: var(--success);
-    }
-
-    .card-change.down {
-      background: rgba(255, 68, 68, 0.2);
-      color: var(--error);
-    }
-
-    /* Chart Containers */
-    .chart-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .chart-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .chart-controls {
-      display: flex;
-      gap: 8px;
-    }
-
-    .chart-btn {
-      padding: 5px 12px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text-secondary);
-      font-size: 11px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .chart-btn:hover, .chart-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
-    }
-
-    .chart-container {
-      position: relative;
-      height: 250px;
-    }
-
-    .chart-container.tall {
-      height: 350px;
-    }
-
-    /* API Endpoints Widget */
-    .endpoints-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 12px;
-    }
-
-    .endpoint-card {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 15px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .endpoint-card:hover {
-      border-color: var(--accent);
-      background: var(--bg-quaternary);
-    }
-
-    .endpoint-method {
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 700;
-      min-width: 50px;
-      text-align: center;
-    }
-
-    .endpoint-method.get { background: rgba(0, 204, 102, 0.2); color: var(--success); }
-    .endpoint-method.post { background: rgba(0, 102, 255, 0.2); color: var(--accent); }
-    .endpoint-method.delete { background: rgba(255, 68, 68, 0.2); color: var(--error); }
-
-    .endpoint-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .endpoint-path {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-primary);
-      word-break: break-all;
-    }
-
-    .endpoint-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .endpoint-status {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--success);
-    }
-
-    .endpoint-status.error { background: var(--error); }
-
-    /* Packages Grid */
-    .packages-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 15px;
-    }
-
-    .package-card {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 18px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .package-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    }
-
-    .package-card.building {
-      border-color: var(--warning);
-      animation: building-pulse 1.5s infinite;
-    }
-
-    @keyframes building-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.4); }
-      50% { box-shadow: 0 0 25px 8px rgba(255, 170, 0, 0.15); }
-    }
-
-    .package-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
-    }
-
-    .package-name {
-      font-weight: 600;
-      font-size: 15px;
-    }
-
-    .package-tier {
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .tier-0 { background: rgba(0, 204, 102, 0.2); color: var(--success); }
-    .tier-1 { background: rgba(0, 204, 102, 0.15); color: #00aa55; }
-    .tier-2 { background: rgba(0, 102, 255, 0.2); color: var(--accent); }
-    .tier-3 { background: rgba(255, 170, 0, 0.2); color: var(--warning); }
-    .tier-4 { background: rgba(255, 68, 68, 0.2); color: var(--error); }
-
-    .package-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      font-size: 11px;
-    }
-
-    .package-stat {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .package-stat-label {
-      color: var(--text-muted);
-      font-size: 10px;
-    }
-
-    .package-stat-value {
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
-    /* Build History Table */
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .history-table th {
-      text-align: left;
-      padding: 12px 15px;
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .history-table td {
-      padding: 12px 15px;
-      font-size: 13px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .history-table tr:hover td {
-      background: var(--bg-tertiary);
-    }
-
-    .history-table .status-badge {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .history-table .status-badge.success {
-      background: rgba(0, 204, 102, 0.2);
-      color: var(--success);
-    }
-
-    .history-table .status-badge.cached {
-      background: rgba(0, 204, 102, 0.15);
-      color: #00aa55;
-    }
-
-    .history-table .status-badge.failed {
-      background: rgba(255, 68, 68, 0.2);
-      color: var(--error);
-    }
-
-    /* Actions Bar */
-    .actions-bar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 25px;
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-family: inherit;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn:hover {
-      background: var(--bg-tertiary);
-      border-color: var(--accent);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-light);
-      box-shadow: 0 0 25px var(--accent-glow);
-    }
-
-    .btn-danger {
-      border-color: var(--error);
-      color: var(--error);
-    }
-
-    .btn-danger:hover {
-      background: var(--error);
-      color: white;
-    }
-
-    .btn-sm {
-      padding: 8px 16px;
-      font-size: 12px;
-    }
-
-    /* Console */
-    .console {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .console-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .console-title {
-      font-size: 14px;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .console-title .live-indicator {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--success);
-      animation: pulse 1s infinite;
-    }
-
-    .console-body {
-      height: 300px;
-      overflow-y: auto;
-      padding: 15px 20px;
-      font-size: 12px;
-      line-height: 1.8;
-    }
-
-    .console-line {
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-
-    .console-line.info { color: var(--text-secondary); }
-    .console-line.success { color: var(--success); }
-    .console-line.warning { color: var(--warning); }
-    .console-line.error { color: var(--error); }
-
-    .console-line .timestamp {
-      color: var(--text-muted);
-      margin-right: 10px;
-    }
-
-    /* Loading Spinner */
-    .loading {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Tab Content */
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Config Panel */
-    .config-panel {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .config-row {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 15px;
-    }
-
-    .config-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .config-label {
-      font-size: 13px;
-      color: var(--text-secondary);
-      min-width: 120px;
-    }
-
-    .config-input {
-      flex: 1;
-      max-width: 200px;
-      padding: 8px 12px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-primary);
-      font-family: inherit;
-      font-size: 13px;
-    }
-
-    .checkbox-group {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-
-    .checkbox-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
-
-    .checkbox-item input {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--accent);
-    }
-
-    /* Responsive */
-    @media (max-width: 1200px) {
-      .grid-4 { grid-template-columns: repeat(2, 1fr); }
-      .grid-3 { grid-template-columns: repeat(2, 1fr); }
-      .grid-2-1 { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 768px) {
-      .container { padding: 15px; }
-      header { flex-direction: column; text-align: center; }
-      .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
-      .nav-tabs { flex-wrap: nowrap; justify-content: flex-start; }
-      .actions-bar { justify-content: center; }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--bg-primary);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--border-hover);
-    }
-
-    .hidden { display: none !important; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuildNet Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1a2332;
+            --bg-card: #1e293b;
+            --bg-hover: #2a3a50;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --glow-blue: 0 0 20px rgba(59, 130, 246, 0.3);
+            --glow-cyan: 0 0 20px rgba(6, 182, 212, 0.3);
+            --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                        radial-gradient(circle at 70% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+            animation: glowPulse 10s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Main container */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 30px;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: var(--glow-blue);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .logo-text h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-text span {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+        .status-dot.warning { background: var(--accent-yellow); box-shadow: 0 0 10px var(--accent-yellow); }
+        .status-dot.error { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: var(--glow-blue);
+        }
+
+        .nav-tab-icon {
+            font-size: 16px;
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-blue);
+            box-shadow: var(--glow-blue);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-title-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-badge {
+            padding: 4px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            border-radius: 4px 0 0 4px;
+        }
+
+        .stat-card.blue::before { background: var(--accent-blue); }
+        .stat-card.green::before { background: var(--accent-green); }
+        .stat-card.yellow::before { background: var(--accent-yellow); }
+        .stat-card.purple::before { background: var(--accent-purple); }
+        .stat-card.cyan::before { background: var(--accent-cyan); }
+        .stat-card.pink::before { background: var(--accent-pink); }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .stat-trend.up { color: var(--accent-green); }
+        .stat-trend.down { color: var(--accent-red); }
+
+        /* Resource Gauges */
+        .gauges-section {
+            grid-column: span 8;
+        }
+
+        .gauges-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .gauge {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .gauge svg {
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: var(--bg-tertiary);
+            stroke-width: 8;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .gauge-fill.cpu { stroke: var(--accent-blue); }
+        .gauge-fill.memory { stroke: var(--accent-purple); }
+        .gauge-fill.disk { stroke: var(--accent-cyan); }
+        .gauge-fill.network { stroke: var(--accent-green); }
+
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .gauge-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .gauge-unit {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .gauge-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Network Topology */
+        .topology-section {
+            grid-column: span 4;
+        }
+
+        .topology-map {
+            height: 280px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .topology-node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: var(--bg-card);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .topology-node:hover {
+            transform: scale(1.1);
+            border-color: var(--accent-blue);
+        }
+
+        .topology-node.coordinator {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .topology-node.local {
+            border-color: var(--accent-green);
+            box-shadow: var(--glow-green);
+        }
+
+        .topology-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-cyan), transparent);
+            transform-origin: left center;
+            opacity: 0.5;
+        }
+
+        .topology-label {
+            position: absolute;
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Build Console */
+        .console-section {
+            grid-column: span 8;
+        }
+
+        .console {
+            background: #0d1117;
+            border-radius: 12px;
+            height: 400px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #161b22;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .console-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .console-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .console-dot.red { background: #ff5f57; }
+        .console-dot.yellow { background: #febc2e; }
+        .console-dot.green { background: #28c840; }
+
+        .console-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .console-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .console-line {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .console-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .console-level {
+            flex-shrink: 0;
+            padding: 0 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .console-level.info { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+        .console-level.success { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .console-level.warn { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
+        .console-level.error { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+        .console-level.debug { background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); }
+
+        .console-message {
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        /* Build History */
+        .history-section {
+            grid-column: span 4;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .history-status {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .history-status.success { background: rgba(16, 185, 129, 0.2); }
+        .history-status.failed { background: rgba(239, 68, 68, 0.2); }
+        .history-status.cached { background: rgba(59, 130, 246, 0.2); }
+        .history-status.running { background: rgba(245, 158, 11, 0.2); animation: pulse 1s infinite; }
+
+        .history-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-package {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .history-duration {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        /* Action Buttons */
+        .actions-section {
+            grid-column: span 12;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-blue);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+            border-color: transparent;
+        }
+
+        .action-btn.success {
+            background: linear-gradient(135deg, var(--accent-green) 0%, #059669 100%);
+            border-color: transparent;
+        }
+
+        .action-btn.warning {
+            background: linear-gradient(135deg, var(--accent-yellow) 0%, #d97706 100%);
+            border-color: transparent;
+        }
+
+        .action-btn.danger {
+            background: linear-gradient(135deg, var(--accent-red) 0%, #dc2626 100%);
+            border-color: transparent;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-icon {
+            font-size: 20px;
+        }
+
+        /* Packages Table */
+        .packages-section {
+            grid-column: span 12;
+        }
+
+        .packages-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .packages-table th,
+        .packages-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .packages-table th {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--bg-tertiary);
+        }
+
+        .packages-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .package-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .package-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .package-deps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .dep-tag {
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-green);
+        }
+
+        .status-badge.cached {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .status-badge.pending {
+            background: rgba(100, 116, 139, 0.15);
+            color: var(--text-muted);
+        }
+
+        .status-badge.running {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .status-badge.failed {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        /* Ledger Section */
+        .ledger-section {
+            grid-column: span 6;
+        }
+
+        .ledger-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .ledger-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .ledger-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ledger-type {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .ledger-details {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .ledger-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .ledger-hash {
+            font-family: 'SF Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        /* Network Status */
+        .network-section {
+            grid-column: span 6;
+        }
+
+        .peer-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .peer-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .peer-info {
+            flex: 1;
+        }
+
+        .peer-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .peer-address {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'SF Mono', monospace;
+        }
+
+        .peer-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+
+        .peer-stat {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .peer-stat strong {
+            color: var(--text-primary);
+        }
+
+        .peer-status {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        /* Tab Panels */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success { border-left: 3px solid var(--accent-green); }
+        .toast.error { border-left: 3px solid var(--accent-red); }
+        .toast.warning { border-left: 3px solid var(--accent-yellow); }
+        .toast.info { border-left: 3px solid var(--accent-blue); }
+
+        .toast-icon { font-size: 20px; }
+        .toast-message { font-size: 14px; color: var(--text-primary); }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .gauges-section { grid-column: span 12; }
+            .topology-section { grid-column: span 12; }
+            .console-section { grid-column: span 12; }
+            .history-section { grid-column: span 12; }
+            .ledger-section { grid-column: span 12; }
+            .network-section { grid-column: span 12; }
+            .charts-section { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .header { flex-direction: column; gap: 16px; padding: 16px; }
+            .gauges-grid { grid-template-columns: repeat(2, 1fr); }
+            .nav-tabs { flex-wrap: nowrap; }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <header>
-      <div class="logo">
-        <div class="logo-icon">⚡</div>
-        <h1>BuildNet Master<span>v0.1.0</span></h1>
-      </div>
-      <div class="header-controls">
-        <div class="time-selector">
-          <label>Period:</label>
-          <select id="time-period" onchange="updateCharts()">
-            <option value="1h">Last Hour</option>
-            <option value="6h">Last 6 Hours</option>
-            <option value="24h" selected>Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-            <option value="all">All Time</option>
-          </select>
-        </div>
-        <div class="status-badge">
-          <div class="status-dot" id="status-dot"></div>
-          <span id="status-text">Connecting...</span>
-        </div>
-      </div>
-    </header>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
 
-    <!-- Navigation Tabs -->
-    <div class="nav-tabs">
-      <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
-      <button class="nav-tab" data-tab="builds" onclick="switchTab('builds')">🔨 Builds</button>
-      <button class="nav-tab" data-tab="history" onclick="switchTab('history')">📜 History</button>
-      <button class="nav-tab" data-tab="analytics" onclick="switchTab('analytics')">📈 Analytics</button>
-      <button class="nav-tab" data-tab="endpoints" onclick="switchTab('endpoints')">🔌 API Endpoints</button>
-      <button class="nav-tab" data-tab="config" onclick="switchTab('config')">⚙️ Configuration</button>
-    </div>
-
-    <!-- Dashboard Tab -->
-    <div id="tab-dashboard" class="tab-content active">
-      <!-- Stats Cards -->
-      <div class="grid-4">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Total Builds</span>
-            <span class="card-change up" id="builds-change">+0</span>
-          </div>
-          <div class="card-value accent" id="total-builds">-</div>
-          <div class="card-subtitle">All time</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Success Rate</span>
-          </div>
-          <div class="card-value success" id="success-rate">-</div>
-          <div class="card-subtitle">Last 24 hours</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Cache Size</span>
-          </div>
-          <div class="card-value" id="cache-size">-</div>
-          <div class="card-subtitle"><span id="artifacts">-</span> artifacts</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Avg Build Time</span>
-          </div>
-          <div class="card-value warning" id="avg-build-time">-</div>
-          <div class="card-subtitle">Per package</div>
-        </div>
-      </div>
-
-      <!-- Charts Row -->
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Build Timeline</span>
-            <div class="chart-controls">
-              <button class="chart-btn active" onclick="setTimelineView('line')">Line</button>
-              <button class="chart-btn" onclick="setTimelineView('bar')">Bar</button>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <h1>BuildNet</h1>
+                    <span>Control Center</span>
+                </div>
             </div>
-          </div>
-          <div class="chart-container tall">
-            <canvas id="timeline-chart"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Build Tier Distribution</span>
-            <div class="chart-controls">
-              <button class="chart-btn active" onclick="setTierView('pie')">Pie</button>
-              <button class="chart-btn" onclick="setTierView('doughnut')">Doughnut</button>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <div class="status-dot online" id="daemon-status"></div>
+                    <span id="daemon-status-text">Online</span>
+                </div>
+                <div class="status-indicator">
+                    <span id="version">v0.1.0</span>
+                </div>
+                <div class="status-indicator">
+                    <span id="uptime">Uptime: --:--:--</span>
+                </div>
             </div>
-          </div>
-          <div class="chart-container tall">
-            <canvas id="tier-chart"></canvas>
-          </div>
-        </div>
-      </div>
+        </header>
 
-      <!-- Build Times Bar Chart -->
-      <div class="chart-card">
-        <div class="chart-header">
-          <span class="chart-title">Build Times by Package</span>
-          <div class="chart-controls">
-            <button class="chart-btn active" onclick="setBuildTimeView('avg')">Average</button>
-            <button class="chart-btn" onclick="setBuildTimeView('max')">Max</button>
-            <button class="chart-btn" onclick="setBuildTimeView('min')">Min</button>
-          </div>
-        </div>
-        <div class="chart-container">
-          <canvas id="build-times-chart"></canvas>
-        </div>
-      </div>
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">
+                <span class="nav-tab-icon">📊</span> Dashboard
+            </button>
+            <button class="nav-tab" data-tab="builds">
+                <span class="nav-tab-icon">🔨</span> Builds
+            </button>
+            <button class="nav-tab" data-tab="packages">
+                <span class="nav-tab-icon">📦</span> Packages
+            </button>
+            <button class="nav-tab" data-tab="network">
+                <span class="nav-tab-icon">🌐</span> Network
+            </button>
+            <button class="nav-tab" data-tab="ledger">
+                <span class="nav-tab-icon">📜</span> Ledger
+            </button>
+            <button class="nav-tab" data-tab="logs">
+                <span class="nav-tab-icon">📋</span> Logs
+            </button>
+            <button class="nav-tab" data-tab="settings">
+                <span class="nav-tab-icon">⚙️</span> Settings
+            </button>
+        </nav>
 
-      <!-- Recent Activity -->
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📋</span> Recent Builds</span>
-        <button class="btn btn-sm" onclick="refreshHistory()">Refresh</button>
-      </div>
-      <div class="card">
-        <table class="history-table" id="recent-builds-table">
-          <thead>
-            <tr>
-              <th>Package</th>
-              <th>Status</th>
-              <th>Duration</th>
-              <th>Source Hash</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="recent-builds-body">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <!-- Dashboard Tab -->
+        <div class="tab-panel active" id="dashboard-panel">
+            <div class="main-grid">
+                <!-- Stats Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card blue">
+                        <div class="stat-label">Total Builds</div>
+                        <div class="stat-value" id="stat-total-builds">0</div>
+                        <div class="stat-trend up">
+                            <span>↑</span> <span id="stat-builds-trend">+0 today</span>
+                        </div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-label">Cache Hits</div>
+                        <div class="stat-value" id="stat-cache-hits">0</div>
+                        <div class="stat-trend up">
+                            <span id="stat-cache-rate">0%</span> hit rate
+                        </div>
+                    </div>
+                    <div class="stat-card yellow">
+                        <div class="stat-label">Avg Build Time</div>
+                        <div class="stat-value" id="stat-avg-time">0ms</div>
+                        <div class="stat-trend down">
+                            <span>↓</span> vs last week
+                        </div>
+                    </div>
+                    <div class="stat-card purple">
+                        <div class="stat-label">Cached Files</div>
+                        <div class="stat-value" id="stat-cached-files">0</div>
+                    </div>
+                    <div class="stat-card cyan">
+                        <div class="stat-label">Artifacts</div>
+                        <div class="stat-value" id="stat-artifacts">0</div>
+                    </div>
+                    <div class="stat-card pink">
+                        <div class="stat-label">Network Nodes</div>
+                        <div class="stat-value" id="stat-nodes">1</div>
+                    </div>
+                </div>
 
-    <!-- Builds Tab -->
-    <div id="tab-builds" class="tab-content">
-      <div class="actions-bar">
-        <button class="btn btn-primary" id="btn-build-all" onclick="buildAll()">
-          <span>🔨</span> Build All Packages
-        </button>
-        <button class="btn" onclick="buildAll(true)">
-          <span>🔄</span> Force Rebuild All
-        </button>
-        <button class="btn" onclick="refresh()">
-          <span>🔄</span> Refresh Status
-        </button>
-        <button class="btn btn-danger" onclick="clearCache()">
-          <span>🗑️</span> Clear Cache
-        </button>
-      </div>
+                <!-- Resource Gauges -->
+                <div class="card gauges-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">💻</div>
+                            System Resources
+                        </div>
+                        <div class="card-badge">Real-time</div>
+                    </div>
+                    <div class="gauges-grid">
+                        <div class="gauge-container">
+                            <div class="gauge">
+                                <svg viewBox="0 0 120 120">
+                                    <circle class="gauge-bg" cx="60" cy="60" r="52"/>
+                                    <circle class="gauge-fill cpu" cx="60" cy="60" r="52"
+                                            stroke-dasharray="327" stroke-dashoffset="327" id="cpu-gauge"/>
+                                </svg>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" id="cpu-value">0</div>
+                                    <div class="gauge-unit">%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-label">CPU</div>
+                        </div>
+                        <div class="gauge-container">
+                            <div class="gauge">
+                                <svg viewBox="0 0 120 120">
+                                    <circle class="gauge-bg" cx="60" cy="60" r="52"/>
+                                    <circle class="gauge-fill memory" cx="60" cy="60" r="52"
+                                            stroke-dasharray="327" stroke-dashoffset="327" id="memory-gauge"/>
+                                </svg>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" id="memory-value">0</div>
+                                    <div class="gauge-unit">%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-label">Memory</div>
+                        </div>
+                        <div class="gauge-container">
+                            <div class="gauge">
+                                <svg viewBox="0 0 120 120">
+                                    <circle class="gauge-bg" cx="60" cy="60" r="52"/>
+                                    <circle class="gauge-fill disk" cx="60" cy="60" r="52"
+                                            stroke-dasharray="327" stroke-dashoffset="327" id="disk-gauge"/>
+                                </svg>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" id="disk-value">0</div>
+                                    <div class="gauge-unit">%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-label">Disk</div>
+                        </div>
+                        <div class="gauge-container">
+                            <div class="gauge">
+                                <svg viewBox="0 0 120 120">
+                                    <circle class="gauge-bg" cx="60" cy="60" r="52"/>
+                                    <circle class="gauge-fill network" cx="60" cy="60" r="52"
+                                            stroke-dasharray="327" stroke-dashoffset="327" id="network-gauge"/>
+                                </svg>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" id="network-value">0</div>
+                                    <div class="gauge-unit">Mbps</div>
+                                </div>
+                            </div>
+                            <div class="gauge-label">Network</div>
+                        </div>
+                    </div>
+                </div>
 
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📦</span> Packages</span>
-      </div>
-      <div class="packages-grid" id="packages-grid">
-        <!-- Packages will be inserted here -->
-      </div>
+                <!-- Network Topology -->
+                <div class="card topology-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">🌐</div>
+                            Network Topology
+                        </div>
+                        <div class="card-badge" id="node-count">1 Node</div>
+                    </div>
+                    <div class="topology-map" id="topology-map">
+                        <!-- Nodes will be rendered here -->
+                    </div>
+                </div>
 
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📺</span> Live Build Output</span>
-      </div>
-      <div class="console">
-        <div class="console-header">
-          <span class="console-title">
-            <span class="live-indicator"></span>
-            Live Output
-          </span>
-          <button class="btn btn-sm" onclick="clearConsole()">Clear</button>
-        </div>
-        <div class="console-body" id="console-body">
-          <div class="console-line info">Waiting for build events...</div>
-        </div>
-      </div>
-    </div>
+                <!-- Quick Actions -->
+                <div class="actions-section">
+                    <div class="actions-grid">
+                        <button class="action-btn primary" onclick="triggerBuildAll()">
+                            <span class="action-icon">🚀</span>
+                            Build All
+                        </button>
+                        <button class="action-btn success" onclick="triggerBuildChanged()">
+                            <span class="action-icon">⚡</span>
+                            Build Changed
+                        </button>
+                        <button class="action-btn" onclick="refreshStatus()">
+                            <span class="action-icon">🔄</span>
+                            Refresh Status
+                        </button>
+                        <button class="action-btn warning" onclick="clearCache()">
+                            <span class="action-icon">🗑️</span>
+                            Clear Cache
+                        </button>
+                        <button class="action-btn" onclick="viewLogs()">
+                            <span class="action-icon">📋</span>
+                            View Logs
+                        </button>
+                        <button class="action-btn danger" onclick="stopDaemon()">
+                            <span class="action-icon">⏹️</span>
+                            Stop Daemon
+                        </button>
+                    </div>
+                </div>
 
-    <!-- History Tab -->
-    <div id="tab-history" class="tab-content">
-      <div class="actions-bar">
-        <button class="btn" onclick="refreshHistory()">
-          <span>🔄</span> Refresh History
-        </button>
-        <button class="btn" onclick="exportHistory()">
-          <span>📥</span> Export CSV
-        </button>
-      </div>
+                <!-- Build Console -->
+                <div class="card console-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">🖥️</div>
+                            Live Console
+                        </div>
+                        <div class="card-badge">Streaming</div>
+                    </div>
+                    <div class="console">
+                        <div class="console-header">
+                            <div class="console-dots">
+                                <div class="console-dot red"></div>
+                                <div class="console-dot yellow"></div>
+                                <div class="console-dot green"></div>
+                            </div>
+                            <div class="console-title">buildnet-daemon — events</div>
+                            <button onclick="clearConsole()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px;">Clear</button>
+                        </div>
+                        <div class="console-body" id="console-output">
+                            <div class="console-line">
+                                <span class="console-time">--:--:--</span>
+                                <span class="console-level info">INFO</span>
+                                <span class="console-message">Waiting for events...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-      <div class="grid-3">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Total Builds</span>
-          </div>
-          <div class="card-value" id="history-total">-</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Successful</span>
-          </div>
-          <div class="card-value success" id="history-success">-</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Failed</span>
-          </div>
-          <div class="card-value error" id="history-failed">-</div>
-        </div>
-      </div>
+                <!-- Build History -->
+                <div class="card history-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">📜</div>
+                            Recent Builds
+                        </div>
+                        <div class="card-badge" id="build-count">0 builds</div>
+                    </div>
+                    <div class="history-list" id="build-history">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            No builds yet
+                        </div>
+                    </div>
+                </div>
 
-      <div class="chart-card">
-        <div class="chart-header">
-          <span class="chart-title">Build History Over Time</span>
-        </div>
-        <div class="chart-container tall">
-          <canvas id="history-chart"></canvas>
-        </div>
-      </div>
-
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📜</span> Full Build History</span>
-      </div>
-      <div class="card">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Package</th>
-              <th>Status</th>
-              <th>Duration</th>
-              <th>Source Hash</th>
-              <th>Output Hash</th>
-              <th>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody id="full-history-body">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Analytics Tab -->
-    <div id="tab-analytics" class="tab-content">
-      <div class="grid-4">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Cache Hit Rate</span>
-          </div>
-          <div class="card-value success" id="cache-hit-rate">-</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Instant Skips</span>
-          </div>
-          <div class="card-value" id="instant-skips">-</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Full Rebuilds</span>
-          </div>
-          <div class="card-value warning" id="full-rebuilds">-</div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Time Saved</span>
-          </div>
-          <div class="card-value accent" id="time-saved">-</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Build Status Distribution</span>
-          </div>
-          <div class="chart-container tall">
-            <canvas id="status-pie-chart"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Package Build Frequency</span>
-          </div>
-          <div class="chart-container tall">
-            <canvas id="frequency-chart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-header">
-          <span class="chart-title">Build Duration Trends</span>
-        </div>
-        <div class="chart-container tall">
-          <canvas id="duration-trend-chart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- API Endpoints Tab -->
-    <div id="tab-endpoints" class="tab-content">
-      <div class="section-header">
-        <span class="section-title"><span class="icon">🔌</span> Available API Endpoints</span>
-        <button class="btn btn-sm" onclick="testAllEndpoints()">Test All</button>
-      </div>
-
-      <div class="endpoints-grid" id="endpoints-grid">
-        <!-- Endpoints will be inserted here -->
-      </div>
-
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📝</span> API Response</span>
-      </div>
-      <div class="console">
-        <div class="console-header">
-          <span class="console-title" id="api-response-title">Select an endpoint to test</span>
-          <button class="btn btn-sm" onclick="clearApiResponse()">Clear</button>
-        </div>
-        <div class="console-body" id="api-response-body">
-          <div class="console-line info">Click on an endpoint above to see its response</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Configuration Tab -->
-    <div id="tab-config" class="tab-content">
-      <div class="section-header">
-        <span class="section-title"><span class="icon">⚙️</span> Dashboard Configuration</span>
-      </div>
-
-      <div class="config-panel">
-        <div class="config-row">
-          <span class="config-label">Auto-refresh:</span>
-          <select class="config-input" id="config-refresh" onchange="updateConfig()">
-            <option value="10">Every 10 seconds</option>
-            <option value="30" selected>Every 30 seconds</option>
-            <option value="60">Every minute</option>
-            <option value="0">Disabled</option>
-          </select>
-        </div>
-        <div class="config-row">
-          <span class="config-label">Chart animations:</span>
-          <input type="checkbox" id="config-animations" checked onchange="updateConfig()">
-        </div>
-        <div class="config-row">
-          <span class="config-label">Show widgets:</span>
-          <div class="checkbox-group">
-            <label class="checkbox-item">
-              <input type="checkbox" checked data-widget="timeline"> Timeline
-            </label>
-            <label class="checkbox-item">
-              <input type="checkbox" checked data-widget="tier"> Tier Distribution
-            </label>
-            <label class="checkbox-item">
-              <input type="checkbox" checked data-widget="build-times"> Build Times
-            </label>
-            <label class="checkbox-item">
-              <input type="checkbox" checked data-widget="recent"> Recent Builds
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="section-header">
-        <span class="section-title"><span class="icon">📊</span> Server Configuration</span>
-      </div>
-
-      <div class="card">
-        <pre id="server-config" style="font-size: 12px; color: var(--text-secondary); overflow-x: auto;">Loading...</pre>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // ============================================================================
-    // Configuration
-    // ============================================================================
-    const pathMatch = window.location.pathname.match(/^(\/[^\/]+)/);
-    const API_BASE = pathMatch && pathMatch[1] !== '/' ? pathMatch[1] : '';
-    console.log('[BuildNet] API_BASE:', API_BASE, 'pathname:', window.location.pathname);
-
-    let eventSource = null;
-    let isBuilding = false;
-    let charts = {};
-    let buildHistory = [];
-    let refreshInterval = null;
-
-    const TIER_COLORS = {
-      'InstantSkip': '#00cc66',
-      'CacheRestore': '#00aa55',
-      'MicroIncremental': '#0066ff',
-      'SmartIncremental': '#ffaa00',
-      'FullBuild': '#ff4444'
-    };
-
-    const TIER_NAMES = {
-      'InstantSkip': 'Instant Skip',
-      'CacheRestore': 'Cache Restore',
-      'MicroIncremental': 'Micro Incremental',
-      'SmartIncremental': 'Smart Incremental',
-      'FullBuild': 'Full Build'
-    };
-
-    const API_ENDPOINTS = [
-      { method: 'GET', path: '/health', desc: 'Health check' },
-      { method: 'GET', path: '/status', desc: 'Daemon status' },
-      { method: 'GET', path: '/stats', desc: 'State statistics' },
-      { method: 'POST', path: '/build', desc: 'Build all packages' },
-      { method: 'POST', path: '/build/{package}', desc: 'Build single package' },
-      { method: 'GET', path: '/builds', desc: 'List build history' },
-      { method: 'GET', path: '/builds/{id}', desc: 'Get build details' },
-      { method: 'GET', path: '/cache/stats', desc: 'Cache statistics' },
-      { method: 'POST', path: '/cache/clear', desc: 'Clear cache' },
-      { method: 'GET', path: '/config', desc: 'Get configuration' },
-      { method: 'GET', path: '/events', desc: 'SSE event stream' },
-      { method: 'POST', path: '/shutdown', desc: 'Shutdown daemon' }
-    ];
-
-    // ============================================================================
-    // Utility Functions
-    // ============================================================================
-    function formatBytes(bytes) {
-      if (bytes === 0) return '0 B';
-      const k = 1024;
-      const sizes = ['B', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    }
-
-    function formatDuration(ms) {
-      if (ms === null || ms === undefined) return '-';
-      if (ms < 1000) return ms + 'ms';
-      if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
-      return (ms / 60000).toFixed(1) + 'm';
-    }
-
-    function formatTime(timestamp) {
-      if (!timestamp) return '-';
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString();
-    }
-
-    function formatDateTime(timestamp) {
-      if (!timestamp) return '-';
-      const date = new Date(timestamp);
-      return date.toLocaleString();
-    }
-
-    function getTierClass(tier) {
-      const tiers = {
-        'InstantSkip': 'tier-0',
-        'CacheRestore': 'tier-1',
-        'MicroIncremental': 'tier-2',
-        'SmartIncremental': 'tier-3',
-        'FullBuild': 'tier-4'
-      };
-      return tiers[tier] || 'tier-3';
-    }
-
-    function getStatusClass(status) {
-      if (status === 'completed' || status === 'Completed') return 'success';
-      if (status === 'cached' || status === 'Cached') return 'cached';
-      if (status === 'failed' || status === 'Failed') return 'failed';
-      return '';
-    }
-
-    // ============================================================================
-    // Tab Navigation
-    // ============================================================================
-    function switchTab(tabId) {
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-      document.getElementById(`tab-${tabId}`).classList.add('active');
-
-      // Load tab-specific data
-      if (tabId === 'history') refreshHistory();
-      if (tabId === 'analytics') refreshAnalytics();
-      if (tabId === 'endpoints') renderEndpoints();
-      if (tabId === 'config') loadConfig();
-    }
-
-    // ============================================================================
-    // Console Logging
-    // ============================================================================
-    function log(message, type = 'info') {
-      const consoleBody = document.getElementById('console-body');
-      const line = document.createElement('div');
-      line.className = 'console-line ' + type;
-      const time = new Date().toLocaleTimeString();
-      line.innerHTML = '<span class="timestamp">[' + time + ']</span>' + message;
-      consoleBody.appendChild(line);
-      consoleBody.scrollTop = consoleBody.scrollHeight;
-    }
-
-    function clearConsole() {
-      document.getElementById('console-body').innerHTML = '';
-    }
-
-    // ============================================================================
-    // Data Fetching
-    // ============================================================================
-    async function fetchStatus() {
-      try {
-        const res = await fetch(API_BASE + '/status');
-        const data = await res.json();
-
-        document.getElementById('status-dot').className = 'status-dot';
-        document.getElementById('status-text').textContent = 'Running';
-        document.getElementById('total-builds').textContent = data.state_stats.total_builds;
-
-        const successRate = data.state_stats.total_builds > 0
-          ? Math.round(((data.state_stats.total_builds - data.state_stats.failed_builds) / data.state_stats.total_builds) * 100)
-          : 100;
-        document.getElementById('success-rate').textContent = successRate + '%';
-
-        // Update packages grid
-        updatePackagesGrid(data.packages);
-
-        return data;
-      } catch (err) {
-        document.getElementById('status-dot').className = 'status-dot error';
-        document.getElementById('status-text').textContent = 'Disconnected';
-        throw err;
-      }
-    }
-
-    async function fetchCacheStats() {
-      try {
-        const res = await fetch(API_BASE + '/cache/stats');
-        const data = await res.json();
-        document.getElementById('cache-size').textContent = formatBytes(data.total_size);
-        document.getElementById('artifacts').textContent = data.artifact_count;
-        return data;
-      } catch (err) {
-        console.error('Failed to fetch cache stats:', err);
-      }
-    }
-
-    async function fetchBuildHistory() {
-      try {
-        const res = await fetch(API_BASE + '/builds');
-        const data = await res.json();
-        buildHistory = Array.isArray(data) ? data : [];
-        return buildHistory;
-      } catch (err) {
-        console.error('Failed to fetch build history:', err);
-        buildHistory = [];
-        return [];
-      }
-    }
-
-    async function fetchStats() {
-      try {
-        const res = await fetch(API_BASE + '/stats');
-        return await res.json();
-      } catch (err) {
-        console.error('Failed to fetch stats:', err);
-        return null;
-      }
-    }
-
-    // ============================================================================
-    // UI Updates
-    // ============================================================================
-    function updatePackagesGrid(packages) {
-      const grid = document.getElementById('packages-grid');
-      if (!packages || packages.length === 0) {
-        grid.innerHTML = '<div style="color: var(--text-muted);">No packages found</div>';
-        return;
-      }
-
-      grid.innerHTML = packages.map(pkg => `
-        <div class="package-card" onclick="buildPackage('${pkg}')">
-          <div class="package-header">
-            <span class="package-name">${pkg}</span>
-            <span class="package-tier tier-0">Ready</span>
-          </div>
-          <div class="package-stats">
-            <div class="package-stat">
-              <span class="package-stat-label">Last Build</span>
-              <span class="package-stat-value">-</span>
+                <!-- Charts -->
+                <div class="charts-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-title-icon">📈</div>
+                                Build Performance
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="build-performance-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-title-icon">🎯</div>
+                                Cache Efficiency
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="cache-efficiency-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="package-stat">
-              <span class="package-stat-label">Duration</span>
-              <span class="package-stat-value">-</span>
+        </div>
+
+        <!-- Builds Tab -->
+        <div class="tab-panel" id="builds-panel">
+            <div class="main-grid">
+                <div class="actions-section">
+                    <div class="actions-grid">
+                        <button class="action-btn primary" onclick="triggerBuildAll()">
+                            <span class="action-icon">🚀</span>
+                            Build All Packages
+                        </button>
+                        <button class="action-btn success" onclick="triggerBuildForce()">
+                            <span class="action-icon">💪</span>
+                            Force Rebuild
+                        </button>
+                    </div>
+                </div>
+                <div class="card packages-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">📦</div>
+                            Package Status
+                        </div>
+                    </div>
+                    <table class="packages-table">
+                        <thead>
+                            <tr>
+                                <th>Package</th>
+                                <th>Status</th>
+                                <th>Last Build</th>
+                                <th>Duration</th>
+                                <th>Dependencies</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packages-tbody">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-          </div>
         </div>
-      `).join('');
-    }
 
-    function updateRecentBuilds(builds) {
-      const tbody = document.getElementById('recent-builds-body');
-      if (!builds || builds.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No builds yet</td></tr>';
-        return;
-      }
-
-      const recentBuilds = builds.slice(-10).reverse();
-      tbody.innerHTML = recentBuilds.map(b => `
-        <tr>
-          <td>${b.package || '-'}</td>
-          <td><span class="status-badge ${getStatusClass(b.status)}">${b.status || '-'}</span></td>
-          <td>${formatDuration(b.duration_ms)}</td>
-          <td style="font-family: monospace; font-size: 11px;">${b.source_hash ? b.source_hash.substring(0, 8) : '-'}</td>
-          <td>${formatTime(b.started_at)}</td>
-        </tr>
-      `).join('');
-    }
-
-    function updateFullHistory(builds) {
-      const tbody = document.getElementById('full-history-body');
-      if (!builds || builds.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No builds yet</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = builds.slice().reverse().map((b, i) => `
-        <tr>
-          <td>${builds.length - i}</td>
-          <td>${b.package || '-'}</td>
-          <td><span class="status-badge ${getStatusClass(b.status)}">${b.status || '-'}</span></td>
-          <td>${formatDuration(b.duration_ms)}</td>
-          <td style="font-family: monospace; font-size: 11px;">${b.source_hash ? b.source_hash.substring(0, 8) : '-'}</td>
-          <td style="font-family: monospace; font-size: 11px;">${b.output_hash ? b.output_hash.substring(0, 8) : '-'}</td>
-          <td>${formatDateTime(b.started_at)}</td>
-        </tr>
-      `).join('');
-    }
-
-    // ============================================================================
-    // Charts
-    // ============================================================================
-    function initCharts() {
-      // Timeline Chart
-      const timelineCtx = document.getElementById('timeline-chart').getContext('2d');
-      charts.timeline = new Chart(timelineCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Build Duration (ms)',
-            data: [],
-            borderColor: '#0066ff',
-            backgroundColor: 'rgba(0, 102, 255, 0.1)',
-            fill: true,
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            }
-          }
-        }
-      });
-
-      // Tier Distribution Chart
-      const tierCtx = document.getElementById('tier-chart').getContext('2d');
-      charts.tier = new Chart(tierCtx, {
-        type: 'pie',
-        data: {
-          labels: Object.values(TIER_NAMES),
-          datasets: [{
-            data: [0, 0, 0, 0, 0],
-            backgroundColor: Object.values(TIER_COLORS),
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { color: '#a0a0b0', padding: 15 }
-            }
-          }
-        }
-      });
-
-      // Build Times Chart
-      const buildTimesCtx = document.getElementById('build-times-chart').getContext('2d');
-      charts.buildTimes = new Chart(buildTimesCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Average Build Time (ms)',
-            data: [],
-            backgroundColor: [
-              'rgba(0, 102, 255, 0.7)',
-              'rgba(0, 204, 102, 0.7)',
-              'rgba(255, 170, 0, 0.7)',
-              'rgba(136, 85, 255, 0.7)',
-              'rgba(0, 204, 204, 0.7)',
-              'rgba(255, 68, 68, 0.7)'
-            ],
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { color: '#606070' }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            }
-          }
-        }
-      });
-
-      // History Chart
-      const historyCtx = document.getElementById('history-chart').getContext('2d');
-      charts.history = new Chart(historyCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Successful',
-              data: [],
-              borderColor: '#00cc66',
-              backgroundColor: 'rgba(0, 204, 102, 0.1)',
-              fill: true
-            },
-            {
-              label: 'Failed',
-              data: [],
-              borderColor: '#ff4444',
-              backgroundColor: 'rgba(255, 68, 68, 0.1)',
-              fill: true
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              labels: { color: '#a0a0b0' }
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            }
-          }
-        }
-      });
-
-      // Status Pie Chart
-      const statusPieCtx = document.getElementById('status-pie-chart').getContext('2d');
-      charts.statusPie = new Chart(statusPieCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Completed', 'Cached', 'Failed'],
-          datasets: [{
-            data: [0, 0, 0],
-            backgroundColor: ['#00cc66', '#00aa55', '#ff4444'],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { color: '#a0a0b0', padding: 15 }
-            }
-          }
-        }
-      });
-
-      // Frequency Chart
-      const frequencyCtx = document.getElementById('frequency-chart').getContext('2d');
-      charts.frequency = new Chart(frequencyCtx, {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Build Count',
-            data: [],
-            backgroundColor: 'rgba(136, 85, 255, 0.7)',
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            },
-            y: {
-              grid: { display: false },
-              ticks: { color: '#606070' }
-            }
-          }
-        }
-      });
-
-      // Duration Trend Chart
-      const durationTrendCtx = document.getElementById('duration-trend-chart').getContext('2d');
-      charts.durationTrend = new Chart(durationTrendCtx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Avg Duration (ms)',
-            data: [],
-            borderColor: '#ffaa00',
-            backgroundColor: 'rgba(255, 170, 0, 0.1)',
-            fill: true,
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#606070' }
-            }
-          }
-        }
-      });
-    }
-
-    function updateCharts() {
-      if (!buildHistory || buildHistory.length === 0) return;
-
-      const period = document.getElementById('time-period').value;
-      const filteredBuilds = filterBuildsByPeriod(buildHistory, period);
-
-      // Timeline Chart
-      const timelineData = filteredBuilds.slice(-50).map(b => ({
-        x: b.started_at,
-        y: b.duration_ms || 0
-      }));
-      charts.timeline.data.labels = timelineData.map(d => formatTime(d.x));
-      charts.timeline.data.datasets[0].data = timelineData.map(d => d.y);
-      charts.timeline.update();
-
-      // Tier Distribution
-      const tierCounts = {
-        'InstantSkip': 0,
-        'CacheRestore': 0,
-        'MicroIncremental': 0,
-        'SmartIncremental': 0,
-        'FullBuild': 0
-      };
-      filteredBuilds.forEach(b => {
-        if (tierCounts.hasOwnProperty(b.tier)) {
-          tierCounts[b.tier]++;
-        }
-      });
-      charts.tier.data.datasets[0].data = Object.values(tierCounts);
-      charts.tier.update();
-
-      // Build Times by Package
-      const packageTimes = {};
-      filteredBuilds.forEach(b => {
-        if (!packageTimes[b.package]) {
-          packageTimes[b.package] = [];
-        }
-        packageTimes[b.package].push(b.duration_ms || 0);
-      });
-      const avgTimes = Object.entries(packageTimes).map(([pkg, times]) => ({
-        package: pkg,
-        avg: times.reduce((a, b) => a + b, 0) / times.length
-      }));
-      charts.buildTimes.data.labels = avgTimes.map(p => p.package);
-      charts.buildTimes.data.datasets[0].data = avgTimes.map(p => Math.round(p.avg));
-      charts.buildTimes.update();
-
-      // Calculate avg build time
-      const totalDuration = filteredBuilds.reduce((sum, b) => sum + (b.duration_ms || 0), 0);
-      const avgBuildTime = filteredBuilds.length > 0 ? totalDuration / filteredBuilds.length : 0;
-      document.getElementById('avg-build-time').textContent = formatDuration(Math.round(avgBuildTime));
-
-      // Update recent builds table
-      updateRecentBuilds(filteredBuilds);
-    }
-
-    function filterBuildsByPeriod(builds, period) {
-      if (period === 'all') return builds;
-
-      const now = Date.now();
-      const periodMs = {
-        '1h': 60 * 60 * 1000,
-        '6h': 6 * 60 * 60 * 1000,
-        '24h': 24 * 60 * 60 * 1000,
-        '7d': 7 * 24 * 60 * 60 * 1000,
-        '30d': 30 * 24 * 60 * 60 * 1000
-      };
-
-      const cutoff = now - (periodMs[period] || periodMs['24h']);
-      return builds.filter(b => {
-        const buildTime = new Date(b.started_at).getTime();
-        return buildTime >= cutoff;
-      });
-    }
-
-    function setTimelineView(type) {
-      document.querySelectorAll('.chart-card:first-child .chart-btn').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
-      charts.timeline.config.type = type;
-      charts.timeline.update();
-    }
-
-    function setTierView(type) {
-      charts.tier.config.type = type;
-      charts.tier.update();
-    }
-
-    function setBuildTimeView(type) {
-      // Recalculate based on type (avg, max, min)
-      const period = document.getElementById('time-period').value;
-      const filteredBuilds = filterBuildsByPeriod(buildHistory, period);
-
-      const packageTimes = {};
-      filteredBuilds.forEach(b => {
-        if (!packageTimes[b.package]) {
-          packageTimes[b.package] = [];
-        }
-        packageTimes[b.package].push(b.duration_ms || 0);
-      });
-
-      const calcTimes = Object.entries(packageTimes).map(([pkg, times]) => {
-        let value;
-        if (type === 'avg') value = times.reduce((a, b) => a + b, 0) / times.length;
-        else if (type === 'max') value = Math.max(...times);
-        else value = Math.min(...times);
-        return { package: pkg, value };
-      });
-
-      charts.buildTimes.data.datasets[0].data = calcTimes.map(p => Math.round(p.value));
-      charts.buildTimes.data.datasets[0].label = `${type.charAt(0).toUpperCase() + type.slice(1)} Build Time (ms)`;
-      charts.buildTimes.update();
-    }
-
-    // ============================================================================
-    // History & Analytics
-    // ============================================================================
-    async function refreshHistory() {
-      await fetchBuildHistory();
-      updateFullHistory(buildHistory);
-
-      // Update history stats
-      const successful = buildHistory.filter(b => b.status === 'Completed' || b.status === 'completed' || b.status === 'Cached' || b.status === 'cached').length;
-      const failed = buildHistory.filter(b => b.status === 'Failed' || b.status === 'failed').length;
-
-      document.getElementById('history-total').textContent = buildHistory.length;
-      document.getElementById('history-success').textContent = successful;
-      document.getElementById('history-failed').textContent = failed;
-
-      // Update history chart
-      updateHistoryChart();
-    }
-
-    function updateHistoryChart() {
-      if (!buildHistory || buildHistory.length === 0) return;
-
-      // Group builds by hour
-      const grouped = {};
-      buildHistory.forEach(b => {
-        const date = new Date(b.started_at);
-        const hour = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours()).toISOString();
-        if (!grouped[hour]) {
-          grouped[hour] = { success: 0, failed: 0 };
-        }
-        if (b.status === 'Completed' || b.status === 'completed' || b.status === 'Cached' || b.status === 'cached') {
-          grouped[hour].success++;
-        } else if (b.status === 'Failed' || b.status === 'failed') {
-          grouped[hour].failed++;
-        }
-      });
-
-      const sortedHours = Object.keys(grouped).sort();
-      charts.history.data.labels = sortedHours.map(h => formatTime(h));
-      charts.history.data.datasets[0].data = sortedHours.map(h => grouped[h].success);
-      charts.history.data.datasets[1].data = sortedHours.map(h => grouped[h].failed);
-      charts.history.update();
-    }
-
-    async function refreshAnalytics() {
-      await fetchBuildHistory();
-      const period = document.getElementById('time-period').value;
-      const filteredBuilds = filterBuildsByPeriod(buildHistory, period);
-
-      // Cache hit rate (InstantSkip + CacheRestore)
-      const cacheHits = filteredBuilds.filter(b => b.tier === 'InstantSkip' || b.tier === 'CacheRestore').length;
-      const cacheHitRate = filteredBuilds.length > 0 ? Math.round((cacheHits / filteredBuilds.length) * 100) : 0;
-      document.getElementById('cache-hit-rate').textContent = cacheHitRate + '%';
-
-      // Instant skips
-      const instantSkips = filteredBuilds.filter(b => b.tier === 'InstantSkip').length;
-      document.getElementById('instant-skips').textContent = instantSkips;
-
-      // Full rebuilds
-      const fullRebuilds = filteredBuilds.filter(b => b.tier === 'FullBuild').length;
-      document.getElementById('full-rebuilds').textContent = fullRebuilds;
-
-      // Time saved (estimate: full build ~60s, instant skip ~0s)
-      const timeSaved = instantSkips * 60000 + filteredBuilds.filter(b => b.tier === 'CacheRestore').length * 50000;
-      document.getElementById('time-saved').textContent = formatDuration(timeSaved);
-
-      // Status pie chart
-      const completed = filteredBuilds.filter(b => b.status === 'Completed' || b.status === 'completed').length;
-      const cached = filteredBuilds.filter(b => b.status === 'Cached' || b.status === 'cached').length;
-      const failed = filteredBuilds.filter(b => b.status === 'Failed' || b.status === 'failed').length;
-      charts.statusPie.data.datasets[0].data = [completed, cached, failed];
-      charts.statusPie.update();
-
-      // Frequency chart
-      const packageCounts = {};
-      filteredBuilds.forEach(b => {
-        packageCounts[b.package] = (packageCounts[b.package] || 0) + 1;
-      });
-      const sortedPackages = Object.entries(packageCounts).sort((a, b) => b[1] - a[1]);
-      charts.frequency.data.labels = sortedPackages.map(p => p[0]);
-      charts.frequency.data.datasets[0].data = sortedPackages.map(p => p[1]);
-      charts.frequency.update();
-
-      // Duration trend
-      const durationByTime = filteredBuilds.slice(-30).map(b => ({
-        time: formatTime(b.started_at),
-        duration: b.duration_ms || 0
-      }));
-      charts.durationTrend.data.labels = durationByTime.map(d => d.time);
-      charts.durationTrend.data.datasets[0].data = durationByTime.map(d => d.duration);
-      charts.durationTrend.update();
-    }
-
-    function exportHistory() {
-      const csv = [
-        'ID,Package,Tier,Status,Duration (ms),Source Hash,Output Hash,Timestamp',
-        ...buildHistory.map((b, i) =>
-          `${i + 1},"${b.package}","${b.tier}","${b.status}",${b.duration_ms || 0},"${b.source_hash || ''}","${b.output_hash || ''}","${b.started_at}"`
-        )
-      ].join('\n');
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `buildnet-history-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // ============================================================================
-    // API Endpoints
-    // ============================================================================
-    function renderEndpoints() {
-      const grid = document.getElementById('endpoints-grid');
-      grid.innerHTML = API_ENDPOINTS.map(ep => `
-        <div class="endpoint-card" onclick="testEndpoint('${ep.method}', '${ep.path}')">
-          <span class="endpoint-method ${ep.method.toLowerCase()}">${ep.method}</span>
-          <div class="endpoint-info">
-            <div class="endpoint-path">${ep.path}</div>
-            <div class="endpoint-desc">${ep.desc}</div>
-          </div>
-          <div class="endpoint-status" id="endpoint-status-${ep.path.replace(/[^a-z]/gi, '')}"></div>
+        <!-- Packages Tab -->
+        <div class="tab-panel" id="packages-panel">
+            <div class="main-grid">
+                <div class="card" style="grid-column: span 12;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">📦</div>
+                            Package Configuration
+                        </div>
+                    </div>
+                    <table class="packages-table" id="packages-config-table">
+                        <thead>
+                            <tr>
+                                <th>Package</th>
+                                <th>Path</th>
+                                <th>Build Command</th>
+                                <th>Dependencies</th>
+                                <th>Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packages-config-tbody">
+                            <!-- Filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-      `).join('');
-    }
 
-    async function testEndpoint(method, path) {
-      const responseTitle = document.getElementById('api-response-title');
-      const responseBody = document.getElementById('api-response-body');
+        <!-- Network Tab -->
+        <div class="tab-panel" id="network-panel">
+            <div class="main-grid">
+                <div class="card network-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">🖥️</div>
+                            Local Node
+                        </div>
+                        <span class="status-badge success">● Online</span>
+                    </div>
+                    <div id="local-node-info">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+                <div class="card network-section">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">🌐</div>
+                            Connected Peers
+                        </div>
+                        <div class="card-badge" id="peers-count">0 peers</div>
+                    </div>
+                    <div id="peers-list">
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            No peers connected (standalone mode)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      responseTitle.textContent = `${method} ${API_BASE}${path}`;
-      responseBody.innerHTML = '<div class="console-line info">Loading...</div>';
+        <!-- Ledger Tab -->
+        <div class="tab-panel" id="ledger-panel">
+            <div class="main-grid">
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">📜</div>
+                            Ledger Entries
+                        </div>
+                        <div class="card-badge" id="ledger-count">0 entries</div>
+                    </div>
+                    <div id="ledger-entries" style="max-height: 500px; overflow-y: auto;">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">🔗</div>
+                            Sync Status
+                        </div>
+                    </div>
+                    <div id="sync-status">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      try {
-        const actualPath = path.replace('{package}', 'shared').replace('{id}', '1');
-        const options = { method };
+        <!-- Logs Tab -->
+        <div class="tab-panel" id="logs-panel">
+            <div class="main-grid">
+                <div class="card" style="grid-column: span 12;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">📋</div>
+                            Event Log
+                        </div>
+                        <button onclick="clearConsole()" class="action-btn" style="padding: 8px 16px;">Clear</button>
+                    </div>
+                    <div class="console" style="height: 600px;">
+                        <div class="console-header">
+                            <div class="console-dots">
+                                <div class="console-dot red"></div>
+                                <div class="console-dot yellow"></div>
+                                <div class="console-dot green"></div>
+                            </div>
+                            <div class="console-title">buildnet-daemon — full log</div>
+                        </div>
+                        <div class="console-body" id="full-log-output">
+                            <!-- Filled by SSE -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        if (method === 'POST') {
-          options.headers = { 'Content-Type': 'application/json' };
-          options.body = JSON.stringify({});
-        }
+        <!-- Settings Tab -->
+        <div class="tab-panel" id="settings-panel">
+            <div class="main-grid">
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">⚙️</div>
+                            Configuration
+                        </div>
+                    </div>
+                    <div id="config-display" style="font-family: monospace; font-size: 13px; background: var(--bg-tertiary); padding: 20px; border-radius: 8px; max-height: 400px; overflow: auto;">
+                        Loading...
+                    </div>
+                </div>
+                <div class="card" style="grid-column: span 6;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-title-icon">💾</div>
+                            Cache Statistics
+                        </div>
+                    </div>
+                    <div id="cache-stats-display">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        const start = performance.now();
-        const res = await fetch(API_BASE + actualPath, options);
-        const elapsed = Math.round(performance.now() - start);
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
 
-        let data;
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await res.json();
-        } else {
-          data = await res.text();
-        }
+    <script>
+        // State
+        let eventSource = null;
+        let buildPerformanceChart = null;
+        let cacheEfficiencyChart = null;
+        let startTime = Date.now();
+        let consoleLines = [];
+        const MAX_CONSOLE_LINES = 500;
 
-        const statusClass = res.ok ? 'success' : 'error';
-        responseBody.innerHTML = `
-          <div class="console-line ${statusClass}">Status: ${res.status} ${res.statusText} (${elapsed}ms)</div>
-          <div class="console-line info">Headers: ${[...res.headers.entries()].map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
-          <div class="console-line" style="margin-top: 10px;">Response:</div>
-          <pre style="color: var(--text-secondary); margin-top: 5px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
-        `;
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            initCharts();
+            connectEventSource();
+            refreshStatus();
+            updateUptime();
+            setInterval(updateUptime, 1000);
+            setInterval(updateGauges, 2000);
 
-        // Update endpoint status indicator
-        const statusEl = document.getElementById(`endpoint-status-${path.replace(/[^a-z]/gi, '')}`);
-        if (statusEl) {
-          statusEl.className = res.ok ? 'endpoint-status' : 'endpoint-status error';
-        }
-      } catch (err) {
-        responseBody.innerHTML = `<div class="console-line error">Error: ${err.message}</div>`;
-      }
-    }
-
-    async function testAllEndpoints() {
-      for (const ep of API_ENDPOINTS.filter(e => e.method === 'GET' && !e.path.includes('{') && e.path !== '/events')) {
-        await testEndpoint(ep.method, ep.path);
-        await new Promise(r => setTimeout(r, 100));
-      }
-    }
-
-    function clearApiResponse() {
-      document.getElementById('api-response-title').textContent = 'Select an endpoint to test';
-      document.getElementById('api-response-body').innerHTML = '<div class="console-line info">Click on an endpoint above to see its response</div>';
-    }
-
-    // ============================================================================
-    // Configuration
-    // ============================================================================
-    async function loadConfig() {
-      try {
-        const res = await fetch(API_BASE + '/config');
-        const data = await res.json();
-        document.getElementById('server-config').textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById('server-config').textContent = 'Failed to load config: ' + err.message;
-      }
-    }
-
-    function updateConfig() {
-      const refreshSecs = parseInt(document.getElementById('config-refresh').value);
-
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-        refreshInterval = null;
-      }
-
-      if (refreshSecs > 0) {
-        refreshInterval = setInterval(refresh, refreshSecs * 1000);
-      }
-
-      // Chart animations
-      const animations = document.getElementById('config-animations').checked;
-      Object.values(charts).forEach(chart => {
-        chart.options.animation = animations ? {} : false;
-        chart.update();
-      });
-    }
-
-    // ============================================================================
-    // Build Operations
-    // ============================================================================
-    async function buildAll(force = false) {
-      if (isBuilding) return;
-
-      isBuilding = true;
-      const btn = document.getElementById('btn-build-all');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loading"></span> Building...';
-
-      log('Starting build all' + (force ? ' (forced)' : '') + '...', 'info');
-
-      try {
-        const res = await fetch(API_BASE + '/build', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ force })
+            // Load initial data
+            loadBuilds();
+            loadPackages();
+            loadNetworkInfo();
+            loadLedger();
+            loadConfig();
+            loadCacheStats();
+            renderTopology();
         });
 
-        const data = await res.json();
-
-        if (data.success) {
-          log('Build completed successfully in ' + formatDuration(data.total_duration_ms), 'success');
-        } else {
-          log('Build completed with errors', 'error');
+        // Tab Navigation
+        function initTabs() {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+                });
+            });
         }
 
-        data.results.forEach(r => {
-          const type = r.status === 'completed' || r.status === 'cached' ? 'success' : 'error';
-          log(`  ${r.package}: ${r.tier} - ${r.status} (${formatDuration(r.duration_ms)})`, type);
-          if (r.error) {
-            log('    Error: ' + r.error, 'error');
-          }
-        });
+        // Charts
+        function initCharts() {
+            const chartDefaults = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#94a3b8', font: { family: 'SF Mono, monospace' } }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#64748b' },
+                        grid: { color: 'rgba(51, 65, 85, 0.5)' }
+                    },
+                    y: {
+                        ticks: { color: '#64748b' },
+                        grid: { color: 'rgba(51, 65, 85, 0.5)' }
+                    }
+                }
+            };
 
-        await refresh();
+            // Build Performance Chart
+            const perfCtx = document.getElementById('build-performance-chart').getContext('2d');
+            buildPerformanceChart = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Build Time (ms)',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: chartDefaults
+            });
 
-      } catch (err) {
-        log('Build failed: ' + err.message, 'error');
-      } finally {
-        isBuilding = false;
-        btn.disabled = false;
-        btn.innerHTML = '<span>🔨</span> Build All Packages';
-      }
-    }
-
-    async function buildPackage(name) {
-      if (isBuilding) return;
-
-      isBuilding = true;
-      log('Building package: ' + name, 'info');
-
-      const cards = document.querySelectorAll('.package-card');
-      cards.forEach(card => {
-        if (card.querySelector('.package-name').textContent === name) {
-          card.classList.add('building');
+            // Cache Efficiency Chart
+            const cacheCtx = document.getElementById('cache-efficiency-chart').getContext('2d');
+            cacheEfficiencyChart = new Chart(cacheCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cache Hits', 'Fresh Builds', 'Failed'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { family: 'SF Mono, monospace' } }
+                        }
+                    }
+                }
+            });
         }
-      });
 
-      try {
-        const res = await fetch(API_BASE + '/build/' + name, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ force: false })
-        });
+        // Event Source for real-time updates
+        function connectEventSource() {
+            if (eventSource) eventSource.close();
 
-        const data = await res.json();
+            eventSource = new EventSource('/events');
 
-        const type = data.status === 'completed' || data.status === 'cached' ? 'success' : 'error';
-        log(`${name}: ${data.tier} - ${data.status} (${formatDuration(data.duration_ms)})`, type);
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleEvent(data);
+                } catch (e) {
+                    console.error('Failed to parse event:', e);
+                }
+            };
 
-        if (data.error) {
-          log('Error: ' + data.error, 'error');
+            eventSource.onerror = () => {
+                document.getElementById('daemon-status').className = 'status-dot error';
+                document.getElementById('daemon-status-text').textContent = 'Disconnected';
+                setTimeout(connectEventSource, 5000);
+            };
+
+            eventSource.onopen = () => {
+                document.getElementById('daemon-status').className = 'status-dot online';
+                document.getElementById('daemon-status-text').textContent = 'Online';
+                addConsoleMessage('Connected to BuildNet daemon', 'success');
+            };
         }
 
-        await refresh();
+        // Handle SSE events
+        function handleEvent(event) {
+            const { event_type, package: pkg, message, timestamp, level, source, build_info } = event;
 
-      } catch (err) {
-        log('Build failed: ' + err.message, 'error');
-      } finally {
-        isBuilding = false;
-        cards.forEach(card => card.classList.remove('building'));
-      }
-    }
+            // Add to console
+            addConsoleMessage(message, level || 'info', timestamp);
 
-    async function clearCache() {
-      if (!confirm('Are you sure you want to clear the build cache?')) return;
+            // Handle specific event types
+            switch (event_type) {
+                case 'build_start':
+                    showToast(`Build started: ${build_info?.packages?.join(', ') || 'all packages'}`, 'info');
+                    break;
+                case 'build_complete':
+                    showToast(message, level === 'error' ? 'error' : 'success');
+                    loadBuilds();
+                    refreshStatus();
+                    break;
+                case 'client_connected':
+                    // Don't show toast for connections
+                    break;
+            }
+        }
 
-      log('Clearing cache...', 'warning');
+        // Console output
+        function addConsoleMessage(message, level = 'info', timestamp = null) {
+            const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+            const levelUpper = level.toUpperCase();
 
-      try {
-        const res = await fetch(API_BASE + '/cache/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.innerHTML = `
+                <span class="console-time">${time}</span>
+                <span class="console-level ${level}">${levelUpper}</span>
+                <span class="console-message">${escapeHtml(message)}</span>
+            `;
 
-        const data = await res.json();
-        log('Cache cleared: ' + data.removed + ' artifacts removed', 'success');
-        await fetchCacheStats();
+            const consoleOutput = document.getElementById('console-output');
+            const fullLogOutput = document.getElementById('full-log-output');
 
-      } catch (err) {
-        log('Failed to clear cache: ' + err.message, 'error');
-      }
-    }
+            consoleOutput.appendChild(line.cloneNode(true));
+            fullLogOutput.appendChild(line);
 
-    // ============================================================================
-    // Refresh & Events
-    // ============================================================================
-    async function refresh() {
-      try {
-        await Promise.all([fetchStatus(), fetchCacheStats(), fetchBuildHistory()]);
-        updateCharts();
-        log('Refreshed status', 'info');
-      } catch (err) {
-        console.error('Refresh failed:', err);
-      }
-    }
+            // Limit lines
+            while (consoleOutput.children.length > 50) {
+                consoleOutput.removeChild(consoleOutput.firstChild);
+            }
+            while (fullLogOutput.children.length > MAX_CONSOLE_LINES) {
+                fullLogOutput.removeChild(fullLogOutput.firstChild);
+            }
 
-    function connectEvents() {
-      if (eventSource) {
-        eventSource.close();
-      }
+            // Auto-scroll
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            fullLogOutput.scrollTop = fullLogOutput.scrollHeight;
+        }
 
-      eventSource = new EventSource(API_BASE + '/events');
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+            document.getElementById('full-log-output').innerHTML = '';
+            addConsoleMessage('Console cleared', 'info');
+        }
 
-      eventSource.addEventListener('build_start', (e) => {
-        const data = JSON.parse(e.data);
-        log(data.message, 'info');
-      });
+        // API Calls
+        async function refreshStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
 
-      eventSource.addEventListener('build_complete', (e) => {
-        const data = JSON.parse(e.data);
-        log(data.message, 'success');
-        refresh();
-      });
+                document.getElementById('version').textContent = `v${data.version}`;
+                document.getElementById('stat-total-builds').textContent = data.state_stats.total_builds;
+                document.getElementById('stat-cache-hits').textContent = data.state_stats.cached_builds;
+                document.getElementById('stat-cached-files').textContent = data.state_stats.cached_files;
+                document.getElementById('stat-artifacts').textContent = data.state_stats.artifacts;
 
-      eventSource.addEventListener('error', () => {
-        log('Event stream disconnected, reconnecting...', 'warning');
-        setTimeout(connectEvents, 5000);
-      });
-    }
+                // Calculate cache rate
+                const total = data.state_stats.total_builds;
+                const cached = data.state_stats.cached_builds;
+                const rate = total > 0 ? Math.round((cached / total) * 100) : 0;
+                document.getElementById('stat-cache-rate').textContent = `${rate}%`;
 
-    // ============================================================================
-    // Initialization
-    // ============================================================================
-    document.addEventListener('DOMContentLoaded', () => {
-      initCharts();
-      refresh();
-      connectEvents();
-      renderEndpoints();
+                // Update chart
+                cacheEfficiencyChart.data.datasets[0].data = [
+                    data.state_stats.cached_builds,
+                    data.state_stats.total_builds - data.state_stats.cached_builds - data.state_stats.failed_builds,
+                    data.state_stats.failed_builds
+                ];
+                cacheEfficiencyChart.update();
 
-      // Start auto-refresh
-      refreshInterval = setInterval(refresh, 30000);
-    });
-  </script>
+            } catch (e) {
+                console.error('Failed to refresh status:', e);
+            }
+        }
+
+        async function loadBuilds() {
+            try {
+                const response = await fetch('/builds');
+                const builds = await response.json();
+
+                const historyList = document.getElementById('build-history');
+                document.getElementById('build-count').textContent = `${builds.length} builds`;
+
+                if (builds.length === 0) {
+                    historyList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">No builds yet</div>`;
+                    return;
+                }
+
+                historyList.innerHTML = builds.slice(0, 20).map(build => {
+                    const statusClass = build.status === 'completed' ? 'success' :
+                                       build.status === 'cached' ? 'cached' :
+                                       build.status === 'failed' ? 'failed' : 'pending';
+                    const statusIcon = build.status === 'completed' ? '✓' :
+                                      build.status === 'cached' ? '⚡' :
+                                      build.status === 'failed' ? '✗' : '○';
+                    const time = new Date(build.started_at).toLocaleTimeString();
+
+                    return `
+                        <div class="history-item">
+                            <div class="history-status ${statusClass}">${statusIcon}</div>
+                            <div class="history-info">
+                                <div class="history-package">${build.package}</div>
+                                <div class="history-meta">
+                                    <span>${time}</span>
+                                    <span>${build.status}</span>
+                                </div>
+                            </div>
+                            <div class="history-duration">${build.duration_ms || 0}ms</div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Update performance chart
+                const recentBuilds = builds.slice(0, 20).reverse();
+                buildPerformanceChart.data.labels = recentBuilds.map((_, i) => `#${i + 1}`);
+                buildPerformanceChart.data.datasets[0].data = recentBuilds.map(b => b.duration_ms || 0);
+                buildPerformanceChart.update();
+
+            } catch (e) {
+                console.error('Failed to load builds:', e);
+            }
+        }
+
+        async function loadPackages() {
+            try {
+                const configRes = await fetch('/config');
+                const config = await configRes.json();
+
+                const buildsRes = await fetch('/builds');
+                const builds = await buildsRes.json();
+
+                const packageStatus = {};
+                builds.forEach(b => {
+                    if (!packageStatus[b.package] || new Date(b.started_at) > new Date(packageStatus[b.package].started_at)) {
+                        packageStatus[b.package] = b;
+                    }
+                });
+
+                // Build status table
+                const tbody = document.getElementById('packages-tbody');
+                tbody.innerHTML = config.packages.map(pkg => {
+                    const status = packageStatus[pkg.name];
+                    const statusClass = status?.status === 'completed' ? 'success' :
+                                       status?.status === 'cached' ? 'cached' :
+                                       status?.status === 'failed' ? 'failed' : 'pending';
+                    const statusText = status?.status || 'Never built';
+                    const lastBuild = status ? new Date(status.started_at).toLocaleString() : '-';
+                    const duration = status?.duration_ms ? `${status.duration_ms}ms` : '-';
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="package-name">
+                                    <div class="package-icon">📦</div>
+                                    <span>${pkg.name}</span>
+                                </div>
+                            </td>
+                            <td><span class="status-badge ${statusClass}">● ${statusText}</span></td>
+                            <td>${lastBuild}</td>
+                            <td>${duration}</td>
+                            <td>
+                                <div class="package-deps">
+                                    ${(pkg.dependencies || []).map(d => `<span class="dep-tag">${d}</span>`).join('')}
+                                </div>
+                            </td>
+                            <td>
+                                <button class="action-btn" style="padding: 6px 12px; font-size: 12px;" onclick="buildPackage('${pkg.name}')">Build</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Config table
+                const configTbody = document.getElementById('packages-config-tbody');
+                configTbody.innerHTML = config.packages.map(pkg => `
+                    <tr>
+                        <td><strong>${pkg.name}</strong></td>
+                        <td><code>${pkg.path}</code></td>
+                        <td><code>${pkg.build_cmd}</code></td>
+                        <td>${(pkg.dependencies || []).join(', ') || '-'}</td>
+                        <td><code style="font-size: 10px;">${pkg.hash?.substring(0, 12) || '-'}...</code></td>
+                    </tr>
+                `).join('');
+
+            } catch (e) {
+                console.error('Failed to load packages:', e);
+            }
+        }
+
+        async function loadNetworkInfo() {
+            try {
+                const response = await fetch('/network/nodes');
+                const data = await response.json();
+
+                // Local node info
+                const localInfo = document.getElementById('local-node-info');
+                localInfo.innerHTML = `
+                    <div class="peer-card">
+                        <div class="peer-avatar">🖥️</div>
+                        <div class="peer-info">
+                            <div class="peer-name">Local Node</div>
+                            <div class="peer-address">${data.local.address}</div>
+                            <div class="peer-stats">
+                                <span class="peer-stat">ID: <strong>${data.local.id.substring(0, 8)}...</strong></span>
+                                <span class="peer-stat">Role: <strong>${data.local.role}</strong></span>
+                            </div>
+                        </div>
+                        <div class="peer-status">
+                            <span class="status-badge success">● ${data.local.status}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Peers
+                const peersList = document.getElementById('peers-list');
+                document.getElementById('peers-count').textContent = `${data.peers.length} peers`;
+
+                if (data.peers.length === 0) {
+                    peersList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">No peers connected (standalone mode)</div>`;
+                } else {
+                    peersList.innerHTML = data.peers.map(peer => `
+                        <div class="peer-card">
+                            <div class="peer-avatar">🌐</div>
+                            <div class="peer-info">
+                                <div class="peer-name">${peer.id.substring(0, 8)}...</div>
+                                <div class="peer-address">${peer.address}</div>
+                            </div>
+                            <div class="peer-status">
+                                <span class="status-badge ${peer.status === 'online' ? 'success' : 'pending'}">● ${peer.status}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                document.getElementById('stat-nodes').textContent = 1 + data.peers.length;
+                document.getElementById('node-count').textContent = `${1 + data.peers.length} Node${data.peers.length > 0 ? 's' : ''}`;
+
+            } catch (e) {
+                console.error('Failed to load network info:', e);
+            }
+        }
+
+        async function loadLedger() {
+            try {
+                const historyRes = await fetch('/ledger/history?limit=20');
+                const history = await historyRes.json();
+
+                const syncRes = await fetch('/ledger/sync');
+                const sync = await syncRes.json();
+
+                // Ledger entries
+                const entriesDiv = document.getElementById('ledger-entries');
+                document.getElementById('ledger-count').textContent = `${history.total_entries} entries`;
+
+                if (history.entries.length === 0) {
+                    entriesDiv.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">No ledger entries</div>`;
+                } else {
+                    entriesDiv.innerHTML = history.entries.map(entry => {
+                        const icon = entry.entry_type.includes('completed') ? '✓' :
+                                    entry.entry_type.includes('started') ? '🏗️' :
+                                    entry.entry_type.includes('joined') ? '➕' :
+                                    entry.entry_type.includes('left') ? '➖' : '📝';
+                        const time = new Date(entry.timestamp).toLocaleString();
+
+                        return `
+                            <div class="ledger-entry">
+                                <div class="ledger-icon">${icon}</div>
+                                <div class="ledger-content">
+                                    <div class="ledger-type">${entry.entry_type}</div>
+                                    <div class="ledger-details">
+                                        Origin: ${entry.origin_node}
+                                        ${entry.build_id ? ` | Build: ${entry.build_id.substring(0, 8)}` : ''}
+                                    </div>
+                                    <div class="ledger-time">${time}</div>
+                                    <code class="ledger-hash">ID: ${entry.id.substring(0, 16)}...</code>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // Sync status
+                const syncDiv = document.getElementById('sync-status');
+                syncDiv.innerHTML = `
+                    <div style="padding: 20px; background: var(--bg-tertiary); border-radius: 8px;">
+                        <h4 style="margin-bottom: 16px; color: var(--text-primary);">Local State</h4>
+                        <p style="color: var(--text-secondary); font-size: 14px;">
+                            Entries: <strong style="color: var(--text-primary);">${sync.local.entry_count}</strong>
+                        </p>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 8px;">
+                            Merkle Root:
+                        </p>
+                        <code style="font-size: 11px; color: var(--text-muted); word-break: break-all;">
+                            ${sync.local.merkle_root.substring(0, 32)}...
+                        </code>
+
+                        <h4 style="margin: 24px 0 16px; color: var(--text-primary);">Peer Sync</h4>
+                        ${sync.peers.length === 0 ?
+                            '<p style="color: var(--text-muted);">No peers to sync with</p>' :
+                            sync.peers.map(p => `
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span>${p.peer_id.substring(0, 8)}...</span>
+                                    <span class="status-badge ${p.status === 'in_sync' ? 'success' : 'warning'}">${p.status}</span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                `;
+
+            } catch (e) {
+                console.error('Failed to load ledger:', e);
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/config');
+                const config = await response.json();
+
+                document.getElementById('config-display').innerHTML = `<pre>${JSON.stringify(config, null, 2)}</pre>`;
+            } catch (e) {
+                document.getElementById('config-display').innerHTML = 'Failed to load configuration';
+            }
+        }
+
+        async function loadCacheStats() {
+            try {
+                const response = await fetch('/cache/stats');
+                const stats = await response.json();
+
+                document.getElementById('cache-stats-display').innerHTML = `
+                    <div style="display: grid; gap: 16px;">
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Cache Directory</div>
+                            <div style="font-size: 14px; color: var(--text-primary); margin-top: 4px; font-family: monospace;">${stats.cache_dir}</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Total Size</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--text-primary); margin-top: 4px;">${formatBytes(stats.total_size)}</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Artifact Count</div>
+                            <div style="font-size: 24px; font-weight: bold; color: var(--text-primary); margin-top: 4px;">${stats.artifact_count}</div>
+                        </div>
+                        <button class="action-btn warning" onclick="clearCache()" style="width: 100%;">
+                            <span class="action-icon">🗑️</span> Clear Cache
+                        </button>
+                    </div>
+                `;
+            } catch (e) {
+                document.getElementById('cache-stats-display').innerHTML = 'Failed to load cache statistics';
+            }
+        }
+
+        // Actions
+        async function triggerBuildAll() {
+            showToast('Starting build...', 'info');
+            try {
+                const response = await fetch('/build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: false })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Build completed in ${result.total_duration_ms}ms`, 'success');
+                } else {
+                    showToast('Build completed with errors', 'warning');
+                }
+
+                loadBuilds();
+                refreshStatus();
+            } catch (e) {
+                showToast('Build failed: ' + e.message, 'error');
+            }
+        }
+
+        async function triggerBuildForce() {
+            showToast('Starting force rebuild...', 'info');
+            try {
+                const response = await fetch('/build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: true })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(`Force rebuild completed in ${result.total_duration_ms}ms`, 'success');
+                } else {
+                    showToast('Force rebuild completed with errors', 'warning');
+                }
+
+                loadBuilds();
+                refreshStatus();
+            } catch (e) {
+                showToast('Force rebuild failed: ' + e.message, 'error');
+            }
+        }
+
+        async function triggerBuildChanged() {
+            showToast('Building changed packages...', 'info');
+            triggerBuildAll(); // Same as build all - intelligent cache handles detection
+        }
+
+        async function buildPackage(name) {
+            showToast(`Building ${name}...`, 'info');
+            try {
+                const response = await fetch(`/build/${name}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: false })
+                });
+                const result = await response.json();
+
+                if (result.status === 'completed' || result.status === 'cached') {
+                    showToast(`${name} built in ${result.duration_ms}ms`, 'success');
+                } else {
+                    showToast(`${name} build failed`, 'error');
+                }
+
+                loadBuilds();
+                loadPackages();
+            } catch (e) {
+                showToast('Build failed: ' + e.message, 'error');
+            }
+        }
+
+        async function clearCache() {
+            if (!confirm('Are you sure you want to clear the cache?')) return;
+
+            try {
+                await fetch('/cache/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                showToast('Cache cleared', 'success');
+                loadCacheStats();
+                refreshStatus();
+            } catch (e) {
+                showToast('Failed to clear cache', 'error');
+            }
+        }
+
+        async function stopDaemon() {
+            if (!confirm('Are you sure you want to stop the daemon?')) return;
+
+            try {
+                await fetch('/shutdown', { method: 'POST' });
+                showToast('Daemon shutting down...', 'warning');
+            } catch (e) {
+                // Expected - connection will close
+            }
+        }
+
+        function viewLogs() {
+            document.querySelector('[data-tab="logs"]').click();
+        }
+
+        // Topology rendering
+        function renderTopology() {
+            const map = document.getElementById('topology-map');
+            const centerX = map.offsetWidth / 2;
+            const centerY = map.offsetHeight / 2;
+
+            // Local node in center
+            map.innerHTML = `
+                <div class="topology-node local" style="left: ${centerX - 30}px; top: ${centerY - 30}px;" title="Local Node (You)">
+                    🖥️
+                </div>
+                <div class="topology-label" style="left: ${centerX - 30}px; top: ${centerY + 40}px;">Local Node</div>
+            `;
+        }
+
+        // Gauge updates
+        function updateGauges() {
+            // Simulate resource usage (in real app, would come from API)
+            const cpu = Math.floor(Math.random() * 30 + 10);
+            const memory = Math.floor(Math.random() * 20 + 40);
+            const disk = Math.floor(Math.random() * 10 + 20);
+            const network = Math.floor(Math.random() * 50 + 10);
+
+            updateGauge('cpu', cpu);
+            updateGauge('memory', memory);
+            updateGauge('disk', disk);
+            updateGauge('network', network);
+        }
+
+        function updateGauge(id, value) {
+            const gauge = document.getElementById(`${id}-gauge`);
+            const valueEl = document.getElementById(`${id}-value`);
+
+            // Circle circumference = 2 * PI * r = 2 * 3.14159 * 52 ≈ 327
+            const offset = 327 - (327 * value / 100);
+            gauge.style.strokeDashoffset = offset;
+            valueEl.textContent = value;
+        }
+
+        // Uptime
+        function updateUptime() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+
+            document.getElementById('uptime').textContent =
+                `Uptime: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✗',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type]}</span>
+                <span class="toast-message">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Utilities
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
 </body>
 </html>

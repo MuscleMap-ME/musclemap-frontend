@@ -275,6 +275,9 @@ importers:
       '@graphql-tools/schema':
         specifier: ^10.0.31
         version: 10.0.31(graphql@16.12.0)
+      '@musclemap.me/wasm':
+        specifier: workspace:*
+        version: link:../../packages/musclemap-wasm
       '@musclemap/core':
         specifier: workspace:*
         version: link:../../packages/core

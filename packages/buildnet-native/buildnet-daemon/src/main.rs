@@ -79,6 +79,54 @@ enum Command {
         #[arg(long)]
         all: bool,
     },
+    /// Network commands for distributed builds
+    #[command(subcommand)]
+    Network(NetworkCommand),
+    /// Ledger commands for build history
+    #[command(subcommand)]
+    Ledger(LedgerCommand),
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum NetworkCommand {
+    /// List all connected nodes
+    Nodes,
+    /// Join a network via bootstrap node
+    Join {
+        /// Bootstrap node address (e.g., 192.168.1.100:9877)
+        address: String,
+    },
+    /// Leave the current network
+    Leave,
+    /// Show detailed info about a node
+    Info {
+        /// Node ID to query
+        node_id: String,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum LedgerCommand {
+    /// Show recent ledger entries
+    History {
+        /// Number of entries to show
+        #[arg(short, long, default_value_t = 20)]
+        limit: usize,
+    },
+    /// Show sync status with peers
+    Sync,
+    /// Force synchronization with peers
+    ForceSync {
+        /// Specific peer ID (default: sync with all)
+        #[arg(short, long)]
+        peer: Option<String>,
+    },
+    /// Show build history from ledger
+    Builds {
+        /// Number of builds to show
+        #[arg(short, long, default_value_t = 10)]
+        limit: usize,
+    },
 }
 
 #[tokio::main]
@@ -117,6 +165,38 @@ async fn main() -> Result<()> {
         }
         Some(Command::Clear { all }) => {
             cli::clear_cache(&project_root, all)?;
+        }
+        Some(Command::Network(cmd)) => {
+            match cmd {
+                NetworkCommand::Nodes => {
+                    cli::network::list_nodes(args.port).await?;
+                }
+                NetworkCommand::Join { address } => {
+                    cli::network::join_network(args.port, &address).await?;
+                }
+                NetworkCommand::Leave => {
+                    cli::network::leave_network(args.port).await?;
+                }
+                NetworkCommand::Info { node_id } => {
+                    cli::network::node_info(args.port, &node_id).await?;
+                }
+            }
+        }
+        Some(Command::Ledger(cmd)) => {
+            match cmd {
+                LedgerCommand::History { limit } => {
+                    cli::ledger::show_history(args.port, limit).await?;
+                }
+                LedgerCommand::Sync => {
+                    cli::ledger::sync_status(args.port).await?;
+                }
+                LedgerCommand::ForceSync { peer } => {
+                    cli::ledger::force_sync(args.port, peer.as_deref()).await?;
+                }
+                LedgerCommand::Builds { limit } => {
+                    cli::ledger::show_builds(args.port, limit).await?;
+                }
+            }
         }
         Some(Command::Start) | None => {
             // Load or create config

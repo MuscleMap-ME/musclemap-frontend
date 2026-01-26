@@ -42,6 +42,7 @@
     "@musclemap/native": "workspace:*",
     "@musclemap/plugin-sdk": "workspace:*",
     "@musclemap/shared": "workspace:*",
+    "@musclemap.me/wasm": "workspace:*",
     "@tensorflow/tfjs": "^4.22.0",
     "better-sqlite3": "^11.10.0",
     "bullmq": "^5.66.4",

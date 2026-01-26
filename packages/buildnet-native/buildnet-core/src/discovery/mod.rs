@@ -6,16 +6,33 @@
 //! - Storage volumes with performance characteristics
 //! - Installed tools (ImageMagick, FFmpeg, Docker, etc.)
 //! - Runtime environments (Node.js, Bun, Rust, Python)
+//! - Resource pools for distributed builds
+//! - Build configurations and templates
+//! - Build time estimation
 
 pub mod scanner;
 pub mod benchmark;
 pub mod tools;
 pub mod runtimes;
+pub mod pool;
+pub mod build_config;
+pub mod estimation;
 
 pub use scanner::{ResourceScanner, NodeResources, ScanConfig};
 pub use benchmark::{BenchmarkRunner, BenchmarkResults, BenchmarkType, StoragePerformance};
 pub use tools::{ToolScanner, Tool, ToolCapability};
 pub use runtimes::{RuntimeScanner, Runtime, RuntimeRequirement};
+pub use pool::{
+    PoolManager, ResourcePool, PoolConfig, PoolTemplate, PoolStatus,
+    NodeAllocation, AllocationStatus, StorageRequirement, LoadBalanceStrategy,
+};
+pub use build_config::{
+    BuildConfigManager, BuildConfig, BuildConfigTemplate, BuildStep, StepType,
+    ShellStepConfig, ScriptStepConfig, DockerBuildConfig, DockerRunConfig,
+    CargoBuildConfig, NodePackageConfig, FileSyncConfig, ArchiveConfig,
+    StepResources, ArtifactConfig, CacheConfig, NotificationConfig, RetryConfig,
+};
+pub use estimation::{BuildEstimator, BuildEstimate, StepEstimate, EstimationFactor};
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

@@ -35,6 +35,8 @@ pub mod redundancy;
 pub mod reapi;
 pub mod cargo;
 pub mod discovery;
+pub mod network;
+pub mod ledger;
 
 pub use error::{BuildNetError, Result};
 pub use state::StateManager;
@@ -53,11 +55,47 @@ pub use redundancy::{RedundancyCoordinator, FailoverManager, CheckpointManager};
 pub use reapi::{ExecutionService, ContentAddressableStorage, ActionCache};
 pub use cargo::{CargoBuilder, CargoBuildOptions, CargoBuildResult, CargoProfile, CargoWorkspace};
 pub use discovery::{
+    // Resource scanning
     ResourceScanner, NodeResources, ScanConfig,
     BenchmarkRunner, BenchmarkResults, StoragePerformance,
     ToolScanner, Tool, ToolCapability,
     RuntimeScanner, Runtime, RuntimeRequirement,
     CpuArchitecture, MemoryType, StorageClass, CpuInfo, MemoryInfo, StorageVolume, NetworkInterface,
+    // Resource pools
+    PoolManager, ResourcePool, PoolConfig, PoolTemplate, PoolStatus,
+    NodeAllocation, AllocationStatus, StorageRequirement, LoadBalanceStrategy,
+    // Build configurations
+    BuildConfigManager, BuildConfig, BuildConfigTemplate, BuildStep, StepType,
+    ShellStepConfig, ScriptStepConfig, DockerBuildConfig, DockerRunConfig,
+    CargoBuildConfig, NodePackageConfig, FileSyncConfig, ArchiveConfig,
+    StepResources, ArtifactConfig, CacheConfig, NotificationConfig, RetryConfig,
+    // Build estimation
+    BuildEstimator, BuildEstimate, StepEstimate, EstimationFactor,
+};
+pub use network::{
+    // Node management
+    Node, NodeId, NodeInfo, NodeStatus, NodeRole, NodeRegistry, NodeCapabilities,
+    // Protocol
+    Message, MessageType, Envelope,
+    // Discovery
+    NodeDiscovery, DiscoveryConfig, PeerInfo, DiscoveryMethod,
+    // Coordinator election
+    CoordinatorElection, ElectionState, ElectionConfig, ElectionEvent,
+    // Transport
+    Transport, WebSocketTransport, Connection, TransportConfig, ConnectionState, ConnectionStats,
+    // Configuration
+    NetworkConfig,
+};
+pub use ledger::{
+    // Ledger entries
+    DistributedLedger, LedgerConfig, LedgerEntry, EntryType, EntryId,
+    BuildRecord, TaskRecord, ArtifactRecord,
+    // Merkle tree
+    MerkleTree, MerkleProof,
+    // Synchronization
+    LedgerSync, SyncState, SyncProgress,
+    // Storage
+    LedgerStorage, SqliteLedgerStorage, LedgerStats,
 };
 
 /// BuildNet version

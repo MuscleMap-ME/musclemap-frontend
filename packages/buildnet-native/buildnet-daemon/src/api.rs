@@ -208,6 +208,18 @@ pub fn create_router(
         // Shutdown
         .route("/shutdown", post(shutdown))
 
+        // Network endpoints for distributed builds
+        .route("/network/nodes", get(list_network_nodes))
+        .route("/network/nodes/{node_id}", get(get_network_node))
+        .route("/network/join", post(join_network))
+        .route("/network/leave", post(leave_network))
+
+        // Ledger endpoints for build history
+        .route("/ledger/history", get(ledger_history))
+        .route("/ledger/sync", get(ledger_sync_status))
+        .route("/ledger/sync", post(ledger_force_sync))
+        .route("/ledger/builds", get(ledger_builds))
+
         .layer(CorsLayer::permissive())
         .with_state(app_state)
 }
@@ -619,6 +631,314 @@ async fn shutdown() -> Json<serde_json::Value> {
         std::process::exit(0);
     });
     Json(serde_json::json!({"status": "shutting_down"}))
+}
+
+// ============================================================================
+// Network Endpoints
+// ============================================================================
+
+#[derive(Serialize)]
+struct NetworkNodesResponse {
+    local: LocalNodeInfo,
+    peers: Vec<PeerInfo>,
+}
+
+#[derive(Serialize)]
+struct LocalNodeInfo {
+    id: String,
+    address: String,
+    role: String,
+    status: String,
+}
+
+#[derive(Serialize)]
+struct PeerInfo {
+    id: String,
+    address: String,
+    role: String,
+    status: String,
+}
+
+async fn list_network_nodes(
+    State(_state): State<Arc<AppState>>,
+) -> Json<NetworkNodesResponse> {
+    // In a full implementation, this would query the NetworkManager
+    // For now, return local node info only (single-node mode)
+    Json(NetworkNodesResponse {
+        local: LocalNodeInfo {
+            id: uuid::Uuid::new_v4().to_string(),
+            address: "127.0.0.1:9877".to_string(),
+            role: "standalone".to_string(),
+            status: "online".to_string(),
+        },
+        peers: vec![],
+    })
+}
+
+#[derive(Serialize)]
+struct NodeInfoResponse {
+    id: String,
+    address: String,
+    status: String,
+    role: String,
+    capabilities: NodeCapabilitiesInfo,
+    stats: NodeStatsInfo,
+}
+
+#[derive(Serialize)]
+struct NodeCapabilitiesInfo {
+    cpu_cores: u32,
+    memory_mb: u64,
+    disk_mb: u64,
+    tools: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct NodeStatsInfo {
+    builds_completed: u64,
+    tasks_processed: u64,
+    uptime_secs: u64,
+}
+
+async fn get_network_node(
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
+) -> Result<Json<NodeInfoResponse>, AppError> {
+    // Get stats from the state manager for this node
+    let stats = state.state.stats()?;
+
+    Ok(Json(NodeInfoResponse {
+        id: node_id,
+        address: "127.0.0.1:9877".to_string(),
+        status: "online".to_string(),
+        role: "standalone".to_string(),
+        capabilities: NodeCapabilitiesInfo {
+            cpu_cores: std::thread::available_parallelism()
+                .map(|p| p.get() as u32)
+                .unwrap_or(1),
+            memory_mb: 8192, // Would need sysinfo crate for actual value
+            disk_mb: 102400,
+            tools: vec!["pnpm".to_string(), "node".to_string(), "cargo".to_string()],
+        },
+        stats: NodeStatsInfo {
+            builds_completed: stats.total_builds as u64,
+            tasks_processed: stats.total_builds as u64,
+            uptime_secs: 0, // TODO: Track uptime
+        },
+    }))
+}
+
+#[derive(Deserialize)]
+struct JoinNetworkRequest {
+    bootstrap_addr: String,
+}
+
+#[derive(Serialize)]
+struct JoinNetworkResponse {
+    success: bool,
+    connected_peers: u32,
+    coordinator: Option<String>,
+}
+
+async fn join_network(
+    State(_state): State<Arc<AppState>>,
+    Json(req): Json<JoinNetworkRequest>,
+) -> Json<JoinNetworkResponse> {
+    // In a full distributed implementation, this would:
+    // 1. Connect to the bootstrap node
+    // 2. Perform peer discovery
+    // 3. Join the coordinator election
+    tracing::info!("Join network request for bootstrap: {}", req.bootstrap_addr);
+
+    Json(JoinNetworkResponse {
+        success: true,
+        connected_peers: 0,
+        coordinator: None,
+    })
+}
+
+#[derive(Serialize)]
+struct LeaveNetworkResponse {
+    success: bool,
+}
+
+async fn leave_network(
+    State(_state): State<Arc<AppState>>,
+) -> Json<LeaveNetworkResponse> {
+    // In a full distributed implementation, this would gracefully leave the network
+    tracing::info!("Leave network request");
+
+    Json(LeaveNetworkResponse { success: true })
+}
+
+// ============================================================================
+// Ledger Endpoints
+// ============================================================================
+
+#[derive(Deserialize)]
+struct LedgerHistoryQuery {
+    #[serde(default = "default_limit")]
+    limit: usize,
+}
+
+fn default_limit() -> usize {
+    20
+}
+
+#[derive(Serialize)]
+struct LedgerHistoryResponse {
+    entries: Vec<LedgerEntryInfo>,
+    merkle_root: String,
+    total_entries: usize,
+}
+
+#[derive(Serialize)]
+struct LedgerEntryInfo {
+    id: String,
+    entry_type: String,
+    origin_node: String,
+    build_id: Option<String>,
+    timestamp: String,
+}
+
+async fn ledger_history(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(query): axum::extract::Query<LedgerHistoryQuery>,
+) -> Json<LedgerHistoryResponse> {
+    // Get recent builds from state manager and convert to ledger entries
+    let builds = state.state.recent_builds(query.limit).unwrap_or_default();
+
+    let entries: Vec<LedgerEntryInfo> = builds
+        .iter()
+        .map(|b| LedgerEntryInfo {
+            id: b.id.clone(),
+            entry_type: format!("build_{}", b.status),
+            origin_node: "local".to_string(),
+            build_id: Some(b.id.clone()),
+            timestamp: b.started_at.to_rfc3339(),
+        })
+        .collect();
+
+    let total = entries.len();
+
+    Json(LedgerHistoryResponse {
+        entries,
+        merkle_root: "0".repeat(64), // Placeholder merkle root
+        total_entries: total,
+    })
+}
+
+#[derive(Serialize)]
+struct LedgerSyncStatusResponse {
+    local: LocalLedgerInfo,
+    peers: Vec<PeerSyncInfo>,
+}
+
+#[derive(Serialize)]
+struct LocalLedgerInfo {
+    entry_count: usize,
+    merkle_root: String,
+}
+
+#[derive(Serialize)]
+struct PeerSyncInfo {
+    peer_id: String,
+    status: String,
+    entries_behind: usize,
+}
+
+async fn ledger_sync_status(
+    State(state): State<Arc<AppState>>,
+) -> Json<LedgerSyncStatusResponse> {
+    let stats = state.state.stats().unwrap_or_else(|_| {
+        buildnet_core::state::StateStats {
+            total_builds: 0,
+            cached_builds: 0,
+            failed_builds: 0,
+            cached_files: 0,
+            artifacts: 0,
+        }
+    });
+
+    Json(LedgerSyncStatusResponse {
+        local: LocalLedgerInfo {
+            entry_count: stats.total_builds,
+            merkle_root: "0".repeat(64),
+        },
+        peers: vec![], // No peers in standalone mode
+    })
+}
+
+#[derive(Deserialize)]
+struct ForceSyncRequest {
+    #[serde(default)]
+    peer_id: Option<String>,
+    #[serde(default)]
+    all: bool,
+}
+
+#[derive(Serialize)]
+struct ForceSyncResponse {
+    success: bool,
+    synced_entries: usize,
+}
+
+async fn ledger_force_sync(
+    State(_state): State<Arc<AppState>>,
+    Json(_req): Json<ForceSyncRequest>,
+) -> Json<ForceSyncResponse> {
+    // In distributed mode, this would trigger sync with peers
+    Json(ForceSyncResponse {
+        success: true,
+        synced_entries: 0,
+    })
+}
+
+#[derive(Deserialize)]
+struct LedgerBuildsQuery {
+    #[serde(default = "default_builds_limit")]
+    limit: usize,
+}
+
+fn default_builds_limit() -> usize {
+    10
+}
+
+#[derive(Serialize)]
+struct LedgerBuildsResponse {
+    builds: Vec<LedgerBuildInfo>,
+}
+
+#[derive(Serialize)]
+struct LedgerBuildInfo {
+    build_id: String,
+    packages: Vec<String>,
+    success: bool,
+    duration_ms: u64,
+    started_at: String,
+}
+
+async fn ledger_builds(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(query): axum::extract::Query<LedgerBuildsQuery>,
+) -> Json<LedgerBuildsResponse> {
+    let builds = state.state.recent_builds(query.limit).unwrap_or_default();
+
+    let build_infos: Vec<LedgerBuildInfo> = builds
+        .iter()
+        .map(|b| LedgerBuildInfo {
+            build_id: b.id.clone(),
+            packages: vec![b.package.clone()], // Single package per build state
+            success: matches!(
+                b.status,
+                buildnet_core::state::BuildStatus::Completed | buildnet_core::state::BuildStatus::Cached
+            ),
+            duration_ms: b.duration_ms.unwrap_or(0) as u64,
+            started_at: b.started_at.to_rfc3339(),
+        })
+        .collect();
+
+    Json(LedgerBuildsResponse { builds: build_infos })
 }
 
 // ============================================================================

@@ -410,6 +410,7 @@ impl Clone for BuildOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn test_topological_sort() {

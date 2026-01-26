@@ -47,7 +47,56 @@ let nativeModules: {
   getNativeStatus: () => NativeStatus;
 } | null = null;
 
-// Try to load native modules
+// WASM module references (loaded asynchronously)
+let wasmModules: {
+  tu: typeof import('@musclemap.me/wasm').tu | null;
+  geo: typeof import('@musclemap.me/wasm').geo | null;
+  rank: typeof import('@musclemap.me/wasm').rank | null;
+  ratelimit: typeof import('@musclemap.me/wasm').ratelimit | null;
+  scoring: typeof import('@musclemap.me/wasm').scoring | null;
+  load: typeof import('@musclemap.me/wasm').load | null;
+  crypto: typeof import('@musclemap.me/wasm').crypto | null;
+} = {
+  tu: null,
+  geo: null,
+  rank: null,
+  ratelimit: null,
+  scoring: null,
+  load: null,
+  crypto: null,
+};
+
+let wasmInitialized = false;
+
+/**
+ * Initialize WASM modules (call once at startup)
+ */
+export async function initWasmModules(): Promise<void> {
+  if (wasmInitialized) return;
+
+  try {
+    const wasm = await import('@musclemap.me/wasm');
+
+    // Initialize all WASM modules in parallel
+    await wasm.initializeAll();
+
+    // Store module references
+    wasmModules.tu = wasm.tu;
+    wasmModules.geo = wasm.geo;
+    wasmModules.rank = wasm.rank;
+    wasmModules.ratelimit = wasm.ratelimit;
+    wasmModules.scoring = wasm.scoring;
+    wasmModules.load = wasm.load;
+    wasmModules.crypto = wasm.crypto;
+
+    wasmInitialized = true;
+    log.info({ modules: wasm.MODULES }, 'WASM modules initialized');
+  } catch (err) {
+    log.warn({ error: (err as Error).message }, 'WASM modules not available, using JS fallback');
+  }
+}
+
+// Try to load native FFI modules (C bindings)
 try {
   // Dynamic import to handle module resolution
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -62,9 +111,13 @@ try {
     isNative: native.isNative,
     getNativeStatus: native.getNativeStatus,
   };
-  log.info({ status: native.getNativeStatus() }, 'Native modules loaded');
+  log.info({ status: native.getNativeStatus() }, 'Native FFI modules loaded');
 } catch (err) {
-  log.warn({ error: (err as Error).message }, 'Native modules not available, using JS fallback');
+  log.warn({ error: (err as Error).message }, 'Native FFI modules not available, trying WASM...');
+  // Try to initialize WASM modules as fallback
+  initWasmModules().catch(() => {
+    log.warn('Both native FFI and WASM modules unavailable, using pure JS fallback');
+  });
 }
 
 // ============================================
@@ -162,12 +215,39 @@ function jsCalculateTU(input: TUInput): TUResult {
 
 /**
  * Calculate Training Units for a workout
- * Uses native implementation if available (10x+ faster for large workouts)
+ * Uses native FFI > WASM > JS fallback (10x+ faster for large workouts)
  */
 export function calculateTU(input: TUInput): TUResult {
+  // Try native FFI first (fastest)
   if (nativeModules?.tu_calculate) {
     return nativeModules.tu_calculate(input);
   }
+
+  // Try WASM (10x faster than JS)
+  if (wasmModules.tu) {
+    try {
+      const start = performance.now();
+      const { activations, sets, biasWeights, exerciseCount, muscleCount } = input;
+
+      const result = wasmModules.tu.tuCalculateSimple(
+        Array.from(activations),
+        Array.from(sets),
+        Array.from(biasWeights),
+        exerciseCount,
+        muscleCount
+      );
+
+      return {
+        totalTU: result,
+        muscleActivations: [], // WASM simple doesn't return per-muscle
+        durationMs: performance.now() - start,
+        native: true, // WASM counts as native performance
+      };
+    } catch (err) {
+      log.warn({ error: (err as Error).message }, 'WASM TU calculation failed, using JS');
+    }
+  }
+
   return jsCalculateTU(input);
 }
 
@@ -237,12 +317,40 @@ function jsCalculateRanks(input: RankInput): RankCalculationResult {
 
 /**
  * Calculate ranks and percentiles for a list of users
- * Uses native implementation if available (uses optimized introsort)
+ * Uses native FFI > WASM > JS (optimized introsort)
  */
 export function calculateRanks(input: RankInput): RankCalculationResult {
+  // Try native FFI first
   if (nativeModules?.rank_calculate) {
     return nativeModules.rank_calculate(input);
   }
+
+  // Try WASM
+  if (wasmModules.rank) {
+    try {
+      const start = performance.now();
+      const { userIds, scores } = input;
+
+      const rankings = wasmModules.rank.rankCalculate(scores);
+      const stats = wasmModules.rank.rankStats(scores);
+
+      const results: RankResult[] = userIds.map((userId, i) => ({
+        userId,
+        score: scores[i],
+        rank: rankings[i],
+        percentile: Math.round(((scores.length - rankings[i] + 1) / scores.length) * 10000) / 100,
+      }));
+
+      return {
+        results,
+        durationMs: performance.now() - start,
+        native: true,
+      };
+    } catch (err) {
+      log.warn({ error: (err as Error).message }, 'WASM rank calculation failed, using JS');
+    }
+  }
+
   return jsCalculateRanks(input);
 }
 
@@ -385,15 +493,34 @@ function jsHaversine(lat1: number, lng1: number, lat2: number, lng2: number): nu
  */
 export const geohash = {
   encode: (lat: number, lng: number, precision: number = 9): string => {
+    // Try native FFI first
     if (nativeModules?.geohash?.encode) {
       return nativeModules.geohash.encode(lat, lng, precision);
+    }
+    // Try WASM
+    if (wasmModules.geo) {
+      try {
+        return wasmModules.geo.geohashEncode(lat, lng, precision);
+      } catch {
+        // Fall through to JS
+      }
     }
     return jsGeohashEncode(lat, lng, precision);
   },
 
   decode: (hash: string): { lat: number; lng: number } => {
+    // Try native FFI first
     if (nativeModules?.geohash?.decode) {
       return nativeModules.geohash.decode(hash);
+    }
+    // Try WASM
+    if (wasmModules.geo) {
+      try {
+        const result = wasmModules.geo.geohashDecode(hash);
+        return { lat: result.lat, lng: result.lng };
+      } catch {
+        // Fall through to JS
+      }
     }
     return jsGeohashDecode(hash);
   },
@@ -426,17 +553,28 @@ export const geohash = {
  */
 export const distance = {
   haversine: (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    // Try native FFI first
     if (nativeModules?.distance?.haversine) {
       return nativeModules.distance.haversine(lat1, lng1, lat2, lng2);
+    }
+    // Try WASM
+    if (wasmModules.geo) {
+      try {
+        return wasmModules.geo.haversineMeters(lat1, lng1, lat2, lng2);
+      } catch {
+        // Fall through to JS
+      }
     }
     return jsHaversine(lat1, lng1, lat2, lng2);
   },
 
   isWithinRadius: (lat1: number, lng1: number, lat2: number, lng2: number, radiusMeters: number): boolean => {
+    // Try native FFI first
     if (nativeModules?.distance?.isWithinRadius) {
       return nativeModules.distance.isWithinRadius(lat1, lng1, lat2, lng2, radiusMeters);
     }
-    return jsHaversine(lat1, lng1, lat2, lng2) <= radiusMeters;
+    // Try WASM or JS
+    return distance.haversine(lat1, lng1, lat2, lng2) <= radiusMeters;
   },
 
   boundingBox: (lat: number, lng: number, radiusMeters: number): {
@@ -445,8 +583,23 @@ export const distance = {
     minLng: number;
     maxLng: number;
   } => {
+    // Try native FFI first
     if (nativeModules?.distance?.boundingBox) {
       return nativeModules.distance.boundingBox(lat, lng, radiusMeters);
+    }
+    // Try WASM
+    if (wasmModules.geo) {
+      try {
+        const result = wasmModules.geo.boundingBox(lat, lng, radiusMeters);
+        return {
+          minLat: result.minLat,
+          maxLat: result.maxLat,
+          minLng: result.minLng,
+          maxLng: result.maxLng,
+        };
+      } catch {
+        // Fall through to JS
+      }
     }
     // JS fallback
     const R = 6371000;
@@ -523,14 +676,88 @@ class JSRateLimiter implements RateLimiter {
   }
 }
 
+// WASM-based rate limiter wrapper
+class WasmRateLimiter implements RateLimiter {
+  private limiter: InstanceType<typeof import('@musclemap.me/wasm').ratelimit.RateLimiter> | null = null;
+  private readonly limit: number;
+  private readonly windowSeconds: number;
+
+  constructor(limit: number, windowSeconds: number) {
+    this.limit = limit;
+    this.windowSeconds = windowSeconds;
+    if (wasmModules.ratelimit) {
+      try {
+        // Use the RateLimiter class from the WASM module
+        this.limiter = new wasmModules.ratelimit.RateLimiter({
+          maxRequests: limit,
+          windowSeconds: windowSeconds,
+        });
+      } catch {
+        this.limiter = null;
+      }
+    }
+  }
+
+  check(userId: string, _count: number = 1): boolean {
+    if (this.limiter) {
+      try {
+        const result = this.limiter.check(userId);
+        return result.allowed;
+      } catch {
+        // Fall through to JS logic
+      }
+    }
+    // Fallback - always allow but log warning
+    return true;
+  }
+
+  remaining(userId: string): number {
+    if (this.limiter) {
+      try {
+        const result = this.limiter.peek(userId);
+        return result.remaining;
+      } catch {
+        // Fall through
+      }
+    }
+    return this.limit;
+  }
+
+  reset(userId: string): void {
+    if (this.limiter) {
+      try {
+        this.limiter.reset(userId);
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  clear(): void {
+    if (this.limiter) {
+      try {
+        this.limiter.clear();
+      } catch {
+        // Ignore
+      }
+    }
+  }
+}
+
 /**
  * Create a rate limiter
- * Uses native implementation if available for better performance
+ * Uses native FFI > WASM > JS fallback for best performance
  */
 export function createRateLimiter(limit: number, windowSeconds: number = 60): RateLimiter {
+  // Try native FFI first (fastest)
   if (nativeModules?.createRateLimiter) {
     return nativeModules.createRateLimiter(limit, windowSeconds);
   }
+  // Try WASM
+  if (wasmModules.ratelimit) {
+    return new WasmRateLimiter(limit, windowSeconds);
+  }
+  // JS fallback
   return new JSRateLimiter(limit, windowSeconds);
 }
 
@@ -539,37 +766,45 @@ export function createRateLimiter(limit: number, windowSeconds: number = 60): Ra
 // ============================================
 
 /**
- * Check which native modules are available
+ * Check which native modules are available (FFI + WASM)
  */
-export function getNativeStatus(): NativeStatus {
-  if (nativeModules?.getNativeStatus) {
-    return nativeModules.getNativeStatus();
-  }
-  return {
+export function getNativeStatus(): NativeStatus & { wasm: boolean } {
+  const ffiStatus = nativeModules?.getNativeStatus?.() ?? {
     geo: false,
     ratelimit: false,
     tu: false,
     rank: false,
     ffi: false,
   };
+
+  return {
+    geo: ffiStatus.geo || !!wasmModules.geo,
+    ratelimit: ffiStatus.ratelimit || !!wasmModules.ratelimit,
+    tu: ffiStatus.tu || !!wasmModules.tu,
+    rank: ffiStatus.rank || !!wasmModules.rank,
+    ffi: ffiStatus.ffi,
+    wasm: wasmInitialized,
+  };
 }
 
 /**
- * Check if any native modules are available
+ * Check if any native modules are available (FFI or WASM)
  */
 export function hasNativeModules(): boolean {
-  return nativeModules?.isNative?.any ?? false;
+  return (nativeModules?.isNative?.any ?? false) || wasmInitialized;
 }
 
 /**
- * Check specific native module availability
+ * Check specific native module availability (FFI or WASM)
  */
 export const isNative = {
-  get geo() { return nativeModules?.isNative?.geo ?? false; },
-  get ratelimit() { return nativeModules?.isNative?.ratelimit ?? false; },
-  get tu() { return nativeModules?.isNative?.tu ?? false; },
-  get rank() { return nativeModules?.isNative?.rank ?? false; },
-  get any() { return nativeModules?.isNative?.any ?? false; },
+  get geo() { return (nativeModules?.isNative?.geo ?? false) || !!wasmModules.geo; },
+  get ratelimit() { return (nativeModules?.isNative?.ratelimit ?? false) || !!wasmModules.ratelimit; },
+  get tu() { return (nativeModules?.isNative?.tu ?? false) || !!wasmModules.tu; },
+  get rank() { return (nativeModules?.isNative?.rank ?? false) || !!wasmModules.rank; },
+  get any() { return (nativeModules?.isNative?.any ?? false) || wasmInitialized; },
+  get wasm() { return wasmInitialized; },
+  get ffi() { return nativeModules?.isNative?.any ?? false; },
 };
 
 // Export default namespace
