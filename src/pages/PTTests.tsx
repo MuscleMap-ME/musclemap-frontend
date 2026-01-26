@@ -496,9 +496,8 @@ export default function PTTests() {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [activeTab, setActiveTab] = useState('tests');
 
-  // GraphQL Queries
+  // GraphQL Queries - PT tests list is public data
   const { data: testsData, loading: testsLoading } = useQuery(PT_TESTS_BY_INSTITUTION_QUERY, {
-    skip: !isAuthenticated,
     fetchPolicy: 'cache-and-network',
   });
 
@@ -587,10 +586,10 @@ export default function PTTests() {
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight">
-                PT Tests
+                Fitness Standards
               </h1>
               <p className="text-[var(--text-secondary)]">
-                Military, first responder, and occupational fitness tests
+                Track your progress against military, first responder, and career fitness tests
               </p>
             </div>
 
@@ -680,10 +679,10 @@ export default function PTTests() {
                     <GlassSurface className="p-12 text-center" depth="subtle">
                       <Icons.Shield className="w-16 h-16 mx-auto mb-4 text-[var(--text-quaternary)]" />
                       <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-                        Select a Test
+                        Choose a Standard
                       </h3>
                       <p className="text-[var(--text-tertiary)]">
-                        Choose a PT test from the list to view details and log your results
+                        Select a fitness test from the list to view requirements and track your results
                       </p>
                     </GlassSurface>
                   )}
