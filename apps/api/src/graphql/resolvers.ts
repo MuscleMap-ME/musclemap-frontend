@@ -163,11 +163,20 @@ function hashPassword(password: string): string {
 
 function verifyPassword(password: string, stored: string): boolean {
   const [salt, hash] = stored.split(':');
-  if (!salt || !hash) return false;
+  if (!salt || !hash) {
+    console.error('[AUTH DEBUG] verifyPassword: Invalid stored format - missing salt or hash');
+    return false;
+  }
+  console.info('[AUTH DEBUG] verifyPassword: salt length:', salt.length, 'hash length:', hash.length);
   const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  console.info('[AUTH DEBUG] verifyPassword: computed hash length:', verifyHash.length);
+  console.info('[AUTH DEBUG] verifyPassword: hashes match (non-timing-safe):', hash === verifyHash);
   try {
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
-  } catch {
+    const result = crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
+    console.info('[AUTH DEBUG] verifyPassword: timingSafeEqual result:', result);
+    return result;
+  } catch (err) {
+    console.error('[AUTH DEBUG] verifyPassword: timingSafeEqual threw:', err);
     return false;
   }
 }
