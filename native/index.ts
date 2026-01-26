@@ -22,7 +22,9 @@ const LIB_EXT = process.platform === 'darwin' ? '.dylib' :
                 process.platform === 'win32' ? '.dll' : '.so';
 
 // Library paths
-const LIB_DIR = join(__dirname, 'lib');
+// When compiled, __dirname is native/dist, but lib/ is at native/lib
+// So we need to go up one level from dist/ to native/
+const LIB_DIR = join(__dirname, '..', 'lib');
 const GEO_LIB_PATH = join(LIB_DIR, `libgeo${LIB_EXT}`);
 const RATELIMIT_LIB_PATH = join(LIB_DIR, `libratelimit${LIB_EXT}`);
 const TU_LIB_PATH = join(LIB_DIR, `libtu${LIB_EXT}`);
