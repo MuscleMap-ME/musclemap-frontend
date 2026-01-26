@@ -451,7 +451,11 @@
   </div>
 
   <script>
-    const API_BASE = '';
+    // Auto-detect API base path from current URL
+    // If accessed via /buildnet/, API calls should go to /buildnet/*
+    const pathMatch = window.location.pathname.match(/^(\/[^\/]+)/);
+    const API_BASE = pathMatch && pathMatch[1] !== '/' ? pathMatch[1] : '';
+    console.log('[BuildNet] API_BASE:', API_BASE, 'pathname:', window.location.pathname);
     let eventSource = null;
     let isBuilding = false;
 
