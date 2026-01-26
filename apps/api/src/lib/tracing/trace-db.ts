@@ -8,6 +8,7 @@
  */
 
 import Database from 'better-sqlite3';
+import fs from 'fs';
 import path from 'path';
 import { loggers } from '../logger';
 import type {
@@ -38,7 +39,6 @@ let db: Database.Database | null = null;
 export function getTraceDb(): Database.Database {
   if (!db) {
     // Ensure data directory exists
-    const fs = require('fs');
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
@@ -379,7 +379,6 @@ export function getDbStats(): {
   newestTrace: number | null;
 } {
   const database = getTraceDb();
-  const fs = require('fs');
 
   const traceCount = (database.prepare('SELECT COUNT(*) as count FROM traces').get() as { count: number }).count;
   const spanCount = (database.prepare('SELECT COUNT(*) as count FROM spans').get() as { count: number }).count;
@@ -454,4 +453,323 @@ export function parseSpanRecord(record: SpanRecord): Span {
     attributes: JSON.parse(record.attributes || '{}'),
     events: JSON.parse(record.events || '[]'),
   };
+}
+
+// ============================================
+// ERROR DEBUGGING HELPERS
+// ============================================
+
+/**
+ * Query traces that contain a specific error message.
+ * Useful for debugging: find all traces related to a particular error.
+ *
+ * @example
+ * ```typescript
+ * // Find all traces with "UNIQUE constraint" errors
+ * const traces = queryTracesByError('UNIQUE constraint');
+ *
+ * // Find traces with authentication errors in last 24 hours
+ * const authErrors = queryTracesByError('unauthorized', {
+ *   startTime: Date.now() - 24 * 60 * 60 * 1000,
+ *   limit: 20
+ * });
+ * ```
+ */
+export function queryTracesByError(
+  errorPattern: string,
+  options: {
+    startTime?: number;
+    endTime?: number;
+    limit?: number;
+    includeSpans?: boolean;
+  } = {}
+): (TraceRecord & { spans?: SpanRecord[] })[] {
+  const database = getTraceDb();
+  const conditions: string[] = ['(t.error_message LIKE ? OR s.error_message LIKE ?)'];
+  const params: unknown[] = [`%${errorPattern}%`, `%${errorPattern}%`];
+
+  if (options.startTime) {
+    conditions.push('t.started_at >= ?');
+    params.push(options.startTime);
+  }
+  if (options.endTime) {
+    conditions.push('t.started_at <= ?');
+    params.push(options.endTime);
+  }
+
+  const limit = options.limit || 50;
+
+  // Find trace IDs that have matching errors
+  const traceIds = database.prepare(`
+    SELECT DISTINCT t.id
+    FROM traces t
+    LEFT JOIN spans s ON s.trace_id = t.id
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY t.started_at DESC
+    LIMIT ?
+  `).all(...params, limit) as { id: string }[];
+
+  if (traceIds.length === 0) return [];
+
+  // Fetch full trace records
+  const placeholders = traceIds.map(() => '?').join(',');
+  const traces = database.prepare(`
+    SELECT * FROM traces WHERE id IN (${placeholders})
+    ORDER BY started_at DESC
+  `).all(...traceIds.map((t) => t.id)) as TraceRecord[];
+
+  if (!options.includeSpans) {
+    return traces;
+  }
+
+  // Include spans for each trace
+  return traces.map((trace) => ({
+    ...trace,
+    spans: database.prepare(`
+      SELECT * FROM spans WHERE trace_id = ? ORDER BY started_at ASC
+    `).all(trace.id) as SpanRecord[],
+  }));
+}
+
+/**
+ * Get recent error traces for quick debugging.
+ * Returns the most recent traces that have errors, with their error messages.
+ *
+ * @example
+ * ```typescript
+ * // Get last 10 errors
+ * const recentErrors = getRecentErrors(10);
+ * recentErrors.forEach(err => {
+ *   console.log(`[${err.traceId}] ${err.operation}: ${err.errorMessage}`);
+ * });
+ * ```
+ */
+export function getRecentErrors(limit: number = 20): Array<{
+  traceId: string;
+  spanId?: string;
+  operation: string;
+  service: string;
+  errorMessage: string;
+  errorStack?: string;
+  startedAt: number;
+  durationMs?: number;
+  userId?: string;
+  sessionId?: string;
+}> {
+  const database = getTraceDb();
+
+  // Get errors from both traces and spans
+  const traceErrors = database.prepare(`
+    SELECT
+      id as traceId,
+      NULL as spanId,
+      root_operation as operation,
+      'api' as service,
+      error_message as errorMessage,
+      error_stack as errorStack,
+      started_at as startedAt,
+      duration_ms as durationMs,
+      user_id as userId,
+      session_id as sessionId
+    FROM traces
+    WHERE status = 'error' AND error_message IS NOT NULL
+    ORDER BY started_at DESC
+    LIMIT ?
+  `).all(limit) as Array<{
+    traceId: string;
+    spanId: string | null;
+    operation: string;
+    service: string;
+    errorMessage: string;
+    errorStack: string | null;
+    startedAt: number;
+    durationMs: number | null;
+    userId: string | null;
+    sessionId: string | null;
+  }>;
+
+  const spanErrors = database.prepare(`
+    SELECT
+      s.trace_id as traceId,
+      s.id as spanId,
+      s.operation_name as operation,
+      s.service as service,
+      s.error_message as errorMessage,
+      NULL as errorStack,
+      s.started_at as startedAt,
+      s.duration_ms as durationMs,
+      t.user_id as userId,
+      t.session_id as sessionId
+    FROM spans s
+    JOIN traces t ON t.id = s.trace_id
+    WHERE s.status = 'error' AND s.error_message IS NOT NULL
+    ORDER BY s.started_at DESC
+    LIMIT ?
+  `).all(limit) as Array<{
+    traceId: string;
+    spanId: string;
+    operation: string;
+    service: string;
+    errorMessage: string;
+    errorStack: null;
+    startedAt: number;
+    durationMs: number | null;
+    userId: string | null;
+    sessionId: string | null;
+  }>;
+
+  // Combine and sort by time
+  const allErrors = [...traceErrors, ...spanErrors]
+    .sort((a, b) => b.startedAt - a.startedAt)
+    .slice(0, limit)
+    .map((err) => ({
+      traceId: err.traceId,
+      spanId: err.spanId || undefined,
+      operation: err.operation,
+      service: err.service,
+      errorMessage: err.errorMessage,
+      errorStack: err.errorStack || undefined,
+      startedAt: err.startedAt,
+      durationMs: err.durationMs || undefined,
+      userId: err.userId || undefined,
+      sessionId: err.sessionId || undefined,
+    }));
+
+  return allErrors;
+}
+
+/**
+ * Get error statistics grouped by error type/message pattern.
+ * Useful for identifying recurring issues.
+ *
+ * @example
+ * ```typescript
+ * const errorStats = getErrorStats(24 * 60 * 60 * 1000); // Last 24 hours
+ * errorStats.forEach(stat => {
+ *   console.log(`${stat.pattern}: ${stat.count} occurrences, last: ${new Date(stat.lastSeen)}`);
+ * });
+ * ```
+ */
+export function getErrorStats(timeWindowMs: number = 24 * 60 * 60 * 1000): Array<{
+  pattern: string;
+  count: number;
+  firstSeen: number;
+  lastSeen: number;
+  affectedUsers: number;
+  operations: string[];
+}> {
+  const database = getTraceDb();
+  const cutoff = Date.now() - timeWindowMs;
+
+  // Get all error messages in the time window
+  const errors = database.prepare(`
+    SELECT
+      t.error_message as errorMessage,
+      t.root_operation as operation,
+      t.user_id as userId,
+      t.started_at as startedAt
+    FROM traces t
+    WHERE t.status = 'error'
+      AND t.error_message IS NOT NULL
+      AND t.started_at >= ?
+    UNION ALL
+    SELECT
+      s.error_message as errorMessage,
+      s.operation_name as operation,
+      t.user_id as userId,
+      s.started_at as startedAt
+    FROM spans s
+    JOIN traces t ON t.id = s.trace_id
+    WHERE s.status = 'error'
+      AND s.error_message IS NOT NULL
+      AND s.started_at >= ?
+  `).all(cutoff, cutoff) as Array<{
+    errorMessage: string;
+    operation: string;
+    userId: string | null;
+    startedAt: number;
+  }>;
+
+  // Group by error message pattern (first 100 chars to group similar errors)
+  const grouped = new Map<
+    string,
+    {
+      count: number;
+      firstSeen: number;
+      lastSeen: number;
+      users: Set<string>;
+      operations: Set<string>;
+    }
+  >();
+
+  for (const err of errors) {
+    const pattern = err.errorMessage.slice(0, 100);
+    const existing = grouped.get(pattern);
+
+    if (existing) {
+      existing.count++;
+      existing.firstSeen = Math.min(existing.firstSeen, err.startedAt);
+      existing.lastSeen = Math.max(existing.lastSeen, err.startedAt);
+      if (err.userId) existing.users.add(err.userId);
+      existing.operations.add(err.operation);
+    } else {
+      grouped.set(pattern, {
+        count: 1,
+        firstSeen: err.startedAt,
+        lastSeen: err.startedAt,
+        users: new Set(err.userId ? [err.userId] : []),
+        operations: new Set([err.operation]),
+      });
+    }
+  }
+
+  return Array.from(grouped.entries())
+    .map(([pattern, data]) => ({
+      pattern,
+      count: data.count,
+      firstSeen: data.firstSeen,
+      lastSeen: data.lastSeen,
+      affectedUsers: data.users.size,
+      operations: Array.from(data.operations),
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Find the full context for a specific error by trace ID.
+ * Returns the complete trace with all spans, useful for debugging.
+ *
+ * @example
+ * ```typescript
+ * // User reports "Error at 3:45 PM" - find the trace
+ * const traces = queryTracesByError('specific error message');
+ * if (traces.length > 0) {
+ *   const fullContext = getErrorContext(traces[0].id);
+ *   console.log('User:', fullContext.userId);
+ *   console.log('Session:', fullContext.sessionId);
+ *   console.log('Operation:', fullContext.rootOperation);
+ *   console.log('Duration:', fullContext.durationMs, 'ms');
+ *   console.log('Spans:', fullContext.spans.length);
+ * }
+ * ```
+ */
+export function getErrorContext(traceId: string): {
+  trace: Trace;
+  relatedTraces: TraceRecord[];
+} | null {
+  const traceData = getTraceWithSpans(traceId);
+  if (!traceData) return null;
+
+  const trace = parseTraceRecord(traceData);
+  const database = getTraceDb();
+
+  // Find related traces from same session (for context)
+  const relatedTraces = database.prepare(`
+    SELECT * FROM traces
+    WHERE session_id = ? AND id != ?
+    ORDER BY started_at DESC
+    LIMIT 10
+  `).all(traceData.session_id, traceId) as TraceRecord[];
+
+  return { trace, relatedTraces };
 }

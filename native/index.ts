@@ -2,8 +2,10 @@
  * Native Module Bindings
  *
  * Provides high-performance native implementations for:
- * - Geohash encoding/decoding
- * - Rate limiting
+ * - Geohash encoding/decoding (libgeo)
+ * - Rate limiting (libratelimit)
+ * - Training Unit calculation (libtu)
+ * - Leaderboard ranking (librank)
  *
  * Falls back to pure TypeScript implementations when native modules are unavailable.
  */
@@ -24,11 +26,13 @@ const LIB_DIR = join(__dirname, 'lib');
 const GEO_LIB_PATH = join(LIB_DIR, `libgeo${LIB_EXT}`);
 const RATELIMIT_LIB_PATH = join(LIB_DIR, `libratelimit${LIB_EXT}`);
 const TU_LIB_PATH = join(LIB_DIR, `libtu${LIB_EXT}`);
+const RANK_LIB_PATH = join(LIB_DIR, `librank${LIB_EXT}`);
 
 // Track native availability
 let nativeGeoAvailable = false;
 let nativeRatelimitAvailable = false;
 let nativeTUAvailable = false;
+let nativeRankAvailable = false;
 let ffiModule: any = null;
 let refModule: any = null;
 
@@ -36,6 +40,7 @@ let refModule: any = null;
 let geoLib: any = null;
 let ratelimitLib: any = null;
 let tuLib: any = null;
+let rankLib: any = null;
 
 // ============================================
 // FFI INITIALIZATION
@@ -125,6 +130,23 @@ function initializeNativeModules(): void {
       console.log('[native] Loaded libtu native module');
     } catch (err) {
       console.log('[native] Failed to load libtu:', (err as Error).message);
+    }
+  }
+
+  // Try to load rank calculator library
+  if (existsSync(RANK_LIB_PATH)) {
+    try {
+      const ffi = ffiModule;
+
+      rankLib = ffi.Library(RANK_LIB_PATH, {
+        rank_simple_percentiles: ['int', ['pointer', 'size_t', 'pointer']],
+        rank_find_rank: ['int', ['pointer', 'size_t', 'double']],
+      });
+
+      nativeRankAvailable = true;
+      console.log('[native] Loaded librank native module');
+    } catch (err) {
+      console.log('[native] Failed to load librank:', (err as Error).message);
     }
   }
 }
@@ -535,13 +557,15 @@ export const isNative = {
   geo: nativeGeoAvailable,
   ratelimit: nativeRatelimitAvailable,
   tu: nativeTUAvailable,
-  any: nativeGeoAvailable || nativeRatelimitAvailable || nativeTUAvailable,
+  rank: nativeRankAvailable,
+  any: nativeGeoAvailable || nativeRatelimitAvailable || nativeTUAvailable || nativeRankAvailable,
 };
 
 // Legacy exports for backward compatibility
 export const isNativeGeo = nativeGeoAvailable;
 export const isNativeRatelimit = nativeRatelimitAvailable;
 export const isNativeTU = nativeTUAvailable;
+export const isNativeRank = nativeRankAvailable;
 
 /**
  * Get native module status
@@ -550,12 +574,14 @@ export function getNativeStatus(): {
   geo: boolean;
   ratelimit: boolean;
   tu: boolean;
+  rank: boolean;
   ffi: boolean;
 } {
   return {
     geo: nativeGeoAvailable,
     ratelimit: nativeRatelimitAvailable,
     tu: nativeTUAvailable,
+    rank: nativeRankAvailable,
     ffi: ffiModule !== null,
   };
 }
@@ -721,4 +747,213 @@ export function getTUStatus(): { native: boolean; exercisesCached: number; muscl
     exercisesCached: ref.deref(exerciseCountPtr) as number,
     musclesCached: ref.deref(muscleCountPtr) as number,
   };
+}
+
+// ============================================
+// RANK CALCULATOR MODULE
+// ============================================
+
+export interface RankInput {
+  /** User IDs */
+  userIds: string[];
+  /** Scores corresponding to each user */
+  scores: number[];
+}
+
+export interface RankResult {
+  /** User ID */
+  userId: string;
+  /** Original score */
+  score: number;
+  /** Rank (1 = highest score) */
+  rank: number;
+  /** Percentile (100 = top, 0 = bottom) */
+  percentile: number;
+}
+
+export interface RankCalculationResult {
+  results: RankResult[];
+  durationMs: number;
+  native: boolean;
+}
+
+/**
+ * Pure TypeScript ranking calculation (fallback)
+ */
+function jsCalculateRanks(input: RankInput): RankCalculationResult {
+  const start = performance.now();
+  const { userIds, scores } = input;
+
+  if (userIds.length !== scores.length || userIds.length === 0) {
+    return { results: [], durationMs: 0, native: false };
+  }
+
+  // Create indexed array for sorting
+  const indexed = userIds.map((userId, i) => ({
+    userId,
+    score: scores[i],
+    originalIndex: i,
+  }));
+
+  // Sort by score descending
+  indexed.sort((a, b) => b.score - a.score);
+
+  // Calculate ranks with tie handling
+  const results: RankResult[] = new Array(userIds.length);
+  let currentRank = 1;
+
+  for (let i = 0; i < indexed.length; i++) {
+    const item = indexed[i];
+    let rank: number;
+
+    // Handle ties
+    if (i > 0 && item.score === indexed[i - 1].score) {
+      rank = results[indexed[i - 1].originalIndex].rank;
+    } else {
+      rank = currentRank;
+    }
+
+    // Calculate percentile (higher = better)
+    const percentile = Math.round(((indexed.length - rank + 1) / indexed.length) * 10000) / 100;
+
+    results[item.originalIndex] = {
+      userId: item.userId,
+      score: item.score,
+      rank,
+      percentile,
+    };
+
+    currentRank++;
+  }
+
+  const durationMs = performance.now() - start;
+  return { results, durationMs, native: false };
+}
+
+/**
+ * Native ranking calculation using FFI
+ */
+function nativeCalculateRanks(input: RankInput): RankCalculationResult {
+  const start = performance.now();
+  const { userIds, scores } = input;
+
+  if (!rankLib || !refModule) {
+    return jsCalculateRanks(input);
+  }
+
+  if (userIds.length !== scores.length || userIds.length === 0) {
+    return { results: [], durationMs: 0, native: true };
+  }
+
+  try {
+    const count = scores.length;
+
+    // Create buffers for C interop
+    const scoresBuffer = Buffer.alloc(count * 8); // double = 8 bytes
+    const percentilesBuffer = Buffer.alloc(count * 8);
+
+    // Fill scores buffer
+    for (let i = 0; i < count; i++) {
+      scoresBuffer.writeDoubleLE(scores[i], i * 8);
+    }
+
+    // Call native function
+    const result = rankLib.rank_simple_percentiles(scoresBuffer, count, percentilesBuffer);
+
+    if (result !== 0) {
+      console.error('[native] rank_simple_percentiles failed');
+      return jsCalculateRanks(input);
+    }
+
+    // Read percentiles from buffer
+    const percentiles: number[] = [];
+    for (let i = 0; i < count; i++) {
+      percentiles.push(percentilesBuffer.readDoubleLE(i * 8));
+    }
+
+    // Build results with ranks derived from percentiles
+    const results: RankResult[] = userIds.map((userId, i) => {
+      // Convert percentile back to rank
+      const rank = Math.round(count - (percentiles[i] / 100) * count + 1);
+      return {
+        userId,
+        score: scores[i],
+        rank,
+        percentile: percentiles[i],
+      };
+    });
+
+    const durationMs = performance.now() - start;
+    return { results, durationMs, native: true };
+  } catch (err) {
+    console.error('[native] Rank calculation failed, falling back to JS:', (err as Error).message);
+    return jsCalculateRanks(input);
+  }
+}
+
+/**
+ * Calculate ranks and percentiles for a list of users
+ * Uses native implementation if available, falls back to JavaScript
+ */
+export function rank_calculate(input: RankInput): RankCalculationResult {
+  if (nativeRankAvailable) {
+    return nativeCalculateRanks(input);
+  }
+  return jsCalculateRanks(input);
+}
+
+/**
+ * Find the rank of a specific score in a sorted score array
+ * Uses binary search for O(log n) performance
+ *
+ * @param sortedScores Scores sorted in descending order
+ * @param targetScore Score to find rank for
+ * @returns Rank (1-based), or -1 on error
+ */
+export function rank_find(sortedScores: number[], targetScore: number): number {
+  if (sortedScores.length === 0) {
+    return -1;
+  }
+
+  if (nativeRankAvailable && rankLib && refModule) {
+    try {
+      const count = sortedScores.length;
+      const scoresBuffer = Buffer.alloc(count * 8);
+
+      for (let i = 0; i < count; i++) {
+        scoresBuffer.writeDoubleLE(sortedScores[i], i * 8);
+      }
+
+      return rankLib.rank_find_rank(scoresBuffer, count, targetScore);
+    } catch (err) {
+      console.error('[native] rank_find_rank failed, falling back to JS:', (err as Error).message);
+    }
+  }
+
+  // JavaScript fallback using binary search
+  let lo = 0;
+  let hi = sortedScores.length;
+
+  while (lo < hi) {
+    const mid = Math.floor(lo + (hi - lo) / 2);
+    if (sortedScores[mid] > targetScore) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+
+  // Handle ties - find first occurrence
+  while (lo > 0 && sortedScores[lo - 1] === targetScore) {
+    lo--;
+  }
+
+  return lo + 1; // 1-based rank
+}
+
+/**
+ * Get rank calculator status
+ */
+export function getRankStatus(): { native: boolean } {
+  return { native: nativeRankAvailable };
 }

@@ -78,4 +78,9 @@ export {
   closeTraceDb,
   parseTraceRecord,
   parseSpanRecord,
+  // Error debugging helpers
+  queryTracesByError,
+  getRecentErrors,
+  getErrorStats,
+  getErrorContext,
 } from './trace-db';
