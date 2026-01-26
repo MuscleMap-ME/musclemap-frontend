@@ -300,6 +300,44 @@ export async function createServer(): Promise<FastifyInstance> {
     });
   });
 
+  // Debug hook to log raw request body for GraphQL (temporary for debugging login issue)
+  app.addHook('preParsing', async (request, _reply, payload) => {
+    // Only log for GraphQL POST requests that have application/json content type
+    if (request.url === '/api/graphql' && request.method === 'POST') {
+      const contentType = request.headers['content-type'];
+      const contentEncoding = request.headers['content-encoding'];
+      const contentLength = request.headers['content-length'];
+
+      // Collect raw body for debugging
+      let rawBody = '';
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of payload) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        rawBody = Buffer.concat(chunks).toString('utf8');
+
+        // Log the first 500 chars of the body for debugging
+        log.info({
+          url: request.url,
+          contentType,
+          contentEncoding,
+          contentLength,
+          bodyPreview: rawBody.substring(0, 500),
+          bodyLength: rawBody.length,
+          isValidJson: (() => { try { JSON.parse(rawBody); return true; } catch { return false; } })(),
+        }, 'GraphQL request body debug');
+
+        // Return a new stream with the body
+        const { Readable } = await import('stream');
+        return Readable.from([rawBody]);
+      } catch (err) {
+        log.error({ err, url: request.url }, 'Failed to read GraphQL request body');
+      }
+    }
+    return payload;
+  });
+
   // Register plugins
   await app.register(compress, {
     encodings: ['gzip', 'deflate', 'br'],

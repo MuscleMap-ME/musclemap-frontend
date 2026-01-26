@@ -21,12 +21,17 @@ import { config } from './config';
 import { startScheduler, stopScheduler } from './lib/scheduler';
 import { startJobScheduler, stopJobScheduler } from './http/routes/admin-scheduler';
 import { startBugFixWorker, stopBugFixWorker } from './jobs/bug-fix.queue';
+import { initTraceDb, closeTraceDb } from './lib/tracing';
 
 async function main(): Promise<void> {
   logger.info('🚀 Starting MuscleMap API server...');
 
   // Initialize database pool
   await initializePool();
+
+  // Initialize trace database (SQLite - supports both Bun and Node.js)
+  await initTraceDb();
+  logger.info('✅ Trace database initialized');
 
   // Initialize schema and run migrations
   await initializeSchema();
@@ -109,6 +114,12 @@ async function main(): Promise<void> {
       await closeRedis();
     } catch (error) {
       logger.error({ error }, 'Error closing Redis');
+    }
+
+    try {
+      closeTraceDb();
+    } catch (error) {
+      logger.error({ error }, 'Error closing trace database');
     }
   };
 

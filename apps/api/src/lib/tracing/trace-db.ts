@@ -4,10 +4,11 @@
  * Manages the SQLite database for storing distributed traces.
  * Uses WAL mode for concurrent writes and includes automatic cleanup.
  *
+ * Supports both Bun (bun:sqlite) and Node.js (better-sqlite3) runtimes.
+ *
  * Database location: apps/api/data/traces.db
  */
 
-import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { loggers } from '../logger';
@@ -24,6 +25,9 @@ import type {
 
 const log = loggers.core.child({ module: 'tracing' });
 
+// Detect runtime
+const isBun = typeof (globalThis as any).Bun !== 'undefined';
+
 // Database file location
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const TRACE_DB_PATH = path.join(DATA_DIR, 'traces.db');
@@ -31,36 +35,133 @@ const TRACE_DB_PATH = path.join(DATA_DIR, 'traces.db');
 // Retention period in days
 const RETENTION_DAYS = 7;
 
-let db: Database.Database | null = null;
+// Unified database interface that works with both bun:sqlite and better-sqlite3
+interface UnifiedStatement {
+  run(...params: unknown[]): { changes: number };
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
+}
+
+interface UnifiedDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): UnifiedStatement;
+  close(): void;
+}
+
+let db: UnifiedDatabase | null = null;
+
+// Type for SQLite binding parameters
+type SQLBindingParam = string | number | bigint | boolean | null | Uint8Array;
+
+/**
+ * Create a database instance based on runtime.
+ */
+async function createDatabase(dbPath: string): Promise<UnifiedDatabase> {
+  if (isBun) {
+    // Use Bun's native SQLite
+    const { Database: BunDatabase } = await import('bun:sqlite');
+    const bunDb = new BunDatabase(dbPath);
+
+    // Track last changes for run() return value
+    let lastChanges = 0;
+
+    // Bun's SQLite API is similar but has slight differences
+    return {
+      exec: (sql: string) => bunDb.exec(sql),
+      prepare: (sql: string) => {
+        const stmt = bunDb.prepare(sql);
+        return {
+          run: (...params: unknown[]) => {
+            // Cast params to Bun's expected type
+            stmt.run(...(params as SQLBindingParam[]));
+            // Bun's query().get() returns an object, not a number
+            const result = bunDb.query('SELECT changes() as changes').get() as { changes: number } | null;
+            lastChanges = result?.changes ?? 0;
+            return { changes: lastChanges };
+          },
+          get: (...params: unknown[]) => stmt.get(...(params as SQLBindingParam[])),
+          all: (...params: unknown[]) => stmt.all(...(params as SQLBindingParam[])),
+        };
+      },
+      close: () => bunDb.close(),
+    };
+  } else {
+    // Use better-sqlite3 for Node.js
+    const BetterSqlite3 = (await import('better-sqlite3')).default;
+    const nodeDb = new BetterSqlite3(dbPath);
+
+    return {
+      exec: (sql: string) => nodeDb.exec(sql),
+      prepare: (sql: string) => {
+        const stmt = nodeDb.prepare(sql);
+        return {
+          run: (...params: unknown[]) => stmt.run(...params),
+          get: (...params: unknown[]) => stmt.get(...params),
+          all: (...params: unknown[]) => stmt.all(...params),
+        };
+      },
+      close: () => nodeDb.close(),
+    };
+  }
+}
+
+// Synchronous initialization flag
+let initPromise: Promise<UnifiedDatabase> | null = null;
 
 /**
  * Get or create the trace database connection.
+ * This is now async to support dynamic imports for runtime detection.
  */
-export function getTraceDb(): Database.Database {
-  if (!db) {
+export async function getTraceDbAsync(): Promise<UnifiedDatabase> {
+  if (db) return db;
+
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
     // Ensure data directory exists
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    db = new Database(TRACE_DB_PATH);
+    db = await createDatabase(TRACE_DB_PATH);
 
     // Enable WAL mode for better concurrent write performance
-    db.pragma('journal_mode = WAL');
-    db.pragma('synchronous = NORMAL');
+    db.exec('PRAGMA journal_mode = WAL');
+    db.exec('PRAGMA synchronous = NORMAL');
 
     // Initialize schema
     initializeSchema(db);
 
-    log.info({ path: TRACE_DB_PATH }, 'Trace database initialized');
+    log.info({ path: TRACE_DB_PATH, runtime: isBun ? 'bun' : 'node' }, 'Trace database initialized');
+
+    return db;
+  })();
+
+  return initPromise;
+}
+
+/**
+ * Get the trace database connection (sync wrapper for backward compatibility).
+ * Throws if database hasn't been initialized yet.
+ */
+export function getTraceDb(): UnifiedDatabase {
+  if (!db) {
+    throw new Error('Trace database not initialized. Call initTraceDb() first or use getTraceDbAsync().');
   }
   return db;
 }
 
 /**
+ * Initialize the trace database (call at app startup).
+ */
+export async function initTraceDb(): Promise<void> {
+  await getTraceDbAsync();
+}
+
+/**
  * Initialize the database schema.
  */
-function initializeSchema(database: Database.Database): void {
+function initializeSchema(database: UnifiedDatabase): void {
   database.exec(`
     -- Main traces table
     CREATE TABLE IF NOT EXISTS traces (

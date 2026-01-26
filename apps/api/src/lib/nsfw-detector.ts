@@ -3,9 +3,13 @@
  *
  * Uses NSFWJS to classify images and detect inappropriate content.
  * Supports lazy loading of the TensorFlow model to reduce startup time.
+ *
+ * Uses TensorFlow.js WASM backend for Bun compatibility.
+ * Image decoding is handled by sharp instead of tf.node.decodeImage.
  */
 
 import { loggers } from './logger';
+import sharp from 'sharp';
 
 const log = loggers.core;
 
@@ -33,6 +37,7 @@ export interface ModerationResult {
 // Lazy-loaded model instance
 let nsfwModel: any = null;
 let modelLoading: Promise<any> | null = null;
+let tfInstance: any = null;
 
 /**
  * Load the NSFWJS model (lazy, singleton)
@@ -44,18 +49,27 @@ async function loadModel(): Promise<any> {
 
   modelLoading = (async () => {
     try {
-      log.info('Loading NSFWJS model...');
+      log.info('Loading NSFWJS model with WASM backend...');
       const startTime = Date.now();
 
-      // Dynamic imports to avoid loading TensorFlow at startup
-      const _tf = await import('@tensorflow/tfjs-node');
+      // Import TensorFlow.js (WASM version - no native bindings)
+      const tf = await import('@tensorflow/tfjs');
+
+      // Set WASM backend for better cross-platform support
+      // This avoids the NAPI/libuv issues with Bun
+      await tf.setBackend('cpu'); // CPU backend is always available and works with Bun
+      await tf.ready();
+
+      tfInstance = tf;
+
+      // Import NSFWJS
       const nsfwjs = await import('nsfwjs');
 
       // Use the default model (MobileNetV2)
       nsfwModel = await nsfwjs.load();
 
       const loadTime = Date.now() - startTime;
-      log.info({ loadTimeMs: loadTime }, 'NSFWJS model loaded');
+      log.info({ loadTimeMs: loadTime, backend: tf.getBackend() }, 'NSFWJS model loaded');
 
       return nsfwModel;
     } catch (error) {
@@ -69,6 +83,38 @@ async function loadModel(): Promise<any> {
 }
 
 /**
+ * Decode image buffer to raw pixel data using sharp
+ * Returns { data: Uint8Array, width: number, height: number, channels: 3 }
+ */
+async function decodeImageWithSharp(imageBuffer: Buffer): Promise<{
+  data: Uint8Array;
+  width: number;
+  height: number;
+  channels: 3;
+}> {
+  // Use sharp to decode and get raw pixel data
+  const image = sharp(imageBuffer);
+  const metadata = await image.metadata();
+
+  if (!metadata.width || !metadata.height) {
+    throw new Error('Could not read image dimensions');
+  }
+
+  // Convert to RGB (3 channels) and get raw pixel data
+  const { data, info } = await image
+    .removeAlpha() // Remove alpha channel if present (convert to RGB)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    data: new Uint8Array(data),
+    width: info.width,
+    height: info.height,
+    channels: 3,
+  };
+}
+
+/**
  * Classify an image buffer for NSFW content
  */
 export async function classifyImage(imageBuffer: Buffer): Promise<ModerationResult> {
@@ -77,14 +123,16 @@ export async function classifyImage(imageBuffer: Buffer): Promise<ModerationResu
   try {
     // Load model if needed
     const model = await loadModel();
+    const tf = tfInstance;
 
-    // Dynamic import for TensorFlow
-    const tf = await import('@tensorflow/tfjs-node');
+    if (!tf) {
+      throw new Error('TensorFlow not initialized');
+    }
 
-    // Decode image to tensor
-    let imageTensor;
+    // Decode image using sharp
+    let imageData;
     try {
-      imageTensor = tf.node.decodeImage(imageBuffer, 3);
+      imageData = await decodeImageWithSharp(imageBuffer);
     } catch (decodeError) {
       log.warn({ error: decodeError }, 'Failed to decode image, may be unsupported format');
       return {
@@ -94,6 +142,14 @@ export async function classifyImage(imageBuffer: Buffer): Promise<ModerationResu
         processingTimeMs: Date.now() - startTime,
       };
     }
+
+    // Create tensor from raw pixel data
+    // Shape: [height, width, channels]
+    const imageTensor = tf.tensor3d(
+      imageData.data,
+      [imageData.height, imageData.width, imageData.channels],
+      'int32'
+    );
 
     // Classify the image
     const predictions: NSFWPrediction[] = await model.classify(imageTensor);

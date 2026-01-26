@@ -67,6 +67,8 @@ export {
 // Database operations
 export {
   getTraceDb,
+  getTraceDbAsync,
+  initTraceDb,
   insertTrace,
   updateTrace,
   insertSpan,
