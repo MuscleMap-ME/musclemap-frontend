@@ -29,3 +29,5 @@ uuid.workspace = true
 chrono.workspace = true
 tokio-stream.workspace = true
 reqwest.workspace = true
+rust-embed = "8"
+mime_guess = "2"

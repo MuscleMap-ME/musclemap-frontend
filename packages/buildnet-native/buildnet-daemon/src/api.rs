@@ -4,19 +4,25 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{header, StatusCode, Uri},
     response::{
         sse::{Event, KeepAlive, Sse},
-        IntoResponse,
+        Html, IntoResponse, Response,
     },
     routing::{get, post},
     Json, Router,
 };
+use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
+
+/// Embedded static files for the web UI
+#[derive(RustEmbed)]
+#[folder = "static/"]
+struct Assets;
 
 use buildnet_core::{
     ArtifactCache, BuildOrchestrator, Config, StateManager,
@@ -60,6 +66,10 @@ pub fn create_router(
     });
 
     Router::new()
+        // Web UI - serve index.html at root
+        .route("/", get(index_html))
+        .route("/static/{*file}", get(static_handler))
+
         // Health and status
         .route("/health", get(health))
         .route("/status", get(status))
@@ -88,6 +98,29 @@ pub fn create_router(
 
         .layer(CorsLayer::permissive())
         .with_state(app_state)
+}
+
+// ============================================================================
+// Static File Serving
+// ============================================================================
+
+async fn index_html() -> impl IntoResponse {
+    match Assets::get("index.html") {
+        Some(content) => Html(content.data.into_owned()).into_response(),
+        None => (StatusCode::NOT_FOUND, "Not found").into_response(),
+    }
+}
+
+async fn static_handler(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches("/static/");
+
+    match Assets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref())], content.data.into_owned()).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, "Not found").into_response(),
+    }
 }
 
 // ============================================================================
