@@ -162,21 +162,12 @@ function hashPassword(password: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const log = loggers.auth;
   const [salt, hash] = stored.split(':');
-  if (!salt || !hash) {
-    log.error({ storedLength: stored?.length }, 'verifyPassword: Invalid stored format - missing salt or hash');
-    return false;
-  }
-  log.info({ saltLength: salt.length, hashLength: hash.length }, 'verifyPassword: parsing stored hash');
+  if (!salt || !hash) return false;
   const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  log.info({ computedHashLength: verifyHash.length, hashesMatchUnsafe: hash === verifyHash }, 'verifyPassword: computed hash');
   try {
-    const result = crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
-    log.info({ timingSafeResult: result }, 'verifyPassword: timingSafeEqual result');
-    return result;
-  } catch (err) {
-    log.error({ err }, 'verifyPassword: timingSafeEqual threw');
+    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(verifyHash, 'hex'));
+  } catch {
     return false;
   }
 }
