@@ -123,7 +123,6 @@ export { useCelebration } from '../celebrations/useCelebration';
 export { XPProgress } from './XPProgress';
 export { DailyQuests } from './DailyQuests';
 export { LevelUpModal } from './LevelUpModal';
-export { ChallengeCard as ChallengeCardNew } from './ChallengeCard.tsx';
 
 // ============================================
 // DEFAULT EXPORT

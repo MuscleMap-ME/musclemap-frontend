@@ -63,64 +63,64 @@
   --direction-coefficient: 1;
 
   /* ==========================================================================
-     2. BRAND COLORS - Extracted from Logo
+     2. BRAND COLORS - Material Design Inspired
      ========================================================================== */
 
-  /* Primary Blue Spectrum (Logo Background) */
-  --brand-blue-50: #e6f0ff;
-  --brand-blue-100: #b3d4ff;
-  --brand-blue-200: #80b8ff;
-  --brand-blue-300: #4d9cff;
-  --brand-blue-400: #1a80ff;
-  --brand-blue-500: #0066ff;  /* Logo primary */
-  --brand-blue-600: #0052cc;
-  --brand-blue-700: #003d99;
-  --brand-blue-800: #002966;
-  --brand-blue-900: #001433;
+  /* Primary Blue Spectrum - Material Blue */
+  --brand-blue-50: #e3f2fd;
+  --brand-blue-100: #bbdefb;
+  --brand-blue-200: #90caf9;
+  --brand-blue-300: #64b5f6;
+  --brand-blue-400: #42a5f5;
+  --brand-blue-500: #2196f3;  /* Material Blue 500 */
+  --brand-blue-600: #1e88e5;
+  --brand-blue-700: #1976d2;
+  --brand-blue-800: #1565c0;
+  --brand-blue-900: #0d47a1;
 
-  /* Magenta/Coral Spectrum (Logo Accent - "Pulse") */
-  --brand-pulse-50: #ffe6ec;
-  --brand-pulse-100: #ffb3c4;
-  --brand-pulse-200: #ff809c;
-  --brand-pulse-300: #ff4d74;
-  --brand-pulse-400: #ff1a4c;
-  --brand-pulse-500: #ff3366;  /* Logo accent */
-  --brand-pulse-600: #cc2952;
-  --brand-pulse-700: #991f3d;
-  --brand-pulse-800: #661429;
-  --brand-pulse-900: #330a14;
+  /* Accent Pink Spectrum - Material Pink */
+  --brand-pulse-50: #fce4ec;
+  --brand-pulse-100: #f8bbd9;
+  --brand-pulse-200: #f48fb1;
+  --brand-pulse-300: #f06292;
+  --brand-pulse-400: #ec407a;
+  --brand-pulse-500: #e91e63;  /* Material Pink 500 */
+  --brand-pulse-600: #d81b60;
+  --brand-pulse-700: #c2185b;
+  --brand-pulse-800: #ad1457;
+  --brand-pulse-900: #880e4f;
 
   /* ==========================================================================
-     3. SEMANTIC COLORS
+     3. SEMANTIC COLORS - Material Design Inspired
      ========================================================================== */
 
-  /* Void/Background - Deep space that glass floats on */
+  /* Background Colors - Material Dark Theme */
   --void-pure: #000000;
-  --void-deep: #050508;
-  --void-base: #0a0a0f;
-  --void-elevated: #0f0f15;
-  --void-surface: #14141c;
+  --void-deep: #121212;
+  --void-base: #121212;
+  --void-elevated: #1e1e1e;
+  --void-surface: #2d2d2d;
 
-  /* Glass Surface Colors (with transparency) */
-  --glass-white-3: rgba(255, 255, 255, 0.03);
-  --glass-white-5: rgba(255, 255, 255, 0.05);
-  --glass-white-8: rgba(255, 255, 255, 0.08);
-  --glass-white-10: rgba(255, 255, 255, 0.10);
-  --glass-white-15: rgba(255, 255, 255, 0.15);
-  --glass-white-20: rgba(255, 255, 255, 0.20);
-  --glass-white-30: rgba(255, 255, 255, 0.30);
+  /* Surface Colors - Material Design Elevation */
+  --glass-white-3: rgba(255, 255, 255, 0.05);
+  --glass-white-5: rgba(255, 255, 255, 0.07);
+  --glass-white-8: rgba(255, 255, 255, 0.09);
+  --glass-white-10: rgba(255, 255, 255, 0.11);
+  --glass-white-15: rgba(255, 255, 255, 0.14);
+  --glass-white-20: rgba(255, 255, 255, 0.16);
+  --glass-white-30: rgba(255, 255, 255, 0.24);
 
-  /* Brand Glass - Blue tinted glass surfaces */
-  --glass-brand-subtle: rgba(0, 102, 255, 0.05);
-  --glass-brand-light: rgba(0, 102, 255, 0.10);
-  --glass-brand-medium: rgba(0, 102, 255, 0.15);
-  --glass-brand-strong: rgba(0, 102, 255, 0.25);
+  /* Brand Surface - Blue tinted surfaces */
+  --glass-brand-subtle: rgba(33, 150, 243, 0.08);
+  --glass-brand-light: rgba(33, 150, 243, 0.12);
+  --glass-brand-medium: rgba(33, 150, 243, 0.16);
+  --glass-brand-strong: rgba(33, 150, 243, 0.24);
 
-  /* Pulse Glass - For activation states */
-  --glass-pulse-subtle: rgba(255, 51, 102, 0.05);
-  --glass-pulse-light: rgba(255, 51, 102, 0.10);
-  --glass-pulse-medium: rgba(255, 51, 102, 0.20);
-  --glass-pulse-strong: rgba(255, 51, 102, 0.35);
+  /* Accent Surface - For activation states */
+  --glass-pulse-subtle: rgba(233, 30, 99, 0.08);
+  --glass-pulse-light: rgba(233, 30, 99, 0.12);
+  --glass-pulse-medium: rgba(233, 30, 99, 0.18);
+  --glass-pulse-strong: rgba(233, 30, 99, 0.28);
 
   /* Muscle Activation Colors (Bioluminescent) */
   --muscle-chest: #ef4444;
@@ -138,32 +138,32 @@
   --muscle-cardio: #ec4899;
   --muscle-cardio-glow: rgba(236, 72, 153, 0.6);
 
-  /* Text Colors */
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-tertiary: rgba(255, 255, 255, 0.5);
-  --text-quaternary: rgba(255, 255, 255, 0.35);
-  --text-disabled: rgba(255, 255, 255, 0.25);
+  /* Text Colors - Material Design High Emphasis */
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-tertiary: rgba(255, 255, 255, 0.38);
+  --text-quaternary: rgba(255, 255, 255, 0.30);
+  --text-disabled: rgba(255, 255, 255, 0.38);
 
-  /* Text Effects */
-  --text-glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --text-glass-glow: 0 0 20px rgba(255, 255, 255, 0.1);
+  /* Text Effects - Subtle */
+  --text-glass-shadow: none;
+  --text-glass-glow: none;
 
-  /* Border Colors */
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.20);
-  --border-luminous: rgba(255, 255, 255, 0.25);
-  --border-brand-glow: rgba(0, 102, 255, 0.5);
-  --border-pulse-glow: rgba(255, 51, 102, 0.5);
+  /* Border Colors - Material Design */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --border-luminous: rgba(255, 255, 255, 0.32);
+  --border-brand-glow: rgba(33, 150, 243, 0.5);
+  --border-pulse-glow: rgba(233, 30, 99, 0.5);
 
-  /* Prismatic Border Gradient Stops */
-  --prismatic-1: rgba(255, 100, 100, 0.3);
-  --prismatic-2: rgba(255, 200, 100, 0.3);
-  --prismatic-3: rgba(100, 255, 200, 0.3);
-  --prismatic-4: rgba(100, 150, 255, 0.3);
-  --prismatic-5: rgba(200, 100, 255, 0.3);
+  /* Accent Colors - Material Palette */
+  --prismatic-1: rgba(244, 67, 54, 0.3);
+  --prismatic-2: rgba(255, 152, 0, 0.3);
+  --prismatic-3: rgba(76, 175, 80, 0.3);
+  --prismatic-4: rgba(33, 150, 243, 0.3);
+  --prismatic-5: rgba(156, 39, 176, 0.3);
 
   /* Parametric Colors (HSL-computed) */
   --color-primary: hsl(var(--param-hue-primary), calc(var(--param-saturation) * 1%), calc(var(--param-lightness) * 1%));
@@ -182,15 +182,15 @@
   --color-border-strong: hsla(var(--param-hue-primary), 30%, 50%, 0.4);
 
   /* ==========================================================================
-     4. TYPOGRAPHY
+     4. TYPOGRAPHY - Material Design Inspired
      ========================================================================== */
 
-  /* Font Stacks (Variable fonts with fallbacks) */
-  --font-sans: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif: 'Latin Modern', 'Source Serif var', Georgia, 'Times New Roman', serif;
-  --font-display: 'Source Serif var', 'Bebas Neue', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
-  --font-mono: 'JetBrains Mono var', 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
-  --font-math: 'Latin Modern', 'STIX Two Math', 'Cambria Math', serif;
+  /* Font Stacks - Roboto (Material Design) */
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-display: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Roboto Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+  --font-math: 'STIX Two Math', 'Cambria Math', Georgia, serif;
   --font-body: var(--font-sans);
 
   /* OpenType Feature Settings */
@@ -312,30 +312,30 @@
   --glue-max: calc(var(--space-unit) * 2);
 
   /* ==========================================================================
-     6. EFFECTS - Blur, Shadows, Glows
+     6. EFFECTS - Material Design Elevation
      ========================================================================== */
 
-  /* Backdrop Blur Intensities */
+  /* Backdrop Blur - Reduced for cleaner look */
   --blur-none: 0px;
-  --blur-xs: 4px;
-  --blur-sm: 8px;
-  --blur-md: 12px;
-  --blur-lg: 16px;
-  --blur-xl: 24px;
-  --blur-2xl: 32px;
-  --blur-3xl: 48px;
+  --blur-xs: 2px;
+  --blur-sm: 4px;
+  --blur-md: 8px;
+  --blur-lg: 12px;
+  --blur-xl: 16px;
+  --blur-2xl: 20px;
+  --blur-3xl: 24px;
 
-  /* Glass Noise Texture Opacity */
-  --noise-subtle: 0.02;
-  --noise-light: 0.04;
-  --noise-medium: 0.06;
+  /* Surface Noise - Disabled for Material cleanliness */
+  --noise-subtle: 0;
+  --noise-light: 0;
+  --noise-medium: 0;
 
-  /* Shadows - Unified naming (use --shadow-*) */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* Shadows - Material Design Elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.15), 0 3px 6px rgba(0, 0, 0, 0.10);
+  --shadow-xl: 0 15px 25px rgba(0, 0, 0, 0.15), 0 5px 10px rgba(0, 0, 0, 0.05);
+  --shadow-2xl: 0 20px 40px rgba(0, 0, 0, 0.20);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
 
   /* Legacy aliases (for backwards compatibility) */
@@ -344,26 +344,26 @@
   --shadow-glass-lg: var(--shadow-lg);
   --shadow-glass-xl: var(--shadow-xl);
 
-  /* Inner Glows for Glass Surfaces */
-  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.05);
-  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.08);
-  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.12);
+  /* Inner Highlights - Subtle for Material */
+  --inner-glow-subtle: none;
+  --inner-glow-light: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --inner-glow-medium: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
-  /* Outer Glow Halos */
-  --glow-brand-sm: 0 0 10px rgba(0, 102, 255, 0.3);
-  --glow-brand-md: 0 0 20px rgba(0, 102, 255, 0.4);
-  --glow-brand-lg: 0 0 30px rgba(0, 102, 255, 0.5);
-  --glow-pulse-sm: 0 0 10px rgba(255, 51, 102, 0.3);
-  --glow-pulse-md: 0 0 20px rgba(255, 51, 102, 0.4);
-  --glow-pulse-lg: 0 0 30px rgba(255, 51, 102, 0.5);
+  /* Outer Glows - Subtle accents */
+  --glow-brand-sm: 0 0 4px rgba(33, 150, 243, 0.3);
+  --glow-brand-md: 0 0 8px rgba(33, 150, 243, 0.4);
+  --glow-brand-lg: 0 0 12px rgba(33, 150, 243, 0.5);
+  --glow-pulse-sm: 0 0 4px rgba(233, 30, 99, 0.3);
+  --glow-pulse-md: 0 0 8px rgba(233, 30, 99, 0.4);
+  --glow-pulse-lg: 0 0 12px rgba(233, 30, 99, 0.5);
 
-  /* Parametric Glows */
-  --glow-sm: 0 0 10px hsla(var(--param-hue-primary), 100%, 50%, 0.3);
-  --glow-md: 0 0 20px hsla(var(--param-hue-primary), 100%, 50%, 0.4);
-  --glow-lg: 0 0 40px hsla(var(--param-hue-primary), 100%, 50%, 0.5);
+  /* Parametric Glows - Subtle */
+  --glow-sm: 0 0 4px hsla(var(--param-hue-primary), 100%, 50%, 0.2);
+  --glow-md: 0 0 8px hsla(var(--param-hue-primary), 100%, 50%, 0.3);
+  --glow-lg: 0 0 16px hsla(var(--param-hue-primary), 100%, 50%, 0.4);
 
-  /* Specular Highlight */
-  --specular-edge: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%);
+  /* Specular Highlight - Disabled for flat Material look */
+  --specular-edge: none;
 
   /* ==========================================================================
      7. BORDER RADIUS

@@ -442,7 +442,91 @@ function logsToCSV(entries: LogEntry[]): string {
 // ROUTES
 // ============================================
 
+// Schema for the simple logs endpoint (matches frontend expectations)
+const SimpleLogsSchema = z.object({
+  since: z.string().optional(), // ISO date string
+  until: z.string().optional(), // ISO date string
+  levels: z.string().optional(), // Comma-separated: info,warn,error
+  search: z.string().optional(), // Search term
+  regex: z.string().optional(), // 'true' for regex mode
+  limit: z.coerce.number().min(1).max(10000).default(500),
+});
+
 export default async function adminLogsRoutes(fastify: FastifyInstance): Promise<void> {
+  // ----------------------------------------
+  // GET /admin/logs
+  // Simple logs endpoint for LogsPanel frontend
+  // ----------------------------------------
+  fastify.get(
+    '/admin/logs',
+    { preHandler: [authenticate, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = SimpleLogsSchema.parse(request.query);
+
+        // Parse levels filter
+        const allowedLevels = query.levels
+          ? query.levels.split(',').map((l) => l.trim().toLowerCase())
+          : ['info', 'warn', 'error'];
+
+        // Build search pattern if provided
+        let searchPattern: string | undefined;
+        if (query.search) {
+          if (query.regex === 'true') {
+            searchPattern = query.search;
+          } else {
+            // Escape special regex characters for literal search
+            searchPattern = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          }
+        }
+
+        const { entries, total } = await readLogs('musclemap', {
+          startTime: query.since ? new Date(query.since) : undefined,
+          endTime: query.until ? new Date(query.until) : undefined,
+          search: searchPattern,
+          limit: query.limit,
+          includeError: true,
+        });
+
+        // Filter by levels client-side (since readLogs takes single level)
+        const filteredEntries = entries.filter((entry) => {
+          const entryLevel = (entry.level || 'info').toLowerCase();
+          return allowedLevels.includes(entryLevel);
+        });
+
+        // Transform to match frontend expected format
+        const logs = filteredEntries.map((entry) => ({
+          id: entry.requestId || `${entry.timestamp}-${Math.random().toString(36).slice(2, 9)}`,
+          timestamp: entry.timestamp,
+          level: (entry.level || 'info').toLowerCase(),
+          message: entry.msg || entry.message || '',
+          source: entry.module || entry.endpoint || undefined,
+          stack: entry.stack,
+          metadata: {
+            endpoint: entry.endpoint,
+            method: entry.method,
+            statusCode: entry.statusCode,
+            responseTime: entry.responseTime,
+            userId: entry.userId,
+            requestId: entry.requestId,
+          },
+        }));
+
+        return reply.send({
+          logs,
+          total: logs.length,
+          hasMore: total > query.limit,
+        });
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          return reply.status(400).send({ error: 'Invalid request', details: err.errors });
+        }
+        log.error({ error: (err as Error).message }, 'Simple logs fetch failed');
+        return reply.status(500).send({ error: (err as Error).message });
+      }
+    }
+  );
+
   // ----------------------------------------
   // GET /admin/logs/search
   // Search logs with filters

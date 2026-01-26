@@ -37,3 +37,10 @@ export {
   CompanionProgress,
   CompanionPanel,
 } from './companion';
+
+// Mascot Powers exports
+export {
+  MascotPowerCard,
+  MascotBuffDisplay,
+  MascotEvolutionPath,
+} from './powers';

@@ -149,6 +149,11 @@ const PTTests = lazy(() => import('./pages/PTTests'));
 const CareerReadiness = lazy(() => import('./pages/CareerReadiness'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 
+// New Hidden Feature Pages (Phase 1)
+const JourneyHealth = lazy(() => import('./pages/JourneyHealth'));
+const RecoveryDashboard = lazy(() => import('./pages/RecoveryDashboard'));
+const ProgressionTargets = lazy(() => import('./pages/ProgressionTargets'));
+
 // Career pages
 const CareerPage = lazy(() => import('./pages/CareerPage'));
 const CareerGoalPage = lazy(() => import('./pages/CareerGoalPage'));
@@ -670,6 +675,11 @@ function AppRoutes() {
           <Route path="/pt-tests" element={<ProtectedRoute name="PTTests"><PTTests /></ProtectedRoute>} />
           <Route path="/career-readiness" element={<ProtectedRoute name="CareerReadiness"><CareerReadiness /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute name="Leaderboard"><Leaderboard /></ProtectedRoute>} />
+
+          {/* New Hidden Feature Routes (Phase 1) */}
+          <Route path="/journey-health" element={<ProtectedRoute name="JourneyHealth"><JourneyHealth /></ProtectedRoute>} />
+          <Route path="/recovery-dashboard" element={<ProtectedRoute name="RecoveryDashboard"><RecoveryDashboard /></ProtectedRoute>} />
+          <Route path="/progression-targets" element={<ProtectedRoute name="ProgressionTargets"><ProgressionTargets /></ProtectedRoute>} />
 
           {/* Career routes */}
           <Route path="/career" element={<ProtectedRoute name="CareerPage"><CareerPage /></ProtectedRoute>} />

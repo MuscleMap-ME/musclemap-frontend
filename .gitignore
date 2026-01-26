@@ -16,6 +16,7 @@ node_modules/
 .yarn/
 .yarnrc
 .yarnrc.yml
+package-lock.json
 
 # builds / caches
 dist/
@@ -63,8 +64,8 @@ scripts/bug-hunter/data/
 # Smart build cache (dist backup + manifests)
 .smart-cache/
 
-# Aggressive cache dist backup (environment-specific compressed assets)
-.aggressive-cache/dist-backup/
+# Aggressive cache (build artifacts and metadata)
+.aggressive-cache/
 
 # Transform cache (Vite cache backup for persistence)
 .transform-cache/
@@ -87,4 +88,3 @@ scripts/add-approved-command.sh
 
 # GraphQL schema baseline
 .graphql-baseline/
-.aggressive-cache/artifacts/

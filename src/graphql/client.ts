@@ -15,13 +15,19 @@
  * - Memory monitoring and warnings
  */
 
-import { ApolloClient, InMemoryCache, from, HttpLink } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache, from, HttpLink, ApolloLink } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 import { initializeCachePersistence, clearPersistedCache } from '../lib/apollo-persist';
 import { storage } from '../lib/storage';
 import { logGraphQLError, isQASessionActive } from '../services/qaSessionLogger';
+import {
+  getTraceHeaders,
+  createRootTrace,
+  startSpan,
+  endSpan,
+} from '../lib/tracing';
 
 // ============================================
 // CACHE SIZE LIMITS
@@ -118,6 +124,49 @@ const authLink = setContext((_, { headers }) => {
 });
 
 /**
+ * Tracing Link - adds distributed tracing headers to requests
+ * Creates a new trace for each GraphQL operation
+ */
+/**
+ * Tracing context link - adds trace headers to requests
+ */
+const tracingContextLink = setContext((operation, { headers }) => {
+  // Create a root trace for this GraphQL operation
+  createRootTrace();
+
+  // Start a span for the GraphQL operation
+  const operationName = operation.operationName || 'anonymous';
+  const operationType = (operation.query.definitions[0] as { operation?: string })?.operation || 'query';
+  const spanId = startSpan(`graphql:${operationType}:${operationName}`, 'graphql', {
+    operationName,
+    operationType,
+  });
+
+  // Store spanId in context for later ending
+  return {
+    headers: {
+      ...headers,
+      ...getTraceHeaders(),
+    },
+    spanId, // Pass to error link for completion
+  };
+});
+
+/**
+ * Tracing completion link - ends spans after successful responses
+ */
+const tracingCompletionLink = new ApolloLink((operation, forward) => {
+  return forward(operation).map((response) => {
+    const context = operation.getContext();
+    // End span on successful response (errors handled by errorLink)
+    if (context?.spanId && !response.errors?.length) {
+      endSpan(context.spanId);
+    }
+    return response;
+  });
+});
+
+/**
  * Retry Link - automatically retry failed requests
  * Useful for handling transient network errors
  */
@@ -139,8 +188,15 @@ const retryLink = new RetryLink({
 /**
  * Error Link - handles GraphQL and network errors
  * Also logs errors to QA session if active for passive testing
+ * Also completes tracing spans with error status
  */
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation, response }) => {
+  // End the tracing span with error if present
+  const context = operation.getContext();
+  if (context?.spanId) {
+    const error = networkError || (graphQLErrors?.[0] ? new Error(graphQLErrors[0].message) : undefined);
+    endSpan(context.spanId, error);
+  }
   // Log GraphQL errors to QA session for passive testing
   if (isQASessionActive() && graphQLErrors && graphQLErrors.length > 0) {
     logGraphQLError(
@@ -369,7 +425,8 @@ const cache = new InMemoryCache({
  * Create Apollo Client instance
  */
 export const apolloClient = new ApolloClient({
-  link: from([retryLink, errorLink, authLink, httpLink]),
+  // Link chain order: retry -> tracing context -> error -> tracing completion -> auth -> http
+  link: from([retryLink, tracingContextLink, errorLink, tracingCompletionLink, authLink, httpLink]),
   cache,
   defaultOptions: {
     watchQuery: {

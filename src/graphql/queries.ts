@@ -3199,6 +3199,42 @@ export const RECOVERY_STATUS_QUERY = gql`
   }
 `;
 
+export const MUSCLE_RECOVERY_STATUS_QUERY = gql`
+  query MuscleRecoveryStatus {
+    muscleRecoveryStatus {
+      muscleGroups {
+        muscleGroup
+        recoveryPercentage
+        lastWorked
+        hoursUntilRecovered
+      }
+      overallRecovery
+      recommendations
+    }
+  }
+`;
+
+export const SLEEP_TRACKING_QUERY = gql`
+  query SleepTracking($limit: Int) {
+    sleepTracking(limit: $limit) {
+      logs {
+        id
+        bedTime
+        wakeTime
+        sleepDurationMinutes
+        quality
+        notes
+        createdAt
+      }
+      stats {
+        avgDuration
+        avgQuality
+        sleepDebt
+      }
+    }
+  }
+`;
+
 export const RECOVERY_HISTORY_QUERY = gql`
   query RecoveryHistory($days: Int) {
     recoveryHistory(days: $days) {
@@ -4181,6 +4217,22 @@ export const PROGRESSION_TARGETS_QUERY = gql`
   }
 `;
 
+export const PROGRESSION_MILESTONES_QUERY = gql`
+  query ProgressionMilestones {
+    milestones {
+      id
+      type
+      title
+      description
+      target
+      current
+      reward
+      claimed
+      unlockedAt
+    }
+  }
+`;
+
 // ============================================
 // LOCATIONS
 // ============================================
@@ -4562,6 +4614,771 @@ export const MASCOT_PENDING_REACTIONS_QUERY = gql`
       soundEffect
       shown
       createdAt
+    }
+  }
+`;
+
+// ============================================
+// JOURNEY HEALTH (Phase 1 - Hidden Features)
+// ============================================
+
+export const JOURNEY_HEALTH_QUERY = gql`
+  query JourneyHealth($journeyId: ID!) {
+    journeyHealth(journeyId: $journeyId) {
+      score
+      trend
+      lastCalculated
+      factors {
+        name
+        score
+        weight
+      }
+    }
+  }
+`;
+
+export const JOURNEY_HEALTH_ALERTS_QUERY = gql`
+  query JourneyHealthAlerts($journeyId: ID, $status: String, $limit: Int) {
+    journeyHealthAlerts(journeyId: $journeyId, status: $status, limit: $limit) {
+      id
+      type
+      severity
+      message
+      actionUrl
+      createdAt
+    }
+  }
+`;
+
+export const JOURNEY_RECOMMENDATIONS_QUERY = gql`
+  query JourneyRecommendations($journeyId: ID!) {
+    journeyRecommendations(journeyId: $journeyId) {
+      id
+      type
+      title
+      description
+      priority
+      actionLabel
+      actionUrl
+    }
+  }
+`;
+
+export const STALLED_JOURNEYS_QUERY = gql`
+  query StalledJourneys($thresholdDays: Int) {
+    stalledJourneys(thresholdDays: $thresholdDays) {
+      journeyId
+      userId
+      username
+      stalledDays
+      lastActivityAt
+      reason
+    }
+  }
+`;
+
+// ============================================
+// CREDIT ECONOMY (Phase 2 - New)
+// ============================================
+
+export const CREDIT_EARNING_SUMMARY_QUERY = gql`
+  query CreditEarningSummary {
+    creditEarningSummary {
+      todayEarned
+      weekEarned
+      monthEarned
+      availableOpportunities
+      streakBonus
+    }
+  }
+`;
+
+export const CREDIT_EARN_EVENTS_QUERY = gql`
+  query CreditEarnEvents($unreadOnly: Boolean, $limit: Int) {
+    creditEarnEvents(unreadOnly: $unreadOnly, limit: $limit) {
+      events {
+        id
+        type
+        amount
+        description
+        createdAt
+        shown
+      }
+      unreadCount
+    }
+  }
+`;
+
+export const BONUS_EVENT_TYPES_QUERY = gql`
+  query BonusEventTypes($enabledOnly: Boolean) {
+    bonusEventTypes(enabledOnly: $enabledOnly) {
+      id
+      name
+      multiplier
+      startTime
+      endTime
+      description
+    }
+  }
+`;
+
+export const BONUS_EVENT_HISTORY_QUERY = gql`
+  query BonusEventHistory($limit: Int) {
+    bonusEventHistory(limit: $limit) {
+      id
+      eventTypeId
+      eventName
+      multiplier
+      earnedAt
+      baseAmount
+      bonusAmount
+    }
+  }
+`;
+
+export const CREDIT_PACKAGES_QUERY = gql`
+  query CreditPackages {
+    creditPackages {
+      id
+      name
+      credits
+      price
+      currency
+      bonus
+      popular
+    }
+  }
+`;
+
+// ============================================
+// MASCOT ADVANCED POWERS (Phase 3 - New)
+// ============================================
+
+export const MASCOT_CREDIT_LOAN_OFFER_QUERY = gql`
+  query MascotCreditLoanOffer {
+    mascotCreditLoanOffer {
+      available
+      maxAmount
+      interestRate
+      repaymentDays
+      currentLoan {
+        amount
+        dueDate
+        amountOwed
+      }
+    }
+  }
+`;
+
+export const MASCOT_OVERTRAINING_ALERTS_QUERY = gql`
+  query MascotOvertrainingAlerts {
+    mascotOvertrainingAlerts {
+      id
+      muscleGroup
+      severity
+      message
+      suggestedRestDays
+      createdAt
+    }
+  }
+`;
+
+export const MASCOT_WORKOUT_SUGGESTIONS_QUERY = gql`
+  query MascotWorkoutSuggestions($limit: Int) {
+    mascotWorkoutSuggestions(limit: $limit) {
+      id
+      type
+      title
+      description
+      exercises {
+        id
+        name
+        sets
+        reps
+      }
+      reason
+    }
+  }
+`;
+
+export const MASCOT_MILESTONE_PROGRESS_QUERY = gql`
+  query MascotMilestoneProgress {
+    mascotMilestoneProgress {
+      currentPhase
+      phaseName
+      totalMilestones
+      completedMilestones
+      nextMilestone {
+        id
+        name
+        description
+        progress
+        target
+      }
+    }
+  }
+`;
+
+export const MASCOT_MASTER_ABILITIES_QUERY = gql`
+  query MascotMasterAbilities {
+    mascotMasterAbilities {
+      key
+      name
+      description
+      unlocked
+      unlockCost
+      requirements
+    }
+  }
+`;
+
+export const MASCOT_GENERATED_PROGRAMS_QUERY = gql`
+  query MascotGeneratedPrograms($status: String) {
+    mascotGeneratedPrograms(status: $status) {
+      id
+      name
+      description
+      duration
+      difficulty
+      status
+      createdAt
+    }
+  }
+`;
+
+export const MASCOT_CREW_SUGGESTIONS_QUERY = gql`
+  query MascotCrewSuggestions($limit: Int) {
+    mascotCrewSuggestions(limit: $limit) {
+      userId
+      username
+      avatarUrl
+      compatibility
+      reason
+      mutualFriends
+    }
+  }
+`;
+
+export const MASCOT_RIVALRY_ALERTS_QUERY = gql`
+  query MascotRivalryAlerts($limit: Int) {
+    mascotRivalryAlerts(limit: $limit) {
+      id
+      rivalUserId
+      rivalUsername
+      alertType
+      message
+      statComparison {
+        stat
+        yourValue
+        theirValue
+      }
+      createdAt
+    }
+  }
+`;
+
+export const MASCOT_NEGOTIATED_RATE_QUERY = gql`
+  query MascotNegotiatedRate($trainerId: ID!) {
+    mascotNegotiatedRate(trainerId: $trainerId) {
+      originalRate
+      negotiatedRate
+      discountPercent
+      validUntil
+    }
+  }
+`;
+
+// ============================================
+// PRESCRIPTION V3 (Phase 4 - New)
+// ============================================
+
+export const PRESCRIPTION_HISTORY_QUERY = gql`
+  query PrescriptionHistory($limit: Int, $offset: Int) {
+    prescriptionHistory(limit: $limit, offset: $offset) {
+      id
+      createdAt
+      targetMuscles
+      difficulty
+      totalDuration
+      exerciseCount
+      rating
+      feedback
+    }
+  }
+`;
+
+export const BIOMECHANICS_PROFILE_QUERY = gql`
+  query BiomechanicsProfile {
+    biomechanicsProfile {
+      limbLengths {
+        armSpan
+        torsoLength
+        legLength
+        femurLength
+        tibiaLength
+      }
+      mobility {
+        shoulderFlexion
+        hipFlexion
+        ankleFlexion
+        spineFlexion
+      }
+      injuries {
+        area
+        type
+        severity
+        excludeExercises
+      }
+      preferences {
+        preferredEquipment
+        avoidedExercises
+        favoriteExercises
+      }
+    }
+  }
+`;
+
+// ============================================
+// TRAINING PROGRAMS (Phase 4 - New)
+// ============================================
+
+export const TRAINING_PROGRAMS_QUERY = gql`
+  query TrainingPrograms($input: ProgramSearchInput) {
+    trainingPrograms(input: $input) {
+      id
+      name
+      description
+      duration
+      difficulty
+      category
+      rating
+      enrollmentCount
+      author {
+        id
+        username
+        avatarUrl
+      }
+    }
+  }
+`;
+
+export const TRAINING_PROGRAM_QUERY = gql`
+  query TrainingProgram($id: ID!) {
+    trainingProgram(id: $id) {
+      id
+      name
+      description
+      duration
+      difficulty
+      category
+      rating
+      enrollmentCount
+      workouts {
+        day
+        name
+        exercises {
+          id
+          name
+          sets
+          reps
+          rest
+        }
+      }
+      author {
+        id
+        username
+        avatarUrl
+      }
+    }
+  }
+`;
+
+export const FEATURED_PROGRAMS_QUERY = gql`
+  query FeaturedPrograms($limit: Int) {
+    featuredPrograms(limit: $limit) {
+      id
+      name
+      description
+      duration
+      difficulty
+      rating
+      enrollmentCount
+      thumbnailUrl
+    }
+  }
+`;
+
+export const MY_ENROLLMENTS_QUERY = gql`
+  query MyEnrollments($status: String, $limit: Int, $offset: Int) {
+    myEnrollments(status: $status, limit: $limit, offset: $offset) {
+      id
+      programId
+      programName
+      status
+      currentDay
+      totalDays
+      startedAt
+      lastWorkoutAt
+      progress
+    }
+  }
+`;
+
+export const TODAYS_WORKOUT_QUERY = gql`
+  query TodaysWorkout($programId: ID) {
+    todaysWorkout(programId: $programId) {
+      day
+      workout {
+        id
+        name
+        exercises {
+          id
+          name
+          sets
+          reps
+        }
+      }
+      completed
+    }
+  }
+`;
+
+// ============================================
+// MENTORSHIP (Phase 5 - New)
+// ============================================
+
+export const MENTORS_QUERY = gql`
+  query Mentors($verified: Boolean, $specialty: String, $limit: Int) {
+    mentors(verified: $verified, specialty: $specialty, limit: $limit) {
+      userId
+      displayName
+      avatarUrl
+      specialties
+      hourlyRate
+      rating
+      reviewCount
+      verified
+      maxMentees
+      currentMentees
+    }
+  }
+`;
+
+export const MENTOR_QUERY = gql`
+  query Mentor($userId: ID!) {
+    mentor(userId: $userId) {
+      userId
+      displayName
+      avatarUrl
+      bio
+      specialties
+      hourlyRate
+      rating
+      reviewCount
+      verified
+      maxMentees
+      currentMentees
+      availability
+      reviews {
+        id
+        rating
+        comment
+        createdAt
+        menteeUsername
+      }
+    }
+  }
+`;
+
+export const MY_MENTOR_PROFILE_QUERY = gql`
+  query MyMentorProfile {
+    myMentorProfile {
+      userId
+      displayName
+      bio
+      specialties
+      hourlyRate
+      verified
+      maxMentees
+      currentMentees
+      availability
+      totalEarnings
+      activeRequests
+    }
+  }
+`;
+
+export const ACTIVE_MENTORSHIPS_QUERY = gql`
+  query ActiveMentorships {
+    activeMentorships {
+      id
+      mentor {
+        userId
+        displayName
+        avatarUrl
+      }
+      mentee {
+        userId
+        displayName
+        avatarUrl
+      }
+      status
+      focusAreas
+      startDate
+      lastCheckIn
+    }
+  }
+`;
+
+export const MENTORSHIP_CHECK_INS_QUERY = gql`
+  query MentorshipCheckIns($mentorshipId: ID!, $limit: Int) {
+    mentorshipCheckIns(mentorshipId: $mentorshipId, limit: $limit) {
+      id
+      mentorshipId
+      notes
+      goals
+      progress
+      createdAt
+      createdBy
+    }
+  }
+`;
+
+// ============================================
+// ORGANIZATIONS (Phase 5 - New)
+// ============================================
+
+export const MY_ORGANIZATIONS_QUERY = gql`
+  query MyOrganizations {
+    myOrganizations {
+      id
+      name
+      slug
+      logoUrl
+      role
+      memberCount
+    }
+  }
+`;
+
+export const ORGANIZATION_QUERY = gql`
+  query Organization($id: ID, $slug: String) {
+    organization(id: $id, slug: $slug) {
+      id
+      name
+      slug
+      description
+      logoUrl
+      memberCount
+      subscription
+      settings
+      myRole
+    }
+  }
+`;
+
+export const ORGANIZATION_MEMBERS_QUERY = gql`
+  query OrganizationMembers($orgId: ID!, $limit: Int, $offset: Int) {
+    organizationMembers(orgId: $orgId, limit: $limit, offset: $offset) {
+      members {
+        userId
+        username
+        displayName
+        avatarUrl
+        role
+        unitId
+        unitName
+        joinedAt
+      }
+      total
+    }
+  }
+`;
+
+export const ORGANIZATION_UNITS_QUERY = gql`
+  query OrganizationUnits($orgId: ID!) {
+    organizationUnits(orgId: $orgId) {
+      id
+      name
+      description
+      parentId
+      memberCount
+      managerUserId
+      managerName
+    }
+  }
+`;
+
+export const ORGANIZATION_STATS_QUERY = gql`
+  query OrganizationStats($orgId: ID!) {
+    organizationStats(orgId: $orgId) {
+      totalMembers
+      activeMembers
+      totalWorkouts
+      avgWorkoutsPerMember
+      topPerformers {
+        userId
+        username
+        workoutCount
+        rank
+      }
+    }
+  }
+`;
+
+// ============================================
+// ADMIN EMPIRE PANELS (Phase 6 - New)
+// ============================================
+
+export const ADMIN_SERVER_STATUS_QUERY = gql`
+  query AdminServerStatus {
+    adminServerStatus {
+      pm2Processes {
+        name
+        pid
+        status
+        cpu
+        memory
+        uptime
+        restarts
+      }
+      systemInfo {
+        hostname
+        platform
+        cpuUsage
+        memoryUsage
+        diskUsage
+        nodeVersion
+      }
+    }
+  }
+`;
+
+export const ADMIN_DATABASE_STATS_QUERY = gql`
+  query AdminDatabaseStats {
+    adminDatabaseStats {
+      connections {
+        active
+        idle
+        waiting
+        total
+        maxConnections
+      }
+      tableStats {
+        name
+        rowCount
+        size
+        indexSize
+      }
+      slowQueries {
+        query
+        duration
+        timestamp
+      }
+    }
+  }
+`;
+
+export const ADMIN_SECURITY_LOGS_QUERY = gql`
+  query AdminSecurityLogs($limit: Int, $eventType: String) {
+    adminSecurityLogs(limit: $limit, eventType: $eventType) {
+      id
+      eventType
+      userId
+      username
+      ipAddress
+      userAgent
+      success
+      details
+      timestamp
+    }
+  }
+`;
+
+export const ADMIN_FEATURE_FLAGS_QUERY = gql`
+  query AdminFeatureFlags {
+    adminFeatureFlags {
+      id
+      key
+      name
+      description
+      enabled
+      percentage
+      updatedAt
+      updatedBy
+    }
+  }
+`;
+
+export const ADMIN_ALERT_RULES_QUERY = gql`
+  query AdminAlertRules {
+    adminAlertRules {
+      id
+      name
+      type
+      threshold
+      comparison
+      windowMinutes
+      enabled
+      channels
+      lastTriggered
+    }
+  }
+`;
+
+export const ADMIN_ALERT_HISTORY_QUERY = gql`
+  query AdminAlertHistory($limit: Int, $ruleId: ID) {
+    adminAlertHistory(limit: $limit, ruleId: $ruleId) {
+      id
+      ruleId
+      ruleName
+      triggeredAt
+      value
+      resolvedAt
+      acknowledgedBy
+      notes
+    }
+  }
+`;
+
+export const ADMIN_BACKUPS_QUERY = gql`
+  query AdminBackups($limit: Int) {
+    adminBackups(limit: $limit) {
+      id
+      filename
+      size
+      createdAt
+      type
+      status
+      downloadUrl
+    }
+  }
+`;
+
+export const ADMIN_USER_ANALYTICS_QUERY = gql`
+  query AdminUserAnalytics($period: String) {
+    adminUserAnalytics(period: $period) {
+      dau
+      wau
+      mau
+      newUsers
+      churnedUsers
+      retentionRate
+      avgSessionDuration
+      featureAdoption {
+        feature
+        adoptionRate
+        activeUsers
+      }
+      cohorts {
+        cohortDate
+        size
+        retained {
+          day
+          count
+          rate
+        }
+      }
     }
   }
 `;

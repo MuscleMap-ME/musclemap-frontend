@@ -153,6 +153,9 @@ import e2eeUploadsRoutes from './routes/e2ee-uploads';
 // Public plain text documentation (for AI assistants and screen readers)
 import { registerDocsPlainRoutes } from './routes/docs-plain';
 
+// Distributed tracing (admin panel + trace log ingestion)
+import { registerTraceRoutes } from './routes/admin/traces';
+
 // GraphQL
 import { registerGraphQLRoutes } from '../graphql/server';
 
@@ -735,6 +738,12 @@ export async function createServer(): Promise<FastifyInstance> {
     // Remote deployment control for Claude Code integration
     // ========================================
     await registerDeploymentRoutes(api);
+
+    // ========================================
+    // DISTRIBUTED TRACING
+    // Trace query API and frontend span ingestion
+    // ========================================
+    await registerTraceRoutes(api);
   }, { prefix: '/api' });
 
   return app as unknown as FastifyInstance;
