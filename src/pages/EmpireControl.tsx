@@ -1379,7 +1379,7 @@ export default function EmpireControl() {
                     />
                     <StatCard
                       title="Real Users"
-                      value={userStats.realUsers}
+                      value={_userStats.realUsers}
                       icon={Users}
                       color="#8b5cf6"
                       onClick={() => setActiveSection('users')}
@@ -1399,12 +1399,12 @@ export default function EmpireControl() {
                       User Categories
                     </h3>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                      <CategoryCard label="Owner" count={userStats.byCategory.owner} color="#fbbf24" icon={Crown} />
-                      <CategoryCard label="Team" count={userStats.byCategory.team} color="#8b5cf6" icon={Shield} />
-                      <CategoryCard label="Beta Testers" count={userStats.byCategory.beta_tester} color="#06b6d4" icon={Zap} />
-                      <CategoryCard label="Friends & Family" count={userStats.byCategory.friends_family} color="#f472b6" icon={Heart} />
-                      <CategoryCard label="Public" count={userStats.byCategory.public} color="#10b981" icon={Globe} />
-                      <CategoryCard label="Test" count={userStats.byCategory.test} color="#6b7280" icon={Bug} />
+                      <CategoryCard label="Owner" count={_userStats.byCategory.owner} color="#fbbf24" icon={Crown} />
+                      <CategoryCard label="Team" count={_userStats.byCategory.team} color="#8b5cf6" icon={Shield} />
+                      <CategoryCard label="Beta Testers" count={_userStats.byCategory.beta_tester} color="#06b6d4" icon={Zap} />
+                      <CategoryCard label="Friends & Family" count={_userStats.byCategory.friends_family} color="#f472b6" icon={Heart} />
+                      <CategoryCard label="Public" count={_userStats.byCategory.public} color="#10b981" icon={Globe} />
+                      <CategoryCard label="Test" count={_userStats.byCategory.test} color="#6b7280" icon={Bug} />
                     </div>
                   </GlassSurface>
 

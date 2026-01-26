@@ -1174,9 +1174,19 @@ async function processSyncQueue() {
       });
 
       if (response.ok) {
-        // Check for conflicts in response
-        const data = await response.clone().json();
-        if (data.conflict) {
+        // Check for conflicts in response (if JSON response)
+        let data = null;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            data = await response.clone().json();
+          } catch (e) {
+            // Response is not valid JSON, treat as success
+            console.log('[SW] Response not parseable as JSON, treating as success:', item.url);
+          }
+        }
+
+        if (data && data.conflict) {
           await addConflict({
             resourceType: item.operation,
             resourceId: data.resourceId,
@@ -1205,7 +1215,12 @@ async function processSyncQueue() {
         }
       } else if (response.status === 409) {
         // Conflict response
-        const data = await response.json();
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.log('[SW] Could not parse 409 conflict response as JSON');
+        }
         await addConflict({
           resourceType: item.operation,
           resourceId: data.resourceId || item.id,
