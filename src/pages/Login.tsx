@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client/react';
+import { Eye, EyeOff } from 'lucide-react';
 import { extractErrorMessage } from '@musclemap/shared';
 import { useUser } from '../contexts/UserContext';
 import SEO from '../components/SEO';
@@ -15,6 +16,7 @@ export default function Login() {
   const { login } = useUser();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loginMutation, { loading }] = useMutation(LOGIN_MUTATION);
 
@@ -58,13 +60,14 @@ export default function Login() {
       // User should go to dashboard if they have an archetype (completed onboarding)
       const hasCompletedOnboarding = !!user.archetype;
       navigate(hasCompletedOnboarding ? '/dashboard' : '/onboarding');
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Apollo GraphQL errors have a graphQLErrors array
-      const gqlError = err?.graphQLErrors?.[0]?.message;
+      const apolloErr = err as { graphQLErrors?: { message: string }[]; networkError?: { message: string }; message?: string };
+      const gqlError = apolloErr?.graphQLErrors?.[0]?.message;
       // Network errors have a message property
-      const networkError = err?.networkError?.message;
+      const networkError = apolloErr?.networkError?.message;
       // Standard error message
-      const standardError = err?.message;
+      const standardError = apolloErr?.message;
 
       setError(gqlError || networkError || extractErrorMessage(standardError, 'Login failed'));
     }
@@ -112,7 +115,24 @@ export default function Login() {
               <label className="block text-gray-300 text-sm">Password</label>
               <Link to="/forgot-password" className="text-blue-400 hover:text-blue-300 text-sm">Forgot password?</Link>
             </div>
-            <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="Your password" required />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                className="w-full p-3 pr-12 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                placeholder="Your password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading} className="w-full p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-lg disabled:opacity-50">
             {loading ? 'Logging in...' : 'Log In'}

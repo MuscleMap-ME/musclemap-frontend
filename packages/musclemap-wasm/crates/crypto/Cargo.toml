@@ -1,0 +1,27 @@
+[package]
+name = "musclemap-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Cryptographic operations for MuscleMap E2EE - SHA-256, Ed25519, HMAC"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+js-sys.workspace = true
+musclemap-core = { path = "../core" }
+sha2 = "0.10"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+hmac = "0.12"
+rand = { version = "0.8", features = ["getrandom"] }
+getrandom = { version = "0.2", features = ["js"] }
+base64 = "0.22"
+hex = "0.4"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

@@ -536,6 +536,16 @@ export default function PTTests() {
     return resultsData?.ptTestResults || [];
   }, [resultsData]);
 
+  // Debug effect - will remove after fixing
+  useEffect(() => {
+    console.info('[PTTests] Query state:', {
+      testsLoading,
+      testsData: testsData ? 'present' : 'null',
+      byInstitution: testsData?.ptTestsByInstitution?.byInstitution ? 'present' : 'null',
+      institutionCount: Object.keys(testsByInstitution).length,
+    });
+  }, [testsLoading, testsData, testsByInstitution]);
+
   // Handlers
   const handleRecordResult = useCallback(
     (data: {
