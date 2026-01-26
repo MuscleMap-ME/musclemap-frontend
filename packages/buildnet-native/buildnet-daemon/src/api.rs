@@ -1,13 +1,15 @@
 //! HTTP API for BuildNet daemon
 
 use std::sync::Arc;
+use std::sync::RwLock;
+use std::collections::VecDeque;
 
 use axum::{
     extract::{Path, State},
-    http::{header, StatusCode, Uri},
+    http::{header, HeaderMap, StatusCode, Uri},
     response::{
         sse::{Event, KeepAlive, Sse},
-        Html, IntoResponse, Response,
+        Html, IntoResponse,
     },
     routing::{get, post},
     Json, Router,
@@ -29,6 +31,46 @@ use buildnet_core::{
     state::BuildState,
 };
 
+/// Request source information for tracking how the daemon was contacted
+#[derive(Debug, Clone, Serialize)]
+pub struct RequestSource {
+    /// Detected source type: "api", "cli", "web-panel", "curl", "unknown"
+    pub source_type: String,
+    /// User-Agent header if present
+    pub user_agent: Option<String>,
+    /// Client IP address
+    pub ip: Option<String>,
+    /// Referer header if present
+    pub referer: Option<String>,
+    /// X-Forwarded-For header (for proxied requests)
+    pub forwarded_for: Option<String>,
+}
+
+/// Request log entry for audit trail
+#[derive(Debug, Clone, Serialize)]
+pub struct RequestLogEntry {
+    pub id: u64,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub method: String,
+    pub path: String,
+    pub source: RequestSource,
+    /// Build details if this was a build request
+    pub build_info: Option<BuildRequestInfo>,
+}
+
+/// Details about a build request
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildRequestInfo {
+    /// "full" or "single"
+    pub build_type: String,
+    /// Target package if single build
+    pub package: Option<String>,
+    /// Was force flag set
+    pub force: bool,
+    /// List of packages that will be built
+    pub packages: Vec<String>,
+}
+
 /// Shared application state
 pub struct AppState {
     pub config: Config,
@@ -37,6 +79,10 @@ pub struct AppState {
     pub orchestrator: BuildOrchestrator,
     /// Channel for build events
     pub events_tx: broadcast::Sender<BuildEvent>,
+    /// Request log (bounded circular buffer)
+    pub request_log: RwLock<VecDeque<RequestLogEntry>>,
+    /// Request counter for IDs
+    pub request_counter: RwLock<u64>,
 }
 
 /// Build event for SSE streaming
@@ -46,6 +92,67 @@ pub struct BuildEvent {
     pub package: Option<String>,
     pub message: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Request source information (for build events)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<RequestSource>,
+    /// Build request details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_info: Option<BuildRequestInfo>,
+    /// Log level: info, warn, error, debug
+    pub level: String,
+}
+
+
+/// Helper to detect request source from headers
+fn detect_request_source(headers: &HeaderMap) -> RequestSource {
+    let user_agent = headers
+        .get(header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let referer = headers
+        .get(header::REFERER)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let forwarded_for = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    // Try to get IP from various headers (Caddy/nginx proxy headers)
+    let ip = forwarded_for.clone()
+        .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()).map(|s| s.to_string()))
+        .or_else(|| headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok()).map(|s| s.to_string()));
+
+    // Detect source type from user-agent and referer
+    let source_type = if let Some(ref ua) = user_agent {
+        if ua.contains("curl") {
+            "curl".to_string()
+        } else if ua.contains("buildnet-cli") || ua.contains("buildnetd") {
+            "cli".to_string()
+        } else if ua.contains("Mozilla") || ua.contains("Chrome") || ua.contains("Safari") {
+            if referer.as_ref().map(|r| r.contains("/empire") || r.contains("/buildnet")).unwrap_or(false) {
+                "web-panel".to_string()
+            } else {
+                "browser".to_string()
+            }
+        } else if ua.contains("node") || ua.contains("axios") || ua.contains("fetch") {
+            "api".to_string()
+        } else {
+            "unknown".to_string()
+        }
+    } else {
+        "unknown".to_string()
+    };
+
+    RequestSource {
+        source_type,
+        user_agent,
+        ip,
+        referer,
+        forwarded_for,
+    }
 }
 
 /// Create the API router
@@ -63,6 +170,8 @@ pub fn create_router(
         cache,
         orchestrator,
         events_tx,
+        request_log: RwLock::new(VecDeque::with_capacity(100)),
+        request_counter: RwLock::new(0),
     });
 
     Router::new()
@@ -93,11 +202,44 @@ pub fn create_router(
         // Events stream
         .route("/events", get(events_stream))
 
+        // Request log (new endpoint for viewing how daemon was contacted)
+        .route("/requests", get(list_requests))
+
         // Shutdown
         .route("/shutdown", post(shutdown))
 
         .layer(CorsLayer::permissive())
         .with_state(app_state)
+}
+
+/// Helper to log a request
+fn log_request(
+    state: &AppState,
+    method: &str,
+    path: &str,
+    source: RequestSource,
+    build_info: Option<BuildRequestInfo>,
+) -> u64 {
+    let mut counter = state.request_counter.write().unwrap();
+    *counter += 1;
+    let id = *counter;
+
+    let entry = RequestLogEntry {
+        id,
+        timestamp: chrono::Utc::now(),
+        method: method.to_string(),
+        path: path.to_string(),
+        source,
+        build_info,
+    };
+
+    let mut log = state.request_log.write().unwrap();
+    if log.len() >= 100 {
+        log.pop_front();
+    }
+    log.push_back(entry);
+
+    id
 }
 
 // ============================================================================
@@ -187,16 +329,56 @@ struct BuildResponse {
 
 async fn build_all(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(opts): Json<BuildOptions>,
 ) -> Result<Json<BuildResponse>, AppError> {
     let start = std::time::Instant::now();
 
-    // Broadcast build start event
+    // Detect request source
+    let source = detect_request_source(&headers);
+    let packages: Vec<String> = state.config.packages.iter().map(|p| p.name.clone()).collect();
+
+    // Build request info
+    let build_info = BuildRequestInfo {
+        build_type: "full".to_string(),
+        package: None,
+        force: opts.force,
+        packages: packages.clone(),
+    };
+
+    // Log the request
+    log_request(&state, "POST", "/build", source.clone(), Some(build_info.clone()));
+
+    // Broadcast build start event with full details
     let _ = state.events_tx.send(BuildEvent {
         event_type: "build_start".into(),
         package: None,
-        message: "Starting full build".into(),
+        message: format!(
+            "Starting full build via {} ({} packages, force={})",
+            source.source_type,
+            packages.len(),
+            opts.force
+        ),
         timestamp: chrono::Utc::now(),
+        source: Some(source.clone()),
+        build_info: Some(build_info.clone()),
+        level: "info".to_string(),
+    });
+
+    // Broadcast request received event
+    let _ = state.events_tx.send(BuildEvent {
+        event_type: "request_received".into(),
+        package: None,
+        message: format!(
+            "Build request from {} (IP: {}, UA: {})",
+            source.source_type,
+            source.ip.as_deref().unwrap_or("unknown"),
+            source.user_agent.as_deref().unwrap_or("none").chars().take(50).collect::<String>()
+        ),
+        timestamp: chrono::Utc::now(),
+        source: Some(source.clone()),
+        build_info: None,
+        level: "debug".to_string(),
     });
 
     let results = state.orchestrator.build_all().await?;
@@ -208,16 +390,21 @@ async fn build_all(
         )
     });
 
-    // Broadcast build complete event
+    // Broadcast build complete event with details
     let _ = state.events_tx.send(BuildEvent {
         event_type: "build_complete".into(),
         package: None,
         message: format!(
-            "Build {} in {}ms",
+            "Build {} in {}ms via {} ({} packages)",
             if success { "succeeded" } else { "failed" },
-            start.elapsed().as_millis()
+            start.elapsed().as_millis(),
+            source.source_type,
+            packages.len()
         ),
         timestamp: chrono::Utc::now(),
+        source: Some(source),
+        build_info: Some(build_info),
+        level: if success { "success".to_string() } else { "error".to_string() },
     });
 
     Ok(Json(BuildResponse {
@@ -229,6 +416,7 @@ async fn build_all(
 
 async fn build_package(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(package_name): Path<String>,
     Json(opts): Json<BuildOptions>,
 ) -> Result<Json<buildnet_core::builder::BuildResult>, AppError> {
@@ -239,22 +427,57 @@ async fn build_package(
         .find(|p| p.name == package_name)
         .ok_or_else(|| AppError::NotFound(format!("Package not found: {}", package_name)))?;
 
-    // Broadcast build start event
+    // Detect request source
+    let source = detect_request_source(&headers);
+
+    // Build request info
+    let build_info = BuildRequestInfo {
+        build_type: "single".to_string(),
+        package: Some(package_name.clone()),
+        force: opts.force,
+        packages: vec![package_name.clone()],
+    };
+
+    // Log the request
+    log_request(&state, "POST", &format!("/build/{}", package_name), source.clone(), Some(build_info.clone()));
+
+    // Broadcast build start event with full details
     let _ = state.events_tx.send(BuildEvent {
         event_type: "build_start".into(),
         package: Some(package_name.clone()),
-        message: format!("Starting build for {}", package_name),
+        message: format!(
+            "Starting single package build for {} via {} (force={})",
+            package_name,
+            source.source_type,
+            opts.force
+        ),
         timestamp: chrono::Utc::now(),
+        source: Some(source.clone()),
+        build_info: Some(build_info.clone()),
+        level: "info".to_string(),
     });
 
     let result = state.orchestrator.build_package(package).await?;
 
-    // Broadcast build complete event
+    // Broadcast build complete event with details
     let _ = state.events_tx.send(BuildEvent {
         event_type: "build_complete".into(),
         package: Some(package_name.clone()),
-        message: format!("Build {} for {} in {}ms", result.status, package_name, result.duration_ms),
+        message: format!(
+            "Build {} for {} in {}ms via {}",
+            result.status,
+            package_name,
+            result.duration_ms,
+            source.source_type
+        ),
         timestamp: chrono::Utc::now(),
+        source: Some(source),
+        build_info: Some(build_info),
+        level: if matches!(result.status, buildnet_core::state::BuildStatus::Completed | buildnet_core::state::BuildStatus::Cached) {
+            "success".to_string()
+        } else {
+            "error".to_string()
+        },
     });
 
     Ok(Json(result))
@@ -272,7 +495,7 @@ async fn list_builds(
 }
 
 async fn get_build(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<BuildState>, AppError> {
     // TODO: Implement get_build in StateManager
@@ -323,12 +546,51 @@ async fn get_config(State(state): State<Arc<AppState>>) -> Json<Config> {
 }
 
 // ============================================================================
+// Request Log
+// ============================================================================
+
+#[derive(Serialize)]
+struct RequestLogResponse {
+    requests: Vec<RequestLogEntry>,
+    total: usize,
+}
+
+async fn list_requests(
+    State(app_state): State<Arc<AppState>>,
+) -> Json<RequestLogResponse> {
+    let log = app_state.request_log.read().unwrap();
+    let requests: Vec<RequestLogEntry> = log.iter().rev().cloned().collect();
+    let total = requests.len();
+    Json(RequestLogResponse { requests, total })
+}
+
+// ============================================================================
 // Events Stream (SSE)
 // ============================================================================
 
 async fn events_stream(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>> {
+    // Log the SSE connection
+    let source = detect_request_source(&headers);
+    log_request(&state, "GET", "/events", source.clone(), None);
+
+    // Broadcast connection event
+    let _ = state.events_tx.send(BuildEvent {
+        event_type: "client_connected".into(),
+        package: None,
+        message: format!(
+            "SSE client connected from {} ({})",
+            source.source_type,
+            source.ip.as_deref().unwrap_or("unknown")
+        ),
+        timestamp: chrono::Utc::now(),
+        source: Some(source),
+        build_info: None,
+        level: "debug".to_string(),
+    });
+
     let rx = state.events_tx.subscribe();
     let stream = BroadcastStream::new(rx);
 

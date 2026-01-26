@@ -29,6 +29,11 @@ import {
   ChevronRight,
   Package,
   HardDrive,
+  Globe,
+  Monitor,
+  Server,
+  User,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 // Configuration - BuildNet Native runs on port 9876
@@ -73,11 +78,40 @@ interface CacheStats {
   total_size_bytes?: number;
 }
 
+// Request source tracking
+interface RequestSource {
+  source_type: string;
+  user_agent: string | null;
+  ip: string | null;
+  referer: string | null;
+  forwarded_for: string | null;
+}
+
+// Build request info
+interface BuildRequestInfo {
+  build_type: string;
+  package: string | null;
+  force: boolean;
+  packages: string[];
+}
+
+// Request log entry from daemon
+interface RequestLogEntry {
+  id: number;
+  timestamp: string;
+  method: string;
+  path: string;
+  source: RequestSource;
+  build_info: BuildRequestInfo | null;
+}
+
 interface LogEntry {
   timestamp: string;
   level: string;
   msg: string;
   package?: string;
+  source?: RequestSource;
+  build_info?: BuildRequestInfo;
 }
 
 // Status colors for build states
@@ -100,8 +134,10 @@ export default function BuildDaemonPanel() {
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [autoScroll, setAutoScroll] = useState(true);
   const [showHistory, setShowHistory] = useState(true);
+  const [showRequestLog, setShowRequestLog] = useState(true);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestLog, setRequestLog] = useState<RequestLogEntry[]>([]);
 
   // Refs
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -154,6 +190,19 @@ export default function BuildDaemonPanel() {
     }
   }, []);
 
+  // Fetch request log (how daemon was contacted)
+  const fetchRequestLog = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/requests`);
+      if (response.ok) {
+        const data = await response.json();
+        setRequestLog(data.requests || []);
+      }
+    } catch (_err) {
+      // Silently fail
+    }
+  }, []);
+
   // Connect to SSE events stream
   const connectSSE = useCallback(() => {
     if (eventSourceRef.current) {
@@ -173,25 +222,34 @@ export default function BuildDaemonPanel() {
         try {
           const msg = JSON.parse(event.data);
 
-          // Add to logs
+          // Add to logs with full details
           const logEntry: LogEntry = {
-            timestamp: new Date().toISOString(),
+            timestamp: msg.timestamp || new Date().toISOString(),
             level: msg.level || 'info',
             msg: msg.message || JSON.stringify(msg),
             package: msg.package,
+            source: msg.source,
+            build_info: msg.build_info,
           };
           setLogs(prev => [logEntry, ...prev].slice(0, 500));
 
           // Handle specific event types
-          if (msg.type === 'build_started') {
+          const eventType = msg.event_type || msg.type;
+          if (eventType === 'build_start' || eventType === 'build_started') {
             setBuilding(true);
             setOutput('');
-          } else if (msg.type === 'build_completed' || msg.type === 'build_failed') {
+            // Refresh request log to show new entry
+            fetchRequestLog();
+          } else if (eventType === 'build_complete' || eventType === 'build_completed' || eventType === 'build_failed') {
             setBuilding(false);
             fetchBuilds();
             fetchStatus();
-          } else if (msg.type === 'build_output') {
+            fetchRequestLog();
+          } else if (eventType === 'build_output') {
             setOutput(prev => prev + (msg.output || msg.text || '') + '\n');
+          } else if (eventType === 'request_received' || eventType === 'client_connected') {
+            // Refresh request log for connection events
+            fetchRequestLog();
           }
         } catch (e) {
           console.error('[BuildNet] Failed to parse SSE message:', e);
@@ -216,7 +274,7 @@ export default function BuildDaemonPanel() {
     } catch (_err) {
       setError('Failed to connect to BuildNet events');
     }
-  }, [fetchBuilds, fetchStatus]);
+  }, [fetchBuilds, fetchStatus, fetchRequestLog]);
 
   // Request a build
   const requestBuild = useCallback(async (force = false) => {
@@ -285,12 +343,14 @@ export default function BuildDaemonPanel() {
     fetchStatus();
     fetchBuilds();
     fetchCacheStats();
+    fetchRequestLog();
     connectSSE();
 
     // Refresh status periodically
     const statusInterval = setInterval(() => {
       fetchStatus();
       fetchBuilds();
+      fetchRequestLog();
     }, 10000);
 
     return () => {
@@ -300,7 +360,7 @@ export default function BuildDaemonPanel() {
       }
       eventSourceRef.current?.close();
     };
-  }, [fetchStatus, fetchBuilds, fetchCacheStats, connectSSE]);
+  }, [fetchStatus, fetchBuilds, fetchCacheStats, fetchRequestLog, connectSSE]);
 
   // Filter logs
   const filteredLogs = logs.filter(log => {
@@ -564,6 +624,107 @@ export default function BuildDaemonPanel() {
         )}
       </GlassSurface>
 
+      {/* Request Log - How Daemon Was Contacted */}
+      <GlassSurface className="overflow-hidden">
+        <button
+          onClick={() => setShowRequestLog(!showRequestLog)}
+          className="w-full flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/5"
+        >
+          <div className="flex items-center gap-2 text-gray-300">
+            <Globe className="w-4 h-4" />
+            <span className="font-medium">Request Log</span>
+            <span className="text-gray-500 text-sm">
+              ({requestLog.length} requests)
+            </span>
+          </div>
+          {showRequestLog ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+
+        {showRequestLog && (
+          <div className="divide-y divide-white/5 max-h-80 overflow-auto">
+            {requestLog.length === 0 ? (
+              <div className="px-4 py-8 text-center text-gray-500">
+                No requests logged yet. Trigger a build to see how the daemon was contacted.
+              </div>
+            ) : (
+              requestLog.map((req) => (
+                <div key={req.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      {/* Source type icon */}
+                      {req.source.source_type === 'web-panel' ? (
+                        <Monitor className="w-4 h-4 text-blue-400" />
+                      ) : req.source.source_type === 'cli' ? (
+                        <Terminal className="w-4 h-4 text-green-400" />
+                      ) : req.source.source_type === 'curl' ? (
+                        <LinkIcon className="w-4 h-4 text-yellow-400" />
+                      ) : req.source.source_type === 'api' ? (
+                        <Server className="w-4 h-4 text-purple-400" />
+                      ) : req.source.source_type === 'browser' ? (
+                        <Globe className="w-4 h-4 text-cyan-400" />
+                      ) : (
+                        <User className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        req.source.source_type === 'web-panel' ? 'bg-blue-500/20 text-blue-300' :
+                        req.source.source_type === 'cli' ? 'bg-green-500/20 text-green-300' :
+                        req.source.source_type === 'curl' ? 'bg-yellow-500/20 text-yellow-300' :
+                        req.source.source_type === 'api' ? 'bg-purple-500/20 text-purple-300' :
+                        'bg-gray-500/20 text-gray-300'
+                      }`}>
+                        {req.source.source_type.toUpperCase()}
+                      </span>
+                      <span className="font-mono text-sm text-gray-300">
+                        {req.method} {req.path}
+                      </span>
+                    </div>
+                    <span className="text-gray-600 text-xs">
+                      {new Date(req.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+
+                  {/* Build info if present */}
+                  {req.build_info && (
+                    <div className="ml-7 mt-1 flex flex-wrap gap-2 text-xs">
+                      <span className={`px-2 py-0.5 rounded ${
+                        req.build_info.build_type === 'full' ? 'bg-purple-500/20 text-purple-300' : 'bg-cyan-500/20 text-cyan-300'
+                      }`}>
+                        {req.build_info.build_type === 'full' ? 'Full Build' : `Single: ${req.build_info.package}`}
+                      </span>
+                      {req.build_info.force && (
+                        <span className="px-2 py-0.5 rounded bg-orange-500/20 text-orange-300">
+                          FORCE
+                        </span>
+                      )}
+                      <span className="text-gray-500">
+                        {req.build_info.packages.length} package(s): {req.build_info.packages.join(', ')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Source details */}
+                  <div className="ml-7 mt-1 text-xs text-gray-500 flex flex-wrap gap-3">
+                    {req.source.ip && (
+                      <span>IP: {req.source.ip}</span>
+                    )}
+                    {req.source.user_agent && (
+                      <span className="truncate max-w-[200px]" title={req.source.user_agent}>
+                        UA: {req.source.user_agent.split(' ')[0]}
+                      </span>
+                    )}
+                    {req.source.referer && (
+                      <span className="truncate max-w-[150px]" title={req.source.referer}>
+                        Ref: {req.source.referer.replace(/https?:\/\//, '')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </GlassSurface>
+
       {/* Live Logs */}
       <GlassSurface className="overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
@@ -582,6 +743,7 @@ export default function BuildDaemonPanel() {
             >
               <option value="all">All Levels</option>
               <option value="info">Info</option>
+              <option value="debug">Debug</option>
               <option value="success">Success</option>
               <option value="warn">Warn</option>
               <option value="error">Error</option>
@@ -598,33 +760,55 @@ export default function BuildDaemonPanel() {
         <div ref={logsRef} className="h-48 overflow-auto divide-y divide-white/5">
           {filteredLogs.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              No logs yet
+              No logs yet. Events will appear here when the daemon processes requests.
             </div>
           ) : (
             filteredLogs.map((log, i) => (
               <div
                 key={i}
-                className={`px-4 py-2 text-xs font-mono flex items-start gap-3 ${
+                className={`px-4 py-2 text-xs font-mono ${
                   log.level === 'error' ? 'bg-red-500/5' :
                   log.level === 'warn' ? 'bg-yellow-500/5' :
-                  log.level === 'success' ? 'bg-green-500/5' : ''
+                  log.level === 'success' ? 'bg-green-500/5' :
+                  log.level === 'debug' ? 'bg-gray-500/5' : ''
                 }`}
               >
-                <span className="text-gray-600 flex-shrink-0">
-                  {new Date(log.timestamp).toLocaleTimeString()}
-                </span>
-                <span className={`flex-shrink-0 w-16 uppercase ${
-                  log.level === 'error' ? 'text-red-400' :
-                  log.level === 'warn' ? 'text-yellow-400' :
-                  log.level === 'success' ? 'text-green-400' :
-                  'text-blue-400'
-                }`}>
-                  [{log.level}]
-                </span>
-                {log.package && (
-                  <span className="text-purple-400 flex-shrink-0">[{log.package}]</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-gray-600 flex-shrink-0">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span className={`flex-shrink-0 w-16 uppercase ${
+                    log.level === 'error' ? 'text-red-400' :
+                    log.level === 'warn' ? 'text-yellow-400' :
+                    log.level === 'success' ? 'text-green-400' :
+                    log.level === 'debug' ? 'text-gray-400' :
+                    'text-blue-400'
+                  }`}>
+                    [{log.level}]
+                  </span>
+                  {log.package && (
+                    <span className="text-purple-400 flex-shrink-0">[{log.package}]</span>
+                  )}
+                  {log.source && (
+                    <span className="text-cyan-400 flex-shrink-0">[{log.source.source_type}]</span>
+                  )}
+                  <span className="text-gray-300 break-all">{log.msg}</span>
+                </div>
+                {/* Build info in log entry */}
+                {log.build_info && (
+                  <div className="ml-20 mt-1 flex flex-wrap gap-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                      log.build_info.build_type === 'full' ? 'bg-purple-500/20 text-purple-300' : 'bg-cyan-500/20 text-cyan-300'
+                    }`}>
+                      {log.build_info.build_type}
+                    </span>
+                    {log.build_info.force && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-500/20 text-orange-300">
+                        force
+                      </span>
+                    )}
+                  </div>
                 )}
-                <span className="text-gray-300 break-all">{log.msg}</span>
               </div>
             ))
           )}
