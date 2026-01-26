@@ -2,22 +2,37 @@
 
 ## Vision
 
-BuildNet is a **high-performance native build orchestration system** with:
-- Native Rust binary for 10-100x faster builds
-- Self-hosted web control panel
+BuildNet is a **high-performance native build orchestration system** built entirely in **Rust and WebAssembly** with:
+
+### Core Architecture
+- **Pure Rust native binaries** - No Node.js, Bun, or Deno dependencies
+- **WebAssembly plugin system** - Language-agnostic, sandboxed extensibility
+- **10-100x faster builds** via intelligent caching and distribution
+
+### Control Plane
+- Self-hosted **Leptos-based web control panel** (Rust → WASM)
+- Multiple control vectors: CLI, REST API, gRPC, Web, SMS, Email, Slack, External Agents
 - Multi-user concurrent access without performance degradation
-- Multiple control vectors (CLI, API, Web, SMS, Email, External Agents)
-- Hot-swappable resources and templates
-- Real-time audit logging and live viewing
-- Automated redundancies and fault tolerance
-- **Multi-channel notification system** (SMS, Email, Slack, Discord, Webhooks)
+
+### Distributed Build Engine
+- **Fault-tolerant distributed orchestration** across multiple servers
+- **REAPI compatibility** - Interoperable with Bazel, Buck2, Pants infrastructure
+- **Action-level caching** with content-addressable storage
+- **DICE-style incremental computation** for sub-second rebuilds
+- **Checkpoint & recovery** for crash resilience
+
+### Resource Management
+- **BPU-normalized CPU scheduling** (performance cores vs efficiency cores)
+- **Storage tier optimization** (RAM disk → NVMe → SSD → HDD → Network)
+- **Latency-aware task distribution** with work stealing
+- **Visual resource management** dashboards
+
+### Reliability & Operations
+- **Multi-channel notifications** (SMS, Email, Slack, Discord, Telegram, Webhooks)
 - **Remote control via SMS/Email** for headless operation
-- **Resource monitoring** (CPU, memory, disk, cluster nodes)
-- **Historical reporting** with scheduled delivery
-- **Distributed build orchestration** across multiple servers
-- **Visual resource management** (CPU cores, RAM, storage tiers)
-- **Intelligent work distribution** with latency-aware scheduling
-- **Storage tier optimization** (RAM disk, NVMe, SSD, HDD, network)
+- **Comprehensive audit trail** with structured logging
+- **Real-time monitoring** with Prometheus/Grafana integration
+- **Automated redundancy** and graceful degradation
 
 ## Current Status (Completed)
 
@@ -768,6 +783,164 @@ queue:
 
 ---
 
+## Phase 11: Advanced Distributed Build Orchestration
+
+> **Detailed documentation:** See [BUILDNET-DISTRIBUTED-ALGORITHM.md](./BUILDNET-DISTRIBUTED-ALGORITHM.md)
+
+### 11.1 Core Distributed Algorithm
+
+**Build Graph Decomposition:**
+- Parse package dependencies into directed acyclic graph (DAG)
+- Compute topological order for dependency-aware scheduling
+- Identify critical path for optimization focus
+- Break packages into file-level chunks for parallel execution
+
+**Intelligent Work Distribution:**
+```rust
+// Scoring algorithm for worker selection
+WorkerScore = (
+    performance_score * 0.4 +    // BPU-based performance rating
+    locality_score * 0.3 +       // Cache hits for required files
+    latency_score * 0.2 +        // Network proximity to coordinator
+    availability_score * 0.1     // Current load and queue depth
+)
+```
+
+### 11.2 Fault Tolerance & Recovery
+
+**Graceful Degradation:**
+| Worker Failures | System Response |
+|-----------------|-----------------|
+| 1 worker | Redistribute tasks, continue |
+| 50% workers | Switch to conservative mode |
+| All workers | Fall back to local execution |
+
+**Checkpoint & Recovery:**
+- Periodic state snapshots (every 30 seconds)
+- Write-ahead logging for crash recovery
+- Automatic retry with exponential backoff
+- Dead letter queue for failed tasks
+
+### 11.3 Concurrency & Locking
+
+**Distributed Lock Manager:**
+- Raft-based consensus for lock coordination
+- Fencing tokens to prevent stale operations
+- Hierarchical locking (project → package → file)
+- Lock timeout with automatic release
+
+**Multi-Agent Coordination:**
+- Support for concurrent users, CI/CD pipelines, AI agents
+- Build request merging for identical requests
+- Priority-based queue management
+- Fair scheduling across agent types
+
+### 11.4 Real-Time Communication
+
+**Bidirectional Streaming:**
+- gRPC streams for worker ↔ coordinator communication
+- WebSocket for client ↔ daemon interaction
+- Server-Sent Events for web UI updates
+- Heartbeat monitoring with configurable intervals
+
+**Event Types:**
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| `TaskAssignment` | Coord → Worker | Assign new build task |
+| `TaskProgress` | Worker → Coord | Progress updates (0-100%) |
+| `TaskComplete` | Worker → Coord | Task finished with result |
+| `WorkerStatus` | Worker → Coord | Periodic health report |
+| `BuildEvent` | Daemon → Client | Real-time build updates |
+
+### 11.5 Audit Trail & Monitoring
+
+**Comprehensive Logging:**
+- Every action logged with timestamp, actor, details
+- Structured JSON logs for machine parsing
+- Configurable retention policies
+- Export to external systems (Elasticsearch, Loki)
+
+**Real-Time Dashboards:**
+- Build progress visualization
+- Worker utilization graphs
+- Network topology map
+- Error rate monitoring
+
+### 11.6 Intelligent Defaults & Templates
+
+**Auto-Configuration:**
+- Detect CPU topology and storage tiers on startup
+- Benchmark new workers automatically
+- Suggest optimal configuration based on workload
+- Self-tuning scheduler parameters
+
+**Configuration Templates:**
+```yaml
+templates:
+  monorepo-large:
+    distribution: "smart"
+    chunk_strategy: "file-level"
+    parallel_builds: 8
+
+  ci-pipeline:
+    distribution: "fastest"
+    priority: "high"
+    timeout_mins: 30
+```
+
+---
+
+## Phase 12: REAPI Compatibility & Enterprise Features
+
+> **Reference:** See [BUILDNET-COMPETITOR-ANALYSIS.md](./BUILDNET-COMPETITOR-ANALYSIS.md)
+
+### 12.1 Remote Execution API (REAPI)
+
+Implement Bazel-compatible Remote Execution API for interoperability:
+
+**gRPC Services:**
+- `Execution` - Execute build actions remotely
+- `ActionCache` - Cache action results
+- `ContentAddressableStorage` - Store/retrieve blobs by hash
+
+**Benefits:**
+- Compatible with existing Bazel/Buck2 infrastructure
+- Industry-standard protocol
+- Enterprise adoption enabler
+
+### 12.2 Action-Level Caching
+
+Move from package-level to action-level caching:
+- 10x better cache hit rates
+- Fine-grained dependency tracking
+- Incremental computation (DICE-style)
+
+### 12.3 Hermetic Builds
+
+Ensure reproducible builds:
+- Sandbox execution environment
+- Container-based isolation (optional)
+- Input/output verification
+- Deterministic timestamps
+
+### 12.4 Test Distribution
+
+Distribute test execution across workers:
+- Historical timing data for balancing
+- Bin-packing algorithm for even distribution
+- Parallel test execution
+- Result aggregation
+
+### 12.5 Build Scans & Analytics
+
+Rich build analytics:
+- Build timeline visualization
+- Performance profiling
+- Failure pattern detection
+- Flaky test identification
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -922,6 +1095,22 @@ queue:
 33. **Build queue with priority levels**
 34. **Configuration profiles (speed/bandwidth/cost)**
 
+### Enterprise Features (Phase 11-12)
+35. **Build graph decomposition & DAG analysis**
+36. **Intelligent work distribution with scoring algorithm**
+37. **Checkpoint & recovery system**
+38. **Distributed lock manager (Raft-based)**
+39. **Multi-agent coordination (users, CI/CD, AI)**
+40. **Bidirectional gRPC streaming**
+41. **Comprehensive audit trail**
+42. **REAPI compatibility (Bazel/Buck2 interop)**
+43. **Action-level caching (10x hit rates)**
+44. **Hermetic/sandboxed builds**
+45. **Test distribution across workers**
+46. **Build scans & analytics dashboard**
+47. **WASM plugin ecosystem**
+48. **Leptos-based web UI (pure Rust)**
+
 ---
 
 ## Files Reference
@@ -937,7 +1126,7 @@ packages/buildnet-native/
 │       ├── hasher.rs                   # xxHash3 + Blake3
 │       ├── builder.rs                  # Build orchestration
 │       ├── config.rs                   # Configuration
-│       ├── notifications/              # Notification system (NEW)
+│       ├── notifications/              # Notification system
 │       │   ├── mod.rs                  # Notification router
 │       │   ├── channels/               # Channel implementations
 │       │   │   ├── sms.rs              # Twilio SMS
@@ -948,28 +1137,55 @@ packages/buildnet-native/
 │       │   │   └── push.rs             # Firebase push
 │       │   ├── commands.rs             # Remote command handler
 │       │   └── reports.rs              # Report generator
-│       ├── monitoring/                 # Resource monitoring (NEW)
+│       ├── monitoring/                 # Resource monitoring
 │       │   ├── mod.rs                  # Monitor coordinator
 │       │   ├── system.rs               # CPU/memory/disk
 │       │   └── cluster.rs              # Node health
-│       └── resources/                  # Resource management (NEW)
-│           ├── mod.rs                  # Resource manager entry
-│           ├── cpu.rs                  # CPU discovery, BPU benchmarking
-│           ├── storage.rs              # Storage tiers, benchmarking
-│           ├── network.rs              # Latency measurement, topology
-│           ├── cluster.rs              # Distributed coordination
-│           ├── scheduler.rs            # Task distribution strategies
-│           └── queue.rs                # Priority build queue
+│       ├── resources/                  # Resource management
+│       │   ├── mod.rs                  # Resource manager entry
+│       │   ├── cpu.rs                  # CPU discovery, BPU benchmarking
+│       │   ├── storage.rs              # Storage tiers, benchmarking
+│       │   ├── network.rs              # Latency measurement, topology
+│       │   ├── cluster.rs              # Distributed coordination
+│       │   ├── scheduler.rs            # Task distribution strategies
+│       │   └── queue.rs                # Priority build queue
+│       └── distributed/                # Distributed build algorithm (NEW)
+│           ├── mod.rs                  # Module entry
+│           ├── graph.rs                # Build graph & DAG analysis
+│           ├── decomposer.rs           # Stage/chunk decomposition
+│           ├── distributor.rs          # Intelligent work distribution
+│           ├── scoring.rs              # Worker scoring algorithm
+│           ├── assembler.rs            # Assembly & reassembly protocol
+│           ├── fault_tolerance.rs      # Graceful degradation
+│           ├── checkpoint.rs           # Checkpoint & recovery
+│           ├── locks.rs                # Distributed lock manager
+│           ├── agents.rs               # Multi-agent coordination
+│           ├── communication.rs        # Bidirectional streaming
+│           └── audit.rs                # Audit trail & monitoring
 ├── buildnet-daemon/                    # HTTP daemon
 │   ├── src/
 │   │   ├── main.rs                     # CLI entry
-│   │   ├── api.rs                      # Axum routes
+│   │   ├── api.rs                      # Axum HTTP routes
+│   │   ├── grpc.rs                     # gRPC services (NEW)
+│   │   ├── reapi.rs                    # REAPI compatibility (NEW)
 │   │   ├── cli.rs                      # Clap commands
-│   │   └── webhooks.rs                 # Inbound webhooks (NEW)
+│   │   └── webhooks.rs                 # Inbound webhooks
 │   └── static/
 │       └── index.html                  # Web control panel
+├── buildnet-worker/                    # Distributed worker (NEW)
+│   └── src/
+│       ├── main.rs                     # Worker entry point
+│       ├── executor.rs                 # Task execution
+│       ├── sandbox.rs                  # Hermetic execution
+│       └── heartbeat.rs                # Health reporting
+├── buildnet-ui/                        # Leptos WASM UI (NEW)
+│   └── src/
+│       ├── lib.rs                      # UI component library
+│       ├── dashboard.rs                # Main dashboard
+│       ├── topology.rs                 # Network topology view
+│       └── builds.rs                   # Build progress views
 └── buildnet-ffi/                       # FFI bindings
-    └── src/lib.rs                      # C ABI + napi-rs
+    └── src/lib.rs                      # C ABI + napi-rs + PyO3
 
 .buildnet/
 ├── config.json                         # Package configuration
@@ -994,6 +1210,8 @@ packages/buildnet-native/
 - [BuildNet Master Plan](./BUILDNET-MASTER-PLAN.md) - This document
 - [BuildNet Notification System](./BUILDNET-NOTIFICATION-SYSTEM.md) - Detailed notification docs
 - [BuildNet Resource Management](./BUILDNET-RESOURCE-MANAGEMENT.md) - Distributed builds & resources
+- [BuildNet Distributed Algorithm](./BUILDNET-DISTRIBUTED-ALGORITHM.md) - Fault-tolerant distributed build orchestration
+- [BuildNet Competitor Analysis](./BUILDNET-COMPETITOR-ANALYSIS.md) - Competitor research & feature gaps
 - [BuildNet API Reference](./BUILDNET-API.md) - REST/WebSocket API
 - [BuildNet Configuration](./BUILDNET-CONFIG.md) - Configuration options
 
