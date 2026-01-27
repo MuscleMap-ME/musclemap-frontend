@@ -15,6 +15,30 @@ use uuid::Uuid;
 
 use crate::{BuildNetError, Result};
 
+/// Safely parse an RFC3339 timestamp string, returning None on parse errors.
+/// This prevents panics from malformed database data.
+fn parse_datetime_safe(s: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
+}
+
+/// Parse an RFC3339 timestamp, returning an error with context on failure.
+fn parse_datetime(s: &str) -> std::result::Result<DateTime<Utc>, rusqlite::Error> {
+    DateTime::parse_from_rfc3339(s)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Invalid RFC3339 timestamp '{}': {}", s, e),
+                )),
+            )
+        })
+}
+
 /// SQLite connection pool
 pub type DbPool = Pool<SqliteConnectionManager>;
 pub type DbConnection = PooledConnection<SqliteConnectionManager>;
@@ -320,12 +344,10 @@ impl StateManager {
                     source_hash: row.get(2)?,
                     output_hash: row.get(3)?,
                     status: row.get::<_, String>(4)?.parse().unwrap_or(BuildStatus::Pending),
-                    started_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    started_at: parse_datetime(&row.get::<_, String>(5)?)?,
                     completed_at: row
                         .get::<_, Option<String>>(6)?
-                        .map(|s| DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&Utc)),
+                        .and_then(|s| parse_datetime_safe(&s)),
                     duration_ms: row.get(7)?,
                     error: row.get(8)?,
                 })
@@ -430,6 +452,77 @@ impl StateManager {
         Ok(())
     }
 
+    /// Atomically acquire a build lock and start a build in a single transaction.
+    /// This prevents race conditions where another process could start a build
+    /// between lock acquisition and build start.
+    pub fn acquire_lock_and_start_build(
+        &self,
+        package: &str,
+        holder_id: &str,
+        ttl_secs: i64,
+        source_hash: &str,
+    ) -> Result<String> {
+        let mut conn = self.conn()?;
+        let tx = conn.transaction()?;
+
+        let now = Utc::now();
+        let expires = now + chrono::Duration::seconds(ttl_secs);
+        let id = Uuid::new_v4().to_string();
+
+        // Clean up expired locks first
+        tx.execute(
+            "DELETE FROM build_locks WHERE expires_at < ?1",
+            params![now.to_rfc3339()],
+        )?;
+
+        // Try to acquire lock
+        let lock_result = tx.execute(
+            "INSERT OR IGNORE INTO build_locks (package, holder_id, acquired_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![package, holder_id, now.to_rfc3339(), expires.to_rfc3339()],
+        )?;
+
+        if lock_result == 0 {
+            // Lock not acquired - someone else has it
+            return Err(crate::BuildNetError::LockFailed(format!(
+                "Lock already held for package '{}'",
+                package
+            )));
+        }
+
+        // Insert build record in same transaction
+        tx.execute(
+            "INSERT INTO builds (id, package, source_hash, status, started_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                id,
+                package,
+                source_hash,
+                BuildStatus::Running.to_string(),
+                now.to_rfc3339()
+            ],
+        )?;
+
+        tx.commit()?;
+
+        // Update in-memory cache
+        let state = BuildState {
+            id: id.clone(),
+            package: package.to_string(),
+            source_hash: source_hash.to_string(),
+            output_hash: None,
+            status: BuildStatus::Running,
+            started_at: now,
+            completed_at: None,
+            duration_ms: None,
+            error: None,
+        };
+
+        self.build_cache.write().insert(id.clone(), state);
+
+        Ok(id)
+    }
+
     /// Get recent builds
     pub fn recent_builds(&self, limit: usize) -> Result<Vec<BuildState>> {
         let conn = self.conn()?;
@@ -450,12 +543,10 @@ impl StateManager {
                     source_hash: row.get(2)?,
                     output_hash: row.get(3)?,
                     status: row.get::<_, String>(4)?.parse().unwrap_or(BuildStatus::Pending),
-                    started_at: DateTime::parse_from_rfc3339(&row.get::<_, String>(5)?)
-                        .unwrap()
-                        .with_timezone(&Utc),
+                    started_at: parse_datetime(&row.get::<_, String>(5)?)?,
                     completed_at: row
                         .get::<_, Option<String>>(6)?
-                        .map(|s| DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&Utc)),
+                        .and_then(|s| parse_datetime_safe(&s)),
                     duration_ms: row.get(7)?,
                     error: row.get(8)?,
                 })

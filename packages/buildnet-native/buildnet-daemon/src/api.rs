@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 use axum::{
     extract::{Path, State},
@@ -71,6 +72,56 @@ pub struct BuildRequestInfo {
     pub packages: Vec<String>,
 }
 
+/// Simple token bucket rate limiter for build requests
+pub struct RateLimiter {
+    /// Timestamps of recent requests
+    requests: RwLock<VecDeque<Instant>>,
+    /// Maximum requests allowed in the window
+    max_requests: usize,
+    /// Time window for rate limiting
+    window: Duration,
+}
+
+impl RateLimiter {
+    /// Create a new rate limiter
+    pub fn new(max_requests: usize, window: Duration) -> Self {
+        Self {
+            requests: RwLock::new(VecDeque::with_capacity(max_requests + 1)),
+            max_requests,
+            window,
+        }
+    }
+
+    /// Check if a request is allowed and record it if so.
+    /// Returns Ok(()) if allowed, Err with wait time if rate limited.
+    pub fn check(&self) -> Result<(), Duration> {
+        let now = Instant::now();
+        let mut requests = self.requests.write().unwrap();
+
+        // Remove old requests outside the window
+        while let Some(&oldest) = requests.front() {
+            if now.duration_since(oldest) > self.window {
+                requests.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        // Check if we're under the limit
+        if requests.len() >= self.max_requests {
+            // Calculate how long until the oldest request expires
+            if let Some(&oldest) = requests.front() {
+                let wait_time = self.window.saturating_sub(now.duration_since(oldest));
+                return Err(wait_time);
+            }
+        }
+
+        // Record this request
+        requests.push_back(now);
+        Ok(())
+    }
+}
+
 /// Shared application state
 pub struct AppState {
     pub config: Config,
@@ -83,6 +134,8 @@ pub struct AppState {
     pub request_log: RwLock<VecDeque<RequestLogEntry>>,
     /// Request counter for IDs
     pub request_counter: RwLock<u64>,
+    /// Rate limiter for build requests (10 builds per minute)
+    pub build_rate_limiter: RateLimiter,
 }
 
 /// Build event for SSE streaming
@@ -172,6 +225,8 @@ pub fn create_router(
         events_tx,
         request_log: RwLock::new(VecDeque::with_capacity(100)),
         request_counter: RwLock::new(0),
+        // Rate limit: 10 builds per minute to prevent abuse
+        build_rate_limiter: RateLimiter::new(10, Duration::from_secs(60)),
     });
 
     Router::new()
@@ -344,6 +399,14 @@ async fn build_all(
     headers: HeaderMap,
     Json(opts): Json<BuildOptions>,
 ) -> Result<Json<BuildResponse>, AppError> {
+    // Check rate limit before starting build
+    if let Err(wait_time) = state.build_rate_limiter.check() {
+        return Err(AppError::RateLimited(format!(
+            "Rate limit exceeded. Please wait {} seconds before making another build request.",
+            wait_time.as_secs() + 1
+        )));
+    }
+
     let start = std::time::Instant::now();
 
     // Detect request source
@@ -432,6 +495,23 @@ async fn build_package(
     Path(package_name): Path<String>,
     Json(opts): Json<BuildOptions>,
 ) -> Result<Json<buildnet_core::builder::BuildResult>, AppError> {
+    // Check rate limit before starting build
+    if let Err(wait_time) = state.build_rate_limiter.check() {
+        return Err(AppError::RateLimited(format!(
+            "Rate limit exceeded. Please wait {} seconds before making another build request.",
+            wait_time.as_secs() + 1
+        )));
+    }
+
+    // Validate package name format to prevent injection attacks
+    // Only allow alphanumeric, hyphens, underscores, and @/ for scoped packages
+    if !package_name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '@' || c == '/') {
+        return Err(AppError::BadRequest(format!("Invalid package name format: {}", package_name)));
+    }
+    if package_name.len() > 100 {
+        return Err(AppError::BadRequest("Package name too long".to_string()));
+    }
+
     let package = state
         .config
         .packages
@@ -607,12 +687,14 @@ async fn events_stream(
     let stream = BroadcastStream::new(rx);
 
     let event_stream = stream.filter_map(|result| {
-        result.ok().map(|event| {
+        result.ok().and_then(|event| {
             // Send as default event (no named event type) so frontend onmessage receives it
             // The event_type is included in the JSON payload for the frontend to distinguish
-            Ok(Event::default()
+            // Use ok() instead of unwrap() to gracefully handle serialization errors
+            Event::default()
                 .json_data(&event)
-                .unwrap())
+                .ok()
+                .map(Ok)
         })
     });
 
@@ -949,6 +1031,8 @@ async fn ledger_builds(
 pub enum AppError {
     Internal(buildnet_core::BuildNetError),
     NotFound(String),
+    BadRequest(String),
+    RateLimited(String),
 }
 
 impl From<buildnet_core::BuildNetError> for AppError {
@@ -991,6 +1075,18 @@ impl IntoResponse for AppError {
                 "NOT_FOUND",
                 msg.clone(),
                 None,
+            ),
+            AppError::BadRequest(msg) => (
+                StatusCode::BAD_REQUEST,
+                "BAD_REQUEST",
+                msg.clone(),
+                None,
+            ),
+            AppError::RateLimited(msg) => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "RATE_LIMITED",
+                msg.clone(),
+                Some("Please wait before making another build request."),
             ),
         };
 

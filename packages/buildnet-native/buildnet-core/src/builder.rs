@@ -171,23 +171,27 @@ impl BuildOrchestrator {
             _ => {}
         }
 
-        // Acquire build lock
-        let lock_acquired = self
-            .state
-            .acquire_lock(&package.name, &self.instance_id, 600)?;
+        // Acquire build lock and start build atomically to prevent race conditions
+        // This ensures no other process can start a build between lock acquisition and build start
+        let build_id = match self.state.acquire_lock_and_start_build(
+            &package.name,
+            &self.instance_id,
+            600,
+            &source_hash,
+        ) {
+            Ok(id) => id,
+            Err(BuildNetError::LockFailed(msg)) => {
+                return Err(BuildNetError::LockFailed(format!(
+                    "Package '{}' is already being built. Please wait for the current build to complete. ({})",
+                    package.name, msg
+                )));
+            }
+            Err(e) => return Err(e),
+        };
 
-        if !lock_acquired {
-            return Err(BuildNetError::LockFailed(format!(
-                "Package '{}' is already being built. Please wait for the current build to complete.",
-                package.name
-            )));
-        }
-
-        // Start build in state
-        let build_id = self.state.start_build(&package.name, &source_hash)?;
-
-        // Acquire semaphore permit
-        let _permit = self.semaphore.acquire().await.unwrap();
+        // Acquire semaphore permit - use expect with context instead of unwrap
+        let _permit = self.semaphore.acquire().await
+            .expect("BuildNet semaphore should never be closed during normal operation");
 
         // Execute build command
         let result = self.execute_build(package).await;

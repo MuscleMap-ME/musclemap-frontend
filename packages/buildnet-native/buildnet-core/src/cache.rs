@@ -21,6 +21,9 @@ pub struct ArtifactMeta {
     pub size: u64,
     pub file_count: usize,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    /// Last time this artifact was accessed (for LRU eviction)
+    #[serde(default = "chrono::Utc::now")]
+    pub last_used_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Content-addressed artifact cache
@@ -83,12 +86,14 @@ impl ArtifactCache {
 
             // Count files and write metadata
             let file_count = count_files(source_dir)?;
+            let now = chrono::Utc::now();
             let meta = ArtifactMeta {
                 hash: hash.clone(),
                 package: package.to_string(),
                 size: tar_data.len() as u64,
                 file_count,
-                created_at: chrono::Utc::now(),
+                created_at: now,
+                last_used_at: now,
             };
 
             let meta_json = serde_json::to_string_pretty(&meta)?;
@@ -108,6 +113,27 @@ impl ArtifactCache {
         Ok(hash)
     }
 
+    /// Update the last_used_at timestamp for an artifact (for LRU tracking)
+    fn touch(&self, hash: &str) -> Result<()> {
+        let meta_path = self.meta_path(hash);
+
+        if !meta_path.exists() {
+            return Ok(()); // No metadata to update
+        }
+
+        if let Ok(meta_json) = std::fs::read_to_string(&meta_path) {
+            if let Ok(mut meta) = serde_json::from_str::<ArtifactMeta>(&meta_json) {
+                meta.last_used_at = chrono::Utc::now();
+                if let Ok(updated_json) = serde_json::to_string_pretty(&meta) {
+                    // Ignore write errors - touch is best-effort
+                    let _ = std::fs::write(&meta_path, updated_json);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Restore an artifact to a directory
     pub fn restore(&self, hash: &str, target_dir: &Path) -> Result<()> {
         let artifact_path = self.artifact_path(hash);
@@ -115,6 +141,9 @@ impl ArtifactCache {
         if !artifact_path.exists() {
             return Err(BuildNetError::ArtifactNotFound(hash.to_string()));
         }
+
+        // Update last_used_at for LRU tracking
+        self.touch(hash)?;
 
         // Clear target directory
         if target_dir.exists() {
@@ -226,8 +255,8 @@ impl ArtifactCache {
             }
         }
 
-        // Sort by creation time (oldest first)
-        artifacts.sort_by(|a, b| a.1.created_at.cmp(&b.1.created_at));
+        // Sort by last_used_at time (least recently used first) - true LRU eviction
+        artifacts.sort_by(|a, b| a.1.last_used_at.cmp(&b.1.last_used_at));
 
         let mut removed = 0;
         let mut current_size = stats.total_size;

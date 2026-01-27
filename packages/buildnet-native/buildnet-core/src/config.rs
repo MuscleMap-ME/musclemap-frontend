@@ -66,7 +66,9 @@ impl Default for Config {
             db_path: PathBuf::from(".buildnet/state.db"),
             cache_path: PathBuf::from(".buildnet/cache"),
             http_port: 9876,
-            socket_path: PathBuf::from("/tmp/buildnet.sock"),
+            // Use a project-local socket path instead of /tmp to prevent IPC hijacking
+            // /tmp is world-writable, allowing any user to impersonate the socket
+            socket_path: PathBuf::from(".buildnet/buildnet.sock"),
             max_concurrent_builds: num_cpus(),
             watch_debounce_ms: 100,
             build_timeout_secs: 600,
