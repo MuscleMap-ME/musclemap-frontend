@@ -1,63 +1,17 @@
-@import "tailwindcss";
-
-/* ============================================
-   KNUTH-INSPIRED DESIGN SYSTEM (The Troika)
-   Maximum Flexibility, Maximum User Choice, Maximum Performance
-   ============================================ */
-@import './reset.css';
-@import './fonts.css';
-@import './parametric-tokens.css';
-@import './typography.css';
-@import './layout.css';
-@import './fallback-cascade.css';
-
-/* Existing styles */
-@import './archetype-cards.css';
-
-/*
+/**
  * MuscleMap Liquid Glass Design System
+ * =====================================
  *
- * CSS custom properties and utility classes for the liquid glass aesthetic.
- * Using @theme for custom properties and @layer for utility classes.
+ * Inspired by Apple visionOS, iOS 18, and spatial computing interfaces.
+ * Derived from the MuscleMap logo's visual DNA:
+ *   - Primary Blue (#0066FF): Energy, focus, depth
+ *   - Magenta Accent (#FF3366): Activation, pulse, life
+ *   - White Forms: Human element, clarity
+ *   - Rounded shapes (12px radius): Organic, approachable
+ *
+ * Usage: Import this file before tailwind in src/index.css
  */
 
-/* Custom theme tokens - extends Tailwind's theme layer */
-@theme {
-  /* Brand Colors - Primary Blue Spectrum (Logo Background) */
-  --color-brand-blue-50: #e6f0ff;
-  --color-brand-blue-100: #b3d4ff;
-  --color-brand-blue-200: #80b8ff;
-  --color-brand-blue-300: #4d9cff;
-  --color-brand-blue-400: #1a80ff;
-  --color-brand-blue-500: #0066ff;
-  --color-brand-blue-600: #0052cc;
-  --color-brand-blue-700: #003d99;
-  --color-brand-blue-800: #002966;
-  --color-brand-blue-900: #001433;
-
-  /* Pulse Colors - Magenta Spectrum (Logo Accent) */
-  --color-brand-pulse-50: #ffe6ec;
-  --color-brand-pulse-100: #ffb3c4;
-  --color-brand-pulse-200: #ff809c;
-  --color-brand-pulse-300: #ff4d74;
-  --color-brand-pulse-400: #ff1a4c;
-  --color-brand-pulse-500: #ff3366;
-  --color-brand-pulse-600: #cc2952;
-  --color-brand-pulse-700: #991f3d;
-  --color-brand-pulse-800: #661429;
-  --color-brand-pulse-900: #330a14;
-
-  /* Muscle Activation Colors */
-  --color-muscle-chest: #ef4444;
-  --color-muscle-back: #3b82f6;
-  --color-muscle-shoulders: #f97316;
-  --color-muscle-arms: #8b5cf6;
-  --color-muscle-legs: #22c55e;
-  --color-muscle-core: #eab308;
-  --color-muscle-cardio: #ec4899;
-}
-
-/* Custom CSS outside of layers for raw CSS that must be included */
 :root {
   /* ============================================
      BRAND COLORS - Extracted from Logo
@@ -99,14 +53,13 @@
   --void-surface: #14141c;
 
   /* Glass Surface Colors (with transparency) */
-  /* Increased opacity values for better visibility on dark backgrounds */
-  --glass-white-3: rgba(255, 255, 255, 0.08);
-  --glass-white-5: rgba(255, 255, 255, 0.12);
-  --glass-white-8: rgba(255, 255, 255, 0.15);
-  --glass-white-10: rgba(255, 255, 255, 0.18);
-  --glass-white-15: rgba(255, 255, 255, 0.22);
-  --glass-white-20: rgba(255, 255, 255, 0.28);
-  --glass-white-30: rgba(255, 255, 255, 0.38);
+  --glass-white-3: rgba(255, 255, 255, 0.03);
+  --glass-white-5: rgba(255, 255, 255, 0.05);
+  --glass-white-8: rgba(255, 255, 255, 0.08);
+  --glass-white-10: rgba(255, 255, 255, 0.10);
+  --glass-white-15: rgba(255, 255, 255, 0.15);
+  --glass-white-20: rgba(255, 255, 255, 0.20);
+  --glass-white-30: rgba(255, 255, 255, 0.30);
 
   /* Brand Glass - Blue tinted glass surfaces */
   --glass-brand-subtle: rgba(0, 102, 255, 0.05);
@@ -158,11 +111,10 @@
      BORDER COLORS
      ============================================ */
 
-  /* Increased border opacity for better visibility */
-  --border-subtle: rgba(255, 255, 255, 0.10);
-  --border-default: rgba(255, 255, 255, 0.15);
-  --border-medium: rgba(255, 255, 255, 0.20);
-  --border-strong: rgba(255, 255, 255, 0.30);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.20);
 
   /* Luminous borders (for active/hover states) */
   --border-luminous: rgba(255, 255, 255, 0.25);
@@ -175,10 +127,6 @@
   --prismatic-3: rgba(100, 255, 200, 0.3);
   --prismatic-4: rgba(100, 150, 255, 0.3);
   --prismatic-5: rgba(200, 100, 255, 0.3);
-
-  /* Glass surface semantic aliases (used by components) */
-  --surface-glass: var(--glass-white-8);
-  --border-glow: rgba(255, 255, 255, 0.2);
 
   /* ============================================
      BLUR & GLASS PROPERTIES
@@ -204,15 +152,15 @@
      ============================================ */
 
   /* Soft shadows for depth */
-  --shadow-glass-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-glass-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-glass-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glass-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
 
-  /* Inner glows for glass surfaces - enhanced for visibility */
-  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.12);
-  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.18);
-  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.25);
+  /* Inner glows for glass surfaces */
+  --inner-glow-subtle: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  --inner-glow-light: inset 0 1px 2px rgba(255, 255, 255, 0.08);
+  --inner-glow-medium: inset 0 1px 3px rgba(255, 255, 255, 0.12);
 
   /* Outer glow halos for interactive elements */
   --glow-brand-sm: 0 0 10px rgba(0, 102, 255, 0.3);
@@ -349,9 +297,6 @@
   --leading-loose: 2;
 }
 
-/* Wrap all custom utility classes in @layer components so they're included in the build */
-@layer components {
-
 /* ============================================
    MESH GRADIENT BACKGROUNDS
    ============================================ */
@@ -415,7 +360,7 @@
   border: 1px solid var(--border-default);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-glass-sm);
+    var(--shadow-sm);
 }
 
 /* Glass depth variants */
@@ -424,9 +369,6 @@
   backdrop-filter: blur(var(--blur-sm));
   -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--border-subtle);
-  box-shadow:
-    var(--inner-glow-subtle),
-    var(--shadow-glass-sm);
 }
 
 .glass-medium {
@@ -436,7 +378,7 @@
   border: 1px solid var(--border-medium);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-glass-md);
+    var(--shadow-md);
 }
 
 .glass-heavy {
@@ -446,7 +388,7 @@
   border: 1px solid var(--border-strong);
   box-shadow:
     var(--inner-glow-medium),
-    var(--shadow-glass-lg);
+    var(--shadow-lg);
 }
 
 /* Brand-tinted glass */
@@ -457,7 +399,7 @@
   border: 1px solid rgba(0, 102, 255, 0.2);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-glass-sm),
+    var(--shadow-sm),
     var(--glow-brand-sm);
 }
 
@@ -469,7 +411,7 @@
   border: 1px solid rgba(255, 51, 102, 0.2);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-glass-sm),
+    var(--shadow-sm),
     var(--glow-pulse-sm);
 }
 
@@ -487,7 +429,7 @@
   border-color: var(--border-luminous);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-glass-md);
+    var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -633,7 +575,7 @@
   border-color: var(--border-luminous);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-glass-sm);
+    var(--shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -686,7 +628,7 @@
   border-radius: var(--radius-xl);
   box-shadow:
     var(--inner-glow-subtle),
-    var(--shadow-glass-sm);
+    var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -703,7 +645,7 @@
   border-color: var(--border-medium);
   box-shadow:
     var(--inner-glow-light),
-    var(--shadow-glass-md);
+    var(--shadow-md);
   transform: translateY(-4px);
 }
 
@@ -716,9 +658,15 @@
   .glass-brand,
   .glass-pulse,
   .card-glass,
-  .nav-glass,
-  .modal-glass {
+  .nav-glass {
     background: rgba(15, 15, 25, 0.95) !important;
+  }
+
+  .modal-glass,
+  .glass-solid,
+  .glass-solid-elevated,
+  .modal-solid {
+    background: #1e1e2a !important;
   }
 
   .card-glass {
@@ -739,7 +687,7 @@
   backdrop-filter: blur(var(--blur-xl));
   -webkit-backdrop-filter: blur(var(--blur-xl));
   border-bottom: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-glass-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Nav glass that intensifies on scroll */
@@ -810,14 +758,47 @@
 }
 
 .modal-glass {
-  background: var(--glass-white-8);
+  background: rgba(26, 26, 36, 0.95);
   backdrop-filter: blur(var(--blur-2xl));
   -webkit-backdrop-filter: blur(var(--blur-2xl));
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   box-shadow:
     var(--inner-glow-medium),
-    var(--shadow-glass-xl);
+    var(--shadow-xl),
+    0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Solid modal variant - use for modals where readability is critical */
+.modal-solid {
+  background: #1a1a24;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow:
+    var(--inner-glow-medium),
+    var(--shadow-xl),
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Glass surface with solid background for modals */
+.glass-solid {
+  background: #1a1a24;
+  border: 1px solid var(--border-medium);
+  box-shadow:
+    var(--inner-glow-subtle),
+    var(--shadow-md),
+    0 0 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Elevated solid surface for modal content */
+.glass-solid-elevated {
+  background: #1e1e2a;
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    var(--inner-glow-light),
+    var(--shadow-lg),
+    0 0 60px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
@@ -862,99 +843,6 @@
 }
 
 /* ============================================
-   FOCUS RING UTILITIES (Accessibility)
-   ============================================ */
-
-/* Base focus ring - visible only on keyboard focus */
-.focus-ring {
-  outline: none;
-}
-
-.focus-ring:focus {
-  outline: none;
-}
-
-.focus-ring:focus-visible {
-  outline: 2px solid var(--brand-blue-500);
-  outline-offset: 2px;
-}
-
-/* Focus ring variants */
-.focus-ring-inset:focus-visible {
-  outline-offset: -2px;
-}
-
-.focus-ring-brand:focus-visible {
-  outline-color: var(--brand-blue-500);
-  box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.2);
-}
-
-.focus-ring-pulse:focus-visible {
-  outline-color: var(--brand-pulse-500);
-  box-shadow: 0 0 0 4px rgba(255, 51, 102, 0.2);
-}
-
-.focus-ring-success:focus-visible {
-  outline-color: var(--muscle-legs);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
-}
-
-.focus-ring-error:focus-visible {
-  outline-color: var(--muscle-chest);
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
-}
-
-/* Glass-style focus ring with glow */
-.focus-ring-glass:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.5);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1), 0 0 20px rgba(0, 102, 255, 0.3);
-}
-
-/* Large focus ring for touch targets */
-.focus-ring-lg:focus-visible {
-  outline-width: 3px;
-  outline-offset: 3px;
-}
-
-/* No focus ring (use sparingly, only when custom focus state is provided) */
-.focus-ring-none:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-
-/* Keyboard navigation indicator - adds skip-to-content support */
-.skip-link {
-  position: absolute;
-  top: -40px;
-  left: 0;
-  padding: var(--space-2) var(--space-4);
-  background: var(--brand-blue-500);
-  color: white;
-  font-weight: var(--font-semibold);
-  border-radius: 0 0 var(--radius-md) 0;
-  z-index: 10000;
-  transition: top var(--duration-fast) var(--ease-out);
-}
-
-.skip-link:focus {
-  top: 0;
-}
-
-/* Focus trap indicator for modal/dialog */
-.focus-trap-indicator {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* ============================================
    UTILITY CLASSES
    ============================================ */
 
@@ -977,5 +865,3 @@
 .contain-paint {
   contain: paint;
 }
-
-} /* End of @layer components */
