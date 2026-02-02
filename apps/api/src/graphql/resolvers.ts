@@ -8188,7 +8188,32 @@ export const resolvers = {
         [email]
       );
 
+      // TEMP DEBUG: Log login attempt details (remove after fixing)
+      console.log('[LOGIN DEBUG]', JSON.stringify({
+        emailProvided: email,
+        userFound: !!user,
+        hasHash: !!user?.password_hash,
+        hashLen: user?.password_hash?.length,
+        hashPrefix: user?.password_hash?.substring(0, 10),
+        hasColon: user?.password_hash?.includes(':'),
+        passwordLen: password?.length,
+      }));
+
       if (!user || !verifyPassword(password, user.password_hash)) {
+        // TEMP DEBUG: Additional verify details
+        if (user) {
+          const [salt, hash] = (user.password_hash || '').split(':');
+          const crypto = require('crypto');
+          const verifyHash = crypto.pbkdf2Sync(password, salt || '', 100000, 64, 'sha512').toString('hex');
+          console.log('[LOGIN DEBUG VERIFY]', JSON.stringify({
+            saltLen: salt?.length,
+            storedHashLen: hash?.length,
+            computedHashLen: verifyHash?.length,
+            storedFirst10: hash?.substring(0, 10),
+            computedFirst10: verifyHash?.substring(0, 10),
+            match: hash === verifyHash,
+          }));
+        }
         throw new GraphQLError('Invalid email or password', {
           extensions: { code: 'UNAUTHENTICATED' },
         });
