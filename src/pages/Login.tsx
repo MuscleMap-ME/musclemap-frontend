@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client/react';
 import { Eye, EyeOff } from 'lucide-react';
@@ -17,6 +17,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [loginMutation, { loading }] = useMutation(LOGIN_MUTATION);
 
@@ -24,12 +25,25 @@ export default function Login() {
     e.preventDefault();
     setError('');
 
+    // Read values directly from the DOM to handle iOS/browser autofill
+    // which can bypass React's onChange events on controlled inputs
+    const formEl = formRef.current;
+    const emailInput = formEl?.querySelector<HTMLInputElement>('input[type="email"]');
+    const passwordInput = formEl?.querySelector<HTMLInputElement>('input[type="password"], input[name="password"]');
+    const emailValue = emailInput?.value || form.email;
+    const passwordValue = passwordInput?.value || form.password;
+
+    if (!emailValue || !passwordValue) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
     try {
       const { data, errors } = await loginMutation({
         variables: {
           input: {
-            email: sanitizeEmail(form.email),
-            password: form.password,
+            email: sanitizeEmail(emailValue),
+            password: passwordValue,
           },
         },
       });
@@ -96,7 +110,7 @@ export default function Login() {
           </Link>
           <p className="text-gray-400 mt-2">Welcome back</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-gray-800/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} className="bg-gray-800/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 space-y-4" autoComplete="on">
           {error && (
             <CockatriceToast
               message={error}
@@ -108,7 +122,7 @@ export default function Login() {
           )}
           <div>
             <label className="block text-gray-300 text-sm mb-1">Email</label>
-            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="you@example.com" required />
+            <input type="email" name="email" autoComplete="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="you@example.com" required />
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -118,6 +132,8 @@ export default function Login() {
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 className="w-full p-3 pr-12 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
